@@ -1,6 +1,7 @@
 import asyncio
 import json
 import re
+from collections import Counter
 from pathlib import Path
 import httpx
 from src.config import (
@@ -107,7 +108,6 @@ async def translate_one(
         text_zh = match.group(1).strip() if match else seg["text"]
 
         # Post-translation repair: count-based placeholder restoration
-        from collections import Counter
         src_fnrefs = re.findall(r'\{\{FNREF:\d+\}\}', seg["text"])
         tgt_fnrefs = re.findall(r'\{\{FNREF:\d+\}\}', text_zh)
         src_fn_counts = Counter(src_fnrefs)

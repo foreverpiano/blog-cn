@@ -2,12 +2,14 @@
 import json
 import re
 import time
+from copy import copy
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 from xml.etree import ElementTree
 
 import httpx
 from bs4 import BeautifulSoup, Tag
+from src.extraction_rules import get_code_text, is_empty_pre, is_tracking_pixel
 
 
 BASE_URL = "https://lethain.com"
@@ -221,13 +223,6 @@ def _parse_article(html: str, index_entry: dict, all_slugs: set[str]) -> dict:
     }
 
 
-def _get_code_text(pre: Tag) -> str:
-    """Extract code text from a <pre> element.
-    Use only a direct child <code> (recursive=False); otherwise use pre's own text."""
-    code_el = pre.find("code", recursive=False)
-    return code_el.get_text() if code_el else pre.get_text()
-
-
 def _walk_block(el: Tag, segments: list, all_slugs: set[str],
                 internal_links: list, entry_url: str,
                 _emitted_pres: set | None = None, _emitted_imgs: set | None = None):
@@ -259,8 +254,8 @@ def _walk_block(el: Tag, segments: list, all_slugs: set[str],
         elif tag == "pre":
             if id(child) not in _emitted_pres:
                 _emitted_pres.add(id(child))
-                code_text = _get_code_text(child)
-                if code_text.strip():
+                code_text = get_code_text(child)
+                if not is_empty_pre(code_text):
                     segments.append({
                         "index": len(segments), "type": "code",
                         "text": code_text, "footnote_refs": [], "links": [],
@@ -269,8 +264,8 @@ def _walk_block(el: Tag, segments: list, all_slugs: set[str],
                 for nested_pre in child.find_all("pre"):
                     if id(nested_pre) not in _emitted_pres:
                         _emitted_pres.add(id(nested_pre))
-                        ct = _get_code_text(nested_pre)
-                        if ct.strip():
+                        ct = get_code_text(nested_pre)
+                        if not is_empty_pre(ct):
                             segments.append({
                                 "index": len(segments), "type": "code",
                                 "text": ct, "footnote_refs": [], "links": [],
@@ -309,8 +304,8 @@ def _walk_block(el: Tag, segments: list, all_slugs: set[str],
             for nested_pre in child.find_all("pre"):
                 if id(nested_pre) not in _emitted_pres:
                     _emitted_pres.add(id(nested_pre))
-                    ct = _get_code_text(nested_pre)
-                    if ct.strip():
+                    ct = get_code_text(nested_pre)
+                    if not is_empty_pre(ct):
                         segments.append({
                             "index": len(segments), "type": "code",
                             "text": ct, "footnote_refs": [], "links": [],
@@ -329,8 +324,8 @@ def _walk_block(el: Tag, segments: list, all_slugs: set[str],
             for nested_pre in child.find_all("pre"):
                 if id(nested_pre) not in _emitted_pres:
                     _emitted_pres.add(id(nested_pre))
-                    ct = _get_code_text(nested_pre)
-                    if ct.strip():
+                    ct = get_code_text(nested_pre)
+                    if not is_empty_pre(ct):
                         segments.append({
                             "index": len(segments), "type": "code",
                             "text": ct, "footnote_refs": [], "links": [],
@@ -358,7 +353,6 @@ def _walk_block(el: Tag, segments: list, all_slugs: set[str],
 
 def _clone_without(el: Tag, strip_tags: set) -> Tag:
     """Create a deep copy of an element with specified tag types removed."""
-    from copy import copy
     clone = copy(el)
     for tag_name in strip_tags:
         for node in clone.find_all(tag_name):
@@ -410,18 +404,10 @@ def _process_element_text(el: Tag, all_slugs: set[str], internal_links: list) ->
     return el.get_text()
 
 
-def _extract_seg_links(text: str) -> list[dict]:
-    """Extract link placeholders from segment text."""
-    links = []
-    for m in re.findall(r'\{\{LINK:([^:}]+):([^}]*)\}\}', text):
-        links.append({"target_slug": m[0], "text": m[1]})
-    return links
-
-
 def _extract_figure(el: Tag, segments: list, page_url: str):
     """Extract a figure element (img + optional caption). Skip tracking pixels."""
     img = el.find("img")
-    if not img or not img.get("src") or _is_tracking_pixel(img["src"]):
+    if not img or not img.get("src") or is_tracking_pixel(img["src"]):
         return
     src = img["src"]
     abs_url = urljoin(page_url, src) if not src.startswith("http") else src
@@ -436,18 +422,10 @@ def _extract_figure(el: Tag, segments: list, page_url: str):
     })
 
 
-def _is_tracking_pixel(src: str) -> bool:
-    lower = src.lower()
-    return any(x in lower for x in [
-        "assoc-amazon.com", "amazon-adsystem.com", "doubleclick.net",
-        "1x1", "pixel", "beacon", "spacer", "trans_1x1",
-    ])
-
-
 def _extract_img(img: Tag, segments: list, page_url: str):
     """Extract a standalone img element. Skip tracking pixels."""
     src = img.get("src", "")
-    if not src or _is_tracking_pixel(src):
+    if not src or is_tracking_pixel(src):
         return
     abs_url = urljoin(page_url, src) if not src.startswith("http") else src
     alt_text = img.get("alt", "")

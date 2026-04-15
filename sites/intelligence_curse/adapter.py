@@ -2,6 +2,7 @@
 import json
 import re
 import time
+from copy import copy
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
@@ -294,7 +295,6 @@ def _make_segment(index: int, seg_type: str, text: str) -> dict:
 def _process_element(el: Tag, all_slugs: set[str], internal_links: list,
                      footnote_ids: set[str]) -> str:
     """Replace internal links and footnote refs with placeholders, extract text."""
-    from copy import copy
     el = copy(el)
 
     # Handle footnote references: <sup id="fnref:N"><a ...>N</a></sup>

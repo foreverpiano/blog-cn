@@ -56,6 +56,3 @@ CACHE_DIR = _default.CACHE_DIR
 DIST_DIR = _default.DIST_DIR
 TEMPLATES_DIR = _default.TEMPLATES_DIR
 INDEX_FILE = _default.INDEX_FILE
-BASE_URL = "https://www.paulgraham.com"
-ARTICLES_URL = f"{BASE_URL}/articles.html"
-INDEX_URL = f"{BASE_URL}/index.html"

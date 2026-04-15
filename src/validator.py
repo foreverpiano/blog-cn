@@ -1,28 +1,9 @@
 import json
 import re
 from pathlib import Path
+from urllib.parse import urljoin
 
-
-# ── Shared filter rules (used by both parser and validator) ──────────
-
-def is_empty_pre(pre_text: str) -> bool:
-    """A <pre> is skipped if its text content is empty or whitespace-only."""
-    return not pre_text.strip()
-
-
-def is_tracking_pixel(img_src: str) -> bool:
-    """An <img> is skipped if it's a tracking pixel / affiliate beacon."""
-    lower = img_src.lower()
-    return any(x in lower for x in [
-        "assoc-amazon.com", "amazon-adsystem.com", "doubleclick.net",
-        "1x1", "pixel", "beacon", "spacer", "trans_1x1",
-    ])
-
-
-def get_code_text(pre) -> str:
-    """Extract code text from a <pre>. Use direct child <code> if present."""
-    code_el = pre.find("code", recursive=False)
-    return code_el.get_text() if code_el else pre.get_text()
+from src.extraction_rules import get_code_text, is_empty_pre, is_tracking_pixel
 
 
 # ── Translation validation (parsed vs translated) ───────────────────
@@ -132,36 +113,48 @@ def validate_source_vs_parsed(slug: str, raw_dir: Path, parsed_dir: Path) -> dic
         el.decompose()
 
     issues = []
+    page_url = parsed.get("url", "")
 
     # Heading sequence
     raw_headings = []
     for h in content.find_all(["h2", "h3", "h4"]):
-        if h.get_text(strip=True):  # Skip empty headings (same as parser)
+        if h.get_text(strip=True):
             raw_headings.append(int(h.name[1]))
     parsed_headings = [s.get("heading_level") for s in parsed.get("segments", [])
                        if s.get("type") == "heading"]
     if raw_headings != parsed_headings:
         issues.append(f"heading_sequence: raw={raw_headings}, parsed={parsed_headings}")
 
-    # Pre/code count
-    raw_pre_count = 0
-    for pre in content.find_all("pre"):
-        if not is_empty_pre(get_code_text(pre)):
-            raw_pre_count += 1
-    parsed_code_count = sum(1 for s in parsed.get("segments", []) if s.get("type") == "code")
-    if raw_pre_count != parsed_code_count:
-        issues.append(f"code_count: raw={raw_pre_count}, parsed={parsed_code_count}")
+    # Code: count + ordered text comparison
+    raw_code_texts = [get_code_text(pre) for pre in content.find_all("pre")
+                      if not is_empty_pre(get_code_text(pre))]
+    parsed_code_texts = [s.get("text", "") for s in parsed.get("segments", [])
+                         if s.get("type") == "code"]
+    if len(raw_code_texts) != len(parsed_code_texts):
+        issues.append(f"code_count: raw={len(raw_code_texts)}, parsed={len(parsed_code_texts)}")
+    else:
+        for i, (raw_ct, parsed_ct) in enumerate(zip(raw_code_texts, parsed_code_texts)):
+            if raw_ct != parsed_ct:
+                issues.append(f"code_text_{i}_mismatch")
 
-    # Image count
-    raw_img_count = 0
+    # Images: count + ordered URL comparison
+    raw_img_urls = []
     for img in content.find_all("img", src=True):
-        if not is_tracking_pixel(img.get("src", "")):
-            raw_img_count += 1
-    parsed_fig_count = sum(1 for s in parsed.get("segments", []) if s.get("type") == "figure")
-    if raw_img_count > 0 and parsed_fig_count == 0:
-        issues.append(f"images_lost: raw={raw_img_count}, parsed=0")
-    elif raw_img_count != parsed_fig_count:
-        issues.append(f"image_count: raw={raw_img_count}, parsed={parsed_fig_count}")
+        src = img.get("src", "")
+        if not is_tracking_pixel(src):
+            abs_url = urljoin(page_url, src) if not src.startswith("http") else src
+            raw_img_urls.append(abs_url)
+    parsed_fig_urls = [s.get("image_src", "") for s in parsed.get("segments", [])
+                       if s.get("type") == "figure"]
+    if len(raw_img_urls) != len(parsed_fig_urls):
+        if len(raw_img_urls) > 0 and len(parsed_fig_urls) == 0:
+            issues.append(f"images_lost: raw={len(raw_img_urls)}, parsed=0")
+        else:
+            issues.append(f"image_count: raw={len(raw_img_urls)}, parsed={len(parsed_fig_urls)}")
+    else:
+        for i, (raw_url, parsed_url) in enumerate(zip(raw_img_urls, parsed_fig_urls)):
+            if raw_url != parsed_url:
+                issues.append(f"image_url_{i}_mismatch: raw={raw_url[:60]}, parsed={parsed_url[:60]}")
 
     return {"slug": slug, "status": "pass" if not issues else "issues", "issues": issues}
 
