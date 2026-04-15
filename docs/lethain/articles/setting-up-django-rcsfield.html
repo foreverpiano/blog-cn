@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设置 Django-Rcsfield · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>设置 Django-Rcsfield</h1>
+    <div class="meta">
+      2008-10-15 · 
+      <a href="https://lethain.com/setting-up-django-rcsfield/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在继续开发我的一个项目时，我逐渐意识到需要对部分数据进行版本管理。在思考各种可能性一段时间后，我想起了几周前 Kevin 发的一条推文，说 django-rcsfield 就能实现这个功能。（我没找到那条具体的推文，抱歉。）</p>
+      
+    
+      
+        <p>于是，我便踏上了一小段旅程，尝试正确安装并运行 django-rcsfield。虽然项目的 wiki 上有快速入门指南，但对我来说还不够清晰，所以我把整个过程的笔记分享出来。</p>
+      
+    
+      
+        <h2>设置 django-rcsfield</h2>
+      
+    
+      
+        <div class="list-content">首先你需要通过 SVN 获取代码：svn checkout http://django-rcsfield.googlecode.com/svn/trunk/ django-rcsfield
+然后需要在 site-packages 目录下建立符号链接。ln -s `pwd`/django-rcsfield/rcsfield/ /Library/Python/2.5/site-packages/rcsfield
+（我觉得 Leopard 最让我喜欢的一点就是 site-packages 目录终于放在了一个容易记住的位置。以前要把包加到 site-packages 里，就像复活节早上找彩蛋一样麻烦。）
+我使用了基于 git-python 的后端，这需要先安装 Git 和 git-python。sudo port install git
+git clone git://gitorious.org/git-python/mainline.git
+mv mainline git-python
+sudo python setup.py install
+django-rcsfield 项目还支持 Bazaar 和 Subversion 后端。看代码的话，支持 Mercurial 大概只需要 1 到 3 小时的 hack 时间，具体取决于会出多少奇怪的问题。（主要花时间是因为命令行使用 Mercurial 的文档似乎不多，尽管我相信其源码本身文档写得很好。）
+现在打开项目的 settings.py 文件，添加以下内容：RCS_BACKEND = &#x27;gitcore&#x27; # 后端模块名称
+GIT_REPO_PATH = os.path.join(ROOT_PATH,&#x27;git&#x27;)
+注意 RCS_BACKEND 的值是你想要使用的后端模块名称。因为一开始不太清楚应该填什么，我最初写的是 &#x27;git&#x27;，结果导致了一场令人困惑的调试过程——我一直在 rcsfield.backends.gitcore 里找错误，而实际上加载的根本不是那个文件，而是真正的 git-python 模块（git）。两者都有 .commit 属性，这让我更加混乱。
+（当然，如果我一开始就仔细阅读错误信息，就能立刻明白问题出在哪里，哎。）
+如果你想使用 Bazaar 后端，应该这样写：RCS_BACKEND = &#x27;bzr&#x27;
+BZR_WC_PATH = &#x27;some/path/here&#x27;
+如果想使用 Subversion 后端：RCS_BACKEND = &#x27;svn&#x27;
+SVN_WC_PATH = &#x27;some/path/here&#x27;
+不过要注意，你不需要自己手动初始化仓库，至少 Git 后端是这样（我猜其他后端也是）。
+接下来你需要修改模型，加入 RcsTextField。（注意快速入门指南里对这部分配置有一个很棒的代码片段。）大致如下：from rcsfield.fields import RcsTextField
+from rcsfield.manager import RevisionManager
+class Note(models.Model):
+title = models.CharField(max_length=200)
+date = models.DateTimeField()
+slug = models.SlugField(max_length=200, unique=True)
+text = RcsTextField()
+objects = RevisionManager()
+任何不使用 RcsTextField 能做的事，用 RcsTextField 也都能做。它真正做到了无缝嵌入。
+如果你已经有自定义的 manager，可以给 RevisionManager 换个名字：objects = MyCustomManager()
+revisioned_objects = RevisionManager()
+然后记得使用对应的那个 manager 即可。
+我不能严格地说这时候必须重置 app，但如果不重置我没成功过。幸运的是，你可以先导出已有数据，重置后再导入，reset 过程不会造成太大问题。
+明确地说：我把一个模型从 TextField 改成 RcsTextField，导出了数据，重置了 app，然后成功把数据导回，没有修改导出的 JSON 文件。这意味着把 TextField 换成 RcsTextField 是相当无痛的（这也合理，因为在数据库表里它们都以相同方式存储，RcsField 的魔法发生在数据库之外）。
+另外，即使你没有添加新的数据库结构，也需要运行 syncdb。python manage.py dumpdata myapp &gt; tmp.json
+python manage.py reset myapp
+python manage.py syncdb
+python manage.py loaddata tmp.json
+这时候一切应该都能正常工作了——除非你在用 OSX。在 OSX 上，Git 无法正确找到它创建的文件，无法将其添加到仓库。我通过修改 rcsfield/gitcore.py 的第 71 行解决了这个问题。
+我把第 71 行从：repo.git.add(key)
+改成了：repo.git.add(os.path.join(self.repo_path, key))
+我一开始想提交一个 patch，但发现原始代码在 Ubuntu 上运行正常，所以我怀疑这个问题应该在 git-python 或 git 本身中修复。当然，也有可能这只是因为 Port 和 Aptitude 安装的 git 版本不同导致的。
+总之，确实存在一些奇怪的问题，但要彻底弄清楚是什么、何时、何地、谁、为什么，以及最重要的是如何正确修复它，还需要一些调查。
+现在，当你编辑 rcsfield 字段时，就应该能在 GIT_REPO_PATH 指定的 Git 仓库中看到相应的变更。成功的感觉真好。（除非你遇到了其他问题而感到恼火，那我的成功对你来说就是苦的了。我发誓。）</div>
+      
+    
+      
+        <h2>性能思考</h2>
+      
+    
+      
+        <p>我目前的感觉是，这里的性能比理想情况略差。对 rcs 后端的提交是通过 post-save 信号触发的，所以当我们考虑下面这样的请求时：</p>
+      
+    
+      
+        <p>我们不仅要把对象保存到数据库，post_save 钩子也会被触发，而且是在 HttpResponse 发送之前完成的。因为数据库仍然保存着字段的当前版本，所以实际上不需要等仓库更新完成后再把响应返回给用户（我承认某些应用场景可能不是这样，但我认为绝大多数情况下都是如此）。</p>
+      
+    
+      
+        <p>这意味着保存带有 rcsfield 的对象要比保存不带它的对象慢很多。这是否是个问题很大程度上取决于你的用户界面和整体应用设计，但值得记住这一点。</p>
+      
+    
+      
+        <p>对我来说，如果重新设计 UI 还不能足够缓解这种迟钝感，我对如何修改当前方案来获得更快的响应有两个想法：</p>
+      
+    
+      
+        <div class="list-content">把保存到仓库的操作放到独立的线程中。线程很邪恶，诸如此类，但这似乎是一个适合把 commit 扔到线程里的场景，能显著提升响应速度。（这是那种“有点 hack 但可能很棒”的方案。）
+把 commit 加入任务队列，由另一个服务来处理这些任务。（这是“我们是可扩展性工程师，耶”的方案。）</div>
+      
+    
+      
+        <p>总之，django-rcsfield 是一个很棒的小项目，我强烈推荐大家试玩一下，看看自己的项目是否能从中受益。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

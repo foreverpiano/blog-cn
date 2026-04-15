@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LifeFlow 0.91 发布 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>LifeFlow 0.91 发布</h1>
+    <div class="meta">
+      2008-07-07 · 
+      <a href="https://lethain.com/release-of-lifeflow-0-91/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>比我预想的发布时间晚了大约三周，LifeFlow 0.91 终于准备好发布了。这次更新包含多项小的改进，让 LifeFlow 用起来更加方便，也更加灵活。代码在多个地方也得到了优化，尽管仍有不少可以进一步改进的空间。下面我们先来看看其中的一些改进和变化。</p>
+      
+    
+      
+        <h2>0.91 版本的改进</h2>
+      
+    
+      
+        <div class="list-content">支持在文章中嵌入非 Markdown 格式的片段，包括 Textile、ReST 和 HTML。使用方式如下：~~~Textile
+在这里写 Textile 格式的内容。
+~~~
+或者像这样：~~~ReST
+一段 ReST 格式的文档。
+~~~
+还可以直接插入完全不做处理的 HTML，像这样：~~~
+&lt;script&gt; alert(&#x27;bah&#x27;); &lt;/script&gt;
+~~~
+请注意，Textile 和 ReST 的渲染依赖于你本地是否安装了对应的 Python 模块（Textile 和 Docutils），因此你需要先安装它们才能使用渲染功能。如果没有安装（或者你使用了不支持的块名称，比如 ~~~magic），则内容会原封不动地插入到文档中（与上面的 HTML 示例一样）。扩展此功能（代码位于 lifeflow/markdown/mdx_foreign_formats.py）来支持其他格式非常容易，如果你觉得有其他合适的格式的话。Rageev Sebastian 贡献了一个非常棒的补丁，改进了代码语法高亮功能，现在它能在非基础缩进层级下正常工作。这意味着代码语法高亮现在可以很好地用在列表中（如下面的例子），以及你可能尝试的其他各种场景。
+
+var person = {};
+person[&#x27;name&#x27;] = &quot;Will&quot;;
+person[&#x27;age&#x27;] = 22;
+person[&#x27;hobbies&#x27;] = [&#x27;programming&#x27;,&#x27;basketball&#x27;,&#x27;riding on trains&#x27;];
+
+这也让向已有的 Markdown 文档添加语法高亮变得简单得多。不再需要把所有代码重新缩进到相对于基础层级的缩进，只需在缩进块的开头加上 @@ common-lisp（或者对应语言的 lexer 名称），并在缩进块的结尾加上 @@ 即可。
+
+新增了对语法高亮代码片段的行号支持。要使用此功能，只需在语法高亮块的语言声明后加上 table 或 inline。例如 @@ ruby table 或 @@ java inline。table 和 inline 的效果分别如下：
+
+1
+2
+3
+4
+5
+6def double(x):
+    return x * x
+y = 10
+z = double(y)
+a = double(double(double(z)))
+
+和
+
+1 def double(x):
+2     return x * x
+3 
+4 y = 10
+5 z = double(y)
+6 a = double(double(double(z)))
+
+我意识到表格行号的对齐还有点问题，但我有点搞不清楚具体原因（即使使用了非常规手段也没能解决这个 CSS 问题）。另外，我也清楚 inline 版本在复制粘贴时非常不友好。行号功能是通过暴露更多 Pygments 的功能实现的，而不是我自己写的，所以我还在思考如何进一步改进这些选项。
+
+感谢 Luke Hatcher 的贡献，RSS Feed 现在包含了发布日期和时间。
+
+Pre 和 code 标签现在使用等宽字体，修复了众多不合理的 CSS 问题之一。（这也导致了基于表格的语法高亮行号出现了一些 CSS 怪现象。）
+
+提升了 LifeFlow 专有 Markdown 扩展以及通用 Markdown 的内联帮助质量。虽然还有改进空间，但现在已经足够实用，我自己也会经常查阅它来了解 LifeFlow 特有的语法魔法。
+
+对 LifeFlow 前台模板和 CSS 进行了大量调整，以改善视觉效果。其中许多改进受到了 Kenneth Arnold 的评论和建议的启发。
+
+可以在 LifeFlow Editor 中编辑评论。
+
+可以在 LifeFlow Editor 中编辑当前的 Django site。Django site 用于定义框架中某些组件所使用的 URL（例如 RSS feed）。
+
+可以在 LifeFlow Editor 中修改需要 ping 的网站（通常是博客聚合器，比如 Ping-O-Matic，但几乎可以是任何你想在文章发布时通知的服务）。
+
+进行了大量重构和代码质量改进。从简单的地方开始，比如采用了 Peter Burns 建议的基于正则表达式的 sluggify 方法，到用 QuerySetPaginator 替换大量手动分页的代码。虽然代码中仍有一些不理想的地方，特别是 models.py 仍然会执行别扭的“双重保存”，以便正确设置多对多关系（这是渲染文章标记所必需的）。尽管如此，代码质量正在向更好的方向发展，并将继续改进。</div>
+      
+    
+      
+        <h2>可下载的 Zip 压缩包</h2>
+      
+    
+      
+        <p>虽然获取 LifeFlow 的推荐方式仍然是从它的 Git 仓库获取（下文会说明），但从现在起我也会提供各版本的 zip 压缩包。这些压缩包包含两个目录：</p>
+      
+    
+      
+        <div class="list-content">一个 project 目录，里面是一个已配置好 LifeFlow 的标准 Django 项目。
+一个 lifeflow 目录，包含 LifeFlow 本身的代码。</div>
+      
+    
+      
+        <p>你可以在这里下载 0.91 发布版 Zip 压缩包</p>
+      
+    
+      
+        <p>其中的设置是针对无需太多配置的开发环境，如果你想用于面向公众的部署，还需要进行调整。具体配置如下：</p>
+      
+    
+      
+        <div class="list-content">使用 SQLite3 数据库（会使用 os.path 模块在项目文件夹中创建数据库文件）。
+使用 Django 的开发服务器来提供媒体文件。</div>
+      
+    
+      
+        <p>搭建开发环境会尽可能简单：</p>
+      
+    
+      
+        <div class="list-content">解压发布的 zip 文件。
+将 lifeflow 文件夹添加到你的 Python 路径中。
+进入 project 文件夹，运行 python manage.py syncdb。
+编辑 project/settings.py 以适应你的环境。以下是需要重点修改的设置：
+LIFEFLOW_* 需要根据你的博客进行定制。
+MEDIA_ROOT 需要设置为你的 lifeflow/media/ 文件夹的绝对路径。例如我的配置是：
+MEDIA_ROOT = &#x27;/Users/username/git/lifeflow/media&#x27;
+TEMPLATE_DIRS 必须将 lifeflow/templates 文件夹添加到它的目录元组中。例如我的配置是：
+TEMPLATE_DIRS = (
+    &#x27;Users/will/git/lifeflow/templates&#x27;,
+)        
+像往常一样运行开发服务器：python manage.py runserver。</div>
+      
+    
+      
+        <p>完成上述步骤后，你应该可以在 http://127.0.0.1:8000/editor/ 撰写文章并管理你的站点，并在 http://127.0.0.1:8000/ 查看你的博客。</p>
+      
+    
+      
+        <h2>从代码仓库克隆</h2>
+      
+    
+      
+        <p>你可以访问 GitHub 上的 Git 仓库来获取 LifeFlow 的最新版本。如果你还没试过 Git，在电脑上搭建它可能会有些麻烦（至少对我来说是这样，因为 OSX 包管理器里的版本没能成功安装），但它非常值得一用。</p>
+      
+    
+      
+        <p>最快速上手当前版本的方式是下载上面的 zip 文件，但不要执行第二步（不要把 zip 里的 lifeflow 文件夹加入 Python 路径），而是直接从 git 仓库克隆一份：</p>
+      
+    
+      
+        <p>然后把克隆下来的 lifeflow 文件夹添加到你的 Python 路径中。这样之后，对本地副本进行修改就非常简单了。如果你做了任何有趣或有帮助的修改，请开放你的仓库，我会 pull 这些改动并整合进去（你也可以使用 git send-email，不过相关文档看起来有点吓人）。</p>
+      
+    
+      
+        <h2>即将到来的改动和改进</h2>
+      
+    
+      
+        <p>LifeFlow 0.92 将是一个有趣的版本，重点将放在我暂时称为“文本魔法”（text wizardry）的东西上，更准确地说可能是文本处理或简称为文本相关功能。重点是增加方便的文本预处理器和后处理器钩子，让有想法的用户能够扩展 LifeFlow，对他们的文本做几乎任何想做的事情。一个例子是为第一次提到的特定术语自动创建指向 Wikipedia 的链接。这些想法还处于规划阶段，但应该会打开一扇全新的可能之门。</p>
+      
+    
+      
+        <p>更长远来看，正在计划的其他功能包括：引入多种用户权限模型（从编辑者、作者和管理员开始），以支持复杂的多用户工作流；以及清理 LifeFlow Editor，使其更加一致且更不易混淆。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

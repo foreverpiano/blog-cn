@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>循环事件与消息传递 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>循环事件与消息传递</h1>
+    <div class="meta">
+      2009-11-25 · 
+      <a href="https://lethain.com/recurring-events-and-message-passing/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在使用 Erlang Actor、Clojure Agent 等异步通信机制时，我一直在思考的一个问题是：如何在异步系统中安排循环执行的事件？</p>
+      
+    
+      
+        <p>最简单的实现循环事件的方式，就是使用循环并在其中加入 sleep 语句，</p>
+      
+    
+      
+        <p>但通过外部脚本去触发异步系统，总让人觉得不太自然。我真正想要的是一种让异步分布式系统能够自我维持、持续运转，而无需外部干预的机制。</p>
+      
+    
+      
+        <p>花一些时间思考后，你可以设计出多种 perpetual（永续）的异步循环机制，通过适当的调整，它们能呈现出不同的特性。</p>
+      
+    
+      
+        <p>其中最简单的永续运动方式就是乒乓循环（ping-pong loop）。</p>
+      
+    
+      
+        <h2>乒乓循环</h2>
+      
+    
+      
+        <p>在一个仅包含两个 Actor 的系统中，两个 Actor 可以通过执行自己的操作，然后向对方发送 ping 消息来维持永续运动。</p>
+      
+    
+      
+        <p>这种方式实现起来非常简单，但最终难免让人觉得它是一种完全人为构造的机制。</p>
+      
+    
+      
+        <p>Erlang 版本的 Ping-Pong 实现</p>
+      
+    
+      
+        <p>Clojure 版本的 Ping-Pong 实现</p>
+      
+    
+      
+        <p>（注意：在最后的 send 外面加了 nil? 判断，因为直接打印 send 的返回值会导致无限循环——每个 Agent 的状态里都引用了对方，最终引发栈溢出错误。）</p>
+      
+    
+      
+        <h2>环形循环</h2>
+      
+    
+      
+        <p>虽然我们单独讨论，但更准确的看法是：乒乓循环其实是只有两个节点的环。不过，真正的环形结构比乒乓更现实，因为它能容纳可变数量的节点。</p>
+      
+    
+      
+        <p>环形结构是一种很好的机制，既可以用来检测多个节点是否存活，也适合在所有节点间传递更新，确保每个节点最终都能收到最新的数据。</p>
+      
+    
+      
+        <p>Erlang 版本的 Circle 实现</p>
+      
+    
+      
+        <p>Clojure 版本的 Circle 实现</p>
+      
+    
+      
+        <h2>协调者模式</h2>
+      
+    
+      
+        <p>打破环形结构，协调者（Coordinator）将“发送 ping”的职责集中化，只有单个节点需要包含向外 ping 的逻辑，其他节点只需监听 ping 消息即可。</p>
+      
+    
+      
+        <p>当你的任务只需要定时调度功能时，协调者模式非常实用。它把 ping 逻辑从大多数节点中移除，同时也能让所有节点在大致相同的时间收到心跳（尽管各个接收 Actor 实际处理 ping 的时机可能差异很大）。不过，默认情况下协调者并不具备环形结构所拥有的数据同步和更新传播能力。</p>
+      
+    
+      
+        <p>如果更新传播是必需的功能，可以让所有节点主动把更新发送给协调者，由协调者每个周期进行广播（这样可以保证任何更新在最多两个周期内被所有节点接收到）。</p>
+      
+    
+      
+        <p>Erlang 版本的 Coordinator 实现</p>
+      
+    
+      
+        <p>Clojure 版本的 Coordinator 实现</p>
+      
+    
+      
+        <h2>Gossip（流言）机制</h2>
+      
+    
+      
+        <p>Gossip 方法与环形结构有许多相似之处，但它的结构更松散，保证更少，在面对节点失效时却具有更强的韧性。</p>
+      
+    
+      
+        <p>上图中的 Gossip 从节点 C 开始传播。</p>
+      
+    
+      
+        <p>在 Gossip 中，当一个节点收到 ping 后，会随机选择另一个节点进行 ping。为了加快传播速度（同时应对单个节点失效的情况），每个节点可以在每次 ping 时通知多个其他节点，但必须小心控制每个周期产生的 ping 消息总量，避免指数增长。</p>
+      
+    
+      
+        <p>这种方式的优点在于能够容忍节点丢失，而环形结构无法承受任意节点的丢失，协调者模式则对发送 ping 的那个节点非常敏感。</p>
+      
+    
+      
+        <p>比上面这个过于简单的 Gossip 更有趣的，是将协调者与 Gossip 相结合的方案。每个节点会随机 ping 另一个节点，然后 ping 自己并休眠一段时间。在休眠期间，它会接收其他同样在执行此流程的节点发来的更新。醒来后，它会处理之前收到的 ping 消息（实际上只会处理它安排下一次 ping 之前收到的，那些之后收到的则在本次 ping 发送之后、下一次 ping 之前处理），然后再次开始相同的循环。</p>
+      
+    
+      
+        <p>Erlang 版本的 Gossip 实现</p>
+      
+    
+      
+        <p>Clojure 版本的 Gossip 实现</p>
+      
+    
+      
+        <h2>结束思考</h2>
+      
+    
+      
+        <p>我们可以把持续运转的异步系统看作是在进行某种分布式尾递归。虽然其语义比简单的 while 循环更复杂，但这些方法的潜力也更为有趣。</p>
+      
+    
+      
+        <p>它们能够让永续运动机制抵御单机崩溃，同时允许多个定时器并发运行，而无需编写复杂的自定义逻辑（比如不停地寻找最近要触发的定时器、睡眠直到触发、重新调度、寻找下一个……）。</p>
+      
+    
+      
+        <p>随着我花更多时间思考带有心跳的分布式系统，我相信自己会对这里讨论的这些非常简单的方案产生更细致和深入的看法。但就目前而言，它们仍然是设计分布式系统时非常有用的工具。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>如何从分析数据中过滤掉机器人流量 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>如何从分析数据中过滤掉机器人流量</h1>
+    <div class="meta">
+      2011-04-03 · 
+      <a href="https://lethain.com/how-to-filter-bots-from-analytics/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>尽管已经有大量现成的方案，人们还是不断重复造分析数据的轮子。甚至可以说，这样做可能还存在一些正当理由。不过，与其讨论自建分析系统的优劣，我更想聊聊如何从你已经搭建好的自研方案中，处理机器人和脚本产生的流量。</p>
+      
+    
+      
+        <h2>机器人流量的困扰</h2>
+      
+    
+      
+        <p>没有什么比看到网站流量在过去几周翻倍更让人兴奋的事了。然而，当你使用的是刚上线的手工打造的分析系统时，进一步挖掘数据很可能会发现，某些 IP 产生的请求量相当于其他 95% 访客总和。（如果你网站的规模足够大，足以成为 SEO、社会媒体或各种垃圾信息的单独目标，这种情况就尤其常见。）</p>
+      
+    
+      
+        <p>幸运的是，自动流量污染分析数据的问题相对容易解决。具体的解决方案主要取决于你是想收集实时分析数据，还是定期对日志进行汇总处理（或者可能是某种混合模式）。</p>
+      
+    
+      
+        <h2>定期汇总</h2>
+      
+    
+      
+        <p>通过定期汇总生成分析数据是一个相当直接的过程。一个简单的方法是找出每个 IP 的请求数量中位数，并将该中位数作为汇总时使用的请求上限。这种方法存在（至少）两个问题：首先，它会得出一个过于保守的数值；其次，它会掩盖你最活跃（但仍然合法）用户身上有趣的行为模式。</p>
+      
+    
+      
+        <p>如果你假设总的唯一 IP 数量远多于非法 IP 的数量（实际情况通常如此：每个非法 IP 产生的页面浏览量可能极高，但它们的数量相对较少），那么你可以采用更宽松的计算方式——将每个 IP 认可的最大页面浏览量限制在平均值（而非中位数）加上一个标准差。这会引入少量异常行为，但当你发现极少数 IP 就贡献了绝大多数自动化流量时，你可以计算出预期的超额部分，这个值通常会相当低。（如果你性格稍微懒一些，也可以只在具有代表性的一天计算一次 cutoff 值，然后将其作为常量使用，而不是每天都重新运行查询来计算。）</p>
+      
+    
+      
+        <p>做了这个简单的改动之后，你的分析数据就会变得实用得多。当然，某个使用四个 AWS 实例的黑客可能仍在消耗你网站 25% 的资源，但至少你不会再错误地以为用户参与度正在暴涨。</p>
+      
+    
+      
+        <p>MySQL、Hive 以及大多数用来存储分析数据的数据库，都提供了计算均值和标准差的函数或 UDF，因此这些方法在实际中都相当容易实现。</p>
+      
+    
+      
+        <h2>实时分析</h2>
+      
+    
+      
+        <p>对于从实时分析系统中过滤自动化流量，我们希望采用与定期汇总类似的方法，但无法基于某个时间段内用户会执行的完整行为集来进行判断。我们也没有办法在时间段结束后（比如一天结束之后）重新进行计算，这也是强烈建议采用混合方案的一个理由——用定期汇总的结果逐步替换实时数据。（隐藏的代价是，数字不断变化可能会让大多数使用你分析系统的人感到非常困惑。）</p>
+      
+    
+      
+        <p>因此，我们的解决方案需要为每个跟踪的指标维护滚动总计，同时记录每个 IP 在最近一段时间内的活动，以便知道何时开始丢弃它的数据。（值得参考的是 Interactive Advertising Bureau 关于这个主题的指导方针，正如我以前的同事 Anton Kast 推荐给我的那样。）由于自动化活动往往以集中的爆发形式产生，一个好的起点是每分钟只统计每个 IP 的第一次操作。</p>
+      
+    
+      
+        <p>这种方案可以用 Redis 来实现：用不过期的 key 存储指标计数器，并用会在一分钟后过期的 key 来跟踪 IP 活动。稍作调整，你就可以构建更复杂的规则（比如每天每个 IP 只统计 50 次操作），但总体来说，每分钟只统计一次操作的简单方法就能很好地完成过滤工作，而且只需要记录一分钟内的唯一 IP，而不是一整天。</p>
+      
+    
+      
+        <p>你是如何从分析数据中过滤无效活动的？</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

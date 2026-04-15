@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 Python 中使用线程池 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 Python 中使用线程池</h1>
+    <div class="meta">
+      2009-02-10 · 
+      <a href="https://lethain.com/using-threadpools-in-python/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>和大多数程序员一样，我在使用线程时总会暗自感到愉悦。我知道一些小疏忽就可能导致死锁，进而造成难以诊断的严重问题，但说实话，线程就是通往狂喜白日梦的入口——幻想着自己的新脚本能多么高效地利用多核……或者说，如果真的有人在使用它的话，它本可以做到。</p>
+      
+    
+      
+        <p>幸运的是，对于我们这些追求这种“误入歧途”的快感的人来说，Python 能让你快速轻松地组建一个可靠的线程池。你只需要标准库中的 Queue 和 threading 模块即可。Queue.Queue 是一个线程安全的队列，而 threading.Thread 则提供了一个创建线程的简单接口。</p>
+      
+    
+      
+        <p>下面我们来看一个在 Python 中安全使用线程的示例。</p>
+      
+    
+      
+        <h2>使用线程池处理 CSV 文件</h2>
+      
+    
+      
+        <p>这个脚本会遍历一个逗号分隔值（CSV）文件，并使用线程池来处理接收到的数据。</p>
+      
+    
+      
+        <p>几点说明：</p>
+      
+    
+      
+        <div class="list-content">本例使用的是 Python 2.5，如果是 Python 2.6 则需要去掉 from __future__ import 的语句。对于 Python 3k，则需要把 from Queue import Queue 改成 from queue import Queue，并给 print 添加括号。（我漏掉什么了吗？我还没真正用过 Py3k……）我们使用 csv.DictReader 而不是 csv.reader，因为前者会返回一个 key=&gt;value 的字典映射（把第一行当作键），而后者返回的是一个有序元组。你不必把线程保存在列表中（像上面代码里的 workers 那样），但这是一种保留线程引用的简便方式。我在这里使用 range，因为它是 Py3k 中保留的函数，但对于 Py2.x 代码，使用 xrange 显然更合适。</div>
+      
+    
+      
+        <p>我们可以更多地利用 logging 和 optparse 模块，让上面的脚本更加健壮。</p>
+      
+    
+      
+        <p>之后你可以根据实际需求稍作调整，在解析完数据后进行一些真正的工作。或者你可以扩展这个脚本，让它支持其他格式……</p>
+      
+    
+      
+        <h2>添加对 XML 处理的支持</h2>
+      
+    
+      
+        <p>你可能会觉得本文接下来的部分有些刻意，但我刚学完 ElementTree 的新鲜知识，所以我们来写一个 manage_xml_file 函数吧。</p>
+      
+    
+      
+        <p>假设我们收到的 XML 文档是这样的格式……</p>
+      
+    
+      
+        <p>……我们希望处理其中的每个 item。但我们来增加点难度：假设我们知道要处理根元素的子节点，却连根元素和子元素的名称都不知道。而且，该死的，我们还想快速地单遍完成处理。再来点更疯狂的：即使最终发现 XML 文档格式不正确，我们也希望能尽可能多地提取出格式正确的元素。</p>
+      
+    
+      
+        <p>首先我们需要导入 ElementTree。对于 Python 2.x，值得先尝试导入 cElementTree，如果它可用的话。</p>
+      
+    
+      
+        <p>在 Python 3.0 中，C 模块和 Python 模块的区别基本被消除，因此这个 try...except 的把戏就没有必要了，只需一个 import 即可。</p>
+      
+    
+      
+        <p>现在让我们来点实际的代码。</p>
+      
+    
+      
+        <p>关于这个脚本也有几点需要说明：</p>
+      
+    
+      
+        <div class="list-content">我觉得先把元素序列化成原生的 Python 字典，再进行处理，会舒服得多。是的，serialize 函数写得有点啰嗦。而且，如果 XML 元素嵌套足够深，它会遇到 Python 的递归限制。对此我可以接受。事实证明，把 XML 序列化成任意字典和数组的组合是一门玄学，但我认为这个 serialize 函数已经做得相当不错了。iterparse 会友好地告诉我们出错的行号和字符位置，这比很多 XML 库都要大方，因此我们得以尽可能多地提取数据，并且知道错误发生在哪儿。（遗憾的是）你很难从 XML 中再榨出更多东西了。iterparse 同时也是 Python 中最快的 XML 处理器，这也是它其他优点的附带好处。</div>
+      
+    
+      
+        <p>接下来我们需要更新 main 函数，检查文件是否以 xml 结尾，如果是则调用 manage_xml_file。</p>
+      
+    
+      
+        <p>你可以在 GitHub 上看到这个脚本的更新版本。</p>
+      
+    
+      
+        <p>希望这个例子能帮你入门 Python 线程池的奇妙世界。在你的脚本和项目中适当加入一些线程，能挖掘出巨大的灵活性和效率。当然，你最终可能会被烫伤，但这也意味着你已经成为高手了……</p>
+      
+    
+      
+        <p>算是吧。</p>
+      
+    
+      
+        <p>如果你有任何意见或吐槽，欢迎告诉我！</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

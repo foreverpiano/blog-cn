@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>描述故障域 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>描述故障域</h1>
+    <div class="meta">
+      2019-08-17 · 
+      <a href="https://lethain.com/fault-domains/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>故障域
+是我在构建可靠系统过程中发现的最有用的概念之一，却常常得不到足够的重视。如果你希望让自己的软件实现可预测的可靠性，包括衡量可靠性风险，那么这是一个非常值得深入研究的概念。</p>
+      
+    
+      
+        <p>故障域是一组功能、服务或组件的集合，它们共享一个单一故障点。故障层级则是由一个或多个承担相同职责的故障域组成的集合。例如，如果你采用多 AWS Region 的 active-active 架构，那么“AWS Region”就是你的故障层级，而具体的区域如“us-east-1”和“us-east-2”就是你的故障域。</p>
+      
+    
+      
+        <p>每个故障层级都存在于一个故障层级结构中，较小的故障层级（比如数据库副本）嵌套在较大的层级（比如数据库集群）之下。这种嵌套结构允许较大的层级为其中较小层级的故障提供纵深防御。</p>
+      
+    
+      
+        <p>每个故障层级都对应三种故障策略之一，用于描述该层级发生故障时的正确行为：</p>
+      
+    
+      
+        <div class="list-content">冗余（redundant）意味着该层级内的故障域可以接管已故障域的职责。例如 Cassandra 或 Memcache 集群中的节点，或者支持丢失一个 AWS Availability Zone 的架构设计。（如果冗余层级内只有一个或更少的健康域，则其行为会遵循下面 cascade 策略所述。）可忽略（ignorable）要求故障层级结构中更高层级的组件能在本故障层级失效时继续运行。例如，一个网站可以为故事添加好友社交行为注解，但当存储这些数据的数据库不可用时，它会停止显示该社交上下文，同时继续渲染页面的其余部分。级联（cascade）则警告说，当本故障层级失效时，它既不是冗余的，也不是可忽略的，因此其上层的故障层级必须为该故障承担责任。任何单点故障都会以这种方式运行，例如没有自动故障转移的传统 MySQL 设置会发生级联；同样，以 read-majority 配置运行但无法完成多数读的 Cassandra 集群也会发生级联。</div>
+      
+    
+      
+        <p>好了，现在我们有了一套有趣的词汇，让我们来玩一玩吧。</p>
+      
+    
+      
+        <p>众所周知，一篇关于分布式系统的文章总是少不了一节关于 CAP 和 ACID 的总结，所以我<a href="distributed-systems-vocabulary.html">分布式系统词汇表</a>。</p>
+      
+    
+      
+        <p>感谢 bobby、doug 和 westen 提出的这些想法。</p>
+      
+    
+      
+        <h2>示例：社交新闻网站</h2>
+      
+    
+      
+        <p>让我们从一个将这些思想应用到实际应用的例子开始，以运行在 Amazon Web Services 上的类似 Reddit 或 <a href="digg-v4.html">Digg v4 发布：源于迫切的乐观。</a> 的社交新闻网站为例。</p>
+      
+    
+      
+        <p>当你还在原型开发阶段，用户流量不大时，初始设置通常包含两个组件：渲染页面的 Web 服务器和存储待渲染数据的数据库。</p>
+      
+    
+      
+        <p>这两个组件可以转化为四个故障层级（database、webserver、availability zone、region），每个层级都由一个脆弱的单点故障域组成，故障时会向上级联。在这种配置下，任何故障层级中的任何故障都会导致整个故障层级结构失效。</p>
+      
+    
+      
+        <p>这听起来不太好，因此下一步通常是找到最容易修复的最严重故障层级。对大多数公司来说，这意味着运行多个分布在多个可用区的 Web 服务器。这样你的 Web 服务器就能容忍其中一个故障域失效，甚至能容忍整个可用区失效。</p>
+      
+    
+      
+        <p>这引入了几个新的故障层级，特别是每个可用区对应一个新层级，每个可用区的 Web 服务器也对应一个新层级。这些新的层级都会向上级联到一个 Web 服务器故障层级，而这个层级不再是级联故障层级，而是变成了冗余故障层级。如果 Web 服务器层级中的一个故障域失效，另外两个故障域会继续工作，从而阻止故障继续向上传播。（如果三个可用区全部失效，那你还是完蛋。）</p>
+      
+    
+      
+        <p>另一方面，我们的数据库仍然面临单个可用区失效的风险，这非常不可取。你可以转向高可用数据库配置，比如使用 Cassandra，这样就能抵御任何可用区故障。</p>
+      
+    
+      
+        <p>现在你的架构已经相当稳固了，但工作永远不会结束。你总是可以在顶层增加更多故障层级（那个级联的 AWS Region 现在看起来有点吓人），甚至在底层增加更多层级也非常有价值，尤其是在故障率开始上升的时候。</p>
+      
+    
+      
+        <h2>箭头不应该指向相反的方向吗？</h2>
+      
+    
+      
+        <p>在我绘制了越来越多的故障层级图之后，我逐渐相信，线条几乎可以合理地指向任何方向，而无论是哪个方向，都会让某些读者感到惊讶。</p>
+      
+    
+      
+        <p>我用来确定箭头方向的指导原则是：较小的故障层级应当指向它们级联的方向。如果你有两个故障域，其中一个可以独立于另一个失效，那么能够承受另一个故障的那个就是“父层级”，线条应当指向父层级。</p>
+      
+    
+      
+        <p>相反，如果两个故障层级是相互影响的（例如其中任何一个失效都会导致另一个失效），那么箭头指向哪个方向都可以：两个方向都有助于你正确地理解底层系统。</p>
+      
+    
+      
+        <h2>为什么要费心处理小的故障层级？</h2>
+      
+    
+      
+        <p>一旦在故障层级结构的较高位置拥有了一个冗余故障层级，一个常见的问题就是是否值得继续投入精力让较低的故障层级也实现冗余。每个冗余故障层级都会掩盖较低层级的故障，因此这是一个相当好的问题。</p>
+      
+    
+      
+        <p>你应该继续在所有故障层级上进行投入，有两个原因：</p>
+      
+    
+      
+        <div class="list-content">即使在可忽略和冗余的故障层级中，当某个故障域失效时，也常常会出现短暂但明显的性能下降。（例如，从主数据库切换到备数据库可能需要 15 秒，这短到可以说你具备冗余，但又长到足以影响用户体验。）较高层级的故障域虽然可以掩盖所包含较低层级的故障，但如果你有三个可用区，那么你总共只能容忍这三个可用区内所有下层故障层级的并发故障。当系统变得足够庞大和复杂时，这并不算多。通过拥有多层冗余，你能更好地应对那些意想不到的、同时发生的无关故障。</div>
+      
+    
+      
+        <p>综合来看，你绝对需要几个大型的冗余故障层级，但如果你不在整个层级结构上都进行投入，仍然会面临相当大的风险。</p>
+      
+    
+      
+        <h2>层级违反</h2>
+      
+    
+      
+        <p>故障层级常见的一个挑战是层级违反，即较高故障层级隐含地依赖于较低层级。一个典型的例子是转向多 Region 部署，但数据库复制方案却让数据库集群成为比 Region 更高的故障层级，结果集群故障会导致所有 Region 都宕机。糟糕。</p>
+      
+    
+      
+        <p>确保没有引入层级违反的方法是，定期演练你的每个故障层级，特别是那些构成你冗余核心的层级。如果你没有频繁演练这些层级，就会不知不觉引入层级违反，从而导致意想不到的级联故障。</p>
+      
+    
+      
+        <p>是另一种在一定程度上能减少层级违反的有效机制，但它依赖于人类始终保持完美，这很少是一种长期成功的策略。<a href="scaling-consistency.html">提升技术一致性。</a></p>
+      
+    
+      
+        <h2>衡量可靠性风险</h2>
+      
+    
+      
+        <p>故障层级的最后一个用途是，它可以作为一种有效方法，用于，至少在可靠性方面是如此。<a href="metrics-for-the-unmeasurable.html">为不可衡量之事制定指标</a></p>
+      
+    
+      
+        <p>一旦有了故障层级结构，你就能清楚地说明自己有多少个级联层级，每个层级都代表一种可靠性风险来源。跟踪这个数字是衡量整体可靠性的第一个方面（本质上是以结构化的方式跟踪单点故障）。</p>
+      
+    
+      
+        <p>第二部分是衡量你演练每个冗余和可忽略故障层级的频率。如果它们最近没有被演练过，就很可能无法正常工作。</p>
+      
+    
+      
+        <p>将这两者结合起来，你就得到了一个相当有用的指标来长期衡量可靠性：你有多少个级联故障层级，以及距离你上次演练冗余故障层级已经过去了多久？</p>
+      
+    
+      
+        <p>这让你摆脱了衡量“几个九的可用性”等带来的挑战——那些是结果指标，可能只是运气好的结果，而不是有效规划的产物——转向那些你可以直接投入资源并产生影响的衡量方式。</p>
+      
+    
+      
+        <p>如果你还没有使用故障域来思考自己的软件，我建议花几天时间画出你最初的故障层级结构，特别是理解每个域的策略，并检查你的层级违反情况。这会让你对自身风险有比以前清晰得多的认识，获得衡量进展的能力，以及一些非常需要的视角。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

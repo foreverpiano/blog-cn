@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>从 Lambda 到 Kappa 及 Dataflow 范式 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>从 Lambda 到 Kappa 及 Dataflow 范式</h1>
+    <div class="meta">
+      2017-11-22 · 
+      <a href="https://lethain.com/from-lambda-to-kappa-dataflow-paradigms/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近我花了一些时间了解现代数据基础设施的现状，并尝试将一路记下的笔记整理成一篇连贯的叙述。我非常确定其中存在不少错误和遗漏，也很希望听到大家认为哪些部分可以扩展或修正！</p>
+      
+    
+      
+        <p>Lambda 架构在 2013 年开始受到广泛关注，这要归功于 Nathan Marz 的工作，随后迅速成为一种流行的架构模式。其核心优势在于：使用实时流处理计算最近的时间窗口数据，同时通过批处理计算已过期窗口的最终准确值。批处理还用于回填新的或修改后的计算逻辑。</p>
+      
+    
+      
+        <p>这一波浪潮中的主要技术之一是 Storm，它于 2011 年首次发布，后来作为 Lambda 架构的实时处理组件被广泛采用，通常与 Kafka 配合存储日志，并使用 Hadoop 生态系统进行批处理。</p>
+      
+    
+      
+        <p>随着更多公司采用这些模式，三个主要问题开始浮现：</p>
+      
+    
+      
+        <div class="list-content">双重实现：流处理和批处理组件往往差异很大，导致同一套逻辑需要在两种不同范式下重复实现。实时正确性保证较弱：批处理计算不仅用于处理回填，还用于达到较高的数据正确性，因为实时组件通常仅支持 at-most-once 或 at-least-once 保证。运维负担：虽然 Hadoop 生态系统经过多年发展已趋向易于维护，但这些实时组件还不够成熟，往往带来沉重的运维负担，尤其是 Storm 对 Mesos 和 ZooKeeper 的依赖让不少采用者感到沮丧。</div>
+      
+    
+      
+        <p>当 Lambda 架构在业界公开视野中展开时，创新却在幕后悄然萌芽。两年后的 2015 年，至少有三条有趣的技术路线结出了果实：</p>
+      
+    
+      
+        <div class="list-content">Google 发表了《The Dataflow Model》，提出了一种统一处理流处理、微批处理和批处理的方法，尤其在 exactly-once 处理上提供了强有力的保证。Twitter 将 Lambda 模型落地并进行了优化，他们走了两条路线：一是开发 Heron——一个运维体验更好但正确性限制与 Storm 相同的版本；二是投资开发 Summingbird，它允许同一份代码既可在 Storm（或 Heron）上运行，也可在 Cascading（特别是 Scalding）上运行，后者是一个基于 Hadoop 的批处理库。大约同一时期，Jay Kreps 对日志的倡导逐渐成熟，演变为 Kafka 的实现，最终提供了 exactly-once 保证；同时还有流处理框架 Samza 提供了 exactly-once 的流计算能力。更具普适意义的是 Kappa 架构的出现（所有流量都通过一个中心化的事件总线，而不是要求发布者了解下游消费者的行为和需求）。</div>
+      
+    
+      
+        <p>（这篇演讲展示了 Kappa 架构的一种实际采用案例。）</p>
+      
+    
+      
+        <p>在随后的两年里，数据基础设施领域迎来某种意义上的复兴，发展成一个充满活力的生态系统。新一代工具倾向于通过微批处理（例如 Spark Streaming）和原生流处理（例如 Flink Streaming）构建低延迟数据管道，并采用新的策略来强制实现 exactly-once 事件处理。这使得流处理能够达到以往只有批处理才能保证的正确性水平。</p>
+      
+    
+      
+        <p>虽然大多数 Lambda 架构的技术采用率正在下降（例如 Storm），但仍有一些成功跨越代际，成为标准构建块。其中特别值得一提的是 Kafka、Hadoop YARN 和 HDFS 至今依然稳固。YARN 和 HDFS 尤其有趣，因为它们最早出现在更早的 MapReduce 浪潮中，却已经历两次代际更迭而依然存活。</p>
+      
+    
+      
+        <p>在这三者中，YARN 显得最为脆弱，大多数框架都提供了独立运行模式，同时还面临来自 Mesos 等更通用调度器的持续竞争——尽管 Mesos 本身似乎正在将大量认知份额输给 Kubernetes（尽管 Mesos 和 Kubernetes 是解决不同问题的本质上不同的工具）。</p>
+      
+    
+      
+        <p>在成功完成代际跨越的技术中，Kafka 尤其在不断扩展其功能集，以期差异化并扩大认知份额。最明显的例子是 Kafka Streams，它本质上是一个依赖更少、概念更简洁的 Apache Storm 竞品（可以简单理解为消费一个 Kafka topic 并输出一个 compacted Kafka topic），并且提供了 exactly-once 保证。从设计上讲，它并不是那些更完整的流处理框架的直接竞争者：</p>
+      
+    
+      
+        <blockquote>我们看到 Kafka Streams 填补的空白，更多不是那些框架所专注的分析领域，而是构建核心应用和微服务来处理实时数据流……构建这类流处理应用需要解决的需求与典型的 MapReduce 或 Spark 作业所处的分析或 ETL 领域有很大不同。它们需要经历与普通应用相同的配置、部署、监控等流程。简而言之，它们更像是微服务（我知道这个词已经被用滥了），而不是 MapReduce 作业。只不过这类数据流应用处理的是来自 Kafka 的异步事件流，而不是 HTTP 请求。</blockquote>
+      
+    
+      
+        <p>除了 Kafka Streams 之外，Confluent 也在积极扩展 Kafka 生态，通过 Kafka Connect 等项目来填补工具链中的空白，试图解决常见的 Kafka 部署依赖问题，例如 Schema 管理和对 Kafka 底层 API 的抽象。</p>
+      
+    
+      
+        <p>抛开 Kafka Streams 及其有意保持的狭窄定位不谈，这一轮认知份额争夺战中胜出的两个以分析为重点的框架是 Spark 和 Flink。</p>
+      
+    
+      
+        <p>这两个工具都获得了广泛采用，其中 Spark 在批处理/有界处理领域略占优势，而 Flink 在流处理/无界处理领域更具优势（特别是因为 Flink 支持原生流处理，而 Spark 依赖微批处理，这会带来延迟惩罚，可能限制某些使用场景）。从概念上讲，Flink 是 Google Dataflow（现已更名为 Beam）模型的明确继承者，而 Spark 的创新则来源于其弹性分布式数据集（Resilient Distributed Datasets）。</p>
+      
+    
+      
+        <p>与此同时，Google 正在通过 Beam 库进行一项有趣的尝试，旨在将 Spark 和 Flink 进一步抽象化。该库提供了一套统一的编程接口，用于实现 Dataflow 范式的程序，这些程序可以在多种运行时（runner）上执行，包括 Flink、Spark，以及 Google Cloud 的 Cloud Dataflow 产品。Dataflow 方法中包含了一些非常有趣的思想，我特别欣赏其中关于窗口化（windowing）、快照（snapshots）和会话窗口（session windowing）的解释。</p>
+      
+    
+      
+        <p>总的来说，现在是一个关注数据基础设施领域非常有趣的时期，我也很期待看到这一切最终会如何发展。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

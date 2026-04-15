@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 Django 实现非侵入式 JavaScript 入门 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 Django 实现非侵入式 JavaScript 入门</h1>
+    <div class="meta">
+      2008-09-21 · 
+      <a href="https://lethain.com/intro-to-unintrusive-javascript-with-django/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目前有大量关于在 Django 中使用 Ajax 的教程。尽管如此，这个主题仍然让很多人感到困惑。我认为根本问题在于，有三类截然不同的群体在寻找 Django 与 Ajax 结合使用的教程：</p>
+      
+    
+      
+        <div class="list-content">经验丰富的 Web 开发者，他们使用过多种其他框架（年轻时甚至管理过由信鸽组成的网络），只需要了解一些底层细节；掌握了另一种框架（通常是 Ruby on Rails）的 Web 开发者，但需要稍高层次的细节来适应 Django 的做事方式与他们之前经验之间的差异；缺乏经验的 Web 开发者，他们从未掌握过 Web 框架，对 Python、JavaScript 以及 Ajax 应用中的客户端-服务器交互等高级概念可能了解有限。</div>
+      
+    
+      
+        <p>通常第一类群体的教程会最先被写出来，因为它们往往只需要几段文字加一个代码片段（而且他们构成了早期采用者的大多数）。然后，随着时间推移，针对第二和第三类群体的教程零零散散地发布出来，往往对这两类群体都造成不利影响（并带来挫败感）。</p>
+      
+    
+      
+        <p>本教程的目标是引导那些具备一定 Django 知识——但对 Ajax 或 JavaScript 一无所知——的人，通过实现一个简单的笔记应用，同时触及创建 Ajax Web 应用的高层、中层和底层概念。</p>
+      
+    
+      
+        <p>如果你已经完成了 Django 官方教程，那么你已经准备好开始学习非侵入式 JavaScript 和 Ajax 了。</p>
+      
+    
+      
+        <h2>概述</h2>
+      
+    
+      
+        <p>很多人会告诉你，创建 Ajax Web 应用的第一步是选择一个 JavaScript 库。你应该使用 jQuery，还是 Dojo，还是 Pythonic 的 MochiKit？但是，等等，等等。选择 JavaScript 库其实并不是第一步。</p>
+      
+    
+      
+        <p>实现 Ajax Web 应用的第一步，是在没有 Ajax 的情况下先实现这个 Web 应用。这听起来有点反直觉，所以我们再说一遍：实现 Ajax Web 应用的第一步，是在没有 Ajax 的情况下先实现这个 Web 应用。</p>
+      
+    
+      
+        <p>这到底是什么意思呢？</p>
+      
+    
+      
+        <p>这意味着我们将首先完全不使用任何 JavaScript 来实现整个笔记应用，而是使用老派的 Web 交互工具：表单。</p>
+      
+    
+      
+        <p>之后，我们会使用 JavaScript 来改进网站并提升用户体验，但通过一开始不使用 JavaScript，我们确保网站在 JavaScript 被禁用或使用老旧浏览器的情况下仍能正常工作。</p>
+      
+    
+      
+        <p>这种将 JavaScript 视为增值功能（而非核心价值）的理念被称为非侵入式 JavaScript（unintrusive JavaScript）。这是当下颇为流行的话题，但这并不意味着它没有价值；它确实很有价值。</p>
+      
+    
+      
+        <p>所以，如果第一步是构建没有 JavaScript 的网站，那么第二步就是使用 jQuery 来美化它。</p>
+      
+    
+      
+        <p>我们将使用 jQuery，因为它已成为强大而轻量级的 JavaScript 库中的行业领导者。即使你并不特别喜欢 jQuery，本教程所探讨的概念也适用于其他 JS 库，所以你仍然能从中获得一些价值。</p>
+      
+    
+      
+        <h2>应用介绍</h2>
+      
+    
+      
+        <p>我们正在构建的 Django 应用叫做 notes，它相当简单：其首页会显示一个笔记列表，并允许创建新的笔记。</p>
+      
+    
+      
+        <p>每条笔记还会有一个详情页，允许查看和编辑笔记内容。</p>
+      
+    
+      
+        <p>就是这样。尽管如此，使用 Ajax 来美化这个应用仍然有很大的空间。打起精神，这会很有趣。</p>
+      
+    
+      
+        <h2>补充材料：Git 仓库</h2>
+      
+    
+      
+        <p>通常我会在编写应用的同时撰写教程。我在应用中写一行代码，然后在教程中写一行文字。这有助于避免遗漏错误，但也会引入因失误而产生的错误。我一直在尝试改进我的教程写作流程，这次我采取了略有不同的方法。</p>
+      
+    
+      
+        <p>我使用 Git 进行版本控制来撰写教程，并在我每次做出修改时都认真地提交（嗯，直到最后的 20%，那时我自愿放弃了理智），这样你就可以通过仓库的修订历史来跟踪变化，看到程序一步步成长。</p>
+      
+    
+      
+        <p>事实上，如果你熟悉 Git，我强烈建议你采用这种方式。通读本教程以获取高层细节并浏览代码，然后坐下来研究 Git 仓库并查看每次的变更。</p>
+      
+    
+      
+        <p>即使你对 Git 不是特别熟悉，其实做起来也相当简单。只要你安装了 Git，下载这个打包好的 Git 仓库，然后进入文件夹即可。</p>
+      
+    
+      
+        <p>然后使用 log 查看变更历史：</p>
+      
+    
+      
+        <p>如果你一直翻到最开始，你会看到这样：</p>
+      
+    
+      
+        <p>那是我做的第一个提交。要查看修订版本之间的变化：</p>
+      
+    
+      
+        <p>这两个哈希值分别是第一个修订版本和第二个修订版本的哈希，它会输出类似这样的文本：</p>
+      
+    
+      
+        <p>你可以继续使用 git log 来确定每个修订版本的哈希值，并逐步走查程序的成长过程。</p>
+      
+    
+      
+        <p>使用这种方法有两个优点：</p>
+      
+    
+      
+        <div class="list-content">它不是被动的，所以你不会只是在阅读时走神，你实际上必须理解这些变化。即使我在教程中忘记写某组说明，仓库也忠实地记录了每一个改变的按键，所以它就是拥有所有答案的灵感来源。</div>
+      
+    
+      
+        <p>试试使用 Git 仓库的方法吧，并告诉我它是否有帮助。</p>
+      
+    
+      
+        <h2>开始构建 notes</h2>
+      
+    
+      
+        <p>现在是真正开始的时候了。</p>
+      
+    
+      
+        <div class="list-content">创建一个新的 Django 项目。django-admin.py startproject ajax_tut
+创建 notes 应用。python manage.py startapp notes
+创建一些目录。mkdir media
+mkdir notes/templates
+mkdir notes/templates/notes
+打开 settings.py，在顶部添加这些行：import os
+ROOT_PATH = os.path.dirname(__file__)
+然后修改这些值：DATABASE_ENGINE = &#x27;sqlite3&#x27;
+DATABASE_NAME = os.path.join(ROOT_PATH, &#x27;notes.sqlite&#x27;)
+MEDIA_ROOT = os.path.join(ROOT_PATH, &#x27;media&#x27;)
+MEDIA_URL = &#x27;http://127.0.0.1:8000/media/&#x27;
+TEMPLATE_DIRS = (
+    os.path.join(ROOT_PATH, &#x27;templates&#x27;),
+)
+INSTALLED_APPS = (
+    &#x27;django.contrib.auth&#x27;,
+    &#x27;django.contrib.contenttypes&#x27;,
+    &#x27;django.contrib.sessions&#x27;,
+    &#x27;django.contrib.sites&#x27;,
+    &#x27;notes&#x27;,
+)
+这些改动可能看起来有点令人困惑，但它们对创建开发项目极其有帮助。这些设置允许项目检测其当前位置，然后为 sqlite 数据库、媒体目录和模板目录创建正确的路径。如果没有这些设置，你就必须自己输入绝对路径，但有了它们，你可以更改项目的目录——甚至把它打包发给同事——它依然能正常工作。我几乎在每个开发项目中都使用它们。接下来我们需要编辑 ajax_tut/urls.py 来使用 Django 媒体服务器（仅用于开发目的，不要用于部署！），并将所有传入的 URL 传递给 ajax_tut/notes/urls.py 文件（我们还没写呢）。ajax_tut/urls.py 应该像这样：from django.conf.urls.defaults import *
+from django.conf import settings
+urlpatterns = patterns(&#x27;&#x27;,
+    (r&#x27;^media/(?P&lt;path&gt;.*)$&#x27;, &#x27;django.views.static.serve&#x27;, {&#x27;document_root&#x27;: settings.MEDIA_ROOT }),
+    (r&#x27;^&#x27;, include(&#x27;ajax_tut.notes.urls&#x27;)),
+)
+注意 URL 是按顺序匹配的，所以即使第二个正则表达式会匹配任何传入 URL，传入 URL 也会先与第一个 URL 进行匹配。r&#x27;^media/(?P.*)$&#x27; 正则表达式允许我们使用开发服务器提供静态媒体，而 r&#x27;^&#x27; 则简单地意味着将任何到达它的 URL 传递给 notes 应用中的 urls.py 文件。现在是运行开发服务器并检查是否有任何输入错误的好时机。python manage.py runserver
+然后导航到 http://127.0.0.1:8000，你应该会看到一个闪亮的错误页面，抱怨 ajax_tut.notes.urls 模块不存在。我们走在正确的轨道上。接下来我们要创建 Note 模型来存储我们 Web 应用的数据。打开 ajax_tut/notes/models.py，让它看起来像这样：from django.db import models
+class Note(models.Model):
+    title = models.CharField(max_length=100)
+    slug = models.SlugField()
+    text = models.TextField(blank=True,null=True)
+    def __unicode__(self):
+        return u&quot;Note(%s,%s)&quot; % (self.title, self.slug)
+
+    def get_absolute_url(self):
+        return u&quot;/note/%s/&quot; % self.slug
+我们有点跳过了自己，因为已经定义了 get_absolute_url 方法，而我们还没有编写对应的 URL，但现在做能为我们节省一点时间。之后，前往命令行同步数据库，为 Note 模型创建适当的表。python manage.py syncdb
+现在我们可以编写 ajax_tut/notes/urls.py 文件了。from django.conf.urls.defaults import *
+from models import Note
+notes = Note.objects.all()
+urlpatterns = patterns(
+&#x27;&#x27;,
+(r&#x27;^$&#x27;,
+&#x27;django.views.generic.list_detail.object_list&#x27;,
+dict(queryset=notes)),
+(r&#x27;^note/(?P&lt;slug&gt;[-\w]+)/$&#x27;,
+&#x27;django.views.generic.list_detail.object_detail&#x27;,
+dict(queryset=notes, slug_field=&#x27;slug&#x27;)),
+(r&#x27;^create/$&#x27;,&#x27;notes.views.create_note&#x27;),
+(r&#x27;^note/(?P&lt;slug&gt;[-\w]+)/update/$&#x27;,&#x27;notes.views.update_note&#x27;),
+)
+对于所有显示内容的需求，我们将使用两个通用视图 list_detail.object_list 和 list_detail.object_detail。前者将显示所有笔记，后者将根据 URL 正则表达式中检测到的 slug 参数显示特定的笔记。通用视图操作于对象的 queryset，这就是为什么我们必须创建 notes queryset 并将其传递给视图。我们还指定了两个自定义视图 create_note 和 update_note，我们需要手动编写它们，它们将允许我们通过向它们 POST 数据来创建和修改笔记。通用视图有一个简单的机制来确定用于显示对象的模板。对于列表视图，它会尝试加载 appName/modelName_list.html，对于详情视图，它会尝试加载 appName/modelName_detail.html。在本例中，它们将是 notes/note_list.html 和 notes/note_detail.html。所以我们的下一步是创建这两个模板，但首先我们想创建一个 base.html 模板，让其他两个模板继承它以减少重复。在 notes/templates/ 目录中创建一个名为 base.html 的新文件，并填入以下代码：&lt;html&gt; &lt;head&gt;
+&lt;title&gt;{% block title %}Notes.DjApp{% endblock %}&lt;/title&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;/media/style.css&quot;&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;/media/jquery-1.2.6.min.js&quot;&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div class=&quot;container&quot;&gt;
+{% block content %}{% endblock %}
+&lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+这是一个非常简单的基模板，它只是为我们处理了一些静态导入和基本的 HTML 结构。注意我们在顶部添加了一个样式表并导入了 jQuery 库，我们还没有把它放到 media/ 目录中。我们会在再走几步之后再做这件事。下一步是创建 notes/note_list.html 模板来在我们的首页显示笔记列表。创建文件 ajax_tut/notes/templates/notes/note_list.html，并添加以下内容：{% extends &quot;base.html&quot; %}
+{% block content %}
+&lt;div class=&quot;new&quot;&gt;
+  &lt;h2&gt; Create a new note. &lt;/h2&gt;
+  &lt;form method=&quot;post&quot; action=&quot;/create/&quot;&gt;
+  &lt;label for=&quot;title&quot;&gt;Title&lt;/label&gt;
+  &lt;input type=&quot;text&quot; name=&quot;title&quot; id=&quot;title&quot;&gt;
+  &lt;label for=&quot;slug&quot;&gt;Slug&lt;/label&gt;
+  &lt;input type=&quot;text&quot; name=&quot;slug&quot; id=&quot;slug&quot;&gt;
+  &lt;input type=&quot;submit&quot; value=&quot;create note&quot;&gt;
+  &lt;/form&gt;
+&lt;/div&gt;
+&lt;div class=&quot;list&quot;&gt;
+  &lt;h2&gt; Notes &lt;/h2&gt;
+  &lt;ol id=&quot;notes&quot;&gt;
+    {% for object in object_list %}
+    &lt;li&gt;&lt;a href=&quot;{{ object.get_absolute_url }}&quot;&gt;{{ object.title }}&lt;/a&gt;&lt;/li&gt;
+    {% endfor %}
+  &lt;/ol&gt;
+&lt;/div&gt;
+{% endblock %}
+我们创建了一个用于创建新笔记的简单表单，以及一个用于显示它们的简单有序列表。我们将表单内容发送到 /create/ URL，该 URL 正好被定向到 notes.views 中的 create_note 方法。让我们去实现它。打开 notes/views.py，我们将实现 create_note。它需要确保收到的是 POST 请求，并且请求包含 title 和 slug 的值。否则它应该返回一个多少有点有帮助的错误消息。from models import Note
+from django.http import HttpResponseRedirect, HttpResponseServerError
+def create_note(request):
+    error_msg = u&quot;No POST data sent.&quot;
+    if request.method == &quot;POST&quot;:
+        post = request.POST.copy()
+        if post.has_key(&#x27;slug&#x27;) and post.has_key(&#x27;title&#x27;):
+            slug = post[&#x27;slug&#x27;]
+            if Note.objects.filter(slug=slug).count() &gt; 0:
+                error_msg = u&quot;Slug already in use.&quot;
+            else:
+                title = post[&#x27;title&#x27;]
+                new_note = Note.objects.create(title=title,slug=slug)
+                return HttpResponseRedirect(new_note.get_absolute_url())
+        else:
+            error_msg = u&quot;Insufficient POST data (need &#x27;slug&#x27; and &#x27;title&#x27;!)&quot;
+    return HttpResponseServerError(error_msg)
+注意在第 10 行我们正在验证 slug 没有被使用，以防止 slug 重复（这将导致两个具有重复 slug 的笔记都无法通过通用详情视图访问）。我们应用的一半现在已经实现并能连贯工作。我们可以查看笔记列表，并创建新的笔记。我们只需要查看和编辑单个笔记了。继续前进。打开 notes/templates/notes/note_detail.html 并赋予它生命：{% extends &quot;base.html&quot; %}
+{% block content %}
+&lt;div class=&quot;header&quot;&gt;
+  &lt;a href=&quot;/&quot;&gt; Back to Index &lt;/a&gt;
+&lt;/div&gt;
+&lt;div class=&quot;detail&quot;&gt;
+  &lt;form method=&quot;post&quot; action=&quot;update/&quot;&gt;
+  &lt;div class=&quot;text&quot;&gt;
+    &lt;label for=&quot;title&quot;&gt;Title&lt;/label&gt;
+    &lt;input type=&quot;text&quot; name=&quot;title&quot; id=&quot;title&quot; value=&quot;{{ object.title }}&quot;&gt;
+    &lt;label for=&quot;slug&quot;&gt;Slug&lt;/label&gt;
+    &lt;input type=&quot;text&quot; name=&quot;slug&quot; id=&quot;slug&quot; value=&quot;{{ object.slug }}&quot;&gt;
+  &lt;/div&gt;
+  &lt;textarea name=&quot;text&quot; id=&quot;text&quot;&gt;{{ object.text }}&lt;/textarea&gt;
+  &lt;input class=&quot;submit&quot; type=&quot;submit&quot; value=&quot;update note&quot;&gt;
+  &lt;/form&gt;
+&lt;/div&gt;
+{% endblock %}
+这次表单将其内容 POST 到 update/，这是一个相对 URL，不像 /create/ 是绝对 URL。这让生活变得稍微容易一些，但笔记的 slug 已经包含在其 URL 中，所以我们不必每次更新都 POST slug（当前的表单确实每次发送时都会提交所有内容，但对于我们的 Ajax 版本来说不一定如此）。接下来我们需要编写 update_note，这是处理来自 note_detail.html 的提交表单数据的视图。打开 notes/views.py 并在现有代码下方添加这个函数：def update_note(request, slug):
+    if request.method == &quot;POST&quot;:
+        post = request.POST.copy()
+        note = Note.objects.get(slug=slug)
+        if post.has_key(&#x27;slug&#x27;):
+            slug_str = post[&#x27;slug&#x27;]
+            if note.slug != slug_str:
+                if Note.objects.filter(slug=slug_str).count() &gt; 0:
+                    error_msg = u&quot;Slug already taken.&quot;
+                    return HttpResponseServerError(error_msg)
+                note.slug = slug_str
+        if post.has_key(&#x27;title&#x27;):
+            note.title = post[&#x27;title&#x27;]
+        if post.has_key(&#x27;text&#x27;):
+            note.text = post[&#x27;text&#x27;]
+        note.save()
+        return HttpResponseRedirect(note.get_absolute_url())
+    error_msg = u&quot;No POST data sent.&quot;
+    return HttpResponseServerError(error_msg)
+注意这是一种相当灵活的更新方法，如果三个字段都存在，它会更新所有字段，但它也可以处理只更新其中一个或两个字段的情况。我们再次在处理更新之前验证 slug 没有被占用（slug 必须是唯一的）。最后，我们仍然在努力提供有帮助的错误消息，这将帮助用户弄清楚他们哪里做错了，并且对于让我们的 Ajax 版本拥有良好用户体验至关重要。呼。现在我们基本上完成了网站的非 Ajax 版本，但在我们继续使用一些 JavaScript 之前，我们要稍微应用一点 CSS，让整个东西看起来更舒服一些。在 ajax_tut/media/ 文件夹中创建一个名为 style.css 的文件，并输入以下 CSS：body {
+    font-family: georgia;
+}
+.container {
+    width: 80%;
+    margin-top: 2em;
+    margin-left: auto;
+    margin-right: auto;
+}
+/* note_list.html */
+.new {
+    text-align: center;
+    border: 1px solid grey;
+    margin-bottom: 1em;
+    padding-bottom: 1em;
+}
+.list {
+    border: 1px solid grey;
+}
+.list h2 {
+    text-align: center;
+}
+/* note_detail.html */
+.header {
+    margin-bottom: 2em;
+}
+.detail .text {
+    text-align: center;
+}
+.detail textarea {
+    margin-top: 1em;
+    width: 100%;
+    height: 300px;
+}
+.detail .submit {
+    width: 50%;
+    margin-left: 25%;
+    margin-right: 25%;
+}
+嘿，现在看起来稍微好看一点了。保存所有内容，然后运行开发服务器以确保没有输入错误溜进代码：python manage.py runserver
+然后前往 http://127.0.0.1:8000/ 确保一切正常工作。</div>
+      
+    
+      
+        <p>随便玩玩它，去公园散散步，当你的眼睛不再因为盯着屏幕而疼痛时，再回来，我们将开始使用一些 Ajax。</p>
+      
+    
+      
+        <h2>邀请 Ajax 参加派对</h2>
+      
+    
+      
+        <p>现在我们已经有了一个能工作的应用，是时候开始考虑如何在应用中加入一些动态的 Ajax 功能了。</p>
+      
+    
+      
+        <p>在我们深入细节之前，我想简单介绍一下 Ajax 的高层概念。简单来说，Ajax 是关于使用带外异步通信来提供功能，而无需真正离开你所到达的 URL。</p>
+      
+    
+      
+        <p>良好地使用 Ajax 可以让你的 Web 应用响应更快。不良的使用则可能让你的 Web 应用变成可怕的死亡陷阱。重要的是要确保你使用 Ajax 是因为它真正改善了你的网站，而不是因为……嗯，其实没有其他理由使用它。</p>
+      
+    
+      
+        <p>从 Django 的角度来看，实现 Ajax 意味着编写 JavaScript 从客户端发送请求，并确保你已经编写了适当的视图来服务这些请求。</p>
+      
+    
+      
+        <p>通常这意味着创建自定义视图来将相关数据 JSON 编码并返回给等待的 JavaScript 函数。</p>
+      
+    
+      
+        <p>然而，在这个例子中，我们要稍微以不同的方式做事。我们已经编写了处理我们所需功能（创建和编辑笔记）的视图，我们只需用我们的 JavaScript 重用它们即可。</p>
+      
+    
+      
+        <p>然而……这些视图返回的是 HTML 而不是 JSON，所以我们将不得不自己提取必要的数据。我们将为此使用正则表达式。如果你觉得这有点过于复杂，请放心，因为你可以通过简单编写额外的返回必要数据的 JSON 编码视图来避免这种正则魔术。</p>
+      
+    
+      
+        <p>让我们开始吧。</p>
+      
+    
+      
+        <div class="list-content">第一步是下载 jQuery JavaScript 库，你可以在这里下载。然后把它移动到 media/ 目录。mv ~/Downloads/jquery-1.2.6.min.js media/
+我们已经在 base.html 模板中添加了导入，看起来像这样：&lt;head&gt;
+&lt;title&gt;{% block title %}Notes.DjApp{% endblock %}&lt;/title&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;/media/style.css&quot;&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;/media/jquery-1.2.6.min.js&quot;&gt;&lt;/script&gt;
+&lt;/head&gt;
+有了这个，jQuery 就“安装”好了。我们要尝试的第一个 Ajax 改进是改善笔记创建过程。目前，当你尝试创建新笔记时，你输入笔记的标题和 slug，然后点击创建。它然后会带你到笔记的页面。我们要稍微改变一下。相反，当你创建一个新笔记时，新笔记的链接将出现在笔记列表的顶部，而无需离开页面。这使得一次创建多个笔记更容易，并且创建后仍然容易访问笔记。为了实现这一点，我们将在 notes/note_list.html 模板中添加一些 JavaScript。打开 notes/note_list.html 文件，在 {% endblock %} 模板标签正上方插入这段代码。我将把它分解成两个函数，但它们都应该在一个 &lt;script&gt;&lt;/script&gt; 块中。var create_note = function() {
+  var title = $(&quot;#title&quot;).val()
+  var slug = $(&quot;#slug&quot;).val()
+  if (title != &quot;&quot; &amp;&amp; slug != &quot;&quot;) {
+    var data = { title:title, slug:slug };
+    var args = { type:&quot;POST&quot;, url:&quot;/create/&quot;, data:data, complete:done };
+    $.ajax(args);
+  }
+  else {
+    // display an explanation of failure
+  }
+  return false;
+};
+这里的 create_note 函数使用 jQuery 的 ajax 函数向 /create/ URL 发送异步请求。它提取 title 和 slug 输入框的值，并将它们作为 POST 参数传递。它还指定了 done 函数在收到响应时被调用。（我们稍后会看看那个函数。）最后，非常重要的是 create_note 要返回 false 值。为了覆盖 HTML 按钮（或本例中的 submit 输入）的默认点击行为，你必须返回 false。否则按钮的正常行为仍然会发生（在本例中意味着尝试两次创建同一个笔记，并将用户重定向到错误页面而不是新创建的笔记）。处理响应的 done 函数看起来像这样：var done = function(res, status) {
+  if (status == &quot;success&quot;) {
+    var txt = res.responseText;
+    var titleStr = txt.match(/id=&quot;title&quot; value=&quot;\w+&quot;/ig)[0];
+    var slugStr = txt.match(/id=&quot;slug&quot; value=&quot;\w+&quot;/ig)[0];
+    var title = titleStr.match(/&quot;\w+&quot;/ig)[1].replace(/&quot;/g,&#x27;&#x27;);
+    var slug = slugStr.match(/&quot;\w+&quot;/ig)[1].replace(/&quot;/g,&#x27;&#x27;);
+    var newLi = $(&#x27;&lt;li&gt;&lt;a href=&quot;/note/&#x27;+slug+&#x27;&quot;&gt;&#x27;+title+&#x27;&lt;/a&gt;&lt;/li&gt;&#x27;);
+    $(&quot;#notes&quot;).prepend(newLi);
+    $(&quot;#title&quot;).val(&quot;&quot;);
+    $(&quot;#slug&quot;).val(&quot;&quot;);
+  }
+  else {
+    // display an explanation of failure
+  }
+}
+done 函数稍微复杂一些，因为我们正在从响应（恰好是 HTML）中解析出 slug 和文本。在提取数据之后，我们使用 jQuery 创建一个新的 &lt;li&gt; 元素，并将其前置到 &lt;ol id=&quot;notes&quot;&gt; 中。最后，我们需要做的最后一件事是将 create_note 函数与表单中的提交按钮关联起来：$(&quot;#create&quot;).click(create_note);
+现在测试一下。它是一个小小的改进。现在我们有点绕过了重要的问题：错误处理。目前，如果出了问题，用户不知道发生了什么。这对用户来说是一件相当刻薄的事情，所以我们要改进这一点。这种错误通知是我们也将在 note_detail.html 模板中使用的模式，所以我们要确保编写可重用的代码并把它放到 media 目录中的一个 .js 文件里。创建一个新文件 media/notes.js，并填入这个函数：var display_error = function(msg, elem) {
+  var msg_div = $(&#x27;&lt;div class=&quot;error_msg&quot;&gt;&lt;p&gt;&#x27;+msg+&#x27;&lt;/p&gt;&lt;/div&gt;&#x27;);
+  msg_div.insertAfter(elem).fadeIn(&#x27;slow&#x27;).animate({opacity: 1.0}, 5000).fadeOut(&#x27;slow&#x27;,function() { msg_div.remove(); });
+}; 
+这个 display_error 函数创建一个带有指定错误消息的新 div 元素，然后淡入，显示五秒钟，然后淡出（并移除 div）。然后我们必须在 base.html 模板中加载它，在加载 jQuery 库的下方添加这行：&lt;script type=&quot;text/javascript&quot; src=&quot;/media/notes.js&quot;&gt;&lt;/script&gt;
+最后我们必须在 notes/note_list.html 模板中的两个地方集成它。替换：var done = function(res, status) {
+  if (status == &quot;success&quot;) {
+    // do stuff
+  }
+  else {
+    // display an explanation of failure
+  }
+}
+用这个实际处理错误的代码：var done = function(res, status) {
+  if (status == &quot;success&quot;) {
+    // do stuff
+  }
+  else {
+    // Only this changed...
+    display_error(res.responseText, $(&quot;.new&quot;));
+  }
+}
+并在 create_note 中替换这行：// display an explanation of failure
+用这个：display_error(&quot;Requires values for both title and slug.&quot;, $(&quot;.new&quot;));
+现在我们的 Ajax 笔记创建实际上可用了，而不仅仅是一个让用户不开心地navigate的雷区。我们不知何故鼓起力量继续深入这片可怕的新土地。现在我们要将注意力从 notes/note_list.html 转向详情模板 notes/note_detail.html。我们要实现两个有趣的想法：slug 和 title 输入框将被转换为纯文本，直到鼠标悬停在其上，此时它们会变成输入框。我们要让提交按钮消失，并在我们离开对应的输入框或文本框时立即更新数据。我们先做一个非常简单的工作，之后再稍微修饰一下。打开 notes/note_detail.html。在 {% endblock %} 标签上方，我们要添加另一个 &lt;script&gt;&lt;/script&gt; 块。现在我们要做什么我们在 notes_list.html 中没有做但本应该做的事。我们要把我们所有的 JavaScript 包装在这个函数中：$(document).ready(function() {
+  // do stuff
+});
+这是一个有用的 jQuery 技巧，它确保你的 JavaScript 在 DOM 数据可供操作之后加载。本质上它确保页面在你的脚本被调用时不是还在构建自己（这可能会阻止脚本正确执行）。现在，在那个函数里面，我们要开始让输入框在鼠标不在其上时变成 span。我们从 title 输入框开始。$(document).ready(function() {
+  var title_to_input = function() {
+    var title = $(&quot;#title&quot;);
+    var input = $(&#x27;&lt;input type=&quot;text&quot; name=&quot;title&quot; id=&quot;title&quot; value=&quot;&#x27;+title.text()+&#x27;&quot;&gt;&#x27;);
+    input.hover(function() {}, title_to_span);
+    title.replaceWith(input);
+  }
+  var title_to_span = function() {
+    // called on mouse away
+    var title = $(&quot;#title&quot;);
+    var span = $(&#x27;&lt;span id=&quot;title&quot;&gt;&lt;em&gt;&#x27;+title.val()+&#x27;&lt;/em&gt;&lt;/span&gt;&#x27;);
+    span.hover(title_to_input,function() {});
+    title.replaceWith(span);
+  }
+});
+你可以看到我们在这里开始使用更多 jQuery。hover 函数允许你指定当鼠标在元素上方时调用的函数，以及当它离开元素时调用的第二个函数。我们用它来调用我们在输入框和 span 之间转换的函数。我在这里使用了一种详细的风格，但你无疑可以将那个 JavaScript 压缩到更少的行……但我觉得它这样更易读。我们还需要为 slug 输入框编写等效的函数。把这些也扔到 $(document.ready() 函数里面：var slug_to_input = function() {
+  var slug = $(&quot;#slug&quot;);
+  var input = $(&#x27;&lt;input type=&quot;text&quot; name=&quot;slug&quot; id=&quot;slug&quot; value=&quot;&#x27;+slug.text()+&#x27;&quot;&gt;&#x27;);
+  input.hover(function() {}, slug_to_span);
+  slug.replaceWith(input);
+}
+var slug_to_span = function() {
+  // called on mouse away
+  var slug = $(&quot;#slug&quot;);
+  var span = $(&#x27;&lt;span id=&quot;slug&quot;&gt;&lt;em&gt;&#x27;+slug.val()+&#x27;&lt;/em&gt;&lt;/span&gt;&#x27;);
+  span.hover(slug_to_input,function() {});
+  slug.replaceWith(span);
+}
+title_to_span();
+slug_to_span();
+如你所见，我们还需要在页面加载时调用这两个 _to_span 函数一次，以便它们一开始就是 span。去页面上测试一下吧。你可能会觉得它相当烦人，因为大小调整真的会让东西移位。让我们在 style.css 中扔几行 CSS 来缓解这一点。首先，移除这些行：.detail .text {
+   text-align: center;
+}
+然后……放弃吧。让这种技术看起来不错是可能的，但我们需要在标记中添加几个 div，而这个教程的目标不是视觉完美。现在我们有了在 span 和 input 之间切换的输入框，但我们仍然必须使用老式的按钮来提交数据。所以，首先让我们去掉那个按钮（针对启用 JavaScript 的人），然后用鼠标离开编辑字段时保存的功能来替换它的功能。为了去掉提交按钮，我们只需在我们已有的 JavaScript 中添加这行（在 ready() 函数里面）：$(&quot;input[type=submit]&quot;).remove()
+而更新则稍微复杂一点。在我们实现更新之前，我们要稍微绕个道来创建一个 display_success 函数，以补充我们之前创建的 display_error 函数。打开 media/notes.js 并添加这个函数：var display_success = function(msg, elem) {
+  var msg_div = $(&#x27;&lt;div class=&quot;success_msg&quot;&gt;&lt;p&gt;&#x27;+msg+&#x27;&lt;/p&gt;&lt;/div&gt;&#x27;);
+  msg_div.insertAfter(elem).fadeIn(&#x27;slow&#x27;).animate({opacity: 1.0}, 5000).fadeOut(&#x27;slow&#x27;,function() { msg_div.remove(); });
+}; 
+然后我们要为 display_success 和 display_error 函数创建的 div 设置样式。打开 media/style.css 并添加这些行：.error_msg {
+    background-color: red;
+    border: 1px solid black;
+    margin-top: 1em;
+    margin-bottom: 1em;
+    text-align: center;
+}
+.success_msg {
+    background-color: blue;
+    border: 1px solid black;
+    margin-top: 1em;
+    margin-bottom: 1em;
+    text-align: center;
+}
+这个 CSS 将使成功和错误消息易于区分，同时让它们看起来更像样一点。现在我们准备好在 notes/note_detail.html 中添加更新功能了。这一步我们要修改相当多的代码，所以首先我会看各个部分，然后展示它的全部（以方便复制粘贴）。首先，我们需要创建一个向 update/ URL 发送更新的函数。var perform_update = function(field, val) {
+  var data = {};
+  data[field] = val;
+  var args = { type:&quot;POST&quot;, url:&quot;update/&quot;, data:data, complete:done };
+  $.ajax(args);
+};
+使用这个函数更新值很简单：perform_update(&quot;title&quot;, &quot;my-title&quot;);
+perform_update(&quot;slug&quot;, &quot;my-slug&quot;);
+perform_update(&quot;text&quot;, &quot;it was a great time&quot;);
+记住我们在 notes.views 中编写的 update 视图足够灵活，可以一次性接收所有值，也可以一次只接收一个值，这允许我们编写这个简单的更新函数。还要注意 perform_update 在完成后调用 done 函数，我们还没写呢。done 看起来像这样：var done = function(res, status) {
+  if (status == &quot;success&quot;) display_success(&quot;Updated successfully.&quot;, $(&quot;.text&quot;));
+  else display_error(res.responseText, $(&quot;.text&quot;));
+}
+它使用我们有帮助的 display_error 和 display_success 函数来处理大部分细节。最后，我们必须修改 title_to_span 和 slug_to_span 函数来调用发送更新。这很简单，只要把它们改成这样：var title_to_span = function() {
+  var title = $(&quot;#title&quot;);
+  perform_update(&quot;title&quot;, title.val());
+  // etc etc
+}
+但这导致了一个问题：我们在页面加载时调用 _to_span 函数，所以我们会在加载页面时立即发送更新。我们可以通过使用一对变量来跟踪这是否是初始使用，并在那种情况下阻止发送更新来防止这种情况。var initialTitleChange = true;
+var initialSlugChange = true;
+var slug_to_span = function() {
+var slug = $(&quot;#slug&quot;);
+if (initialSlugChange) initialSlugChange = false;
+else perform_update(&quot;slug&quot;, slug.val());
+// etc etc
+}
+有了这个改变，我们让事情工作得相当不错，而那一整块代码（&lt;script&gt;&lt;/script&gt; 块里面的所有内容）看起来像这样：$(document).ready(function() {
+  var initialTitleChange = true;
+  var initialSlugChange = true;
+var perform_update = function(field, val) {
+var data = {};
+data[field] = val;
+var args = { type:&quot;POST&quot;, url:&quot;update/&quot;, data:data, complete:done };
+$.ajax(args);
+};
+var done = function(res, status) {
+if (status == &quot;success&quot;) display_success(&quot;Updated successfully.&quot;, $(&quot;.text&quot;));
+else display_error(res.responseText, $(&quot;.text&quot;));
+}
+var title_to_input = function() {
+var title = $(&quot;#title&quot;);
+var input = $(&#x27;&lt;input type=&quot;text&quot; name=&quot;title&quot; id=&quot;title&quot; value=&quot;&#x27;+title.text()+&#x27;&quot;&gt;&#x27;);
+input.hover(function() {}, title_to_span);
+title.replaceWith(input);
+}
+var title_to_span = function() {
+// called on mouse away
+var title = $(&quot;#title&quot;);
+if (initialTitleChange) initialTitleChange = false;
+else perform_update(&quot;title&quot;, title.val());
+var span = $(&#x27;&lt;span id=&quot;title&quot;&gt;&lt;em&gt;&#x27;+title.val()+&#x27;&lt;/em&gt;&lt;/span&gt;&#x27;);
+span.hover(title_to_input,function() {});
+title.replaceWith(span);
+}
+var slug_to_input = function() {
+var slug = $(&quot;#slug&quot;);
+var input = $(&#x27;&lt;input type=&quot;text&quot; name=&quot;slug&quot; id=&quot;slug&quot; value=&quot;&#x27;+slug.text()+&#x27;&quot;&gt;&#x27;);
+input.hover(function() {}, slug_to_span);
+slug.replaceWith(input);
+}
+var slug_to_span = function() {
+// called on mouse away
+var slug = $(&quot;#slug&quot;);
+if (initialSlugChange) initialSlugChange = false;
+else perform_update(&quot;slug&quot;, slug.val());
+var span = $(&#x27;&lt;span id=&quot;slug&quot;&gt;&lt;em&gt;&#x27;+slug.val()+&#x27;&lt;/em&gt;&lt;/span&gt;&#x27;);
+span.hover(slug_to_input,function() {});
+slug.replaceWith(span);
+}
+title_to_span();
+slug_to_span();
+$(&quot;input[type=submit]&quot;).remove()
+});
+就几行代码……对吧？一个敏锐的读者，或挑剔的批评者，会很快注意到这个实现有许多不完美的地方。例如，如果它具体说明哪个字段被更新了岂不是很好？更好的是，如果更新失败时它能撤销所有更改岂不是更好？是的。那会很棒。然而，实现它们将要求我们编写额外的自定义视图来为我们提供那些情况所需的信息。例如，Ajax 友好的 update 方法可能看起来像这样：from django.utils import simplejson
+def ajax_update_note(request, slug):
+    post = request.POST.copy()
+    note = Note.objects.get(slug=slug)
+    if post.has_key(&#x27;slug&#x27;):
+        slug_str = post[&#x27;slug&#x27;]
+        if Note.objects.filter(slug=slug_str).count() &gt; 0:
+            d = { &#x27;msg&#x27;:&#x27;Slug already in use.&#x27;,&#x27;slug&#x27;:note.slug }
+            return HttpResponse(simplejson.dumps(d))
+        note.slug = slug_str
+    if post.has_key(&#x27;title&#x27;):
+        note.title = post[&#x27;title&#x27;]
+    if post.has_key(&#x27;text&#x27;):
+        note.text = post[&#x27;text&#x27;]
+    d = { &#x27;msg&#x27;:&#x27;Update successful!&#x27; }
+    return HttpResponse(simplejson.dumps(d))
+如果我们使用那个，那么我们就有足够的数据来将无效更改回滚到它们之前的值，并且我们可以对修改更加花哨。本教程不会明确地走那条路，但如果你简单地在 notes.urls 中创建一个新的 URL 正则表达式，粘贴上面的 ajax_update_note 函数，并修改 notes/note_detail.html 中的 perform_update 函数，那么你就差不多完成了。你还必须重写 done，以利用传入的 JSON。它可能看起来像：var done = function(res, status) {
+  if (status == &quot;success&quot;) {
+    var data = eval(res.responseText);
+    display_success(data[&#x27;msg&#x27;], $(&quot;.text&quot;));
+  else {
+    var data = eval(res.responseText);
+    display_error(data[&#x27;msg&#x27;], $(&quot;.text&quot;));
+    if (data.slug) {
+      $(&quot;#slug&quot;).text(data.slug);
+    }
+  }
+}
+当你开始编写更复杂的 Ajax 功能时，你将不可避免地必须编写自定义 Django 视图来支持该功能。这只是做（Ajax）生意的代价。最后，我们需要设置文本框也进行更新。由于我们已经编写了实用函数，这将会非常快：$(&quot;#text&quot;).hover(function() {}, function() { perform_update(&quot;text&quot;, $(&quot;#text&quot;).text()); });
+把这行添加到 notes/note_detail.html 中 JavaScript 的末尾，让它看起来像这样：title_to_span();
+slug_to_span();
+$(&quot;#text&quot;).hover(function() {}, function() { perform_update(&quot;text&quot;, $(&quot;#text&quot;).text()); });
+$(&quot;input[type=submit]&quot;).remove()
+现在它就像文本字段一样更新了。</div>
+      
+    
+      
+        <p>虽然它不是很完善，但我们在这里实现了一些有趣的 Ajax 功能，希望足以让你开始实现自己的想法。</p>
+      
+    
+      
+        <h2>继续前进</h2>
+      
+    
+      
+        <p>在本教程中，我们将一个相当平淡的应用转变成了稍微有点令人兴奋的东西。目前我们就到此为止，你可以在这里下载 Git 仓库的 zip 压缩包。</p>
+      
+    
+      
+        <p>我将在两篇补充文章中讨论两个额外的话题：</p>
+      
+    
+      
+        <div class="list-content">使用额外的视图来改善 Ajax 体验，以及为这个应用添加验证层。</div>
+      
+    
+      
+        <p>第二部分在这里继续。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

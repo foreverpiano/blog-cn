@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>双面 Django 第二部分：模型与 Django 测试 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>双面 Django 第二部分：模型与 Django 测试</h1>
+    <div class="meta">
+      2007-12-04 · 
+      <a href="https://lethain.com/two-faced-django-part-2-models-and-django-testing/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在本教程的[第一部分][partone]中，我们已经搭好了[文件和文件夹结构][polling1]。现在我们要开始构建项目的核心功能和数据。让项目能快速开发、易于测试的关键之一，就是所有的核心功能只实现一次，即使它会被 Facebook 应用和 Web 应用以不同方式使用。在最理想的情况下（也就是我们正在努力实现的目标），我们在 fb 和 web 应用中编写的所有代码，都只是对 core 应用中核心功能的一层简单接口。</p>
+      
+    
+      
+        <p>好，上一段抛出了很多看似奇怪的概念，现在我们来看看到底是什么意思。</p>
+      
+    
+      
+        <h2>将功能映射到模型上</h2>
+      
+    
+      
+        <p>接下来我们要开始编写模型，但首先需要明确这个程序具体要做什么。我说过它是一个投票程序，那么一个简单的投票应用应该具备什么功能呢？</p>
+      
+    
+      
+        <div class="list-content">创建投票。对投票进行投票。对参与投票的用户进行管理。如果创建者想要，允许删除投票。</div>
+      
+    
+      
+        <p>听起来挺简单。我们来创建一些能够支撑这些功能的模型：</p>
+      
+    
+      
+        <p>看看我们的 Poll 类，可以发现我们会记录问题、创建该 Poll 的 User，以及它收到的赞成票和反对票数量。</p>
+      
+    
+      
+        <p>User 类稍微复杂一些，因为我们希望应用不关心当前使用的是哪种界面（本项目中的 web 或 fb 应用）。因此我们有两种方式来标识一个 User：要么通过他们的 Facebook User ID，要么通过 django.contrib.auth.models.User 的实例。</p>
+      
+    
+      
+        <h2>提问时间：我们真的需要区分 Facebook 用户和 Web 应用用户吗？</h2>
+      
+    
+      
+        <p>是的，很遗憾，我们必须区分。当我们与 Facebook 用户交互时，实际上是通过一个中间人（Facebook）来进行沟通，没有直接连接，因此无法通过 cookie 来识别用户，在处理 Facebook 用户时也无法利用 Django 的 session 或认证框架。</p>
+      
+    
+      
+        <h2>提问时间结束</h2>
+      
+    
+      
+        <p>好的，我们有了模型，现在来进一步完善它们：让它们能在 Django admin 中管理，并添加 __unicode__ 方法，以便 Django 知道如何展示它们。（再加上一些注释，因为我们是专业人士，对吧？）最终结果如下：</p>
+      
+    
+      
+        <p>这就是我们的模型。干得漂亮。（注意：本教程中完成的所有代码可以从[这个 zip 文件][polling2]中下载。）</p>
+      
+    
+      
+        <h2>确保一切都能正常工作</h2>
+      
+    
+      
+        <p>到了这里，很多教程或者很多读者可能会一头扎进越来越复杂的细节中。但我们不会，亲爱的读者，我们不会。我们要停下来好好看看 Django 的测试框架，并“善加利用”它来……</p>
+      
+    
+      
+        <p>我在说什么鬼话啊。我们就是要写一些测试。</p>
+      
+    
+      
+        <p>在 Django 测试框架中，与特定应用相关的测试放在该应用的文件夹内，文件名为 tests.py。我们现在就来创建它（从 polling 项目文件夹开始）：</p>
+      
+    
+      
+        <p>现在我们给 tests.py 文件加入一些基础脚手架代码：</p>
+      
+    
+      
+        <p>setUp 方法会在 TestCase 中的每个测试方法运行前被调用。因此在每个单元测试（比如上面脚手架中的 test_function）执行之前，setUp 函数都会先运行。同理，每个单元测试结束后，tearDown 也会被调用。</p>
+      
+    
+      
+        <p>tearDown 方法看起来可能有点多余。为什么我们要这么较真地在每个测试后删除数据库中的所有模型呢？虽然 Django 测试会创建一个专用的测试数据库，但这个数据库是在每次运行测试框架时创建的，而不是在每个单独的单元测试后重新创建。因此我们可能会遇到不确定测试数据库中模型数量和类型的情况。这对测试来说并不理想，所以我更倾向于在每个单元测试后清除测试数据库中之前的所有模型。由于我们使用的是 SQLite，这其实是一个非常快的操作，因为测试数据库是在内存中创建的，读写速度极快（当然持久性也几乎为零）。</p>
+      
+    
+      
+        <p>现在我们来运行这个脚手架。</p>
+      
+    
+      
+        <p>它会执行我们的测试。就是这么简单。输出内容的底部应该看起来像这样：</p>
+      
+    
+      
+        <p>“------”上方的那三个点分别代表一个通过的测试。当测试失败时，测试运行器会毫不客气地告诉你。但我们还是验证一下吧。在 core/tests.py 文件中，把</p>
+      
+    
+      
+        <p>现在再次运行测试</p>
+      
+    
+      
+        <p>这次的输出变成了这样：</p>
+      
+    
+      
+        <p>好了。现在我们已经搭好了测试脚手架，接下来写一个更好的 setUp 方法，真正往测试数据库里填充一些数据。</p>
+      
+    
+      
+        <p>用下面的代码替换原来的 setUp 方法：</p>
+      
+    
+      
+        <p>现在运行测试，确保 setUp 函数能正常工作。</p>
+      
+    
+      
+        <p>好吧，结果不太理想。它应该抛出类似下面的错误：</p>
+      
+    
+      
+        <p>糟糕。我们需要在 Poll 模型的 *up_vote 和 down_vote* 字段设置初始值！编写测试的一大好处就是，它会迫使我们尽早搞清楚自己在做什么。这是一件好事。</p>
+      
+    
+      
+        <h2>快速修复 Poll 模型</h2>
+      
+    
+      
+        <p>为了给 Poll 中的两个字段设置初始值，我们要重写 save 方法。这是一个很实用的技巧，因为它允许你在创建对象时动态决定数值，也可以对传入的值进行清洗。（值得一提的是，在这个特定场景下，使用字段的 default 参数更合适，比如“up_vote = IntegerField(default=0)”，但那样我们就错过了观察重写 save 这个常用技巧的机会。）</p>
+      
+    
+      
+        <p>因此，在 polling/core/models.py 中 Poll 类的 __unicode__ 方法之前，插入以下代码：</p>
+      
+    
+      
+        <p>读完这段代码可以发现，如果我们在创建 Poll 实例时没有指定 *up_vote 或 down_vote* 字段的值，save 方法会在调用默认的模型 save 方法（model 是 Poll 的父类）之前为我们设置它们。</p>
+      
+    
+      
+        <p>保存 polling/core/models.py 文件，然后重新运行测试。</p>
+      
+    
+      
+        <p>一切又正常了。</p>
+      
+    
+      
+        <h2>继续代码-测试循环</h2>
+      
+    
+      
+        <p>好了，本教程第二部分还剩下两个简短的“实现-测试”循环。我保证你很快就能休息。</p>
+      
+    
+      
+        <p>首先我想为 Poll 添加两个便捷方法，用于给投票加赞或踩，同时再加一个计算当前总得分的函数。代码如下：</p>
+      
+    
+      
+        <p>现在我们来写一些测试，确保它们能正常工作。重新打开 polling/core/tests.py：</p>
+      
+    
+      
+        <p>这应该是 CoreModelTest 类的一个方法。我们获取一个已经在 *setUp 方法中创建好的 poll*，然后获取它初始的 up_votes 和 down_votes 值。接着做一些合理性检查，然后调用 up、down 和 score 方法，并验证它们返回的值是否符合预期。</p>
+      
+    
+      
+        <p>现在运行测试看看结果：</p>
+      
+    
+      
+        <p>全部通过。非常好。</p>
+      
+    
+      
+        <h2>最后一个快速循环</h2>
+      
+    
+      
+        <p>好的，现在我们想给 User 类添加一点功能，以便更容易创建 Poll 实例。我们要增加一个 create_poll 方法，它会创建一个新的 Poll 实例，并且该 Poll 的创建者就是调用此方法的 User 实例。代码如下：</p>
+      
+    
+      
+        <p>再写一个测试来确保它能正常工作：</p>
+      
+    
+      
+        <p>然后……你知道流程的……运行测试：</p>
+      
+    
+      
+        <p>测试全部通过。哈利路亚。</p>
+      
+    
+      
+        <h2>又一个激动人心的结束。</h2>
+      
+    
+      
+        <p>好了。我们已经完成了应用的模型创建，也为应用引入了测试，这样我们就有了一定程度的保证，证明我们做的事情是有意义的。你可以从[这里][polling2]下载本教程完成后的项目快照。</p>
+      
+    
+      
+        <p>当你准备好继续时，第三部分已经在等着你了。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

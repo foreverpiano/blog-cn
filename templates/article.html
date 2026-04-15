@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}{{ article.title_zh or article.title }} · {{ site_name }}{% endblock %}
+{% block css_path %}../static/css/style.css{% endblock %}
+{% block home_link %}../index.html{% endblock %}
+{% block portal_link %}../../index.html{% endblock %}
+
+{% block content %}
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>{{ article.title_zh or article.title }}</h1>
+    <div class="meta">
+      {% if article.date %}{{ article.date }} · {% endif %}
+      <a href="{{ article.url }}" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    {% for segment in article.segments %}
+      {% if segment.type == "heading" %}
+        <h2>{{ segment.rendered_html | safe }}</h2>
+      {% elif segment.type == "code" %}
+        <pre><code>{{ segment.rendered_html }}</code></pre>
+      {% elif segment.type == "blockquote" %}
+        <blockquote>{{ segment.rendered_html | safe }}</blockquote>
+      {% elif segment.type == "list" %}
+        <div class="list-content">{{ segment.rendered_html | safe }}</div>
+      {% else %}
+        <p>{{ segment.rendered_html | safe }}</p>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  {% if article.footnotes %}
+  <section class="footnotes">
+    <h2>注释</h2>
+    {% for fn in article.footnotes %}
+    <div class="footnote-item" id="{{ fn.id }}">
+      {% if fn.has_visible_ref %}<a href="#fnref-{{ fn.id }}">[{{ loop.index }}]</a>{% else %}<span class="fn-num">[{{ loop.index }}]</span>{% endif %} {{ fn.text_zh or fn.text }}
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+{% endblock %}

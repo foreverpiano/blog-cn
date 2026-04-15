@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PyObjC 和 Cocoa 入门指南 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>PyObjC 和 Cocoa 入门指南</h1>
+    <div class="meta">
+      2008-08-22 · 
+      <a href="https://lethain.com/an-epic-introduction-to-pyobjc-and-cocoa/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>随着 Leopard（OS X 10.5）的发布，PyObjC 2.0 也同步推出，这让开始一个 PyObjC 项目变得非常简单。然而，不少人指出，目前还缺少一份全面、与时俱进的 PyObjC 2.0（Leopard 版）入门教程。</p>
+      
+    
+      
+        <p>我同时使用 Objective-C 和 PyObjC 开发过 Cocoa 应用，经验告诉我，PyObjC 能让你快速构建复杂的应用程序。我希望做一点力所能及的事，让 PyObjC 对新手更加友好——无论他们是 PyObjC 新手，还是 Cocoa 开发的新手。本教程旨在提供一份完整的 walkthrough，教你如何用 Xcode 3.0 和 Interface Builder 3.0 创建一个 PyObjC 应用，并帮助你熟悉这个强大的工具。</p>
+      
+    
+      
+        <p>让我们开始吧。</p>
+      
+    
+      
+        <h2>我们的项目</h2>
+      
+    
+      
+        <p>从零开始学习 PyObjC 可能会让人望而生畏。不过，完成本教程后，你应该已经能够独立投入自己的 PyObjC 项目了。我们将构建一个桌面应用程序，它会从 freebase.com 获取数据并展示，使用 metaweb.py 1 作为辅助库。</p>
+      
+    
+      
+        <p>我们会有一个文本框让用户输入搜索内容，还有一个表格用来显示格式化后的结果。我们将使用 NSArrayController 来大幅简化代码（不用担心现在还听不懂 NSArrayController，后面教程中会详细解释）。我们还会学习如何读写应用程序支持目录中的文件（即 OS X 编码规范建议你存放临时文件和用户数据的目录）。最后一步，我们会看看如何通过第二个 nib 文件以编程方式创建新窗口（nib 的概念后面也会解释）。</p>
+      
+    
+      
+        <p>本教程会涉及使用 PyObjC 开发实际程序时会遇到的各种问题、难点和解决方案，并且不假设你已经具备 Cocoa、Xcode 或 PyObjC 的任何知识。只要你懂一点 Python，就可以直接开始学习。</p>
+      
+    
+      
+        <h2>需要记住的两条原则</h2>
+      
+    
+      
+        <p>刚开始接触 PyObjC 时，记住下面两点能帮助你少走很多弯路：</p>
+      
+    
+      
+        <div class="list-content">PyObjC 是 Python，同时也是 Objective-C。刚接触 Django 的人经常会困惑“怎么从磁盘读取文件？”或者“如何实现多线程？”，社区常见的回答是：Django 就是 Python。用 PyObjC 时也一样，这句话非常重要。你在 Python 里能做的事，在 PyObjC 里都能做。如果有优秀的 Python 库能为你的应用提供动力，那就大胆使用！如果你需要一些元编程技巧来简化程序逻辑，也尽管用！同样重要的是这条原则的后半句：PyObjC 也是 Objective-C。这对熟悉 Cocoa 框架但不太了解 Python 库的 Objective-C 程序员尤其重要——你可以从两者中自由挑选。你想用 NSTimer 来处理周期性事件吗？完全没问题。想用 Objective-C 的 selector 或 Core Data 吗？就像吃一块稍微烤得嫩一点的派那么简单。将 Objective-C 方法转换为 Python 形式时，把 : 换成 _。在使用 PyObjC 时，你会经常要把 Objective-C 方法转换成 Python 风格。这是一个简单的两步过程：首先把所有冒号（:）替换成下划线（_），然后像平常写 Python 那样把参数加到方法定义中。让我们通过几个例子来看看具体怎么做。首先是一个简单的例子。这个 Objective-C 方法定义：-(int)add: (int)a and: (int)b; 转换后的 Python 代码是：def add_and_(self,a,b):    # 在这里实现功能 第二个例子我们来转换一个稍长的方法。- (NSImage *)dragImageForRowsWithIndexes:(NSIndexSet *)dragRows                            tableColumns:(NSArray *)tableColumns                                   event:(NSEvent *)dragEvent                                  offset:(NSPointPointer)dragImageOffset 翻译成 Python 后是：def dragImageForRowsWithIndexes_tableColumns_event_offset_(self,dragRows,tableColumns,dragEvent,dragImageOffset):    pass 可以看到，这种转换有时会产生相当丑陋的方法名，但操作本身非常简单。其实 Xcode 知道如何为 PyObjC 自动补全方法名，所以除非是你自己定义的类里的方法，否则你甚至不用手动进行转换。</div>
+      
+    
+      
+        <h2>Cocoa 的核心概念和设计模式</h2>
+      
+    
+      
+        <p>在正式开始之前，我们需要简单了解几个在 Cocoa 中反复出现的重要概念。（如果你已经熟悉 Cocoa 开发，可以直接跳到“开始项目”部分。）</p>
+      
+    
+      
+        <div class="list-content">你开发的每个应用程序都是 NSApplication 的实例（或其子类）。NSApplication 有一个 delegate。Delegate 是 Cocoa 中非常常见的一种设计模式，它允许你在不继承特定类的情况下定制和控制其行为（例如，在不继承 NSTableView 的前提下控制它）。举例来说，NSApplication 的 delegate 可以让你指定应用启动时要执行的代码、处理用特定文件打开应用的行为，以及在应用终止前执行的清理代码。我们第一步就是要修改应用的 delegate，稍后会详细讨论。OS X 系统中的每个用户在 ~/Library/Application Support/ 目录下都有一个文件夹。应用程序可以在里面创建自己的文件夹来存储数据和设置。例如，Colloquy 就在 ~/Library/Application Support/Colloquy/ 下有自己的文件夹。你应该始终把用户相关的数据存放在这里，而不是放在应用程序包内部（虽然 .app 实际上是个文件夹，很容易让人误以为可以直接往里面写，但这会破坏“直接拖到应用程序文件夹即可安装”的分发方式）。Cocoa 类经常使用 Model/View/Controller（模型/视图/控制器）的职责划分，你的类也应该遵循这一模式。模型负责保存数据，视图负责呈现数据，控制器负责协调两者之间的交互。不过在小型应用中，不必过于教条地遵守 MVC；简洁本身不应该被视为设计缺陷。如果你玩过 Cocoa，应该注意到很多类都以 NS 开头，例如 NSTableView、NSWorkspace、NSButton。Objective-C 只有一个命名空间，因此我们通过添加前缀来创建自己的命名空间。很多人会用自己或公司的首字母作为前缀。我有时用 WL 作为前缀，有时则使用应用名称的缩写。例如我曾经开发过一个叫 StrictlyEducation 的课程规划软件，就用了 SE 作为它的前缀2。Interface Builder 可以非常方便地创建图形界面，并将这些界面保存在 .nib 和 .xib 文件中（.nib 通常用于 Leopard 之前的界面，.xib 则用于 Leopard 及之后创建的项目）。我们后面会详细介绍它们，目前只需要记住它们包含了 GUI 的配置信息即可。</div>
+      
+    
+      
+        <h2>开始项目</h2>
+      
+    
+      
+        <p>现在我们已经补足了必要的背景知识，是时候动手创建项目了。</p>
+      
+    
+      
+        <p>打开 Xcode（你需要先从 OS X 10.5 安装 DVD 中安装它）。</p>
+      
+    
+      
+        <p>进入“File”菜单，选择第一个选项“New Project”（或者按 Shift-⌘-N）。</p>
+      
+    
+      
+        <p>选择“Cocoa-Python Application”，然后点击“Choose...”。</p>
+      
+    
+      
+        <p>把新应用命名为 MetaWindow，选择一个合适的路径（我喜欢把它创建在 ~/git/ 目录下），然后点击“Save”。</p>
+      
+    
+      
+        <p>项目创建完成后，现在正是把它纳入版本控制的好时机。我个人更喜欢 Git，但使用 Mercurial 甚至 SVN 也不会后悔。总之，用起来就行。</p>
+      
+    
+      
+        <p>从某种意义上说这步是可选的，但它真的应该成为一种习惯。如果现在还没有养成，现在就是最佳时机。有时候你会把代码搞得一团糟，却想不起来自己做了什么、该怎么恢复。版本控制能把这种灾难变成快速查阅文档、回忆合并语法的小插曲。</p>
+      
+    
+      
+        <h2>默认项目中的文件</h2>
+      
+    
+      
+        <p>项目创建好后，里面已经有一堆文件了。我们花点时间来了解一下它们都是做什么的。</p>
+      
+    
+      
+        <div class="list-content">首先，你会看到几个 .framework 文件：AppKit、Cocoa、CoreData、Foundation 和 Python。这些都是在编译时会链接到你应用程序的有用库。接下来是 main.m 和 main.py，它们是应用程序的核心文件，你通常不需要经常修改它们（MetaWindow_Prefix.pch 也是类似，但更彻底：你几乎永远不会碰它）。唯一的例外是，当你的应用中有其他 Python 文件时，需要在 main.py 中添加简单的 import 语句。例如，它目前有这一行：import MetaWindowAppDelegate 如果你创建了另一个名为 MWModel.py 的文件（MW 是 MetaWindow 的首字母，也就是我们在这个应用中使用的命名空间），那么你需要把 main.py 的这部分修改成：import MetaWindowAppDelegateimport MWModel MainWindow.xib (English) 是一个 Interface Builder 文件，包含了应用程序界面的相关数据。Info.plist 包含应用的各种设置，InfoPlist.strings (English) 则是国际化文件，用于支持不同语言环境的标签和菜单。MetaWindowAppDelegate.py 是一个普通的 Python 文件，里面定义了我们应用的 delegate 类。MetaWindow.app 是我们应用程序的壳。当你构建应用时，所有东西都会被打包进去，但目前它只是一个空空的骨架。</div>
+      
+    
+      
+        <h2>给我们的 Delegate 添加一些功能</h2>
+      
+    
+      
+        <p>我们要做的第一件事是完善 MetaWindowAppDelegate.py。双击打开它。目前它只包含几行代码：</p>
+      
+    
+      
+        <p>但我们要给它添加几个有用的方法。首先添加一个在应用即将关闭前执行的存根方法。</p>
+      
+    
+      
+        <p>这个 applicationWillTerminate_ 方法非常适合用来保存数据。</p>
+      
+    
+      
+        <p>你可能已经注意到我们经常使用 NSLog()。它是记录日志和给自己发送调试信息最方便的方式。在程序运行时，你可以在 Xcode 的控制台窗口看到这些消息，也可以通过 Console.app 查看。</p>
+      
+    
+      
+        <p>接下来，我们添加两个方法，方便读写应用程序支持文件夹中的文件。applicationSupportFolder 会返回 MetaWindow 的应用支持文件夹路径，pathForFilename 则会返回该文件夹内某个具体文件的路径。</p>
+      
+    
+      
+        <p>最后，简单说说为什么应用 delegate 是一个非常强大的工具。你可以从代码的任何地方轻松获取并使用它：</p>
+      
+    
+      
+        <p>这使得它成为存放工具方法（utility methods）的绝佳位置。（顺便说一句，现在是提交一次版本的好时机。）</p>
+      
+    
+      
+        <h2>创建一个新的存根文件</h2>
+      
+    
+      
+        <p>接下来我们要创建一个新文件，用来管理应用的用户界面组件。回到“File”菜单，点击“New File...”（⌘-N）。</p>
+      
+    
+      
+        <p>选择“Python NSObject subclass”，点击“Next”。将其命名为 MWController.py，然后点击“Finish”。</p>
+      
+    
+      
+        <p>打开 MWController.py，你会看到类似下面的内容：</p>
+      
+    
+      
+        <p>把 import 部分修改成这样：</p>
+      
+    
+      
+        <p>objc 模块提供了许多创建 PyObjC 应用的重要工具。这里我们会用到其中的两个：@objc.IBAction 装饰器和 objc.IBOutlet() 函数。</p>
+      
+    
+      
+        <p>任何你希望能在 Interface Builder 中访问的方法，都必须用 @objc.IBAction 装饰。这意味着所有打算让界面组件触发的方法（比如按钮点击后调用的 wasClicked_ 方法等）都应该加上这个装饰器。注意，所有这类 action 方法至少要有一个参数（因此在 Python 定义中至少要有一个下划线）。例如你必须写 def myFunc_(self,sender) 而不能写 def myFunc(self)。sender 的值由 Cocoa 提供，它会是调用该 action 的按钮（或其他类的实例）。</p>
+      
+    
+      
+        <p>同样，objc.IBOutlet() 能让你把 .xib 文件中的对象连接起来。这个概念在实际使用 Interface Builder 之前可能比较难理解，我们后面会更详细地介绍。</p>
+      
+    
+      
+        <p>现在我们给 MWController 类添加几个属性。</p>
+      
+    
+      
+        <p>然后再添加一个存根方法。</p>
+      
+    
+      
+        <p>正如前面所说，search_ 方法会被 UI 组件调用，因此需要加上 @objc.IBAction 装饰器，并且必须接收 sender 参数。</p>
+      
+    
+      
+        <p>最后，把一个 Python 文件加入 Xcode 项目的最后一步是打开 main.py，在下面这行导入它：</p>
+      
+    
+      
+        <p>加入 MWController 后，main.py 的对应部分会变成这样：</p>
+      
+    
+      
+        <p>保存 main.py 和 MWController.py。接下来我们来设置 MainMenu.xib。</p>
+      
+    
+      
+        <h2>配置 Xib 文件</h2>
+      
+    
+      
+        <p>现在我们要开始使用 Interface Builder 了。IB 是一个非常优秀的可视化 GUI 创建工具，但它也有一点学习曲线。你可能会在某些地方感到困惑。我第一次使用 IB 时几乎要放弃，差点就决定不做 OS X 开发了。现在它已经成了我珍视的伙伴。你只需要给自己一些时间去熟悉它。</p>
+      
+    
+      
+        <p>在 Xcode 项目窗口的“Groups &amp; Files”面板中，点击 Resources 文件夹旁边的箭头。然后双击 MainMenu.xib 打开它。</p>
+      
+    
+      
+        <p>你会看到三个窗口：</p>
+      
+    
+      
+        <div class="list-content">MainMenu.xib (English) 包含了 .xib 文件中所有对象的引用。你可以点击其中任何一个，然后打开 Inspector（Tools 菜单 → Inspector，或按 Shift-⌘-I）来修改它们的详细信息。你也可以点击某些对象（比如 MainMenu 或 Window (Window)），让它们成为当前激活的窗口。Window (Window) 代表应用程序的主窗口，运行程序时它会弹出。我们马上就要往里面添加一些控件。Library 窗口则包含了所有可用于构建用户界面的控件和对象。</div>
+      
+    
+      
+        <p>我们要做的第一件事是往 Window (Window) 窗口中添加一个 NSTableView（只要 Major Major Major 同意的话）。在 Library 窗口中找到它，然后拖到 Window (Window) 里面。</p>
+      
+    
+      
+        <p>接着再拖一个 NSTextField 和一个 NSButton 到 Window (Window) 中。</p>
+      
+    
+      
+        <p>现在我们需要调整 tableView、textField 和 button 的大小。要调整大小，把光标悬停在你要调整的边上，然后拖动角或边缘。你偶尔会看到窗口中出现蓝色的虚线。这些线帮助你遵循 Apple 的人机界面指南（Human Interface Guidelines），同时也能帮你和其他对象对齐。把界面大致调整成下面这样：</p>
+      
+    
+      
+        <p>双击按钮，把它的标题改成“Search”。</p>
+      
+    
+      
+        <p>现在我们要为这三个控件设置自动调整（autosizing）逻辑。首先打开 Inspector（Tools→Inspector 或 Shift-⌘-I），选中 tableView，然后选择 Inspector 中的第三个标签页。</p>
+      
+    
+      
+        <p>在 Inspector 的第三个标签页中，你会看到一个标有“Autosizing”的区域，里面有两个部分：左边是一个带有支柱（struts）和箭头的方框，右边是一个会不断变化大小的方框。在左边的方框中点击，让它显示六个红色的元素：方框的上、左、下、右各有一条支柱，并且方框内部有水平和垂直的双向箭头。</p>
+      
+    
+      
+        <p>它看起来应该像这样：</p>
+      
+    
+      
+        <p>接下来点击 textField。它应该启用水平双向箭头，并选中顶部、左侧和右侧的支柱。按钮则应该选中顶部和右侧的支柱，但不启用任何双向箭头。</p>
+      
+    
+      
+        <p>哪些组合有效、哪些无效可能需要一些试错。最简单的测试方法是到 File 菜单，选择“Simulate Interface”（⌘-R）。这样你就可以实时调整窗口大小，检查界面是否正常工作。去试试看吧。</p>
+      
+    
+      
+        <p>我们对 xib 文件的修改已经接近尾声，你可以稍微松口气了。只剩最后一小步。</p>
+      
+    
+      
+        <h2>把 MWController 添加到 MainMenu.xib 中</h2>
+      
+    
+      
+        <p>.xib 和 .nib 文件的一个重要价值在于，它们可以保存类的序列化实例。如果你看看 Interface Builder 中的 MainMenu.xib 窗口，已经有很多序列化实例了：那个标着 MetaWindowAppDelegate 的立方体就是一个，还有 Application。</p>
+      
+    
+      
+        <p>这很有用，因为它允许你用图形化的方式把对象连接起来。例如，点击 Application，打开 Inspector 的第五个标签页。你可以看到它有一个叫 delegate 的 outlet，已经连接到了 MetaWindowAppDelegate。</p>
+      
+    
+      
+        <p>现在我们要创建一个 MWController 的实例，并设置它的 outlets（以及一个 action）。</p>
+      
+    
+      
+        <p>回到 Library 窗口，在底部的搜索框中输入 NSObject（确保你在窗口左侧的大纲视图中选中了 Library 文件夹，否则可能搜索不到 NSObject）。</p>
+      
+    
+      
+        <p>把 NSObject 图标拖到你的 MainMenu.xib 窗口中。一个名为 Object 的新立方体就会出现。</p>
+      
+    
+      
+        <p>点击这个 Object，然后在 Inspector 中选择第六个标签页（标签名为“Object Identity”）。在最上面的文本框（标签是 Class）中，把 NSObject 改成 MWController，然后按回车。</p>
+      
+    
+      
+        <p>现在回到 MainMenu.xib 窗口，点击 Controller（就是刚才叫 Object 的那个对象）。同时把 Window 窗口也调出来，以便看到里面的 tableView 和 textField。</p>
+      
+    
+      
+        <p>按住 Control 键，从 Controller 开始拖动到 Window 中的 textField 上。这时会弹出一个小浮动框，让你在 textField 和 tableView 之间选择；请选择 textField。</p>
+      
+    
+      
+        <p>重复同样的操作，从 Controller 拖动到 tableView 上。弹出框出现后选择 tableView。</p>
+      
+    
+      
+        <p>最后一个连接是从 Search 按钮连到 Controller。对于 action 的连接，你要从触发者（这里是按钮）开始，拖到你要调用其 action 的对象（这里是 Controller）。</p>
+      
+    
+      
+        <p>选中 Search 按钮，按住 Control 键，从按钮拖到 Controller 后松开。这时会出现一个黑色小框，里面只有一个选项 search:，选中它。</p>
+      
+    
+      
+        <p>保存，关闭 Interface Builder。为自己能坚持下来鼓个掌吧。</p>
+      
+    
+      
+        <h2>构建并验证</h2>
+      
+    
+      
+        <p>本教程第一部分的最后一步是构建我们的应用程序，并验证目前为止的功能是否正常。在 Xcode 中点击“Build and Go”（或者到 Build 菜单选择 Build and Go，或者直接按 ⌘-Return）。</p>
+      
+    
+      
+        <p>几秒钟后，应用程序窗口就会打开。太棒了。</p>
+      
+    
+      
+        <p>现在——保持应用运行状态——回到 Xcode，点击那个写着 gdb 的小图标（或者按 Shift-⌘-R）。这会打开应用程序的调试控制台。在控制台可见的情况下，在应用的文本框中输入一些内容，然后点击 Search 按钮。</p>
+      
+    
+      
+        <p>我们已经成功为应用搭好了框架。虽然它目前还没什么实际功能，但我们已经覆盖了大量的内容，并且建立了一个坚实的基础，可以继续在其上构建更多特性。</p>
+      
+    
+      
+        <h2>第一部分结束</h2>
+      
+    
+      
+        <p>本教程的第一部分到此结束。你可以点击这里继续阅读第二部分。你可以在这里下载当前项目的状态。此外还有一个 GitHub 仓库，这是获取代码的推荐方式。</p>
+      
+    
+      
+        <p>我有没有犯什么严重的错误？对目前内容的改进建议？或者希望增加哪些主题？欢迎留言！</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Epic PyObjC 第四部分：拖放操作与多 Nib 文件 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Epic PyObjC 第四部分：拖放操作与多 Nib 文件</h1>
+    <div class="meta">
+      2008-08-26 · 
+      <a href="https://lethain.com/epic-pyobjc-part-4-drag-drop-multiple-nibs/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>欢迎来到 Epic PyObjC 教程系列的第四篇。在教程的第三部分，我们重点完成了三个较小的任务：处理双击操作、磁盘缓存以及添加进度指示器。</p>
+      
+    
+      
+        <p>这一次，我们将聚焦于 Cocoa 应用程序开发中两个稍显棘手、但极为重要的模式。我们会先实现一些拖放功能，最后再探讨如何在应用程序运行时使用第二个 nib 文件来创建新窗口。</p>
+      
+    
+      
+        <p>在第三篇文章中，我曾说会在本篇中附上资源列表。但后来我决定加入使用第二个 nib 文件的内容（掌握它能大大拓宽你的 Cocoa 视野），我觉得这是一个真正值得深入的话题。如果把拖放、多 nib 文件和资源列表都塞进一篇文章，内容就太多了。</p>
+      
+    
+      
+        <p>如果你之前没有跟上，可以下载当前项目的 zip 压缩包。</p>
+      
+    
+      
+        <p>既然这是我们在这个系列中的最后一次相伴，那就一起玩得开心点吧。</p>
+      
+    
+      
+        <h2>拖放操作：一种哲学，一种风格</h2>
+      
+    
+      
+        <p>我本想以自己长期对拖放概念的执着来开始关于 Cocoa 中拖放的讨论，但那是在撒谎。大约一年半以前（别告诉招聘人员），当我刚开始接触 PyObjC 和 Cocoa 时，我做了一个相当复杂的应用程序，并且颇为自豪。我记得最清楚的两个批评是：不要使用 brushed metal（我至今还没从反 brushed metal 的阴谋中恢复过来），以及“在两个列表之间传递内容，用拖放不是比双击更好吗？”</p>
+      
+    
+      
+        <p>我当时大概嘟囔了一些蹩脚的借口，说自己没做，主要是觉得它比我能轻松搞懂的要复杂得多，但管它呢，谁需要拖放啊？</p>
+      
+    
+      
+        <p>好吧，不管之前怎么闹腾，我需要拖放，你也需要。拖放是为数不多能让你在用户界面上大胆实验、做出真正有趣事情的地方，而不会打破太多惯例让用户骂你祖宗。拖放就是 Cocoa 编程中的西部荒野。</p>
+      
+    
+      
+        <p>拖放的巨大潜力之所以没有被充分挖掘，只是因为它并非必需。大多数应用程序可以用很少或根本不用拖放的方式实现，于是它们就这样被实现了。但是，我要说，不再这样了！</p>
+      
+    
+      
+        <p>有无数直观、有趣且实用的方式可以更多地使用拖放。这绝不是一份完整的清单，只是起点而已：</p>
+      
+    
+      
+        <div class="list-content">允许将文本和内容拖放到 Dock 图标上。这是促进应用程序间通信的绝佳方式。在 MetaWindow 中，我们可以让拖放到 Dock 图标上的字符串自动进行搜索。（我在这里写过一篇简短的实现细节。）让导出数据变得和拖放一样简单。假设你想通过邮件发送一份报告，如果能直接把表格拖进 Mail.app，让它自动转换成 PDF，那该多好？但如果你拖到一个纯文本邮件里呢？那它可能会将数据导出为文本。如果导出数据一直都这么简单，而且不同应用程序之间能真正协作，那该多棒？要对上下文相关的拖放数据保持思考。如果用户想输入一个电话号码，如果能用正则表达式从一段文字中解析出电话号码，那会很棒。如果拖进来的是一个电话号码列表，它能识别并全部添加，那就更好了。我们习惯于给应用程序提供严格格式的输入，但真正的潜力在于：让用户能随意丢入数据、而应用替他们处理细节，这样的应用会让人爱不释手。当然，我们必须让用户知道什么时候可以“随意”，因为他们已经被训练成计算机的秘书，除非你的应用解放他们，否则他们不会主动这么做。</div>
+      
+    
+      
+        <p>总而言之，拖放就是 Cocoa 编程中的 Unix 管道。它是应用程序之间协作最简单、最无缝的方式。一旦我们开始发挥创意，它就会开启一个充满意想不到的组合与实用性的世界。</p>
+      
+    
+      
+        <h2>拖放操作：在搜索窗口中通过拖放进行搜索</h2>
+      
+    
+      
+        <p>在 MetaWindow 中，我们要实现两种拖放功能，首先是支持将文本拖到搜索窗口中来进行搜索。不只是搜索文本框，而是整个包含它的窗口。这样能增大有效点击区域，使用起来也更快。</p>
+      
+    
+      
+        <p>我们要做的第一件事是打开 MWController.py，创建一个辅助函数，它接受一个搜索字符串作为参数，然后执行搜索（同时更新文本框显示搜索字符串以提供视觉确认）。我们需要这样做，因为我们将要继承 NSWindow 来监听拖放操作，如果把搜索逻辑写在那个子类里，就得在那里重新实现一遍搜索逻辑。我们通过给 NSWindow 子类添加一个 IBOutlet，并将其连接到 MWController 的 search_ 方法，从而避免重复代码。</p>
+      
+    
+      
+        <p>因此，我们要在 MWController 中添加 dragSearch 方法。</p>
+      
+    
+      
+        <p>dragSearch 其实只是把子弹装进 search_ 的枪膛，然后扣动扳机。</p>
+      
+    
+      
+        <p>现在，我们需要创建一个新文件。前往 File 菜单，选择 New File（Command-N）。我们其实想继承 NSWindow，但没有现成的模板，所以我们就创建一个 Python 的 NSObject 子类文件，然后根据需要进行修改。将文件命名为 MWDragWindow.py，并把它拖到 Xcode 侧边栏的 Classes 分组中（纯粹为了组织结构）。</p>
+      
+    
+      
+        <p>接下来——这个容易忘记但至关重要的步骤——打开 main.py，添加对 MWDragWindow 的 import，让它看起来像这样：</p>
+      
+    
+      
+        <p>现在打开 MWDragWindow.py 文件，我们可以开始工作了。</p>
+      
+    
+      
+        <p>在文件顶部，你需要加入 `from AppKit import *` 和 `import objc`，让导入部分变成这样：</p>
+      
+    
+      
+        <p>接下来，我们要把 MWDragWindow 的父类从 NSObject 改为 NSWindow。同时给它添加一个名为 controller 的 IBOutlet。</p>
+      
+    
+      
+        <p>继续，我们开始让它支持拖放操作。第一步是注册它将响应的 pasteboard 类型。在本例中，我们只想监听 NSStringPboardType，这是文本的 pasteboard 类型。</p>
+      
+    
+      
+        <p>要注册拖拽类型，需要调用对象的 registerForDraggedTypes_ 方法，并传入一个类型列表。通常最简单的方法是在 awakeFromNib 方法中完成，因为该方法会在对象初始化时被调用。</p>
+      
+    
+      
+        <p>对于 MWDragWindow，代码非常简单，如下所示：</p>
+      
+    
+      
+        <p>注意要给 registerForDraggedTypes_ 传入一个包含类型的列表，而不是直接传入 NSStringPboardType。</p>
+      
+    
+      
+        <p>关于用户自定义 pasteboard 类型的简短说明。</p>
+      
+    
+      
+        <p>Cocoa 已经支持多种不同类型的 pasteboard。我们正在使用 NSStringPboardType，但还有许多其他现成的类型可供选择：NSUrlPboardType、NSColorPboardType、NSFilenamesPboardType、NSFileContentsPboardType 等等。</p>
+      
+    
+      
+        <p>然而，有时你要拖放的内容不属于任何现有的 pasteboard 类型。在这种情况下，你可以创建自己的 pasteboard 类型。pasteboard 类型实际上只是一个字符串，所以创建一个 pasteboard 类型只需定义一个模块级变量保存该字符串，并在任何使用同一 pasteboard 的其他模块中导入它即可。</p>
+      
+    
+      
+        <p>在另一个模块中使用它时是这样的：</p>
+      
+    
+      
+        <p>通常，用户创建的 pasteboard 类型只能在声明它的应用程序内使用，因为其他应用程序不知道它的存在。不过，如果开发者主动公开这些 pasteboard 字符串，那就未必如此了。</p>
+      
+    
+      
+        <p>现在 MWDragWindow 已经注册了 NSStringPboardType，我们还需要实现两个方法来告诉它如何处理传入的拖放操作。</p>
+      
+    
+      
+        <p>第一个是 draggingEntered_，它用于决定用哪种视觉效果来表示正在进入的拖放。例如，如果你正在把文本拖入一个文本框，可能希望使用 NSDragOperationAdd；但如果你是在将对象链接在一起，则更适合使用 NSDragOperationLink。然而，最重要的操作可能是 NSDragOperationNone——当你拒绝一个传入的拖放事件时，就返回它。</p>
+      
+    
+      
+        <p>当你返回 NSDragOperationNone 时，拖放不会有任何视觉反馈，对象也就拒绝处理该拖放类型。这为用户提供了视觉提示，告诉他们应用程序、窗口或字段能够接受哪些类型的数据。</p>
+      
+    
+      
+        <p>在 MWDragWindow 中，我们按如下方式实现 draggingEntered_：</p>
+      
+    
+      
+        <p>如果 pasteboard 包含 NSStringPboardType，我们就处理它，否则不处理。我们使用 NSDragOperationCopy 的视觉效果，因为这是文本框响应 NSStringPboardType 时使用的效果，在不同拖放视觉效果之间切换可能会让人感到不安（除非你想明确表示拖放到不同位置会有不同行为，那样做就完全合适）。</p>
+      
+    
+      
+        <p>draggingEntered_ 负责接受或拒绝拖放，以及显示拖放时的视觉效果，但目前我们还没有处理传入拖放的内容。这需要通过实现 performDragOperation_ 来完成。</p>
+      
+    
+      
+        <p>如果我们从 performDragOperation_ 返回 False，应用程序会显示拖放被拒绝的视觉提示——如果返回 True，则会显示拖放成功的视觉提示——但实际处理传入数据的责任在我们。</p>
+      
+    
+      
+        <p>在这里，我们只是调用 MWController 的 dragSearch 方法，并传入 pasteboard 中 NSStringPboardType 对应的字符串，让 MWController 来处理后续工作。</p>
+      
+    
+      
+        <p>最后要做的就是打开 Interface Builder 并做一些修改，打开 MainMenu.xib 吧。</p>
+      
+    
+      
+        <p>打开 Inspector，选择 Window (Window)，切换到第六个标签页。此时 Inspector 的标题会变成 Window Identity。</p>
+      
+    
+      
+        <p>在 Inspector 顶部的 Class Identity 部分，在 Class 字段中把 NSWindow 替换为 MWDragWindow。然后在包含所有对象的窗口中，按住 Control 键，从 Window (Window) 拖动到 Controller 并释放。从弹出菜单中选择 controller。</p>
+      
+    
+      
+        <p>现在你可以拖一些文本到窗口中，松开鼠标，它就会开始搜索，就像我们在文本框中输入文字并点击搜索一样。</p>
+      
+    
+      
+        <h2>拖放操作：通过拖动导出数据</h2>
+      
+    
+      
+        <p>既然我们已经在窗口中实现了拖放功能，接下来要看看另一个常见的拖放场景：在 NSTableView 中实现拖放。</p>
+      
+    
+      
+        <p>传统上，拖放操作是在 NSTableView 的 datasource 中处理的，但如果你还记得第二部分，我们还没有指定 datasource，所以我们知道处理方式会有所不同。事实上，我们将通过继承 NSArrayController 类，并在 MainMenu.xib 中把控制器对象的类改成我们的自定义类来实现拖放。</p>
+      
+    
+      
+        <p>让我们先在项目中创建一个新文件，从 NSObject 继承，命名为 MWDragArrayController.py，然后在 main.py 中添加导入，让 main.py 中的导入部分变成这样：</p>
+      
+    
+      
+        <p>现在回到 MWDragArrayController.py，把 MWDragArrayController 的父类从 NSObject 改为 NSArrayController，并从 AppKit 导入 NSStringPboardType。</p>
+      
+    
+      
+        <p>我们先快速绕道一下，打开 Interface Builder 中的 MainMenu.xib。选中 Array Controller 实例，打开 Inspector，选择 Identity 标签页（第六个），将类从 NSArrayController 改为 MWDragArrayController。</p>
+      
+    
+      
+        <p>然后（这一步很容易忘记但非常重要），你需要选中 table view（不是包含它的 scroll view，所以要点击两次），将其 delegate 和 datasource outlet 都连接到 Drag Array Controller。</p>
+      
+    
+      
+        <p>保存并关闭 Interface Builder，回到编辑 MWDragArrayController.py。</p>
+      
+    
+      
+        <p>令人惊讶的是，我们几乎已经完成了！只需要在 MWDragArrayController 中添加以下方法：</p>
+      
+    
+      
+        <p>保存并构建应用，搜索一些内容，然后把表格中的一行拖出来。很酷，对吧？但还有点不对劲：你无法拖到其他应用程序里。这非常不方便，大大降低了拖放的实用性。</p>
+      
+    
+      
+        <p>要修复这个问题，打开 MWController，在 awakeFromNib 方法中添加下面这行代码：</p>
+      
+    
+      
+        <p>综合起来，MWController 的 awakeFromNib 方法看起来是这样的：</p>
+      
+    
+      
+        <p>现在保存并重新构建 MetaWindow。你应该能够把表格行中的内容拖到其他应用程序了。</p>
+      
+    
+      
+        <p>这就结束了我们在 MetaWindow 中对拖放功能的探讨。我们不会继续讨论把数据拖入表格视图，主要因为我实在想不出在当前场景下有什么合理用途——我们把 Metaweb 返回的结果当作不可变数据来展示。如果 MetaWindow 以后扩展到支持修改数据，那么这种操作可能会有价值（例如，作为一种导入数据的方式）。</p>
+      
+    
+      
+        <h2>使用第二个 Nib 文件</h2>
+      
+    
+      
+        <p>是时候开始讨论 Epic PyObjC 教程系列的最后一个主题了，这也是一个非常重要的主题：在同一个项目中使用多个 nib 文件。对于许多应用程序，你可以避免使用多个 nib。比如看看 iTunes 处理播放列表的方式，默认情况下点击播放列表时，它只是在主窗口的列表中显示。</p>
+      
+    
+      
+        <p>这用一个 nib 就能实现，没问题。但如果你双击一个播放列表，它会打开一个新窗口。而这个操作用单个 nib 是无法实现的（除非你用代码手动创建和填充窗口，虽然可行，但通常要多做很多工作）。</p>
+      
+    
+      
+        <p>一旦你从简单应用程序进阶，就不可避免地需要学习在项目中使用多个 nib——就像我们在本教程中看过的所有内容一样，一旦你坐下来认真去做，其实并没有那么难。</p>
+      
+    
+      
+        <p>目前，当你双击一行时，它会在网页浏览器中打开该条目的页面。但如果能打开一个新窗口，显示关于该条目的更多细节，那就更好了。目前我们只是浅尝了 metaweb.py 返回的数据表面，如果给每个结果分配一个完整的窗口，我们可以展示多得多的信息。</p>
+      
+    
+      
+        <p>要将额外的 nib 集成到项目中，我们需要完成三个步骤：</p>
+      
+    
+      
+        <div class="list-content">创建一个继承自 NSWindowController 的自定义 Python 类，在初始化时传入特定行的字典。创建一个新的 nib 文件，我们称之为 RowWindow.xib，将其 File&#x27;s Owner 的类设置为我们自定义的 NSWindowController 子类。更新 MWController 中的 open_ 方法，让它使用 RowWindow.xib 创建新窗口，而不是在浏览器中打开该条目的页面。</div>
+      
+    
+      
+        <h2>继承 NSWindowController</h2>
+      
+    
+      
+        <p>首先，我们创建一个名为 MWRowWindowController.py 的新文件。初始时它继承自 NSObject，但我们要把它的父类改为 NSWindowController，同时给它添加一个名为 rowDict 的属性。</p>
+      
+    
+      
+        <p>然后像往常一样在 main.py 中导入它：</p>
+      
+    
+      
+        <p>就这样。</p>
+      
+    
+      
+        <h2>创建 RowWindow.xib</h2>
+      
+    
+      
+        <p>创建一个新文件，这次选择 Window XIB 模板，并命名为 RowWindow.xib。然后在 Interface Builder 中打开它。</p>
+      
+    
+      
+        <p>首先，打开 Inspector 并选中 File&#x27;s Owner，然后切换到 Identity 标签页，将其类从 NSObject 改为 RowWindowController。接下来在 nib 的窗口中创建一个 NSTextField，选中它，切换到 Bindings 标签页。</p>
+      
+    
+      
+        <p>对于 Value 绑定，将其绑定到 File&#x27;s Owner，并在 Model Key Path 中输入 rowDict.name。</p>
+      
+    
+      
+        <p>这是另一个使用 Cocoa bindings 来避免重复代码的例子。它们是你的好朋友。</p>
+      
+    
+      
+        <p>最后，我们需要点击 File&#x27;s Owner，将它的 window outlet 连接到 Window (Window)。</p>
+      
+    
+      
+        <h2>更新 open_ 方法</h2>
+      
+    
+      
+        <p>我们要做的最后一步是更新 MWController 中的 open_ 方法。为此，我们首先要在 MWController.py 中添加对 MWRowWindowController 类的导入。</p>
+      
+    
+      
+        <p>然后我们来看 open_ 方法。目前它的内容是这样的：</p>
+      
+    
+      
+        <p>除了最后两行，其他部分都已经是完美的。可以删除最后两行，用下面这段代码替换：</p>
+      
+    
+      
+        <p>现在构建并运行应用程序。搜索一些内容，然后双击某一行，你会看到它打开了一个显示名称的新窗口。当然我们还需要填充窗口中的其他内容，但现在你已经掌握了足够知识，可以自己完成。</p>
+      
+    
+      
+        <p>就这样，我们完成了。</p>
+      
+    
+      
+        <h2>除了两个大问题</h2>
+      
+    
+      
+        <p>嗯……“完成”可能说得有点太满了。我们当前的实现还有两个明显的问题。首先是我们对 rwc 调用了 retain，但从未调用 release，因此没有让垃圾回收器释放那个窗口。</p>
+      
+    
+      
+        <p>第二个问题是，如果你连续点击同一行两次，就会为同一行打开两个窗口。如果能把已存在的窗口提到最前面，而不是创建一个新的，会显得更加优雅。</p>
+      
+    
+      
+        <p>好消息是，解决这两个问题的方案可以合并在一起，而且不会花费太多时间。</p>
+      
+    
+      
+        <p>首先在 MWController 中添加一个名为 rowCache 的属性，初始化为一个空字典。</p>
+      
+    
+      
+        <p>我们将使用 rowCache 来跟踪窗口控制器，以便能够复用它们。现在我们最后一次重写 open_ 方法：</p>
+      
+    
+      
+        <p>修改相当简单：在创建一个新的 MWRowWindowController 之前，我们先检查 rowCache 中是否已经存在对应窗口。</p>
+      
+    
+      
+        <p>你可以构建并运行应用程序，看看它正确地复用窗口。哈利路亚。</p>
+      
+    
+      
+        <p>现在来解决“没有调用 release”的问题。</p>
+      
+    
+      
+        <h2>认识 dealloc</h2>
+      
+    
+      
+        <p>到目前为止，在我们探索 PyObjC 和 Cocoa 的旅程中，我们接触了许多 Cocoa 主题和概念：release、retain、Cocoa Bindings、NSArrayController 以及拖放。我要给你的工具箱里添加的最后一个工具是 dealloc。dealloc 是在继承自 NSObject 的对象即将被垃圾回收释放内存时调用的方法。这是你在所有被 retain 的引用变成内存泄漏之前，最后一次清理它们的机会。</p>
+      
+    
+      
+        <p>每个 dealloc 方法都有两个步骤（顺序很重要）：</p>
+      
+    
+      
+        <div class="list-content">释放所有被 retain 的对象。调用父类的 dealloc 方法。</div>
+      
+    
+      
+        <p>第二步很容易忘记，但这也是导致内存泄漏的常见原因之一。</p>
+      
+    
+      
+        <p>MWController 的 dealloc 方法看起来是这样的：</p>
+      
+    
+      
+        <p>以后你应该阅读《Cocoa 内存管理指南》，它对深入内存管理时遇到的各种细微差别做了全面介绍。</p>
+      
+    
+      
+        <h2>第四部分结束</h2>
+      
+    
+      
+        <p>你可以下载当前项目的 zip 压缩包，或从 GitHub 上的代码仓库获取代码。</p>
+      
+    
+      
+        <p>我们终于完成了本教程的编程部分。这是一段漫长、或许对有些人来说有些折磨的旅程。第五部分也是最终篇将提供各种资源，帮助你继续迈向 PyObjC 和 Cocoa 的精通之路。</p>
+      
+    
+      
+        <p>我想讨论的最后一个话题是 MetaWindow 的未来——也就是我们在本教程中共同构建的这个应用程序。它确实是一个有点奇怪、考虑还不完全成熟的项目，尤其当我们意识到当前版本其实相当没用的时候，就更明显了。</p>
+      
+    
+      
+        <p>尽管如此，我仍然认为在深处藏着一个有用的应用程序。GitHub 仓库目前维护状况堪忧，我对此深表歉意。随便找个借口吧，比如一边写应用一边还要写教程实在有些尴尬。我打算清理一下仓库，也非常欢迎其他人尝试把它变成一个有用且有趣的东西。我很乐意回答问题或帮助解决出现的问题。</p>
+      
+    
+      
+        <p>我很想投入更多时间到 MetaWindow 上，但在写这个系列期间有些疏忽，短期内也不会有多少时间来开发 MW。</p>
+      
+    
+      
+        <p>你可以点击这里继续阅读教程的第五部分。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

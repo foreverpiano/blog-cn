@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>极简主义 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>极简主义</h1>
+    <div class="meta">
+      2008-06-11 · 
+      <a href="https://lethain.com/wielding-django-part-1-minimalism/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>（这是 Kenneth Arnold 撰写的系列文章的第一篇，探讨如何以更轻量的方式使用 Django，减少有时显得繁重的框架开销。我对这个系列充满期待，也很高兴能与 Ken 合作。那么，不再多言，直接进入正文。—— Will）</p>
+      
+    
+      
+        <p>对我们大多数人来说，剑就是一根沉重的金属棍子，握柄还很奇怪。我大概连灌木都砍不动。但在熟练的战士手中，剑就是强大的武器。</p>
+      
+    
+      
+        <p>同样，Django（甚至 Python！）看起来可能庞大而笨拙。但在熟练者手中，它足够敏捷，能轻松铲除 Web 开发中的灌木丛，同时也足够强大，可以对抗更庞大的对手。</p>
+      
+    
+      
+        <p>这个迷你系列的目标是帮助你自如地运用 Django 来实现愿望。我们会先剥离到最精简的状态，然后逐步构建。在此过程中，我们会走一些非常规路线，帮助你在 AJAX 风格的“Web 2.0”应用中培养敏捷性。</p>
+      
+    
+      
+        <blockquote>如果你之前已经用过 Django，前两篇文章可以轻松略读。欢迎回来参加第三篇，我将在其中介绍 django-webapp。现在就可以去看看，欢迎留下评论。</blockquote>
+      
+    
+      
+        <h2>基础知识</h2>
+      
+    
+      
+        <div class="list-content">我们将使用 Django 的 SVN 版本（即“开发版”）。请按照说明进行安装配置。我使用 Python 2.5 进行开发，但在 Python 2.4 上应该无需修改即可运行。Python 2.3 则需要进行一些调整（尤其是装饰器）。推荐使用 IPython。请记住：Django 就是 Python。</div>
+      
+    
+      
+        <h2>极简 Django</h2>
+      
+    
+      
+        <p>Django 官方教程一开始会给你一个宽泛的概览，这对于展示在大型项目中如何使用它非常有效。如果你属于先掌握大局再学习细节的人，可能想先完成那个教程再继续阅读这里。我们不从大局入手，而是先练习几个非常基础的操作。</p>
+      
+    
+      
+        <p>在一个空目录中开始，只在 app.py 中写入以下内容。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas0ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>你甚至不用运行大概就能猜到它做了什么。不过我们还是运行一下吧。打开一个 Python 控制台——最好用 IPython——然后输入：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas1ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>不用太在意最后这部分的细节；Django 之后会提供自动化的方式。你只要注意到 Django 可以使用 WSGI，这在将来要把应用部署到大型服务器上时会很有趣。那是后面的事了。</p>
+      
+    
+      
+        <p>访问 http://127.0.0.1/，你就会看到你的第一个（至少是最小的）Django 应用向你打招呼。下面来解释一下。</p>
+      
+    
+      
+        <p>Django 的主要工作是将请求（来自浏览器）转换为响应。请求中最重要的是 URL，因此我们首先要告诉 Django 这一点。Shell 代码中标记为 (1) 的那一行告诉 Django，你的 ROOT_URLCONF —— 即开始查找如何处理 URL 的起点 —— 就是你刚刚创建的 app 模块。（注意，就像在普通 Python 中 import app 一样，它不需要以 .py 结尾。）</p>
+      
+    
+      
+        <h2>URL 配置</h2>
+      
+    
+      
+        <p>一个 Django URL 配置模块（就像你刚才创建的名为 app 的那个）只需要一样东西：一个叫做 urlpatterns 的变量（上面标记为 (2) 的那一行）。它将 URL 与对应的处理函数配对，当该 URL 被请求时，函数就会被执行。当你向服务器请求一个 URL 时，URL 解析器会按顺序遍历这个列表，寻找匹配的条目。</p>
+      
+    
+      
+        <p>好吧，这句话稍微有点不准确。Web 服务器很少处理完整的 URL，Django 也不例外。解析器尝试匹配的 URL 是请求的路径部分，即地址栏中的 URL 去掉 http:// 和服务器名，再去掉任何 GET 参数（我们后面会再讲）。所以如果你输入：</p>
+      
+    
+      
+        <pre><code>http://myserver.com/posts/?all=0
+</code></pre>
+      
+    
+      
+        <p>那么 URL 就只是 posts/。（对了，开头也没有斜杠。）</p>
+      
+    
+      
+        <p>URL 通过正则表达式（regex）进行匹配。如果你从未听说过正则表达式，别慌；它们是处理字符串的强大工具，单单因为这个就值得学习，但我们在这里并不会用到它们全部的威力。我们使用的这个正则匹配的是一个字符串，其中开头（^）后面紧跟着结尾（$），也就是空字符串。因此当我们访问 http://127.0.0.1/ 时它就匹配了。而一旦匹配成功，它就会执行我们传给它的视图函数。（函数也是对象；Python 就是这么酷。）</p>
+      
+    
+      
+        <blockquote>你可能会发现 Python re 模块的文档很有帮助，尤其是语法部分。</blockquote>
+      
+    
+      
+        <h2>视图</h2>
+      
+    
+      
+        <p>视图负责将请求转换为响应。它们总是以一个 HttpRequest 对象作为第一个参数，大家习惯把它叫做 request。（URL 配置也可以向视图传递其他参数。我们后面会再讲。）我们在上面标记为 (3) 的那一行定义了名为 greet 的视图。</p>
+      
+    
+      
+        <p>视图的唯一职责是返回一个 HttpResponse 对象。它本质上是一个字符串，但可以附加额外的响应头、状态码等。在 (4) 这一行，我们只是用一个常量字符串构造了一个响应。</p>
+      
+    
+      
+        <p>就是这样！这里没有任何魔法。掌握这些内容再加上 Django 文档里的几点知识，你就能轻松完成以前用 PHP 做的任何事情。不过别急着走开；Django 能让你做得更多……</p>
+      
+    
+      
+        <h2>给狂热 Django 专家的后记</h2>
+      
+    
+      
+        <p>是的，我一开始使用了一些非常非惯用（non-idiomatic）的 Django 写法。我希望从 Django 最少的抽象层开始；一旦你熟悉了这些，再转向 settings.py、patterns、独立的 views.py 等更复杂的用法就会变得很简单。我们将在下一篇文章中开始迈出其中一些步骤。</p>
+      
+    
+      
+        <p>另外，我认为像我在这里这样直接使用 url，比使用 patterns 更加显式。这不仅仅是偏好问题，它在后续文章中确实能让某些内容更清晰。如果你觉得这是个坏主意，请告诉我原因，我很乐意改成符合社区惯例的写法。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

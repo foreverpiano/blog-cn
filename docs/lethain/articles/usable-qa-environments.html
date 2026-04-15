@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>可用的 QA 环境 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>可用的 QA 环境</h1>
+    <div class="meta">
+      2016-10-24 · 
+      <a href="https://lethain.com/usable-qa-environments/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>好了，大家都把手举起来。</p>
+      
+    
+      
+        <p>如果你没有 QA 环境，请把手放下。</p>
+      
+    
+      
+        <p>如果你的部署没有全部经过 QA，请把手放下。</p>
+      
+    
+      
+        <p>如果你的 QA 环境现在已经坏掉了，请把手放下。</p>
+      
+    
+      
+        <p>如果你曾经想过直接删掉 QA 环境从头再来，请把手放下。</p>
+      
+    
+      
+        <p>如果上周因为“QA 环境本该发现”的问题导致生产故障，请把手放下。</p>
+      
+    
+      
+        <p>还有人把手举着吗？</p>
+      
+    
+      
+        <p>生产环境有着明确的使命：让你的客户开心。我认为质量保障（QA）环境同样有着明确的使命——让你的开发者开心。但令人惊讶的是，我们经常听到很多公司要么没有一个有效的 QA 环境，要么根本就没有 QA 环境。</p>
+      
+    
+      
+        <p>这很可惜。因为除了用于验证每个组件局部正确性的单元测试之外，QA 环境是开发出能正常工作的软件的非常有效的工具。</p>
+      
+    
+      
+        <p>它们是 staging 代码变更以运行集成测试的绝佳试验场（理想情况下应该在每次部署到 QA 后自动触发），而更重要的是，它们可能是对环境进行系统性变更（例如配置变更）的唯一测试场所。它们也非常适合进行负载测试！</p>
+      
+    
+      
+        <p>但它们确实不容易做好。</p>
+      
+    
+      
+        <p>一旦你真的搭建起一个 QA 环境并运行了一段时间，你首先遇到的挑战往往是它坏掉或无法使用的频率远高于生产环境。通常会有人或某个团队“负责 QA 环境”，这复制了历史上开发者/运维在“运维拥有生产环境”上的割裂状态。</p>
+      
+    
+      
+        <p>我见过的最佳解决方案，与我们逐渐采用的来解决生产环境中开发者/运维割裂问题的方案一致：让所有使用 QA 环境的团队广泛共享其所有权。具体来说，我认为这意味着你的可观测性（observability）系统应该在 QA 出现问题时像生产故障一样报警给对应的负责团队。（也许可以反转一下主备值班安排，让备班先收到 QA 的报警，从而降低在生产故障期间打扰主班的可能性。嘿，你甚至可以把 QA 值班当作生产值班的培训轮换，用它作为一种培训机制！）</p>
+      
+    
+      
+        <p>对 QA 问题进行报警颇具争议，但我认为理由其实很简单：QA 中的任何损坏都是生产环境中类似损坏的先兆，所以你最好在有时间诊断和调试问题的时候被打断，而不是等到它已经影响到客户的时候。</p>
+      
+    
+      
+        <p>一旦你开始把 QA 当作值得主动维护的关键环境，下一个主要的失效模式就是它的活动量太少，以至于无法准确模拟你的生产环境。</p>
+      
+    
+      
+        <p>大致有两种方法来解决这个问题：创建合成负载和重放生产流量。前者更容易设置，但需要持续维护并编写新的测试用例来覆盖新增功能。后者设置起来相对容易，但要维护好环境，使得针对生产的流量能够有效地重放到 QA 上，通常面临很大挑战（如果 QA 因为某个生产环境不存在的问题宕机一小时，那么重放请求可能由于状态不一致而几乎不可能实现）。</p>
+      
+    
+      
+        <p>我见过的最佳策略是：从生产环境获取经过脱敏的、部分数据的每日（或更新！）快照，然后从快照开始的时间点之后立即开始重放流量（很可能需要在流量日志中注入一个位置标记，以帮助快照和流量日志同步）。脱敏至关重要，因为我们很少会像对待生产数据那样小心呵护 QA 快照，所以你不希望里面有任何敏感信息。采用部分子集很重要，因为它能让你将数据集大小控制在足够小的范围内，以便频繁生成并加载到笔记本电脑或小型虚拟机上。</p>
+      
+    
+      
+        <p>如果你能投入资源把它搭建起来，将 QA 问题报警视为生产问题一样紧急去修复环境问题（事实上，它们只是前兆）、每天从快照重建状态、以及通过重放请求日志来产生持续负载，这三者结合，就能给你一个稳固、可用且有价值的 QA 环境。</p>
+      
+    
+      
+        <p>同样有趣的问题是，为什么搭建一个有效的 QA 环境至今仍然如此困难。随着 Docker、rkt 和 Kubernetes 等工具的组合让服务供给变得相对 trivial，我们却仍然感觉像是在 2000 年代早期摸索。</p>
+      
+    
+      
+        <p>我对此相当乐观！</p>
+      
+    
+      
+        <p>我们正处于如何充分利用 Kubernetes 等通用调度工具的早期阶段，在未来几年我们将会看到一些非常惊人的集成和工具。出现针对 Kubernetes 的 Chaos Monkey 只是时间问题；也会出现依赖 k8s 做服务发现的负载生成工具（如果导致太多节点退出轮转就自动退避），同时还能在 k8s 上调度它自己的负载生成节点！总的来说，这感觉像是一片相对未经开采的丰富开源机会矿脉。</p>
+      
+    
+      
+        <p>而我现在就能把它们全部用上。</p>
+      
+    
+      
+        <p>今天就要。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>如何在 PyObjC 中使用 Selector · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>如何在 PyObjC 中使用 Selector</h1>
+    <div class="meta">
+      2008-08-19 · 
+      <a href="https://lethain.com/how-to-use-selectors-in-pyobjc/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近我在处理一个 PyObjC 项目时遇到了一个稍微复杂的情况。我希望安排一个操作，让它在稍后某个时间执行，除非满足特定条件，在这种情况下我需要取消已安排的操作。</p>
+      
+    
+      
+        <p>如果用纯 Python 编写，我可以使用 Timer 类来实现这个功能。</p>
+      
+    
+      
+        <p>但当时我的思路完全处在 Objective-C 模式，所以立刻就想到了使用 NSTimer。NSTimer 创建新实例的方法定义如下1：</p>
+      
+    
+      
+        <p>没问题，我们可以直接用熟悉的 PyObjC 规则来翻译它。</p>
+      
+    
+      
+        <p>大多数参数都一目了然，但有一个地方我不太确定：如何在 PyObjC 中创建 selector？结果发现非常简单，只是需要一点点“魔法”。</p>
+      
+    
+      
+        <p>上面这些看起来都挺合理，对吧？不过可能有一个小细节完全说不通？如果我可以大胆说的话，signature=&#x27;v@:&#x27; 这部分看起来有点神奇，甚至（我敢说）有些随意。幸运的是，这是一个很容易掌握的魔法技巧。</p>
+      
+    
+      
+        <p>第一部分 v 表示该方法返回 void——也就是不返回任何值；第二部分 @:@ 表示它是一个实例方法。由于我的对象没有接受任何参数，所以就只有这些内容。</p>
+      
+    
+      
+        <p>但如果方法需要接受一些参数，也很容易处理。签名 v@:@fi 表示该方法接受三个参数，@ 代表一个对象，f 代表一个浮点数，i 代表一个整数。你也可以用这些相同的符号来代替 v，以指定返回值的类型。例如，考虑下面这个 Python 方法：</p>
+      
+    
+      
+        <p>在 Python 中为该方法创建 selector 看起来是这样的：</p>
+      
+    
+      
+        <p>确实有点别扭，但用我们四个神奇的符号 v、@、i 和 f 就能轻松解决，没有什么克服不了的。</p>
+      
+    
+      
+        <h2>补充资料</h2>
+      
+    
+      
+        <p>我四处搜集信息的几个地方——都很有帮助，但都不够全面——包括 Jim Matthews 博客上的 objc.selector 和 objc.signature、一些在线的 PyObjC 文档，以及 PyObjC 代码本身中一直很有帮助的 Python docstring：</p>
+      
+    
+      
+        <p>对于那些希望收集更多细节、拼凑出 PyObjC 中使用 selector 的较为完整图景的人来说，这三者都值得一看。</p>
+      
+    
+      
+        <p>如果有任何问题或想法，欢迎告诉我！</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

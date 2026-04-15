@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>建模 LLMs 对开发者体验的影响 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>建模 LLMs 对开发者体验的影响</h1>
+    <div class="meta">
+      2024-10-06 · 
+      <a href="https://lethain.com/dx-llm-model/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在 <a href="llm-adoption-strategy.html">如何采用大语言模型（LLMs）？</a>（LLMs）一文中，我们探讨了 LLMs 可能如何影响公司的开发者体验。为了支持这一探索，我为公司内部的软件开发流程开发了一个 <a href="strategy-systems-modeling.html">用系统建模来完善策略</a>。</p>
+      
+    
+      
+        <p>在本章中，我们将依次讨论以下内容：</p>
+      
+    
+      
+        <div class="list-content">该模型得出的总结结果、模型的开发过程，包括在纸上草绘和在电子表格中构建模型。（正如 <a href="strategy-systems-modeling.html">用系统建模来完善策略</a> 中所讨论的，我通常不推荐使用电子表格来开发大多数模型，但尝试一两次是有教育意义的。）通过运行模型来看看它能教会我们什么</div>
+      
+    
+      
+        <p>让我们开始吧。</p>
+      
+    
+      
+        <p>这是《Crafting Engineering Strategy》中的一章。</p>
+      
+    
+      
+        <h2>主要洞见</h2>
+      
+    
+      
+        <p>这个模型的洞见可以总结为三张图。首先是基准图，它显示了生产环境中发现的错误与我们通过发布到生产环境而关闭的工单之间最终达到的平衡。这种平衡之所以可见，是因为工单持续被创建，但已关闭工单的总数不再增加。</p>
+      
+    
+      
+        <p>其次，我们展示了通过降低生产环境中的错误率可以改变这种平衡。具体来说，第一张图将生产环境中已关闭工单的错误发生率建模为 25%，而第二张图则仅为 10%。平衡依然会出现，但对应的已发布工单数量更高。</p>
+      
+    
+      
+        <p>最后，我们可以看到，即使将我们开始和测试工单的速率提高三倍，也不会显著改变已完成工单的总数，如第三张图所示。</p>
+      
+    
+      
+        <p>这个系统的约束条件是生产环境中发现的错误，任何只改变其他因素的技术都不会产生太大影响。当然，这只是一个模型，并非现实。模型会忽略许多细微差别，但它帮助我们专注于最可能重要的事情，特别是突显出：任何在提升开发速度的同时也增加生产错误率的方法，很可能整体上是负面的。</p>
+      
+    
+      
+        <p>总结完毕后，现在我们可以开始构建模型本身了。</p>
+      
+    
+      
+        <h2>草图</h2>
+      
+    
+      
+        <p>在电子表格中建模非常耗时，因此我们希望在进入电子表格之前，尽可能在草绘阶段进行迭代。在这个例子中，我们使用的是 Excalidraw。</p>
+      
+    
+      
+        <p>我草绘了五个库存（stock）来表示开发者的工作流：</p>
+      
+    
+      
+        <div class="list-content">Open Tickets 是分配给工程师处理的待办工单；Start Coding 是工程师正在处理的工单；Tested Code 是已经过测试的工单；Deployed Code 是已经部署的工单；Closed Ticket 是到达生产环境后被关闭的工单。</div>
+      
+    
+      
+        <p>有四个从左到右代表工单在开发流程中推进的流动。此外，还有三个从右到左的异常流动：</p>
+      
+    
+      
+        <div class="list-content">Testing found error 表示测试发现错误的工单，将其向后移回 Start Coding；Deployment exposed error 表示部署过程中遇到错误的工单，将其向后移回 Start Coding；Error found in production 表示在生产环境中发现错误的工单，将其一路移回起点，作为一个新的工单。</div>
+      
+    
+      
+        <p>看到这个模型后，你第一个担忧可能是它简单得有些尴尬。坦白说，我第一次看到它时也是这种反应。然而，重要的是要认识到这种感觉，然后深入思考它是否真的重要。</p>
+      
+    
+      
+        <p>这个模型确实非常简单，但在下一节我们会发现，它揭示了关于这个问题的一些反直觉洞见，这些洞见能帮助我们避免错误地将测试时间增加视为工具的失败。模型的价值在于优化我们的思维，而简单的模型通常比复杂的模型更有效地帮助一个群体优化思维，因为复杂的模型很难让群体达成一致。</p>
+      
+    
+      
+        <h2>推理</h2>
+      
+    
+      
+        <p>当我们开始观察这张草图时，首先要问的问题是：基于 LLM 的工具可能如何体现改进？最明显的选项包括：</p>
+      
+    
+      
+        <div class="list-content">提高任务从 Starting Coding 流动到 Tested Code 的速率。想必这些工具可能会减少实现阶段花费的时间。提高 Tested Code 因 Testing found errors 而返回 Starting Code 的速率，因为更全面的测试更有可能发现错误。这可能是这个模型带来的第一个有趣洞见：如果采用的工具效果良好，我们很可能会在测试循环中花费更多时间，其长期回报是在生产环境中解决问题的时间更少（因为那里的修复成本更高）。这意味着测试变慢可能是一个成功的信号，而不是像最初看起来那样的失败。持怀疑态度的人可能会持相反观点，认为基于 LLM 的工具会导致更多问题在部署之后而不是在早期测试阶段被发现。无论哪种情况，我们现在都有一个明确的目标来衡量工具的有效性：减少 Error found in production 这个流动。我们也知道不要把注意力放在 Testing found error 这个流动上——它应该会增加。最后，我们还可以放大视角，衡量那些在完成后的至少前 90 天内没有遇到 Error found in production 流动的任务，从 Start Coding 到 Closed Ticket 的整体耗时。</div>
+      
+    
+      
+        <p>这些观察捕捉到了我认为系统建模最了不起的地方：即使是一个非常简单的模型，也能揭示出反直觉的洞见。特别是那些能帮助我们建立信念、在直觉可能把我们带偏的地方进行反击的洞见。</p>
+      
+    
+      
+        <h2>构建模型</h2>
+      
+    
+      
+        <p>对于这个模型，我们将直接在电子表格中构建它，具体使用 Google Sheets。完整的电子表格模型可在此处获取。正如 <a href="strategy-systems-modeling.html">用系统建模来完善策略</a> 中讨论的，电子表格建模脆弱、缓慢且难以迭代。我通常建议大家尝试在电子表格中建模一次，以直观地感受模型中的数学运算，但对于复杂模型，我几乎总是会选择除电子表格之外的任何其他工具。</p>
+      
+    
+      
+        <p>这个例子读起来相当繁琐，如果你决定直接打开表格，看一看，然后跳过本节剩余部分，是完全可以理解的。如果你还留在这里，那就让我们开始吧。</p>
+      
+    
+      
+        <p>我们要创建的电子表格包含三个重要的工作表：</p>
+      
+    
+      
+        <div class="list-content">Model 代表模型本身；Charts 存放模型的图表；Config 将配置值与模型分开存放，便于我们在构建完成后对模型进行实验。</div>
+      
+    
+      
+        <p>进入 Model 工作表，我们首先要将每一列初始化为起始值。</p>
+      
+    
+      
+        <p>虽然后续行会使用公式，但第一行应该包含具体数值。我通常在第一列放一个正值，其他列放零，但这不是必需的。你可以根据你要研究的模型，使用任何更有助于分析的起始值。</p>
+      
+    
+      
+        <p>设置好初始值后，我们将分两轮实现这个模型。首先，我们对从左到右的流动进行建模，这些代表标准的开发流程。其次，我们对从右到左的流动进行建模，这些代表流程中的异常情况。</p>
+      
+    
+      
+        <h2>对从左到右的流动建模</h2>
+      
+    
+      
+        <p>我们先从前两个节点 Open Tickets 和 Started Coding 之间的交互开始建模。我们希望开放的工单以固定速率随时间增加，因此在 Config 工作表中添加一个 TicketOpenRate 值，初始设为 1。</p>
+      
+    
+      
+        <p>移动到第二个库存，我们希望只要当前处理的工单数量不超过 MaxConcurrentCodingNum，就开始处理开放的工单。如果我们正在处理的工单超过了 MaxConcurrentCodingNum，就不再启动任何新工单。为此，我们实际上需要创建一个中间值（用斜体列名表示），通过检查当前已启动工单是否达到最大值（Config 工作表中的另一个值），来决定应该启动多少。</p>
+      
+    
+      
+        <p>它看起来像这样：</p>
+      
+    
+      
+        <pre><code>// Config!$B$3 is max started tickets
+// Config!$B$2 is rate to increment started tickets
+// $ before a row or column, e.g. $B$3 means that the row or column
+//   always stays the same -- not incrementing -- even when filled
+//   to other cells
+= IF(C2 &gt;= Config!$B$3, 0, Config!$B$2)
+</code></pre>
+      
+    
+      
+        <p>这也意味着我们的第一列 Open Tickets 需要减去我们已开始编码的工单数量：</p>
+      
+    
+      
+        <pre><code>// This is the definition of `Open Tickets`
+=A2 + Config!$B$1 - B2
+</code></pre>
+      
+    
+      
+        <p>这样就得到了这些数值。</p>
+      
+    
+      
+        <p>现在我们需要确定模型中每一步正在被测试的工单数量。为此，我们创建一个计算列 NumToTest?，其定义为：</p>
+      
+    
+      
+        <pre><code>// Config$B$4 is the rate we can start testing tickets
+// Note that we can only start testing tickets if there are tickets
+// in `Started Coding` that we&#x27;re able to start testing
+=MIN(Config!$B$4, C3)
+</code></pre>
+      
+    
+      
+        <p>然后将该值加到之前正在测试的工单数量上。</p>
+      
+    
+      
+        <pre><code>// E2 is prior size of the Tested Code stock
+// D3 is the value of `NumToTest?`
+// F2 is the number of tested tickets to deploy
+=E2 + D3 - F2
+</code></pre>
+      
+    
+      
+        <p>电子表格显示了系统建模的三列</p>
+      
+    
+      
+        <p>接下来是部署代码，我们先保持简单，假设所有经过测试的变更都会被部署。这意味着 NumToDeploy? 的计算非常简单：</p>
+      
+    
+      
+        <pre><code>// E3 is the number of tested changes
+=E3
+</code></pre>
+      
+    
+      
+        <p>那么 Deployed Code 库存的值也同样简单：</p>
+      
+    
+      
+        <pre><code>// G2 is the prior size of Deployed Code
+// F3 is NumToDeploy?
+// H2 is the number of deployed changes in prior round
+=G2+F3-H2
+</code></pre>
+      
+    
+      
+        <p>现在我们来到最后一个库存。我们添加 NumToClose? 计算列，它假设所有已部署的变更现在都被关闭了。</p>
+      
+    
+      
+        <pre><code>// G3 is the number of deployed changes
+=G3
+</code></pre>
+      
+    
+      
+        <p>这使得 Closed Tickets 库存的计算变为：</p>
+      
+    
+      
+        <pre><code>// I2 is the prior value of Closed Tickets
+// H3 is the NumToClose?
+=I2 + H3
+</code></pre>
+      
+    
+      
+        <p>至此，我们已经完成了所有从左到右的流动建模。</p>
+      
+    
+      
+        <p>从左到右的流动很简单，有一些受约束的流动和一个非常可扩展的流动，但总体上我们看到事物在管道中平稳推进。所有这一切即将改变！</p>
+      
+    
+      
+        <h2>对从右到左的流动建模</h2>
+      
+    
+      
+        <p>我们已经完成了从左到右的“幸福路径”建模。接下来我们需要对所有从右到左的异常路径进行建模。例如，在生产环境中发现的问题会导致工单从 Closed Ticket 流回 Open Ticket。这往往是模型变得有趣的地方。</p>
+      
+    
+      
+        <p>我们需要建模的三个从右到左的流动是：</p>
+      
+    
+      
+        <div class="list-content">从 Closed Ticket 到 Open Ticket，代表在生产环境中发现的 Bug；从 Deployed Code 到 Start Coding，代表在部署过程中发现的 Bug；从 Tested Code 到 Start Coding，代表在测试中发现的 Bug。</div>
+      
+    
+      
+        <p>首先，我们要添加定义这些流动速率的配置。这些将是百分比流动，即目标库存中有一定百分比会触发错误状况而不是继续前进。例如，也许每轮有 25% 的 Closed Tickets 被发现存在 Bug。</p>
+      
+    
+      
+        <p>这些是很好的初始值，我们将在下面的“练习”部分实验调整它们如何改变模型。</p>
+      
+    
+      
+        <p>现在我们从建模生产环境中发现的错误开始，添加一列来表示从 Closed Tickets 到 Open Tickets 的流动，即 ErrorsFoundInProd? 列。</p>
+      
+    
+      
+        <pre><code>// I3 is the number of Closed Tickets
+// Config!$B$5 is the rate of errors
+=FLOOR(I3 * Config!$B$5)
+</code></pre>
+      
+    
+      
+        <p>注意这里使用了 FLOOR 函数来避免移动部分工单。如果你对分数工单、分数部署等概念感到自在，完全可以跳过这一步。这是一个美观上的考虑，通常只有在你选择了过小的起始值时才会影响模型。</p>
+      
+    
+      
+        <p>这意味着我们对 Closed Ticket 的计算也需要更新，要减去前一行 ErrorsFoundInProd? 的结果：</p>
+      
+    
+      
+        <pre><code>// I2 is the prior value of ClosedTicket
+// H3 is the current value of NumToClose?
+// J2 is the prior value of ErrorsFoundInProd?
+=I2 + H3 - J2
+</code></pre>
+      
+    
+      
+        <p>我们还没有完成，因为我们还需要将前一行的 ErrorsInProd? 值加到 Open Tickets 中，这代表错误从已关闭工单流回到开放工单。根据这一变化，Open Tickets 的计算公式变为：</p>
+      
+    
+      
+        <pre><code>// A2 is the prior value of Open Tickets
+// Config!$B$1 is the base rate of ticket opening
+// B2 is prior row&#x27;s StartCodingMore?
+// J2 is prior row&#x27;s ErrorsFoundInProd?
+=A2 + Config!$B$1 - B2 + J2
+</code></pre>
+      
+    
+      
+        <p>现在我们已经在模型中完整地表示了生产环境中的错误流动。</p>
+      
+    
+      
+        <p>接下来，是时候添加从 Deployed Code 到 Start Coding 的流动了。首先添加 ErrorsFoundInProd? 计算：</p>
+      
+    
+      
+        <pre><code>// G3 is deployed code
+// Config!$B$6 is deployed error rate
+=FLOOR(G3 * Config!$B$6)
+</code></pre>
+      
+    
+      
+        <p>然后我们需要更新 Deployed Code 的计算，使其减少计算出的 ErrorsFoundInProd? 值：</p>
+      
+    
+      
+        <pre><code>// G2 is the prior value of Deployed Code
+// F3 is NumToDeploy?
+// H2 is prior row&#x27;s NumToClose?
+// I2 is ErrorsFoundInDeploy?
+=G2 + F3 - H2 - I2
+</code></pre>
+      
+    
+      
+        <p>最后，我们需要将 Started Coding 的数量增加相同的值，代表部署中发现的错误的流动：</p>
+      
+    
+      
+        <pre><code>// C2 is the prior value of Started Coding
+// B3 is StartCodingMore?
+// D2 is prior value of NumToTest?
+// I2 is prior value of ErrorsFoundInDeploy?
+=C2 + B3 - D2 + I2
+</code></pre>
+      
+    
+      
+        <p>现在我们有了代表生产环境中错误的有效流动。</p>
+      
+    
+      
+        <p>最后，我们可以添加从 Tested Code 到 Started Coding 的流动。这和我们之前添加的流动几乎完全一样，首先添加一个 ErrorsFoundInTest? 计算：</p>
+      
+    
+      
+        <pre><code>// E3 is tested code
+// Config!$B$7 is the testing error rate
+=FLOOR(E3 * Config!$B$7)
+</code></pre>
+      
+    
+      
+        <p>然后我们更新 Tested Code，使其减少这个值：</p>
+      
+    
+      
+        <pre><code>// E2 is prior value of Tested Code
+// D3 is NumToTest?
+// G2 is prior value of NumToDeploy?
+// F2 is prior value of ErrorsFoundInTest?
+=E2 + D3 - G2 - F2
+</code></pre>
+      
+    
+      
+        <p>并更新 Started Coding，使其增加这个值：</p>
+      
+    
+      
+        <pre><code>// C2 is prior value of Started Coding
+// B3 is StartCodingMore?
+// D2 is prior value of NumToTest?
+// J2 is prior value of ErrorsFoundInDeploy?
+// F2 is prior value of ErrorsFoundInTest?
+= C2 + B3 - D2 + J2 + F2
+</code></pre>
+      
+    
+      
+        <p>现在最后一个流动也已经接入。</p>
+      
+    
+      
+        <p>至此，我们有了一个完整的模型，可以开始对其进行实验了！这个练习既展示了在电子表格中表示一个有意义的模型是完全可能的，也展示了这样做的挑战。</p>
+      
+    
+      
+        <p>在开发这个模型的过程中，许多错误变得明显。其中一些我能够相对轻松地修复，但更多的我选择不修复，因为修复它们会让模型更难理解。这是一个很好的例子，说明了为什么我鼓励大家在电子表格中开发一两个模型，但我最终认为它不是大多数人应该使用的正确机制：即使非常聪明的人也会在电子表格中出错，而发现这些错误极其具有挑战性。</p>
+      
+    
+      
+        <h2>练习</h2>
+      
+    
+      
+        <p>现在我们已经完成了模型构建，终于可以开始最有趣的部分：对它进行实验。我们先创建一个简单的条形图，显示每个步骤中每个库存的大小。我们将明确不显示中间计算列（如 NumToTest?），因为那些是实现细节，而不是特别有趣的内容。</p>
+      
+    
+      
+        <p>在我们开始调整数值之前，先来看看基准图。</p>
+      
+    
+      
+        <p>最值得注意的一点是，我们当前的模型实际上并没有随着时间推移增加已关闭工单的数量。我们实际上只是越来越落后，这并不特别令人兴奋。</p>
+      
+    
+      
+        <p>因此，让我们开始建模 LLMs 可能提供帮助的第一种方式：降低生产环境中的错误率。我们将 ErrorsInProd 从 0.25 降低到 0.1，看看这对图表有什么影响。</p>
+      
+    
+      
+        <p>我们可以看到，这让我们在关闭工单上取得了更多进展，尽管在某个点上，已关闭工单与生产环境错误率之间建立了平衡，阻止了进一步的进展。这确实验证了降低生产环境错误率的重要性。它还表明，只要错误率是我们之前发布的所有内容的函数，我们最终就会陷入麻烦。</p>
+      
+    
+      
+        <p>接下来，让我们实验一下 LLMs 能让我们更快地进行测试的想法，将 TicketTestRate 从 1 提高到 3。结果发现，提高测试速率根本没有改变任何东西，因为当前的约束在于启动工单。</p>
+      
+    
+      
+        <p>那么，让我们测试一下。也许 LLMs 让我们在启动工单时更快，因为整体开发速度提升了。我们通过将 StartCodingRate 从 1 也提高到 3 来建模这一点。</p>
+      
+    
+      
+        <p>这是一个引人入胜的结果，因为将开发和测试速度都提高三倍改变了我们开始工作的数量，但最终我们系统中真正的约束是生产环境中的错误发现率。</p>
+      
+    
+      
+        <p>通过对这个模型进行实验，我们发现了一个有趣的结果。在我们的错误率是我们已发布到生产环境的内容量的函数的前提下，发布得更快并不会提高我们的速度。在这个模型中，提高生产力的唯一有意义的方式是降低生产环境中的错误率。</p>
+      
+    
+      
+        <p>模型是对现实的不完美表达，但这个模型给了我们一个清晰的认识，什么是最重要的：如果我们想提高速度，就必须降低在生产环境中发现错误的速率。这可能是像这个模型中所暗示的那样降低错误率，也可能是这个模型之外的想法。例如，模型没有很好地表示这一点，但也许我们最好在更少的事情上进行更多迭代，以避免这种情况。如果我们对一个领域进行多个更改，它仍然只代表一个已实现的功能，而不是多个已实现的功能，整体错误率也不会增加。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

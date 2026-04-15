@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 AuditTrail 和 Django-Rcsfield 之间抉择 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 AuditTrail 和 Django-Rcsfield 之间抉择</h1>
+    <div class="meta">
+      2008-10-15 · 
+      <a href="https://lethain.com/choosing-between-audittrail-and-django-rcsfield/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在我发表了如何让 django-rcsfield 运行起来的文章后不久，Marty Alchin 发帖提到了 AuditTrail，并询问我是否能找到 compelling 的理由，让人们选择类似 django-rcsfield 的方案而不是 AuditTrail。</p>
+      
+    
+      
+        <p>如果你对两者进行比较，会发现它们提供的功能非常相似：</p>
+      
+    
+      
+        <div class="list-content">django-rcsfield 利用多种版本控制系统（Git、Bazaar、Subversion）来为 TextField 维护完整的历史版本记录。而 AuditTrail 则是利用数据库来为一个 Model 维护完整的历史版本记录（尽管它对关联关系的支持可能不太友好）。</div>
+      
+    
+      
+        <p>昨晚我为正在开发的一个应用集成了 django-rcsfield，花了不少功夫才搞明白。而就在刚才，我只用了大约五分钟就用 AuditTrail 成功替换了 django-rcsfield。rcofield 会引发各种奇怪的跨平台 Git 问题，而 AuditTrail 直接就能正常工作；rcofield 曾导致我的小型 VPS 严重卡顿——而 AuditTrail 依然是开箱即用。</p>
+      
+    
+      
+        <p>我能想象到一些特定场景下，拥有合并、克隆、分支等完整功能的版本控制会成为真正的优势，但我觉得这类应用只占所有需要版本控制的应用中的极小一部分。对于不在这个小众范围内的项目来说，AuditTrail 似乎是目前最好的现成解决方案。</p>
+      
+    
+      
+        <p>配置 AuditTrail 的步骤非常简短：</p>
+      
+    
+      
+        <div class="list-content">把 AuditTrail wiki 页面底部的代码复制到一个名为 audit.py 的文件中，并确保它在你的 Python 路径中。在 models.py 中引入 audit.py：
+from django.db import models
+import audit
+在你的模型定义中添加 AuditTrail 字段：
+class MyModel(models.Model):
+    title = models.CharField(max_length=200)
+    text = models.TextField()
+    history = audit.AuditTrail()
+同步数据库：
+python manage.py syncdb
+然后就可以开始使用了。
+
+&gt;&gt;&gt; from models import MyModel
+&gt;&gt;&gt; MyModel.create(title=&quot;hi&quot;,text=&quot;some value&quot;)
+&gt;&gt;&gt; a = MyModel.objects.all()[0]
+&gt;&gt;&gt; a.text = &quot;some other value&quot;
+&gt;&gt;&gt; a.save()
+&gt;&gt;&gt; a.history.count()
+2
+&gt;&gt;&gt; a.history.all()[0].text
+&quot;some other value&quot;
+&gt;&gt;&gt; a.history.all()[1].text
+&quot;some value&quot;</div>
+      
+    
+      
+        <p>虽然我非常感谢为 django-rcsfield 付出大量努力的开发者，但目前看来，AuditTrail 是一种更简单的数据版本控制方案。我认为这两种方案都有存在的价值，有些应用确实会更适合使用 django-rcsfield 而非 AuditTrail。但我建议大家优先从 AuditTrail 开始，只有在实际需求要求时再考虑切换。</p>
+      
+    
+      
+        <p>希望这两个项目都能继续得到改进，但在目前阶段，除非你需要合并、推送、拉取或克隆等高级 VCS 功能，否则 AuditTrail 是更好的选择。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

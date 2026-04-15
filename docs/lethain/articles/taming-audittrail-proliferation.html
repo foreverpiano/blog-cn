@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>驯服 AuditTrail 的过度增长 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>驯服 AuditTrail 的过度增长</h1>
+    <div class="meta">
+      2008-10-16 · 
+      <a href="https://lethain.com/taming-audittrail-proliferation/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>自从昨天第一次发现 AuditTrail 以来，我花了一些时间研究它，并且对它的表现相当满意。不过，我的应用会产生大量变更，导致审计记录不断增多，我开始遇到数据库膨胀的问题。</p>
+      
+    
+      
+        <p>使用一天后，我的一个模型已经积累了大约 180 个修订版本。虽然每个修订本身占用空间不大，但很明显，如果不处理这个问题，很快就会给自己带来不小的麻烦（当然，只记录差异（diff）是 django-rcsfield 这类工具的一大优势，它们可以用少得多的空间实现类似功能）。</p>
+      
+    
+      
+        <p>幸运的是，根据你使用修订版本的方式，这个困境有一个相当简单的解决办法：丢弃多余的修订记录。我不想每次创建新修订时都额外查询数据库，因此决定通过扩展 manage.py 来实现一个合适的方案（可以定期通过 cron 任务来触发）。</p>
+      
+    
+      
+        <p>于是我搭建了一个管理命令的框架：</p>
+      
+    
+      
+        <p>起初我打算采用一套非常具体的规则来决定保留哪些修订版本：</p>
+      
+    
+      
+        <div class="list-content">过去一小时内的所有修订版本、第一个超过一小时的修订版本、第一个超过一天的修订版本、第一个超过一周的修订版本、第一个超过一个月的修订版本，以此类推……</div>
+      
+    
+      
+        <p>但当我真正开始写代码时，对这种方案的热情迅速消退了。后来我决定采用一种简单的退避（backoff）算法来确定日期阈值，这样能用更简洁的方式达到大致相同的效果。</p>
+      
+    
+      
+        <p>根据你选择的退避类型，可以控制需要保留的修订版本的间隔密度。</p>
+      
+    
+      
+        <p>你也可以使用加法退避等其他方式。对我的需求来说，乘法退避表现很好。从 60 秒开始每次乘以 10，形成的模式是：1 分钟、10 分钟、1 小时、16 小时、6 天、9 周，依此类推。</p>
+      
+    
+      
+        <p>以下是 clean_audit_trails 这个管理命令的具体实现：</p>
+      
+    
+      
+        <p>请注意，代码假设模型长成下面这个样子：</p>
+      
+    
+      
+        <p>使用方法和其他管理命令一样：</p>
+      
+    
+      
+        <p>借助一些元编程技巧，你可以基于这个思路制作一个更通用的工具，不再硬编码特定模型，而是通过项目 settings.py 来指定要清理的模型和退避方法。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

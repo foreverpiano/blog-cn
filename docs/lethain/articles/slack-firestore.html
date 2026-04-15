@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 Cloud Firestore 为 Slack 应用提供动力 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 Cloud Firestore 为 Slack 应用提供动力</h1>
+    <div class="meta">
+      2019-11-10 · 
+      <a href="https://lethain.com/slack-firestore/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>接上篇 <a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a>，现在是时候真正存储和读取真实数据，而不是继续依赖模拟数据了。我们将使用 Google Cloud Firestore，它是 GCP 提供的一项 NoSQL 数据库服务。</p>
+      
+    
+      
+        <p>本文结束时，我们的 /reflect 命令和 :ididit: 表情回应将能正确记录，每次调用 /recall 以及访问 App Home 视图也将返回真实的业务数据。</p>
+      
+    
+      
+        <p>本文从 commit 08eb 开始，到 commit 4584 结束。</p>
+      
+    
+      
+        <h2>Slack 应用 Python 系列</h2>
+      
+    
+      
+        <div class="list-content"><a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a><a href="slack-app-home-python.html">在 Python 中为 Slack 应用添加 App Home</a><a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a><a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a><a href="slack-distribution.html">发布你的 Slack 应用</a></div>
+      
+    
+      
+        <h2>拆分文件</h2>
+      
+    
+      
+        <p>在接入 Cloud Firestore 之前，我对代码仓库进行了一次比较彻底的清理，为后续修改做好准备。</p>
+      
+    
+      
+        <p>我将 reflect/main.py 拆分成多个更小、更专注的文件。将工具方法移至 reflect/utils.py，Slack API 相关集成移至 reflect/api.py，处理事件的端点移至 reflect/events.py，处理 Slash 命令的逻辑移至 reflect/commands.py。</p>
+      
+    
+      
+        <pre><code>
+from api import get_message, slack_api
+from utils import block, verify
+</code></pre>
+      
+    
+      
+        <p>最后，我还将存储和读取 reflections 的功能移到了 storage.py 中，这也是本文大部分实现工作将要展开的地方。</p>
+      
+    
+      
+        <h2>使用单个函数进行分发</h2>
+      
+    
+      
+        <p>添加存储功能需要修改 event_post、reflect_post 和 recall_post 三个函数。在当前结构下，这意味着每次修改后都要重新部署这三个函数，感觉过于繁琐。</p>
+      
+    
+      
+        <p>为了避免这种情况，我改用一个统一的入口函数 dispatch，并通过声明路由的方式来确定每个请求应该由哪个处理函数来响应。</p>
+      
+    
+      
+        <pre><code>def dispatch(request):
+    signing_secret = os.environ[&#x27;SLACK_SIGN_SECRET&#x27;].encode(&#x27;utf-8&#x27;)
+    verify(request, signing_secret)
+
+    # events are application/json, and
+    # slash commands are sent as x-www-form-urlencoded
+    route = &quot;unknown&quot;
+    if request.content_type == &#x27;application/json&#x27;:
+        parsed = request.json
+        event_type = parsed[&#x27;type&#x27;]
+        route = &#x27;event/&#x27; + event_type
+        if &#x27;event&#x27; in parsed and &#x27;type&#x27; in parsed[&#x27;event&#x27;]:
+            route += &#x27;/&#x27; + parsed[&#x27;event&#x27;][&#x27;type&#x27;]
+    elif request.content_type == &#x27;application/x-www-form-urlencoded&#x27;:
+        data = request.form
+        route = &#x27;command/&#x27; + data[&#x27;command&#x27;].strip(&#x27;/&#x27;)
+
+    for path, handler in ROUTES:
+        if path == route:
+            return handler(request)
+
+    print(&quot;couldn&#x27;t handle route(%s), json(%s), form(%s)&quot; % \
+          (route, request.json, request.form))
+    raise Exception(&quot;couldn&#x27;t handle route %s&quot; % (route,))</code></pre>
+      
+    
+      
+        <p>这样我们就可以在全局变量 ROUTES 中定义各种路由。</p>
+      
+    
+      
+        <pre><code>ROUTES = (
+    (&#x27;event/url_verification&#x27;, url_verification_event),
+    (&#x27;event/event_callback/app_home_opened&#x27;, app_home_opened_event),
+    (&#x27;event/event_callback/reaction_added&#x27;, reaction_added_event),
+    (&#x27;command/reflect&#x27;, reflect_command),
+    (&#x27;command/recall&#x27;, recall_command),
+)</code></pre>
+      
+    
+      
+        <p>如果以后想添加更多路由，只需增加一条路由和对应的处理函数即可，不需要再去 Slack 应用后台操作、创建新函数之类的。</p>
+      
+    
+      
+        <p>不过我们仍然需要为 dispatch 创建一个 Cloud Function，请使用 gcloud CLI 来创建它。</p>
+      
+    
+      
+        <pre><code>gcloud functions deploy dispatch \
+--env-vars-file env.yaml \
+--runtime python37 \
+--trigger-http
+</code></pre>
+      
+    
+      
+        <p>然后记下新的路由 URL。</p>
+      
+    
+      
+        <pre><code>https://your-url-here.cloudfunctions.net/dispatch
+</code></pre>
+      
+    
+      
+        <p>接着我把 /reflect 和 /recall 两个 Slash Command 的请求地址都更新为新的路由地址，同时还进入 Event Subscriptions 页面更新了 Request URL。</p>
+      
+    
+      
+        <p>清理工作完成后，现在我们可以开始做我们此行的目的：添加存储功能。</p>
+      
+    
+      
+        <h2>准备 Firestore 数据库</h2>
+      
+    
+      
+        <p>由于我们已经在 Google Cloud 技术栈中比较深入，所以后端将采用 Google Firestore，主要参考 Firestore 的服务器端快速入门文档。</p>
+      
+    
+      
+        <p>第一步是创建一个新的 Firestore 数据库。</p>
+      
+    
+      
+        <p>请选择 Native Mode（较新版本）。旧版本的 Datastore 模式正逐步被弃用，且功能较少。</p>
+      
+    
+      
+        <p>接下来需要选择数据库所在地区，以及选择单区域还是多区域数据库。推荐使用多区域数据库，不过请务必阅读定价页面进行确认。两者的免费额度相同，多区域的价格略低于两倍，但依然非常便宜。</p>
+      
+    
+      
+        <p>此时 Firestore 数据库开始创建，大约需要几分钟时间。</p>
+      
+    
+      
+        <h2>身份验证凭证</h2>
+      
+    
+      
+        <p>接下来我们需要创建访问 Firestore 的身份验证凭证。首先确认一下你项目的 project id。</p>
+      
+    
+      
+        <pre><code>gcloud projects lists
+</code></pre>
+      
+    
+      
+        <p>然后创建一个服务账号。</p>
+      
+    
+      
+        <pre><code>gcloud iam service-accounts create reflectapp
+gcloud projects add-iam-policy-binding reflectslackapp \
+--member &quot;serviceAccount:reflectapp@reflectslackapp.iam.gserviceaccount.com&quot; \
+--role &quot;roles/owner&quot;
+</code></pre>
+      
+    
+      
+        <p>接着生成密钥，这会在 reflect/ 目录下生成一个名为 gcp_creds.json 的 JSON 凭证文件。</p>
+      
+    
+      
+        <pre><code>gcloud iam service-accounts keys create \
+gcp_creds.json \
+--iam-account reflectapp@reflectslackapp.iam.gserviceaccount.com
+</code></pre>
+      
+    
+      
+        <p>如果你在其他目录下执行了命令，请将 gcp_creds.json 移动到 reflect/ 目录中。</p>
+      
+    
+      
+        <p>然后我们需要更新 reflect/env.yaml，让它指向这个凭证文件。</p>
+      
+    
+      
+        <pre><code>SLACK_SIGN_SECRET: your-secret
+SLACK_BOT_TOKEN: your-bot-token
+SLACK_OAUTH_TOKEN: your-oauth-token
+GOOGLE_APPLICATION_CREDENTIALS: gcp_creds.json
+</code></pre>
+      
+    
+      
+        <p>至此，凭证配置就完成了。</p>
+      
+    
+      
+        <h2>添加 Python 依赖</h2>
+      
+    
+      
+        <p>我们还需要在 requirements.txt 中添加 Firestore 的 Python 库：</p>
+      
+    
+      
+        <pre><code>requests==2.20.0
+google-cloud-firestore==1.6.0
+</code></pre>
+      
+    
+      
+        <p>你可以通过以下命令将其安装到本地虚拟环境中：</p>
+      
+    
+      
+        <pre><code>source ../venv/bin/activate
+pip install google-cloud-firestore==1.6.0
+</code></pre>
+      
+    
+      
+        <p>现在我们可以开始与 Firestore 进行集成。</p>
+      
+    
+      
+        <h2>在 Firestore 中建模数据</h2>
+      
+    
+      
+        <p>在开始集成之前，先简单介绍一下 Firestore 的数据模型。从宏观上看，Firestore 的 collection 类似于 SQL 的表，document 则类似于 SQL 中的一行。每份 document 包含一系列键值对，支持字符串、时间戳、数字等类型。</p>
+      
+    
+      
+        <p>不过，这些 document 的能力远超传统数据库中的一行，它们可以包含子 collection 和嵌套对象。我们的数据模型将是一个 users 的 collection，每个用户拥有一个 tasks 子 collection，每次调用 /reflect 都会创建一个新的 task。</p>
+      
+    
+      
+        <h2>读写 Firestore</h2>
+      
+    
+      
+        <p>下面我们使用 Python 的 google.cloud.firestore 库，逐步演示可能用到的各种操作，首先是从创建文档开始。注意：创建文档时会隐式创建其所在的 collection，无需显式创建。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; from google.cloud import firestore
+&gt;&gt;&gt; db = firestore.Client()
+&gt;&gt;&gt; doc = db.collection(&#x27;users&#x27;).document(&#x27;lethain&#x27;)
+&gt;&gt;&gt; doc.set({&#x27;name&#x27;: &#x27;lethain&#x27;, &#x27;team&#x27;: &#x27;ttttt&#x27;})
+update_time {
+  seconds: 1573350318
+  nanos: 108481000
+}</code></pre>
+      
+    
+      
+        <p>你也可以不指定文档 ID 来创建文档。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; col = db.collection(&#x27;users&#x27;)
+&gt;&gt;&gt; col.add({&#x27;name&#x27;: &#x27;lethain&#x27;, &#x27;team&#x27;: &#x27;ttttt&#x27;})
+update_time {
+  seconds: 1573370218
+  nanos: 107401000
+}</code></pre>
+      
+    
+      
+        <p>获取单个文档。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; db.collection(&#x27;users&#x27;).document(&#x27;lethain&#x27;).get().to_dict()
+{&#x27;team&#x27;: &#x27;ttttt&#x27;, &#x27;name&#x27;: &#x27;lethain&#x27;}</code></pre>
+      
+    
+      
+        <p>获取 collection 中的所有文档。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; for doc in db.collection(&#x27;users&#x27;).stream():
+...     print(doc.to_dict())
+... 
+{&#x27;name&#x27;: &#x27;another&#x27;, &#x27;team&#x27;: &#x27;ttttt&#x27;}
+{&#x27;name&#x27;: &#x27;lethain&#x27;, &#x27;team&#x27;: &#x27;ttttt&#x27;}</code></pre>
+      
+    
+      
+        <p>接下来尝试获取某个用户的子 collection，例如获取用户 lethain 创建的所有 tasks。</p>
+      
+    
+      
+        <pre><code>
+&gt;&gt;&gt; tasks = db.collection(&#x27;users&#x27;).document(&#x27;lethain&#x27;).collection(&#x27;tasks&#x27;)
+&gt;&gt;&gt; tasks.document(&#x27;a&#x27;).set({&#x27;name&#x27;: &#x27;a&#x27;, &#x27;text&#x27;: &#x27;I did a thing&#x27;})
+update_time { seconds: 1573350799 nanos: 411757000 }
+&gt;&gt;&gt; tasks.document(&#x27;b&#x27;).set({&#x27;name&#x27;: &#x27;b&#x27;, &#x27;text&#x27;: &#x27;I did another thing&#x27;})
+update_time { seconds: 1573350807 nanos: 355376000 }
+&gt;&gt;&gt; for doc in tasks.stream():
+...     print(doc.to_dict())
+... 
+{&#x27;name&#x27;: &#x27;a&#x27;, &#x27;text&#x27;: &#x27;I did a thing&#x27;}
+{&#x27;text&#x27;: &#x27;I did another thing&#x27;, &#x27;name&#x27;: &#x27;b&#x27;}</code></pre>
+      
+    
+      
+        <p>如何筛选获取部分文档呢？</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; for task in tasks.where(&#x27;name&#x27;, &#x27;==&#x27;, &#x27;b&#x27;).stream():
+...     print(task.to_dict())
+... 
+{&#x27;name&#x27;: &#x27;b&#x27;, &#x27;text&#x27;: &#x27;I did another thing&#x27;}
+&gt;&gt;&gt; for task in tasks.where(&#x27;name&#x27;, &#x27;==&#x27;, &#x27;c&#x27;).stream():
+...     print(task.to_dict())
+... 
+&gt;&gt;&gt; </code></pre>
+      
+    
+      
+        <p>我们可以在 where 子句中使用 &gt;=、&lt;= 等其他运算符。在实际实现中，我们会使用 where 子句按时间戳过滤，默认只返回最近一周的任务，并根据用户提供的参数动态调整。</p>
+      
+    
+      
+        <p>我们还可以对结果进行排序和限制数量。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; query = tasks.order_by(&#x27;name&#x27;, \
+    direction=firestore.Query.DESCENDING).limit(5)
+&gt;&gt;&gt; for task in query.stream():
+...     print(task.to_dict())
+... 
+{&#x27;name&#x27;: &#x27;b&#x27;, &#x27;text&#x27;: &#x27;I did another thing&#x27;}
+{&#x27;text&#x27;: &#x27;I did a thing&#x27;, &#x27;name&#x27;: &#x27;a&#x27;}</code></pre>
+      
+    
+      
+        <p>删除操作和你预期的一致。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; db.collection(&#x27;users&#x27;).document(&#x27;another&#x27;).delete()
+seconds: 1573351166
+nanos: 188116000</code></pre>
+      
+    
+      
+        <p>删除 collection 中的所有文档会同时删除该 collection。但有个奇怪的注意事项：删除文档并不会删除它的子 collection，因此很容易导致数据残留。</p>
+      
+    
+      
+        <p>好了，我们已经有了足够多的示例，现在可以真正实现任务的存储和读取功能，并替换掉那些长期存在的桩代码。</p>
+      
+    
+      
+        <h2>实现 reflect 功能</h2>
+      
+    
+      
+        <p>目前当用户使用 /reflect 记录任务时，我们只是把数据打印到日志中，并没有真正保存。</p>
+      
+    
+      
+        <pre><code>def reflect(team_id, user_id, text):
+    print(&quot;Reflected(%s, %s): %s&quot; % (team_id, user_id, text))</code></pre>
+      
+    
+      
+        <p>现在我们可以替换它为实际可用的代码。首先在 reflect/storage.py 中增加一个工具函数，用于获取指定用户的 tasks collection。</p>
+      
+    
+      
+        <pre><code>def tasks(team_id, user_id):
+    key = &quot;%s:%s&quot; % (team_id, user_id)
+    ref = DB.collection(&#x27;users&#x27;).document(key).collection(&#x27;tasks&#x27;)
+    return ref</code></pre>
+      
+    
+      
+        <p>然后我们使用这个 collection 来实现 recall 功能。</p>
+      
+    
+      
+        <pre><code>def reflect(team_id, user_id, text):
+    doc = {
+        &#x27;team&#x27;: team_id,
+        &#x27;user&#x27;: user_id,
+        &#x27;text&#x27;: text,
+        &#x27;ts&#x27;: datetime.datetime.now(),
+    }
+    col = tasks(team_id, user_id)
+    col.add(doc)</code></pre>
+      
+    
+      
+        <p>部署更新后的版本，瞧，你的数据已经真正被存储起来了。在 Slack 中添加一个新任务试试。</p>
+      
+    
+      
+        <pre><code>/reflect I&#x27;ve added Firestore to this thing #slack #firestore
+</code></pre>
+      
+    
+      
+        <p>然后我们可以在 Firestore 数据浏览器中进行验证。</p>
+      
+    
+      
+        <p>这真是太棒了！仅仅几行代码，我们的 Slack 应用就开始做真正有意义的事情了。</p>
+      
+    
+      
+        <h2>实现 recall 功能</h2>
+      
+    
+      
+        <p>继续在 reflect/storage.py 中，我们使用同样的 tasks 函数获取用户的任务集合，然后将相关的 task 文档流式读取出来。</p>
+      
+    
+      
+        <pre><code>def recall(team_id, user_id, text):
+    col = tasks(team_id, user_id)
+    for task in col.stream():
+        yield task.to_dict()[&#x27;text&#x27;]</code></pre>
+      
+    
+      
+        <p>我们当然可以进一步完善 /recall 文档中暗示的查询语言支持，但我认为目前的实现已经足以展示整个框架，可以在此基础上继续迭代成更完整的功能。</p>
+      
+    
+      
+        <p>部署更新后的 /recall，我们来试试效果。</p>
+      
+    
+      
+        <p>那表情回应（reacji）呢？也能正常工作吗？</p>
+      
+    
+      
+        <p>可以正常工作。最后我们再检查一下 App Home 页面，确认它是否也能正常显示。</p>
+      
+    
+      
+        <p>看起来我们的应用已经真正开始运转了。</p>
+      
+    
+      
+        <h2>对 Cloud Firestore 的看法</h2>
+      
+    
+      
+        <p>这是我第一次使用 Cloud Firestore，用完之后相当兴奋。诚然，它的查询模式相对受限，但在经历过早期版本的 Cassandra 之后，我已经非常适应在严格约束下进行数据建模。</p>
+      
+    
+      
+        <p>总的来说，它启动快、响应迅速、表达能力足够，对这种小型工作负载来说也非常便宜。有很多值得喜欢的地方。</p>
+      
+    
+      
+        <p>我觉得 Firestore 的文档组织得有些零散。我要找的内容通常都能找到，但位置往往不是我预期的，还碰到过至少一个文档页面跳转到 404 的情况，有点意外。</p>
+      
+    
+      
+        <h2>下一篇</h2>
+      
+    
+      
+        <p>我们已经走了很远。只剩最后一篇文章，将重点介绍如何让这个应用可以被其他人安装和使用！</p>
+      
+    
+      
+        <p>继续阅读 <a href="slack-distribution.html">发布你的 Slack 应用</a></p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

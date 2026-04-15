@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>网络回调身份验证方案 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>网络回调身份验证方案</h1>
+    <div class="meta">
+      2009-09-20 · 
+      <a href="https://lethain.com/proposal-for-authenticating-web-callbacks/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>网络回调是个相当棒的想法，对我来说，无论在理念还是效率上，它都是对轮询的重大改进。</p>
+      
+    
+      
+        <p>在轮询模式下，对服务状态一无所知的客户端需要自己负责检测服务何时发生变化。</p>
+      
+    
+      
+        <p>这意味着客户端会反复向服务发起请求，询问服务状态是否改变。它无法提前知道自己是否在浪费自身和服务的带宽，也无法预判是否有新数据需要处理。</p>
+      
+    
+      
+        <p>轮询就像是忙等待（busy wait）。</p>
+      
+    
+      
+        <p>而网络回调则非常类似于编程中的回调机制，最常见于 JavaScript 中用来绕过单线程实现的做法。</p>
+      
+    
+      
+        <p>面对这个相当新颖的想法，我脑中冒出一个问题：网络回调服务应该如何对客户端请求进行身份验证？如果完全没有身份验证，服务就可能被用作发起 DOS 攻击的载体。而且在没有验证对方确实是自己请求的客户端之前，就贸然向其发送消息也显得非常不礼貌。</p>
+      
+    
+      
+        <p>经过思考，我提出两个我认为都切实可行的方案：</p>
+      
+    
+      
+        <div class="list-content">第一种是三次握手：客户端先发起服务请求，服务端则向客户端指定的主机名发送一个共享密钥，随后客户端使用该密钥对请求进行签名。
+第二种是在 robots.txt 中为指定 API 添加明确的 Allow 行。这样网站所有者可以在他们的 robots.txt 中加入类似以下内容：
+Allow: /api/callback/
+然后服务端会在将网站加入已验证回调列表之前，检查该行是否存在。（也可以考虑使用一个新的约定文件 callbacks.txt 来实现。）</div>
+      
+    
+      
+        <p>我个人更倾向于第二种方案（尤其是希望使用独立的 callbacks.txt 文件），因为它不需要客户端进行任何额外的开发工作，实现起来也不会特别困难。</p>
+      
+    
+      
+        <p>大家有什么想法？</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

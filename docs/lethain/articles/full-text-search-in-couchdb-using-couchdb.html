@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 CouchDB 中实现全文搜索……用 CouchDB 自己搞定 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 CouchDB 中实现全文搜索……用 CouchDB 自己搞定</h1>
+    <div class="meta">
+      2008-12-08 · 
+      <a href="https://lethain.com/full-text-search-in-couchdb-using-couchdb/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我正在做一个项目，希望能在 CouchDB 上使用全文搜索。今天花了太多时间研究可行的方案。在比较实用的选项中，有 CouchDB-Lucene 和 CouchDB-Solr 项目，但我非常坚持想在不依赖任何外部项目的情况下实现全文搜索。</p>
+      
+    
+      
+        <p>结果还真让我搞出来了。</p>
+      
+    
+      
+        <h2>方法一：单词限制。</h2>
+      
+    
+      
+        <p>如果把这个叫“全文搜索”，我大概会被人扔石头，但它确实能让你检索出包含某个特定单词的所有文档。（不过如果数据库比较大，第一次构建索引会花很长时间。我那台可怜的 Macbook 为 6 万个文档（总共 230 万个单词）建立索引花了大约 40 分钟。不过索引建成之后，检索速度倒是很快——可惜检索结果没什么用。）</p>
+      
+    
+      
+        <p>举个例子，假设你想创建一个名为 word 的视图，用于在文档的 title 或 desc 属性中查找单词。下面这个视图函数就能实现：</p>
+      
+    
+      
+        <p>然后你就可以通过这个 URL 检索所有包含单词 “hello” 的文档：http://localhost:5984/mydb/_view/search/word?key=&quot;hello&quot;。进一步来说，你可以向 http://localhost:5984/mydb/_view/search/word 发送一个包含多个 key 的 POST 请求，但这执行的是 OR 操作而不是 AND 操作，因此无法有效匹配同时包含一组单词的文档。</p>
+      
+    
+      
+        <p>（如果你认真想这么做，应该先对单词进行更好的清洗，并且把单词列表转成集合。）</p>
+      
+    
+      
+        <h2>方法二：虽然很恐怖，但确实能用——在“能用”的某种意义上。</h2>
+      
+    
+      
+        <p>CouchDB 视图的 key 不必只是字符串，它可以是任何合法的 JSON 值。因此，你可以这样来思考搜索需求（为了可读性这里没有做 URI 编码）：</p>
+      
+    
+      
+        <pre><code>http://localhost:5984/mydb/_view/_search/lookup?key=&quot;couchdb view&quot;
+</code></pre>
+      
+    
+      
+        <p>但如果你把 key 的结构改一改，也可以这样来思考：</p>
+      
+    
+      
+        <pre><code>http://localhost:5984/mydb/_view/_search/lookup?key=[&quot;couchdb,&quot;view&quot;]
+</code></pre>
+      
+    
+      
+        <p>也就是说，你可以用 JavaScript 数组而不是字符串来作为 key。因此，如果我们能为每个文档生成包含所有可能单词组合的数组作为索引，就能实现全文搜索了。</p>
+      
+    
+      
+        <p>等等，你为什么要把浏览器关掉？别啊，坚持一下，很快的。查找速度会非常快。至于空间和时间复杂度都特别恐怖，谁在乎呢？这反正只是一次性成本——虽然是个巨大的一次性成本——但它还是挺新奇的。如果你只需要索引很少的文本（比如只有标题，或者标题加标签），这个方法说不定真的能用。</p>
+      
+    
+      
+        <p>下面是对应的视图函数：</p>
+      
+    
+      
+        <p>先说明一下，没错，这玩意儿真的能跑。我测试过了，它确实有效。但要补充一句：如果 txt 的值超过四五个单词，map 函数有时会触发 5 秒的超时限制。（我尝试把源码里 5 秒改成 50 秒重新编译，但不知道为什么改动没有生效。而且上面的代码理论上不应该花五秒，它虽然效率很低，但也不该那么慢。我觉得换用 Python 或 Common Lisp 的 view server 也许能缓解这个问题，晚点我可能会试试。）</p>
+      
+    
+      
+        <p>如果你想要所有只包含 “NFL” 这个词的文档排列，可以访问这个 URI：</p>
+      
+    
+      
+        <pre><code>http://127.0.0.1:5984/bossv/_view/_search/word?key=[&quot;NFL&quot;]
+</code></pre>
+      
+    
+      
+        <p>如果你想要所有包含 “NFL” 的文档排列，也可以这样做：</p>
+      
+    
+      
+        <pre><code>http://127.0.0.1:5984/bossv/_view/_search/word
+    ?startkey=[&quot;NFL&quot;]&amp;endkey={}
+</code></pre>
+      
+    
+      
+        <p>最后简单提一句，你可以把这个技术稍作调整，用来获取带有任意标签组合的博客文章。这是一种关系型数据库很难高效建立索引的复杂查询，但用上面的方法，CouchDB 却能轻松搞定。因此，虽然建立“全排列索引”这个例子听起来很荒唐，但我认为这种技术在某些场景下还是能真正发挥作用的。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

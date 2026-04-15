@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 Fabric 部署 Django · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 Fabric 部署 Django</h1>
+    <div class="meta">
+      2008-11-04 · 
+      <a href="https://lethain.com/deploying-django-with-fabric/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>昨天我简单介绍了自己的开发到部署流水线，并简要提到了 Fabric。它是一个用 Python 编写的类似 Capistrano 的工具，能帮助我们摆脱部署过程中那些重复乏味的操作。</p>
+      
+    
+      
+        <p>很长一段时间里，我都满足于通过 SSH 登录服务器手动操作的部署方式（我没有管理大型部署，通常只处理不需要搭建 staging 服务器的小型项目）。但自从尝过 Fabric 的甜头后，我就彻底上瘾了。我认为这是一种显著的改进——即使对于最简单的部署也是如此。</p>
+      
+    
+      
+        <p>简而言之，我认为使用 Fabric（或类似工具）能带来实实在在的好处，原因如下：</p>
+      
+    
+      
+        <div class="list-content">你不需要离开自己的电脑。可以使用自己熟悉的工具、文件和环境设置。你只需输入一条命令就能完成整个部署。即使是简单的部署，你也常常需要输入一二十条 shell 命令（切换目录、从版本控制拉取代码、重启服务器等），而现在这些命令都不用再手动敲了。即使这看起来只是小小的提升，但我认为它的意义远不止于此，因为你可以在不打断编程流程的情况下完成部署。有了良好的部署方案，你只需编写一次，以后就可以反复运行，因此你更有可能按照正确的方式而不是快捷方式来做事。（重复导致无聊，无聊导致可怕的错误，可怕的错误让你又怀念起无聊的日子，然后情况就越来越糟了。）即使是其他开发者，哪怕一想到 Linux 管理就会冷汗直流，也能轻松进行部署和回滚。如果你再加一个五分钟就能搞定的图形界面，那连你奶奶都能帮你部署和回滚生产服务器了。通过将部署流程抽象成一个简单的部署脚本，你让其他人更容易帮你完成工作。这是一件好事。除非你担心这样显得自己在工作中不够忙碌，那你可能不会喜欢 Fabric。它也能很好地扩展到大型环境。</div>
+      
+    
+      
+        <p>现在让我们简单浏览一下我的 Fabric 配置。</p>
+      
+    
+      
+        <h2>使用 Fabric</h2>
+      
+    
+      
+        <p>你可以使用 easy_install 安装 Fabric，但我目前使用的是 Git 上的最新签出版本。这个项目还比较年轻，以至于针对最新发布版本编写的代码无法在当前的开发主干上运行。所以我建议你从它的 Git 仓库安装。</p>
+      
+    
+      
+        <p>现在进入你的 Django 项目目录，创建一个名为 fabfile.py 的文件。我们先添加几个我用来管理 Git 仓库的辅助函数。</p>
+      
+    
+      
+        <p>注意以下几点重要事项：</p>
+      
+    
+      
+        <div class="list-content">Fabric 和服务器之间的连接并不是持久的。这意味着你不能在多个命令中使用 cd 命令并期望它们生效。# 这样写符合预期
+run(&quot;cd ~/git/$(repo)/; git pull $(parent) $(branch)&quot;)
+# 这样写会让第二个命令在错误目录下执行
+run(&quot;cd ~/git/$(repo)/&quot;)
+run(&quot;git pull $(parent) $(branch)&quot;)
+Fabric 使用自己的一套字符串插值系统。用法如下：# 标准的 Python 字符串插值
+run(&quot;git pull %s %s&quot; % (&quot;origin&quot;, &quot;master&quot;))
+# Fabric 的字符串插值
+config.parent = &quot;origin&quot;
+config.branch = &quot;master&quot;
+run(&quot;git pull $(parent) $(branch)&quot;)
+Fabric 的这种方式更便于在不同命令之间传递状态。至少他们是这么说的。我不想过多为这种做法辩护，只是感觉他们应该是在绕过自身架构中的某个痛点。</div>
+      
+    
+      
+        <p>现在我们有了这些 Git 辅助函数，接下来完善 fabfile.py 的其余部分，让它能够充分利用这些工具。</p>
+      
+    
+      
+        <p>你首先应该创建一个或多个函数，每个函数对应一组需要以不同方式处理的服务器。例如，如果你有一个生产服务器集群和一个 staging 服务器集群，那么你可以这样写：</p>
+      
+    
+      
+        <p>fab_hosts 是一个特殊的值，Fabric 用它来确定要在哪些服务器上运行命令，而 repos 是我为自己脚本添加的自定义值。你可以根据需要向 config 添加任意多个自定义值。</p>
+      
+    
+      
+        <p>现在来组合我用于管理部署的三个函数。</p>
+      
+    
+      
+        <p>要理解这段代码，最好先知道 Fabric 用于部署的几个魔法函数。</p>
+      
+    
+      
+        <div class="list-content">run 在远程服务器上运行命令。
+local 在本地机器上运行命令。
+sudo 以 root 权限在远程服务器上运行命令。
+put 从本地机器向远程服务器发送文件。
+invoke 使用当前函数的配置上下文运行另一个函数。
+require 在不同函数之间建立依赖关系，防止函数在缺少前提条件时被执行。</div>
+      
+    
+      
+        <p>现在部署变得非常简单：</p>
+      
+    
+      
+        <p>这让管理变得轻松快捷。不过，我们再加点料。增加一个部署选项，只有当所有测试都通过时才进行部署：</p>
+      
+    
+      
+        <p>现在你可以使用以下命令，只有当所有测试都通过时才进行部署：</p>
+      
+    
+      
+        <p>假设你的开发团队里有一些“害群之马”，即使加了测试选项，他们还是会把有问题的代码推到服务器上。你可以把 pull 函数改成这样：</p>
+      
+    
+      
+        <p>现在，除非所有测试都成功通过，否则他们将无法部署自己的修改。（或者他们可以直接修改 fabfile.py，但这不是重点。;)</p>
+      
+    
+      
+        <p>希望你已经开始思考如何将 Fabric 集成到自己的部署流程中，让生活变得更轻松一点。它既实用又有趣。你还能要求更多吗？</p>
+      
+    
+      
+        <h2>完整源码</h2>
+      
+    
+      
+        <p>以下是本文中我们一起完成的所有代码。</p>
+      
+    
+      
+        <p>像往常一样，欢迎提出评论、建议和批评。如果你想用 Fabric 做更复杂的事情，我强烈推荐浏览它的邮件列表。我的所有问题都在那里找到了答案，而我甚至没有亲自提问。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

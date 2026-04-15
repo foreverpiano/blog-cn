@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 Google App Engine 上使用 Django 的概述 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 Google App Engine 上使用 Django 的概述</h1>
+    <div class="meta">
+      2008-06-17 · 
+      <a href="https://lethain.com/overview-of-using-django-on-the-google-app-engine/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>使用 Django 在 Google App Engine 上开发，最令人惊讶的是那些简单的事情竟然如此相似。在 App Engine 上，一个简洁的首页视图可能是这样的：</p>
+      
+    
+      
+        <p>将它翻译成普通的 Django 视图只需要改动一处：Snippets.all().order(&quot;-entry_time&#x27;)[:5] 变成 Snippets.all().order_by(&#x27;-entry_time&#x27;)[:5]。这就是 Google App Engine 让人感到安心的一面：大多数情况下，熟悉 Django 的开发者可以直接开始编码，只是偶尔翻看一下文档。但这并不能说明全部情况。幸运的是，我现在很有讲故事的心情，所以我们会深入探讨，而不仅仅停留在表面那句“其实是一回事”上。</p>
+      
+    
+      
+        <p>实际上，要真正说明这里的差异，需要讲两个故事：第一个是关于 Google App Engine 平台的简短故事，第二个则是更长的关于在 Google App Engine 上使用 Django 的故事。</p>
+      
+    
+      
+        <h2>Google App Engine 平台</h2>
+      
+    
+      
+        <p>这个平台才是 App Engine 的真正吸引力所在。因为 Google 让开发和部署应用变得异常简单。如果 Google App Engine 提供的只是免费使用世界一流的独立服务器，我认为它对开发者的吸引力远不如现在这样大。</p>
+      
+    
+      
+        <h2>轻松部署</h2>
+      
+    
+      
+        <p>简单来说，这个平台帮你处理了部署过程中所有的麻烦事（我的 PostgreSQL 用户名是什么来着，我把表命名为啥了，还有为什么 SSH 突然不接受我的密钥自动登录了？）。部署过程竟然如此简单，简直难以置信。你只需填写一个简单的 YAML 文件，然后在命令行运行一条简单命令即可。或者，你也可以使用更加简单的图形界面来完成部署。上传和同步过程可能需要一两分钟，但你实际参与的时间只有五秒钟，而且毫无痛苦。</p>
+      
+    
+      
+        <h2>BigTable</h2>
+      
+    
+      
+        <p>GAE 不仅让你免于部署的大多数困难，还让你不用操心扩展规模的许多细节。你无需搭建服务器或对数据库进行分片，只需要多付一些钱给 Google 就行了。或者说，至少这就是用 BigTable 代替关系型数据库集群的理想场景。扩展能力究竟能做到什么程度还有待观察，而成功扩展（或者至少避免失败）的关键，仍然牢牢掌握在开发者及其应用设计选择手中。</p>
+      
+    
+      
+        <p>一旦有多个 GAE 应用取得成功并对平台提出更高要求，这将是一个值得关注的领域。另外——顺便一提——目前确实非常缺乏关于如何为 BigTable 设计模型的优质教程。</p>
+      
+    
+      
+        <h2>Google 账号与邮件</h2>
+      
+    
+      
+        <p>另一个好处（虽然从长远来看可能没那么重要）是能够与 Google 账号集成，并通过 Google 的邮件服务器发送邮件。对于面向技术用户的应用，前者是一个很棒的功能，因为那个群体中的大多数人已经拥有 Google 账号。而在非技术用户群体中，我怀疑 Google 账号的普及率要低得多，但它仍然是一个有用的选项。</p>
+      
+    
+      
+        <p>使用 Google 服务器发送邮件也是一个不错的小福利，对于许多 Web 应用来说，这一能力几乎是必需的，如果 GAE 没有这个功能，使用起来会相当困难。除了说一句“我很高兴不用自己去配置 Postfix”之外，也没什么更多可说的了。</p>
+      
+    
+      
+        <p>现在我们已经简单了解了 Google App Engine 平台，接下来让我们继续看看在 Google App Engine 上部署 Django 的那些快乐与痛苦。</p>
+      
+    
+      
+        <h2>在 Google App Engine 上使用 Django</h2>
+      
+    
+      
+        <p>上一段开头说平台才是 App Engine 的真正吸引力，但不可避免的是，带来礼物的源头往往也是带来不便和挫折的源头。Django 和 GAE 并非糟糕的搭配，但 GAE 有时确实有抢被子的倾向。</p>
+      
+    
+      
+        <p>框架越大，其灵活性就越低。人们经常带着沮丧的表情抱怨 Ruby on Rails，说“当你按照它想要的方式做事情时，它确实很好用。”Django 基本上避开了这个命运，因为它的设计目标是拥有可互换的组件（可以使用自己的模板系统、使用自己的 ORM 等），但它并非完全不受这个根本问题的影响：标准化让重复变得容易，却让适配变得困难。</p>
+      
+    
+      
+        <p>尽管只使用 Django 的一个子集是可能的，但这样做会让你之前在被替换部分上积累的经验失效。因此，从其他环境转到 GAE 的 Django 开发者，即使面对的大多是熟悉的景象，也必须调整自己的视角来理解这个新环境。</p>
+      
+    
+      
+        <h2>Models 与 BigTable</h2>
+      
+    
+      
+        <p>对 Django 开发者来说最大的变化是模型框架：Django 的 ORM 被 Google 设计的方案所取代。这是必要的改变，因为模型不再存在于关系型数据库中，而是存在于 BigTable 中。但这也正是尝试将应用从 Django@Elsewhere 移植到 Django@GoogleAppEngine 时遇到阻力最大的地方。</p>
+      
+    
+      
+        <p>举个例子，让我们看看我在 GAE 上那个简单的语法高亮应用中所使用的 Snippet 模型的一部分。</p>
+      
+    
+      
+        <p>我没有存储指向父 Snippet 的直接链接，而是存储了父级的哈希值。这样我就可以在不进行额外查询的情况下构建指向父 Snippet 的链接。但我要如何获取父级的标题呢？一种做法是这样的：</p>
+      
+    
+      
+        <p>但这种做法是关系型数据库的做法，而既然我们在使用 BigTable，那就变成了错误的方式。相反，我们通过预先将父级的名称存储在子级中来“获取”它。因此我们会将模型修改成这样：</p>
+      
+    
+      
+        <p>而我们只会在创建 Snippet 的时候进行一次必要的获取操作。</p>
+      
+    
+      
+        <p>对于习惯了关系型数据库的人来说，这感觉有点别扭——我是说，这他妈是怎么回事，为什么要把数据缓存在模型本身里？——但这就是充分利用 BigTable 的方式：通过复制数据来避免额外的查找。对于那些变化非常频繁的数据，可能需要经常获取（这时你会开始使用另一种缓存：memcached），但很多时候，简单的数据冗余就足以大幅减少实际执行的查找次数。</p>
+      
+    
+      
+        <p>当然，这种数据冗余也会带来一定的代价。例如，如果你修改了一个 Snippet 的标题怎么办？那么你必须修改 Snippet 本身的标题，还要修改它所有子 Snippet 的标题。代码大概会像这样：</p>
+      
+    
+      
+        <p>公平地说，这相当丑陋。这种数据重复的成本和收益完全取决于你的数据重复程度（如果平均一个 Snippet 没有子项，那么它就没有性能成本，虽然写额外代码会有程序员成本），以及你修改的频率（如果一个 Snippet 不能修改标题，那么所有这些不便就突然变得无关紧要了）。</p>
+      
+    
+      
+        <p>我认为这里最重要的是要记住：要有效地使用 BigTable，需要采用不同的缓存和设计模式。这是使用 Django 在 Google App Engine 上开发时最不“表面”的差异之一，在为 GAE 设计应用时需要仔细考虑。</p>
+      
+    
+      
+        <h2>Django.contrib.* 与 Middleware</h2>
+      
+    
+      
+        <p>另一个在 Google App Engine 上无法使用的 Django 功能是许多 middleware 和 django.contrib 应用。特别是认证和会话框架会让人怀念。正如预期的那样，Google 提供了可行的——在某些方面甚至可能更有用——替代方案，但这又是 Django 中被替换、需要让转向 GAE 的开发者重新学习的一部分。</p>
+      
+    
+      
+        <p>与 BigTable 和关系型数据库之间的不匹配不同，这里的差异更多是细节层面而非概念层面。一个移植的应用需要重写部分代码，但应用本身——在大多数情况下——不需要重新设计。</p>
+      
+    
+      
+        <h2>Django Helper 项目</h2>
+      
+    
+      
+        <p>关于 Django Helper 项目有许多链接和虽然模糊但乐观的赞美，该项目旨在抽象掉 Django@Elsewhere 和 Django@GAE 之间的差异。最终，我认为这是一个有些误导方向——虽然出发点良好，有时也有帮助——的努力。问题在于，在两个不同事物之上创建一层抽象，会导致得到两者最小的交集。想象一下你要创建一个库来抽象你是用 Git 还是 Mercurial 作为仓库：你会失去两者独特的功能，最终得到一个比单独使用任何一个都更不吸引人的东西。</p>
+      
+    
+      
+        <p>我的经验是，这个 helper 在很多方面并没有像宣传的那样工作。更好的做法是，在能用 Django 的地方就用 Django，然后使用 Google 的框架组件来补充 Django，而不是把两者的第三种混合物倒进 Kool-Aid 里。</p>
+      
+    
+      
+        <h2>结束思考</h2>
+      
+    
+      
+        <p>说真的，我在 Google App Engine 上的开发体验非常正面，我期待着完善我现有的项目，也期待着在上面尝试新的项目。它消除了部署 Web 应用的痛苦，而这通常是推出一个新项目最困难——或者至少是最烧钱——的部分。在有 App Engine 之前，对于预算很少的项目（主要是小型个人项目），我只有两种选择：</p>
+      
+    
+      
+        <div class="list-content">把它放在 VPS 上，每月多花 20 到 40 美元；或者把它放在共享主机上，接受往往非常糟糕的性能。</div>
+      
+    
+      
+        <p>现在，Google App Engine 给了我第三种选择，它兼具前两种方案的大部分优点，为此我心怀感激。是否需要进一步降低 Web 应用的门槛，这是留给另一天的讨论，但 GAE 无疑是一场令人兴奋的实验，值得我们观察和参与。</p>
+      
+    
+      
+        <p>如果你已经尝试过使用 GAE 开发，你的印象如何？你认为它会成为 Web 应用的一个可行平台吗？</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

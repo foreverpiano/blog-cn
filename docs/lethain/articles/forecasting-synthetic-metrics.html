@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>预测合成指标 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>预测合成指标</h1>
+    <div class="meta">
+      2019-11-05 · 
+      <a href="https://lethain.com/forecasting-synthetic-metrics/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>想象一下，你有一天醒来，发现自己突然要负责一个站点可靠性工程（SRE）团队。早上10点，你已经下载了一份免费的SRE书籍，并开始逐渐掌握要领。这时突发了一个故障：糟糕！大家迅速集结起来减轻对用户的影响，随后诊断并修复根本原因。团队的响应非常出色，但你的用户依赖于你，你感觉今天还是让他们失望了。你的肩膀比几个小时前沉重了许多。你坐下来和团队一起，宣布了一个大胆的领导式目标：下个季度我们将实现零故障。</p>
+      
+    
+      
+        <p>你的团队还不熟悉你，所以当你提出一个糟糕的想法时，他们不会直接给你反馈，而是第二天带着一份能实现你目标的项目清单回来。他们的提议从可靠的（删掉所有软件然后回家）到更具风险的（添加<a href="healthchecks.html">大规模健康检查</a>）。你张开嘴准备对他们的想法做出判断，却突然停住，下巴微微张开，然后又闭上了嘴。一个小问题出现了：你完全不知道该如何在这些项目之间做选择。</p>
+      
+    
+      
+        <p>使用用户影响、收入影响或SLO履行情况来衡量历史可靠性是比较直接的。然而，历史指标对于确定未来要优先开展哪些工作并没有太大帮助。哪些工作最有影响力？又需要完成多少工作，才能让我们从依靠好运的可靠性转变为可预测的可靠性？</p>
+      
+    
+      
+        <p>我最喜欢用来衡量复杂领域的工具之一是<a href="metrics-for-the-unmeasurable.html">为不可衡量之事制定指标</a>（合成指标）。合成指标将多种输入指标组合成一个简化的视图。例如，你可以创建一个服务质量评分，它由服务最近是否部署过、是否存在未部署的CVE补丁、是否配置了正确的健康检查、测试是否能在十秒内完成等因素计算得出。这样，你就不必分别讨论每一个方面，而是可以更笼统地谈论服务的整体状态。更实用的是，你可以开始描述公司所有服务的健康度分布情况。</p>
+      
+    
+      
+        <p>当我刚开始尝试合成指标时，我读了Ryan McGeehan写的一篇关于安全风险预测的优秀文章。McGeehan讨论的技术虽然没有完全解决如何优先安排未来工作的问题，但当我反复思考后，突然产生了一个有趣的想法：我们能否通过对合成指标的预测来决定和优先排序工作？</p>
+      
+    
+      
+        <p>Brian Delahunty最近接任了Stripe的可靠性负责人一职，在此期间，我有机会与他、Davin Bogan、Drew Fradette、Grace Flintermann以及其他许多优秀同事合作，重新思考应该如何选择最具影响力的可靠性项目。这里所写的内容很大程度上反映了那些讨论中的集体思考，以及来自Niels Provos安全规划方法的启发。</p>
+      
+    
+      
+        <p>我之前也写过关于的文章，该方法与这里描述的方法有一些相似之处。<a href="modeling-reliability.html">撰写可靠性策略：用系统模型思考复杂问题</a></p>
+      
+    
+      
+        <h2>预测可靠性</h2>
+      
+    
+      
+        <p>让我们深入一个如何预测合成指标的具体例子。我会重点讨论可靠性，但我相信这种技术普遍适用于任何通常用滞后指标而非领先指标来评估执行效果的领域。它对于滞后指标方差较大的领域尤其有价值，比如安全漏洞、重大故障等。</p>
+      
+    
+      
+        <p>在预测合成指标之前，我们必须先设计出这个合成指标本身。要为可靠性设计一个合成指标，一个有用的问题是：要让我们相信自己的系统是可预测可靠的，需要满足哪些条件？</p>
+      
+    
+      
+        <p>特别感谢David Judd，他花了大量时间深入研究这个问题，他的思考深深影响了我。</p>
+      
+    
+      
+        <p>在计算可靠性时，你可能会考虑以下因素：</p>
+      
+    
+      
+        <div class="list-content">你进行变更的安全性如何？这当然包括代码变更的部署，也包括功能开关、基础设施变更等等。你有多少<a href="fault-domains.html">描述故障域</a>（故障域）仅由单个故障域支撑？你距离上次验证每个故障域内的冗余机制已经过去了多久？你为流量峰值准备了多少余量？你的on-call轮班在拥有足够成熟人员和合理的告警频率方面是否可持续？</div>
+      
+    
+      
+        <p>这里可以包含的因素几乎是无限的，你选择哪些取决于你特定的架构。最重要的是，对于每个输入指标，应该非常明显为了改进它需要开展哪类项目。变更不够安全？那就构建更安全的变更管理工具。故障域冗余验证不够频繁？那就组织一次Game Day。要避免使用输出类指标，比如“更少的故障次数”，这类指标会立刻让你陷入如何制定方法的宽泛讨论。</p>
+      
+    
+      
+        <p>为了让例子保持简单，我们假设第一版的可靠性指标重点关注以下几点：进行安全的变更、消除单故障域的故障层级，以及验证故障层级内的冗余机制。</p>
+      
+    
+      
+        <pre><code>percent_safe_changes =
+(percent_safe_feature_flag_changes * 0.3) +
+(percent_safe_code_changes * 0.3) +
+(percent_safe_infra_changes * 0.4)
+
+percent_redundant_fault _levels = (some calculation)
+percent_recently_exercised_domains = (some calculation)
+
+reliability_forecast =
+(percent_safe_changes * 0.4) +
+(percent_redundant_fault_levels * 0.4) +
+(percent_recently_exercised_domains * 0.2)
+</code></pre>
+      
+    
+      
+        <p>通过一些简单的算术和实验，你可以计算出一个反映当前可靠性风险的得分。然后通过分析这些数字的变化趋势，你可以预测一年后这个得分会变成多少。如果你已经在<a href="reclaim-unreasonable-software.html">收回不合理的软件</a>（质量棘轮）上投入了大量精力，那么你可能会发现，即使不启动任何新项目，明年的可靠性也会显著提升。</p>
+      
+    
+      
+        <p>另一方面，你也可能发现自己正朝着灾难的方向螺旋下滑。无论哪种情况，这都是你规划的起点。</p>
+      
+    
+      
+        <p>这个指标随后可以让你计算每个考虑中的项目的预期影响，并根据未来可靠性的投资回报率来对它们进行优先级排序。这也帮助你向其他团队提出更有效的请求。有了这个计算结果，现在你非常清楚应该让其他团队重点关注什么，以及这项工作为什么重要。</p>
+      
+    
+      
+        <p>一个季度之后，你可以测量更新后的可靠性得分，并与你的预测进行对比，判断项目是否产生了预期效果。现在，你能够基于可预测的东西来审视和改进你的可靠性策略与执行，从而避免因为侥幸逃过一劫而反应不足，或因为不幸失误而反应过度。</p>
+      
+    
+      
+        <h2>将得分转化为影响</h2>
+      
+    
+      
+        <p>现在你已经可以预测可靠性，你可能会说，明年可靠性趋势将达到52%，后年则是40%。有些人会因为得分看起来很低而受到触动，但这些数字仍然相当抽象。公司应该在多大程度上更倾向于80%的可靠性预测，而不是79%？</p>
+      
+    
+      
+        <p>将预测得分转化为预测结果是非常有力的做法。对于可靠性，我们可以计算一次严重故障的影响，并将该得分作为未来一年内发生此类故障的概率。一个简单的版本可以取下一年的平均每日收入，然后乘以1.0减去你的风险预测值。</p>
+      
+    
+      
+        <pre><code>impact = (1.0 - reliability_forecast) * avg_daily_revenue_next_year
+</code></pre>
+      
+    
+      
+        <p>这是一个特别严谨的计算吗？不是，真的不是。但你是否因此开始了一场关于可靠性规划的美元影响的对话呢？是的，没错，你正在进行这样的对话。</p>
+      
+    
+      
+        <h2>迭代以达成一致</h2>
+      
+    
+      
+        <p>人们一开始会对你的预测和影响数字产生异议。这正是整个方法的核心价值！每当有人对你的预测或预计影响提出不同意见时，那恰恰是你用来完善方法论的机会。通过几个月内与一个固定成员组成的中型团队反复使用，指标才会变得真正有价值。只有经过这样的反复应用，才能将一个复杂的指标打磨成既反映你自己的世界观，也反映利益相关者世界观的工具。</p>
+      
+    
+      
+        <p>从Perri在《Escaping the Build Trap》一书中描述的产品管理方法中可以学到很多。重要的是结果，而不是交付了多少项目，而任何一个指标的第一个版本几乎都不会得到正确的结果。</p>
+      
+    
+      
+        <h2>变得有价值</h2>
+      
+    
+      
+        <p>有时候，从事安全或可靠性等领域工作的团队会感到压抑，他们觉得自己要么（a）表现很差，要么（b）表现足够好以至于可以被忽略。在“糟糕”和“被忽略”之间的连续区间上，似乎没有哪个位置特别舒服。</p>
+      
+    
+      
+        <p>预测合成指标和将这些指标转化为影响的这两种技术，将会拓展你的连续区间，让它包含“被公司和用户认可的价值”。即使当前一切进展顺利，你也可以展示出需要持续投入的潜在风险。当情况不佳时，你可以证明自己正在做正确的工作，即使其影响尚未显现。</p>
+      
+    
+      
+        <p>我非常期待听到更多尝试类似方法的人的反馈！</p>
+      
+    
+      
+        <p>作为题外话，我还想提到这种方法在评估故障修复质量方面也非常有用。许多故障处理流程强调必须为每个故障制定修复措施，或许还设定了必须完成的严格期限，但却往往难以判断这些修复措施的质量是否足够高。一个好的可靠性合成指标能轻松回答这个问题：一项修复措施的质量，取决于它能在多大程度上让可靠性得分向积极方向移动。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

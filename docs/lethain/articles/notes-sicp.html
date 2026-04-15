@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《计算机程序的构造和解释》笔记 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>《计算机程序的构造和解释》笔记</h1>
+    <div class="meta">
+      2018-12-29 · 
+      <a href="https://lethain.com/notes-sicp/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我大概十年前买了《Structure and Interpretation of Computer Programs》。大家都跟我说这是一部伟大的著作，我也非常想喜欢它。从那以后，我大概启动过十几次阅读，但始终没能走太远。前面的内容太过熟悉，无法抓住我的注意力；而后面的内容又晦涩难懂，因为我没有真正完成前面的练习来学会 Scheme（https://en.wikipedia.org/wiki/Scheme_(programming_language)）。</p>
+      
+    
+      
+        <p>今年假期，我终于完整读完了这本书，并且非常庆幸自己做到了。虽然有些地方作者对题外话的偏好让他们采用了比严格必要更复杂的教学示例，但我还是从中学到了很多东西，尽管这些主题我之前或多或少都学过。</p>
+      
+    
+      
+        <p>书中的内容实在太多，无法全部做笔记。这里只写下我认为特别优雅或有趣的部分。</p>
+      
+    
+      
+        <p>我使用 Emacs 的 scheme-mode 配合 mit-scheme 来完成这本书，通过 brew install mit-scheme 安装。总体来说，这套工具用起来很顺手，也让我怀念起大学时用 SLIME 写 Steel Bank Common Lisp 的日子。</p>
+      
+    
+      
+        <h2>带状态的函数</h2>
+      
+    
+      
+        <p>作为一个通过面向对象语言（Java、Python）进入编程领域的人，带状态的函数对我来说是个奇怪的概念。随着这个概念逐渐内化，我开始明白：带状态的函数其实是一个基本原语，可以在此基础上扩展出对象的实现。</p>
+      
+    
+      
+        <p>最经典的例子是创建一个累加器函数，它能追踪所有传入参数的总和。下面是 Scheme 中 make-accumulator 的实现，它使用 lambda 创建了一个匿名函数。初始参数被绑定在 lambda 的作用域中，成为其私有的局部状态。</p>
+      
+    
+      
+        <pre><code>(define (make-accumulator starting)
+  (lambda (incr)
+    (begin
+      (set! starting (+ starting incr))
+      starting)))</code></pre>
+      
+    
+      
+        <p>注意，starting 被同一个匿名函数的所有调用所共享，但不会在 make-accumulator 创建的不同 lambda 之间共享。每个 lambda 都有自己私有的状态，这就产生了以下行为：</p>
+      
+    
+      
+        <pre><code>(define a (make-accumulator 0))
+(a 1) ;Value: 1
+(a 100) ;Value: 101
+(define b (make-accumulator 10))
+(b 1) ;Value: 11
+(b 1) ;Value: 12
+(b 5) ;Value: 17
+</code></pre>
+      
+    
+      
+        <p>这对我来说是一个特别有冲击力的例子，因为我最初是用 Python 学习编程的，而把这个程序直接翻译成 Python 2 是行不通的。</p>
+      
+    
+      
+        <pre><code>def make_accumulator(amt):
+    def update(incr):
+        amt = amt + incr
+        return amt
+    return update
+
+a = make_accumulator(0)
+print a(5)
+print a(10)</code></pre>
+      
+    
+      
+        <p>这段代码看起来应该能实现同样的功能，但实际上却抛出了这个错误：</p>
+      
+    
+      
+        <pre><code>Traceback (most recent call last):
+  File &quot;tmp.py&quot;, line 9, in 
+    print a(5)
+  File &quot;tmp.py&quot;, line 4, in update
+    amt = amt + incr
+UnboundLocalError: local variable &#x27;amt&#x27; referenced before assignment</code></pre>
+      
+    
+      
+        <p>Python 3 引入了 nonlocal 关键字，这才让它成为可能！</p>
+      
+    
+      
+        <pre><code>def make_accumulator(amt):
+    def update(incr):
+        nonlocal amt
+        amt = amt + incr
+        return amt
+    return update
+
+a = make_accumulator(0)
+b = make_accumulator(100)
+print((&#x27;a&#x27;, a(5)))
+print((&#x27;b&#x27;, b(1)))
+print((&#x27;a&#x27;, a(10)))
+print((&#x27;b&#x27;, b(1000)))</code></pre>
+      
+    
+      
+        <p>这样就得到了我们预期的输出：</p>
+      
+    
+      
+        <pre><code>(&#x27;a&#x27;, 5)
+(&#x27;b&#x27;, 101)
+(&#x27;a&#x27;, 15)
+(&#x27;b&#x27;, 1101)</code></pre>
+      
+    
+      
+        <p>尽管使用 nonlocal 语句仍然显得相当别扭，但它至少是可行的，这让人兴奋，尤其是在把 Python 当作教学和学习语言的语境下。</p>
+      
+    
+      
+        <h2>消息传递</h2>
+      
+    
+      
+        <p>如果我们想要构建一个简单的面向对象语言实现，并且已经有了带状态的函数，那么还差最后一个 ingredient：消息传递。消息传递的核心思想是向一个对象发送消息，并让对象自己决定如何处理它。</p>
+      
+    
+      
+        <p>考虑下面这段 Python 代码：</p>
+      
+    
+      
+        <pre><code>class Animal:
+    def speak(self):
+        return &quot;generic-animal-noise&quot;
+
+
+a = Animal()
+a.speak()</code></pre>
+      
+    
+      
+        <p>当我们调用 a.speak() 时，实际上是在向对象 a 发送一条消息（这里是 speak），然后让它以合理的方式做出响应。如果我们没有完整的对象系统，只有带状态的函数，该如何处理呢？</p>
+      
+    
+      
+        <p>可以这样实现：</p>
+      
+    
+      
+        <pre><code>(define (make-account balance)
+  (lambda (msg amt)
+    (cond ((eq? msg &#x27;deposit) (begin (set! balance (+ balance amt))
+                              balance))
+          ((eq? msg &#x27;withdraw) (begin (set! balance (- balance amt))
+                              balance)))))
+
+(define act (make-account 100)) ;Value: act
+(act &#x27;deposit 10) ;Value: 110
+(act &#x27;deposit 10) ;Value: 120
+(act &#x27;withdraw 50) ;Value: 70</code></pre>
+      
+    
+      
+        <p>这是一个人为构造的例子，但它展示了一个非常简单的分发机制，让我们朴素的函数开始表现出与对象高度相似的行为。</p>
+      
+    
+      
+        <p>这里一个尴尬的限制是，所有消息必须具有相同数量的参数。一个解决方案是在响应消息时返回函数本身：</p>
+      
+    
+      
+        <pre><code>(define (make-account balance)
+  (lambda (msg)
+    (cond ((eq? msg &#x27;deposit) (lambda (amt)
+                                (begin (set! balance (+ balance amt))
+                                       balance)))
+          ((eq? msg &#x27;withdraw) (lambda (amt)
+                                 (begin (set! balance (- balance amt))
+                                        balance))))))
+
+(define act (make-account 100)) ;Value: act
+((act &#x27;deposit) 10) ;Value: 110
+((act &#x27;withdraw) 100) ;Value: 10</code></pre>
+      
+    
+      
+        <p>这给了我们极大的灵活性，可以根据需要以不同方式处理不同的消息。然而，这也开始让人感到一切都变得过于动态，有些过于开放了？</p>
+      
+    
+      
+        <p>思考这些非典型的面向对象系统，让我很想找一本关于 Smalltalk 的优秀入门读物，也让我想起了 Common Lisp Object System（简称 CLOS），它有一些很棒的想法，尤其是围绕泛型函数（generic functions）的那部分。</p>
+      
+    
+      
+        <h2>代码即数据</h2>
+      
+    
+      
+        <p>软件领域最有趣的想法之一，就是程序能够编写或修改其他程序。这类元程序是 Lisp 语言的标志性特征，通常体现在它们的宏系统中。（想深入了解宏的话，可以读一读不同 Lisp 方言对此的不同处理方式：Scheme macros、Clojure macros、Common Lisp macros。）</p>
+      
+    
+      
+        <p>不过，要开始体验“软件修改软件”，并不需要一下子深入到宏的层面，你只需要用到 quote，它用一个前导单引号表示，例如下面两种写法是等价的：</p>
+      
+    
+      
+        <pre><code>(quote (+ 5 10))
+(define a &#x27;(+ 5 10))</code></pre>
+      
+    
+      
+        <p>一旦你对一个表达式进行了 quote，就可以把它当作普通数据来修改，比如把加法替换成减法，然后用 eval 来执行这段被 quote 的代码（eval 需要在一个环境中运行，而 the-environment 是获取当前环境的一种方式）：</p>
+      
+    
+      
+        <pre><code>(define x (quote (+ 5 10)))
+(eval x (the-environment)) ;Value: 15
+(car x) ;Value: +
+(cdr x) ;Value 25: (5 10)
+(define y (cons - (cdr x)))
+(eval y (the-environment)) ;Value: -5</code></pre>
+      
+    
+      
+        <p>这看起来很简单，但其影响却非常深远。今年早些时候，我写过一篇关于 <a href="refactoring-programmatically.html">用程序化方式重构 Ruby 代码</a> 的文章，那篇文章是通过重写源文件来实现的，而这里的做法则是在程序运行时直接生效。</p>
+      
+    
+      
+        <p>有趣的是，当你在其他语言中进行抽象语法树（AST）重构时，比如 Google 的 Large-Scale Automated Refactoring Using ClangMR 所描述的那样，其底层实际上操作的就是 s-表达式——本质上就是把那些语言的语法表示成了 Lisp 的形式！</p>
+      
+    
+      
+        <p>大多数语言都支持某种形式的 eval，但通常只是操作字符串，像 Python 这样：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; eval(&quot;5 + 4&quot;)
+9</code></pre>
+      
+    
+      
+        <p>因为 Lisp 本质上就是列表，而你可以直接修改这些列表，所以 Lisp 中的 eval 要强大得多——你拥有完整的语法结构，而不仅仅是一串无结构的字符串。</p>
+      
+    
+      
+        <h2>编写解释器</h2>
+      
+    
+      
+        <p>这本书最酷的地方之一，就是用 Scheme 自身逐步实现一个可以工作的 Scheme 解释器，这在很大程度上得益于 Scheme 的 quote 和“代码即数据”的特性。</p>
+      
+    
+      
+        <p>例如，我们可以先写一个自己的 eval 函数，一开始只处理自求值的基本类型和 if 表达式（其他情况则交给 Scheme 内置的 eval）：</p>
+      
+    
+      
+        <pre><code>(define (if? exp)
+  (eq? (car exp) (quote if))
+
+(define (true? exp)
+  (eq? #t exp))
+
+(define (self-evaluating? exp)
+  (cond ((number? exp) #t)
+	((string? exp) #t)
+	(else #f)))
+
+(define (eval-if exp env)
+  (let ((predicate (cadr x))
+	(true-branch (caddr x))
+	(false-branch (cadddr x)))
+    (if (true? (eval2 predicate env))
+	(eval2 true-branch env)
+	(eval2 false-branch env))))
+
+(define (eval2 exp env)
+  (cond ((self-evaluating? exp) exp)
+	((if? exp) (eval-if exp env))
+	(else (eval exp env))))</code></pre>
+      
+    
+      
+        <p>然后就可以这样使用我们自己实现的求值器：</p>
+      
+    
+      
+        <pre><code>(define x (quote (if (= 5 10) 5 10)))
+(eval2 x (the-environment)) ;Value: 10</code></pre>
+      
+    
+      
+        <p>这个核心会被反复扩展，直到它无需再调用内置的 eval 就能支持完整的 Scheme 语言。这种增量式的方法非常强大，因为你可以在前进的过程中不断测试和学习，而不需要一次性把整个解释器写完。</p>
+      
+    
+      
+        <p>除了实现 Scheme 本身，这一章还继续探讨了如何修改它来支持不同的特性，比如惰性求值。</p>
+      
+    
+      
+        <h2>寄存器机器</h2>
+      
+    
+      
+        <p>有些书会教一点汇编语言来说明高级语言如何被翻译成低级语言，而 SICP 则选择使用一种类似汇编的 Scheme 函数语言，比如 test、branch 和 goto。</p>
+      
+    
+      
+        <p>这导致写出来的程序看起来像这样：</p>
+      
+    
+      
+        <pre><code>(controller
+  test-b
+    (test (op =) (reg b) (const 0))
+    (branch (label gcd-done))
+    (assign t (op rem) (reg a) (reg b))
+    (assign a (reg b))
+    (assign b (reg t))
+    (goto (label test-b))
+  gcd-done)</code></pre>
+      
+    
+      
+        <p>这是一种相当易读且合理的方式，而且额外的好处是可以自己去实现 reg、op 这些函数，这比费力去安装一个奇怪的 MIPS 模拟器要更有学习价值。</p>
+      
+    
+      
+        <p>最后我想说的是，我非常惊讶他们居然能在短短六百页左右的篇幅里塞进这么多有趣的思想，而且基本上没有假设读者具备多少先备知识。他们能做到这么多的一个重要原因就是 Scheme 本身——它是一个极其轻便、可随意扩展的工具。</p>
+      
+    
+      
+        <p>Scheme 的简洁性也是一笔巨大的财富。尽管覆盖了如此多的内容，但在读这本书的过程中，需要阅读和编写的代码量却并不大。比我最初预想的要多很多思考，少很多打字。</p>
+      
+    
+      
+        <p>如今教育越来越偏向实用，这是一个好的趋势。教大家 Python、Java 这些他们在工作中很可能用到的语言，总体来说也是好的方向。在这些语言上获得的熟练度能直接用于实际工作，而理解底层机制对大多数现代软件开发来说并没有那么直接的用处。尽管如此，我认为对于很多人来说——也许是职业生涯后期——花时间读一读像 SICP 这样的书是非常有益的，它把那些“魔法”一层一层剥开，让你能够理性地理解它们。</p>
+      
+    
+      
+        <p>读完 SICP 之后，今年我想深入了解的几个主题有（非常欢迎大家推荐书籍）：</p>
+      
+    
+      
+        <div class="list-content">Smalltalk —— 它的起源、实现和使用  
+类型系统 —— 《Practical Foundations for Programming Languages》听起来是个不错的起点？  
+编译器 —— 《Engineering a Compiler》一直在我书架上盯着我看，也许今年该打开它了。</div>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

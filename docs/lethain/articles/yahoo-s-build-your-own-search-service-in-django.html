@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用 Django 构建自己的 Yahoo 搜索服务 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>用 Django 构建自己的 Yahoo 搜索服务</h1>
+    <div class="meta">
+      2008-07-10 · 
+      <a href="https://lethain.com/yahoo-s-build-your-own-search-service-in-django/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在本教程中，我们将构建一个简单的 Django 应用，并将其与 Yahoo BOSS 搜索框架集成。更具体地说，我们将使用 BOSS Mashup Framework。</p>
+      
+    
+      
+        <p>首先，让我们来回答最紧迫的问题：Yahoo BOSS 到底是什么？BOSS 是“Build Your Own Search Service”（构建你自己的搜索服务）的缩写，它为我们提供了一个相当底层的接口，不仅可以搜索我们自己的网站，还能搜索几乎任何内容。我们即将使用的 BOSS Mashup Framework 对所有开发者开放，并且几乎没有任何限制。</p>
+      
+    
+      
+        <h2>细节说明</h2>
+      
+    
+      
+        <p>首先让我们把所有琐碎的配置工作处理完。虽然内容不少，但都不难。这里需要提前说明的是，BOSS Mashup Framework 需要 Python 2.5，如果使用之前的版本则需要进行一些修改。</p>
+      
+    
+      
+        <div class="list-content">注册一个 BOSS App ID。
+创建一个新的 Django 项目，我们将其命名为 my_search。
+django-admin.py startproject my_search
+在 my_search 中创建一个 Django 应用，我们将其命名为 yahoo_search。
+python2.5 manage.py startapp yahoo_search
+下载用于控制 BOSS 的 Python 库。
+将其解压到 my_search/yahoo_search 文件夹中，并重命名为 boss。
+unzip boss_mashup_framework_0.1.zip
+rm boss_mashup_framework_0.1.zip
+mv boss_mashup_framework_0.1 boss
+Yahoo 在打包方面做得不是特别好，无法做到即装即用，因此我们需要几个步骤来构建这个框架。（不过，这些子步骤几乎直接来自附带的 README 文件，所以他们并非没有提供文档，只是配置过程确实有点麻烦。）为 Yahoo 辩护一句，我认为他们打包“糟糕”的原因是可能遇到了不兼容的许可证问题。
+如果你还没有安装 Simple JSON，请先安装它。你可以在 Python2.5 交互环境中输入 import simplejson 来检查是否已安装。
+如果没有安装，请下载 Simple JSON，然后安装它。
+python2.5 setup.py build
+python2.5 setup.py install
+创建文件夹 my_search/yahoo_search/boss/deps/。
+下载 dict2xml 和 xml2dict，并将它们解压到 deps 文件夹中，删除 .tgz 文件，然后返回 boss 目录。
+tar -xzvf dict2xml.tgz
+tar -xzvf xml2dict.tgz
+rm *.tgz
+cd ..
+现在我们可以最终构建这个框架了。
+python2.5 setup.py build
+python2.5 setup.py install
+接下来，我们需要更新 boss/config.json 中的设置。我只修改了前三个设置：appid、email 和 org。其中 appid 是你注册 BOSS 时获得的那一个。
+在 boss 目录中运行以下命令来检查一切是否正常：
+python2.5 examples/ex3.py
+从现在开始，我们的操作将与 README 略有不同：我们要把 example 和 yos 移动到 yahoo_search 目录中，将 config.json 移动到 my_search 目录，并删除其他所有内容（当然，你可以保留 examples 文件夹以供自己参考）。
+mv config.json ../../
+mv yos ../
+mv examples ../
+cd ..
+rm -r boss</div>
+      
+    
+      
+        <p>好了，现在配置工作全部完成，我们可以开始构建一个使用 BOSS Mashup Framework 的简单 Django 应用了。</p>
+      
+    
+      
+        <h2>定义我们的应用</h2>
+      
+    
+      
+        <p>现在配置工作已经完成，我们需要明确这个应用要做什么。一开始（别担心，这将是一个多篇系列教程，我们会逐步构建一个更有趣的应用），我们要做一件非常简单的事情：根据表单提交的内容搜索 Yahoo 新闻。</p>
+      
+    
+      
+        <p>是的，简单到不能再简单了。等我们做出能用的东西之后，再逐步增加有趣的功能。</p>
+      
+    
+      
+        <h2>URL 配置</h2>
+      
+    
+      
+        <p>首先让我们编辑项目的 urls.py，将 yahoo_search 应用的 URL 包含进来。my_search/urls.py 应该如下所示：</p>
+      
+    
+      
+        <p>不过，我们还没有创建 my_search/yahoo_search/urls.py，所以现在赶紧创建它。</p>
+      
+    
+      
+        <p>从 urlpatterns 可以看出，我们只会有一个名为 index 的视图，它将负责处理所有请求。</p>
+      
+    
+      
+        <h2>index 视图</h2>
+      
+    
+      
+        <p>现在我们要编写 index 视图，它将承担所有工作。首先打开 my_search/yahoo_search/views.py，让我们先引入所有需要的模块。</p>
+      
+    
+      
+        <p>我们将使用 render_to_response 来渲染模板，使用 newforms 来获取用户的搜索关键词，使用 ysearch 从 BOSS 获取数据，并使用 db 将获取的结果格式化为更易管理的形式。</p>
+      
+    
+      
+        <h2>编写搜索函数</h2>
+      
+    
+      
+        <p>现在让我们编写一个简单的搜索函数，用于查询 BOSS。</p>
+      
+    
+      
+        <h2>简短说明</h2>
+      
+    
+      
+        <p>如果你想搜索 Yahoo 的网页结果而不是新闻，只需将下面这行</p>
+      
+    
+      
+        <p>search 函数返回的数据是一个字典列表，每个字典的结构如下：</p>
+      
+    
+      
+        <p>这个搜索函数非常基础，但对于这个应用的初始版本来说已经足够了。让我们继续。</p>
+      
+    
+      
+        <h2>一个简单的表单</h2>
+      
+    
+      
+        <p>接下来我们需要创建一个非常简单的表单，用于获取用户的搜索关键词。</p>
+      
+    
+      
+        <p>目前这些就够了，继续往下看。（我说过它很简单。）</p>
+      
+    
+      
+        <h2>实际实现 index 视图</h2>
+      
+    
+      
+        <p>好的，现在让我们停下来，想想 index 视图需要完成哪些工作。</p>
+      
+    
+      
+        <div class="list-content">它需要检查是否有 POST 参数传入。
+如果有 POST 参数，需要使用 SearchForm 进行验证，然后调用 search 函数来获取结果。
+它需要使用 render_to_response 渲染一个模板，模板中包含 SearchForm 以及搜索结果（如果有的话）。</div>
+      
+    
+      
+        <p>好的，将以上逻辑翻译成 Python 代码，我们的 index 函数如下：</p>
+      
+    
+      
+        <p>诚然，我们还没有编写 index.html 模板，这是我们接下来的任务。除此之外，这是一个相当标准的 Django 视图。</p>
+      
+    
+      
+        <h2>完善 index.html 模板</h2>
+      
+    
+      
+        <p>首先，我们需要为 yahoo_search 应用创建模板目录。在 my_search/yahoo_search 目录内执行：</p>
+      
+    
+      
+        <p>然后创建 templates/yahoo_search/index.html 文件，并在你的编辑器中打开它。这将是一个简单的模板，只包含一个搜索输入框和结果列表。</p>
+      
+    
+      
+        <p>它看起来会是这样的：</p>
+      
+    
+      
+        <h2>下载文件压缩包</h2>
+      
+    
+      
+        <p>如果你没有跟随教程操作，或者你的代码运行异常，可以下载所有这些文件的压缩包。只需解压到任意位置，在 my_search/config.json 中填写前三个条目（你的 BOSS appid、email 和 org），然后就可以在下一步中运行这个应用了。</p>
+      
+    
+      
+        <p>2008年7月12日更新：不幸的是，由于 BOSS 库的构建方式，仅仅复制 yos 文件夹是不够的，你需要按照上面列出的 BOSS Framework 安装步骤（第 6 步）进行操作。具体来说，你需要完成那些步骤，最后执行：</p>
+      
+    
+      
+        <p>这确实有点麻烦，我会看看能否整理一下，让整个过程更简单。</p>
+      
+    
+      
+        <h2>运行看看效果</h2>
+      
+    
+      
+        <p>现在应用已经构建完成，让我们启动它。</p>
+      
+    
+      
+        <p>访问 http://127.0.0.1:8000/，你会看到一个友好的搜索框在等待你。输入搜索词，按下回车，瞧！你会看到结果列表。我搜索了 iPhone，得到的结果页面如下：</p>
+      
+    
+      
+        <p>需要注意的一点是，Yahoo 提供的辅助库依赖于 config.json 位于 Python 运行的根目录。这在开发环境中是成立的，但在部署服务器上可能并非如此。我认为最好的解决方案是将 config.json 的内容添加到项目的 settings.py 文件中，并修改 yos/boss/ysearch.py 文件，让它使用 django.conf.settings 来加载配置，而不是从磁盘读取。</p>
+      
+    
+      
+        <p>如果你有任何问题，请告诉我，我会尽量解答。如果时间允许，我会继续写一两篇后续文章，进一步完善我们目前创建的搜索服务，使其更有吸引力。</p>
+      
+    
+      
+        <p>2008年7月12日更新：感谢 Wayne 的评论，我得以大幅简化搜索函数。具体来说，他指出我之前让库在所有字典的键前面加上 ynews$ 前缀，然后又因为这个前缀而手动删除它。哎呀。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

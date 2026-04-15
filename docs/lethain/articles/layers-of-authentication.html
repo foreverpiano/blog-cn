@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>认证的层次 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>认证的层次</h1>
+    <div class="meta">
+      2008-09-25 · 
+      <a href="https://lethain.com/layers-of-authentication/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>这是 Django、jQuery 与 Ajax 系列的第三篇文章，接续《Custom Django Views for Happier Ajax》之后的内容。这一次我们将探讨如何在 Ajax 应用中正确处理认证。</p>
+      
+    
+      
+        <p>“如何在 Ajax 应用中处理认证？”这个问题的简短答案和你在其他任何应用中的做法是一样的，但也有一个更详细的答案。</p>
+      
+    
+      
+        <p>既然我似乎擅长给出那些通常只有简短答案的问题的长答案，这显然正合我意。</p>
+      
+    
+      
+        <h2>认证的两个层次，以及两种风格</h2>
+      
+    
+      
+        <p>当我们在 Django 中考虑认证时，首先想到的可能是根据用户是否已认证，在模板中展示不同的内容。</p>
+      
+    
+      
+        <p>在这种情况下，我们进行认证是为了防止不希望的数据被查看。</p>
+      
+    
+      
+        <p>你可能会认为这里我们是在防止数据被修改，但事实并非如此。如果攻击者发现了表单的 URL，他们仍然可以手动提交 POST 数据。</p>
+      
+    
+      
+        <p>我们在这里所做的并不是为了保护系统，而是通过隐藏不可用的功能来改善用户界面。这一点很重要，因为我们不希望用户界面误导用户，但它并不会提升应用的安全性。</p>
+      
+    
+      
+        <p>第三种也是最后一种风格，是在视图层进行认证。</p>
+      
+    
+      
+        <p>在这三种场景中，认证的层次和风格有一些重叠，但我们最终可以归纳出几个重要的概念：</p>
+      
+    
+      
+        <div class="list-content">对于数据修改，必须在视图层进行认证。对于内容展示，可以在视图层或模板层进行认证。让用户界面与权限保持同步并不能为你的应用提供安全保障，但能保护你不被愤怒的用户用刀捅。</div>
+      
+    
+      
+        <p>你可以将这些想法浓缩为两个简单的问题：在用户界面层，我应该暴露这个吗？在 API 层，我应该允许这个吗？</p>
+      
+    
+      
+        <p>是时候开始 Notes 应用的拷问了。</p>
+      
+    
+      
+        <h2>设置用户认证</h2>
+      
+    
+      
+        <p>不过，首先我们得停下来开个茶话会。嗯，也许不算严格意义上的茶话会，但我们确实需要先设置账户创建功能。</p>
+      
+    
+      
+        <p>第一步是打开 settings.py，确认 django.contrib.auth 已经存在于 INSTALLED_APPS 列表中。如果没有，请添加进去。</p>
+      
+    
+      
+        <p>第二步，我们需要为登录和登出操作配置 URL。打开 ajax_tut/urls.py，添加以下两条 URL：</p>
+      
+    
+      
+        <p>接下来我们需要创建一些简单的模板。</p>
+      
+    
+      
+        <p>从项目目录 ajax_tut/ 开始，先创建两个文件夹：</p>
+      
+    
+      
+        <p>然后我们需要创建两个简单的模板。首先是 registration/login.html：</p>
+      
+    
+      
+        <p>第二个是 registration/logged_out.html：</p>
+      
+    
+      
+        <p>现在模板已经创建好了，我们还需要在 settings.py 中设置 LOGIN_REDIRECT_URL。打开 ajax_tut/settings.py，添加以下这行：</p>
+      
+    
+      
+        <p>接着我们修改基础模板 base.html，添加一个登录/登出链接（以及返回首页的导航链接）。</p>
+      
+    
+      
+        <p>在 &lt;body&gt; 标签开始之后立即插入以下 HTML：</p>
+      
+    
+      
+        <p>现在运行开发服务器，你会看到我们可以正常登录、登出，而且登录|登出按钮会显示正确的选项。</p>
+      
+    
+      
+        <h2>我应该暴露这个吗？</h2>
+      
+    
+      
+        <p>我们要回答的两个问题中的第一个是“我应该暴露这个吗？”</p>
+      
+    
+      
+        <p>在本例中，这意味着我们将查看 notes/note_list.html 和 notes/note_detail.html 模板，并对未登录用户隐藏编辑功能。</p>
+      
+    
+      
+        <p>我们先从 notes/note_list.html 模板开始。</p>
+      
+    
+      
+        <p>我们需要做的就是用模板的 if 语句把 &lt;div class=&quot;new&quot;&gt; 区块和 &lt;script&gt; 标签包裹起来，让它们变成这样：</p>
+      
+    
+      
+        <p>以及这样：</p>
+      
+    
+      
+        <p>分别对应上述两部分。</p>
+      
+    
+      
+        <p>然后回到应用中，分别在登录和未登录状态下查看首页的变化。</p>
+      
+    
+      
+        <p>接下来我们对 notes/note_detail.html 模板做同样的处理。</p>
+      
+    
+      
+        <p>首先我们像之前一样排除 JavaScript 部分：</p>
+      
+    
+      
+        <p>然后还需要处理显示的内容。因为未认证用户无法进行修改，所以不应该向他们展示输入框或文本框。我们将直接用几个 &lt;span&gt; 和一个 &lt;p&gt; 来显示内容。</p>
+      
+    
+      
+        <p>现在运行应用，尝试登录和登出，查看不同的笔记（以及笔记列表），感受一下效果。</p>
+      
+    
+      
+        <p>我们的 UI 现在已经向用户表明了可用的权限，但我们仍然需要实际强制执行这些权限。进入下一节。</p>
+      
+    
+      
+        <h2>我应该允许这个吗？</h2>
+      
+    
+      
+        <p>添加认证的最后一步是回答第二个问题：“我应该允许这个吗？”</p>
+      
+    
+      
+        <p>我们的四个自定义视图都允许创建或修改数据，因此答案非常简单：不允许，不允许，不允许，不允许。</p>
+      
+    
+      
+        <p>要实现这一点，需要在 notes/views.py 中额外添加五行代码。</p>
+      
+    
+      
+        <p>首先在文件顶部添加以下导入：</p>
+      
+    
+      
+        <p>然后为每个视图加上这个装饰器：</p>
+      
+    
+      
+        <p>保存应用，然后手动在浏览器中输入 /create/、note/&lt;slug&gt;/update/ 等对应的 URL，测试这些视图确实无法在未登录时工作。</p>
+      
+    
+      
+        <p>现在我们宝贵的笔记终于安全了。</p>
+      
+    
+      
+        <h2>下载</h2>
+      
+    
+      
+        <p>你可以在这里下载当前 Git 仓库的状态。</p>
+      
+    
+      
+        <h2>继续前进</h2>
+      
+    
+      
+        <p>虽然我们没有大张旗鼓地强调，但值得注意的是，这个小小的测试应用现在已经能在四种不同的用户场景下正确运行：有 JavaScript 未认证、有 JavaScript 已认证、无 JavaScript 未认证、无 JavaScript 已认证。</p>
+      
+    
+      
+        <p>当我们谨慎地设计系统时，就可以只关注简单的二分法（JavaScript 与无 JavaScript、已认证与未认证），而不是去处理更大范围的组合所带来的指数级复杂性。</p>
+      
+    
+      
+        <p>嗯。好了。说教结束。</p>
+      
+    
+      
+        <p>至此，Django、jQuery 与 Ajax 系列的第三篇文章告一段落。这原本将是本系列的最后一篇，但我想到了一个既有趣又有用的点子，所以决定再加最后一篇作为收尾。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

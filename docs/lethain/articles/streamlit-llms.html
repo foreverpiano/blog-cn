@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 Streamlit 和 LLMs 进行实验 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 Streamlit 和 LLMs 进行实验</h1>
+    <div class="meta">
+      2023-06-19 · 
+      <a href="https://lethain.com/streamlit-llms/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近我与多家公司交流，他们正在构建内部的 LLM 实验室或工具，目的是让团队更容易针对内部用例测试 LLM。我想花几个小时试试看，用 Streamlit 为自己的一些用例搭建一个个人 LLM 实验室，看看能做到什么程度。</p>
+      
+    
+      
+        <p>代码见 lethain/llm-explorer。</p>
+      
+    
+      
+        <p>总的来说，我对 Streamlit 的易用性印象深刻，在这个时间内我成功构建了两个有用的工具：</p>
+      
+    
+      
+        <div class="list-content">一个基于文本的 LLM 笔记工具（带 Prompt 历史记录），一个基于电子表格的 LLM 笔记工具。</div>
+      
+    
+      
+        <p>将之前博客文章 <a href="openai-exploration.html">探索 OpenAI</a> 中为我的博客构建的 embedding 查询工具迁移过来应该相当简单，同时也可以按照 ask-my-pdf 的演示，对任意 PDF 进行索引和查询。</p>
+      
+    
+      
+        <p>这些只是粗略的笔记，如果你对 Streamlit 不感兴趣，可以直接浏览下面的截图，感受一下几个小时内能做出什么样的东西。</p>
+      
+    
+      
+        <h2>安装</h2>
+      
+    
+      
+        <p>首先，我们创建一个新的 virtualenv 来进行实验：</p>
+      
+    
+      
+        <p>然后运行“Hello world”脚本验证安装是否成功：</p>
+      
+    
+      
+        <p>这会打开一个 Streamlit 页面。</p>
+      
+    
+      
+        <h2>制作我们自己的 Hello World</h2>
+      
+    
+      
+        <p>接下来，我们可以按照这些说明写一个非常简单的 Streamlit 页面：</p>
+      
+    
+      
+        <p>然后通过以下命令运行：</p>
+      
+    
+      
+        <p>这会在 localhost:8501 变成这样一个网站。</p>
+      
+    
+      
+        <p>我们还可以添加一个折线图，并通过用更明确的命令替换 df 来高亮最大值：</p>
+      
+    
+      
+        <p>这会在我们的表格上方添加一个漂亮的小折线图。</p>
+      
+    
+      
+        <p>现在，让我们尝试创建一个小部件：</p>
+      
+    
+      
+        <p>这允许我们</p>
+      
+    
+      
+        <p>接下来，我们添加第二个页面，以便了解如何创建不同的页面。我们保留 main.py，并添加 st.sidebar.markdown 调用来填充侧边栏的内容：</p>
+      
+    
+      
+        <p>然后我们在 pages/pdf.py 中创建第二个页面，作为后续添加工具的占位符：</p>
+      
+    
+      
+        <p>现在我们已经搭好了一个非常简单的脚手架，接下来将通过与 OpenAI 的 LLM API 交互来扩展它。</p>
+      
+    
+      
+        <h2>与 LLM 交互</h2>
+      
+    
+      
+        <p>本节我主要参考了 Streamlit 的 Langchain_Quickstart。</p>
+      
+    
+      
+        <p>第一步是安装 LangChain，以简化与 LLM 的交互：</p>
+      
+    
+      
+        <p>然后我们需要搞清楚如何加载 OpenAI API Key。标准的示例会在侧边栏放一个输入框来输入 OpenAI API Key，但我不想每次都粘贴密钥，因此我复用了上次 OpenAI 实验中从 Simon Willison 那里借鉴的 <a href="openai-exploration.html">探索 OpenAI</a> 密钥加载模式。</p>
+      
+    
+      
+        <p>我创建了一个 oai_utils.py，并在其中加入了这个函数：</p>
+      
+    
+      
+        <p>然后你可以在 ~/.openai-api-key.txt 中创建一个包含密钥的文件，或者在运行 Streamlit 时通过环境变量直接传入 API Key：</p>
+      
+    
+      
+        <p>两种方式都行。现在我们来更新 main.py 以支持查询 OpenAI：</p>
+      
+    
+      
+        <p>这段代码为我们提供了一个功能完整但相对基础的 OpenAI 查询环境。</p>
+      
+    
+      
+        <p>接下来我们可以开始添加一些功能。</p>
+      
+    
+      
+        <h2>在 OpenAI 模型之间选择</h2>
+      
+    
+      
+        <p>目前我们无法选择要查询的模型，这有点烦人，所以我们使用 st.selectbox 组件来选择模型。</p>
+      
+    
+      
+        <p>以下代码与上面类似，只是对 generate_response 函数和 st.form 调用做了一些调整：</p>
+      
+    
+      
+        <p>现在我们可以使用任意想要的模型进行查询。请注意，如果你没有 gpt-4 的 beta 访问权限，gpt-4 可能无法使用，否则应该都没问题。OpenAI 的模型列表可以在这里查看。</p>
+      
+    
+      
+        <p>可以说，如果你因为某些原因（最有可能是因为你有企业合约，需要对 API 请求中的数据进行更清晰的控制）而不愿意使用托管的聊天界面，那么用自己的 API Key 与 OpenAI LLM 交互，这个界面已经足够好了。</p>
+      
+    
+      
+        <h2>LLM 与电子表格（又称可编辑数据框）</h2>
+      
+    
+      
+        <p>接下来，我们尝试为 LLM 创建一个电子表格界面。目标是让你创建一个表格，然后针对每一行单独运行 LLM。例如，你可能在每一行有一个邮件，想用某个 Prompt 去测试它。</p>
+      
+    
+      
+        <p>我最初希望使用 st.data_editor（在 这篇博客 中介绍）来动态创建和编辑电子表格。这几乎可行——你可以添加行，但无法添加或删除列。我相信可以想办法实现，但为了简单起见，我决定允许你上传 CSV 来填充表格，初始上传后可以再添加或删除行，我们可以使用 st.file_uploader 来实现。</p>
+      
+    
+      
+        <p>我创建了 pages/spreadsheet.py，总共约 50 行 Python 代码，你可以在 Github 上看到。</p>
+      
+    
+      
+        <p>我用最近一篇 Planning 博客文章中的 <a href="planning.html">如何作为工程高管进行规划</a> 的子集进行了测试，我认为这个界面相当不错。我把 Google Sheet 导出为 CSV，上传后，就能用 st.data_editor 删除不想看到的行（操作稍显不直观：选中一行后再点击删除按钮）。之后，我可以针对每一行运行 Prompt，从中提取数据。</p>
+      
+    
+      
+        <p>我得承认，我选择的这批数据其实非常不适合这种分析，但你可以想象它在其他类型的数据上会表现更好，例如根据电子表格中人员的相关信息，自动生成外联邮件。</p>
+      
+    
+      
+        <h2>记录之前的 Prompt</h2>
+      
+    
+      
+        <p>回到 main.py，我想看看把之前的 Prompt 保存在左侧边栏会有多难，这让我开始尝试 session-state。我在本地开发中完全无法让 session state 正常工作。很可能这是“Streamlit cloud”专属的功能之类的。我能够初始化一个 Prompt 列表，验证列表已被更新，但它总是重置为空，即使我没有关闭标签页甚至没有离开页面——比如提交一个新的 Prompt 去评估后，它仍然会检测到 session state 是空的。</p>
+      
+    
+      
+        <p>因此，我决定直接用本地 JSON 文件来实现，你可以在 Github 上的 get_prompts、render_prompt 和 add_prompt 中看到实现。</p>
+      
+    
+      
+        <p>如果你要构建一个更全面的工具，可能需要研究 st.experimental_user 来创建每个用户的缓存，而不是全局缓存。这个功能是为 Streamlit 的云托管设计的，但我想如果你研究一下 streamlit-authenticator，应该也能找到与其他认证机制配合使用的方法。</p>
+      
+    
+      
+        <h2>结束思考</h2>
+      
+    
+      
+        <p>总的来说，我确信这类“个人 LLM 工具”在未来一两年内会以多种易用的形式出现，但我不太确定它们是否会比自己动手构建的更好，尤其是在定制化方面。这里唯一的反例是 ChatGPT Plugins，它们非常有意思，很可能代表了那种几乎不可能在本地沙盒中自行构建或交互的工具——我们拭目以待！</p>
+      
+    
+      
+        <p>同样有趣的是，看看这类内部工具在那些正在大力投入 LLM 的公司内部会如何发展。根据我在行业中观察到的情况，我预计大多数对 LLM 有实际需求的公司都会内部构建类似的东西。我相当确信，自托管的 LLM 工具存在真实的市场，这可能是一个有趣的创业想法，但在一个已经有很多初创公司扎堆的领域创业风险确实不小，我几乎肯定会选择其他方向。（如果你正在构建类似的东西、正在寻找天使投资，并且目标是构建 LLM 工具而非兜售“LLM 魔法”，我很感兴趣。）</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

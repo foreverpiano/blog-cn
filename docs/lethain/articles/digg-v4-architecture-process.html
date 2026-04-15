@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digg v4 的架构与开发流程 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Digg v4 的架构与开发流程</h1>
+    <div class="meta">
+      2012-08-19 · 
+      <a href="https://lethain.com/digg-v4-architecture-process/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>一个多月前，随着 Digg v1 的第二次上线，历史被重置；又因为 Digg 团队大部分人在四个月前加入了 SocialCode，许多记忆正逐渐淡去。因此，现在似乎是个好时机，来描述一下从 2010 年 5 月到 2012 年 5 月期间支撑 Digg.com 运行和开发的系统架构与团队结构。</p>
+      
+    
+      
+        <p>这里不会有争议，甚至也没有多少故事性，只是客观描述我们当时的工作方式以及构建出的系统架构。</p>
+      
+    
+      
+        <h2>团队结构、规模与组织方式</h2>
+      
+    
+      
+        <p>我们得先提供一些背景：公司当时的规模、团队如何组织，以及这一结构如何受到一系列裁员和后续招聘的影响。</p>
+      
+    
+      
+        <p>为了聚焦主题，我不会涉及销售、财务、广告管理、设计、人力资源、商务开发等团队；他们都是公司重要组成部分，但不是这个故事的核心。</p>
+      
+    
+      
+        <p>故事的起点是一个相当传统的公司架构，设有独立的产品、工程和运维领导团队。产品团队规模很小，只有四人；运维团队约有八名工程师，QA 团队约六名工程师，开发团队则有大约二十名开发者。</p>
+      
+    
+      
+        <p>开发团队本身按四个横向团队（前端、API、平台和基础设施）和两个垂直团队（广告、分析）来组织。产品团队采用垂直所有权模式，负责具体功能模块，并在各个横向开发团队之间进行协调。</p>
+      
+    
+      
+        <p>在经历多次裁员和人员离职之后，组织结构最终回归到更为简单的形态。</p>
+      
+    
+      
+        <p>在最后一年，运维团队剩下三人，工程团队七人，广告工程团队四人。</p>
+      
+    
+      
+        <h2>代码审查与持续部署</h2>
+      
+    
+      
+        <p>一套精简的核心开发实践让我们能够先扩展到四十名工程师，随后又从四十人缩减到十四人仍能运转。下面我们来看看这些开发实践，首先从代码的合并、审查和部署流程开始。</p>
+      
+    
+      
+        <p>对上图稍作展开说明：</p>
+      
+    
+      
+        <div class="list-content">我们使用 Git 进行源代码管理，使用 Gerrit 进行代码审查。每一段代码都必须经过同行审查并获得批准，同时还要通过所有单元测试。每次有 patchset 提交到 Gerrit 进行审查时，Jenkins 会自动运行单元测试，测试完成后会将结果反馈到 Gerrit。这意味着代码审查者不必浪费时间去审查无法通过测试的补丁，也确保我们永远不会将单元测试失败的代码合并到 Git 仓库中。当一个 Gerrit patchset 通过测试并获得审查者批准后，它会被合并到 Git 的 master 分支，并通过 Puppet 自动部署到 alpha 环境。在成功完成 alpha 环境的集成测试后，最后一步是将该 patchset 合并到 Git 的 production 分支。我们通过手动触发 Jenkins 任务来部署到生产环境，该任务会与 Puppet 协作完成代码更新。我们最初采用的是持续部署到生产环境，但在经历几次灾难性的深夜部署后，我们决定在上线生产前加入人工把关会更适合我们。如果继续坚持持续部署，我们最终可能会把测试完善到极少让错误代码通过的地步，但当时这对我们来说似乎不是最值得投入时间的方向。</div>
+      
+    
+      
+        <p>在我看来，这套审查、测试和部署代码的系统是 Digg 开发过程中最重要、最成功的部分。它既有足够的结构来保持四十人团队的代码标准统一和高质量，后来又足够轻量，不会拖累规模大幅缩减后的团队。</p>
+      
+    
+      
+        <h2>自然演化的流程与实践</h2>
+      
+    
+      
+        <p>我们还采用了一些其他实践，但其中大部分是随着时间自然演化出来的，而非刻意决定的结果。</p>
+      
+    
+      
+        <div class="list-content">我们起步时单元测试覆盖率极高，但随着团队缩小，新写的测试越来越少。这并非明确的政策，而是基于这样的认识：单元测试并不能有效阻止我们最常遇到的故障类型——涉及多个组件在生产负载下的系统性失败，以及前端渲染问题。与那些多年后仍持续提供价值的单元测试不同，我们的 Selenium 测试一旦停止积极维护，几乎立刻就开始腐化，在 QA 团队离开后不久就被弃用了。我们使用 Thrift 来定义前端和平台团队之间的接口，这通常让团队间的沟通和协作变得简单直接。虽然最终出现了一些设计不佳的接口，造成了不少困惑，但总体而言，用 Thrift 来定义团队间的类型和接口是一种极好的沟通方式。我们很少修改已有的 Thrift 接口的行为，而是推出一个带有期望功能的新接口，让客户端更新到新接口后再移除旧接口。这个过程略显笨拙，但由于我们前后端代码是独立部署的（全量上线所有前端或后端服务器只需要几分钟），这是一种安全、理智的方式，可以确保我们不会把自己搞崩。我们所有前端改动上线时都带有机制，可以将改动先推送给部分用户，或者在遇到问题时快速关闭。这让我们得以将部署和发布分离，使代码部署过程更加平静，也让我们能够精确控制功能发布的时机。我们原本打算用这个机制来进行新功能的 A/B 测试，但后来发现它在管理发布和从可信小规模用户群获取反馈方面价值最大。我们还会对预期会有性能或负载影响的后端功能进行暗发布（dark launch），避免在盯着 Jenkins 进度条无助等待的同时把整个服务搞崩溃。</div>
+      
+    
+      
+        <p>说完我们当时的开发方式，接下来看看我们构建的系统本身。</p>
+      
+    
+      
+        <h2>康威定律如是说，或称“我们的架构”</h2>
+      
+    
+      
+        <p>如果你看看我们在设计 v4 架构时的组织结构，再看看最终构建出的系统架构，简直就是康威定律的生动例证。</p>
+      
+    
+      
+        <p>我们有一个 API 团队和对应的 API 服务端，有前端团队和前端服务端，有平台团队和后端服务端，有广告团队和广告服务端，有基础设施团队管理的各种数据存储，还有为分析团队准备的 Hadoop 集群。</p>
+      
+    
+      
+        <p>话虽如此，对于我们这样规模的团队来说，这其实是非常标准的架构：前端团队使用无状态的 PHP/HTML/JS 开发，状态和存储由后端服务管理，并通过消息队列处理耗时且非事务性的任务。</p>
+      
+    
+      
+        <p>最不寻常的地方大概是后端服务，它是基于 gevent 的 Thrift 服务。不管是好是坏——在我看来完全是坏——当时并没有一个标准的高性能 Python Thrift 服务，因此我们花了大量时间研究 gevent 并构建 gevent 安全的客户端连接池。我以后大概不会再在 Python 服务端使用 Thrift，只是为了避免维护类似的服务器。</p>
+      
+    
+      
+        <p>同时维护 PHP 和 Python 服务端总让我觉得有点别扭，有种“我绝不会这样规划”的感觉，但实际运行中问题并不大：在最后一年左右的时间里，几乎整个团队都能自如地在两种语言间切换，并没有太多抱怨。</p>
+      
+    
+      
+        <p>同样地，作为一个有点完美主义倾向的系统设计者，同时使用 Tornado、Apache+mod_wsgi+Pylons 和 Python gevent 服务也让我有些困扰，但实际中问题也不大（如果我们没有 Jenkins 和 Puppet 部署系统，我相信技术的过度扩散会造成更大的痛苦）。</p>
+      
+    
+      
+        <h2>总结思考</h2>
+      
+    
+      
+        <p>总的来说，我认为我们的流程和架构相当合理，也很好地服务了我们。如果今天重新开始，我们肯定会采用不同的方法；或者如果团队没有大幅缩减，或者我们没有同时背负着遗留系统、API 和各种契约所带来的技术债务——这些都是很有趣的话题，值得以后再深入讨论。</p>
+      
+    
+      
+        <p>另外还值得写一篇文章，讨论 Digg 在数据库和技术上的过度扩散（Cassandra、MySQL、Redis、Memcache、HDFS、Hive、Hadoop、Tornado、Thrift 服务、PHP、Python、Pylons、Gevent 等等），我很想把这篇内容整理出来。</p>
+      
+    
+      
+        <p>或者深入思考我们的组织结构如何影响了工作方式（如果你对这个话题感兴趣，一定要去看 Adam Pisoni 关于适应性组织的演讲）。</p>
+      
+    
+      
+        <p>一切都等到合适的时候吧。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

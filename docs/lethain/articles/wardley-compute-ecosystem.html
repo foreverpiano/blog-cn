@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wardley 映射服务编排生态系统（2014 年）。 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Wardley 映射服务编排生态系统（2014 年）。</h1>
+    <div class="meta">
+      2025-04-10 · 
+      <a href="https://lethain.com/wardley-compute-ecosystem/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在  中，我们探讨了如何从 Python 单体应用平稳过渡到面向服务的架构，同时应对用户流量每六个月翻一番的快速增长。<a href="uber-service-migration-strategy.html">2014 年左右 Uber 的服务迁移策略。</a></p>
+      
+    
+      
+        <p>这张  分析了当时编排框架的演进路径，并将其作为输入，帮助 Uber 基础设施工程团队确定最有效的前进方向。<a href="wardley-mapping.html">用 Wardley Mapping 完善策略</a></p>
+      
+    
+      
+        <p>本文是《Crafting Engineering Strategy》中的一章。</p>
+      
+    
+      
+        <h2>如何阅读这张地图</h2>
+      
+    
+      
+        <p>要快速理解这张 Wardley 地图，请从上到下阅读。如果你想了解这张地图的构建过程，则应从下往上逐节阅读，从“用户”开始，然后是“价值链”，以此类推。</p>
+      
+    
+      
+        <p>关于这种结构的更多细节，请参阅 <a href="wardley-mapping.html">用 Wardley Mapping 完善策略</a>。</p>
+      
+    
+      
+        <h2>当前的工作方式</h2>
+      
+    
+      
+        <p>服务供应流程涉及三个主要内部团队。服务供应团队将产品工程团队开发的应用程序与服务器运维团队管理的服务器进行抽象。随着为支持应用扩展而不断增加服务器，这一过程对应用程序自身是透明的，从而让产品工程师能够专注于公司最重视的事情：开发更多应用功能。</p>
+      
+    
+      
+        <p>当前价值链中的挑战包括成本高效的扩展、可靠的部署以及快速部署。这三个问题都根植于同一个底层问题——资源调度。我们希望对改进资源调度进行重大投入，并认为理解行业在资源调度上的趋势是做出有效选择的基础。</p>
+      
+    
+      
+        <h2>向未来状态过渡</h2>
+      
+    
+      
+        <p>大多数有趣的集群编排问题都围绕集群元数据和资源调度展开。请求路由（无论是通过 DNS 记录还是分配的端口）依赖于集群元数据。将服务映射到服务器集群依赖于资源调度对集群元数据的管理。部署和自动扩缩容也都依赖于集群元数据。</p>
+      
+    
+      
+        <p>这也是我们在 2014 年看到发生重大变化的领域。</p>
+      
+    
+      
+        <p>Uber 最初使用 Clusto 来解决这个问题，这是一个由 Digg 发布的开源工具，其目标与 Hashicorp 的 Consul 类似，但采用程度有限。我们还使用 Puppet 配置服务器，并辅以自定义脚本。这种方案虽然可行，但需要持续进行自定义的调度支持。我们面临的关键问题是：是自己构建调度算法（例如 bin packing），还是采用其他不同的方法。很明显，行业正打算通过两条路径直接解决这个问题：依赖云提供商进行编排（Amazon Web Services、Google Cloud Platform 等），以及采用 Mesos 和 Kubernetes 等开源调度框架。</p>
+      
+    
+      
+        <p>拥有五年以上基础设施经验的行业同行几乎一致地采用开源调度框架，以更好地支持他们的物理基础设施。这将为他们提供一个工具，实现从物理基础设施到云基础设施的桥接式迁移。</p>
+      
+    
+      
+        <p>基础设施存量较少的新兴公司则直接转向云，从而完全避开了编排问题。唯一没有采用这两种方法之一的公司，要么是规模极其庞大且复杂（比如 Google 或 Microsoft），要么是对任何技术变更都极为抗拒。</p>
+      
+    
+      
+        <p>从这一分析来看，继续依赖 Clusto 和 Puppet 将是一项代价高昂的投资，而且与行业的演进方向并不特别一致。</p>
+      
+    
+      
+        <h2>用户与价值链</h2>
+      
+    
+      
+        <p>这张地图聚焦于单一公司内部的编排生态系统，特别关注从大约 2008 年到 2014 年期间保持不变和发生变化的部分。它重点关注三类用户：</p>
+      
+    
+      
+        <div class="list-content">产品工程师专注于供应新服务，并在做出修改后部署该服务的新版本。他们只关注自己的服务，完全 unaware 编排层之下的任何内容（包括任何服务器）。服务供应团队专注于供应新服务、为这些服务编排资源，并将流量路由到这些服务。该团队充当产品工程师与服务器运维团队之间的桥梁。服务器运维团队专注于增加可用于编排的服务器容量。他们与服务供应团队紧密合作，与产品工程师没有直接接触。</div>
+      
+    
+      
+        <p>值得说明的是，在实际中，这些是多个底层团队的人为聚合。例如，服务与服务器之间的流量路由通常由流量或服务网络团队负责。然而，这些省略是为了清晰地突出与编排工具演进相关的关键区别。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

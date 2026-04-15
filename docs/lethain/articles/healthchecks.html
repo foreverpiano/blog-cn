@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大规模健康检查 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>大规模健康检查</h1>
+    <div class="meta">
+      2019-10-27 · 
+      <a href="https://lethain.com/healthchecks/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>几天前在 Stripe 的每周故障复盘会议上，我们开始讨论一个总是出人意料地引发争议的话题：健康检查（healthchecks）。在那之后我一直在思考这个问题，并写下了我对健康检查的理解。</p>
+      
+    
+      
+        <p>我刚加入 Uber 时，我们依赖 HAProxy 在进程之间路由流量。当时 HAProxy 的配置现在可以称为 sidecar 模式。</p>
+      
+    
+      
+        <p>我们在每台服务器上运行一个 HAProxy 实例，并通过检查配置数据库 Clusto 中的元数据来生成该服务器的路由配置。Clusto 与 Consul 或 etcd 有一些相似之处，但在两个基本设计选择上不同：它选择了 (a) <a href="distributed-systems-vocabulary.html">分布式系统词汇表</a>，以及 (b) 放弃广泛的商业成功。</p>
+      
+    
+      
+        <p>在 Clusto 中，每个服务需要声明 (1) 它应该在哪个端口上被访问，(2) 哪些类型的主机可以路由流量给它，(3) 它应该运行在哪些主机上，以及 (4) 它的健康检查协议和端点。</p>
+      
+    
+      
+        <p>Clusto 的聚合元数据会被编译成每台服务器的 HAProxy 配置，这样订阅了特定主机类型的进程就会把流量发到 localhost:$DEST_SERVICE_PORT，并被路由到一个健康的目標服务实例上。</p>
+      
+    
+      
+        <p>每个 HAProxy 实例负责检查其下游服务的健康状况。这一点可以配置，但对绝大多数服务来说，就是发送一个 HTTP 请求到 /health，然后检查响应的状态码。如果返回 200，就认为可用并可以接收流量，否则不行。</p>
+      
+    
+      
+        <p>人类和软件都可以通过类似 status-down 和 status-up 的脚本来操纵进程的健康状态，这些脚本会在 /health 判断该返回什么状态码时被检查。</p>
+      
+    
+      
+        <p>这种方式有一些很好的特性。它能在网络分区时快速自动恢复，无需人工干预。你可以构建任意复杂的工具来操纵 status-down 脚本，从而指示某个进程不应接收流量——我们的部署工具就用这个在升级前排空流量。此外，这个方案的移动部件很少，易于维护和扩展。</p>
+      
+    
+      
+        <p>然而，它也有一些缺点：执行的健康检查数量会随着服务和主机数量呈乘数增长。大致来说，健康检查数量的计算公式是：</p>
+      
+    
+      
+        <pre><code>number of hosts *
+average number of services per host *
+average number of downstream services per service *
+average number of instances per services
+</code></pre>
+      
+    
+      
+        <p>代入一些数字，假设我们有 100 台主机，每台运行 10 个服务，每个服务依赖 3 个其他服务，每个服务有 20 个实例。</p>
+      
+    
+      
+        <p>这样我们得到：</p>
+      
+    
+      
+        <pre><code>100 * 10 * 3 * 20 = 60,000 healthchecks per period
+</code></pre>
+      
+    
+      
+        <p>我们不必每秒都执行健康检查，假设我们能容忍 15 秒的延迟，那么我们大约每秒执行 4000 次健康检查。请注意，这些数字还很小。实际上，我们当时有更多的主机、更多的服务、更多的下游依赖和更多的实例。</p>
+      
+    
+      
+        <p>数字很快就变得非常庞大。</p>
+      
+    
+      
+        <p>我们后来在每台服务器上增加了一个高性能的健康检查缓存，它提供缓存的响应，并通过带外方式刷新健康检查结果，以减少用 Python、Node.js 等较慢语言实现的服务上的负载。但最终，巨量的网络流量和用于健康检查的 CPU 时间还是成了瓶颈。</p>
+      
+    
+      
+        <p>这时你有三个选择：(1) 开始限制服务发现只在 pod 内进行，(2) 将健康检查卸载到集中式或部分集中式的机制上，或者 (3) 依赖检查真实流量（例如被动健康检查）来判断健康状况，而不是主动健康检查。</p>
+      
+    
+      
+        <p>Uber 对这三种方案都进行了实验和部分采用，最终我想说的是：在适当的规模和复杂度下，你也应该采用全部三种方案。</p>
+      
+    
+      
+        <h2>Pod 范围的路由</h2>
+      
+    
+      
+        <p>减少能相互通信的服务器数量（我称之为 pod-scoped routing）至少有三个明显优势。</p>
+      
+    
+      
+        <p>最重要的是，这能让你建立清晰的 <a href="fault-domains.html">描述故障域</a>（故障域）隔离，这样一个 pod 故障不会影响其他正在执行相似工作的 pod。业界最常见的例子是在高可用或灾备架构中限制跨区域流量。这些独立的故障域会成为特别有效的部署目标，尤其是对于通过 Puppet 或 Terraform 进行的较慢的基础设施变更。</p>
+      
+    
+      
+        <p>Pod 还能让你只允许流量发往临近主机，从而最小化延迟。如果 pod 规模足够小，就可能维持与下游进程的持久连接，同时避免只连接部分下游服务所带来的负载分布偏差，也能限制连接开销消耗的内存和 CPU。</p>
+      
+    
+      
+        <p>最后，当规模达到一定程度后，如果你不仔细规划网络流量，网络成本可能会成为基础设施总成本的重要组成部分。Pod 感知的路由是减少昂贵网络流量的有效方式。</p>
+      
+    
+      
+        <p>顺便提一句，有些人试图通过限制每台主机只感知下游服务的一个随机子集来降低健康检查开销。这本质上是一种临时且难以推理的 pod 实现。它会让部署策略变得特别难以分析：即使是一个很小的增量发布，也可能导致某些只认识这些特定主机的服务器完全失去容量。总体来说，随机子集是一种应尽量避免的方法，尽管作为某种“最后手段”来推迟基础设施灾难，它还是能用的。</p>
+      
+    
+      
+        <h2>集中式健康检查</h2>
+      
+    
+      
+        <p>以增加一些基础设施复杂度和对网络分区恢复能力略有降低为代价，你可以通过集中健康检查职责来避免海量健康检查的轰炸。不再让每个 HAProxy 实例（或你选择的任何代理）自己执行健康检查，而是由一个集中机制替你执行检查，然后要么 (a) 把健康数据广播给订阅者，要么 (b) 提供一个表达能力强的接口，让代理能快速、低成本地获取它们特别关心的最新健康数据。</p>
+      
+    
+      
+        <p>在设计集中式检查器时，你可以做很多最佳情况与最坏情况的优化，以减少这种方案的缺点。例如，你不必从几千个代理各自检查下游健康，变成只有一个进程来执行检查。你可能希望让每个下游服务的健康检查由三到五个冗余的进程来完成，以便在某个检查器退化时仍能正常工作。</p>
+      
+    
+      
+        <p>大多数中等规模的技术公司最终都会实现一个大致等价于 Envoy 方案的版本，但这里的用例其实相当通用，适合整合到更少、更通用的实现中。</p>
+      
+    
+      
+        <p>在容易获取的技术支持方面，Envoy 对这种模式有很好的支持。你首先要实现一个 Endpoint Discovery Service（EDS）来负责健康检查，然后每个 Envoy 实例会向 EDS 查询路由数据，而不是自己做本地判断。</p>
+      
+    
+      
+        <h2>检查流量</h2>
+      
+    
+      
+        <p>虽然主动健康检查是你更新路由表以应对有意变更（例如部署、主机升级等）的主要工具，但千万不要忘记，绝大多数主动健康检查的实现大致是这样的：</p>
+      
+    
+      
+        <pre><code>@route(&quot;/health&quot;)
+def healthcheck(req):
+    if exists(&quot;/etc/status_down&quot;):
+        return &quot;DESPAIR&quot;, 500
+    return &quot;OK&quot;, 200
+</code></pre>
+      
+    
+      
+        <p>这种多少有些无用的标准实现，使得它们无法很好地反映进程的真实状况。如果你想要响应迅速、能快速应对退化进程的路由机制，仅仅依靠主动健康检查是不够的。</p>
+      
+    
+      
+        <p>你需要增加被动健康检查。</p>
+      
+    
+      
+        <p>被动健康检查可以简单到检查下游进程的响应码，如果超过某个阈值就将其从轮询中移除。即使是非常严格的阈值——比如超过 50% 的请求返回错误就移除——实际效果也出奇地好。Envoy 的 outlier detection 机制就是一个有趣的真实世界版本。</p>
+      
+    
+      
+        <p>被动健康检查的价值在于减少错误对上游用户和依赖进程的影响。想想常用的金丝雀发布模式，你会先把新版本部署到五台主机上，如果错误率与现有水平相当，才继续部署。</p>
+      
+    
+      
+        <p>如果你金丝雀发布的是有缺陷的软件——比如调用了一个仅在测试环境存在、生产环境不存在的方法，导致金丝雀主机处理的 100% 请求都失败。这时你的 /health 端点不太可能调用到那个路径，因此会继续愉快地返回健康状态，让金丝雀继续留在流量中，直到你手动触发回滚。即使在最好的情况下，回滚通常也要花几分钟；如果你不得不“失败前进”（fail forward），再走一遍构建、测试、部署的循环（这当然是反模式），那可能会花更长时间。</p>
+      
+    
+      
+        <p>如果该金丝雀占 1% 的流量，而你只依赖主动健康检查进行路由，那么你将会让 1% 的用户请求持续失败几分钟，直到回滚完成。这是一个糟糕的结果，哪怕你的软件更接近“提供搞笑猫视频”而非“拯救生命”。相反，即使是非常保守的被动健康检查阈值，也能在不到一分钟内把这些行为异常的主机识别出来并移出轮询。</p>
+      
+    
+      
+        <p>把“缓解”（将坏主机移出轮询）和“修复”（回滚到更好的版本）分开是实现快速恢复和最小化用户影响的关键。这在处理更慢的变更时更为重要，比如 rollout Puppet 配置、在生产中验证新数据库版本等——转移流量仍然很快，但回滚却危险且缓慢。最重要的是，这允许你在完成诊断前就先恢复；在复杂的分布式系统中，诊断通常是最慢的一步。</p>
+      
+    
+      
+        <p>一旦下游进程被标记为不健康，恢复机制就类似于电路断路器（circuit breaker）模式。你会等待一段时间，然后向不健康的下游发送固定数量的探测请求。如果响应良好，就将其标记为健康并继续发送流量。</p>
+      
+    
+      
+        <p>有时人们会纠结于更新路由配置来实现被动健康检查的复杂性，但其实也可以通过扩展你的 /health 等价逻辑，让它查看本地响应码缓存，并根据最近结果修改健康状态。这种方法会受到“每个进程都要定制”的诅咒，但它确实允许你在不大幅修改现有路由和健康检查基础设施的情况下 rollout 被动健康检查。</p>
+      
+    
+      
+        <p>Uber 已经下线的 Hyperbahn 特别依赖被动健康检查，它彻底消除了代理执行主动健康检查的概念（不过正如前面所说，一个集中健康检查系统能告知代理其可路由下游的更新，这可以提供主动健康检查的大部分好处）。</p>
+      
+    
+      
+        <p>相反，它完全依赖下游进程是否在正确响应传入流量，如果不行就将其移出轮询。这与对幂等操作自动重试的清晰语义相结合，能够最大限度减少故障向上游泄露。它还计划使用相同的语义来实现《The Tail at Scale》中描述的一些主动重试方法，不过我不记得最后是否真的实现了。</p>
+      
+    
+      
+        <h2>你应该三种都用</h2>
+      
+    
+      
+        <p>从长期来看，我非常确信任何有一定规模的部署最终都会需要同时进行主动和被动健康检查、在故障域范围的 pod 内路由，并集中化健康检查以减少检查量。我相信有人能把其中某些事情推迟很久，但每一种方案都提供了巨大的价值，我建议尽早采用它们，而不是等到以后。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

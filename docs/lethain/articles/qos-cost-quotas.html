@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QoS、成本与配额 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>QoS、成本与配额</h1>
+    <div class="meta">
+      2016-09-11 · 
+      <a href="https://lethain.com/qos-cost-quotas/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>公司在扩张过程中最令人兴奋的转变之一，就是有一天有人再次重复那句经典名言——工程师比服务器更贵，然后大家会心照不宣地陷入沉默，共同意识到天平终于翻转了：现在服务器比工程师更贵了。</p>
+      
+    
+      
+        <p>但当你获得这个新认知后，该怎么做呢？当然是启动一个成本核算或效率优化项目，来优化你的支出！这类项目通常会采取双管齐下的策略：</p>
+      
+    
+      
+        <div class="list-content">先找到一些容易摘到的果实来展示立竿见影的成效，然后开始对成本进行打标和仪器化，以建立对实际花费情况的透明度。</div>
+      
+    
+      
+        <p>后面的部分很快就会变得有趣起来。</p>
+      
+    
+      
+        <p>首先，我们从基础设施成本的基本单位开始：一台服务器。对于每台服务器，你可能都有一个角色（你的 mysql01-west 可能属于 mysql 角色），而对于每个角色，你又可以分配一个负责人（在这个例子中可能是数据库团队）。现在你写一个简单脚本，每小时查询一次服务器元数据存储，并将当前服务器及其负责人信息发送到 Graphite 或类似系统中。</p>
+      
+    
+      
+        <p>干得漂亮！你的工作到此结束……直到那一周晚些时候，你和刚刚把所有进程从独立主机迁移到 Mesos 或 Kubernetes 的团队聊天，他们抛给你一个有趣的问题：“当然，我们调度团队这些光荣的工程师负责运行 Kubernetes 集群，但我们并不写任何业务应用。为什么我们要为他们的成本负责？”</p>
+      
+    
+      
+        <p>于是你回到工位，写下每台机器提供的资源：</p>
+      
+    
+      
+        <div class="list-content">CPU、内存、网络、磁盘空间、磁盘 IOPS，</div>
+      
+    
+      
+        <p>思考这些资源和你现有的按主机计费方式，你能够为每种资源建立一个更细粒度的定价模型。然后你将这个模型叠加到按主机计费之上，让调度团队能够把他们的服务器成本向下归因到运行在上面的进程，只要他们能开始采集高保真度的按进程利用率指标，并维护进程到团队的映射关系（反正这本来就在他们的 Roadmap 上）。</p>
+      
+    
+      
+        <p>在纸上随便画着，你意识到事情已经变得有点复杂了。现在你有了：</p>
+      
+    
+      
+        <div class="list-content">服务器到团队的映射、服务器分配指标、团队的服务器成本、进程到服务器的映射、进程利用率指标、团队的进程成本。</div>
+      
+    
+      
+        <p>计算每个团队的总成本其实相当简单：拿团队的服务器成本，加上其他团队归因到他们头上的进程成本，再减去他们归因给其他团队的进程成本。</p>
+      
+    
+      
+        <p>在接下来的几周里，你惊讶地发现每个基础设施团队都来找你聊天。运行 Kafka 的团队想按 topic 跟踪流量，并根据利用率把成本归因给生产者和消费者；这对你来说没问题，它完全符合你现有的归因模型。数据库团队想对他们的 MySQL 数据库做同样的事，这稍微有点复杂，因为他们想建立一个能归因磁盘空间、IOPS 和 CPU 的模型，但你最终还是想出了一些足够可用的启发式规则来建立可见性。（如果查询注释不是用来把越来越复杂的结构化数据塞进每条查询里的，那它们是用来干什么的呢？）</p>
+      
+    
+      
+        <p>新上任的 SRE 经理开始安排每周的事故复盘会议，你心不在焉地听着 Kafka 团队讨论一次由某个生产者突然产生远超往常负载而导致的事故。Kafka 老是宕机确实让人头疼，但至少他们的支出在下降，这跟你没关系。后来，当有人建议我们干脆大规模超量配置 Kafka 集群来避免这些问题时，你惊醒过来，气得语无伦次地发出愤怒的叫声——我们在降低成本上已经取得了这么多进展，绝不能现在倒退！——你带着不安离开了会议室。</p>
+      
+    
+      
+        <p>第二周，MySQL 团队因为磁盘空间用尽而导致灾难性故障，也出现在事故复盘会上。当你看到上周同一个人准备发言时，一种消化不良的感觉开始在胃里蔓延，然后她又说了那句话，她又说了一遍：“我们难道不应该在这里用钱来买可靠性吗？”</p>
+      
+    
+      
+        <p>你沮丧地去拿当天第五罐 LaCroix 的路上，看到 CFO 正朝你走来。他一直是你成本优化项目最坚定的支持者之一，你精神一振，期待得到夸奖。不幸的是，他开始深入追问为什么基础设施成本又回到了和你启动项目时几乎相同的增长曲线和水平。</p>
+      
+    
+      
+        <p>也许，你在回家路上自言自语，没人在真正看他们的成本数据。是不是几个深思熟虑的提醒就能解决这个问题？</p>
+      
+    
+      
+        <p>你开发了一个每月自动化的团队成本报告，展示他们当前花费了多少，以及他们的成本在整体团队支出分布中处于什么位置。支出低的团队开始问你，能不能把省下来的钱换成一次很棒的团建，而支出高的团队则重新开始努力降低他们的花费。（你甚至推出了一个每日报告，只有在检测到新 EMR 任务花了几百万美元分析 Nginx 日志后出现异常高支出时才会触发。）</p>
+      
+    
+      
+        <p>这确实有帮助，但事故复盘会议还是不断以“多花钱换可靠性”的建议结束，而你已经开始有意躲着 CFO 了。所以，你懂的，一切都挺好的……但是……</p>
+      
+    
+      
+        <p>当你正在记录最近一次技术电话面试的笔记时，透过薄薄的、匆忙搭建的会议室墙壁听到了一场争论。产品经理说最好的用户体验是永久保存用户收件箱里的所有 incoming 消息，而工程师则大喊这不可能：只有有界队列才有可预测的行为，无界队列只是一个带有未定义失败条件的队列！</p>
+      
+    
+      
+        <p>突然间，一切都串起来了：你的成本和基础设施都缺少背压！更妙的是，你为成本核算收集的这些指标，正是开始在整个基础设施中推行背压机制的完美输入。
+正如老话所说，第一次建立背压最困难，当你和各个团队一起头脑风暴时，你们想出了各种各样的技术手段。</p>
+      
+    
+      
+        <p>对于受吞吐量限制的 Kafka 团队，你们决定采用严格的按应用每分钟限流。MySQL 团队那边，由于不良查询正在耗尽 IOPS，他们开始对产生糟糕查询的应用实施熔断。为了绕过 Splunk 严格的每日索引配额，你们推出了一种简单的服务质量（Quality of Service）策略：应用在 syslog 的结构化数据段中声明日志优先级，然后你们丢弃足够多的低优先级日志以避免超额。对于那些把外部 API 打满的用户，你们开始注入延迟，这会让他们表现得像更友好的、会自动退避的客户端，尽管他们什么都没改。（前提是你能处理大量并发的空闲连接，否则你很快就会悲惨地发现自己其实是在对自己发动 DDoS。）</p>
+      
+    
+      
+        <p>突然间，你花大量时间讨论一个以前从未讨论过的话题：我们的系统应该如何失败？</p>
+      
+    
+      
+        <p>降级服务并不是失败的标志，而是正常且预期的行为。你的一些关键系统在高峰期会定期处于降级状态，优雅地丢弃最不重要的流量。最棒的是，事故复盘会议终于停止了。</p>
+      
+    
+      
+        <p>在和 CFO 聊天时，当你们一起吐槽 Splunk 的定价和配额模型时，你意识到可以通过给每个团队分配成本配额来对支出施加背压。六个月的纠结对话之后，每个团队都有了基于历史用量和财务部门指导得出的季度成本配额，你的站点再也不会因为资源不足而宕机，而且凭借出色的成本核算工作，你被连升无数级。</p>
+      
+    
+      
+        <p>感谢过去一年多来和我聊过这个话题的无数人。特别感谢 Cory，他大概正在想办法让我别每周都跟他讨论这个了。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

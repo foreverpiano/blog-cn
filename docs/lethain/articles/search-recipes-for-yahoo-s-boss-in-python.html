@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用 Python 为 Yahoo 的 BOSS 搜索食谱 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>用 Python 为 Yahoo 的 BOSS 搜索食谱</h1>
+    <div class="meta">
+      2008-07-11 · 
+      <a href="https://lethain.com/search-recipes-for-yahoo-s-boss-in-python/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>本教程将介绍如何使用 Yahoo BOSS Mashup Framework 的可选 Python 库来（还能是什么？）构建你自己的搜索服务。我们将从安装该库并申请 BOSS 开发者账号开始，然后在 Python 命令行中体验 BOSS，整理出一系列实用的食谱，用于搜索网页、新闻、图片等内容。</p>
+      
+    
+      
+        <p>本教程不会尝试构建一个完整的应用，仅展示如何直接使用 BOSS 库本身。如果你对在 Web 框架中使用 BOSS 的文章感兴趣，我最近写了一篇在 Django 中使用 BOSS 的文章，应该会对你有所帮助。</p>
+      
+    
+      
+        <p>在学习这些示例时，你可能需要参考官方的 Yahoo BOSS API 文档（该文档的链接在 BOSS 页面上比较难找到）。</p>
+      
+    
+      
+        <h2>配置 BOSS 库</h2>
+      
+    
+      
+        <p>在开始之前，请注意 BOSS Framework 库依赖于 Python 2.5，无法直接用于更早的版本。</p>
+      
+    
+      
+        <div class="list-content">注册一个 BOSS App ID。你需要选择使用浏览器内认证，并提供两个 URL：一个是你的应用地址，另一个是认证成功后的重定向地址。不过，这些 URL 并不被该库实际使用（库也不需要对使用你服务的最终用户进行任何形式的认证，尽管你必须提供 BOSS APP ID 才能让库正常工作），但它们用于验证你的账号，因此你需要选择一个有效的域名，并在该域名下放置一个静态文件以供其验证域名所有权。下载用于控制 BOSS 的 Python 库。解压后删除压缩包。
+unzip boss_mashup_framework_0.1.zip
+rm boss_mashup_framework_0.1.zip
+打开 boss_mashup_framework_0.1/config.json 文件，为前三项填写你的信息。appid 是你在第 1 步注册 BOSS 时获得的 ID。email 是你的邮箱地址。org 是你组织的名称（通常就是你的名字）。如果尚未安装 Simple JSON，请先安装它。你可以在 Python 2.5 交互环境中输入 import simplejson 来检查是否已安装。
+如果无法导入，请下载 Simple JSON，解压，进入目录后进行安装。
+tar -xzvf simplejson-1.9.2.tar.gz
+cd simplejson-1.9.2
+python2.5 setup.py build
+python2.5 setup.py install
+cd ../
+rm -rf simplejson-1.9.2*
+创建文件夹 boss_mashup_framework_0.1/deps/。
+cd boss_mashup_framework_0.1
+mkdir deps
+下载 dict2xml 和 xml2dict，将它们解压到 deps 文件夹中，删除 .tgz 文件，然后返回 boss_mashup_framework_0.1 目录。
+cd deps
+cp ~/Desktop/dict2xml.tgz ./
+cp ~/Desktop/xml2dict.tgz ./
+tar -xzvf dict2xml.tgz
+tar -xzvf xml2dict.tgz
+rm *.tgz
+cd ..
+现在我们可以构建该库了。
+python2.5 setup.py build
+python2.5 setup.py install
+最后，让我们测试一下是否一切正常。
+python2.5 examples/ex3.py
+你应该会在屏幕上看到一些新闻报道输出。成功了。如果你遇到类似以下的错误信息：
+Traceback (most recent call last):
+  File &quot;examples/ex3.py&quot;, line 16, in &lt;module&gt;
+    from yos.yql import db
+  File &quot;/Library/Frameworks/Python.framework/Versions/2.5/lib/python2.5/site-packages/yos/yql/db.py&quot;, line 44, in &lt;module&gt;
+    from yos.crawl import rest
+  File &quot;/Library/Frameworks/Python.framework/Versions/2.5/lib/python2.5/site-packages/yos/crawl/rest.py&quot;, line 15, in &lt;module&gt;
+    HEADERS = {&quot;User-Agent&quot;: simplejson.load(open(&quot;config.json&quot;, &quot;r&quot;))[&quot;agent&quot;]}
+IOError: [Errno 2] No such file or directory: &#x27;config.json&#x27;
+那么你很可能是在一个没有 config.json 文件的目录下启动了 Python。我认为这是当前版本库中一个相当糟糕的缺陷：你必须在一个包含 config.json 文件的目录下运行 Python。希望这种情况将来能得到改进。</div>
+      
+    
+      
+        <p>至此，我们已经完成所有设置，可以继续前进了。如果你在安装过程中遇到问题，请查看 boss_mashup_framework_0.1/README 文件。如果还是无法解决，欢迎在评论中留言，我会尽量提供帮助。</p>
+      
+    
+      
+        <p>现在，让我们开始编写搜索食谱吧。</p>
+      
+    
+      
+        <h2>搜索网页</h2>
+      
+    
+      
+        <p>首先来看看如何使用 BOSS Mashup Framework 搜索网页。</p>
+      
+    
+      
+        <p>之后我们可以非常轻松地操作返回的数据：</p>
+      
+    
+      
+        <p>需要指出的是 url 和 clickurl 之间的区别。在上面的代码中它们是相同的：</p>
+      
+    
+      
+        <p>然而，根据 Yahoo 官方文档，clickurl 和 url 有着重要区别。具体来说，你应该使用 clickurl 作为访问该网站的实际链接。例如，如果你正在编写 Django 模板，链接可能应该是下面这样的：</p>
+      
+    
+      
+        <p>而不应该是这样的：</p>
+      
+    
+      
+        <p>虽然我目前还没有遇到 url 和 clickurl 实际不同的情况，但遵循 Yahoo 的官方建议似乎更安全，因为这背后很可能有非常合理的解释，尽管他们的文档没有解释清楚。</p>
+      
+    
+      
+        <h2>将搜索限制在单个网站</h2>
+      
+    
+      
+        <p>将搜索限制在特定网站非常简单。如果你想在 djangoproject.com 上搜索 HttpRequest，只需这样做：</p>
+      
+    
+      
+        <p>下面是一个完整的示例：</p>
+      
+    
+      
+        <h2>在不同区域和语言中搜索</h2>
+      
+    
+      
+        <p>BOSS 也支持在不同语言和区域进行搜索，它在这里列出了支持的区域。这些功能通过传递 lang 和 region 参数给 ysearch.search 来实现。例如，如果你想在阿根廷区域（ar）使用西班牙语（es）进行搜索，代码如下：</p>
+      
+    
+      
+        <p>下面是一个使用日语区域和语言进行搜索的完整示例。</p>
+      
+    
+      
+        <h2>搜索 Yahoo 新闻</h2>
+      
+    
+      
+        <p>从 Yahoo 新闻搜索数据与前面基本相同，只需在 ysearch.search 函数中额外添加 vertical=&quot;news&quot; 参数即可。</p>
+      
+    
+      
+        <p>假设我们想从这些结果中生成一个 HTML 链接列表，代码大致如下：</p>
+      
+    
+      
+        <h2>搜索图片</h2>
+      
+    
+      
+        <p>BOSS 支持通过在 ysearch.search 函数中添加 vertical=&quot;images&quot; 参数来搜索图片。</p>
+      
+    
+      
+        <h2>搜索拼写检查</h2>
+      
+    
+      
+        <p>你也可以使用 BOSS 来检查拼写。为此，只需在 ysearch.search 函数中添加 vertical=&quot;spelling&quot; 参数。</p>
+      
+    
+      
+        <h2>分页显示搜索结果</h2>
+      
+    
+      
+        <p>你经常会需要分页浏览搜索结果，先显示前十条，然后是后十条，以此类推。幸运的是，这也很容易实现。只需使用 ysearch.search 函数的 start 命名参数，并逐步增加其值即可：</p>
+      
+    
+      
+        <p>下面是一个完整的搜索结果分页示例：</p>
+      
+    
+      
+        <h2>后续进阶</h2>
+      
+    
+      
+        <p>本文中的食谱仅涉及 ysearch.search 的功能，并没有充分利用 BOSS Mashup 库其他部分的特性。我很快会整理一些使用 yos.yql 功能的食谱，在此之前，最好的学习方式是阅读 examples 目录下的示例代码，并直接阅读源代码。当然还有官方文档，但它并没有专门针对 Python 库，因此可能帮助有限。</p>
+      
+    
+      
+        <p>如果有任何问题，欢迎随时告诉我。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

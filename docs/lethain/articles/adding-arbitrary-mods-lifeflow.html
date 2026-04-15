@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>为 LifeFlow 添加任意 Mod · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>为 LifeFlow 添加任意 Mod</h1>
+    <div class="meta">
+      2008-01-15 · 
+      <a href="https://lethain.com/adding-arbitrary-mods-lifeflow/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在我最近对 LifeFlow 进行扩展的过程中，遇到了几种情况：我希望让部署 LifeFlow 的用户获得更多灵活性，但又不能破坏他们的 SVN 检出。即使对于那些不想跟踪 SVN 更新的用户来说，拥有一个干净且可预测的系统来扩展部署也是很有益处的。</p>
+      
+    
+      
+        <p>基于这一考虑，LifeFlow 现在引入了一个可扩展的 mod 系统。其背后的理念是，让部署 LifeFlow 的用户能够以最小的额外开销来挑选和组合所需的功能模块。</p>
+      
+    
+      
+        <p>本文将通过两个示例，展示如何使用模块以简单而强大的方式扩展 LifeFlow。第一个示例是使用 StaticGenerator 生成静态文件，帮助在共享主机或低性能 VPS 上运行 LifeFlow。</p>
+      
+    
+      
+        <p>第二个示例则是利用 mod 系统，为你的文章添加新的动态博客上下文。</p>
+      
+    
+      
+        <h2>将 StaticGenerator 与 LifeFlow 配合使用</h2>
+      
+    
+      
+        <p>如果你在共享主机上运行，可能对 Django 的性能有不少顾虑，尤其是在内容突然流行起来的时候。static_files 这个 mod 可以帮助减轻部分压力。</p>
+      
+    
+      
+        <p>启用该 mod 后，每次保存博客文章时，都会生成其静态版本，同时更新首页、标签页和系列文章页。这意味着你的大部分内容将以静态页面的形式提供，包括那些在流量激增时最可能被频繁访问的部分（你的文章内容本身，即使 Django 完全离线，也能继续为访问者提供服务）。</p>
+      
+    
+      
+        <p>让我们来看看如何开启 static_files mod。你只需要在 settings.py 文件中添加几行设置即可：</p>
+      
+    
+      
+        <p>这就是启用 LifeFlow mod 的全部步骤，真的非常简单。注意在 lifeflow/mods 目录下有一个名为 &#x27;static_files&#x27; 的模块，你基本就抓住要点了：只需在那个文件夹里放入一个模块（可以是包含 __init__.py 的包，也可以是单个 Python 文件），然后把模块名称添加到 LIFEFLOW_MODS 参数中。就这么简单。</p>
+      
+    
+      
+        <p>好吧，刚才我说“没有第二步”其实有点不准确。对于 static_files 这个 mod，确实还有第二步，而且有点麻烦：你需要配置你的托管环境，让它在请求 Django 处理文件之前，先检查是否存在对应的静态文件。</p>
+      
+    
+      
+        <p>具体的配置方式会根据你的环境有所不同。我很快会写一篇专门介绍这个主题的文章，但目前你可以参考 StaticGenerator 的文档，其中有一个针对 nginx 的完整示例。大多数共享主机用户（例如使用 Dreamhost 的用户）需要修改 .htaccess 文件来为共享目录配置 Apache，我正在撰写一篇专门针对这种情况的文章（在 Dreamhost 上部署 LifeFlow）。如果你想自己深入研究，ModRewrite 的文档是一个很好的起点。</p>
+      
+    
+      
+        <h2>扩展动态博客上下文</h2>
+      
+    
+      
+        <p>现在来看另一个例子。LifeFlow 中一个很棒的工具是 Dynamic Blog Context，它允许你在 MarkDown 中书写格式化的引用，而无需自己手动创建引用链接。</p>
+      
+    
+      
+        <p>内置的动态引用库已经相当实用，但你可能会发现自己需要一些尚未包含的功能（欢迎给我发 diff，如果合理的话，很可能会被采纳）。也许你想要一个与自己开发的第二个应用相关的动态上下文。</p>
+      
+    
+      
+        <p>假设你想为一个名为 downer 的新 Django 应用添加最受欢迎下载的动态上下文。我们假设相关模型是 downer.models.download，并且该下载模型有一个名为 popular 的自定义管理器，能返回按受欢迎程度排序的项目。</p>
+      
+    
+      
+        <p>现在我们想创建一个动态上下文，让 [popular 1] 可以链接到最受欢迎的下载。来看看实现这个功能有多难。</p>
+      
+    
+      
+        <p>在 lifeflow/mods 目录下创建一个新文件 downer_context.py，打开它并加入以下代码：</p>
+      
+    
+      
+        <p>然后你只需前往 settings.py 文件，修改 LIFEFLOW_MODS 设置，让它变成这样：</p>
+      
+    
+      
+        <p>之后，你的新博客文章就可以使用我们刚刚创建的 popular 动态引用了。</p>
+      
+    
+      
+        <p>这并不是扩展动态引用的最优雅方式，但这里的重点主要是：你可以创建即插即用的扩展，而无需创建一个全新的 Django 应用。</p>
+      
+    
+      
+        <p>诚然，在许多情况下，简单地添加一个自己定制的 Django 应用会更干净，也可能更高效（因为它不需要考虑理论上的各种可能性，只需处理实际需要处理的内容）。在 LifeFlow 中加入简易 mod 系统的目的之一，就是让它逐渐成为一个平台，即使对 Django 或 Python 不太熟悉的用户也能轻松定制和修改。</p>
+      
+    
+      
+        <p>目前我认为它已经拥有非常灵活的结构，既允许有经验的用户随心所欲地定制，又提供了足够好的默认设置，让那些不想折腾就能用的人也能轻松上手。</p>
+      
+    
+      
+        <p>我很乐意听到任何反馈或改进建议。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

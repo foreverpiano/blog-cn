@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redis 内存使用笔记 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Redis 内存使用笔记</h1>
+    <div class="meta">
+      2010-08-22 · 
+      <a href="https://lethain.com/notes-on-redis-memory-usage/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>昨天我和一位同事在设计一个很有趣的解决方案时，发现我们需要更深入地了解 Redis 中各种数据类型的内存占用情况，以便尽可能从 Redis 中榨取出更多的存储空间。除此之外，我们还想验证 Redis 官方文档中的一些说法，例如：使用哈希（hash）是否真的比通过键名空间前缀来模拟哈希（pseudo-hashes）更好？</p>
+      
+    
+      
+        <p>理解 Redis 数据结构的内存成本非常重要，它能让应用设计者在具有相同时间复杂度（Big O）的操作中，根据实际的内存开销来选择合适的数据结构。对我们来说，这些额外的信息除了对容量规划有明显帮助外，还对系统设计产生了意想不到的影响。（Redis 文档已经在每个操作的 Big O 时间复杂度上做得非常出色，如果能同样系统化地给出每种数据结构的内存成本，那就更加完美了。）</p>
+      
+    
+      
+        <p>言归正传，下面我们来看看 Redis 中集合（set）、有序集合（sorted set）、哈希（hash）、列表（list）和字符串（string）在存储数据时的内存增长情况。（我很想在“look”前面加上“casual”来避免因为基准测试中的必然不完美而被喷，但实际上无论如何都会被喷的。）</p>
+      
+    
+      
+        <h2>测试方法</h2>
+      
+    
+      
+        <p>对于每种数据结构的测试用例，我们对每组输入参数的处理流程如下：</p>
+      
+    
+      
+        <div class="list-content">使用 FLUSHALL 清空 Redis 中的所有数据。等待一秒钟。加载测试数据。获取 Redis 的最终 INFO 信息。再次使用 FLUSHALL 清空所有数据。</div>
+      
+    
+      
+        <p>我发现初始内存占用并不是一个值得讨论的有用指标，因为 Redis 不会立即释放所有未使用的内存，但它会持续复用这些内存。以我每次运行前后都执行 r.flushall() 的测试为例就能说明这一点：</p>
+      
+    
+      
+        <h2>配置详情</h2>
+      
+    
+      
+        <p>以下是这些基准测试的相关环境信息（非完整列表）：</p>
+      
+    
+      
+        <div class="list-content">测试在一台 iMac 上进行，配置为四核 2.66 GHz Intel Core i5、4GB 内存，操作系统为 OS X 10.6.4。使用的 Redis 版本是 redis-2.0.0-rc4，并使用默认的 Makefile 编译 redis-server。除非特别说明，这些测试均使用 64 位可执行文件（其内存开销明显高于 32 位版本）。我正在重新用 32 位版本运行测试，并在取得数据后更新对应章节（32 位版本通过 make ARCH=&quot;-m32&quot; 编译，其他使用默认 Makefile）。粗略的经验法则是：64 位版本的内存占用大约是 32 位版本的 1.5 倍。所有操作均通过 Redis-Py 客户端完成，具体使用的是 commit 16c0eff87e7762d82fdd37d9949e33a7376d5357 的代码。</div>
+      
+    
+      
+        <p>接下来让我们看看具体数据。</p>
+      
+    
+      
+        <h2>集合（Set）</h2>
+      
+    
+      
+        <p>插入到集合中的每个值都是通过以下方式生成的：</p>
+      
+    
+      
+        <p>这保证了值的大小一致而名称不同，同时也模拟了我们最感兴趣的实际使用场景。每个集合的键名格式为 set.%s，其中 i 是从 0 开始自增的整数，直到集合总数为止。</p>
+      
+    
+      
+        <p>生成这些数据的完整代码可在 set_memory.py 中找到。</p>
+      
+    
+      
+        <p>内存使用情况如下：</p>
+      
+    
+      
+        <p>32 位可执行文件的测量值：</p>
+      
+    
+      
+        <p>值得注意的是，集合的内存占用大约比哈希或字符串（见下方数据）小 60%，但查找操作的算法复杂度相同。因此，如果只需要判断成员是否存在，强烈建议优先考虑使用集合。</p>
+      
+    
+      
+        <h2>有序集合（Sorted Set）</h2>
+      
+    
+      
+        <p>与集合测试类似，插入到有序集合中的每个成员值也是通过 str(uuid.uuid4()) 生成的，每个有序集合的键名格式为 &quot;set.%s&quot; % i。此外，每个成员还关联了一个分数，对应于插入时刻 time.time() 的返回值。</p>
+      
+    
+      
+        <p>生成这些数据的完整代码可在 sorted_set_memory.py 中找到。</p>
+      
+    
+      
+        <p>32 位可执行文件的测量值：</p>
+      
+    
+      
+        <p>需要特别说明的是，向有序集合中插入数据的算法复杂度高于普通集合或哈希，这也导致在运行内存消耗脚本时，当单个有序集合包含大量成员时，实际执行速度明显变慢。</p>
+      
+    
+      
+        <h2>哈希（Hashes）</h2>
+      
+    
+      
+        <p>哈希的键名格式为 &quot;hash.%s&quot; % i，哈希内部的字段名使用 str(uuid.uuid4()) 生成，对应的值则为 str(time.time())。</p>
+      
+    
+      
+        <p>生成这些数据的完整代码可在 hash_memory.py 中找到。</p>
+      
+    
+      
+        <p>32 位可执行文件的测量值：</p>
+      
+    
+      
+        <h2>列表（Lists）</h2>
+      
+    
+      
+        <p>列表的键名格式为 &quot;list.%s&quot; % i，列表中的每个元素值格式为 str(uuid.uuid4())。</p>
+      
+    
+      
+        <p>生成这些数据的完整代码可在 list_memory.py 中找到。</p>
+      
+    
+      
+        <p>32 位可执行文件的测量值：</p>
+      
+    
+      
+        <h2>字符串（Strings）</h2>
+      
+    
+      
+        <p>字符串的键名格式为 str(uuid.uuid4())，值的内容格式为 str(time.time())。</p>
+      
+    
+      
+        <p>生成这些数据的完整代码可在 string_memory.py 中找到。</p>
+      
+    
+      
+        <p>32 位可执行文件的测量值：</p>
+      
+    
+      
+        <p>注意：由于等待一千万个键耗时太久，我根据 9363880 个键占用 2150096816 字节的情况进行了外推。这是唯一一个经过调整的数据。</p>
+      
+    
+      
+        <h2>字符串与哈希的对比</h2>
+      
+    
+      
+        <p>我们先来比较三种存储 100 万个键值对的方式：</p>
+      
+    
+      
+        <div class="list-content">1000 个哈希，每个包含 1000 个键值对，共占用 207M。100 个哈希，每个包含 1 万个键值对，共占用 218M。100 万个字符串，共占用 207M。</div>
+      
+    
+      
+        <p>这个结果与之前“哈希在内存消耗上优于字符串”的说法有些出入，但我依然认为哈希更具优势，理由主要有两点。</p>
+      
+    
+      
+        <p>首先，哈希实际存储的数据更多——它不仅保存了与字符串完全相同的键值对，还保存了哈希内部的字段名本身，因此在某些场景下会更节省内存（例如当哈希内部使用极短的字段名，而字符串方式需要构造大量带命名空间的长键名时）。其次，哈希提供了更加丰富的接口，能以较低的算法复杂度完成某些操作（例如获取哈希中的所有值）。</p>
+      
+    
+      
+        <p>如果哈希能在提供更多功能的同时，在最坏情况下内存占用相当、最好情况下更优，那么在许多使用场景中，它确实优于单纯使用字符串。</p>
+      
+    
+      
+        <h2>哈希、字符串与有序集合的对比</h2>
+      
+    
+      
+        <p>在上面的对比基础上，我们再加入有序集合，来比较存储 100 万个键值对（需注意有序集合实际存储的是分数-成员对，但某些场景下可以将其当作键值对使用）时的内存情况：</p>
+      
+    
+      
+        <div class="list-content">1000 个哈希，每个包含 1000 个键值对，共占用 207M。100 个哈希，每个包含 1 万个键值对，共占用 218M。100 万个字符串，共占用 207M。100 个有序集合，每个包含 1 万个分数-成员对，共占用 226.36M。1000 个有序集合，每个包含 1000 个分数-成员对，共占用 216.34M。10000 个有序集合，每个包含 100 个分数-成员对，共占用 234.18M。</div>
+      
+    
+      
+        <p>字符串、哈希和有序集合之间的内存占用差异比预想的小得多。这可能是因为它们底层使用了相似的数据结构。遗憾的是，在这几种数据结构之间切换并不能带来明显的内存收益。</p>
+      
+    
+      
+        <h2>有序集合与普通集合的对比</h2>
+      
+    
+      
+        <p>另一个有趣的对比是有序集合和普通集合的相对内存成本：</p>
+      
+    
+      
+        <p>可以看到，有序集合的内存占用大约比普通集合大 60%，考虑到它需要额外存储分数信息，这个比例还是相当合理的。</p>
+      
+    
+      
+        <h2>总结</h2>
+      
+    
+      
+        <p>希望这些数据能在你为下一个应用规划 Redis 角色时提供一些参考。对我个人而言，它们已经非常有价值。一如既往地欢迎反馈，尤其是如果有人能提出优化建议，帮助我们在有限内存中存入更多数据。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

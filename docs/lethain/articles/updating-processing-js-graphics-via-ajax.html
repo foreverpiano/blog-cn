@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 Ajax 更新 Processing.js 图形 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 Ajax 更新 Processing.js 图形</h1>
+    <div class="meta">
+      2008-05-20 · 
+      <a href="https://lethain.com/updating-processing-js-graphics-via-ajax/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>另一个我一直想尝试的 Processing.js 技术是利用 Ajax 来创建动态内容。本文将介绍一个依赖 Processing.js 进行图形绘制的 JavaScript 应用程序，它能显示始终保持最新的图表。该应用将使用 PHP 构建一个简单的后端示例（它会返回随机数据）。</p>
+      
+    
+      
+        <h2>概述</h2>
+      
+    
+      
+        <p>该应用显示某货币汇率的当前趋势。它每十秒更新一次汇率，并维护过去十个数据点的图表。数据点由一个 PHP 脚本随机生成（选择 PHP 是因为如果使用更复杂的语言，就好比请爱因斯坦来帮你系鞋带一样小题大做）。</p>
+      
+    
+      
+        <p>这个示例由三个文件组成：</p>
+      
+    
+      
+        <div class="list-content">生成随机数据的 PHP 脚本、获取并显示数据的 JavaScript 程序、包含 JavaScript 程序的 HTML 页面。</div>
+      
+    
+      
+        <h2>PHP 脚本：data.php</h2>
+      
+    
+      
+        <p>首先来看看这个 PHP 脚本。它的全部工作就是返回一个随机数，因此简单到不能再简单。</p>
+      
+    
+      
+        <p>在实际应用中，你可能会查询数据库或者进行某种计算，但这个示例的目的并不是创建一个有趣的后端，而是通过 Processing.js 结合 Ajax 来创建动态图形……所以后端就只用了一行 PHP 代码。</p>
+      
+    
+      
+        <h2>JS 部分：exchangechart.js</h2>
+      
+    
+      
+        <p>正如我在上面提到的，在最初构思这个示例时，我设想图表表示两种货币之间的汇率，这就是为什么文件和示例都被命名为 exchangechart。但最终它其实只是一个简单的图表，与货币没有任何关系。</p>
+      
+    
+      
+        <p>它预先填充了五个数据点，额外的数据点则通过异步方式从 PHP 脚本请求。一次最多同时显示十一个数据点。当拥有十一个数据点后，每获取一个新点，最老的数据点就会从图表中移除。另外，与我之前那个稍显偏差的 bubbles 示例不同，这个图形仅在新数据加入时才重绘，所以它完全不会给处理器带来负担（即使在 Camino 浏览器中也能流畅运行，而 Processed Tower Defense 一跑起来就立刻崩溃）。</p>
+      
+    
+      
+        <p>它使用了 Processing.js 的 API，以及一个实现跨浏览器 Ajax 的简单函数。异步请求的回调函数会将返回的数据传递给 Chart 类的实例，该类负责控制图形的绘制。</p>
+      
+    
+      
+        <p>回调函数如下所示：</p>
+      
+    
+      
+        <p>这段代码存在上百个问题，不应该被直接复制使用（从全局变量的滥用开始骂起吧）。不过它做对了一件事，那就是不会因为请求失败而崩溃。这是因为在窗口生命周期内，你会以固定间隔请求数据，所以即使某些数据传输失败也不是什么大问题（前提是应用设计得足够合理）。</p>
+      
+    
+      
+        <p>被回调函数调用的 update 方法是整个链条的下一步。</p>
+      
+    
+      
+        <p>它接收一个数值，并将其推入包含所有正在绘制的数据点的数组。如果数据超过十一个，则保留最近的十一个，其余的将被丢弃。之后，它调用 draw 方法来更新显示图形。除了初始绘制外，这是唯一调用 draw 的地方（如果想给这个显而易见的概念起个花哨的名字，我们或许可以称之为“懒惰绘制”）。</p>
+      
+    
+      
+        <p>我们要看的最后一段代码是 draw 函数，它稍微有点冗长，但拆开来看并不难理解。</p>
+      
+    
+      
+        <p>首先是一些初始化设置：</p>
+      
+    
+      
+        <p>变量 l 和 h 只是为了让代码更简短易读。之后，最高的数据点值被赋给 max。然后我稍微增大 max 的值，因为它将用于缩放数值的相对大小，我不希望最大值正好位于画布的最顶端。</p>
+      
+    
+      
+        <p>接下来，代码将所有数据点缩放，使它们能够适应可用的屏幕空间，同时保持正确的相对大小。</p>
+      
+    
+      
+        <p>乍一看这可能不太直观，但要记住 Y 值为 0 对应画布顶部，Y 值为 h 对应画布底部。（我之前确实在这里把自己搞糊涂了一会儿，后来才想起来。）</p>
+      
+    
+      
+        <p>然后我们绘制红色的图形。</p>
+      
+    
+      
+        <p>这个形状从左下角开始，在右下角结束（底部有一条横线将两端连接起来）。在这两点之间，我们将数据点在 X 维度上均匀分布。</p>
+      
+    
+      
+        <p>接下来，在红色图表形状之上绘制网格线和椭圆。</p>
+      
+    
+      
+        <p>网格线先绘制，最后再绘制椭圆。椭圆绘制在数据点的精确位置上。</p>
+      
+    
+      
+        <p>代码大致就是这些。我第一个承认绘图偶尔会出现轻微异常，但希望这可以被忽略，因为它与 Ajax 和 Processing.js 的交互无关，而后者才是这个示例的有趣之处（它的外观短时间内应该拿不到什么设计奖）。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

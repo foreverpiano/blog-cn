@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>泛型方法的低调乐趣 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>泛型方法的低调乐趣</h1>
+    <div class="meta">
+      2008-12-11 · 
+      <a href="https://lethain.com/the-subtle-joys-of-generic-methods/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>一提到 Ruby，你第一个想到的是什么？哦，是 Rails？嗯……那你觉得 Ruby 最突出的特性是什么？Monkey patching？没错，我也是这么想的。程序员对 monkey patching 的看法远比青春期少女对闪粉的看法还要强烈且激烈。在运行时全局修改类的功能？嗯，这听起来的确很危险。</p>
+      
+    
+      
+        <p>稍微发挥一点想象力，你就能脑补出一个末日场景：两个库为了把某段功能换成各自偏好的版本而持续相互角力，每次发布新版本时，库的维护者都要修改代码，让自己的库重新排到最前面。</p>
+      
+    
+      
+        <p>然而，monkey patching 确实解决了一个重要问题：能够在运行时动态地为类增加功能。在 Python 这边，我们并没有一个特别好的解决方案，而且我们基本上已经接受了这个现状——宁可没有动物园，也不要让狮子偶尔逃出来咬小孩子。</p>
+      
+    
+      
+        <p>不过，这个问题其实有一个很棒的解决方案。它既允许动态地为类——甚至是多个类——添加功能，同时又尊重命名空间，不会破坏别人代码中的合理假设（最重要的是“一个函数不会在毫无征兆的情况下突然改变行为”这一假设，这对于编写哪怕只是中等确定性的代码来说都至关重要）：</p>
+      
+    
+      
+        <p>和许多悄然渗入现代编程语言的伟大想法一样，这个想法也来自 Lisp——更准确地说是 Common Lisp——但它至今还没有在主流语言中重新出现。这个解决方案就是泛型函数（也叫多重方法），就像 CLOS 中的那样。让我们通过几个例子，看看如果 Python 拥有基于泛型函数的面向对象会是什么样子。</p>
+      
+    
+      
+        <p>关键区别在于某些参数会用类进行类型标注。凡是没有显式标注类型的参数都可以是任意类型，因此我们混合使用了强类型和鸭子类型（有点像 Objective-C）。</p>
+      
+    
+      
+        <p>第一个优势是我们可以从任意模块为一个类添加功能，而不只是在它的类定义里。比如，如果上面的代码位于一个叫 PersonModule 的模块，那么我们可以在另一个模块中这样写：</p>
+      
+    
+      
+        <p>这样我们就能为其他模块中声明的对象添加方法。但如果我们想在自己的模块里覆盖某个对象的默认行为呢？小菜一碟。</p>
+      
+    
+      
+        <p>这挺酷的，对吧？当然，我是凭空想象的，甚至无法向你证明我说的这些确实可行，但这就是 CLOS 中面向对象的工作方式。它已经有了一个真实可用的先例。</p>
+      
+    
+      
+        <p>而且真的很棒。</p>
+      
+    
+      
+        <p>泛型函数带来的乐趣远不止于此，它还能给我们一些类似 Erlang 或 Scala 中类型匹配的感觉。来看看下面这段代码：</p>
+      
+    
+      
+        <p>对于用过“真正”模式匹配的人来说，这看起来会是一种非常笨拙的语法。但幸运的是，泛型方法并不只是提供模式匹配——伴随着更重的语法而来的是更强大的能力：</p>
+      
+    
+      
+        <div class="list-content">不仅能对类型进行匹配，还能使用类来进行模式匹配（也可以说，类是可用于匹配的有效类型）。这包括通过在越来越具体的类上特化方法来实现多态（Programmer 而不是 Person，PerlProgrammer 而不是 Programmer）。能够覆盖特定模式的处理，而无需重写其他所有模式。</div>
+      
+    
+      
+        <p>尽管如此，它并不一定能提供模式匹配的全部功能，因为你无法自定义尝试匹配的顺序（它总是按照从具体到一般的可预测且一致的顺序进行，而模式匹配允许你按照自己心意定义任意顺序）2。</p>
+      
+    
+      
+        <p>另外，根据实现的不同，它可能也不支持对值（而不仅仅是类型）进行特化，但给语法加上值特化的支持其实相当直观：</p>
+      
+    
+      
+        <p>这将打开一些非常有趣的大门，是我很想走进去的大门。（实际上，这些大门似乎已经被讨论过了，也被打开了。现在我只需要开始往前走就行。呃，而且我希望语法是原生的。也许需要某种预编译器。）</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

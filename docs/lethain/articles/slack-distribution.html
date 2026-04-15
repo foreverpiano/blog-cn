@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>发布你的 Slack 应用 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>发布你的 Slack 应用</h1>
+    <div class="meta">
+      2019-11-11 · 
+      <a href="https://lethain.com/slack-distribution/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我们已经开发 reflect Slack 应用有一段时间了，
+它差不多快完成了。现在只剩下让其他人能够安装它。
+分发的黄金标准是 Slack 的 App Directory，
+它能让用户轻松找到并安装你的应用。</p>
+      
+    
+      
+        <p>我们的玩具应用暂时还无法进入 App Directory，但我们可以让其他用户
+将其安装到自己的 workspace 中。到那时，如果你愿意就可以提交到目录里。</p>
+      
+    
+      
+        <p>我们已经完成了很多工作，现在只需要集成 Slack 的 OAuth 机制，
+以获取 workspace 级别的 OAuth token，并更新我们的 API 请求，使用这些 token
+来替代目前写死在代码里的 token。
+希望这部分会比较简单……</p>
+      
+    
+      
+        <p>本文从 commit 4584 开始，到 commit 0fcc 结束</p>
+      
+    
+      
+        <h2>Slack app in Python 系列</h2>
+      
+    
+      
+        <div class="list-content"><a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a><a href="slack-app-home-python.html">在 Python 中为 Slack 应用添加 App Home</a><a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a><a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a><a href="slack-distribution.html">发布你的 Slack 应用</a></div>
+      
+    
+      
+        <h2>Slack 应用的分发</h2>
+      
+    
+      
+        <p>要分发 Slack 应用，App 管理后台提供了一份很有帮助的检查清单。
+由于 Google Cloud Functions 通过 HTTPS 运行，所以这一项我们已经满足。
+如果你使用其他主机，可以考虑使用 LetsEncrypt 来获取免费 SSL 证书。</p>
+      
+    
+      
+        <p>在本系列之前的文章中，我们已经启用了大量功能，
+包括 Slash Commands、App Home、部分 Events 等。
+所以这部分我们也已经准备好了。</p>
+      
+    
+      
+        <p>剩下的两项是“Add OAuth Redirect URLs”（我们接下来会详细介绍），
+以及“Remove Hard Coded Information”。后者只是一个确认你已完成的勾选框，
+但……我们还没有做到，因为 env.yaml 里还存着一堆 token，
+所以我们会在完成 OAuth 流程后再回来处理它。</p>
+      
+    
+      
+        <h2>集成 OAuth 的步骤</h2>
+      
+    
+      
+        <p>要集成 Slack 的 OAuth，我们需要完成以下工作：</p>
+      
+    
+      
+        <div class="list-content">实现一个 OAuth 跳转 URI，用于接收 OAuth 流程返回的 code 并将其兑换为长期有效的 OAuth token。
+向 Slack 注册这个新的跳转 URI。
+将长期 token 存储在 Firestore 中，以便根据请求的 team 取出对应的 token。
+在 API 请求中使用对应 team 的 token，不再使用之前硬编码在 env.py 中的 token。
+构建我们的授权 URL，用户将被重定向到这里进行身份验证。
+验证整个 OAuth 集成流程是否正常工作。
+更新现有流程以使用存储的 token。</div>
+      
+    
+      
+        <p>这里有很多细节需要理清，过程可能会有些 confusing，
+但幸运的是我们实际需要编写的代码相对简单。
+继续吧！</p>
+      
+    
+      
+        <h2>OAuth 跳转 URI</h2>
+      
+    
+      
+        <p>我们将创建一个新的 Cloud Function 来处理跳转。
+首先更新 reflect/storage.py 以支持存储获取到的 token。</p>
+      
+    
+      
+        <pre><code>DB = firestore.Client()
+
+def credentials(team_id):
+    return DB.collection(&#x27;creds&#x27;).document(team_id)
+
+def set_credentials(team_id, data):
+    creds = credentials(team_id)
+    creds.set(data)</code></pre>
+      
+    
+      
+        <p>我很喜欢能直接把 JSON 响应塞进 Firestore 而不用先拆解它。
+不过说实话，在生产环境中我们可能需要更谨慎地验证内容，以防未来数据格式发生变化。</p>
+      
+    
+      
+        <p>接下来更新 reflect/api.py 以支持调用 oauth.access 接口，
+这个接口需要的参数格式和我们之前做的另外两个 API 集成略有不同。</p>
+      
+    
+      
+        <pre><code>def oauth_access(code):
+    url = &quot;https://slack.com/api/oauth.access&quot;
+    client_id = os.environ[&#x27;SLACK_CLIENT_ID&#x27;].encode(&#x27;utf-8&#x27;)
+    client_secret = os.environ[&#x27;SLACK_CLIENT_SECRET&#x27;].encode(&#x27;utf-8&#x27;)
+    data = {
+        &#x27;code&#x27;: code,
+    }
+    auth = (client_id, client_secret)
+    resp = requests.post(url, data=data, auth=auth)
+    return resp.json()</code></pre>
+      
+    
+      
+        <p>然后更新 reflect/main.py，加入新的 oauth_redirect 函数，
+稍后我们会把它部署为 Cloud Function。</p>
+      
+    
+      
+        <pre><code>
+from api import oauth_access
+from storage import set_credentials
+
+def oauth_redirect(request):
+    code = request.args.get(&#x27;code&#x27;)
+    resp = oauth_access(code)
+    team_id = resp[&#x27;team_id&#x27;]
+    set_credentials(team_id, resp)</code></pre>
+      
+    
+      
+        <p>要让它正常工作，我们需要在 reflect/env.yaml 中添加
+SLACK_CLIENT_ID 和 SLACK_CLIENT_SECRET。
+这些值可以在 App 管理后台的 Basic Information 标签页找到。</p>
+      
+    
+      
+        <pre><code>SLACK_CLIENT_ID: &quot;your-client-id&quot;
+SLACK_CLIENT_SECRET: your-client-secret
+SLACK_SIGN_SECRET: your-secret
+SLACK_BOT_TOKEN: your-bot-token
+SLACK_OAUTH_TOKEN: your-oauth-token
+GOOGLE_APPLICATION_CREDENTIALS: ./gcp_creds.json
+</code></pre>
+      
+    
+      
+        <p>注意 Client ID 需要用引号包起来，否则 Cloud Functions 会尝试将其当作 float 处理，导致失败。</p>
+      
+    
+      
+        <p>然后部署我们新的 Cloud Function，以便获取它的 URI。</p>
+      
+    
+      
+        <pre><code>cd reflect
+gcloud functions deploy oauth_redirect \
+--env-vars-file env.yaml \
+--runtime python37 --trigger-http
+</code></pre>
+      
+    
+      
+        <p>接下来，注册这个 URL。</p>
+      
+    
+      
+        <h2>注册跳转 URL</h2>
+      
+    
+      
+        <p>我们创建 oauth_redirect endpoint 时得到的 URL 大致是这样的：</p>
+      
+    
+      
+        <pre><code> https://your-url.cloudfunctions.net/oauth_redirect
+</code></pre>
+      
+    
+      
+        <p>现在我们需要进入 App 管理后台，在左侧导航栏点击 OAuth &amp; Permissions，
+然后找到 Redirect URLs。</p>
+      
+    
+      
+        <p>点击 Add Redirect URL，粘贴刚才的 URL，然后点击 Save URLs。</p>
+      
+    
+      
+        <p>很好，我们又前进了一步。</p>
+      
+    
+      
+        <h2>创建 OAuth 授权 URL</h2>
+      
+    
+      
+        <p>为了让用户授权，我们需要将他们重定向到以下地址：</p>
+      
+    
+      
+        <pre><code>https://slack.com/oauth/authorize
+</code></pre>
+      
+    
+      
+        <p>我们需要带上两个 GET 参数：(1) client_id 用于标识我们的应用，
+(2) scope 表示应用请求的权限范围。
+还有其他可选参数，文档在 Using OAuth 2.0 中，但我们暂时可以忽略。</p>
+      
+    
+      
+        <p>还有一种更简便的方式叫 Direct Install URL，
+它仅适用于已在 App Directory 中的应用，而我们目前还不在里面。
+而且在完成这个 OAuth 流程之前，你也无法进入 App Directory，所以这些步骤无法跳过。</p>
+      
+    
+      
+        <p>我们先手动构造这个 URL。</p>
+      
+    
+      
+        <p>首先进入 App 管理后台，在左侧导航选择 Basic Information，
+向下滚动到 App Credentials 部分获取 client_id。</p>
+      
+    
+      
+        <p>本例中我们的 Client ID 是 808524337907.822205476262。</p>
+      
+    
+      
+        <p>然后在 App 管理后台的 OAuth &amp; Permissions 页面记下我们使用的四个 scopes：</p>
+      
+    
+      
+        <pre><code>bot
+commands
+channels:history
+reactions:read
+</code></pre>
+      
+    
+      
+        <p>综合以上信息，我们就可以生成授权 URL 了。</p>
+      
+    
+      
+        <pre><code>https://slack.com/oauth/authorize
+?client_id=808524337907.822205476262
+&amp;scope=bot,commands,channels:history,reactions:read
+</code></pre>
+      
+    
+      
+        <p>另外你也可以在添加完 Redirect URL 后，进入 App 管理后台的 Manage Distribution 页面，
+让系统帮你自动生成（添加 Redirect URL 之前这个选项不会出现）。
+它很贴心地自动生成了一个可嵌入的按钮，以及带正确 scope 的授权链接。</p>
+      
+    
+      
+        <h2>验证流程</h2>
+      
+    
+      
+        <p>现在我们有了授权 URL，把它粘贴到浏览器里，看看是否能正常工作。</p>
+      
+    
+      
+        <p>点击 Allow 后，它会跳转到我们上面的处理函数，然后你会看到一个几乎全白的页面，上面写着 OK。
+长期来看，你可能希望通过 301 重定向把用户带到更有用的地方。
+Slack 推荐使用他们的 deep linking 功能。</p>
+      
+    
+      
+        <p>我们可以去 Firestore 看看是否成功保存了想要的数据。</p>
+      
+    
+      
+        <p>结果确实保存了，这很令人兴奋：我们的 OAuth 集成已经接近完成。
+接下来只需要更新调用 Slack API 的地方，使用我们获取到的 token，
+而不是之前硬编码的那些。</p>
+      
+    
+      
+        <h2>使用获取的 token</h2>
+      
+    
+      
+        <p>我们已经从 OAuth 授权流程中拿到了 OAuth token 和 bot token，
+第一件事就是删除 reflect/env.yaml 中硬编码的 token。</p>
+      
+    
+      
+        <pre><code>delete -&gt; SLACK_BOT_TOKEN: your-bot-token     &lt;- delete
+delete -&gt; SLACK_OAUTH_TOKEN: your-oauth-token &lt;- delete
+SLACK_CLIENT_ID: your-client-id
+SLACK_CLIENT_SECRET: your-client-secret
+SLACK_SIGN_SECRET: your-secret
+GOOGLE_APPLICATION_CREDENTIALS: ./gcp_creds.json
+</code></pre>
+      
+    
+      
+        <p>然后我们在 reflect/storage.py 中增加一个获取凭证的函数。</p>
+      
+    
+      
+        <pre><code>def get_credentials(team_id):
+    creds = credentials(team_id).get().to_dict()
+    return {
+        &#x27;oauth&#x27;: creds[&#x27;access_token&#x27;],
+        &#x27;bot&#x27;: creds[&#x27;bot&#x27;][&#x27;bot_access_token&#x27;],
+    }</code></pre>
+      
+    
+      
+        <p>接着修改 reflect/api.py，让它通过 get_credentials 来获取凭证。</p>
+      
+    
+      
+        <pre><code># retrieving bot token previously
+os.environ[&#x27;SLACK_BOT_TOKEN&#x27;].encode(&#x27;utf-8&#x27;)
+# updated
+get_credentials(team_id)[&#x27;bot&#x27;]    
+
+# retrieving oauth token previously
+os.environ[&#x27;SLACK_OAUTH_TOKEN&#x27;].encode(&#x27;utf-8&#x27;)
+# updated
+get_credentials(team_id)[&#x27;oauth&#x27;]</code></pre>
+      
+    
+      
+        <p>有一个小细节：获取这些 token 需要把 team_id 传递到每个调用 Slack API 的函数中。
+这需要对 reflect/events.py 做一点重构。幸运的是我们订阅的所有事件都包含 team_id，
+因此传递起来比较方便。</p>
+      
+    
+      
+        <p>之后，部署最新版的 dispatch，应该就可以正常工作了。
+通过测试 /reflect、/recall、访问 App Home 以及使用 reacji 来验证。</p>
+      
+    
+      
+        <h2>启用分发</h2>
+      
+    
+      
+        <p>如果上面一切正常，回到 Manage Distribution 页面，向下滚动到
+Remove Hard Coded Information，确认你已经完成。</p>
+      
+    
+      
+        <p>这时 Activate Public Distribution 按钮就会亮起，点击它即可。</p>
+      
+    
+      
+        <p>启用应用的分发后，你就能看到安装数量、禁用分发，
+也可以进入提交应用到 Slack App Directory 的流程。
+但最重要的是：如果你把授权 URL 分享给别人，他们就能安装你的应用。</p>
+      
+    
+      
+        <p>换句话说：我们完成了！</p>
+      
+    
+      
+        <h2>一些思考</h2>
+      
+    
+      
+        <p>在这五篇文章的过程中，我花了不少时间深入了解 Slack 的 API
+以及 Google 的函数即服务产品——Cloud Functions。两者都相当令人愉快。</p>
+      
+    
+      
+        <h2>Slack</h2>
+      
+    
+      
+        <p>我开始这个系列时曾假设，在 Slack 平台上构建应用会比构建一个同等功能的 Web 应用更简单。
+到最后，我认为这个假设在本项目中是成立的。
+启动一个新项目通常需要大量脚手架工作，而 Slack 提供了非常优秀、易于实现的接口，
+让你不必自己写这些脚手架。即使我为了更好地理解底层 API 而放弃使用他们的 Python SDK，
+直接写原生集成，也依然如此。</p>
+      
+    
+      
+        <p>你可以认为 SDK 才是现代 API 的真正接口，
+因为绝大多数集成都是通过特定语言的 SDK 而不是直接构造原始 API 调用完成的，
+不过这个话题我留到另一篇文章再讨论。</p>
+      
+    
+      
+        <p>对于有文本界面使用经历的我来说，Slash Commands 用起来非常舒服。
+我很好奇其他人是否也同样适应，还是说会存在 IRC 一代和非 IRC 一代之间的分歧。
+我确实认为 Reacji 可以看作是更现代、发现性更好的 Slash Commands。</p>
+      
+    
+      
+        <p>总体而言，我认为以 reacji 作为用户界面的方式是 Slack 应用中特别有趣且值得探索的方向，
+我猜 Slack 应该掌握了相当强大的使用模式数据。
+一个小缺点是，我希望能根据具体 reaction 来过滤 incoming reaction 事件，
+比如只接收 :ididit: 的 reaction，而不是把所有 reaction 都收进来再过滤。
+无关 reaction 的数量远远超过任何一个应用真正关心的数量，跳过这些网络流量会更好。</p>
+      
+    
+      
+        <p>Slack API 和平台感觉最像仍在进行中的两个地方是：
+(1) 表达能力受限，(2) API 设计不一致。</p>
+      
+    
+      
+        <p>当我开始格式化已完成任务列表时，遇到了一个有趣的问题：
+Block Kit 和 mrkdwn 都不支持列表。你只能把每个条目放在单独段落里，
+做出一种类似 Markdown 的列表，但效果并不理想，
+更无法达到 Dropbox Paper 那种动态共享检查清单的效果。
+天才往往来自约束，Slack 在表达上的约束确实催生了像 reacji 这样的创新，
+但不可否认的是，Web 或原生应用在表达想法上拥有远超 Slack 应用的灵活性，而目前 Slack 应用还做不到。</p>
+      
+    
+      
+        <p>长期存在的平台最终出现一些 API 不一致是自然现象，
+Slack 的 API 也明显体现了它的演进过程。
+另外，API 设计的一致性也受限于 Web 标准的差异：
+Slack 无法让 OAuth 流程和 Events API 保持完全一致，
+因为 OAuth 是一种老旧的标准，他们必须遵守。
+这种实现 Web 标准的同时又要提供现代 API 行为的内在不一致性确实是个挑战，
+而 SDK 是绕过它的主要途径，Slack 也确实在这么做。</p>
+      
+    
+      
+        <p>总的来说，我认为 Slack 平台的完整性和构建难度都令人兴奋，
+我只能想象再过几年它会发展成什么样子。</p>
+      
+    
+      
+        <h2>GCP</h2>
+      
+    
+      
+        <p>在 Cloud Functions 上开发是我经历过的脚手架工作量最低的项目，
+几乎能让我立刻开始写代码。
+运行 Python 服务一直很烦人（我已经花了足够多时间配置 uWSGI），
+而现在我可以跳过这些，直接编写应用相关的代码。
+添加 requirements.txt 依赖工作正常，
+复制目录里的文件作为额外数据也工作正常，
+能够传入环境变量也很顺利，等等。</p>
+      
+    
+      
+        <p>Cloud Firestore 也出乎意料地容易设置和使用。
+虽然它的查询模式限制较多，但作为一个无需任何管理开销的文档存储，
+在这个用例中表现完美。我有很多玩具项目因为存储麻烦或昂贵而从未真正上线，
+我觉得以后很多这类项目都可以放到 Firestore 里。</p>
+      
+    
+      
+        <p>当前 Cloud Functions 最大的不足是：如果想把它放在负载均衡器后面，
+需要自己写不少代码，而在 AWS 上这要简单得多。
+从 autoscaling 角度看可能不是必须的，因为函数调度器本身就是一个编排系统，
+但如果你想使用自己的域名、通过单个 SSL 连接、利用 HTTP/2 多路复用、在多个资源间分发请求，
+呈现更专业的形象，以及未来能平滑切换实现方式，那么这些还是很有必要的。</p>
+      
+    
+      
+        <p>总之，我非常享受这个项目，它也特别提醒我用 Python 写小规模软件是多么快乐。
+希望这些笔记对大家有用，欢迎给我留言分享你的想法。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

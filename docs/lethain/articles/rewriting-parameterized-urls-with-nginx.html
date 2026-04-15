@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 Nginx 重写带参数的 URL · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 Nginx 重写带参数的 URL</h1>
+    <div class="meta">
+      2009-02-16 · 
+      <a href="https://lethain.com/rewriting-parameterized-urls-with-nginx/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>上周日（以及今天凌晨的一部分时间），我的目标是彻底关闭旧的 WordPress 博客，将有价值的内容重新发布到这个博客上，并完成我一直最害怕的那一步——在新旧博客之间设置重定向。</p>
+      
+    
+      
+        <p>使用 Nginx 处理这些重定向最终变得有些棘手，因为我 WordPress 的 URL 是这样的：</p>
+      
+    
+      
+        <pre><code>http://willarson.com/blog/?p=3
+http://willarson.com/blog/?p=41
+</code></pre>
+      
+    
+      
+        <p>一点也不友好。当人们谈论重写美观的 URL 时，他们指的是将这种格式的 URL：</p>
+      
+    
+      
+        <pre><code>http://willarson.com/blog/3/
+</code></pre>
+      
+    
+      
+        <p>转换成 /p=3 这样的格式，但反向转换却很少被讨论。尤其是 Nginx，它的 rewrite 模块得到的关注远少于 Apache 的 mod_rewrite。在仔细阅读了 Nginx Http Core Module 文档后，我终于想出了一个解决方案。</p>
+      
+    
+      
+        <p>以下是 willarson.com（稍作泛化）的 server 配置：</p>
+      
+    
+      
+        <p>其中的关键是 set $p $1; 这行。在较新版本的 Nginx 上（至少比 Ubuntu Intrepid 所自带的版本新），你可以跳过这一步，直接使用 $arg_p（可能需要用 $arg_P，文档对此表述不太清晰）。</p>
+      
+    
+      
+        <p>它以其丑陋而强大的方式，将类似下面的 URL</p>
+      
+    
+      
+        <pre><code>http://willarson.com/blog/?p=17
+</code></pre>
+      
+    
+      
+        <pre><code>http://willarson.com/redirect/17/?p=17
+</code></pre>
+      
+    
+      
+        <p>这看起来相当糟糕，但对于我非常简单的需求来说已经足够了。之后我又写了一个同样丑陋的 Python 脚本用来生成重定向页面。</p>
+      
+    
+      
+        <p>（我决定使用新的 canonical meta tag，因为它既新又亮眼，希望能帮助把旧博客的 Google 权重转移到新博客上。让我们拭目以待。）</p>
+      
+    
+      
+        <p>然后我为每篇文章确定了从旧博客到新博客的映射关系（旧博客总共只有大约 27 篇文章，其中 9 篇值得重新发布，5 篇值得定向重定向到更新的内容，其余的则统一重定向到新博客首页。大体上，有流量的内容都获得了指向相关页面的定制重定向，而纯文字垃圾内容则使用通用的首页重定向）。</p>
+      
+    
+      
+        <p>之后我为每个页面做了类似这样的设置：</p>
+      
+    
+      
+        <p>你可以试试看。</p>
+      
+    
+      
+        <p>就这样，全部搞定。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

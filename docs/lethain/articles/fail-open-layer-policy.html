@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>开放失败与分层策略 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>开放失败与分层策略</h1>
+    <div class="meta">
+      2016-09-20 · 
+      <a href="https://lethain.com/fail-open-layer-policy/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>2009 年左右，Dynamo 论文最终落地为 Cassandra。那时的开源风格就是这样：Cassandra 从 Facebook 突然以代码炸弹的形式爆发出来，几乎没有任何后续维护。维护早期版本的 Cassandra 本身就是一场爆炸式的经历，以至于当时运行它的人逐渐形成了一个共同的笑话——Cassandra 是一匹特洛伊木马，被释放出来就是要毁掉整个一代硅谷初创公司的技术进步。</p>
+      
+    
+      
+        <p>而当时在 Digg 工作并运行 Cassandra 0.6 的我们，一点都笑不出来。</p>
+      
+    
+      
+        <p>虽然运维上确实充满挑战，但它让我第一次接触到一个当时看来非常新颖的想法：Cassandra 以及类似设计的 NoSQL 数据库，通过只提供那些在大规模下表现良好的操作，把可扩展性带给了普通开发者。当然，后来他们推出了 CQL，这种严格的限制就逐渐淡化了。但“通过大幅限制选择来引导用户做出正确行为”这个理念，力量却异常强大。</p>
+      
+    
+      
+        <p>又过了几份工作后，我加入了一个团队，他们正在探索这个理念的逻辑极限。我们拥有极其严格的服务供应和配置工具，只允许以非常特定的形态、用非常特定的方式运行服务（俗称“The Right Way”）。我们的客户很喜欢这套工具，因为它总是确保他们以可维护、易扩展的方式做事，不需要浪费时间去尝试各种工具，直接就能开工！</p>
+      
+    
+      
+        <p>开玩笑的。他们造反了。</p>
+      
+    
+      
+        <p>最初我们的反应是坚持己见，向客户解释为什么应该按我们的方式而不是他们的方式做。但结果出奇地无效，哪怕在新方式明显更糟糕的情况下也是如此。察觉到风向已经转变，我们最终让步了，打造了一套非常灵活、充满 buzzword 的服务供应方案，允许团队使用他们想要的任何编程语言来供应任何类型的服务。</p>
+      
+    
+      
+        <p>接下来的一段时间里，一切都非常美好，团队可以自主决定技术选型。这种做法尤其在“选择与责任对齐”方面表现极佳——那些选择使用非标准技术的团队，会自己承担由此带来的大部分额外复杂度。</p>
+      
+    
+      
+        <p>一切看起来设计良好、配合默契，我们一度志得意满。但奇怪的是，这种幸福并没有持续太久。很快，又出现了一种新的“正确方式”升级成了 The Right Way——它和前任几乎没有什么共同点——于是我们的工具突然出现了一个新 bug：它太灵活了。</p>
+      
+    
+      
+        <p>我花了很长时间才从这些经历中总结出教训。如今我把自己的领悟概括为：</p>
+      
+    
+      
+        <p>设计开放失败（fail open）的系统，然后在其上叠加策略层。</p>
+      
+    
+      
+        <p>这里所说的“开放失败”，是指默认允许任何行为，即使你认为它并不理想。这可能包括允许用户使用未被支持的编程语言、存储过多数据，或者执行没有索引的查询。</p>
+      
+    
+      
+        <p>而“叠加策略层”，则是添加过滤器来强制执行设计好的行为。延续上面的例子，就是拒绝你不喜欢的编程语言或库、阻止用户存储过多数据，或者拒绝没有合适索引的查询。</p>
+      
+    
+      
+        <p>对我而言，最关键的洞见在于：一个足够通用的实现可以长久存在，而刻意的限制往往会随着时间快速演变。如果基础设施维护者不想每隔一两年就重写自己的系统，那就需要能够独立调整策略来实施限制，同时持续维护和改进底层的能力。（当这些层更多是提供信息性规范而非强制限制时，我也经常把这个概念描述为“带护栏的自助服务”。）</p>
+      
+    
+      
+        <p>和大多数缺乏细微差别的规则一样，我并不认为这条原则适用于所有场景。但我发现它有助于降低工具快速沦为技术债务的速度。下次当你迭代开发者工具时，不妨试试这个思路，看看感觉如何。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

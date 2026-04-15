@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>隐式约定的失败：判断函数是否具有破坏性 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>隐式约定的失败：判断函数是否具有破坏性</h1>
+    <div class="meta">
+      2007-07-18 · 
+      <a href="https://lethain.com/failure-implicit-conventions-determining-function-/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>所有函数要么是破坏性的，要么是非破坏性的。两者有什么区别？我们如何区分它们？为什么需要关注这些？这些都是很重要的问题。在开发一门语言、一个库、一个程序或一个函数时，如果忽略了破坏性的影响，就会导致代码不一致，并产生令人困惑的错误。</p>
+      
+    
+      
+        <h2>什么是破坏性函数</h2>
+      
+    
+      
+        <p>让我们看看能否弄清楚破坏性函数是什么样的：</p>
+      
+    
+      
+        <p>非破坏性。</p>
+      
+    
+      
+        <p>非破坏性。</p>
+      
+    
+      
+        <p>破坏性。</p>
+      
+    
+      
+        <p>非破坏性。</p>
+      
+    
+      
+        <p>非破坏性。</p>
+      
+    
+      
+        <p>破坏性。</p>
+      
+    
+      
+        <p>破坏性。</p>
+      
+    
+      
+        <p>好了，相信大家此时已经看出了两者的区别：破坏性函数会对其函数词法作用域之外的某些内容造成修改，而非破坏性函数则不会对词法作用域之外的内容产生任何改变。</p>
+      
+    
+      
+        <p>更简单地说，非破坏性函数不会修改它们未创建的值。所有传入的参数都可以被检查，但不能被修改（如果确实需要修改，非破坏性函数会创建一份副本进行操作，而不是直接修改原对象）。</p>
+      
+    
+      
+        <h2>如何区分两者</h2>
+      
+    
+      
+        <p>判断一个函数是否具有破坏性有时并不容易。如果你能看到源代码，可以通读一遍，寻找外部变量或传入参数被修改的地方。然而，当无法获取源代码时，事情就会变得困难得多。</p>
+      
+    
+      
+        <p>在没有源代码的情况下，我们只剩下两种工具：实验和约定。</p>
+      
+    
+      
+        <p>实验方法是指在函数执行前后对可能被修改的变量进行评估，观察它们是否发生了变化。特别是需要仔细检查传入的参数。这种方法看起来可靠吗？其实不然。很容易构造出简单的测试用例，让一个破坏性函数表现得像非破坏性函数。常见的情况如下：</p>
+      
+    
+      
+        <p>此时 a 和 b 最初看起来没有被改变，但我们后来意识到它们被“回收”用于构造 link 函数返回的值。在某些情况下，即使函数明确复制了传入的参数，你仍然可能遇到这个问题（因为发生的是浅拷贝而非深拷贝）。</p>
+      
+    
+      
+        <p>这就只剩下我们最后的工具：约定。</p>
+      
+    
+      
+        <p>编程语言都有自己偏好的编程范式、惯用表达、良好实践，以及关于什么是良好编程风格的内在哲学。通常这些不成文的规则是通过阅读语言专家编写的代码逐渐被吸收的。然而，这种隐式传授约定的教学方式其实是一种悲哀。</p>
+      
+    
+      
+        <p>说它可悲，是因为不成文的规则是不可靠的，而且容易从一个短暂的潮流转向另一个。我们不能指望库的作者完全实现一套不断演化的最佳实践，尤其当这些最佳实践的定义还很模糊时：隐式规则的持久性，就像一场醉酒的一夜情一样短暂。</p>
+      
+    
+      
+        <p>不过，并非所有语言都依赖不成文的约定来区分破坏性函数。那些鼓励函数式编程的语言往往非常明确：Scheme 会在所有破坏性方法名后附加一个感叹号。这体现了一位有前瞻性的语言设计者（或语言设计委员会）如何在不修改语法或定义标准库的情况下，提升语言的可用性：简单的约定——比如 Ruby 用问号表示布尔查询，或 Scheme 用感叹号表示破坏性函数——就能快速向阅读你代码的人传递重要信息。</p>
+      
+    
+      
+        <h2>为什么我们应该关心</h2>
+      
+    
+      
+        <p>好吧，在许多语言中区分破坏性和非破坏性函数确实很困难。但这真的很重要吗？</p>
+      
+    
+      
+        <p>如果你喜欢编写干净、高效且不冗余的代码，那么是的，这很重要。如果你喜欢能正常工作的代码，或者珍惜自己的时间，这同样很重要。</p>
+      
+    
+      
+        <p>如果你无法轻松区分破坏性和非破坏性函数，那么你就只能偏向谨慎。这意味着你会遇到一些情况，不得不添加不必要的冗余代码：</p>
+      
+    
+      
+        <p>这段代码效率很低（更不用说难看了），但如果你无法快速判断 doSomething 是否为非破坏性函数，那么这类情况就会频繁出现。关键在于“快速判断”：跟踪一连串库函数调用是对时间的极大浪费，你也清楚这一点，所以通常会采用快速修复的方式，而不是去验证函数的真实行为。随着时间推移，这些快速修复不断积累，你的代码会变得更长、更复杂，也比原本可以做到的更低效——如果区分两种函数是件轻而易举的事的话。</p>
+      
+    
+      
+        <p>如果我们能快速区分，就知道在哪里为了安全而克隆数据，在哪里可以直接传递未修改的数据。我们可以做出明智的决定：是为了效率而销毁数据，还是为了后续使用而保持其原始状态。</p>
+      
+    
+      
+        <p>归根结底就是：如果我们能够区分破坏性和非破坏性函数，就能更快、更轻松地写出更高效、冗余更少的代码。</p>
+      
+    
+      
+        <h2>该怎么做</h2>
+      
+    
+      
+        <p>在对抗破坏性歧义的战斗中，我们有几种可用的资源。我们可以开始使用真正明确做出这种区分的语言（怎么，没人想把所有代码都换成 Scheme 来写吗？），或者我们可以从 Scheme 的成功经验（在这一狭窄领域）中学习，建立明确的书面约定，而不是仅仅存在于社区的集体记忆中。</p>
+      
+    
+      
+        <p>让我们来看看 Python 中区分破坏性和非破坏性函数的约定（据我所知，这个约定并没有在任何地方被明确写下来）：</p>
+      
+    
+      
+        <div class="list-content">如果一个函数返回 None，那么它就是破坏性的。如果一个函数返回除 None 之外的值，那么它就不是破坏性的。第 1 条和第 2 条规则可由程序员自行决定是否遵守。</div>
+      
+    
+      
+        <p>当你阅读文档中出现类似“此函数返回 None 以强调其破坏性本质”这样的表述时，就能看到这种约定的痕迹。</p>
+      
+    
+      
+        <p>然后你会看到这样的方法：</p>
+      
+    
+      
+        <p>它返回了 None 以外的值。而且它是破坏性的。但没有人会认为这不符合规范。</p>
+      
+    
+      
+        <p>从根本上说，Python 的这个约定也不理想，因为它要求程序员实际运行该方法（或阅读其源代码）才能知道它返回什么。仅仅看到方法名不足以判断其是否具有破坏性。</p>
+      
+    
+      
+        <p>不过，这绝不是 Python 独有的问题，几乎没有哪种语言全面解决了这个重要的区分问题。每个编程社区都需要坐下来，找到一种符合其语言哲学的方式来区分破坏性和非破坏性函数。Scheme 在破坏性函数名后加感叹号的方法并非适用于所有语言，但找到一种同样明确的约定，值得花一点时间进行社区讨论。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

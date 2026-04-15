@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arc 经验教训 · Paul Graham 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Paul Graham 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Arc 经验教训</h1>
+    <div class="meta">
+      
+      <a href="https://www.paulgraham.com/arclessons.html" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我们希望 Arc 能成为编写程序的好语言，而确保这一点的方法之一，就是在语言还具有可塑性时就开始用它来写程序。在这个过程中，我们学到了一些经验。</p>
+      
+    
+      
+        <p>更短的名称是大胜利。</p>
+      
+    
+      
+        <p>更短的操作符名称听起来像是一个相当肤浅的功能。也许确实如此，但它对代码有显著的影响。更短的名称意味着你不必那么频繁地换行，这反过来又让你能一次性看到程序的更多部分。用 Arc 编程感觉明显更好。</p>
+      
+    
+      
+        <p>最大的收获在于那些往往出现在嵌套表达式最外层的操作符名称，比如 do（progn）、map（mapcar）和 fn（lambda）。正是这些名称让你的代码不断向右边界推进。</p>
+      
+    
+      
+        <p>花时间为常用操作符想出好的、简短的名称是值得的。我有几条原则。其中之一是，你只需要记住一个名称的含义，而不需要在第一次看到时就能猜出它的意思。而且某个东西使用得越频繁，它就越不需要有助记性。例如：+、-、*、/，这些名称完全是任意的。</p>
+      
+    
+      
+        <p>用 = 替换 setf 后，代码明显更容易阅读，这不仅仅是因为 = 更短，还因为 = 这种奇特的形状能清楚表明赋值不是普通的函数调用。</p>
+      
+    
+      
+        <p>用 + 来拼接序列是失败的做法。</p>
+      
+    
+      
+        <p>这种重载只是一个双关语。我发现它实际上让程序更难阅读，而不是更容易，因为我总是忍不住以为自己在看数学代码，而实际上不是。</p>
+      
+    
+      
+        <p>正如几个人已经指出的，拼接并不是加法。比如它不满足交换律。好吧，你们是对的；我们放弃这个设计了。</p>
+      
+    
+      
+        <p>总的来说，重载是一个复杂的问题。</p>
+      
+    
+      
+        <p>我猜人们在重载的例子中总是使用少数几个操作符，这并非巧合，就像他们在展示朴素递归算法危险性的例子中总是使用斐波那契数列一样。可能只有少数几个操作符是你倾向于想去重载的，而这是因为它们本身具有某种特殊性，并非因为重载本身就是一个好主意。</p>
+      
+    
+      
+        <p>我认为这不仅仅是一个开放的问题，而是一个可能甚至还没有被恰当表述的问题。我的直觉是，如果我们把它当作“是否支持重载”这样一个检查清单上的条目来考虑，那我们很可能会错过真正的问题——无论它是什么。</p>
+      
+    
+      
+        <p>也许它应该被纳入一个更一般的问题：你应该如何定义一个新的类型？</p>
+      
+    
+      
+        <p>隐式局部变量与宏存在冲突。</p>
+      
+    
+      
+        <p>在之前的 Lisp 中，如果你想创建一个局部变量，必须通过 let 显式地去做。在 Arc 中，我们原本计划允许用户通过直接赋值来隐式声明局部变量。事实证明这行不通，而问题来自一个意想不到的方向：宏。</p>
+      
+    
+      
+        <p>如果要隐式声明局部变量，你就必须决定新变量的作用域。我们决定让新变量成为块级局部变量：通过赋值隐式创建的局部变量，其作用域将延伸到最近的 do（Arc 的 progn）包围块。</p>
+      
+    
+      
+        <p>从技术上讲，它是可以实现的。我们写了一个极其复杂的解释器来支持这种声明局部变量的方式。这段代码的丑陋让我感到不安：丑陋的东西通常不是好主意。但我们还是试图保留这个特性，希望它能让程序更短。</p>
+      
+    
+      
+        <p>最终说服我们放弃它的不是技术问题，而是一个社会性问题。在同时拥有隐式局部变量和宏的语言中，你总是会意外地碰到意料之外的词法轮廓。你不希望在不事先声明的情况下创建新的词法轮廓。但很多宏在调用时看起来不像块，展开后却会变成块。因此我们提供了第二个块操作符，叫做 justdo，它类似于 do 但不会创建新的词法轮廓（即它相当于 Common Lisp 的 progn），而在宏展开中你应该使用它。</p>
+      
+    
+      
+        <p>问题在于，我总是忘记而继续使用 do。因此我写出的工具函数会带有最糟糕的 bug：那种可能很多年都不会显现，而且只会在别人的代码中才暴露出来的 bug。</p>
+      
+    
+      
+        <p>我们觉得，让一个功能脆弱到连它的实现者都无法正确使用，是一个坏主意。所以，不再有隐式局部变量了。</p>
+      
+    
+      
+        <p>这个问题并不仅限于 Lisp。宏和隐式局部变量似乎就是无法很好地共存。这意味着任何已经拥有隐式局部变量的语言，如果试图加入宏，都会遇到麻烦。</p>
+      
+    
+      
+        <p>关联列表（assoc-lists）原来是很有用的。</p>
+      
+    
+      
+        <p>Arc 有一种叫做 db 的数据结构。我们没有指定它的具体实现；你可以把它想象成一个哈希表。我们原本期待 db 能取代大部分关联列表。它们确实取代了一些，但关联列表有一个在递归程序中非常有用的特性：你可以非破坏性地把东西 cons 到它们上面。因此我们最终还是大量使用关联列表。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://www.paulgraham.com" target="_blank" rel="noopener">paulgraham.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'pg_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

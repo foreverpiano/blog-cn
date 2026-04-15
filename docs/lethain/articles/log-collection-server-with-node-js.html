@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 Node.js 构建日志收集服务器 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 Node.js 构建日志收集服务器</h1>
+    <div class="meta">
+      2010-01-30 · 
+      <a href="https://lethain.com/log-collection-server-with-node-js/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近我在考虑如何从多台机器上聚合日志。</p>
+      
+    
+      
+        <p>虽然解决这个问题的方法有很多，但我决定写一个简单的 HTTP 服务器来接收日志，然后再编写一个脚本去监控文件变化，并将新的日志 POST 到这个 HTTP 服务器。</p>
+      
+    
+      
+        <p>作为一次实验，我选择用 Node.js 来实现，因为之前还没有用它做过项目，而回调机制让我觉得非常适合扩展现有的命令行工具（这里是将 tail -F 的输出通过 HTTP 请求发送到远程服务器）。</p>
+      
+    
+      
+        <p>首先实现日志收集服务器，它会简单地把收到的数据回显到标准输出。</p>
+      
+    
+      
+        <p>接下来快速编写客户端，它通过子进程封装 tail -F 来监控日志文件。</p>
+      
+    
+      
+        <p>现在我们可以测试这两个组件了：</p>
+      
+    
+      
+        <pre><code>touch log.txt
+node logs.js &amp;
+node log_watcher.js log.txt &amp;
+echo &quot;test&quot; &gt;&gt; log.txt
+echo &quot;another test&quot; &gt;&gt; log.txt
+</code></pre>
+      
+    
+      
+        <p>目前日志服务器只是把收到的日志回显到标准输出，但更理想的做法是把它们保存到文件中。最简单的方式是像下面这样运行服务器：</p>
+      
+    
+      
+        <pre><code>node logs.js &gt;&gt; centralized.log
+</code></pre>
+      
+    
+      
+        <p>但仅仅是追加到一个文件里灵活性不够。让我们来实现一个简单的机制，允许用户以任意方式存储日志。我们以追加到文件作为示例后端，后续可以轻松替换为其他存储方式。</p>
+      
+    
+      
+        <p>首先，替换 logs.js 中现有的 record_message 函数定义：</p>
+      
+    
+      
+        <p>接下来我们需要创建 log_file_backend.js 文件，它会把数据追加到脚本所在目录下的 ./logs.received 文件中。</p>
+      
+    
+      
+        <p>如果想用其他方式存储日志，只需创建一个新的模块，导出一个 record_message(request, msg) 函数，然后像这样运行 logs.js 即可：</p>
+      
+    
+      
+        <pre><code>node logs.js mysql_backend.js
+node logs.js couchdb_backend.js
+</code></pre>
+      
+    
+      
+        <p>可能性几乎是无限的。或者说，至少非常广阔。</p>
+      
+    
+      
+        <p>这已经是一个相当不错的小工具了，而且实际上比表面上看起来的还要更好一些：虽然我们把它编写成了“发射后不管”的客户端，但 Node.js 的 HTTP 客户端实现会在主机不可用时自动将请求排队，当下次尝试发送消息发现主机恢复可用时，会按原来的顺序把它们全部发送出去。（这和我最初的预期不一样——我本来准备手动实现一个消息缓存来完成存储转发的机制——但结果是它工作得相当不错。）</p>
+      
+    
+      
+        <p>这就是全部内容了。我们用不到一百行代码实现了一个支持可插拔存储后端的日志收集服务器，以及一个能够发送被监控文件变更的存储转发客户端。在多做几个项目之后，我肯定会写一些关于 Node.js 的感想（说实话已经晚了好几个月才开始玩），但现在我已经可以说，它比我之前想象的有趣得多：用它开发真的很开心。</p>
+      
+    
+      
+        <p>代码已在 GitHub 上开源。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

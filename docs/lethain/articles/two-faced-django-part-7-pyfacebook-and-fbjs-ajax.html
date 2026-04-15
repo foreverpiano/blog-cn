@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>双面 Django 第 7 部分：PyFacebook 与 FBJS Ajax · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>双面 Django 第 7 部分：PyFacebook 与 FBJS Ajax</h1>
+    <div class="meta">
+      2007-12-17 · 
+      <a href="https://lethain.com/two-faced-django-part-7-pyfacebook-and-fbjs-ajax/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <div class="list-content">你可以在此查看本项目的在线版本，包括网页和 Facebook 界面。现在的在线版本也已经加入了我们将在本节实现的酷炫 Ajax 投票功能。</div>
+      
+    
+      
+        <p>现在我们已经完成了 Facebook 应用的大部分内容，只需为它添加一点 Ajax 功能就可以正式发布了。如果你没有跟上之前的教程，可以下载[我们目前开发的代码快照][polling6]。</p>
+      
+    
+      
+        <p>通常在这个阶段我们会开始启动 urls -&gt; views -&gt; templates 的开发流程，但实际上我们在网页应用中已经实现了这些 urls 和 views。让两个应用相互依赖显得有些不够优雅，更干净的做法是创建一个第三应用来存放所有通用或共享的组件（我喜欢把这个第三方应用叫做 api）。</p>
+      
+    
+      
+        <h2>回忆一下</h2>
+      
+    
+      
+        <p>让我们快速浏览一下正在复用的 urls 和 views。首先看一下我们从网页应用中复用的 URL。</p>
+      
+    
+      
+        <p>再回顾一下 polling.web.views.vote 这个视图的样子：</p>
+      
+    
+      
+        <p>所以，我们基本上是想向 &quot;www.ourserver.com/vote/&quot; 发送一个 GET 请求，并附带 pk 和 vote 两个参数。其中 vote 参数的值应该是 up 或 down。</p>
+      
+    
+      
+        <p>但这里有个小问题。FaceBook Javascript（下面会详细介绍）不支持发送 GET 请求。因此我们必须改用 POST 请求，而我们的 vote() 函数目前无法处理 POST 请求。所以我们需要对 polling/web/views.py 做一些小的修改。</p>
+      
+    
+      
+        <p>将 vote() 修改成下面这样：</p>
+      
+    
+      
+        <p>这段代码写得有点别扭，你可能更喜欢改写成：</p>
+      
+    
+      
+        <p>request 的 REQUEST 属性会先查找 POST 属性，再查找 GET 属性。因此它正是我们当前场景下想要的东西。不过，使用 REQUEST 还是有些不被推荐（它不够显式）。在某个时候，选择哪种方式会变成一个哲学问题，需要每个人自己做出回答。</p>
+      
+    
+      
+        <p>不管怎样，让我们保存 views.py 并继续。</p>
+      
+    
+      
+        <h2>FaceBook JavaScript</h2>
+      
+    
+      
+        <p>首先，你可能想快速浏览一下 Facebook Javascript 文档，特别是关于 FBJS Ajax 对象的文档。</p>
+      
+    
+      
+        <p>FBJS 本质上是在安全沙箱中运行的 Javascript。大部分情况下它和标准 Javascript 的行为一致，但有些功能就是无法使用。另一个区别是 FBJS 通过其命名空间内的一些对象实例来暴露功能。我们将会用到其中两个暴露的对象。</p>
+      
+    
+      
+        <p>第一个是 Dialog 对象。它是 Facebook 风格的、用于向用户索取简单交互的方式。我们将用它来完成和之前 JQuery 示例中 alert() 相同的功能（即通知用户操作成功）。</p>
+      
+    
+      
+        <p>创建对话框的 FBJS 代码如下：</p>
+      
+    
+      
+        <p>除了 Dialog 对象，我们还会用到另一个 FBJS 对象 —— Ajax 对象。开发者 Wiki 将其描述为“一个非常强大的 AJAX 对象”，那就让我们来看看这些强大的功能都有什么用吧。</p>
+      
+    
+      
+        <p>事实证明，这个 Ajax 对象和你在 JQuery、Prototype 或 MochiKit 中使用的简化版 Ajax 功能非常相似。</p>
+      
+    
+      
+        <p>发送一个简单的 POST 请求是这样的：</p>
+      
+    
+      
+        <p>和我们期望的一样简洁。现在让我们把 FBJS 运用到实际项目中。</p>
+      
+    
+      
+        <h2>编辑 detail.fbml 模板</h2>
+      
+    
+      
+        <p>我们将要编辑 polling/templates/fb/detail.fbml 模板。让我们快速打开它：</p>
+      
+    
+      
+        <p>一开始（还没有加入任何 Ajax 功能时），它的内容是这样的：</p>
+      
+    
+      
+        <p>现在我们先来写一个 Javascript 函数，根据传入的参数为对象投赞成或反对票：</p>
+      
+    
+      
+        <p>好了，现在我们只需要修改模板，让它使用我们刚刚写好的 vote() 函数。在 detail.fbml 模板中，我们将重写 id 为 poll 的 html div。修改后的代码如下：</p>
+      
+    
+      
+        <p>注意我们仍然可以使用“用 Django 模板定制 Javascript”这个方便的小技巧。</p>
+      
+    
+      
+        <p>好的。我们现在的功能已经可以工作了，但还有一个小问题：测试起来比较麻烦（你必须手动刷新当前页面）。所以作为小小的改进，让我们使用 Dialog 对象来告知用户投票是否成功。</p>
+      
+    
+      
+        <p>我们来稍微修改一下 vote() 函数。现在它看起来是这样的：</p>
+      
+    
+      
+        <p>我们给 ajax 的 ondone 字段赋了一个匿名函数。任何被赋给该字段的方法都会接收一个参数：Ajax 请求返回的内容。该内容格式取决于你创建 Ajax 对象时指定的格式（raw、json 或 fbml）。</p>
+      
+    
+      
+        <p>完成这些修改后，我们 Facebook 应用的 Ajax 功能也全部实现了。</p>
+      
+    
+      
+        <h2>接下来呢？</h2>
+      
+    
+      
+        <p>经过这七篇教程，你已经学习了很多内容：Django 测试框架、PyFacebook、FBJS 以及其他知识。现在是时候退后一步，开始修改我们一直在玩的这些组件，看看能否将自己的想法施加到代码上，把它带到更新（也更有趣）的方向上去。如果出现任何问题，你随时可以下载[我们刚刚完成的代码快照][polling7]。</p>
+      
+    
+      
+        <p>至此本系列教程已经结束，但后续的第二个系列正在筹备中。新系列会有些不同，因为它将着眼于提升我们已构建代码的质量，而不仅仅是增加粗糙的功能。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

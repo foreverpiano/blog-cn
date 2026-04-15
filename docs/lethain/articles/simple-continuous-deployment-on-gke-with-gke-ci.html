@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 GKE 上使用 gke_ci 实现简单的持续部署 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 GKE 上使用 gke_ci 实现简单的持续部署</h1>
+    <div class="meta">
+      2017-05-18 · 
+      <a href="https://lethain.com/simple-continuous-deployment-on-gke-with-gke-ci/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近，差不多已经搭建起了一条完整的持续部署流水线，但还差最后一步——从容器构建完成到真正部署上线的环节。于是我写了一个非常小的概念验证工具，叫做 gke_ci，并把它放到了 Github 上。<a href="trying-google-container-engine.html">试用 Google Container Engine</a></p>
+      
+    
+      
+        <p>这个工具非常非常基础，它的工作原理是订阅 cloud_builds 这个 Pub/Sub 主题，然后调用 Kubernetes API，更新所有使用了该容器镜像的现有 Deployment。由于容器构建次数并不多，每次成功构建时我都会重新发现所有的 Deployment，因此不需要任何“添加服务”的设置流程，新部署的 service 也能自动生效。</p>
+      
+    
+      
+        <p>我目前以单个实例的 Deployment 方式运行着 gke_ci，有意思的是它居然能升级自己！使用的逻辑和其他构建完全一样：当它看到自己的容器有新构建时，会检测到自身的 Deployment 使用了该容器，从而触发升级。Kubernetes 会先停止当前容器，再启动新版本，此期间 Pub/Sub 中排队的构建会一直等待，直到它重新上线并继续履行职责。</p>
+      
+    
+      
+        <p>综合来看，在我这个小集群上，从代码 push 到完成完整 rollout，大约只需要 5 分钟左右，而且不需要我一直盯着（rolling rollout 能捕获我遇到过的大多数问题）。不过我后续还是需要增加一个运行测试的构建步骤（如果愿意让容器稍稍“脏”一点，在 Container Builder 里应该很容易实现），以及为构建失败发送通知（直接扩展 gke_ci 本身就可以，因为它已经在监听 cloud_builds 队列了，也可以再写一个简单的工具使用新的订阅）。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

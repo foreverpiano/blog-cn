@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>尝试 Plausible · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>尝试 Plausible</h1>
+    <div class="meta">
+      2023-01-12 · 
+      <a href="https://lethain.com/trying-plausibleio/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我一直想花些时间试用最近的开发者与基础设施工具，先从 <a href="trying-tailscale.html">试用 Tailscale</a>（它相当不错）开始。接下来，我考虑替换这个博客上的 Google Analytics 已经有一段时间了，于是决定试用 Plausible.io 作为替代方案。</p>
+      
+    
+      
+        <p>先声明，我对 Google Analytics 并没有什么深刻的抱怨，相反我非常感激它。这是我过去十年里受益良多的工具，而且完全免费。不过，根据我的个人体验，随着消费者隐私保护（尤其在欧盟）和基于 Cookie 的分析之间的摩擦不断增加，GA 的用户体验已经明显下滑。自从被迫迁移到 GA4 之后，我基本上就不再查看 Google Analytics 了，因为默认视图对我来说没那么有用，我丢失了在 GA3 里定制的视图，而且发现它越来越难按照我的喜好去配置。</p>
+      
+    
+      
+        <h2>总结思考</h2>
+      
+    
+      
+        <p>总体而言，Plausible 的 onboarding 体验非常出色，作为消费者产品价格稍高，但作为企业产品则显得性价比很高，我用得挺开心。目前我已经关闭了 Google Analytics，转而使用 Plausible，打算再用一两个月后重新评估。我很欣赏它这种重视隐私的做法，这样在未来几年隐私法规持续收紧时，应该就不用再迁移到另一个分析服务了。目前我认为大多数企业还不太可能切换，因为它无法将分析数据与广告数据打通，而且还缺少一些核心功能（SSO、类似 SOC2 的合规认证等）。</p>
+      
+    
+      
+        <p>Plausible 的核心论点是：Google Analytics 通过数据聚合、特别是利用 GA 来推动 Google Ads 支出增长的策略，会因隐私监管不断加强而变得效率降低。在我看来这是一个不错的判断，也和我一直以来的观点  高度契合。反过来说，我觉得 Plausible 可以更多地去说明自己为什么优秀，而不只是强调“不是 Google Analytics”（世界上有很多公司都不是 Google Analytics）。我认为他们的优势其实很明显也很有说服力（托管在欧盟、非风投支持、开源等），这更多是营销侧重的问题，而不是真正缺失。（不过我还是希望看到更多关于其具体技术实现方案的强调。）<a href="compliance-regime-convergance.html">简谈合规制度的趋同演进</a></p>
+      
+    
+      
+        <p>我认为这很大程度上和他们的增长策略有关——Plausible 选择先从下沉市场切入，服务创作者和初创企业。要成功服务大规模企业，目前的产品与实际需求之间存在明显差距，尤其是在广告集成（对大多数公司来说，这可能是 Google Analytics 最重要的功能）、美国合规要求（例如 SOC2）和 SSO 方面。SSO 也许隐藏在某个角落，但我认为它是一项基础的安全功能，很希望看到一个注重安全和隐私的工具能提供支持。（他们的 Data Processing Agreement 读起来挺有意思。）</p>
+      
+    
+      
+        <p>Plausible 是开源软件，理论上你可以自己部署运行。当然，真正运行一个高性能、经过调优的分析系统，并不是大多数公司值得投入时间的事情，但它确实提供了一个退出路径——如果托管版本变得过于昂贵的话。总的来说，我认为这是一个相当聪明的策略，而且他们选择的 AGPLv3 也是一个很好的许可证（正如他们在文章中讨论的那样）。</p>
+      
+    
+      
+        <h2>注册与 onboarding</h2>
+      
+    
+      
+        <p>注册流程第一步是输入邮箱和密码，然后需要验证邮箱地址。</p>
+      
+    
+      
+        <p>接下来是一个非常简短的安装页面，指导我把一段简单的脚本加到 head 标签里。</p>
+      
+    
+      
+        <p>我的博客使用 Hugo，因此我更新了 partials/head-additions.html，改成下面这样：</p>
+      
+    
+      
+        <pre><code>{{ if eq (getenv &quot;HUGO_ENV&quot;) &quot;production&quot; | or (eq .Site.Params.env &quot;production&quot;)  }}
+&lt;script defer data-domain=&quot;lethain.com&quot; src=&quot;https://plausible.io/js/script.js&quot;&gt;&lt;/script&gt;
+{{ end }}
+</code></pre>
+      
+    
+      
+        <p>最后，我从 config.toml 中删除了 Google Analytics 的密钥，提交更改并推送到服务器。</p>
+      
+    
+      
+        <h2>关于 onboarding 的小建议</h2>
+      
+    
+      
+        <p>在整个 onboarding 和初期使用过程中，我产生了一些小的改进想法。当然要说明：我没有看过他们的代码，这些只是个人观点。</p>
+      
+    
+      
+        <div class="list-content">Plausible 更强调自己“不使用 Cookie”，而不是重点说明自己到底是怎么做的。作为一个使用分析工具的人，尤其是如果要把它用在有收入影响的网站上（幸运的是我的博客没有），我非常想了解它是如何识别访客的。我觉得这个问题可以通过一些文案来解决（也许在你安装完事件采集脚本后的页面上）。顺便说一句，他们的数据政策页面其实解释得不错，只是我发现它相对容易被忽略，要主动去搜索才能找到。总体上，他们的定位策略更像是“不是 Google Analytics”，而不是“一个具体的好东西”。我相信他们这么定位有充分理由，但最终我觉得这会限制他们的市场表达。我希望 Plausible 能提供一个引导，让我更好地理解事件采集脚本。我读过这个脚本，它非常短（而且保留了空格，可读性不错），如果能为其他用户提供一些解释会更好。特别是 Plausible 的目标用户更注重隐私，这能帮助建立信任。（我觉得这实现起来应该也很快。）</div>
+      
+    
+      
+        <h2>分析功能</h2>
+      
+    
+      
+        <p>Plausible 的分析理念基本上就是：保持简单。引用他们营销文案的一段话：</p>
+      
+    
+      
+        <blockquote>Plausible Analytics 的设计理念是简洁。任何人都能一目了然地理解我们提供的所有指标，无需任何培训或先验的分析经验。你需要知道的一切都在一个页面上。</blockquote>
+      
+    
+      
+        <p>这种理念被一致地贯彻，从他们的截图就能看出来。</p>
+      
+    
+      
+        <p>概览图表虽然基础但合理，支持日期范围和四个指标（独立访客、总页面浏览量、跳出率、访问时长）。</p>
+      
+    
+      
+        <p>他们还会按来源、页面、地理位置和设备对用户进行分组。由于这些就是他们收集的全部数据——再加上请求本身的元数据用于对访客进行指纹识别并构建会话——他们能展示的内容其实非常有限。</p>
+      
+    
+      
+        <p>在这个受限的范围内，我认为用户体验相当不错。比如，我特别喜欢只需要一次点击就能把流量过滤到单个页面（或来源、设备），这样就能快速回答“这个特定页面的流量是从哪里来的？”这类问题。在 Google Analytics 上也能做到，但在这里操作起来更方便。</p>
+      
+    
+      
+        <h2>定价</h2>
+      
+    
+      
+        <p>对于个人产品来说，定价比我希望的稍高一些，但对于企业产品则非常便宜。很难准确预测某个分析服务商会把我的流量算成多少，但我估计每月大约 10 万到 20 万页面浏览量，所以大概是每月 20-30 美元。有 30 天试用期，所以我应该能在最终购买前了解实际价格。</p>
+      
+    
+      
+        <p>值得一提的是，Google Analytics 之所以免费，是因为 Google 从中获得了巨大的数据价值。完全有理由认为，支付费用来独占自己的分析数据是值得的。</p>
+      
+    
+      
+        <h2>性能</h2>
+      
+    
+      
+        <p>不敢说样本有多可靠，但我观察到 Google Analytics 的延迟大约是 120ms 完成，而 Plausible 大概在 180ms 左右。如果 Plausible 像他们宣称的那样把所有服务器（除了用于 JavaScript 的 CDN）都托管在欧盟，那么延迟增加是合理的（从美国到欧盟往返大约 90ms，而从旧金山到附近的 Google 数据中心则小于 30ms）。这是使用了本地缓存脚本的情况，如果没有缓存，加载 Plausible 脚本还会额外增加约 80ms 的延迟，GA 的对应延迟则短一些。当然，GA 也更可能已经被用户的机器缓存。总体而言，可以说 Plausible 在网站首次事件完成时间上大约比 Google Analytics 慢一倍。</p>
+      
+    
+      
+        <p>不过，即便慢一倍，大约 250ms 也并不算差。无论哪种情况，我都认为这个延迟是合理的，因为页面加载并不会被它阻塞。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>完善我们的 Django & BOSS 搜索服务 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>完善我们的 Django & BOSS 搜索服务</h1>
+    <div class="meta">
+      2008-07-12 · 
+      <a href="https://lethain.com/polishing-up-our-django-boss-search-service/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在本系列的第一部分中，我们花了一些时间搭建 Yahoo BOSS Mashup Framework，最后实现了一个极其简陋的搜索服务。如果没有跟着第一部分实践的读者，可以在这里下载我们开发好的代码压缩包，但你仍需按照第一部分的说明获取 BOSS App ID。在本系列的第二部分，我们将进一步完善搜索服务：</p>
+      
+    
+      
+        <div class="list-content">我们将允许用户搜索网页、Yahoo 新闻或图片。我们将支持用户对搜索结果进行分页浏览。</div>
+      
+    
+      
+        <p>让我们开始吧。</p>
+      
+    
+      
+        <h2>扩展 SearchForm</h2>
+      
+    
+      
+        <p>首先，打开 my_search/yahoo_search/views.py，查看其中的 SearchForm。目前它的内容是这样的：</p>
+      
+    
+      
+        <p>现在我们要添加切换搜索类型的功能：</p>
+      
+    
+      
+        <h2>改进 search 和 index 函数</h2>
+      
+    
+      
+        <p>接下来我们改进 search 函数，让它接受第二个参数来决定执行哪种类型的搜索。</p>
+      
+    
+      
+        <p>然后更新 index 函数，将我们通过 SearchForm 获取的 search_type 值传递给 search 函数。</p>
+      
+    
+      
+        <p>现在可以运行开发服务器了。</p>
+      
+    
+      
+        <p>然后访问 http://127.0.0.1:8000/，你会发现现在可以搜索网页、图片或 Yahoo 新闻了。挺不错的。接下来我们着手实现搜索结果分页功能。</p>
+      
+    
+      
+        <h2>实现搜索结果分页</h2>
+      
+    
+      
+        <p>当你在使用 Django 并想到分页时，应该立刻联想到 Paginator 类，它能帮你处理所有分页相关的复杂逻辑。不过，我们处理的不是普通的列表（或者 QuerySet，否则可以使用 QuerySetPaginator），所以需要对数据做一些处理。</p>
+      
+    
+      
+        <p>我们将创建一个中间类 BossResultList 来实现这一目标，它会实现 Paginator 所需的部分 Python 列表功能。幸运的是，只需要实现三个方法：__getitem__(self,i)、__getslice__ 和 __len__。在 my_search/yahoo_search 目录下创建一个 boss_utils.py 文件，并在其中加入以下代码：</p>
+      
+    
+      
+        <p>BossResultList 接收 ysearch_search 的搜索结果，并模拟成一个列表。这并不是一个完美的抽象，因为它只能访问初始化时传入的结果子集，但这已足以让我们使用 Paginator。</p>
+      
+    
+      
+        <p>现在回到 my_search/yahoo_search/views.py，添加两个导入语句：</p>
+      
+    
+      
+        <p>然后修改 search 函数，让它能与新的 BossResultList 很好地配合。</p>
+      
+    
+      
+        <p>这个修改是必要的，因为 BossResultList 需要直接使用返回结果中的某些数据，而这些数据在通过 db.create 存入数据库后就无法保留了。（特别是它需要访问 totalhits 字段，以便告诉用户针对当前查询可以提供多少页结果。）</p>
+      
+    
+      
+        <p>在完成搜索应用的更新之前，我们还剩下两个小细节：重构 index 函数，并更新 index.html 模板。更新模板相对简单，但必须先写好 index 函数，而这个函数几乎需要完全重写。因为改动较多，我会先给出完整的函数，让你先阅读一遍，然后再对重点细节进行说明。</p>
+      
+    
+      
+        <p>好的，有几点需要说明。</p>
+      
+    
+      
+        <div class="list-content">我们现在改用 GET 而不是 POST。其实我们一开始就不应该使用 POST。对此我表示抱歉。因为改用 GET 后，很难区分用户是首次访问页面还是在提交搜索。这就是为什么当表单无效时，我们不显示 newforms 生成的错误信息，而是显示一个空表单：只有用户第一次进入页面时才会遇到无效表单，我们不希望用错误信息来迎接新用户。Paginator 的页码从 1 开始而不是 0，所以我们计算 start 时使用 (page-1)*count 而不是 page*count。我们需要 total_pages 和 page，因为要让用户知道自己在搜索结果中的当前位置（例如，第 5 页，共 412 页）。</div>
+      
+    
+      
+        <h2>更新 index.html 模板</h2>
+      
+    
+      
+        <p>和 index 函数一样，index.html 模板也进行了大幅度的改版。幸运的是，模板的修改大部分都容易理解。重构后的模板如下所示：</p>
+      
+    
+      
+        <p>最复杂的部分是处理搜索结果翻页的逻辑。这里我们利用 Paginator 返回的 Page 对象来处理大部分复杂逻辑（在模板中这个 Page 对象名为 results），但因为还需要保持搜索关键词和搜索类型，所以会稍微复杂一些。</p>
+      
+    
+      
+        <h2>下载</h2>
+      
+    
+      
+        <p>你可以在这里获取本教程的完整代码。注意，你需要按照本教程第一部分的说明获取 Yahoo BOSS App ID，并在 my_project/config.json 中填写相应的配置信息。</p>
+      
+    
+      
+        <h2>实际体验</h2>
+      
+    
+      
+        <p>好了，现在我们可以测试一下了。进入 my_search 目录并运行开发服务器。</p>
+      
+    
+      
+        <p>然后访问 http://127.0.0.1:8000/，你会看到改进后的搜索引擎界面如下：</p>
+      
+    
+      
+        <p>挺酷的，对吧？希望这个教程对你有帮助，如果有任何问题，欢迎随时告诉我。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

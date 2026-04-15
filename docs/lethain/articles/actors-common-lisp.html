@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Common Lisp 中的 Actor 模型 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Common Lisp 中的 Actor 模型</h1>
+    <div class="meta">
+      2008-01-03 · 
+      <a href="https://lethain.com/actors-common-lisp/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近我一直在实现 Common Lisp 的 Actor 模型，同时也在研究 Scala Actors 库的源代码。</p>
+      
+    
+      
+        <h2>愿景</h2>
+      
+    
+      
+        <p>我的愿景是，一个高效的 Actor 库应该能够让线程之间、程序之间以及与外部计算机之间的交互变得简洁而简单。</p>
+      
+    
+      
+        <h2>实现方案</h2>
+      
+    
+      
+        <p>这里有许多实现上的问题需要考虑。我目前的方法包含两个核心组件：actor-environment（Actor 环境）和 actors（Actor）。</p>
+      
+    
+      
+        <p>Actor 环境会容纳若干本地 Actor，同时还能跟踪外部的 Actor 环境以及那些环境中包含的本地 Actor。在初始化时，需要告诉一个 Actor 环境如何找到它需要交互的其他 Actor 环境；但一旦不同环境中的 Actor 被相互介绍过之后，它们之间的交互语法应该与同一环境内的 Actor 完全一致。</p>
+      
+    
+      
+        <p>每个 Actor 环境都会有一个主调度线程（primary dispatch thread）。这个线程可以采用单线程模型——在收到新消息时直接运行相应的 Actor 代码；也可以采用多线程模型——在收到新消息时分配一个工作线程来执行 Actor 代码。该调度线程还负责在不同 Actor 环境之间以及 Actor 之间发送和接收消息。此外，它还会在特定情况下（例如启用了 zeroconf 的 Actor 环境）动态搜索其他 Actor 环境。</p>
+      
+    
+      
+        <p>此外，每个 Actor 环境可以拥有零个或多个接口（这是 Actor 环境之间相互介绍的方式）。这些接口可以是输入、输出或双向的（比如输入 socket、输出 socket、双向 socket 等）。它们还可以是主动或被动的（zeroconf 需要动态扫描新的 Actor 环境，而已知要通信的特定服务器的信息则不会频繁变化）。</p>
+      
+    
+      
+        <h2>语法</h2>
+      
+    
+      
+        <p>我还在继续完善语法，目前的版本自己也不是特别满意，但勉强还能用：</p>
+      
+    
+      
+        <p>每个 Actor 都关联一个动作（action），每次收到新消息时都会调用这个动作。该动作的第一个参数是 Actor 自身（类似于 Python 方法中显式传入 self），第二个参数是 msg。msg 是一个元组，包含发送消息的 Actor 和所发送的数据（通常是字符串，也许以后会固定为字符串……这里存在一些安全方面的考量）。</p>
+      
+    
+      
+        <p>目前由于我只使用了单线程调度器，所以大部分情况下是线程安全的。如果使用多线程调度器则无法保证线程安全。当然，如果可能的话，你本就不应该在 Actor 中修改共享的可变对象。</p>
+      
+    
+      
+        <p>在变得真正好用之前，肯定还需要添加一些语法糖。你有什么想法吗？</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

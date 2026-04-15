@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我们自己的智能体，以及它们自己的工具。 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>我们自己的智能体，以及它们自己的工具。</h1>
+    <div class="meta">
+      2025-02-04 · 
+      <a href="https://lethain.com/our-own-agents-our-own-tools/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>进入2025年，我决定花些时间深入探索智能体（agents）这个话题。我先阅读了 Anthropic 的《Building effective agents》，接着又看了 Chip Huyen 的《AI Engineering》。我在工作中启动了一个使用智能体的大型项目，同时也决定做一个个人的实验项目。本文就是对构建这个项目的总体感想。</p>
+      
+    
+      
+        <p>我想构建的是一个简单的聊天界面，能让我编写提示词、选择模型，并让模型在合适的时候调用工具。我的附带目标是尽量使用 Cursor 来开发，尽可能不直接手写代码。但实际体验下来，我发现直接在 emacs 中写代码、同时让 4o-mini 提供可用的示例，整体效率反而更高。</p>
+      
+    
+      
+        <p>同样，虽然我最初设想用 Cursor 以全栈 TypeScript 来开发，但最终还是转回到了自己更熟悉的技术栈，最终使用了 Python3、FastAPI、PostgreSQL，以及基于 async psycopg3 驱动的 SQLAlchemy。我已经好久没有从零开始一个新的 Python 项目了，这次就把这个项目当作机会，熟悉了 Python3 的 async/await 机制、类型系统以及 mypy。最后，我还想尝试一下 Tailwind，最终使用了 TailwindUI 的组件来构建前端页面。</p>
+      
+    
+      
+        <p>当前可运行的版本已经支持我想要的所有功能：创建与不同模型的对话，并允许这些模型通过函数调用来使用我提供的工具。模型可以为了解决问题而调用任意数量的工具。其中工具的使用绝对是最有趣的部分。我创建的最简单的工具是一个 get_temperature，它会返回你所在位置的伪造温度。这让我可以问出类似“明天在旧金山（San Francisco, CA）我应该穿什么？”这样的问题，并得到有用的回答。</p>
+      
+    
+      
+        <p>把这个功能添加到项目中的代码非常简洁，只需要三行 Python 代码，再加上 25 行传递给 OpenAI API 的元数据。</p>
+      
+    
+      
+        <p>在实现这个工具之后，我接下来添加的是一个简单的 URL 抓取工具，它允许智能体获取某个网页内容，并将其纳入提示词中使用。</p>
+      
+    
+      
+        <p>这个工具的实现也同样非常简单。</p>
+      
+    
+      
+        <p>真正令人惊讶的是，通过增加这样一个检索 URL 的微不足道的工具，你能给智能体带来多大的能力。类似地，你可以想象添加获取和评论 GitHub Pull Request 的工具等等，这会让这样一个极其简单的智能体工具变得相当实用。</p>
+      
+    
+      
+        <p>这个项目让我对不远的未来产生了一个颇为令人信服的展望：大多数工程师都会拥有这样一个简单的应用，他们可以把来自各种系统（邮件、短信、GitHub Pull Request、日历等）的事件导入其中，创建触发器把事件映射到提示词模板，然后让具备工具调用能力的智能体去执行这些提示词。</p>
+      
+    
+      
+        <p>如果再结合其他智能体能够向你注册自己并暴露它们可用的工具（例如“帮我用工具所有者的日历安排一个会议”），那么只需非常适度的投入，就能实现大量有趣的功能：</p>
+      
+    
+      
+        <div class="list-content">你可以为两个忙碌的人的日历安排会议，就像他们各自都有一个助理在管理日历一样；用新发布的博客文章回复你自己的 Pull Request，并对错别字和语法问题提供反馈；抓取你关心的网站并找出你可能感兴趣的文章；让模型使用 lethain:systems 生成一个系统模型，运行它，然后绘制响应图表；增加一个“规划工具”，让模型生成一个计划来指导复杂任务的后续步骤（例如获取我的日历、获取朋友的日历、建议一个我们都能参加的时间）。</div>
+      
+    
+      
+        <p>这些功能都不是能改变人生的，但每一个都多少有些用处。我相信，一旦你有了必要的基础设施让这类事情变得容易，还会有许多更显而易见的想法变得容易实现。</p>
+      
+    
+      
+        <p>总的来说，我现在确信，利用当前的基础模型，智能体将会创造出一系列非常有趣的体验，在日常生活中给我们带来许多小的改善，而这些小的改善累积起来将会相当具有变革性。不过我不太确信这会成为未来所有软件的开发方式，关于这一点我以后会再多谈。（工作中正在进行一系列有趣的实验，但目前都还处于早期阶段。）</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

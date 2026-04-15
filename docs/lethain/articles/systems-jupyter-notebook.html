@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 Jupyter Notebook 中进行系统动力学建模 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 Jupyter Notebook 中进行系统动力学建模</h1>
+    <div class="meta">
+      2018-09-30 · 
+      <a href="https://lethain.com/systems-jupyter-notebook/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>几周前我发布了 systems 库的 0.0.1 版本，而今天我推出了 0.0.2 版本。这次更新几乎专门针对 Jupyter Notebook 工作流进行了优化——Jupyter Notebook 依然是我所见过的最适合迭代探索的工具之一。</p>
+      
+    
+      
+        <p>这篇文章将一步步介绍如何在 Jupyter Notebook 中运行 systems 库。（你也可以在 Github 上看到最终完成的 Notebook。</p>
+      
+    
+      
+        <h2>安装与设置</h2>
+      
+    
+      
+        <p>第一步是安装 Jupyter 和 systems 库：</p>
+      
+    
+      
+        <pre><code>mkdir jupyter
+cd jupyter
+python3 -m venv ./env
+source ./env/bin/activate
+pip install jupyter systems
+</code></pre>
+      
+    
+      
+        <p>安装完成后，你可以通过以下命令创建一个 Notebook：</p>
+      
+    
+      
+        <pre><code>jupyter notebook
+</code></pre>
+      
+    
+      
+        <p>这应该会在你的浏览器中打开一个新标签页，指向你的 Jupyter Notebooks，你也可以直接通过 localhost:8888/tree 访问。</p>
+      
+    
+      
+        <p>接下来创建一个新的 Notebook，给它起一个合理的名字，比如“systems exploration”。</p>
+      
+    
+      
+        <p>最后一步，通过在第一个代码单元格中写入以下代码来验证安装是否成功。</p>
+      
+    
+      
+        <pre><code>from systems.parse import parse
+from systems.viz import as_dot
+from IPython.core.display import HTML
+</code></pre>
+      
+    
+      
+        <p>然后点击 Run 按钮运行代码（如果是第一次运行 Jupyter，可能会需要较长时间）。如果运行失败，请查看之前启动 jupyter notebook 的终端窗口中的错误信息，并在继续之前解决这些问题。</p>
+      
+    
+      
+        <p>例如，在我的电脑上需要先升级 prompt_toolkit 才能继续，但对大多数用户来说可能不需要这一步。</p>
+      
+    
+      
+        <pre><code>pip install --upgrade prompt_toolkit
+</code></pre>
+      
+    
+      
+        <p>假设一切已经正常运行，接下来就可以开始迭代模型了。</p>
+      
+    
+      
+        <h2>创建模型</h2>
+      
+    
+      
+        <p>本文使用的示例与中的相同，因为我们的主要目标是展示如何在 Jupyter 中使用该库。<a href="modeling-hiring-funnel-systems.html">用 Systems 库建模招聘漏斗</a></p>
+      
+    
+      
+        <p>Notebook 的第一个单元格应该引入所需的依赖：</p>
+      
+    
+      
+        <pre><code>from systems.parse import parse
+from systems.viz import as_dot
+from IPython.core.display import HTML
+</code></pre>
+      
+    
+      
+        <p>第二个单元格则应该包含一个多行字符串，其中定义你的模型并进行解析。理论上你可以把模型定义和解析放在不同的单元格中，但我认为放在一起更好，这样如果你的模型规格存在问题，能立即看到错误提示。</p>
+      
+    
+      
+        <pre><code>spec = &quot;&quot;&quot;
+[Candidate] &gt; Recruiters(3, 7) @ 1
+[Candidate] &gt; Prospect         @ Recruiters * 3
+Prospect    &gt; Screen           @ 0.5
+Screen      &gt; Onsite           @ 0.5
+# yeah and some more, eliding for example
+&quot;&quot;&quot;
+model = parse(spec)
+</code></pre>
+      
+    
+      
+        <p>接着你可以将模型渲染为图表：</p>
+      
+    
+      
+        <pre><code>as_dot(model)
+</code></pre>
+      
+    
+      
+        <p>对于较大的系统，你可以通过以下方式将从左到右的布局改为从上到下：</p>
+      
+    
+      
+        <pre><code>as_dot(model, rankdir=&quot;TB&quot;)
+</code></pre>
+      
+    
+      
+        <p>你还可以运行模型，并将结果以内嵌 HTML 表格的形式展示：</p>
+      
+    
+      
+        <pre><code>results = model.run(rounds=10)
+rendered = model.render_html(results)
+HTML(rendered)
+</code></pre>
+      
+    
+      
+        <p>把以上内容组合起来后，你就可以开始了！可以根据需要随意迭代。</p>
+      
+    
+      
+        <h2>如何绘制图表？</h2>
+      
+    
+      
+        <p>如果你想对输出结果进行可视化，这也很容易实现。下面是一个使用 Bokeh 的简单示例。首先需要安装 bokeh：</p>
+      
+    
+      
+        <pre><code>pip install bokeh
+</code></pre>
+      
+    
+      
+        <p>安装完成后需要重启内核，可以通过 Notebook 的 Kernel 菜单操作，也可以直接终止 Notebook 进程后重新启动。然后新建一个单元格，加入以下引入和配置代码：</p>
+      
+    
+      
+        <pre><code>from bokeh.plotting import figure, output_notebook, show
+output_notebook()
+</code></pre>
+      
+    
+      
+        <p>接下来你就可以像这样绘制折线图：</p>
+      
+    
+      
+        <pre><code>col = &quot;Offer&quot;
+x = list(range(len(results)))
+y = [row[col] for row in results]
+p = figure(title=col)
+p.line(x, y)
+show(p)
+</code></pre>
+      
+    
+      
+        <p>这会输出一个非常简单的图表，如果你想做出更复杂的效果，可以参考 Bokeh 的官方文档。</p>
+      
+    
+      
+        <p>你可以在 Github 上看到完整的示例 Notebook。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

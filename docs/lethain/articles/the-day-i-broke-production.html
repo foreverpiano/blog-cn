@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我搞崩生产环境的那一天 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>我搞崩生产环境的那一天</h1>
+    <div class="meta">
+      2010-02-14 · 
+      <a href="https://lethain.com/the-day-i-broke-production/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>作为开发人员，我经历过的最刺激的一天，就是把生产环境搞崩的那次。虽然最后有惊无险，但我从中吸取了深刻的教训：以后在生产环境中，不管是敲命令还是思考问题，再也不敢那么粗心大意了。</p>
+      
+    
+      
+        <p>我们的产品由 Erlang、Java 和 PHP 混合构建，找到一个合理的部署方案着实经历了一段陡峭的学习曲线。PHP 升级通常是无操作，有时只需重启 Apache 即可；Java 升级则需要先杀掉正在运行的进程，再用新代码启动一个新的；Erlang 组件的升级是杀掉 beam 进程，然后重新执行启动脚本；而被 Erlang 包裹的 Java，则需要杀掉并重启整个 Erlang 进程。</p>
+      
+    
+      
+        <p>至少理论上是这样工作的。</p>
+      
+    
+      
+        <h2>问题所在</h2>
+      
+    
+      
+        <p>在部分（并非全部）部署之后，我们遇到了一个奇怪的问题：有一些“死进程”会残留在 pg2 中。当 gen_server:call 调用 pg2:get_closest_pid 恰好选中其中某个已经死亡的进程时，就会失败，进而导致调用方崩溃。通常这些部署就像往我们的纸牌屋上浇汽油，而下一个进来的请求则会成为点燃整个系统的火花。</p>
+      
+    
+      
+        <p>对于一个 alpha 阶段的产品，部署中出现一些坎坷本不奇怪，但问题偏偏在部分而非所有部署后才会冒出来，这还是让人颇为恼火。后来我们虽然找到了更好的临时方案，并最终理解了根本原因（后面会提到），但在此之前，我们有一套手动清理流程。</p>
+      
+    
+      
+        <p>最初几次出现这个问题时，清理工作完全是手动的——在 Erlang shell 里敲命令，然后狂按回车。说来也巧，这就自然过渡到了我搞崩生产环境的那一天。</p>
+      
+    
+      
+        <h2>比疾病更糟糕的“药”</h2>
+      
+    
+      
+        <p>有一次部署之后，明显能看出“死进程瘟疫”又来造访我们的系统了。当时另外两位工程师中，一位正在度一个月的长假，另一位又暂时联系不上，所以我面临两个选择：悄悄溜去吃一顿长午饭，或者自己动手修复。</p>
+      
+    
+      
+        <p>于是我动手修复了问题……算是吧。我写的东西大致是这样的：</p>
+      
+    
+      
+        <p>这段代码有一个小小的缺陷：它把所有存活的进程都从进程组里移除了，只留下死进程来处理请求。 Oops。</p>
+      
+    
+      
+        <p>之后我给 QA 主管发消息，让他无视即将到来的测试失败浪潮，然后开始修复我的修复。首先，我在所有节点上删除并重新创建了现有的进程组，以清理掉死进程；接着我逐个节点重启了上面运行的应用（这样它们会重新加入新的进程组，从而用存活进程把组填满）。</p>
+      
+    
+      
+        <p>当时我们只有大约八个节点，整个过程只花了几分钟，但那真是相当紧张的几分钟。</p>
+      
+    
+      
+        <h2>各种各样的解决方案</h2>
+      
+    
+      
+        <p>从那次事件之后，我们在多个方面改进了这个情况，特别是：</p>
+      
+    
+      
+        <div class="list-content">立即的修复方案是将死进程从 pg2 中过滤掉，方法是包装 gen_server:call，类似这篇关于在进程组间做负载均衡的文章里描述的方式，同时在选择最佳进程来路由请求之前，先清理进程组中的死进程。在我们深入调查根本原因时，发现我们的一些 gen_server 实现没有捕获 exit 信号，导致它们的 terminate 函数没有被调用，进程停止后也从未离开自己的进程组。</div>
+      
+    
+      
+        <p>很多有经验的 Erlang 开发者可能会认为，根本问题在于我们部署 Erlang 代码的方式不对。简单的方式是使用 l 函数来重新加载模块，更复杂一些的则是使用 appup 来帮助管理 Erlang 应用的升级。</p>
+      
+    
+      
+        <p>我认为，我们当时的做法对于纯 Erlang 系统，或者整个团队/公司都精通 Erlang 的情况来说，无疑是错误的。但我不太愿意承认，在一家拥有自己熟悉的部署机制的大型公司里，这种做法就完全没有道理。大公司总是非常在意采用新事物的成本，而加快采用的关键就是降低采用成本，往往要以牺牲纯粹性为代价。（这个话题可能值得好好讨论，而非仅仅作为一句事后想法。）</p>
+      
+    
+      
+        <p>虽然系统最终安然无恙，但这一天对我来说绝对是一次宝贵的学习时刻。即使是简单而显而易见的方案，在生产部署的熔炉中也可能爆炸。而更具防御性的编码风格，加上更全面的故障测试（很多开发者在这方面都疏忽到离谱的地步），本可以避免整个事件的发生。</p>
+      
+    
+      
+        <p>你最接近搞崩线上系统的惊险时刻是什么？</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

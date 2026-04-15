@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clojure 中的可扩展抓取 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Clojure 中的可扩展抓取</h1>
+    <div class="meta">
+      2009-11-24 · 
+      <a href="https://lethain.com/scalable-scraping-in-clojure/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>Craigslist 是个很棒的网站。它实在太棒了，以至于我听说有些人会花大量时间盯着它那源源不断的帖子。</p>
+      
+    
+      
+        <p>想到这一点，我突然意识到，写一个监控帖子流并将相关帖子保存到本地的脚本，或许是一个很好的项目，可以用来练习用 Clojure 进行并发抓取和并发处理。</p>
+      
+    
+      
+        <h2>前置条件</h2>
+      
+    
+      
+        <p>在开始之前，你需要先</p>
+      
+    
+      
+        <div class="list-content">安装 Clojure（本教程基于 1.0 版本编写），安装 clojure-contrib（使用与 1.0 版本兼容的版本）。</div>
+      
+    
+      
+        <p>如果你已经安装好了这些，那我们就可以开始了。如果你还没装好，那这篇教程会一直在这里等着你办完那些事儿再回来。</p>
+      
+    
+      
+        <h2>架构</h2>
+      
+    
+      
+        <p>从 Craigslist 拉取内容、解析它，然后把其中一部分写入磁盘的方式有很多。在这些方式中，有些简单直接。而这个方案不在此列。</p>
+      
+    
+      
+        <p>本教程希望开发一种可扩展、可伸缩的方法，并着重强调并发处理。</p>
+      
+    
+      
+        <p>系统被分为两个子组件：内容抓取（content retrieval）和内容处理（content processing）。两者通过一个共享队列进行通信（抓取端将数据放入队列，处理端从队列中取出数据）。首先，我们来看看内容抓取部分。</p>
+      
+    
+      
+        <p>内容抓取的目标是将一个 Craigslist 分类列表转换成一个装满每个帖子元数据的队列。</p>
+      
+    
+      
+        <p>抓取的流程是</p>
+      
+    
+      
+        <div class="list-content">拉取一个或多个 Craigslist 分类中的最新帖子，提取每个帖子的 URL，将这些 URL 提交给一个 worker agent 池，让 worker agents 去抓取 URL 并将抓取到的数据放入 post-queue。</div>
+      
+    
+      
+        <p>接下来是系统的内容处理部分。</p>
+      
+    
+      
+        <p>内容处理的目标是</p>
+      
+    
+      
+        <div class="list-content">从 post-queue 中取出帖子，使用用户定义的过滤器（过滤器是一组必需的关键词）将它们分到不同的桶里（一个帖子可能同时属于多个桶），然后将每个桶中的帖子写入单独的文件。</div>
+      
+    
+      
+        <p>随着程序运行，这些过滤器对应的文件会不断增长，里面装满了满足对应主题要求的帖子。从此你再也不需要 obsessive 地刷新 Craigslist 了。</p>
+      
+    
+      
+        <p>取而代之，你可以 obsessive 地去检查一系列文本文件。进步难道不伟大吗？</p>
+      
+    
+      
+        <h2>发现新帖子</h2>
+      
+    
+      
+        <p>当我们开始组装脚本的各个组件时，首先要完成的是获取某个 Craigslist 分类中最新帖子的代码。</p>
+      
+    
+      
+        <p>要做到这一点，我们首先需要能够获取列表页面的 HTML。duck-streams 对 HTTP 协议很熟悉，这使得获取网页变得极其简单：</p>
+      
+    
+      
+        <p>获取到原始 HTML 后，我们需要提取所有职位帖子的 URL。每个帖子的样子大致如下：</p>
+      
+    
+      
+        <p>因此我们可以使用 re-find 和正则表达式来提取 URL，像这样：</p>
+      
+    
+      
+        <p>然而，我们真正想要的是从文本中提取所有匹配项，而不仅仅是第一个。这时我们可以使用 re-seq：</p>
+      
+    
+      
+        <p>在此基础上，我们可以将其封装成一个函数，以便指定任意的帖子分类：</p>
+      
+    
+      
+        <p>实际上我们只需要每个匹配结果的第二部分（即 URL，而不是整个匹配），可以通过 map 来实现：</p>
+      
+    
+      
+        <p>最后，我们想要的是完整的 URL，而不仅仅是相对路径，这可以通过在相对 URL 前面加上 http://craigslist 来实现。</p>
+      
+    
+      
+        <p>至此，项目的第一部分就完成了。</p>
+      
+    
+      
+        <h2>从帖子中提取数据</h2>
+      
+    
+      
+        <p>下一步是编写一个函数，它接收帖子的 URL，抓取该帖子的原始 HTML，然后提取帖子的元数据（在这里指的是标题和正文）。</p>
+      
+    
+      
+        <p>我们要在 HTML 中寻找下面这两段内容：</p>
+      
+    
+      
+        <p>如果能把它们提取出来，我们就成功了。一个可行的尝试如下：</p>
+      
+    
+      
+        <p>一个问题是提取出来的正文里还混杂着 HTML 标签，不过我们可以很容易地解决这个问题（在此郑重道歉，这确实比引入外部依赖要简短得多，而且它是否工作良好其实没那么重要……好吧，它其实工作得不太好）：</p>
+      
+    
+      
+        <p>至此，我们项目的两个部分已经组装完成。继续前进。</p>
+      
+    
+      
+        <h2>过滤帖子</h2>
+      
+    
+      
+        <p>接下来要做的，是拿到帖子数据的列表，然后找出我们感兴趣的那些。最终目标是支持任意数量的过滤器，每个过滤器对应一个单独的文件，里面包含一组有代表性的关键词。（每个过滤器都会在每篇帖子上运行，这意味着一篇帖子可能被多个过滤器同时接受。）</p>
+      
+    
+      
+        <p>首先，我们可以创建下面这两个过滤器：</p>
+      
+    
+      
+        <p>过滤帖子的第一个简单尝试是只接受包含所有指定单词的帖子。实现单词检测的方式有很多，但最简单的方法可能是对字符串进行分词：</p>
+      
+    
+      
+        <p>然后，我们可以检查这个哈希表是否包含所有期望的单词。</p>
+      
+    
+      
+        <p>在这些基础上，我们需要将 tokenize 和 has-keys? 组合成一个函数，用来判断一篇帖子是否匹配某个过滤器。</p>
+      
+    
+      
+        <p>很好，我们已经非常接近了，只剩最后一块内容要写，然后就可以开始把各个部分整合起来了。</p>
+      
+    
+      
+        <h2>将匹配的帖子写入文件</h2>
+      
+    
+      
+        <p>某个过滤器下的所有帖子都应该写入同一个文件，而且由于可能有多个 worker 同时在处理帖子，我们需要一种方式来对共享文件的写入进行排序。</p>
+      
+    
+      
+        <p>最简单的方法是使用 agent 来保护这些文件。我们目前把过滤器定义为一个关键词列表，但让我们把它扩展成一个哈希表，其中 :tags 键对应关键词列表，:file 键对应一个 agent，其值为文件名。</p>
+      
+    
+      
+        <p>然后我们可以写一个函数，接收一个过滤器和一篇帖子，并将帖子写入文件。</p>
+      
+    
+      
+        <p>（请注意，当我通过脚本运行器运行代码时，经常遇到 append-spit 不可用的错误，但使用 (load-file &quot;cl.clj&quot;) 时却工作正常。为了控制复杂度，我决定不在本教程中重写一个 append-spit 的替代版本，但你可能需要这么做——或者对建议用于 Clojure 1.0 的 duck-streams 代码稍作修改。）</p>
+      
+    
+      
+        <p>使用 save-post 函数的样子是这样的：</p>
+      
+    
+      
+        <p>现在我们已经把所有组件都准备好了，可以开始把它们拼装成一个能工作的系统。</p>
+      
+    
+      
+        <h2>组装系统</h2>
+      
+    
+      
+        <p>我们正在构建的系统可以看作由两个独立的子组件组成：填充帖子队列，以及清空帖子队列。</p>
+      
+    
+      
+        <p>我们将利用这种解耦，将两部分分别独立实现。在一个本来可以用 50 行脚本实现的功能上使用这种程度的解耦肯定是杀鸡用牛刀，但通过共享数据结构来解耦代码，正是团队软件开发中最困难的任务——定义接口——的一个特殊案例。</p>
+      
+    
+      
+        <p>看起来所有接口要么只是对某种数据结构的操作（像 Dynamo 这样的键值存储本质上就是哈希表），要么可以被视为简单算法上的简单算法（大多数 Twitter API 可以被建模为对数组的过滤，尽管实际实现可能有所不同）。因此，慷慨的读者可以把这种解耦设计当作练习这项重要技能的机会。</p>
+      
+    
+      
+        <p>我猜不那么慷慨的读者早就已经不看了。</p>
+      
+    
+      
+        <h2>将帖子放入 Post Queue</h2>
+      
+    
+      
+        <p>这里需要连接起来的组件包括：</p>
+      
+    
+      
+        <div class="list-content">将分类分发到一个 agent 池中，将每个分类中的帖子分发到另一个 agent 池中，把抓取到的每个帖子存入 post-queue，将一个定时器连接起来，定期触发分类抓取。</div>
+      
+    
+      
+        <p>这听起来相当复杂，但得益于我们前面写好的所有函数，实现起来其实非常简洁。首先我们需要写几个用于创建和使用 agent 池的函数。</p>
+      
+    
+      
+        <p>我们可以改进 agent-from-pool 来确保 agent 池的公平性，但目前随机分配已经足够了。</p>
+      
+    
+      
+        <p>利用我们的 agent-pools，现在可以把内容抓取部分拼装起来了。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas18ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>（这里的 sleep 是为了避免给网站造成过大请求压力。倒不是说我们这个小抓取器能把 Craigslist 搞崩，而是 Craigslist 把我们的小爬虫搞崩的可能性要大得多。）</p>
+      
+    
+      
+        <p>使用方式如下：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas19ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>随着 post-queue 被不断填充，是时候开始处理这些帖子了。</p>
+      
+    
+      
+        <h2>从 Post Queue 中取出帖子</h2>
+      
+    
+      
+        <p>取出并处理收集到的帖子的步骤如下：</p>
+      
+    
+      
+        <div class="list-content">创建一个轮询应用，它会：尝试从队列中取出一个帖子，将其分配给一个随机的 worker 线程，然后给自己发送一条消息让它再次检查队列；或者休眠几秒钟后再给自己发送消息检查队列。每个 worker 线程会接收一篇帖子，将其通过所有过滤器，然后根据情况将其追加到对应过滤器的文件中。</div>
+      
+    
+      
+        <p>复用上面定义的 agent-pool 函数，实现如下。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas20ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>使用方式如下：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas21ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>至此，我们只需要再接入一些定期触发机制，来运行分类抓取和队列处理这两个部分。</p>
+      
+    
+      
+        <h2>调度周期性事件</h2>
+      
+    
+      
+        <p>处理向 agent 定期发送消息的方式有几种。最简单的是老一套的 while true 循环加 sleep，但你实际上也可以用 agent 自身来完成周期性的发送。</p>
+      
+    
+      
+        <p>我将在未来几天写一篇关于这个想法的文章，但这里先给出一个非常简单的形式，用来触发我们刚刚写完的 process-posts 函数（我们会手动调用 process-categories，因为我们还没有机制来防止重复抓取同一篇帖子）。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas22ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>好了，到这里我们终于完成了。</p>
+      
+    
+      
+        <h2>收尾</h2>
+      
+    
+      
+        <p>该项目的最终源代码已在 Github 上提供。</p>
+      
+    
+      
+        <p>如果你在代码中遇到任何问题，请告诉我。</p>
+      
+    
+      
+        <p>这个例子最终变得比预期更长也更复杂，但希望其中仍有一些值得学习的细节。从很多方面来看，这个例子在性能和可扩展性上类似于一个可能非常重量级的实现，但借助 agent 的帮助，代码仍然相当简洁。</p>
+      
+    
+      
+        <p>Clojure 非常有趣，这在很大程度上是因为它能生成如此简短的代码。写出简洁且富有表达力的代码，大概是使用 Lisp 类语言最隐秘的乐趣。希望我后面的文章能比这篇少一些绕弯子，从而更好地展现这些特性。 ;)</p>
+      
+    
+      
+        <h2>致谢</h2>
+      
+    
+      
+        <p>本文在不同程度上参考和借鉴了以下内容：</p>
+      
+    
+      
+        <div class="list-content">Clojure、clojure-contrib、Mark Reid 的《Setting Up Clojure for Mac OS X》、Fetching Web Comics with Clojure, Part 1</div>
+      
+    
+      
+        <p>感谢阅读，希望对你有所帮助。我一直很乐于收到反馈。欢迎告诉我你的想法！</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

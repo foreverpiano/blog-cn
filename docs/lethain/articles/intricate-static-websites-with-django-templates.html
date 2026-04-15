@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 Django Templates 构建复杂静态网站 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 Django Templates 构建复杂静态网站</h1>
+    <div class="meta">
+      2008-09-15 · 
+      <a href="https://lethain.com/intricate-static-websites-with-django-templates/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>2008 年 9 月 15 日更新：对于对本文讨论技术感兴趣的朋友，我制作了一个名为 AYM CMS 的可复用模板，它可以使用 Django templates 来构建复杂的静态网站。</p>
+      
+    
+      
+        <p>我正在开发的一个项目需要创建一个简单的网站：放一些截图、静态页面等等。最初的想法是直接用静态 HTML 和 CSS 来做，这个经典方案几十年来一直很有效，但我想要一个更好的方案。</p>
+      
+    
+      
+        <p>最近我一直在为静态网站编写越来越复杂的构建脚本，这些脚本会将渲染后的 Markdown 插入到静态模板中，或者自动生成缩略图。这种方法既保留了静态页面的优势（即使在最糟糕的硬件上也能极致扩展），又避免了编写纯静态 HTML 的大部分缺点（更新和修改耗费过多人力）。</p>
+      
+    
+      
+        <p>昨天，当我面对要复制粘贴一个通用 HTML 模板六七次（还得祈祷以后不需要修改它）的情况时，我心想：“算了，我就直接用 Django templates 吧。”</p>
+      
+    
+      
+        <p>这个想法真是太棒了。</p>
+      
+    
+      
+        <h2>前置要求</h2>
+      
+    
+      
+        <p>本示例需要你已经安装了 Django 和 PIL。</p>
+      
+    
+      
+        <h2>开始动手</h2>
+      
+    
+      
+        <div class="list-content">首先，创建一个文件夹来存放这个项目。我把它叫做 my_cms。
+mkdir my_cms
+cd my_cms
+接下来我们创建几个子文件夹：
+mkdir templates
+mkdir static
+mkdir deploy
+mkdir images
+然后在 my_cms 目录下创建一个非常简单的 settings.py 文件。
+import os, datetime
+ROOT_PATH = os.path.dirname(__file__)
+# 设置目录路径
+TEMPLATE_DIRS = (
+    os.path.join(ROOT_PATH,&#x27;templates&#x27;)
+)
+STATIC_DIR = os.path.join(ROOT_PATH,&#x27;static&#x27;)
+DEPLOY_DIR = os.path.join(ROOT_PATH,&#x27;deploy&#x27;)
+IMAGES_DIR = os.path.join(ROOT_PATH,&#x27;images&#x27;)
+# 设置一些有用的常量
+STATIC_URL_FORMAT = u&quot;/static/%s&quot;
+STATIC_THUMBNAIL_FORMAT = STATIC_URL_FORMAT % u&quot;thumbnail/%s&quot;
+STATIC_IMAGE_FORMAT = STATIC_URL_FORMAT % u&quot;image/%s&quot;
+THUMBNAIL_SIZE = (128,128)
+EMAIL = u&quot;your_email_address@gmail.com&quot;
+# 创建默认渲染上下文
+CONTEXT = {
+    &#x27;email&#x27;:EMAIL,
+    &#x27;now&#x27;:datetime.datetime.now(),
+}
+PAGES_TO_RENDER = ()
+这个 settings.py 中保存的配置将在构建脚本中使用，尤其是 CONTEXT 字典会在模板渲染时被传入，因此它是存放经常变化的设置和数据的绝佳位置。
+现在我们来编写构建脚本的初始版本。由于还没有任何内容，它会比较简单，但它将执行以下步骤：
+1. 创建 deploy 目录。
+2. 创建 deploy/static 目录。
+3. 将 static/ 目录下的所有内容复制到 deploy/static。
+4. 创建 deploy/static/thumbnail 目录。
+5. 创建 deploy/static/image 目录。
+6. 为 images/ 目录中的所有图片分别在 deploy/static/thumbnail 和 deploy/static/image 目录下生成缩略图和原图。
+7. 渲染我们提供的模板列表，并将它们复制到 deploy/ 目录。
+完整代码如下：
+import os, shutil
+from django.template.loader import render_to_string
+from django.conf import settings
+from PIL import Image
+os.environ[&#x27;DJANGO_SETTINGS_MODULE&#x27;] = u&quot;settings&quot;
+
+def main():
+    # 从 settings 获取默认上下文字典
+    context = settings.CONTEXT
+    deploy_dir = settings.DEPLOY_DIR
+
+    print u&quot;Removing existing deploy dir, if any...&quot;
+    shutil.rmtree(deploy_dir, ignore_errors=True)
+
+    print u&quot;Creating deploy/ dir...&quot;
+    os.mkdir(deploy_dir)
+
+    print u&quot;Copying contents of static/ into deploy/static...&quot;
+    deploy_static_dir = os.path.join(deploy_dir, &#x27;static&#x27;)
+    shutil.copytree(settings.STATIC_DIR, deploy_static_dir)
+
+    print u&quot;Copying and creating thumbnails for files in images/...&quot;
+    deploy_thumb_path = os.path.join(deploy_static_dir, &#x27;thumbnail&#x27;)
+    deploy_image_path = os.path.join(deploy_static_dir, &#x27;image&#x27;)
+    os.mkdir(deploy_thumb_path)
+    os.mkdir(deploy_image_path)
+
+    images = []
+    images_dict = {}
+    images_dir = settings.IMAGES_DIR
+    thumb_format = settings.STATIC_THUMBNAIL_FORMAT
+    image_format = settings.STATIC_IMAGE_FORMAT
+    thumbnail_dimensions = settings.THUMBNAIL_SIZE
+    for filename in os.listdir(images_dir):
+        # 只处理以图片扩展名结尾的文件
+        before_ext, ext = os.path.splitext(filename)
+        if ext not in (&quot;.png&quot;,):
+            continue
+
+        print u&quot;Copying and thumbnailing %s...&quot; % filename
+        filepath = os.path.join(images_dir, filename)
+        im = Image.open(filepath)
+        im.save(os.path.join(deploy_image_path, filename), &quot;PNG&quot;)
+        im.thumbnail(thumbnail_dimensions, Image.ANTIALIAS)
+        im.save(os.path.join(deploy_thumb_path, filename), &quot;PNG&quot;)
+
+        # 创建包含图片数据的字典
+        image_dict = {}
+        image_dict[&#x27;filename&#x27;] = filename
+        image_dict[&#x27;thumbnail&#x27;] = thumb_format % filename
+        image_dict[&#x27;image&#x27;] = image_format % filename
+
+        images.append(image_dict)
+        # before_ext 是 &#x27;hello.png&#x27; 中的 &#x27;hello&#x27;
+        images_dict[before_ext] = image_dict
+
+    context[&#x27;images&#x27;] = images
+    context[&#x27;images_dict&#x27;] = images_dict
+
+    print u&quot;Rendering pages...&quot;
+    pages = settings.PAGES_TO_RENDER
+    for page in pages:
+        print u&quot;Rendering %s...&quot; % page
+        rendered = render_to_string(page, context)
+        page_path = os.path.join(deploy_dir, page)
+        fout = open(page_path, &#x27;w&#x27;)
+        fout.write(rendered)
+        fout.close()
+
+    # 构建脚本完成
+    print u&quot;Done running build.py.&quot;
+
+if __name__ == &quot;__main__&quot;:
+    main()
+诚然，作为一段代码它有点长（76 行？有点吓人），但里面没有特别复杂的内容，而且以后也不需要再修改它（我们只需修改 settings.py 即可）。
+在开始编写模板之前，先往 images/ 文件夹里扔几张随机图片，以便测试缩略图生成功能。我用了一张以前拍的照片，文件名是 bridge.png。你用什么图片其实关系不大（虽然目前脚本只支持 .png 文件）。
+放一张截图也可以。
+现在我们需要开始编写模板来利用这个全新的构建系统。首先创建一个基础模板，文件名为 base.html，放在 templates/ 目录下。
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;{% block title %}My CMS{% endblock %}&lt;/title&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;static/style.css&quot;&gt;
+&lt;/head&gt;
+&lt;body&gt;
+{% include &quot;header.html&quot; %}
+{% block content %}{% endblock %}
+{% include &quot;footer.html&quot; %}
+&lt;/body&gt;
+&lt;/html&gt;
+然后在 templates/ 目录下创建 header.html。
+&lt;h1&gt; Welcome to my Simple CMS &lt;/h1&gt;
+再创建一个 footer.html。
+&lt;div class=&quot;footer&quot;&gt;
+  &lt;p&gt; 
+  Last updated at {{ now|time:&quot;H:i&quot; }}. 
+  Mail &lt;a href=&quot;mailto:{{ email }}&quot;&gt;this address&lt;/a&gt; with questions.
+  &lt;/p&gt;
+&lt;/div&gt;
+其实我们也可以直接使用 now 这个模板标签，而不用把它存到上下文变量里。我这么做只是为了演示如何向模板提供动态的静态上下文。
+最后，我们来编写 index.html 模板。
+{% extends &quot;base.html&quot; %}
+{% block content %}
+{% with images_dict.bridge as image %}
+&lt;a href=&quot;{{ image.image }}&quot;&gt;
+  &lt;img class=&quot;thumbnail&quot; src=&quot;{{ image.thumbnail }}&quot;&gt;
+&lt;/a&gt;
+{% endwith %}
+&lt;p&gt;
+This is some simple static text.
+&lt;/p&gt;
+&lt;div class=&quot;thumbnails&quot;&gt;
+{% for image in images %}
+  &lt;a href=&quot;{{ image.image }}&quot;&gt;
+  &lt;img class=&quot;thumbnail&quot; src=&quot;{{ image.thumbnail }}&quot;&gt;
+  &lt;/a&gt;
+{% endfor %}
+&lt;/div&gt;
+{% endblock %}
+现在要把 index.html 加入渲染列表，只需在 settings.py 中修改 PAGES_TO_RENDER：
+PAGES_TO_RENDER = (
+    u&quot;index.html&quot;,
+)
+然后在命令行输入：
+python build.py
+这样就会在 deploy/ 目录下生成网站。
+最后，base.html 模板已经设置为引入 static/style.css，我们来写一个非常简单的 CSS 作为示例。
+创建 my_cms/static/style.css 文件：
+body {
+    background-color: black;
+    color: white;
+}
+然后再次运行构建脚本：
+python build.py
+deploy/ 目录下的文件就会应用新的 CSS 样式。</div>
+      
+    
+      
+        <p>至此，我们就完成了。</p>
+      
+    
+      
+        <h2>相对路径与绝对路径</h2>
+      
+    
+      
+        <p>需要注意的是，当你直接从本地文件系统打开页面（而不是把它放到 Apache 或 nginx 等 Web 服务器的根目录下）时，指向 static 目录的当前路径将无法正常工作。</p>
+      
+    
+      
+        <p>这是因为它期望 static 文件夹位于 /static/，也就是你文件系统的根目录，而不是你实际提供文件的位置。如果你希望网页 URL 保持扁平（例如 /index.html、/help.html、/about.html 等），那么可以将 settings.py 中的 STATIC_URL_FORMAT 设置从 u&quot;/static/%s&quot; 改成 u&quot;static/%s&quot;，这样即使不部署在根目录下也能正常显示。</p>
+      
+    
+      
+        <h2>扩展想法：缩略图画廊</h2>
+      
+    
+      
+        <p>当前版本的构建脚本已经提供了一些便利。每次你向 images 文件夹添加一张图片，就会自动获得对应的缩略图，并且它会被加入到 images 列表和 images_dict 字典中。</p>
+      
+    
+      
+        <p>有了这两个工具，你就可以通过文件名（不带扩展名，谁想记住那些后缀呢？）来展示图片，或者直接展示它的缩略图。</p>
+      
+    
+      
+        <p>你可以创建一个展示网站所有图片的截图画廊（比如你要做一个应用展示网站时就很有用），方法非常简单：只需把截图丢进 images/ 目录，然后在模板中加入以下代码：</p>
+      
+    
+      
+        <p>对很多网页来说，这就已经是你真正需要的全部动态功能了。而且现在你提供的是静态文件，即使有超过十个并发访客，你那台小 VPS 也不会崩溃。</p>
+      
+    
+      
+        <h2>扩展想法：自动化构建</h2>
+      
+    
+      
+        <p>对很多网站来说，你本来就会缓存页面半小时，在这三十分钟内，你的 Django 应用本质上就是一个平庸的文件服务器。</p>
+      
+    
+      
+        <p>你完全可以改用这种静态方案，然后通过一个 cron 任务每三十分钟（甚至每次目录中有文件被修改或添加时）更新一次静态资源。</p>
+      
+    
+      
+        <p>虽然这对于高度动态的网站肯定不是好方案，但对很多网站来说，这种方式已经足够了。</p>
+      
+    
+      
+        <h2>扩展想法：渲染 Markdown</h2>
+      
+    
+      
+        <p>最简单方案的一个缺点是，你将被迫使用 HTML 编写内容，而不是更舒适的 Markdown 或 Textile 等标记语言。</p>
+      
+    
+      
+        <p>但其实不必如此。可以把 Markdown 过滤器稍作修改，将其变成一个模板标签：</p>
+      
+    
+      
+        <p>这只需要几行代码就能实现，却能打开真正值得探索的大门。</p>
+      
+    
+      
+        <p>你甚至可以进一步扩展这个想法，加上类似语法高亮模板过滤器的功能，让静态网站也能轻松实现代码高亮。</p>
+      
+    
+      
+        <p>我相信你已经想到了更多改进这个基础框架的想法。制作更好的静态页面还有很多容易摘到的果实。</p>
+      
+    
+      
+        <h2>下载</h2>
+      
+    
+      
+        <p>下载包含本项目的 zip 文件。</p>
+      
+    
+      
+        <p>如果有任何问题或意见，欢迎告诉我！</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

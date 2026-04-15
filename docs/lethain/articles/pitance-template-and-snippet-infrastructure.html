@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pitance：模板与代码片段基础设施 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Pitance：模板与代码片段基础设施</h1>
+    <div class="meta">
+      2009-09-13 · 
+      <a href="https://lethain.com/pitance-template-and-snippet-infrastructure/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>过去几个月，我一直在开发一个令人兴奋的项目：Pitance。Pitance 的全称是 Project Infrastructure and Templates Are Now Convenient for Everyone（项目基础设施和模板现在对每个人都变得便捷），它是一个用于共享和管理项目模板及代码片段的基础设施。该基础设施包括一个网站、一个 HTTP/JSON API 以及一个命令行工具。</p>
+      
+    
+      
+        <p>该项目的主页位于 pitance.lethain.com，随时欢迎大家使用。</p>
+      
+    
+      
+        <h2>Pitance 快速入门</h2>
+      
+    
+      
+        <p>我们的目标是让使用 Pitance 尽可能简单。当然在这方面还有不少工作要做，但希望它能很快得到改进。</p>
+      
+    
+      
+        <div class="list-content">首先，前往网站，通过搜索或浏览找到你感兴趣的模板。以本例来说，假设你对 erlang_couchdb_app 这个模板感兴趣，那么可以使用 cURL 下载它：curl http://pitance.lethain.com/api/template/erlang_couchdb_app/ &gt; erlang_couchdb_app.erl
+你也可以获取特定版本的模板：curl http://pitance.lethain.com/api/template/erlang_couchdb_app/1/ &gt; erlang_couchdb_app.erl
+另外，你也可以使用命令行客户端，它能让操作更加简便。首先需要下载最新版本的客户端：curl http://pitance.lethain.com/download/command-line/ &gt; pitance.py
+然后为其添加执行权限：chmod +x pitance.py
+现在你就可以这样获取模板了：./pitance.py template erlang_couchdb_app &gt; erlang_couchdb_app.erl
+# 获取特定版本
+./pitance.py template erlang_couchdb_app 1 &gt; erlang_couchdb_app.erl
+如果你安装了 simplejson（或者使用自带 json 库的 Python 版本），还可以用 pitance.py 来创建和更新模板：echo &quot;print &#x27;This is my template&#x27;&quot; &gt; test_template.py
+./pitance create python_test_template \
+    --language python \ 
+    --tags &quot;test, useless&quot; \
+    --related_templates &quot;erlang_test, ruby_test&quot; \
+    --author_email lethain@example.com # 此信息对普通用户隐藏，仅管理员可见 \
+    --author &quot;Will Larson&quot; \
+    --desc &quot;This is a test for a Python template. Please ignore this.&quot; \
+    &lt; test_template.py
+也就是说，你通过标准输入提供模板内容，并必须指定 language、author_email、author 和 desc 这几个参数。
+你可以选择性地指定 tags 和 related_templates 参数，它们接受逗号分隔的列表。创建模板后，你可以用类似方式更新它，但要注意每次更新都必须提供模板内容，而其他参数则是可选的。这实际上是命令行客户端的限制，而非 API 的限制，我希望很快能修复它（主要是它在等待标准输入时会卡住……）。./pitance.py update python_test_template --tags &quot;test2, test3&quot; &lt; test_template.py
+每次更新都会创建一个新的模板版本，但之前的版本仍然可以通过明确指定版本号来获取。这使得多人可以像 Wiki 一样协作维护模板，同时也保证你始终能获得自己偏好的版本。</div>
+      
+    
+      
+        <h2>未来开发计划</h2>
+      
+    
+      
+        <p>我对如何改进 Pitance 有大量想法，会根据用户反馈以及这个服务是否对更多人有价值，一步一步地实现它们。</p>
+      
+    
+      
+        <p>以下是一些想法（不分先后顺序）：</p>
+      
+    
+      
+        <div class="list-content">当模板被更新或创建时发送推文。在模板中支持变量，以便更方便地进行定制（当然，统一的命名规范加上搜索替换已经能实现类似效果）。支持声明模板依赖关系，从而更容易用多个模板组合成多文件项目模板（这也可以作为第三方系统构建在现有 API 之上）。命令行客户端还有改进空间。网站客户端和搜索功能应该对项目和项目版本加以区分（比如你搜索 erlang，结果同时出现 erlang_couchdb_app - 1 和 erlang_couchdb_app - 2，这有点傻）。为网页添加语法高亮（可惜用 Erlang 实现让我暂时无法继续使用我长期喜爱的 Pygments）。</div>
+      
+    
+      
+        <h2>技术栈</h2>
+      
+    
+      
+        <p>技术栈在“关于”页面有详细描述，它其实值得单独写一篇文章。简而言之，它基于 BeepBeep、CouchDB 和 Lucene 构建，并通过 couchdb-lucene 和 erlang_couchdb 进行集成。这是一个非常棒的开发栈。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

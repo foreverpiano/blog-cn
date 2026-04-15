@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cocos2d iPhone 开发笔记 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Cocos2d iPhone 开发笔记</h1>
+    <div class="meta">
+      2008-10-03 · 
+      <a href="https://lethain.com/notes-on-cocos2d-iphone-development/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近我一直在使用 Cocos2d iPhone 库进行 iPhone 游戏开发，这是一个非常棒的开发库。尽管网上可供参考的源码并不多，但我还是整理了一些代码片段和使用心得。</p>
+      
+    
+      
+        <h2>Cocos2d iPhone 概述</h2>
+      
+    
+      
+        <p>Cocos2d iPhone 是 Ricardo Quesada 将 Cocos2d 库移植到 Objective-C 的版本。原始版本实际上是一个 Python 库，非常优秀。ObjC 移植版无法在 REPL 中运行，因此在“强烈优秀”程度上稍逊一筹，但它依然是解决 iPhone 游戏开发难题的良药。</p>
+      
+    
+      
+        <p>在开发我的第一款游戏 Processed Tower Defense 时，我在这个项目中学到了大量知识。我对它进行了几次重构，采用了更好的设计，到后期我感觉自己终于开始打开了游戏编程那扇通往神奇而罕见领域的大门。因此，当我开始在 iPhone 上开发游戏时，第一步就是将我整体的设计从 JavaScript 移植到 ObjC。虽然两者之间存在一些……不匹配的地方，但总体进展还算顺利。直到我们遇到了 OpenGL，那感觉就像徒步时碰到一群臭鼬堵住了小径。你当然可以硬着头皮走过去，但，真的非得这么做吗？</p>
+      
+    
+      
+        <p>iPhone 上关于 OpenGL 的文档并不丰富，这开始阻碍项目进展。我猜现在的文档对那些已经精通 OpenGL 的人来说足够了，这或许才是他们预期的受众，但我却被彻底难住了。这是个不小的问题。幸运的是，睿智的 Luke Hatcher 建议我们放弃我自己搭建的那个临时框架，转而使用 Cocos2d iPhone。于是乎，开箱即用，Cocos2d 就已经把我辛苦积累的游戏知识（以及更多）巧妙地集成到了一个连贯的框架中。</p>
+      
+    
+      
+        <p>之后的故事就成了历史，尽管是一段没人知道也没人在意的历史。</p>
+      
+    
+      
+        <h2>关键类</h2>
+      
+    
+      
+        <div class="list-content">CocosNode 是你将要使用的最重要的类。
+如果一个对象需要 a) 移动、b) 显示 或 c) 发生变化，
+那么你应该用 CocosNode 来表示它。CocosNode 最有用的方法包括：
+// 创建
++(id)node;
+// 添加子节点
+-(id)add: (CocosNode)node;
+-(id)add: (CocosNode)node z:(int)z;
+-(id)add: (CocosNode)node z:(int)z name:(NSString)name;
+// 获取子节点
+-(CocosNode)get: (NSString )name;
+// 移除子节点
+-(void)remove: (CocosNode)node;
+-(void)removeByName: (NSString)name;
+// 调度周期性更新
+-(void)schedule: (SEL)s interval:(ccTime)i;
+// 执行动作（移动、动画等）
+-(Action)do: (Action)action;
+-(void)stopAction: (Action*)action;
+-(void)stopAllActions;
+使用示例大致如下：
+// 创建
+CocosNode * parentNode = [CocosNode node];
+CocosNode * childNode = [CocosNode node];
+CocosNode * childNode2 = [CocosNode node];
+// 连接
+[parentNode add:childNode z:0 name:@&quot;childOne&quot;];
+[parentNode add:childNode2];
+// 访问
+[parentNode get:@&quot;childOne&quot;];
+// 使用动作
+[parentNode do:[ScaleTo actionWithDuration:.1 scale:1.5]];
+cpVect point = cpv(50,100);
+[parentNode do:[MoveTo actionWithDuration:0.5 position:point]];
+// 断开连接
+[parentNode removeByName:@&quot;childOne&quot;];
+[parentNode remove:childNode2];
+利用 CocosNode 最常见的方式是继承它，添加自定义的 init 方法，并调度一个函数定期执行。一个简单的示例如下：
+#import &quot;CocosNode.h&quot;
+@interface LogNode : CocosNode {}
+-(void)tick: (ccTime)dt;
+@end
+@implementation LogNode
+-(id)init {
+self = [super init];
+if (self) {
+[self schedule:@selector(tick:) interval:100];
+}
+return self;
+}
+-(void)tick: (ccTime)dt {
+NSLog(@&quot;%@&quot;, self);
+}
+@end
+Sprite 是 CocosNode 的子类，它让图形显示变得非常简单。用法如下：
+NSString * img = @&quot;spaceship.png&quot;;
+Sprite * sp = [Sprite spriteFromFile:img];
+sp.position = cpv(100,24);
+[someNode add:sp];
+你会大量使用 Sprite。根据我的经验，更简单的方式是继承 CocosNode 并将 Sprite 添加到其中，而不是直接继承 Sprite。这样做还有一个好处，就是你可以将多个图像组合到一个节点下，通过变换父节点来统一变换它们。
+Action 是施加在 CocosNode 上的变换。有多种动作，分为两组：IntervalAction（间隔动作）和 InstantAction（瞬时动作）。顾名思义，IntervalAction 在一段时间内发生（当然你可以把时间设为 0 秒让它立即发生），而 InstantAction 则是立即执行。
+一些常用的动作包括：
+ToggleVisibility 让 CocosNode 显示或隐藏。
+RotateBy 旋转 CocosNode 一定角度。
+MoveTo 将 CocosNode 移动到指定位置。
+ScaleTo 按比例缩放 CocosNode。
+FadeTo 设置 CocosNode 的透明度。
+使用方式如下（部分动作的构造器参数略有不同，请查阅文档）：
+[parentNode do:[ScaleTo actionWithDuration:.1 scale:1.5]];
+[parentNode do:[MoveTo actionWithDuration:0.5 position:cpv(50,100)]];
+Director 负责管理当前可见的内容、正在运行的场景、游戏时间是否推进等。
+常用方法有：
+// 它是单例
+Director * d = [Director sharedDirector];
+// 管理游戏
+[d pause];
+[d resume];
+[d end];
+// 管理场景
+Scene * s = [Scene node];
+[d runScene:s]; // 开始场景中的时间流逝
+[d popScene];
+[d pushScene:s];
+[d replaceScene:s]; // 性能推荐用法
+Layer 是容纳一个或多个 CocosNode 的容器。
+作为 CocosNode 的子类，它用于将应用的不同部分分组。例如，你会有一个主菜单 Layer、游戏 Layer（至少一个，根据游戏复杂度可能会有多个）、暂停菜单 Layer 等等。
+用法与 CocosNode 相同，只是初始化时使用 [Layer node] 而不是 [CocosNode node]。
+这也是一个你会经常继承的类。
+Scene 是包含一个或多个 CocosNode 的集合，通常会包含若干 Layer。它们被传递给 Director 来决定当前游戏中可见和发生的内容。
+Scene * myScene = [Scene node];
+Sprite * bg = [Sprite spriteFromFile:@&quot;background.png&quot;];
+bg.position = cpv(200, 600);
+[myScene add:bg z:0];
+Layer * myLayer = [MyCustomLayer node];
+[myScene add:myLayer z:0];
+[[Director sharedDirector] runScene:myScene];
+Label 用于渲染文字，它让这个过程比 iPhone 上其他文字渲染方案简单得多。
+Label * name = [Label labelWithString:@&quot;Name&quot; dimensions:CGSizeMake(90,64) alignment:UITextAlignmentCenter fontName:@&quot;Helvetica&quot; fontSize:10];
+name.position = cpv(100,200);
+[someNode add:name];</div>
+      
+    
+      
+        <p>Cocos2d 中当然还有其他许多类，但上面这些大概是你创造有趣作品时需要交互的全部了。</p>
+      
+    
+      
+        <p>接下来是一些专题代码片段。</p>
+      
+    
+      
+        <h2>片段 1：创建一个菜单</h2>
+      
+    
+      
+        <h2>片段 2：指挥 Director</h2>
+      
+    
+      
+        <p>你的应用委托需要承担一些职责，来告知 Director 特殊事件的发生。具体来说，它需要知道何时开始、暂停、恢复和退出。</p>
+      
+    
+      
+        <p>最简单的实现这四个通知的方式大致如下（代码应放在你的应用委托中）：</p>
+      
+    
+      
+        <h2>片段 3：在 CocosNode 上检测点击</h2>
+      
+    
+      
+        <p>这是一个相对复杂的话题，因为具体处理方式完全取决于你如何设计用户界面，但本质上有两种方法：</p>
+      
+    
+      
+        <div class="list-content">为所有需要响应点击的对象重写标准的 UIEvent touches 方法。
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event;
+- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event;
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event;
+或者只为一个对象（通常是 Layer 的子类）重写 touches 方法，让它作为所包含所有对象的 UI 管理器。</div>
+      
+    
+      
+        <p>第一种方法更简单，但灵活性较差（难以管理事件传递和其他自定义逻辑）。而第二种方法工作量更大，也不太适合以代码片段的形式展示。</p>
+      
+    
+      
+        <p>第一种方法的大致实现如下（在 CocosNode 子类的实现文件中）：</p>
+      
+    
+      
+        <p>目前这些就是我的指导性笔记了。我会尽快写一篇更全面的文章。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>清理 erlang_markdown · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>清理 erlang_markdown</h1>
+    <div class="meta">
+      2009-10-10 · 
+      <a href="https://lethain.com/cleaning-up-erlang_markdown/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>又花了几个小时后，erlang_markdown 已经清理得相当不错，并且几乎支持了 Markdown 规范的所有特性，除了多行标题语法。你可以查看当前的测试套件来了解它的完整性。</p>
+      
+    
+      
+        <p>这里我将讨论并反思这个脚本的设计，最后再看看如何对该库进行性能调优。</p>
+      
+    
+      
+        <h2>单遍解析</h2>
+      
+    
+      
+        <p>从一开始，这个项目的目标就是创建一个单遍 Markdown 解释器。比我更厉害的人无疑能为这种方法给出充分理由，而我只是恰好想用这种方式。既然已经这么做了，下面是一些关于使用单遍还是多遍方法将 Markdown 转换为 HTML 的思考：</p>
+      
+    
+      
+        <div class="list-content">语言越不规则，编写单遍解释器就越痛苦。特别是那些带有隐式终止的语言，会给单遍方法带来问题。解析不规则语言的单遍解释器会变得更加复杂、更加脆弱，并且比多遍解析器更难扩展。Markdown 既不规则，又有隐式终止。单遍方法允许流式处理，因此可以做到常量内存占用。大多数 Markdown 的使用场景并不适合流式处理（例如为网站渲染评论、博客文章、笔记等），而是期望传入一个完整的字符串或二进制数据，并返回完整的翻译结果。</div>
+      
+    
+      
+        <p>考虑到上述看法，从长期可持续性和灵活性的角度来说，我始终推荐采用多遍方法而不是单遍方法。只有在多遍方法已被证明性能不足的情况下（例如处理海量 XML 文档时，DOM 解析因内存消耗而变得不可行，这时才会使用 SAX 解析），才应该尝试单遍方法。</p>
+      
+    
+      
+        <p>或者你的系统本来就是基于流式数据处理的。又或者你只是觉得无聊。</p>
+      
+    
+      
+        <p>erlang_markdown 的实际实现相当直截了当，尽管里面充满了足够多的特殊情况，足以让读者崩溃。核心函数包括：</p>
+      
+    
+      
+        <p>markdown:line_start/5 在每一行的开头被调用，负责管理所有多行结构，比如段落、列表、引用块和预格式块。MultiContext 包含一个由打开的多行标签（ul、ol、li、p、pre、blockquote 等）组成的栈。</p>
+      
+    
+      
+        <p>line_start/5 无疑是代码中最丑陋的部分，因为它需要负责检测多级缩进的终止（将缩进深度与 MultiContext 栈中打开的 ol 和 ul 标签数量进行比较），以及其他逻辑，比如判断一行没有任何语法标记时，应该被视为新段落、继续的段落，还是属于已打开的 li 标签的一部分。</p>
+      
+    
+      
+        <p>markdown:single_line/5 负责在所有多行语法被剥离后渲染一行。例如，* *this is a test* 在到达 single_line/5 之前，就已经被简化成了 *this is a test*。</p>
+      
+    
+      
+        <p>它使用 LinkContext 来存储之前使用 [test]: http://test.com/ &quot;test&quot; 语法声明的链接。在研究了 xmerl:eventp 之后，我会将函数定义重新实现为使用属性列表或记录的形式。</p>
+      
+    
+      
+        <p>当前的方法使得扩展 erlang_markdown 变得极其别扭，而使用属性列表或记录能显著改善这一点。目前可能还没有强烈的动机去做这个重构，但如果/当我进行第三次重写时，这将会是核心部分。</p>
+      
+    
+      
+        <h2>性能调优</h2>
+      
+    
+      
+        <p>我在 Erlang 性能方面学到的一个深刻教训是：空谈无用。关于调优 Erlang 应用性能，有大量通用建议——其中很多也确实普遍适用——但在你真正写出代码并生成一些实际数据之前，很难区分哪些是真实开销，哪些只是想象中的开销。</p>
+      
+    
+      
+        <p>（当然，这一点在任何语言中都成立，但我——也许是因为相对缺乏经验——发现那些提供 Erlang 性能建议的人中存在大量困惑。）</p>
+      
+    
+      
+        <p>我使用以下函数来生成长度可变的测试输入。</p>
+      
+    
+      
+        <p>在性能分析中，我使用了 markdown_tests:test_performance/1 函数：</p>
+      
+    
+      
+        <p>它首先生成测试字符串，然后将拼接后的字符串传给 markdown:markdown/1 函数。每个测试运行 Run 次（默认是 10 次），最后输出平均结果。当然，计算标准差、识别并排除异常值等会更有意思，但我决定不搞得太复杂。</p>
+      
+    
+      
+        <p>现在，让我们看看最初的性能数据：</p>
+      
+    
+      
+        <p>这个性能看起来相当不错，这让我感到有些惊讶，因为我本来很担心使用下面这种收集 HTML 片段的写法：</p>
+      
+    
+      
+        <p>“先前置再反转”的收集方式在 Lisp 代码中很常见，但将二进制片段合并成单个二进制的这种别扭做法绝对不是标准做法。</p>
+      
+    
+      
+        <p>因此，我第一次优化的尝试是去掉转成列表的操作，转而尝试下面这个算法：</p>
+      
+    
+      
+        <p>结果是：</p>
+      
+    
+      
+        <p>经过简单处理后，我们可以对比这些数字，看看它们的表现如何。</p>
+      
+    
+      
+        <p>总体来说，不进行转换的方法（第二种）略快一些，虽然并非在所有情况下都是如此。这表明二进制转字符串的开销并不算特别大。</p>
+      
+    
+      
+        <p>接下来我很好奇，如果测试传入的是字符串而不是二进制，会对性能造成多大惩罚，因为代码总是会把列表输入转换为二进制：</p>
+      
+    
+      
+        <p>将测试改为使用二进制后，我重新运行了测试（使用第二版，即二进制拼接而不是转成列表再拼接）：</p>
+      
+    
+      
+        <p>与第二次运行的对比结果如下：</p>
+      
+    
+      
+        <p>看起来——虽然我强烈建议进行比这严格得多的测试——将字符串转换为二进制的开销不算太大，但也不能完全忽略。</p>
+      
+    
+      
+        <p>我接下来的想法是，考察如果在处理过程中逐步聚合二进制，而不是在处理完所有数据后再聚合，是否会有显著改进，于是上面的公式可以简化为：</p>
+      
+    
+      
+        <p>然而这个改动涉及相当多的代码修改，所以我决定不在 erlang_markdown 的代码上进行测试。它应该能稍微改善内存占用，但我怀疑整体提升会比较有限。</p>
+      
+    
+      
+        <p>总之，以大约每秒 400 万字符的速度，erlang_markdown 已经足够快，适用于我能想象到的任何使用场景。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

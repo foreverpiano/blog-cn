@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>干净优雅地扩展 Python Markdown 以支持语法高亮 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>干净优雅地扩展 Python Markdown 以支持语法高亮</h1>
+    <div class="meta">
+      2008-01-09 · 
+      <a href="https://lethain.com/cleanly-extending-python-markdown-syntax-highlight/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>当我刚开始搭建自己的博客时，最先着手的事情之一就是为文章添加代码语法高亮功能。我甚至还为此写过一篇比较粗糙的文章。</p>
+      
+    
+      
+        <p>整个挑战的核心在于扩展 Markdown，让它支持一种能标记需要高亮代码块的语法。我到现在依然很喜欢自己选择的语法：</p>
+      
+    
+      
+        <pre><code>def add(a, b):
+    return a + b
+</code></pre>
+      
+    
+      
+        <p>它并不花哨，但足以完成任务。然而，我第一次尝试扩展 Python-Markdown 来正确渲染这种语法时，写得相当糟糕。虽然它能跑，也确实能用，但它在运行过程中严重破坏了整个 Python-Markdown 库。</p>
+      
+    
+      
+        <p>在某些情况下这或许可以原谅，但 Python-Markdown 的开发者已经特意设计了良好的扩展机制……所以我当时感觉挺糟心的。随着我持续投入精力改进博客软件，我决定是时候解决之前留下的这个烂摊子了。</p>
+      
+    
+      
+        <p>让我们开始吧。</p>
+      
+    
+      
+        <h2>第一步：获取一份新的 Markdown 副本</h2>
+      
+    
+      
+        <p>我之前修改过的 Markdown 副本已经残破不堪，所以我得重新弄一份干净的。同时你还需要顺便安装一份 Pygments。</p>
+      
+    
+      
+        <h2>第二步：动手写代码</h2>
+      
+    
+      
+        <p>Markdown 库中有一个功能完整的示例（搜索 FOOTNOTE 就能找到），这简直是救星。每当你感到困惑时，就去看看那个例子寻求指引。</p>
+      
+    
+      
+        <p>现在我们需要新建一个模块来存放我们的代码。它不应该（也不适合）直接写在 markdown.py 里。我把它命名为 code.py，并放在一个叫 markup 的文件夹中。如果你把它放在名称没那么明显的文件夹里，最好起一个更清晰的名字。</p>
+      
+    
+      
+        <p>你首先需要编写的是一个预处理器。预处理器需要定义一个函数：</p>
+      
+    
+      
+        <p>Markdown 库会按照 &quot;\n&quot; 对所有行进行拆分，然后把结果传给你。如果你想把文本当作一个整体来处理，就需要自己重新拼接：</p>
+      
+    
+      
+        <p>所以我们的类将命名为 CodeBlockPreprocessor（名字挺直白的，我知道），它将包含以下 run 方法：</p>
+      
+    
+      
+        <p>我们逐行遍历文本，寻找代码块的开始标记（一行开头连续两个 @ 符号）。找到之后就忽略后续内容，直到遇到结束标记（如果没有结束标记，那么开始标记之后的所有内容都会被丢弃……虽然有点粗暴，但至少不会让不该出现的内容溜进来）。然后我们使用 Pygments 对开始和结束标记之间的代码进行着色，使用的 lexer 由代码块开头的第一行指定（例如 @@ ruby 就使用 ruby lexer，@@ html+django 就使用 html+django lexer）。</p>
+      
+    
+      
+        <p>完成 run 方法之后，我们只需要再写一些通用代码，很快就能得到一个干净整洁的 Python-Markdown 扩展。</p>
+      
+    
+      
+        <p>首先我们需要在文件顶部引入一些模块：</p>
+      
+    
+      
+        <p>然后我们需要写一个简单的类，用来管理我们的新预处理器。</p>
+      
+    
+      
+        <p>这个类非常简单。你接收一个 Markdown 类的实例，然后把 CodeBlockPreprocessor 的实例添加到它的预处理器列表中（放在 HTML_BLOCK_PREPROCESSOR 之前）。</p>
+      
+    
+      
+        <p>最后，我们需要写一个函数，用我们的新预处理器来调用 markdown。</p>
+      
+    
+      
+        <p>我们创建一个 Markdown 实例，添加我们的扩展，然后就可以渲染了。如果需要，我们也可以让它接受命令行参数：</p>
+      
+    
+      
+        <p>虽然第一次修改 Python-Markdown 时感觉付出了远超必要的努力，但它确实是一个设计优秀的库，也是“如何设计让他人能够干净地扩展”的好范例。有空的时候可以去读读它的源码。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

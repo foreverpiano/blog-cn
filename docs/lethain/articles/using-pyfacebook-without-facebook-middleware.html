@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在不使用 Facebook middleware 的情况下使用 PyFacebook · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在不使用 Facebook middleware 的情况下使用 PyFacebook</h1>
+    <div class="meta">
+      2007-11-30 · 
+      <a href="https://lethain.com/using-pyfacebook-without-facebook-middleware/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近我一直在尝试使用 PyFacebook 来创建一个 Facebook 应用。在开发的早期阶段，我遇到了一个小难题：如何在不使用 PyFacebook middleware 的情况下，在 Django 中使用 PyFacebook？</p>
+      
+    
+      
+        <p>这并不是一个无关紧要的问题，因为 PyFacebook middleware 对于那些不直接与 Facebook 通信的视图来说只是多余的代码，对于某些即使直接与 Facebook 通信的视图（例如使用 FBJSM Ajax 对象发出的请求）也不太合适。</p>
+      
+    
+      
+        <p>那么，废话不多说，让我们来看看如何在不使用 middleware 的情况下，在 Django 中使用 PyFacebook。</p>
+      
+    
+      
+        <p>你需要将 PyFacebook 库导入到你的 views.py 文件中才能使用下面的示例。如果你已经将 PyFacebook 库安装到 Python 路径中，导入语句会是这样的：</p>
+      
+    
+      
+        <h2>将 Facebook 实例添加到 request 中</h2>
+      
+    
+      
+        <p>我们首先要解决的问题，是如何将 Facebook 实例添加到传递给视图的 request 中。</p>
+      
+    
+      
+        <p>用法非常简单：</p>
+      
+    
+      
+        <p>add_fb_instance 函数会在 request.facebook 上添加一个 Facebook 实例。由于这就是 PyFacebook middleware 所做的全部工作，我们已经重新实现了它的大部分功能。不过我们可能还想要更多功能，比如强制用户在访问视图前必须登录。</p>
+      
+    
+      
+        <h2>要求用户登录</h2>
+      
+    
+      
+        <p>要求用户登录我们的应用也非常直接。</p>
+      
+    
+      
+        <p>使用 require_fb_login 函数的方法如下：</p>
+      
+    
+      
+        <p>如果用户尚未登录，这段代码会将用户重定向到应用的登录页面。注意，如果 request 中还没有 Facebook 实例，它会自动添加一个。因此无需显式调用 add_fb_instance(request)（但建议还是调用一下，因为这样能更清楚地表明 request 中已添加了 Facebook 实例）。</p>
+      
+    
+      
+        <h2>使用 Facebook 实例来完成操作</h2>
+      
+    
+      
+        <p>好了，现在我们已经把 Facebook 实例附加到了 request 上……但它们能为我们做什么呢？让我们来一探究竟。我们将创建一个模型来存储已登录用户的信息，并使用 Facebook 实例来为模型填充一些数据。</p>
+      
+    
+      
+        <p>让我们来定义模型：</p>
+      
+    
+      
+        <p>好了，一个简单的模型。现在，我们创建一个函数，它接收一个 Facebook 实例，获取或创建对应的 User 模型实例，并使用来自 Facebook 的数据填充 name 字段。</p>
+      
+    
+      
+        <p>这里我们使用 Facebook Query Language（FQL）来获取信息。FQL 的优点在于你可以编写非常复杂的查询，而且上面这个例子足以让你学会如何通过 PyFacebook 获取其他数据：只需写一个新的 FQL 查询，并以相同方式调用即可。</p>
+      
+    
+      
+        <p>调用 facebook.fql.query(your_query) 会返回一个字典列表。由于我们调用的查询只会返回一个结果（用户的 user id），所以我们直接取第一个结果，但在其他查询中你可能需要更仔细地处理结果（通常是遍历所有结果）。</p>
+      
+    
+      
+        <p>现在，让我们看看如何使用 get_fb_user 函数：</p>
+      
+    
+      
+        <p>注意，我们需要在使用 request.facebook 实例获取用户之前，先调用 add_fb_instance(request)（在调用该函数之前，facebook 实例是不存在的）。</p>
+      
+    
+      
+        <h2>将所有内容整合起来</h2>
+      
+    
+      
+        <p>好了，现在来看一个稍微复杂一点的例子，它用到了我们前面编写的所有功能，还加入了一些其他内容。</p>
+      
+    
+      
+        <p>这个视图还会接收一个 &#x27;id&#x27; 参数。因此 urls.py 大概是这样的：</p>
+      
+    
+      
+        <p>由于 URL 中的正则表达式只允许数字，我们可以直接对 id 调用 int() 函数（不过完全忽略错误处理仍然不是一个好主意）。</p>
+      
+    
+      
+        <p>首先我们向 request 添加一个 Facebook 实例，然后验证用户是否已登录 Facebook。如果没有登录，就将他们重定向到我们应用的登录页面。接着我们获取与当前已登录 Facebook 用户关联的 User 实例。然后使用传入的 id 来获取或创建一个 club。</p>
+      
+    
+      
+        <p>接下来我们检查该用户是否是俱乐部的管理员之一。最后我们向模板渲染器传递大量额外上下文（包括 user、club 以及用户是否为俱乐部管理员）。</p>
+      
+    
+      
+        <p>就是这么简单。</p>
+      
+    
+      
+        <p>如果你有任何问题，欢迎告诉我。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

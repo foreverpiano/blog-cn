@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stripe 为什么开发 Sorbet？（~2017） · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Stripe 为什么开发 Sorbet？（~2017）</h1>
+    <div class="meta">
+      2025-04-17 · 
+      <a href="https://lethain.com/stripe-sorbet/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>2010 年代的许多高速增长公司都通过来应对代码库日益增加的复杂性。Stripe 则是个例外，它将分解工作推迟了很久，直到工程师人数超过三千人、核心 Ruby 单体代码库也积累了十年的开发历史。即使到现在，他们产品的大部分代码仍然维护在同一个单体仓库中。可以说，这一切之所以成为可能，完全得益于 Sorbet 的影响。<a href="decompose-monolith-strategy.html">我们是否应该分解单体架构？</a></p>
+      
+    
+      
+        <p>Sorbet 是 Stripe 产品基础设施团队的工程师专门设计和实现的 Ruby 静态类型检查器。Stripe 的 Product Infrastructure 团队与其他公司的 Developer Experience 或 Developer Productivity 团队目标相似，但更侧重于通过改进代码库自身的内部架构来提升生产力，而不是仅仅依赖外部工具或流程。</p>
+      
+    
+      
+        <p>这一策略解释了 Stripe 为什么能长期推迟代码库分解，以及产品基础设施团队如何通过投入提升开发者生产力，来应对一个由大量软件工程师维护的大型 Ruby 代码库所面临的挑战——由于快速招聘导致团队平均任职年限较低。</p>
+      
+    
+      
+        <p>在结束这段引言之前，我想明确说明，这一策略是由 Stripe 的 Product Infrastructure 团队主导推动的，并非出自我的手笔。虽然我最终负责了这个团队，但我不能将这一策略的思考归功于自己。实际上，我最初对这个方向持怀疑态度，更倾向于逐步迁移到已有的强类型编程语言——要么选择 Java 以获得更好的库支持，要么选择 Golang，因为 Stripe 团队已经比较熟悉。尽管我一开始持保留意见，但 Sorbet 项目最终以无可争议的成果说服了我。</p>
+      
+    
+      
+        <p>这是《Crafting Engineering Strategy》中的一章。</p>
+      
+    
+      
+        <h2>如何阅读本文档</h2>
+      
+    
+      
+        <p>要应用这一策略，请从顶部的 Policy（策略）开始阅读。要理解这一策略背后的思考，请按相反顺序阅读，从 Explore（探索）部分开始。</p>
+      
+    
+      
+        <p>关于这种文档结构的更多细节，请参阅<a href="readable-engineering-strategy-documents.html">让工程策略文档更具可读性</a>。</p>
+      
+    
+      
+        <h2>策略与执行</h2>
+      
+    
+      
+        <p>产品基础设施团队正通过以下方式投资 Stripe 的开发者体验：</p>
+      
+    
+      
+        <div class="list-content">每六个月，产品基础设施团队将选出三个最高优先级的领域进行重点投入，并将大部分精力集中于这些领域。对其他领域我们只提供最低限度的支持。我们承诺在每次开发者生产力调查结束后更新我们的优先级，并在每个季度业务回顾（Quarterly Business Review）中分享我们的成果和优先级。本半年的三个最高优先级领域是：为 Ruby 代码库中价值最高的部份添加静态类型，以便我们能在本地和测试机器上运行类型检查器，从而更快地发现错误。支持选择性测试执行，让工程师能快速判断并在本地运行最合适的测试，而不是等到测试在构建服务器上运行后再处理。对测试失败进行 instrumentation，以便我们获得更好的数据来优先安排未来的工作。静态类型并不是提升开发者生产力的常见方案，因此当我们说这是最高优先级的投资领域时，需要一些解释。更何况我们也承认，这项工作需要投入团队大量时间，大约 12-24 个月才能让类型检查器达到实用状态。我们计划将其命名为 Sorbet 的类型检查器，将允许我们继续在现有的 Ruby 代码库中进行开发。它还能让产品工程师继续专注于开发新功能，而不是将现有功能迁移到新的服务或编程语言。相反，我们的产品基础设施团队将集中负责类型检查器的开发以及在代码库中的初步推广。尽管团队规模固定，但产品基础设施团队有能力同时承担这两项工作。我们将采用混合方法：对特别复杂的区域进行深度投入手工添加类型，而对较简单的部分则通过脚本重写代码的抽象语法树（AST）来完成。在这种方法失败的可能性相对较低的情况下，Stripe 承担的成本规模明确且可控：大约是产品基础设施团队一半人力投入六个月，这也是我们预期用来验证该方案是否可行的时间。根据我们对 Facebook Hack 项目的了解，我们相信可以构建一个能在本地运行、速度远超现有测试套件的静态类型检查器。虽然现在很难给出精确的估计，但我们认为即使代码库规模相当大，类型检查整个代码库所需时间也能控制在 30 秒以内。这将带来极高的本地开发体验，即使我们无法加速本地测试也依然如此。而且即使我们确实加快了本地测试，静态类型还能帮助我们消除测试一直无法消除的一类错误——即在经过测试的预期场景下，代码路径之间传递了不符合预期的类型。一旦类型检查器经过验证，我们就可以逐步优先为代码库中价值最高的区域添加类型。我们无需将整个代码库全部加上类型，就能开始获得显著的价值。为了支持这些静态类型工作，我们将鼓励 Stripe 的产品工程师开始采用 Command Query Responsibility Segregation（CQRS）设计模式，我们相信这能提供高杠杆的接口，便于逐步向代码库引入静态类型。选择性测试执行将允许开发者快速在本地运行合适的测试。这能帮助工程师保持紧凑的本地开发循环，从而加快高质量代码的开发。由于我们的代码库目前尚未采用静态类型，推断需要运行哪些测试相当具有挑战性。但凭借我们极高的测试覆盖率，以及所有测试在部署到生产环境前仍会全部执行的事实，我们相信可以依赖统计推断来确定当某个文件被修改时，哪些测试最有可能失败。对测试失败进行 instrumentation 是我们本半年第三优先级、也是优先级最低的项目。本半年的重点仅在于为那些我们对错误来源有高度信心的错误添加标注，无论是基础设施问题还是测试本身的问题。如有升级处理或问题，请在 #product-infra 频道联系我们。</div>
+      
+    
+      
+        <h2>诊断</h2>
+      
+    
+      
+        <p>2017 年，Stripe 是一家约有 1000 名员工的公司，其中包括 400 名软件工程师。我们计划以每年约 70% 的速度扩大组织规模，以满足更广泛产品组合日益增长的需求，并扩展现有产品和基础设施以支持用户增长。随着过去几年生产稳定性的提升，我们现在将重点转向改善开发者生产力。</p>
+      
+    
+      
+        <p>我们对当前开发者生产力的诊断如下：</p>
+      
+    
+      
+        <div class="list-content">我们主要通过产品基础设施团队为编写 Ruby 的软件工程师提供开发者生产力支持。该团队中专注 Ruby 的部分目前约有十名工程师，未来不太可能显著扩张。（如果确实要扩张，我们可能会增加对 Scala 或 Golang 等非 Ruby 生态系统的支持。）我们有两种主要机制来了解工程师的开发者体验。第一种是围绕部署时间、部署稳定性、测试覆盖率、测试耗时、测试不稳定性等标准生产力指标。第二种是每年两次的开发者生产力调查。从生产力指标来看，我们的测试覆盖率仍然极高，行覆盖率超过 99%，但本地运行测试速度很慢。在我们的基础设施中测试运行较快，因为它们被并行分发到大量测试执行机器上。本地测试已变得足够慢，以至于越来越多的开发者只运行过于狭窄的测试子集，或者完全跳过本地测试，直到推送变更后再依赖测试服务器对 pull request 分支运行测试。这种方式效果还算可以，但显著减慢了开发者的迭代速度，因为合并、构建和测试的完整周期需要 20 到 30 分钟。当构建-测试周期完成时，他们已经失去了专注力，可能需要几个小时才能重新投入处理结果。对于测试是否因为测试基础设施问题或测试本身的质量问题而变得越来越不稳定，团队内部存在较大分歧。目前还没有可信的数据集能让我们在这两个原因之间做出归因。每半年一次的开发者生产力调查反馈支持了上述诊断，并增加了一些细微差别。最令人担忧的是，虽然在 Stripe 工作多年的老员工觉得自己能在我们的代码库中保持高生产力，但调查中越来越多在其他公司有多年工作经验的新员工表示，他们在我们的代码库中感到效率低下。具体来说，他们发现很难判断如何安全地对代码库进行修改。我们的产品代码库完全是用一个 Ruby 单体应用实现的。只有一个很小的例外，即处理支付 tokenization 的 Golang 服务，我们认为它不在讨论范围内，原因有二。首先，它被有意保持得很小，以承担我们的 SOC1 合规义务。其次，在该环境中工作的开发者并未提出生产力方面的担忧。我们的数据基础设施使用 Scala 实现。虽然这些开发者也有顾虑——主要是构建时间过长——但他们独立管理自己的构建和部署基础设施，而且该团队规模相对较小。Ruby 并不是一种高性能的编程语言，但我们发现它足以满足我们的需求。同样，其他语言在计算资源成本上可能更划算，但我们大部分的支出都花在实时存储和批量计算上。仅出于这些原因，我们就不会考虑替换 Ruby 作为核心编程语言。我们的产品基础设施团队约有十名工程师，支持约 250 名产品工程师。我们预计这个团队会随着时间适度增长，但增长速度肯定会低于产品工程师整体的增长速度。使用 Golang 和 Scala 的开发者经常要求更多集中支持，但我们很难优先考虑这些请求，因为我们必须权衡为 240 名使用 Ruby 的产品工程师改进体验，与为 10 名 Golang 工程师或 40 名 Scala 数据工程师改进体验之间的回报。如果引入更多编程语言，这个优先级排序问题会变得越来越困难，而我们实际上已经难以支持额外的语言了。</div>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

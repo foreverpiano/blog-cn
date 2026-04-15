@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>双面 Django 第四部分：Web 应用 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>双面 Django 第四部分：Web 应用</h1>
+    <div class="meta">
+      2007-12-09 · 
+      <a href="https://lethain.com/two-faced-django-implementing-most-webapp/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <div class="list-content">你可以在此找到该项目的在线演示版本，包括 Web 和 Facebook 两种界面。</div>
+      
+    
+      
+        <p>好了，我们已经编写了模型、测试，甚至还有表单，但目前还没有任何实际的功能。不过别担心，我们马上就要改变这一点。</p>
+      
+    
+      
+        <p>在本段教程中，我们将实现大部分 Web 应用功能（它只是用户与核心应用之间的一个中间层，核心应用中包含了我们最基本的功能）。实际上，除了 Ajax 相关的部分之外（我们将在下一部分实现），其他内容我们都会实现：很快我们就会有一个可以在浏览器中实际使用的应用了。</p>
+      
+    
+      
+        <h2>编写 web/urls.py 文件</h2>
+      
+    
+      
+        <p>现在我们要在 polling/web 文件夹中创建一个新文件：urls.py。</p>
+      
+    
+      
+        <p>并且要在文件顶部添加两个导入语句：</p>
+      
+    
+      
+        <p>我们要为 Web 项目创建三个不同的 URL 模式：一个用于查看投票列表，一个用于查看特定投票，还有一个用于创建投票。代码看起来会是这样的：</p>
+      
+    
+      
+        <p>观察代码，我们使用了名为 generic views 的机制来避免编写重复的模板代码。对于这些视图，我们唯一需要自行编写的是要渲染的模板。</p>
+      
+    
+      
+        <h2>调整我们的模板（适配通用视图）</h2>
+      
+    
+      
+        <p>我们正在编辑的 urls.py 文件位于 *web 应用中，用于表示 Poll 模型，因此列表和详情的通用视图（默认情况下，此行为可被覆盖）将会去 web/poll_list.html 和 web/poll_detail.html* 中查找模板。</p>
+      
+    
+      
+        <p>在创建这些模板之前，我们需要先准备一个基础模板，让所有 Web 模板都能继承它。我们将把它放在 polling/templates/web/base.html，内容大致如下：</p>
+      
+    
+      
+        <p>保存该文件后，现在我们来编写一个非常简单的模板，用于展示 Poll 对象列表。在 polling/templates/web/poll_list.html 创建一个文件，内容如下：</p>
+      
+    
+      
+        <p>接下来是一个同样简单的模板，用于显示单个 Poll 对象：</p>
+      
+    
+      
+        <p>（我们将在本系列的下一部分处理向上和向下投票的功能（通过 JQuery JavaScript 库实现），目前我们先忽略还不能投票的事实。这只是个小细节……）</p>
+      
+    
+      
+        <h2>一个稍微不那么通用的视图</h2>
+      
+    
+      
+        <p>现在我们需要再实现一个视图，这个视图不是通用的，因此我们得自己写一点代码。它将是我们的“创建新投票”视图。之前在 web/urls.py 文件中我们已经说明了它的位置，让我们先快速看一下 web/urls.py 文件。</p>
+      
+    
+      
+        <p>没错。它将被放在 polling/web/views.py 文件中一个名为 create 的函数里。在编写代码之前，让我们简单思考一下这个视图应该做什么。有两件事：允许用户创建新投票，以及当用户试图创建无效投票时（在本例中指与之前已创建的投票提出相同的问题）进行提示。</p>
+      
+    
+      
+        <p>首先让我们打开 web 应用中的 views.py 文件。</p>
+      
+    
+      
+        <p>现在我们来为文件添加一些导入语句</p>
+      
+    
+      
+        <p>我们将使用 *PollForm 来渲染和验证创建新投票的表单。我们需要 Poll 模型，以便在表单有效时创建新的实例；我们还需要 direct_to_template* 来渲染即将为这个视图创建的模板（它位于 templates/web/create.html，不过不用担心，我们马上就会编写它）。</p>
+      
+    
+      
+        <p>我们的视图代码会有一些简单的逻辑：</p>
+      
+    
+      
+        <div class="list-content">检查是否附加了 POST 数据。如果有 POST 数据，尝试用它创建一个 PollForm。如果新的 PollForm 有效，则创建一个新的 Poll 并重定向到主页。如果新的 PollForm 无效，则将用户返回到同一页面，并显示所有错误信息。如果没有 POST 数据，则显示一个空白表单供用户描述他们的新投票。</div>
+      
+    
+      
+        <p>在 Python 中，它看起来会像这样：</p>
+      
+    
+      
+        <p>现在我们只需要编写一个简短的模板来显示我们的 web.create 视图，然后就大功告成了。</p>
+      
+    
+      
+        <p>让我们打开模板文件</p>
+      
+    
+      
+        <p>我们的模板看起来会是这样的：</p>
+      
+    
+      
+        <p>至此本部分结束。</p>
+      
+    
+      
+        <h2>测试我们的新代码</h2>
+      
+    
+      
+        <p>为这类代码编写单元测试会稍微困难一些。你可以编写代码来验证每个网页是否返回了预期内容，也可以接入 HTML 验证器来确认页面返回的是有效的 HTML。你甚至可以编写一些多步交互。关键是要确保你的测试能够承受模板发生少量变化。</p>
+      
+    
+      
+        <p>我们不会在这里明确编写这些测试，但自己实践一下是个不错的主意。另一方面，我们会用浏览器做一些快速的非正式测试，以确保这些功能正确地整合在了一起。</p>
+      
+    
+      
+        <p>首先我们需要为项目同步数据库：</p>
+      
+    
+      
+        <p>系统会提示你创建一个超级用户。请继续创建。数据库同步完成后，接下来我们要运行开发服务器：</p>
+      
+    
+      
+        <p>现在让我们启动浏览器，访问 http://127.0.0.1:8000/create/。我们要先创建一个投票，因为如果还没有任何投票，我们的通用视图会报错（如果这个行为真的让我们很烦，我们可以在 web/urls.py 中修改它）。</p>
+      
+    
+      
+        <p>先创建一个投票，它应该会将你重定向到投票列表。然后返回去尝试用相同的问题再创建一个投票。它应该会显示一条错误消息，说明这个投票已经被创建过了。很好。</p>
+      
+    
+      
+        <p>返回到投票列表页面，点击其中一个投票，确保它的表现合理（显示我们投票的一些简短信息）。</p>
+      
+    
+      
+        <p>本教程当前开发进度的快照可在此[下载][polling4]。当你准备好时，欢迎随时继续本教程的第五部分。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

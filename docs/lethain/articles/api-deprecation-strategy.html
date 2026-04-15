@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stripe 应该如何弃用 API？（~2016 年） · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Stripe 应该如何弃用 API？（~2016 年）</h1>
+    <div class="meta">
+      2025-04-24 · 
+      <a href="https://lethain.com/api-deprecation-strategy/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>虽然 Stripe 因推出  等举措而广受赞誉，但我个人认为，Stripe 最有趣的战略举措也是最微妙的一个：它愿意显著优先考虑 API 的稳定性。<a href="stripe-sorbet.html">Stripe 为什么开发 Sorbet？（~2017）</a></p>
+      
+    
+      
+        <p>这种战略在外部几乎难以察觉。在公司内部，围绕它的讨论频繁且细致，但大多局限于专门的 API 设计对话中。API 稳定性不仅仅是一种技术设计偏好，更是 API 驱动型业务的一项基础性决策，我相信它是 Stripe 业务成功中被低估的关键因素之一。</p>
+      
+    
+      
+        <p>这是《Crafting Engineering Strategy》中的一章。</p>
+      
+    
+      
+        <h2>阅读本文档</h2>
+      
+    
+      
+        <p>要应用此战略，请从顶层的 Policy（政策）开始。要理解这一战略背后的思考，请按逆序阅读各部分，从 Explore（探索）开始。</p>
+      
+    
+      
+        <p>关于这种结构的更多细节，请参阅 <a href="readable-engineering-strategy-documents.html">让工程策略文档更具可读性</a>。</p>
+      
+    
+      
+        <h2>政策与运营</h2>
+      
+    
+      
+        <p>我们管理 API 变更的政策如下：</p>
+      
+    
+      
+        <div class="list-content">设计长生命周期的 API。
+API 本身并不具备持久性。我们必须经过深思熟虑的设计，才能确保它们能够支持未来的变化。
+在设计新的 API 时，先构建一个不使用该 API 的测试应用，然后迁移到新 API 上。
+考虑随着应用变化，集成方式可能会如何演进。亲自执行这些迁移，以了解你的 API 可能带来的摩擦。
+然后思考未来我们可能在自己这边想要实施的变化。这些变化会对 API 产生什么影响？又会对你开发的应用产生什么影响？此时，将你的 API 提交给 API Review 进行初步批准（如下所述）。
+获得批准后，找几个早期采用的公司，它们能对你的 API 设计施加更多压力，并在最终发布稳定 API 之前与它们一起测试。
+所有新增和修改的 API 都必须经过 API Review 的批准。
+在获得 API Review 批准之前，不得向客户启用 API 变更。
+变更请求应发送至 api-review 邮件组。
+如需参考先例，可查看 api-review 存档中的历史请求及其收到的反馈。
+所有请求都必须包含书面提案。
+大多数请求将由 API Review 的成员异步批准。
+复杂或有争议的提案需要进行现场讨论，以确保 API Review 成员在决策前有足够的上下文。
+除非有无法避免的强制性需求，否则我们绝不弃用 API。
+即使维护支持在技术上代价高昂，我们也会承担该支持成本。
+明确地说，我们将 API 弃用定义为任何需要客户修改现有集成的变更。
+如果此类变更作为政策例外被批准，则必须先经 API Review 批准，随后由我们的 CEO 批准。
+我们曾批准过的一个例外是，由于 PCI 合规义务而弃用 TLS 1.2 支持。
+当需要引入重要的新功能时，我们会新增一个 API。
+例如，我们创建了 /v1/subscriptions 来支持相关工作流，而不是在 /v1/charges 上扩展订阅功能。</div>
+      
+    
+      
+        <p>事后看来，这一政策在实践中一个很好的例子是引入 Payment Intents API，以满足欧洲 Strong Customer Authentication（强客户认证）的要求。即使在那种情况下，charge API 仍能像之前一样继续工作，只是对非欧盟地区的支付有效。</p>
+      
+    
+      
+        <div class="list-content">我们通过一个 API 转换层来管理该政策所隐含的技术债务。
+我们将变更后的 API 以版本形式发布，并在 API version changelog 中跟踪。
+然而，我们内部只维护一份实现，即最新版本 API 的实现。
+在这份实现之上，我们维护一系列版本转换逻辑，从而能够在不直接维护旧版本的情况下支持它们。
+虽然这种方法无法完全消除支持多个 API 版本的开销，但它显著降低了复杂度，因为我们只需在内部维护一个现代化的单一实现。
+所有 API 修改都必须同时更新版本转换层，以确保新版本能够与先前版本和平共存。
+未来，SDK 可能会让我们 softened 这项政策。
+虽然我们仍有大量客户直接集成我们的 API，但这个比例已随时间显著下降。
+相反，大多数新的集成都是通过我们的官方 API SDK 之一完成的。
+我们相信，未来我们可能能够进行更多不兼容的变更，因为我们可以将迁移的复杂度吸收到我们提供的 SDK 中。但至少在今天，这还不是现实。</div>
+      
+    
+      
+        <h2>诊断</h2>
+      
+    
+      
+        <p>我们对 API 变更和弃用对业务影响的诊断是：</p>
+      
+    
+      
+        <div class="list-content">如果你是一家主要由工程师组成的小型初创公司，集成一个新的支付 API 似乎很容易。
+然而，对于没有专职工程师的小型企业——或者涉及众多利益相关方的大型企业——处理外部 API 变更可能会特别具有挑战性。
+即使这一点只是部分正确，我们也 ，发现它对长期收入增长有显著影响，让我们能够更好地从其他降低 churn（流失）的工作中受益。
+我们认为 API 不稳定会直接导致客户流失，同时也相信 API 稳定性能够直接留住客户——因为即使他们想更换服务商，迁移的成本也会大幅增加。
+如果没有 API 变更迫使他们修改集成，我们相信高速增长的客户在没有具体动机（如 API 变更或付费方案变更）的情况下，极不可能更换支付 API 提供商。
+我们知道，提供长期 API 稳定性的公司相对较少，尤其是在支付 API 这样复杂、动态的领域中更是如此。
+我们不能假设那些进行 API 变更的公司是不明智的。
+相反，似乎他们在 API 提供方和 API 消费者之间面临着有意义的技术债务权衡，并且不愿意持续在内部承担这种技术债务。
+未来的合规或安全要求——类似于我们为满足 PCI 而从 TLS 1.2 升级到 TLS 1.3——可能会迫使我们进行 API 变更。
+随着我们进入具有自身合规制度的新市场，也可能会出现新的权衡。
+不过，我们目前预测这些变化的能力仍然有限。<a href="api-deprecation-model.html">API 弃用的系统模型</a></div>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

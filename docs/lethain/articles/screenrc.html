@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自定义 screen 和 screenrc · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>自定义 screen 和 screenrc</h1>
+    <div class="meta">
+      2020-07-26 · 
+      <a href="https://lethain.com/screenrc/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>虽然我的专业工作已经转移到了 VSCode（而且别误会，作为 CTO 我几乎不写代码了），但个人项目我仍然使用 Screen、Emacs 和 shell 命令的组合。最近我买了一台新的家用电脑来替换那台老化的 iMac，并决定尝试一些不同的做法：如果我不再每天点击“明天提醒我”，而是直接开启自动更新，会怎么样呢？直到这台电脑也被新机器取代。</p>
+      
+    
+      
+        <p>目前一切都还不错，但问题是我通常同时有两到三个项目，每个月会各做一两次（比如 staffeng、这个博客等等），每次系统更新强制重启后，screen 会话就全部丢失了。</p>
+      
+    
+      
+        <p>今天我终于受够了每次重启后都要手动重新设置这些 screen 窗口，于是花了些时间研究如何在重启后自动恢复配置。</p>
+      
+    
+      
+        <h2>第一个版本</h2>
+      
+    
+      
+        <p>第一次尝试时，我的目标是先找到一个能用的方案，不管它有多丑陋或不优雅。最后我创建了两个文件：</p>
+      
+    
+      
+        <p>~/config/staffeng.rc</p>
+      
+    
+      
+        <p>~/config/staffeng.sh</p>
+      
+    
+      
+        <p>然后（用 chmod +x 给 staffeng.sh 加上执行权限后），我就可以通过以下命令启动我想要的配置：</p>
+      
+    
+      
+        <p>效果出奇地好！它不仅能帮我快速搭建工作环境，还能通过 -d -R 参数在已有会话时自动重新连接。</p>
+      
+    
+      
+        <h2>第二个版本</h2>
+      
+    
+      
+        <p>不过我有好几个不同的项目，不想在每个项目里都重复写 ~/.screenrc 的内容。幸运的是，Screen 配置文件支持 source 指令，于是我把 ~/config/staffeng.rc 精简成了：</p>
+      
+    
+      
+        <p>这样 staffeng.rc 已经尽可能简洁了，但 runner 脚本还是显得有点多余。</p>
+      
+    
+      
+        <h2>第三个版本</h2>
+      
+    
+      
+        <p>看着 staffeng.sh 的内容：</p>
+      
+    
+      
+        <p>我决定换一种思路：在每个正在开发的项目仓库里放一个 .screenrc 文件，然后写一个通用的命令，在对应目录下运行即可启动该项目的 screen 配置。</p>
+      
+    
+      
+        <p>比如，我会创建这样一个文件：</p>
+      
+    
+      
+        <p>然后理想情况下我只需要执行：</p>
+      
+    
+      
+        <p>实现 setup-screen 其实相当简单：</p>
+      
+    
+      
+        <p>接着我把 staffeng.rc 复制到 ~/git/staff-eng/.screenrc，并调用新的 setup-screen。</p>
+      
+    
+      
+        <p>它会自动使用仓库名称作为 screen 会话名，并尝试重新连接同名的已有会话：</p>
+      
+    
+      
+        <p>总体来说，我对这个方案的效果非常满意。</p>
+      
+    
+      
+        <p>目前唯一的缺点是，如果启动的进程退出（比如运行 gatsby develop），它不会回到 shell，而是直接关闭整个窗口。希望以后能找到办法，让它回到 zsh 而不是直接关闭窗口。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 jQuery 与 Django 实现自动补全字段 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 jQuery 与 Django 实现自动补全字段</h1>
+    <div class="meta">
+      2007-11-30 · 
+      <a href="https://lethain.com/using-jquery-django-autocomplete-fields/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>本文没有经过特别润色，假定读者具备一定的 Django 基础知识。不需要有 jQuery 使用经验。</p>
+      
+    
+      
+        <p>用 Django 搭配 jQuery 做 Ajax 其实非常简单，但要实现自动补全表单则会稍微复杂一些。下面是一个完整的实现 walkthrough。</p>
+      
+    
+      
+        <p>我使用的是 Frank Vega 的 autocomplete 库。它比较简洁，但完全够用。先下载它的 JavaScript 文件和 CSS 文件。此外你还需要 jQuery 的 Dimensions 插件以及 jQuery 本身。把这些文件都放到 media 文件夹下的 js 目录中，结构大致如下：</p>
+      
+    
+      
+        <pre><code>/media
+    /js
+        jquery-1.2.1.js
+        dimensions.js
+        autocomplete.js
+        autocomplete.css
+</code></pre>
+      
+    
+      
+        <h2>我们的模板</h2>
+      
+    
+      
+        <p>首先来编写模板。我们将使用两个不同的模板：一个基础模板用于加载 JavaScript 和 CSS 文件，另一个较小的模板可以在需要使用自动补全功能的地方引入。</p>
+      
+    
+      
+        <p>较小的模板内容如下：</p>
+      
+    
+      
+        <p>使用时，通过 {% include &quot;path/to/lookup.html&quot; %} 标签把它引入（假设你把这个小片段命名为 lookup.html）。注意，要把这个小模板包含在一个继承了上面 base 模板的大模板中，这样才能使用所需的 JavaScript 库。</p>
+      
+    
+      
+        <h2>URL 配置</h2>
+      
+    
+      
+        <p>接下来创建一个简单的 urls.py，用于处理前端的请求（记得把下面代码中的项目名和应用名替换成你自己的）：</p>
+      
+    
+      
+        <p>这段代码可能需要根据你的实际情况稍作调整，但并不涉及 Django 教程之外的高级技巧。</p>
+      
+    
+      
+        <h2>模型</h2>
+      
+    
+      
+        <p>一个非常简单的 Book 模型，我们将基于它进行搜索。</p>
+      
+    
+      
+        <h2>视图</h2>
+      
+    
+      
+        <p>视图非常简洁，它解析传入的 GET 请求，然后返回序列化后的数据。</p>
+      
+    
+      
+        <p>注意我们使用了 &#x27;name__icontains&#x27; 来按书名搜索。这在 SQL 中通常会翻译成 LIKE 查询，从性能角度看，在大型数据库上可能会相当慢。这只是一个示例，并非生产级代码。</p>
+      
+    
+      
+        <h2>结语</h2>
+      
+    
+      
+        <p>使用 jQuery 实现简单的自动补全就这么简单。Django 确实让这类功能变得相当容易，虽然刚开始接触时可能会觉得有点困惑。</p>
+      
+    
+      
+        <p>如果你遇到问题，欢迎告诉我，我可以提供帮助。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

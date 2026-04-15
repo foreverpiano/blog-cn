@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>全局二级索引 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>全局二级索引</h1>
+    <div class="meta">
+      2018-01-30 · 
+      <a href="https://lethain.com/global-secondary-indexes/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>工作中，我们一直在规划存储基础设施的下一阶段，其中很大一部分讨论围绕全局二级索引（GSI）展开。这是一种被 Cassandra、DynamoDB 和 Couchbase 等水平扩展型数据存储所采用的技术。虽然我当时很自然地跟着点头，但其实对这个概念并没有特别深入的理解，于是我花了一些时间深入学习，并整理了这篇笔记。</p>
+      
+    
+      
+        <h2>二级索引</h2>
+      
+    
+      
+        <p>大多数应用一开始都会将数据存储在某个单节点数据存储中，比如 MySQL 或 PostgreSQL。在读多写少的负载下，典型的下一步是采用主从复制策略，将所有数据镜像到多个节点上。每个额外节点都拥有数据的完整副本，并提供额外的 CPU、内存和磁盘资源，用于读取这些数据。</p>
+      
+    
+      
+        <p>对主节点的读写可以做到强一致性，你甚至可以添加事务来原子性地新增或修改多行记录。在大多数数据库中，每个表都被表示为 B+ 树，这让你能够针对行的主键执行高效查询。</p>
+      
+    
+      
+        <p>你可以为表添加额外的索引，这些索引会将更多列物化到新的 B+ 树中，从而支持对主键以外的列进行高效查询。更棒的是，由于所有写操作都发生在单一服务器上，你可以事务性地更新索引及其对应的行。</p>
+      
+    
+      
+        <p>因为数据及其索引存储在同一位置，提供强一致性几乎不会带来延迟成本：一个简单的内存锁就能提供你所需的所有保证。</p>
+      
+    
+      
+        <p>你很少会想离开主从模型，但随着业务成功，你往往别无选择。一开始你可以通过使用更大规格的服务器和数据压缩来进行垂直扩展，但最终写入吞吐量或数据规模会超过即使是最大服务器和最优配置所能承受的限度。</p>
+      
+    
+      
+        <h2>分片</h2>
+      
+    
+      
+        <p>将数据分区到多个节点上的做法称为分片。大多数公司在开始分片时，首要目标是尽量减少对现有应用逻辑的改动，因此他们倾向于找出一个逻辑对象，用它来对所有表进行分片。例如在上表中，根据你的查询模式，你很可能会按公司进行分片。</p>
+      
+    
+      
+        <p>假设你选择公司作为分片键。那么对于每一次查询，你都需要先确定哪个节点存储了该公司，然后将查询定向到那个数据库。负责路由到正确节点的机制有时被称为协调器（coordinator），但也可以简单到让客户端对分片键进行一致性哈希。在某些实现中（包括本文的图示），每个节点都身兼两职：既存储数据，也负责将传入请求路由到正确的节点。</p>
+      
+    
+      
+        <p>一个节点会拥有某家公司的全部数据，可能还包括其他多家公司的数据，但不会拥有比如西雅图的所有数据，因为数据是按公司而非按城市分组的。</p>
+      
+    
+      
+        <h2>本地二级索引</h2>
+      
+    
+      
+        <p>这种将对象的数据和索引共同存放在同一节点上的模式，被称为本地二级索引（local secondary indexes）。根据你所使用的底层数据存储（如 MySQL 或 PostgreSQL），在单个节点上操作时，你可以获得事务和强一致性。例如，你可以将允许搜索某家公司职位的索引，与该公司的其他数据存放在同一个数据节点上，从而能够原子性地更新这个本地二级索引及其数据。</p>
+      
+    
+      
+        <p>缺点是这些索引的作用域仅限于给定的分片键，因此可以回答“Stripe 有哪些职位？”这样的问题，但无法回答“哪些公司在西雅图有职位？”这类问题，除非扫描每一个节点，而这是一项代价相当高的操作。</p>
+      
+    
+      
+        <p>只要给定分片键的数据量保持较小，这种策略就可以通过不断增加数据节点来无限扩展。然而，许多人最终会遇到单个分片增长到超过单一节点所能存储的程度。还有人则厌倦了只能对单个分片键的数据进行查询所带来的限制。</p>
+      
+    
+      
+        <h2>全局二级索引</h2>
+      
+    
+      
+        <p>这就是全局二级索引（global secondary indexes）发挥作用的地方。</p>
+      
+    
+      
+        <p>其思路是创建一个使用不同列作为分片键的第二张表，并将主键表的分片键存储在一列中。这样就可以先访问二级索引，获取主键，再执行第二次查找来获取整行数据。</p>
+      
+    
+      
+        <p>现在我们可以通过公司、城市或任何其他我们选择构建 GSI 的字段进行查询。我们还能将这些二级索引分片到所有节点上，从而减少任何一个分片需要存储的数据量。这种方式在水平扩展读、写和磁盘存储方面，超越了本地二级索引模型所能达到的程度。</p>
+      
+    
+      
+        <p>但我们也引入了一个新的约束。</p>
+      
+    
+      
+        <p>每个二级索引都使用不同的分片键进行分片，因此我们无法再保证某家公司的所有数据都在同一个节点上。对一个拥有多个二级索引的对象进行更新，很可能会需要在多个分片上执行写操作。这些写操作将受到 CAP 理论的约束，并受制于节点间通信带来的延迟成本。数据本身仍然位于单个节点上，只是其索引不在，因此对对象本身的更新仍有可能做到强一致性，但大多数实现（例如 Cassandra、DynamoDB、Couchbase）选择对二级索引的更新采用最终一致性，以避免产生显著的延迟。</p>
+      
+    
+      
+        <p>一些专有实现，特别是 Cosmos DB 和 Cloud Spanner，确实能为分片对象及其存储数据的 GSI 提供强一致性，但我还没见过任何开源实现能做到这一点。</p>
+      
+    
+      
+        <p>即使在这些专有系统中，或许也值得参考 aphyr 的 Jepsen 系列文章，它们记录了许多分布式系统有时无法兑现其承诺的情况。</p>
+      
+    
+      
+        <h2>总结思考</h2>
+      
+    
+      
+        <p>总的来说，我希望这些笔记能帮助大家理解全局二级索引，特别是表明它们其实是一种相当简单且易于掌握的概念。也许它甚至能激励你启动一个 Cassandra 集群来试用他们的 GSI，或者开始动手实现你自己版本的 FriendFeed 分片 MySQL 方案。</p>
+      
+    
+      
+        <p>在撰写这篇文章的过程中，我发现以下资源非常有帮助：</p>
+      
+    
+      
+        <div class="list-content">Dynamo 论文（Cassandra 和 AWS DynamoDB 的前身）AWS DynamoDB 的全局二级索引文档Azure Cosmos DB 关于一致性的文档FriendFeed 如何使用 MySQL 存储无模式数据Scylla 中的可扩展分布式二级索引Couchbase 的全局二级索引文档</div>
+      
+    
+      
+        <p>感谢 Julia 和 Keith 对这篇文章的打磨。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

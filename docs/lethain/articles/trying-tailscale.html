@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>试用 Tailscale · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>试用 Tailscale</h1>
+    <div class="meta">
+      2023-01-04 · 
+      <a href="https://lethain.com/trying-tailscale/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>就像 2014 年大多数从事基础设施工程的人一样，我非常喜欢 Google 的 BeyondCorp 白皮书。我个人最直接的兴趣点在于，当时 Uber 的安全实现中并没有使用 VPN，因此看到一篇思路清晰的文档，讲述如何在不依赖高安全网络的情况下保护员工设备，实在很有启发。同时，我还有一个更长期的个人兴趣，那就是再也不用和同事争论为什么必须先登录 VPN 才能访问安全资源。</p>
+      
+    
+      
+        <p>出于这两个原因，我一直带着兴趣关注 Tailscale，并专门留出时间搭建了一个个人的 Tailscale 环境，还设置了他们的 Golink 工具来实际体验一番。下面就是我在这过程中记录的笔记。</p>
+      
+    
+      
+        <h2>初始设置</h2>
+      
+    
+      
+        <p>我通过定价页面上的“Use Tailscale”按钮注册，选择了免费的 Personal 方案。接着需要选择身份提供商，我选择了 Google。</p>
+      
+    
+      
+        <p>然后，网站提示我为电脑下载 OS X 客户端，这把我带到了 App Store，整个安装过程快速且直观。之后我用手机打开注册邮件，里面有移动端客户端的下载链接，也很快就装好了。</p>
+      
+    
+      
+        <p>手机设置完成后，网站自动刷新，显示出了第二台设备，并提示我发送一个 ping。</p>
+      
+    
+      
+        <p>令人兴奋的是，这居然真的成功了！整个设置体验非常愉悦。短短几分钟内，我几乎不用做什么配置，就把两台设备私密地连接在了一起。</p>
+      
+    
+      
+        <h2>通过 VPN 暴露本地端口</h2>
+      
+    
+      
+        <p>基础功能跑通之后，我想测试通过 VPN 连接我博客的本地实例。首先快速验证一下直接访问是行不通的。</p>
+      
+    
+      
+        <pre><code>curl 100.80.28.56:1313
+ curl: (7) Failed to connect to 100.80.28.56 port 1313 after 3 ms: Connection refused
+</code></pre>
+      
+    
+      
+        <p>确实合理，因为博客绑定在了 localhost，而不是可从外部访问的以太网接口。那我们改一下配置，从</p>
+      
+    
+      
+        <pre><code>hugo -D serve
+</code></pre>
+      
+    
+      
+        <p>改成</p>
+      
+    
+      
+        <pre><code>hugo -D --bind 0.0.0.0 serve
+ Web Server is available at http://localhost:1313/ (bind address 0.0.0.0)
+</code></pre>
+      
+    
+      
+        <p>现在再试一次 curl：</p>
+      
+    
+      
+        <pre><code>curl 100.80.28.56:1313 | head -n2
+ &lt;!DOCTYPE html&gt;
+ &lt;html lang=&quot;en-us&quot;&gt;
+</code></pre>
+      
+    
+      
+        <p>成功了！再从手机上验证一下，这可能是更有意思的测试：也成功了！不过 Hugo 本身生成的链接都无法正常工作，因为它们使用了带 localhost 的绝对 URL，但那是 Hugo 的问题（估计谷歌一下就能解决），而不是 Tailscale 的问题。挺棒的！</p>
+      
+    
+      
+        <h2>能有更友好的 DNS 吗？</h2>
+      
+    
+      
+        <p>每次都要输入 100.80.28.56 有点烦人，所以我想知道能否使用更友好的 DNS 名称。结果发现这已经可以用了，比如 some-macbook-pro:1313 就能直接访问我笔记本上运行的博客（虽然让移动版 Safari 相信这不是搜索查询花了几次尝试）。
+（我想这就是“MagicDNS”功能吧？）</p>
+      
+    
+      
+        <h2>Golinks</h2>
+      
+    
+      
+        <p>好了，现在基础功能已经用得很顺畅了，下一个任务是搭建他们私有的 go links 服务。我跟着 tailscale/golink 仓库里的说明一步步操作。</p>
+      
+    
+      
+        <p>首先我 clone 了他们的 GitHub 仓库（顺便提一句，强烈推荐让 1Password 管理你的 ssh-agent，尤其是当你的键盘支持 Touch ID 时）：</p>
+      
+    
+      
+        <pre><code>git clone git@github.com:tailscale/golink.git
+</code></pre>
+      
+    
+      
+        <p>然后我在本地构建它来验证是否能正常工作：</p>
+      
+    
+      
+        <pre><code>go run ./cmd/golink -dev-listen :8080
+</code></pre>
+      
+    
+      
+        <p>第一次失败了，因为我忘了先 cd 到 golink 目录。之后在正确的路径下重新运行，就成功了。</p>
+      
+    
+      
+        <p>为了试用，我创建了一个从 write 指向我用来记录写作主题的 Google 文档的链接，然后访问 localhost:8080/write 验证，果然成功跳转了。</p>
+      
+    
+      
+        <p>下一步是让手机也能访问这个服务，首先要创建一个 auth key。</p>
+      
+    
+      
+        <p>好吧，在创建 key 之前我需要先创建一个 ACL tag。随机点了会儿没找到怎么创建，看来只能去读支持文档了。哦不，我居然得手动编辑 policy 文件来完成这件事，这有点让人担心。</p>
+      
+    
+      
+        <p>嗯，看起来生效了！现在回到创建 auth key 的步骤。给它加上 tag:golink 标签很简单。我唯一不太明白的是，说明里说要取消 key 的过期时间（但界面强制要求设置 1 到 90 天），不过算了，先不管它继续往下走。</p>
+      
+    
+      
+        <p>拿到 key 之后，我用以下命令重启服务：</p>
+      
+    
+      
+        <pre><code>TS_AUTHKEY=&quot;tskey-auth-&lt;key&gt;&quot; go run ./cmd/golink -sqlitedb golink.db
+</code></pre>
+      
+    
+      
+        <p>服务干净地启动了，最后的测试是到浏览器里访问 go/，看看是否能正常工作。</p>
+      
+    
+      
+        <p>结果确实可以，从笔记本和手机上都能访问。任务完成！</p>
+      
+    
+      
+        <p>顺便说一句，当我回到 Machines 标签页时，发现这个服务的 key 过期确实被禁用了，虽然我不知道为什么，可能是因为我加了 tag？</p>
+      
+    
+      
+        <p>这并不是什么大问题，我相信再深入研究一下就能搞清楚，但这确实是我整个体验中遇到的两个前后不一致的地方之一。</p>
+      
+    
+      
+        <h2>哪些地方比较困惑？</h2>
+      
+    
+      
+        <p>我遇到的所有困惑点其实都非常小，完全是一个全新用户的正常反应。而且我都能快速自己解决，没有求助他人，这也说明 Tailscale 整体做得非常好。尽管如此，为了完整性，我还是把它们列出来：</p>
+      
+    
+      
+        <div class="list-content">为什么我的 golinks 服务的过期被禁用了？是因为我加了 tag 吗？如果是，为什么过期设置界面仍然显示为启用状态，而实际值被忽略了？当我想给新的 auth key 添加 tag 时，它没有直接引导我去创建 tag 的地方。虽然它引导我去看相关的知识库文章，这也可以接受，但我更希望被直接引导到 policy 编辑器。我觉得 auth key 发放界面的位置有点反直觉（放在 Settings → Personal Settings → Keys）。我本来预期在 Access Controls 标签页里能找到发放 key 的入口。</div>
+      
+    
+      
+        <h2>哪些地方做得很好？</h2>
+      
+    
+      
+        <p>总体来说，我认为 Tailscale 的体验非常出色。安装很快，界面直观，合适的文档几乎总是点击一下就能找到。最重要的是，它比我用过的大多数企业 VPN 都更容易自己搞定，同时还能很好地兼容我已有的 SSO 提供商。</p>
+      
+    
+      
+        <p>总的来看，如果我要给自己或者一个小企业搭建个人 VPN，我想不到还有什么比 Tailscale 更好的选择了，它真的非常棒。同样，如果我在 2023 年要开发一个新的开发者或基础设施产品，它的这个 onboarding（以及整体）体验非常值得借鉴。
+（我猜真正开始管理一个完整的 policy 文件后会更有意思，但那就留到改天再探索了！）</p>
+      
+    
+      
+        <p>到目前为止，Tailscale 似乎在  这件事上做得非常出色，但我更希望看到 Tailscale 进一步阐明企业如何利用它来同时简化安全和合规控制（SOC2、HITRUST 等）。在这些维度中找到一个清晰的价值主张，才是最有可能推动企业采用的路径，我认为这对他们的长期增长至关重要。
+（当然你也可以说价格是他们与现有厂商竞争的另一种方式，但是，唉，我不认为你会想在 VPN 市场打价格战。）<a href="stripe-product-led-developer-centric-growth.html">Stripe 以产品驱动、开发者为中心的增长模式。</a></p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

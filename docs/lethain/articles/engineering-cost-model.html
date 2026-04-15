@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工程组织层级结构模型 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>工程组织层级结构模型</h1>
+    <div class="meta">
+      2024-10-27 · 
+      <a href="https://lethain.com/engineering-cost-model/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>私募股权所有权的一个标志性特点是，他们期望公司要么维持当前利润率，同时将收入以 25-30% 的速度增长；要么放缓收入增长，转而让自由现金流逐年增加。在许多组织中，工程成本对自由现金流有重大影响。虽然可以削减云托管等各种成本，但讨论最终不可避免地会直接涉及到工程人力成本。</p>
+      
+    
+      
+        <p>工程人力成本中占比最大的部分之一，就是组织的 seniority mix（人员层级结构）：高级工程师的薪酬远高于职业生涯早期的工程师。本模型旨在探讨各种政策如何影响组织的 seniority mix。</p>
+      
+    
+      
+        <p>在本章中，我们将：</p>
+      
+    
+      
+        <div class="list-content">总结本模型关于政策对 seniority mix 影响的洞见；勾勒模型的存量与流量；使用 lethain/systems 迭代构建并运行完整模型。</div>
+      
+    
+      
+        <p>是时候开始建模了。</p>
+      
+    
+      
+        <p>本章出自《Crafting Engineering Strategy》。</p>
+      
+    
+      
+        <h2>核心洞见</h2>
+      
+    
+      
+        <p>如果一个组织没有“用 N-1 级别补缺”的招聘政策——例如用 SWE2 直接替换离职的 SWE2——那么随着时间推移，其组织结构会变得越来越头重脚轻。</p>
+      
+    
+      
+        <p>然而，即使引入“用 N-1 级别补缺”的招聘政策也还不够。即使我们停止从外部招聘最资深级别的人员，高级别人员的占比仍会变得过高。</p>
+      
+    
+      
+        <p>要想真正实现健康的 seniority mix，我们必须做到三点：停止在最资深级别进行外部招聘、实施“用 N-1 级别补缺”政策，并对最资深级别的总人数设置上限。</p>
+      
+    
+      
+        <p>任何力度较弱的政策组合，都无法有效改变模型的结果。</p>
+      
+    
+      
+        <h2>模型草图</h2>
+      
+    
+      
+        <p>我们先用 Excalidraw 来绘制这个系统的草图。当然你可以使用自己喜欢的任何工具，但越简单的绘图工具通常越能帮助你专注于迭代存量和流量，而不会被调优参数分散注意力——就像设计师先画潦草的线框图，而不是一开始就追求像素完美的设计。</p>
+      
+    
+      
+        <p>我们从最基础的级别开始绘制：SWE1。</p>
+      
+    
+      
+        <p>我们从外部招聘候选人成为 SWE1。其中一部分会晋升为 SWE2，一部分会离职，然后我们用新的 SWE1 来填补这些离职空缺。</p>
+      
+    
+      
+        <p>当我们开始为 SWE2 绘制完整的存量和流量时，我们引入了“在上一级补缺”的概念。在将这个模式复制到另外两个职业级别（SWE3 和 SWE4）之后，我们就得到了完整的模型。</p>
+      
+    
+      
+        <p>最后一个级别 SWE4 相对于之前的级别做了简化，因为它已经无法再晋升到更高一级了。我们本可以继续扩展，但模型会变得越来越难以维护，因此我们就停在四个级别。</p>
+      
+    
+      
+        <h2>推理分析</h2>
+      
+    
+      
+        <p>在审视这个草图系统时，我们得出了几个有趣的结论：</p>
+      
+    
+      
+        <div class="list-content">如果任何级别的晋升率超过了该级别的外部招聘率加上 N-1 级别补缺率，那么该级别工程师的比例会随着时间不断增长。如果你招聘很少，这个问题就简化为晋升率与离职率之比。一家招聘很少且留存率很高的公司，无法频繁进行晋升。晋升到高级职位在财务上会受到限制，即使这个政策被其他机制所解释。许多公司采用“<a href="career-levels-and-more.html">职级体系、评定惯性等</a>”政策作为识别晋升基本停止的层级机制。虽然其背后的理由通常没有被明确说明，但我们可以推断，这很可能是一种财务上的约束，促使公司采用该政策。</div>
+      
+    
+      
+        <p>有了这些初步洞见，现在我们可以进入模型细节部分。</p>
+      
+    
+      
+        <h2>建模与实验</h2>
+      
+    
+      
+        <p>我们将使用 lethain/systems 来构建这个模型。第一版会相对简单，尽管因为模型规模而包含了较多存量；随后我们会在迭代测试不同场景的过程中，逐步叠加更多功能。</p>
+      
+    
+      
+        <p>我选择将“建模”和“实验”两个步骤合并，以便展示模型的每个版本如何催生新的洞见、引发新的问题，而这些问题又需要新的模型来解答。</p>
+      
+    
+      
+        <p>如果你想直接查看完整模型和可视化效果，每个迭代版本都可以在 GitHub 上找到。</p>
+      
+    
+      
+        <h2>同级补缺（Backfill-at-level）</h2>
+      
+    
+      
+        <p>我们要探索的第一个政策，是在同一级别补缺离职人员。例如，如果一名 SWE2 离职，你就直接再招聘一名 SWE2 来填补。这在直觉上很合理——因为之前就需要一名 SWE2 来完成工作，为什么要招聘更初级的呢？</p>
+      
+    
+      
+        <p>这个模型引入了两个新的系统概念：</p>
+      
+    
+      
+        <div class="list-content">为了便于迭代，我们会使用系统建模中的“信息链接”（information link）概念，即用一个存量作为变量来定义流量。具体来说，我们会创建一个名为 HiringRate、规模为 2 的存量，然后用这个存量的值来定义每个职业级别的招聘流量。从编程角度看，这相当于定义了一个可复用的变量，只不过你可以用任何存量的值来定义流量。另一个概念是，我们假设公司有无限多的潜在候选人，因此我们会使用一个无限存量，用方括号 [ ] 来表示。在本例中就是 [Candidates]；如果你想要一个固定规模的存量（比如 100 人），可以将其初始化为 Candidates(100)。根据建模对象的不同，这两种方式都很有用。</div>
+      
+    
+      
+        <p>基于以上考虑，我们的初始模型定义如下：</p>
+      
+    
+      
+        <pre><code>HiringRate(2)
+
+[Candidates] &gt; SWE1(10) @ HiringRate
+SWE1 &gt; DepartedSWE1 @ Leak(0.1)
+DepartedSWE1 &gt; SWE1 @ Leak(0.5)
+
+Candidates &gt; SWE2(10) @ HiringRate
+SWE1 &gt; SWE2 @ Leak(0.1)
+SWE2 &gt; DepartedSWE2 @ Leak(0.1)
+DepartedSWE2 &gt; SWE2 @ Leak(0.5)
+
+Candidates &gt; SWE3(10) @ HiringRate
+SWE2 &gt; SWE3 @ Leak(0.1)
+SWE3 &gt; DepartedSWE3 @ Leak(0.1)
+DepartedSWE3 &gt; SWE3 @ Leak(0.5)
+
+Candidates &gt; SWE4(0)  @ HiringRate
+SWE3 &gt; SWE4 @ Leak(0.1)
+SWE4 &gt; DepartedSWE4 @ Leak(0.1)
+DepartedSWE4 &gt; SWE4 @ Leak(0.5)
+</code></pre>
+      
+    
+      
+        <p>为了确认我们做的事情是合理的，可以用 Graphviz 来绘制这个模型。</p>
+      
+    
+      
+        <p>结果与我们之前画的草图基本一致，只是还没有加入下级补缺的流量，所以目前状态还不错。</p>
+      
+    
+      
+        <p>确认无误后，让我们仔细看看 SWE2 这个存量涉及的四种不同流量，按顺序分别是：</p>
+      
+    
+      
+        <div class="list-content">外部候选人以固定的 HiringRate（这里设为每轮招聘 2 人）被聘为 SWE2；10% 的 SWE1 晋升为 SWE2（这是一个“泄漏”，因为有人晋升并不意味着其他 SWE1 消失）；10% 的 SWE2 离开公司；离职 SWE2 的补缺招聘，在同一级别重新招聘。</div>
+      
+    
+      
+        <p>运行这个模型后，我们可以看到各个级别的人数如何随时间增长。</p>
+      
+    
+      
+        <p>显然，这种“同级补缺”政策效率很低，因为我们的组织会随着时间推移变得越来越头重脚轻，SWE4 的比例不断上升。必须做出改变。</p>
+      
+    
+      
+        <h2>N-1 级别补缺（Backfill at N-1）</h2>
+      
+    
+      
+        <p>为了减少公司中 SWE4 的数量，我们把模型更新为：在员工离职后，在低一个级别进行补缺招聘。例如，一名 SWE2 离职会导致招聘一名 SWE1。这意味着要把以下这些行：</p>
+      
+    
+      
+        <pre><code>DepartedSWE2 &gt; SWE2 @ Leak(0.5)
+</code></pre>
+      
+    
+      
+        <p>改为招聘到上一级。</p>
+      
+    
+      
+        <pre><code>DepartedSWE2 &gt; SWE1 @ Leak(0.5)
+</code></pre>
+      
+    
+      
+        <p>唯一的例外是 SWE1 的离职仍由 SWE1 补缺，因为它是最低级别，已经没有更低一级可以补缺了。</p>
+      
+    
+      
+        <p>运行更新后的模型，我们得到了一个更好看的组织结构。</p>
+      
+    
+      
+        <p>我们仍然有些头重脚轻，但已经将指数增长问题转变为线性增长，这是一个改进。然而，这仍然是一个成本非常高的工程组织，肯定不是一个能降低成本的组织。</p>
+      
+    
+      
+        <h2>停止外部招聘（No hiring）</h2>
+      
+    
+      
+        <p>我们的模型中 SWE4 人数过多的一个原因是，我们在所有级别都以相同速率招聘，这并不太现实。而且，如果我们的目标是随着时间降低工程成本，那么大幅增加人力规模的可能性也不大。</p>
+      
+    
+      
+        <p>我们可以通过将 HiringRate 设置为 0，并为每个工程师群体设置更符合实际的初始值来模拟这种情况（下面只展示修改过的部分，完整模型请查看 GitHub）：</p>
+      
+    
+      
+        <pre><code>HiringRate(0)
+
+[Candidates] &gt; SWE1(100) @ HiringRate
+Candidates &gt; SWE2(100) @ HiringRate
+Candidates &gt; SWE3(100) @ HiringRate
+Candidates &gt; SWE4(10)  @ HiringRate
+</code></pre>
+      
+    
+      
+        <p>现在我们初始有 100 名 SWE1、SWE2 和 SWE3，SWE4 的初始人数较少，只有 10 人。运行模型后，我们得到了新的视角。</p>
+      
+    
+      
+        <p>可以看到，停止外部招聘改善了 SWE4 与其他级别的比例，但仍然偏高。我们最终大约每 1.25 名 SWE1 对应 1 名 SWE4，而理想比例应该接近 5:1。</p>
+      
+    
+      
+        <h2>限制 SWE4 的最大规模（Capped size of SWE4s）</h2>
+      
+    
+      
+        <p>最后，我们要引入一个具有最大规模的存量。无论流量如何推动，都无法让该存量超过这个上限。在本例中，我们将 SWE4 定义为初始规模 10、最大规模 20 的存量。</p>
+      
+    
+      
+        <pre><code>SWE4(10, 20)
+Candidates &gt; SWE4  @ HiringRate
+</code></pre>
+      
+    
+      
+        <p>这也可以写成一行代码，虽然那样可能不太容易一眼看出来：</p>
+      
+    
+      
+        <pre><code>Candidates &gt; SWE4(10, 20)  @ HiringRate
+</code></pre>
+      
+    
+      
+        <p>做了这个修改之后，我们终于接近了一个符合预期的工程组织。</p>
+      
+    
+      
+        <p>SWE4 与其他级别的比例已经合适，但我们可以看到，由于“背压”效应，这个组织中 SWE3 出现了冗余。你可以想象其他政策可能进一步改善这一点，比如，因为 SWE3 的晋升机会被现有 SWE4 的离职率所限制，很可能会有更多 SWE3 选择离职。不过，我认为我们已经从这个模型中学到了很多，所以建模工作就到此结束。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

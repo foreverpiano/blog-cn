@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>回调是一种非正式的流水线 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>回调是一种非正式的流水线</h1>
+    <div class="meta">
+      2010-03-07 · 
+      <a href="https://lethain.com/callbacks-as-an-ad-hoc-and-informal-pipeline/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>过去八个月左右，我在工作中一直负责工作流软件的开发。最简单的工作流例子就是流水线：接收一个任务，执行它，把输出作为下一个任务的输入继续执行，然后继续传递……如此反复。昨晚我尝试重构一个 Node.js 项目不断演化出的复杂逻辑，终于意识到编写工作流和串联一长串回调之间存在非常强的相似性。</p>
+      
+    
+      
+        <p>在工作中，我一直使用 [Erlang gen_fsm](gen_fsm) 来引导工作在流水线中流动（同时在每一步处理失败恢复），但在这个 Node.js 的场景中，我希望使用更轻量级的方案，因为它需要为我正在开发的 Web 应用中的每个视图至少建模一个流程。例如，下面是我尝试为「创建新项目」建模的早期流程之一（其中一些细节与使用 Redis 作为后端、redis-node-client 作为接口有关，但这本质上是一个基于回调的流水线所面临的通用问题）：</p>
+      
+    
+      
+        <pre><code>get new unique id key from a counter
+create new project using unique key as part of key
+add the new key to a list of projects which is stored in a second key
+</code></pre>
+      
+    
+      
+        <p>如果上面的流程执行成功，我们希望以「显示成功」流程结束：</p>
+      
+    
+      
+        <pre><code>get projects for user
+render &quot;project_creaed&quot; template
+send back to user
+</code></pre>
+      
+    
+      
+        <p>如果上面的流程在任何一步失败，我们希望以「显示失败」流程结束：</p>
+      
+    
+      
+        <pre><code>get projects for user
+render &quot;project_failed&quot; template
+send back to user
+</code></pre>
+      
+    
+      
+        <p>所以问题在于，如何让组合这些不同流程变得简单？通过约定一个工作流片段的标准接口，这实际上非常简单。所有片段都是具有以下结构的函数：</p>
+      
+    
+      
+        <p>第一个参数始终是工作流中剩余的片段，ctx 是一个字典，它会被传入整个工作流并对所有片段可用（它可以在流水线中被修改），此外每个片段可以向下一个片段传递任意数量的额外参数（后续片段可以自由使用或忽略这些额外参数）。</p>
+      
+    
+      
+        <p>下面是三个更贴近实际的工作流片段，首先是一个从 Redis 计数器中获取下一个唯一标识符的例子。</p>
+      
+    
+      
+        <p>这个工作流理念依赖于每个片段在完成工作后调用 workflow.run。这很有用，因为你可以编写工作流的同时一次只需要关心一个回调（把嵌套的回调在脑子里理清楚非常困难，尤其是需要修改它们的时候）。</p>
+      
+    
+      
+        <p>接下来我们写一个使用 Mu 渲染 Mustache 模板的片段。</p>
+      
+    
+      
+        <p>最后，我们来写一个向 HTTP 客户端发送响应的工作流片段。</p>
+      
+    
+      
+        <p>现在让我们创建一个 HTTP 服务器，对请求的响应是：创建一个新的唯一键，渲染一个模板，然后将其返回给用户。</p>
+      
+    
+      
+        <p>注意，[&quot;unique_project&quot;] 是传递给 unique_id 函数来填充其 key 参数的值，随后这个结果被存入 ctx 字典中，键名为 unique_project。http_response 会渲染传入其 body 参数的值，而这个值是由 render_template 传递进来的。</p>
+      
+    
+      
+        <p>支持这种“有点好用”的机制的那个毫不神奇的函数只有短短四行代码（真正的魔法只是决定一个足够好的约定并坚持遵守它，元编程什么的就算了）。</p>
+      
+    
+      
+        <p>我仍在继续探索这个想法以及其他几个想法，同时尝试开发一个相对复杂的 Node.js 应用。我觉得这里面有些有价值的东西，尽管这个第一版实现还非常粗糙。</p>
+      
+    
+      
+        <p>作为结束语，完全可以用一个更复杂的有限状态机来解决这个问题（比如我上面简要提到的 Erlang gen_fsm 实现），但那样做无疑会更复杂，而且通常也没有必要。尤其是合理利用 JavaScript 的异常机制，就可以在需要的时候实现类似 FSM 的复杂行为，而在简单场景中又不必承担 FSM 带来的复杂性。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

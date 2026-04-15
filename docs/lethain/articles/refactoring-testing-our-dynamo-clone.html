@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>重构与测试我们的 Dynamo 克隆 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>重构与测试我们的 Dynamo 克隆</h1>
+    <div class="meta">
+      2010-01-02 · 
+      <a href="https://lethain.com/refactoring-testing-our-dynamo-clone/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近时间有点紧张。因此，在下一篇文章讨论物理时钟、逻辑时钟和向量时钟之前，我们先来一篇关于测试和重构的文章。</p>
+      
+    
+      
+        <p>接上上一篇的内容，本文我们将在继续实现之前，先对代码进行一些重构以清理代码库。我们的目标有四个：</p>
+      
+    
+      
+        <div class="list-content">简化变得越来越笨重的 kvs:store/1 函数，添加基于 EUnit 的单元测试，将客户端接口和服务器实现拆分为两个文件，将基于消息传递的服务器重构为 Erlang gen_server。</div>
+      
+    
+      
+        <p>让我们开始吧。</p>
+      
+    
+      
+        <h2>清理 store 函数</h2>
+      
+    
+      
+        <p>kvs:store/1 函数已经长得令人尴尬。最初为了保持解释简单这样做或许情有可原，但现在时机已经过去了。</p>
+      
+    
+      
+        <p>这个函数既包含了用于区分消息类型的模式匹配，也包含了每种消息的具体响应逻辑。一个快速的简化方法是将每种响应的处理逻辑移到单独的函数中。</p>
+      
+    
+      
+        <p>模式匹配部分可以简化为：</p>
+      
+    
+      
+        <p>其中每个响应函数1 大致如下：</p>
+      
+    
+      
+        <p>这项工作将代码拆分成更易理解的小块，同时也为后续将服务器重写为 gen_server 奠定了基础。</p>
+      
+    
+      
+        <p>这部分修改的完整变更集可在此处查看。</p>
+      
+    
+      
+        <h2>添加测试</h2>
+      
+    
+      
+        <p>没有测试的重构就像开车不看路标。在修改了大量功能之后，人工验证现有功能是否仍然正常工作既耗时又容易出错——“耗时”在这里其实是“人类做这件事容易搞砸”的委婉说法。</p>
+      
+    
+      
+        <p>Erlang 提供了多种测试工具，其中最简单的是 eunit，我们将用它来测试项目。EUnit 可以类比为 [phpunit] 或 [junit]，只是（可能）需要的样板代码更少一些。</p>
+      
+    
+      
+        <p>我们最初的 eunit 测试会比较简单，随着后续功能的增加，我们可以逐步完善它们。</p>
+      
+    
+      
+        <p>运行测试非常简单，可以通过 eunit 提供的命令行脚本，或者直接在 Erlang shell 中执行。</p>
+      
+    
+      
+        <p>看起来我需要对重构后的代码做一些调整，但至少我们现在知道测试确实在运行了。</p>
+      
+    
+      
+        <h2>分离接口与实现</h2>
+      
+    
+      
+        <p>这部分我们会快速带过，因为它没有太多教学意义，但需要关注的要点包括：</p>
+      
+    
+      
+        <div class="list-content">将当前的 kvs.erl 拆分为 kvs.erl 和 kvs_server.erl，保持现有的客户端接口不变，因为我们有测试，所以可以放心地修改代码（回归测试），不添加任何新功能，继续使用 kvs 进程组（不必与文件名对应）。</div>
+      
+    
+      
+        <p>这些修改的变更集可在此处查看。</p>
+      
+    
+      
+        <p>重构完成后，是时候重新运行测试了。</p>
+      
+    
+      
+        <p>啊，kvs_tests:not_running_test 仍然有问题，但其他测试都通过了。我们保留了重构前的所有 quirks 和功能，这正是一个成功重构的标志。</p>
+      
+    
+      
+        <h2>从消息传递到 gen_server</h2>
+      
+    
+      
+        <p>本次重构的最后一步是将基于消息传递的实现迁移到使用 OTP gen_server。gen_server 即 generic server，顾名思义。gen_server 在功能上与我们之前使用的消息传递方式完全等价，但它有几个重要优势：</p>
+      
+    
+      
+        <div class="list-content">消除了大量样板代码，能与 Erlang OTP 的其他工具（如 supervisor、层级树等）良好配合，其他 Erlang 程序员对其很熟悉，因此能更快理解程序的整体结构。</div>
+      
+    
+      
+        <p>大多数重要的 Erlang 项目要么一开始就使用，要么最终会至少包含一个 gen_server。</p>
+      
+    
+      
+        <p>在进行这次重写时，请注意我们会保持客户端接口不变，这样假设的用户不会受到任何影响，我们也能继续运行现有的测试。稍微剧透一下，经过一番折腾后，kvs.erl 和 kvs_server.erl 的总行数将从 200 行减少到 189 行。</p>
+      
+    
+      
+        <p>现在让我们来看第一个改动：更新 kvs.erl 中启动 kvs 服务器的客户端接口实现。</p>
+      
+    
+      
+        <p>我们对 kvs:stop 也做了类似的修改。</p>
+      
+    
+      
+        <p>接下来需要更新更新和获取值的客户端接口实现。有两点值得注意：</p>
+      
+    
+      
+        <div class="list-content">我们免费获得了 gen_server:call 提供的“发送并阻塞等待响应”的构造，不再需要显式传递发送者的进程 ID，因为这个也会免费获得。</div>
+      
+    
+      
+        <p>更新值的接口也做了同样的修改。</p>
+      
+    
+      
+        <p>完成 kvs.erl 的修改后，现在该转向 kvs_server.erl 了。将所有代码改成 gen_server 的过程相当繁琐（这里有一个完整的变更集，可能有参考价值）。因此，我们采用高层次的方式，重点指出一些有趣的细节。</p>
+      
+    
+      
+        <p>在旧实现中，我们依赖 store/1 函数来分发收到的消息，而 gen_server 为我们完成了分发工作，只要求我们实现 handle_call/3 函数。</p>
+      
+    
+      
+        <p>上面我们使用的是 handle_call，但在新的 kvs_server.erl 实现中还用到了一个类似的函数 handle_cast。两者区别在于：从客户端视角看，handle_call 是同步操作，而 handle_cast 是异步操作。</p>
+      
+    
+      
+        <p>注意，handle_call 只需要从客户端视角是同步的即可，服务器完全可以把客户端请求先存到自己的状态中，继续处理其他请求，之后再返回第一个请求的响应（本实现大量使用了这种模式）。</p>
+      
+    
+      
+        <p>gen_server 实现还有很多其他方面可以深入探讨，但我们很容易就会深陷其中。从我们的角度来看，目标是将代码重构为更容易在后续系列文章中进行精确算法修改的形式。</p>
+      
+    
+      
+        <p>迁移到 gen_server 的完整变更集可在此处查看。</p>
+      
+    
+      
+        <p>呼。经历了这么多代码搬迁之后，我们终于从“对抗 OTP”的状态转变为“与 OTP 协作”。在后续几篇文章深入核心实现之后，我们会回到这条线路，利用更多 Erlang 的优秀特性（特别是 supervisor），但眼下还是先专注于算法实现比较好。</p>
+      
+    
+      
+        <p>下一篇文章，我们将讨论逻辑时钟、向量时钟以及如何正确地对更新进行排序。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

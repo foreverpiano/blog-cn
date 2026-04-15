@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>一个用于在列表中显示相邻条目的筛选器 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>一个用于在列表中显示相邻条目的筛选器</h1>
+    <div class="meta">
+      2009-01-20 · 
+      <a href="https://lethain.com/a-filter-to-display-neighbors-in-a-list/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>当你没有花太多时间思考它们时，有时很容易忽略那些显而易见的 UI 模式。最近我在对博客进行一些小调整时，这种感觉尤为强烈。</p>
+      
+    
+      
+        <p>在上一次重新设计中，我希望尽可能以文章为核心——将排版风格参考书籍和报纸——其中一个做法就是去掉侧边栏。我尽可能删减冗余信息，但最终发现剩下的每一样内容似乎都重要到无法割舍。</p>
+      
+    
+      
+        <p>我将页头部分尽量扩展，但还是知道没有足够空间放下所有想要的东西。于是我决定尝试让页头内容具有上下文相关性。具体来说，我把页头分成了五个区块。</p>
+      
+    
+      
+        <p>受限于 A、B、C 三个位置的容量，很明显无法放下所有我想展示的内容；我需要做一些精简。我决定先采用一个简单的策略，以后再逐步优化：</p>
+      
+    
+      
+        <div class="list-content">在 C 槽始终显示额外的导航链接。如果文章属于某个系列，则在 A 槽显示该系列。用相关标签回填空白槽位。用最近文章回填空白槽位。用随机文章回填空白槽位。</div>
+      
+    
+      
+        <p>这意味着导航页面（比如 Life 页面或首页）始终会显示最近和随机文章，而单篇文章页面则会展示较为相关的文章（同一系列的文章与拥有相同标签的文章的混合）。虽然规则很简单，但确实能有效地呈现相关内容。</p>
+      
+    
+      
+        <p>（我正在考虑把随机文章替换为按评论量排序的前五篇文章，这也许能更好地突出有趣的内容。）</p>
+      
+    
+      
+        <p>由于 C 槽里有五个导航链接，我决定 A 和 B 槽最多也只显示五篇文章。之后我有好几个月都陷入思考：如果一个系列的文章超过五篇，该怎么处理呢？</p>
+      
+    
+      
+        <p>在公司实现了六七个搜索原型之后，我突然意识到这个问题其实有一个现成的模式，它就存在于每一个搜索结果页的 UI 中。</p>
+      
+    
+      
+        <p>更具体地说，有趣的是当你浏览到不再显示第一页结果的那一页时，界面会如何表现。</p>
+      
+    
+      
+        <p>啊，就是这样：如果一个系列超过五篇文章，我只需要显示当前文章、前两篇和后两篇即可。当我终于想通时，简直觉得之前太迟钝了。</p>
+      
+    
+      
+        <p>把这个概念实现为一个模板筛选器相当 straightforward。</p>
+      
+    
+      
+        <p>以下是在模板中的用法（假设模板上下文中有一个名为 object 的文章对象和一个名为 series 的文章列表）。</p>
+      
+    
+      
+        <p>我只能感慨，自己怎么花了这么久才想明白这个如此简单的事情。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

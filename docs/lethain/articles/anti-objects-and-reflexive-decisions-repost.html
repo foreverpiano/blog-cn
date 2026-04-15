@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>反对象与反射式决策（转载） · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>反对象与反射式决策（转载）</h1>
+    <div class="meta">
+      2007-06-07 · 
+      <a href="https://lethain.com/anti-objects-and-reflexive-decisions-repost/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>这是一篇从最初的《Irrational Exuberance》博客移植过来的文章，写于2007年中期：距今已近两年。</p>
+      
+    
+      
+        <p>在这个时代学习编程，几乎就是彻底接受面向对象思想的灌输（除非你是从 PERL、Scheme 或 Haskell 开始学的，但我们这里说的是普通人）。我在大学里学到的第一个——也是唯一一个——编程范式就是 OO，很容易理解为什么——如果你只能把一种范式教好，那肯定会教 OO。它擅长为大型项目创建所需的抽象层，同时也便于将代码分割成模块，让相对独立的团队能够分别实现（前提是他们都遵守协商好的 API……哈哈……我真该去当诗人）。如果我们观察 OO 的流行趋势，那么没有哪门语言比 Java 更彻底地顺着这股浪潮前进。诚然，Java 是 C++、垃圾回收、面向对象和平庸这四者的奇妙结合体，但近年来几乎没有哪门语言不是对面向对象充满迷恋的。Python 几乎是完全面向对象的（深入底层后会有一些奇怪的实现细节），Ruby 是完全面向对象的，Smalltalk（OO 之父）启发了 Objective C……你很难找到任何用于开发大型项目的语言没有选择 OO 作为其主要范式。&lt;!--more--&gt;</p>
+      
+    
+      
+        <h2>面向对象非常直观</h2>
+      
+    
+      
+        <h2>或许有点过于直观？</h2>
+      
+    
+      
+        <h2>更具体一点</h2>
+      
+    
+      
+        <h2>背景说明</h2>
+      
+    
+      
+        <h2>谁来负责什么？</h2>
+      
+    
+      
+        <p>然而，当我坐下来考虑要用那种方式再实现几百个方法时，我意识到这是一种极其复杂的方法。当然，它完全符合直觉，但它将会像第五次重读《基地序曲》一样乏味无趣。更糟糕的是，未来修改起来会非常痛苦，因为行为和行为所操作的数据是分开存储的。大约就在这个时候，那篇关于反对象的文章浮现在我脑海中，我决定尝试另一种实现方式。我决定让那些操作物品的方法由物品自己来承载：我要把所有复杂性都移到物品内部，看看这样效果如何。下面是我采用这种方法后的实现：</p>
+      
+    
+      
+        <p>与之前的实现相比，这种方式带来了诸多好处：我们现在把“某物品是否可穿戴/持握/拾取”以及“如何穿戴/持握/拾取”的逻辑放在了同一个地方。这意味着修改时只需要查看一处代码，而不是之前实现所需的两处。它还让我们能够利用多态（ChestArmor 和 LegArmor 对同名方法的响应各不相同）。此外，默认的物品初始化代码对所有子类都适用，因为关于对象的所有其他数据都被保存在其方法内部（非常有 Lisp 的感觉）。不需要再串起一堆 super 调用，这在我看来是一项令人愉快的改进（随机问题：你觉得如果类继承层次足够深，会不会导致 Ruby 栈溢出？我认为会的）。我对第二个设计有些顾虑，它似乎过于依赖 Player 类的具体实现；我内心那个 Java 程序员很想构建一个丰富的 API 来完全封装实现细节。而我稍微更理智的那一面则认为保持现状更简洁。如果有必要，我可以通过在 @body 这个 hashmap 之上构建一个类似 hashmap 的 API 来改变实现方式。虽然我不是那种把代码行数当作质量标准的人，但第二个版本只有 41 行，而第一个版本有 68 行（不过我显然也属于那种既想吃蛋糕又想拥有它的人）。除了更短之外，它还让我觉得更简单、更易于理解（没有流程控制，也不需要显式抛出任何异常，我们只需利用 Ruby 的反射能力去询问 item.respond_to?(&quot;wield&quot;)，如果物品没有对应玩家指令的方法，就返回一个简单的错误消息给玩家）。</p>
+      
+    
+      
+        <h2>结束思考 |  takeaways</h2>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

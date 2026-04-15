@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>如何筛选收件箱中的旧邮件 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>如何筛选收件箱中的旧邮件</h1>
+    <div class="meta">
+      2025-05-03 · 
+      <a href="https://lethain.com/filter-old-gmail-messages/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>每隔几年，我都会花些时间来整理个人收件箱里的混乱。邮件实在太多了，这通常导致我越来越难以跟进重要的邮件。</p>
+      
+    
+      
+        <p>到目前为止，我的策略主要是过滤掉那些我永远不想读的邮件。但还有另一类邮件：我希望在它们新鲜出炉时阅读，却不想在过期后再看到。比如日历提醒、某些邮件列表、一些新闻通讯等。</p>
+      
+    
+      
+        <p>我决定想办法建立一个系统，能将一些邮件标记为“收到三天后过滤”。这是一个不错的折中方案，因为我确实想看到这些内容，但又不想事后还要记得去手动归档。</p>
+      
+    
+      
+        <p>你可以在 GMail 中写出这样的搜索查询：</p>
+      
+    
+      
+        <pre><code>from:(calendar-notification@google.com) older_than:3d
+</code></pre>
+      
+    
+      
+        <p>然而，如果你试图用这个查询创建 GMail 过滤器，它会把 older_than:3d 变成一个固定的时间点，而不是按照你期望的方式动态处理。</p>
+      
+    
+      
+        <p>看起来在 GMail 自身功能内无法解决这个问题。不过快速搜索后发现，可以通过编写 Google App Script 来实现，于是我让 Claude 为我生成了这个脚本。</p>
+      
+    
+      
+        <p>按照说明，我打开了多年未访问的 script.google.com。我对 Claude 生成的脚本进行了修改：将标签改为“TempMsg”，取消了归档操作的注释，并限制只处理前 50 条匹配该标签的邮件。完整代码可以在这篇 gist 中找到。</p>
+      
+    
+      
+        <p>我尝试直接运行脚本，结果提示需要授予权限。这需要在 Google Scripts 的界面中点击三次确认。</p>
+      
+    
+      
+        <p>此外还需批准一条有些吓人的提示，确认我信任自己。</p>
+      
+    
+      
+        <p>之后我再次运行脚本，却因为收件箱中不存在 TempMsg 标签而失败。</p>
+      
+    
+      
+        <p>于是我创建了这个标签，并设置了一些过滤器，让特定发件人的邮件自动加上这个标签。</p>
+      
+    
+      
+        <p>之后我再运行脚本就一切正常了。需要说明的是，我一度以为它出错了，因为它不会处理过去三天内的邮件。这其实正是它应有的行为，但我运行后看到标签还在，就会误以为失败。真是乌龙。</p>
+      
+    
+      
+        <p>确认脚本正常工作后，我又添加了一个定期触发器让它自动运行。</p>
+      
+    
+      
+        <p>现在这个脚本每天都会运行，为我提供了一个更好地管理邮件的新工具。验证无误后，我还用标签管理器把这个标签“隐藏”在收件箱中，这样就不用到处看到 TempMsg 了。如果以后需要调试，我随时可以重新让它显示出来。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

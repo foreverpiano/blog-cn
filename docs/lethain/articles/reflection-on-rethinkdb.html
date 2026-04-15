@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>对 RethinkDB 的思考 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>对 RethinkDB 的思考</h1>
+    <div class="meta">
+      2012-12-02 · 
+      <a href="https://lethain.com/reflection-on-rethinkdb/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>自从第一次读到 RethinkDB 的介绍，我就一直想着要试一试，这个周末终于动手了。我快速搭建了一个非常简单的示例，使用 RethinkDB 来存储爬取的网页和提取的元数据。</p>
+      
+    
+      
+        <p>这篇文章记录了一些初步的、不够深入的想法。</p>
+      
+    
+      
+        <h2>每款数据库都有其合适的定位</h2>
+      
+    
+      
+        <p>在过去五年左右的时间里，不少开源 NoSQL 数据库都声名鹊起：Cassandra、CouchDB、MongoDB、Voldemort 等等。在我看来，RethinkDB 吸取了 Cassandra 和 CouchDB 的一些最优秀的理念。</p>
+      
+    
+      
+        <p>来自 Cassandra 的目标包括：</p>
+      
+    
+      
+        <div class="list-content">简便的系统维护、简单的分片，以及超越单纯键值存储的“键值增强型”存储。</div>
+      
+    
+      
+        <p>来自 CouchDB 的理念则有：</p>
+      
+    
+      
+        <div class="list-content">以 JSON 文档形式存储数据、能够针对这些 JSON 文档创建索引、使用 JavaScript 实现数据的 map-reduce，以及提供功能丰富的 UI 来与数据库交互。</div>
+      
+    
+      
+        <p>RethinkDB 还避开了那些项目中一些代价高昂或概念上强大但实际影响较小的特性，比如：将 HTTP API 作为一大卖点、将 Java 作为一大卖点、将 Erlang 作为一大卖点、优先考虑同步而非一致性、必须把所有数据塞进一台服务器等。</p>
+      
+    
+      
+        <h2>使用 Python 客户端</h2>
+      
+    
+      
+        <p>RethinkDB 的 API 设计出色且文档详尽。我在构建这个简短示例的过程中，初步了解了其中一小部分功能及其 Python 驱动。在此过程中发现了一些可能值得改进的问题。</p>
+      
+    
+      
+        <p>让我最郁闷的是，官方推荐的使用方式会在背后自动管理连接，你必须去翻看一些源代码才能搞清楚如何用得更安全（当然，这也不是什么世界末日）。</p>
+      
+    
+      
+        <p>示例中推荐的写法是：</p>
+      
+    
+      
+        <pre><code>:::python
+from rethinkdb import r
+r.connect(&#x27;localhost&#x27;, 28015)
+r.db_create(&#x27;crawl&#x27;).run()
+r.db(&#x27;crawl&#x27;).table_create(&#x27;pages&#x27;).run()
+</code></pre>
+      
+    
+      
+        <p>但这样就默认在不同模块间共享同一个连接，意味着你的连接可能会被其他人悄无声息地关闭。我认为如果你在初始化时存在竞态条件，还可能导致默认数据库被意外修改，从而产生一些难以调试的诡异现象。</p>
+      
+    
+      
+        <p>如果想实现同样的功能但不共享连接，写法就会明显不够优雅：</p>
+      
+    
+      
+        <pre><code>:::python
+from rethinkdb import r
+from rethinkdb.net import Connection
+conn = Connection(&quot;localhost&quot;, 28015, &quot;crawl&quot;)
+r.db_create(&#x27;crawl&#x27;).run(conn=conn)
+r.db(&#x27;crawl&#x27;).table_create(&#x27;pages&#x27;).run(conn=conn)
+</code></pre>
+      
+    
+      
+        <p>需要提醒的是，如果其他代码使用了 from rethinkdb import r 的方式，它就会通过模块变量知道你的连接，并直接借用它。根据我快速阅读代码的结果，只要有任何代码使用了默认做法，你就面临一定的混乱风险。如果可能，我建议重写 Python 客户端，彻底移除这个快捷方式，或者至少修改为仅在你使用快捷方式时才更新 rethinkdb.net._last_connection，而手动创建连接时不要更新它。</p>
+      
+    
+      
+        <p>我之所以比较坚持要显式暴露连接池机制，是因为不管你是用线程、多进程还是 gevent，不同场景下需要的处理方式不一样，而用错方式往往会牺牲系统性能或开发者的心智模型。</p>
+      
+    
+      
+        <p>我在客户端中遇到的另一个问题是，抛出的异常不够细粒度，因此客户端很难根据具体异常类型做出恰当反应，除非你事先就知道可能会抛出哪种错误以及原因。</p>
+      
+    
+      
+        <pre><code>from rethinkdb import r
+from rethinkdb.net import ExecutionError
+
+# if a primary key you retrieve doesn&#x27;t exist, ExecutionError
+try:
+    found = self.client.db(self.db).table(self.html_table).get(url).run()
+except ExecutionError, ee:
+        print ee
+
+# if a db already exists, ExecutionError
+try:
+    self.client.db_create(self.db).run()
+except ExecutionError, ee:
+    print ee
+
+# if a table already exists, ExecutionError
+try:
+    self.client.db(self.db).table_create(table).run()
+except ExecutionError, ee:
+    print ee
+</code></pre>
+      
+    
+      
+        <p>拥有明确的异常类型（继承自同一个父异常）能极大改善这种情况，尤其是在某些失败可以合理重试而另一些则不能的时候。</p>
+      
+    
+      
+        <p>同样在合理错误处理这个主题下，db_create、table_create 和 get 操作在失败时会抛出 ExecutionError，而插入操作却使用返回状态码：</p>
+      
+    
+      
+        <pre><code>:::python
+success = self.client.db(self.db).table(
+    self.page_table).insert({&#x27;id&#x27;: &#x27;hi&#x27;})
+if &#x27;first_error&#x27; in success :
+    raise Exception(&quot;num errors %s, first error %s&quot; % \
+                    (success[&#x27;errors&#x27;], success[&#x27;first_error&#x27;]))
+</code></pre>
+      
+    
+      
+        <p>我当然理解为什么插入操作使用返回状态码更合理（因为可能同时插入多条文档，其中部分成功、部分失败），但我不太喜欢这种不一致。或许可以把抛出异常的接口也改成类似插入那样的返回状态码形式。</p>
+      
+    
+      
+        <h2>我真正想要的功能</h2>
+      
+    
+      
+        <p>在第一次使用之后，可以肯定地说我相当喜欢 RethinkDB。它满足了我大部分日常需求：</p>
+      
+    
+      
+        <div class="list-content">它是一个可扩展的键值存储，能对键值数据建立索引，也能对数据集进行一些轻量级分析。</div>
+      
+    
+      
+        <p>不过 RethinkDB 目前还缺少两项功能——当然，你必须有所取舍，否则系统就会什么都做却什么都做不好——如果加上这两点，它就会非常适合我之前参与过的大规模应用。</p>
+      
+    
+      
+        <p>首先是与更完善的数据仓库集成。我希望能有一种方式将 RethinkDB 中的数据接入 HDFS，这样分析师和数据科学家就能用他们熟悉的工具来处理这些数据。</p>
+      
+    
+      
+        <p>其次——这也是官方路线图上的功能——是二级索引。目前你可以通过多建几张表来模拟（早期的 Cassandra 就是这么做的），但真正的二级索引能节省大量时间（在我看来，这也是 MongoDB 如此受欢迎的重要魔法之一）。</p>
+      
+    
+      
+        <p>总的来说，只要扩展性和性能在更大规模数据量下表现符合预期，我完全可以想象将新项目迁移到 RethinkDB 上，即使没有上面提到的额外特性也行。我非常希望它的性能和稳定性能如承诺的那样出色，那将会是一个非常棒的选择。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

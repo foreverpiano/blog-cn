@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>累加器生成器 · Paul Graham 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Paul Graham 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>累加器生成器</h1>
+    <div class="meta">
+      
+      <a href="https://www.paulgraham.com/accgen.html" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p><a href="icad.html">书呆子的复仇</a> 收集了一系列用不同语言编写的解决同一问题的经典方案。</p>
+      
+    
+      
+        <p>问题描述：编写一个函数 foo，它接受一个数值 n，并返回一个函数。该函数接受一个数值 i，并返回 n 加上 i 之后的结果。</p>
+      
+    
+      
+        <p>注意：(a) 这里是数值（number），而不是整数（integer）；(b) 是“递增”（incremented by），而不是简单的“相加”（plus）。</p>
+      
+    
+      
+        <p>C++ template&lt;typename T&gt; struct Acc { Acc(T n) : n(n) {}</p>
+      
+    
+      
+        <p>template&lt;typename U&gt; Acc(const Acc&lt;U&gt;&amp; u) : n(u.n) {}</p>
+      
+    
+      
+        <p>template&lt;typename U&gt; T operator()(U i) { return n += i; }</p>
+      
+    
+      
+        <p>T n; };</p>
+      
+    
+      
+        <p>template&lt;typename T&gt; Acc&lt;T&gt; foo(T n) { return Acc&lt;T&gt;(n); }</p>
+      
+    
+      
+        <p>Dylan define function foo (n) method (i) n := n + i end; end function;</p>
+      
+    
+      
+        <p>E def foo (var n) :any { def inc (i) :any { n += i } }</p>
+      
+    
+      
+        <p>Erlang foop(N)-&gt; receive {P,I}-&gt; S =N+I, P!S, foop(S) end.</p>
+      
+    
+      
+        <p>foo(N)-&gt; P=spawn(foo,foop,[N]), fun(I)-&gt; P!{self(),I}, receive V-&gt;V end end.</p>
+      
+    
+      
+        <p>Haskell import IOExts foo n = do r &lt;- newIORef n return (\i -&gt; do modifyIORef r (+i) readIORef r)</p>
+      
+    
+      
+        <p>Javascript function foo (n) { return function (i) { return n += i } }</p>
+      
+    
+      
+        <p>Lisp: Arc (def foo (n) [++ n _])</p>
+      
+    
+      
+        <p>Lisp: Common Lisp (defun foo (n) (lambda (i) (incf n i)))</p>
+      
+    
+      
+        <p>Lisp: Goo (df foo (n) (op incf n _))</p>
+      
+    
+      
+        <p>Lisp: Scheme (define (foo n) (lambda (i) (set! n (+ n i)) n))</p>
+      
+    
+      
+        <p>Lua function foo(n) return function (i) n = n + i return n end end</p>
+      
+    
+      
+        <p>Maple foo := proc(n) local s; s := n; proc(i) s := s + i end end</p>
+      
+    
+      
+        <p>Mathematica foo = Module[{s=#},s+=# &amp;] &amp;</p>
+      
+    
+      
+        <p>Mozart fun {Foo N} A = {NewCell N} in fun {$ B} C D in {Exchange A C D} if {IsInt C} andthen {IsFloat B} then D = {IntToFloat C}+B elseif {IsFloat C} andthen {IsInt B} then D = C+{IntToFloat B} else D = C+B end {Access A} end end</p>
+      
+    
+      
+        <p>NewtonScript foo := func (n) func (i) n := n + i ;</p>
+      
+    
+      
+        <p>Perl 5 sub foo { my ($n) = @_; sub {$n += shift} }</p>
+      
+    
+      
+        <p>Python class foo: def __init__(self, n): self.n = n def __call__(self, i): self.n += i return self.n</p>
+      
+    
+      
+        <p>Rebol foo: func [ n ] [ func [ i ] [ n: n + i ] ]</p>
+      
+    
+      
+        <p>Ruby def foo (n) lambda {|i| n += i } end</p>
+      
+    
+      
+        <p>Smalltalk foo: n |s| s := n. ^[:i| s := s + i. ]</p>
+      
+    
+      
+        <p>VBScript Class acc Private n Public Default Function inc(i) n = n + i inc = n End Function End Class</p>
+      
+    
+      
+        <p>Function foo(n) Dim bar Set bar = New acc bar(n) Set foo = bar End Function</p>
+      
+    
+      
+        <p>这里没有展示某些语言的实现，要么是因为无法用这些语言编写此程序（除非遵循 Greenspun&#x27;s Tenth Rule），要么是还没有人给我提供相应语言的代码。</p>
+      
+    
+      
+        <p>请暂时不要发送新的实现；我目前没有时间查看。</p>
+      
+    
+      
+        <p>致谢：C++，Brendan Corfman 和 Daniel Cowgill；Dylan，Neel Krishnaswami；E，Darius Bacon；Erlang，Heinz Eriksson；Goo，Jonathan Bachrach；Haskell，Malcolm Wallace 和 Tom Pledger；Javascript，Anton van Straaten；Lua，Chris Laurel；Maple，Stefan Vorkoetter；Mathematica，Kovas Boguta；Mozart，Kari Pahula；NewtonScript，Sean Luke；Perl，Dan Giffin 和 Trevor Blackwell；Python，Jeremy Hylton；Rebol，Andreas Bolka；Ruby，Stephan Schmidt；Smalltalk，Trevor Blackwell；VBScript，Stefan Holm。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://www.paulgraham.com" target="_blank" rel="noopener">paulgraham.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'pg_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

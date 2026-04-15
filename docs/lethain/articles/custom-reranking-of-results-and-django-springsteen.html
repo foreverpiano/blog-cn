@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 django-springsteen 中对结果进行重新排序 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 django-springsteen 中对结果进行重新排序</h1>
+    <div class="meta">
+      2009-02-26 · 
+      <a href="https://lethain.com/custom-reranking-of-results-and-django-springsteen/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>接昨天的文章，这里简要介绍一下如何在 django-springsteen 中对搜索结果进行重新排序，以及它如何能够对来自多个数据源的结果进行一致的分页。</p>
+      
+    
+      
+        <p>（你可以在 GitHub 上获取 springsteen 的源代码。）</p>
+      
+    
+      
+        <h2>自定义结果排序</h2>
+      
+    
+      
+        <p>如果你曾经尝试过调整搜索相关性（尤其是在大型或多样化的数据集合上），你很可能痛苦地意识到，对结果进行重新排序正是问题的核心。</p>
+      
+    
+      
+        <p>这正是 springsteen 提供一个简单钩子来重新排序结果的原因，也是它默认采用简单的堆叠方式而非尝试替你重新排序的原因。你最了解自己的数据，因此应该由你自己来调整它的排序。</p>
+      
+    
+      
+        <p>下面是一个简单——虽然存在缺陷——的重新排序搜索结果的示例。</p>
+      
+    
+      
+        <p>就是这样，最简单的可以想到的重新排序函数。但它有一个小问题：对同一批数据运行两次排序函数可能会返回不同的排序结果，这使得可预测的分页变得不可能。</p>
+      
+    
+      
+        <p>这就引出了一个好的重新排序算法的唯一要求：对于相同的数据，它必须返回相同的排序。也就是说，排序结果必须是一致的。结果不需要在每天甚至每小时都保持一致，但重新排序算法必须足够一致，才能实现可预测的分页。</p>
+      
+    
+      
+        <p>你对分页中的噪声（同一个结果出现在多个页面上）越不介意，你的重新排序算法就可以越灵活。</p>
+      
+    
+      
+        <p>要理解跨分页的一致性排序是如何实现的，我们需要先 detour 一下，了解 springsteen 中分页的细节。</p>
+      
+    
+      
+        <h2>跨数据源的一致性分页</h2>
+      
+    
+      
+        <p>最简单的分页情况是获取第 1 条到第 N 条结果。为此，springsteen 会向每个服务查询 N 条结果，将它们合并在一起，对结果调用任何重新排序函数，然后返回前 N 条结果。</p>
+      
+    
+      
+        <p>我们把来自所有服务的 N 条结果（或服务所能提供的尽量接近 N 条的结果）称为一个批次。因此，如果我们有 5 个服务，并且从每个服务获取了 N 条结果，那么我们的第一个批次就包含 5N 条结果。</p>
+      
+    
+      
+        <p>这意味着从第一个批次中，我们有足够的数据来生成五页可供分页的结果。因为用户只请求了前 N 条结果，所以我们按照自己的意愿对其重新排序，然后返回重新排序后的前 N 条结果。</p>
+      
+    
+      
+        <p>现在，如果用户请求第 N 条到第 2N 条结果，我们会再次向所有数据源查询 N 条结果，再次对其重新排序，然后返回第 N 到 2N 条结果。这可能感觉有点低效，但 springsteen 会尝试缓存结果，因此浏览这五页结果只需对每个服务请求一次（假设这五页结果是在结果被缓存的约 30 分钟内显示的）。</p>
+      
+    
+      
+        <p>如果用户请求的结果超出了第一个批次的范围，情况就会变得复杂一些。为了获取这些结果，我们需要先获取第一个批次的结果，将其放在一边，然后继续获取后续批次（并同样放在一边），直到所有批次的结果总数超过用户最终请求的结果位置。</p>
+      
+    
+      
+        <p>然后，我们对每个批次分别执行重新排序算法，这些批次的结果范围包含用户请求的起始和结束位置。接着我们将这些批次合并在一起（保持各自的顺序），并切出请求的结果。必须对每个批次单独排序，才能实现结果的一致性排序（从而支持可预测的分页）。</p>
+      
+    
+      
+        <p>通过一个例子来看，这其实相当简单。考虑以下代码：</p>
+      
+    
+      
+        <p>通过对批次独立重新排序，我们得到第一个结果；而如果将它们一起排序，则会得到第二个结果。</p>
+      
+    
+      
+        <p>在结果的第一页，使用两种算法你都会看到 1,2,5,7,9。第二页，使用第一种算法会看到 1,3,5,6,9。而使用第二种算法则会看到 5,6,7,8,9,9。这意味着第二种算法在第二页展示了更差的结果，并且出现了重复的结果。</p>
+      
+    
+      
+        <p>关于分页的简短插曲到此结束。</p>
+      
+    
+      
+        <h2>一个一致的排序算法</h2>
+      
+    
+      
+        <p>下面是一个一致的重新排序算法的简单示例。从提升搜索相关性的角度来说它并不实用，但作为一个技术示例可能很有价值。</p>
+      
+    
+      
+        <p>这个算法根据标题的长度对结果进行重新排序。</p>
+      
+    
+      
+        <p>请记住，重新排序在批次内部是一致的，批次之间也是一致的，但在某些结果集合中，你可能会同时看到一个批次的结尾和另一个批次的开头，这（对于像这个例子这样非常直观的算法）会显得有点突兀。</p>
+      
+    
+      
+        <p>在更实际的场景中，你可能会创建一个函数，为每个结果分配一个分数，然后根据该分数对其重新排序。你可能一开始只考虑数据来源，后来再加入发布日期（如果存在），并针对你的数据集合不断进行调整。</p>
+      
+    
+      
+        <p>当你开始进行一些实验时，我很想听听你对排序算法的想法。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

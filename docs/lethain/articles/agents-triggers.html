@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>构建内部 Agent：触发器 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>构建内部 Agent：触发器</h1>
+    <div class="meta">
+      2025-12-31 · 
+      <a href="https://lethain.com/agents-triggers/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>内部 Agent 只有在其工作流被启动时才能提供价值。构建一个工作流初始化库（我们称之为触发器）是构建内部 Agent 的核心部分。</p>
+      
+    
+      
+        <p>本文属于 <a href="agents-series.html">构建内部 Agent</a> 系列。</p>
+      
+    
+      
+        <h2>为什么触发器很重要</h2>
+      
+    
+      
+        <p>虽然现在有很多讨论都在说 AI 如何赋能员工，让他们能轻松自动化日常工作流，但构建这些工作流需要对 Agent 的工作原理有直观理解，而这种理解需要通过迭代学习来培养，目前很少有工作场所提供支持这种迭代学习的工具。易用的触发器，再加上便捷的 Prompt 迭代，是实现迭代学习的基础。</p>
+      
+    
+      
+        <p>更实际地说，触发器是启动工作流的机制，如果它们不够有效和易用，其他一切都无从谈起。</p>
+      
+    
+      
+        <h2>为什么不用 Zapier 或 n8n？</h2>
+      
+    
+      
+        <p>这里最显而易见的问题是“为什么不用 Zapier？”以及“为什么不用 n8n？”——两者都能完整解决触发问题。说实话，你仍然可以使用 Zapier 或 n8n 通过自定义 Webhook 触发器来启动 Agent 工作流，所以这些方案并不冲突。但对我来说，我认为真正重要的工作流数量并不多，而且我希望在解决这个问题时能完全掌控其中的细节。</p>
+      
+    
+      
+        <p>“完全掌控”这一点也呼应了我对这项工作的一个基本论点：高质量的细节能显著促进采用度，而 Zapier 集成的限制则无法做到。这也是为什么我认为内部 Agent 需要投入大量精力来处理 Slack 实体解析等问题，从而打造出无缝的使用体验。</p>
+      
+    
+      
+        <h2>我们如何实现触发器</h2>
+      
+    
+      
+        <p>我们按以下顺序实现了这些触发器：</p>
+      
+    
+      
+        <div class="list-content">Notion Webhook 可以配置为在任何页面或数据库修改时触发，包括从“草稿”状态变为“待审核”状态，或其他更细微的变化。我们已经更新了所有 Request for Comment（RFC）和其他结构化文档数据库，让它们接入这些触发器。这些触发器驱动了多种工作流。简单的可以根据主题为文档分配额外的评审人，复杂的则可以使用 Prompt 在文档中直接插入带建议的评论。
+Slack 消息可以触发回复或其他工作流，这取决于 Bot 被邀请进入哪些频道。后来我又做了一个触发器来捕获频道创建事件，支持自动加入新频道以提升可用性。（自动加入的频道会使用一个简单的默认 Prompt，只有在 Bot 被直接提及时才会回复，以免过度打扰。）
+我们还在私有频道中实现了这一功能（不包括自动加入，仅响应消息）。难点在于确保日志不会记录任何加入或响应私有频道的痕迹。泄露私有消息会是非常容易迅速失去信任的方式。
+Jira Webhook 可以配置为在 Issue 创建、更新、评论等事件时触发通知。
+Slack Reaction（reacji）是后来添加的功能，我们增加了对特定频道或 Bot 所在任何频道中 Slack Reaction 的监听能力。这使得我们能够快速实现一个触发器：在任何频道中使用 :jira: Reaction，就可以把整个线程转为一个 Ticket，并使用集中化的路由规则进行分发（虽然规则并不完美，但远比普通人跨多个团队进行路由的能力要强）。
+定时事件是我们最近添加的功能，支持周期性触发。我做了两个不同的 v0 实现，第一个依赖 Slack Workflow 向新频道发布消息作为触发，另一个则依赖 GitHub Actions。尽管有些 messy，但两者都工作得不错。</div>
+      
+    
+      
+        <p>现在我们已经有了一个相当大的触发器类别，并且更新了 AGENTS.md 来记录现有的集成，添加新类型的触发器通常只需要把文档粘贴到 Claude 里，等几分钟即可完成。</p>
+      
+    
+      
+        <h2>触发器的认证与授权</h2>
+      
+    
+      
+        <p>在认证和授权方面，我们尽可能采用 OAuth2 的授权令牌和 SSL 方式。然而，对于 Slack 这类我们无法将授权令牌注入请求的场景，这种方式就不可行了。此时我们会依赖底层平台提供的应用特定安全机制，比如 Slack 验证请求的机制。</p>
+      
+    
+      
+        <h2>目前效果如何？接下来做什么？</h2>
+      
+    
+      
+        <p>我们当前的这组触发器运行良好。下一项任务——大概只需要两句 Prompt 和十分钟 Claude 代码——是增加对更通用 Webhook 的触发器支持，将整个 incoming message 纳入上下文窗口。目前还没有迫切需要，但这是一个有用的兜底机制，可以支持未来的工作流。</p>
+      
+    
+      
+        <p>特别是，它可以很方便地与现有的 Zapier 订阅配合使用，将某些冷门触发器的支持交给 Zapier 庞大的集成目录，同时依然保留内部 Agent 的控制力和细节处理能力。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

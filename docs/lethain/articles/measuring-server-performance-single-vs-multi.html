@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>衡量单服务器与多服务器的性能 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>衡量单服务器与多服务器的性能</h1>
+    <div class="meta">
+      2009-02-18 · 
+      <a href="https://lethain.com/measuring-server-performance-single-vs-multi/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>关于服务器架构的永恒争论之一，就是在提供动态 Web 应用时，究竟该采用多服务器配置还是单服务器配置。</p>
+      
+    
+      
+        <p>我决定运行一些性能测试，用实际数据来参与这场讨论。</p>
+      
+    
+      
+        <h2>测试条件</h2>
+      
+    
+      
+        <div class="list-content">在每次运行数据采集脚本前，服务器都会重启，但在每次测试之间则不对机器做任何操作。每次测试之间间隔 30 秒，每个测试运行三次，每种配置进行八轮测试（从 25 个并发用户开始，以 25 为步长递增至 200 个并发用户），共有八种不同配置。总共运行了 192 次测试，其中一半针对 Apache + mod_wsgi 配置，另一半针对 Nginx + Apache + mod_wsgi 配置。原始数据包含每个测试的三次运行结果，但在绘制图表时，我选择了平均事务每秒数最高的那次运行。测试所用的机器是一台来自 Slicehost、内存为 256MB 的 VPS，其配置规格如下。负载生成机同样是一台 Slicehost VPS，两台机器之间的往返延迟约为 0.5 毫秒。对于 Nginx + Apache + mod_wsgi 配置，重启后我未对 VPS 做任何修改。对于 Apache + mod_wsgi 测试，我在重启前修改了 Apache 的配置，使其监听外部端口。重启后通过 SSH 登录 VPS，关闭 Nginx，然后退出 SSH 会话。所加载的页面都极为轻量级，不含数据库查询的页面大小为 1KB，含数据库查询的页面大小为 0.4KB。数据采集使用 Siege 完成，并由以下脚本统一管理。</div>
+      
+    
+      
+        <h2>关于测试条件的说明</h2>
+      
+    
+      
+        <p>这些条件非常有利于 Apache + mod_wsgi 配置超越 Nginx + Apache + mod_wsgi 配置。因为查询极其轻量级（适合工作线程较少的服务器），而且响应速度极快（同样有利于工作线程较少的服务器）。</p>
+      
+    
+      
+        <p>这些条件可以说是单服务器配置超越多服务器配置的“完美风暴”。</p>
+      
+    
+      
+        <h2>测试结果</h2>
+      
+    
+      
+        <p>最初我选择用每秒事务数来评估结果。下面简短的测试片段就能说明为什么这个指标其实相当乏味。</p>
+      
+    
+      
+        <p>从每秒事务数来看，不同配置（以及是否开启调试、是否查询数据库）几乎没有任何影响。看来得换个思路。</p>
+      
+    
+      
+        <p>我的第二个方案是比较完成所有请求所用的总时间。不幸的是，总耗时和每秒事务数是基于重叠数据计算的，因此两种配置之间的差异基本一致。有时多服务器配置表现更好，有时单服务器配置更胜一筹。没有得出明确结论。</p>
+      
+    
+      
+        <p>这种趋势贯穿了负载测试记录的所有指标。如果不取最佳值而是对三次运行取平均值，或许能得到更大差异。但即便如此，在这些条件下拼命寻找两者之间的优劣，也只会发现非常微小的差别。对于那些把性能视为拼图的一部分——而非全部——的人来说，这样的数据点几乎毫无意义。</p>
+      
+    
+      
+        <p>我很希望看到有人复现这些测试，并引入更多有趣的对比（例如 Nginx + mod_wsgi 与 Nginx + fcgi 与 Apache + mod_wsgi 等），甚至重复这个实验本身，以防我犯了什么严重错误导致这些数据失效。</p>
+      
+    
+      
+        <p>目前我的结论是：在条件良好的情况下提供动态内容时，单服务器和多服务器配置的性能大致相当。</p>
+      
+    
+      
+        <h2>原始数据</h2>
+      
+    
+      
+        <p>原始数据可在此处以 CSV 格式下载。</p>
+      
+    
+      
+        <p>下面是我用来提取单一指标数据（并发数、完成时间等）、从三次重复运行中选出最优值，并最终生成 CSV 文件的脚本。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

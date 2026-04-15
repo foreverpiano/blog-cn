@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>分布式有限状态机的实验 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>分布式有限状态机的实验</h1>
+    <div class="meta">
+      2018-06-02 · 
+      <a href="https://lethain.com/dfsmr/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>现代大多数任务系统（如 RabbitMQ 或 Celery）都专注于任务排队，并由分布式的消费者集群主动拉取任务。这种方式效果非常好，但也把任务工作流的表达责任转嫁给了应用程序本身。如果你想要复杂的工作流，最终就会进入 Airflow 这类工具的平行宇宙——它们很优秀，但也相当笨重，并且是为协调批处理工作流而设计的，而非任务工作流。Erlang 的 gen_fsm 也有一些有趣的前人成果，但它被限制在单一语言环境中。</p>
+      
+    
+      
+        <p>我想探索这个想法，于是原型化了一个名为 dfsmr（Distributed Finite State Machine Runner，分布式有限状态机运行器）的接口。这里的实验完全集中在接口设计上，具体实现只是为了能跑通接口而做的最小化版本（也就是说，实现质量并不高）。dfsmr 的 README 已经解释了其设计细节，因此这篇文章只会做一些更高层次的点评。</p>
+      
+    
+      
+        <p>我发现，专注于纯粹的接口设计、完全脱离实现细节，是一件出乎意料地有收获的事。不久以前，我还会把接口设计当作最后才需要关注的部分。当年的 NoSQL 运动就以这一点闻名——强迫用户先去了解系统的各种约束，才能开始使用它，从而确保其接口只支持高度可扩展的模式，哪怕这要求每个用户都必须掌握大量概念。如今的基础设施设计则倾向于在系统内部承担巨大的复杂度，从而为用户提供简单、直观的接口（例如 Cloud Spanner）。我认为，替用户吸收复杂度确实是未来的方向。</p>
+      
+    
+      
+        <p>gRPC 是一个特别有帮助的工具，它帮助我专注于接口设计，尤其是不让我“作弊”——把越来越多的键值对塞进定义模糊的 JSON Blob 里。特别是其中的流式方法，让我能够轻松实现类似 Redis MONITOR 命令的流式变更日志，这对理解和调试来说是不可或缺的辅助手段。</p>
+      
+    
+      
+        <p>在开源生态中，确实存在这类工具的生存空间。最好它能高效支持延迟重试（大致来说是基于优先级队列的调度，而非 FIFO），能在多台服务器上分布式运行，并且运维开销很低。嗯，都是些简单的东西。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

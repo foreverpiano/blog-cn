@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>构建内部 Agent：日志记录与可调试性 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>构建内部 Agent：日志记录与可调试性</h1>
+    <div class="meta">
+      2025-12-31 · 
+      <a href="https://lethain.com/agents-logging/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>Agent 的能力令人惊叹，但它们也引入了大量不确定性，而不确定性意味着有时会出现奇怪的问题。为了应对这一点，我们需要对工作流进行检测，以便能够调试出问题发生的原因。</p>
+      
+    
+      
+        <p>这是 <a href="agents-series.html">构建内部 Agent</a> 系列文章的一部分。</p>
+      
+    
+      
+        <h2>为什么日志记录如此重要</h2>
+      
+    
+      
+        <p>每当 Agent 执行了不够理想的操作，人们就会将其标记为 bug。通常来说，这个“bug”其实是 Prompt 中的模糊表述导致了次优的工具调用。这让我心里好受一些，但那些依赖这些工具的人却不会因此感到安慰：他们只是希望工具能正常工作。</p>
+      
+    
+      
+        <p>这意味着，调试意外行为是内部推广 Agent 的重要组成部分，必须让这项工作变得足够简单且能经常进行。如果调试需要花费太多时间、精力或权限，那么你的 Agent 就很难被真正使用起来。</p>
+      
+    
+      
+        <h2>我们如何实现日志记录</h2>
+      
+    
+      
+        <p>我们的 Agent 运行在 AWS Lambda 中，因此最初的日志方案只是将内容打印到标准输出，由 Lambda 的日志系统收集。这在最早的几个阶段还能接受，但也意味着每次出问题我都得登录 AWS，甚至很多工程师都不知道去哪里查看日志。</p>
+      
+    
+      
+        <p>第二版方案是创建了 #ai-logs Slack 频道，每次工作流运行都会分享其配置、使用的工具，以及指向 AWS 日志页面的链接。这是一个进步，但要回答基本问题，仍然需要大量翻阅日志的操作。</p>
+      
+    
+      
+        <p>第三版也就是我们当前的实现，是集成了 Datadog 的 LLM Observability。它提供了一种简便的方式来查看 LLM 工作流中的每一个 Span，让调试复杂问题变得直截了当，无需再费力地翻阅大量日志。这是一个巨大的改进。</p>
+      
+    
+      
+        <p>值得一提的是，Datadog 的集成还让我们很容易为内部项目引入仪表盘功能，这正是我们工作中一直缺失但非常有帮助的一环。</p>
+      
+    
+      
+        <h2>实际效果如何？下一步是什么？</h2>
+      
+    
+      
+        <p>老实说：Datadog 的 LLM 可观测性工具真的非常出色。目前我遇到的唯一问题是，我们主要将 Datadog 账号限制在技术组织内部，因此工作流调试对团队以外的人来说不够便捷。不过在实际中，会真正主动调试这些工作流的人几乎都已有访问权限，所以这更多是一个理念层面的问题，而非实际操作上的障碍。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

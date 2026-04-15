@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Python-Brightkite 及其他类似项目 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Python-Brightkite 及其他类似项目</h1>
+    <div class="meta">
+      2008-11-16 · 
+      <a href="https://lethain.com/python-brightkite-for-using-brightkite-in-python/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>上周 Yashh 联系我，说要开始写一个 Brightkite 的 Python 封装库。基于 Brightkite 的 RESTful API，我们已经取得了一些相当不错的进展，朝着一个可用的库迈进。</p>
+      
+    
+      
+        <p>你可以在它的 GitHub 仓库中贡献代码或查看项目，也可以在 wiki 中看到剩余的任务。</p>
+      
+    
+      
+        <h2>安装 Python-Brightkite</h2>
+      
+    
+      
+        <p>安装 Python-Brightkite 的过程相当简单直接。</p>
+      
+    
+      
+        <p>它还依赖于 xml2dict，</p>
+      
+    
+      
+        <p>但这个依赖已经一起打包在项目中（我们之所以打包它，是因为它没有 easy_install 包，而且已经有好几年没有更新了）。</p>
+      
+    
+      
+        <p>目前最好的做法可能是直接从仓库中复制 .py 文件到你的项目中，但随着项目进入发展初期，我们会制定一个更友好、更人性化的部署方案。</p>
+      
+    
+      
+        <p>保证很快就会变得更顺畅。</p>
+      
+    
+      
+        <h2>使用 Python-Brightkite</h2>
+      
+    
+      
+        <p>Python-Brightkite 使用起来相当简单直观，尽管 Brightkite 暴露了数量惊人的 API，这意味着你可能需要四处翻找才能找到正确的接口。</p>
+      
+    
+      
+        <p>以上是目前 Python-Brightkite 已实现的 24 个 API 中的两个。对于所有这些 API，我们都是直接将 XML 转换成 Python 数据结构，因此你需要查看返回的数据结构或原始 XML，来了解每个 API 返回数据的结构。</p>
+      
+    
+      
+        <h2>Python-Brightkite 的限制</h2>
+      
+    
+      
+        <p>我们实际上已经实现了 Brightkite RESTful API 所暴露的大部分功能，但仍存在一些小问题和一个较大的缺口。</p>
+      
+    
+      
+        <p>具体来说，所有数据获取命令都已经过测试，但创建/删除/更新相关的功能还没有经过充分测试（不过代码本身非常简单，所以一旦发现问题，修复起来应该只需要几分钟时间）。</p>
+      
+    
+      
+        <p>最大的一个功能缺失是使用 OAuth 进行身份验证。由于目前唯一的其他选择是 HTTP Basic Auth，所以 Python-Brightkite 目前仅支持这种方式。在 Python-Brightkite 能够被严肃使用之前，这个限制必须得到解决。如果你有兴趣研究这个问题，这里有一些参考资源，比如这个代码片段和这个库。如果到下周末还没解决，我可能会抽时间投入精力来处理。</p>
+      
+    
+      
+        <h2>关于实现的几点说明</h2>
+      
+    
+      
+        <p>这是一个相当有趣且快速完成的项目（别忘了 Yashh 也为项目做出了贡献）。在尝试了 XML::Simple 之后，我更加确信，将 XML 转换为原生数据结构是处理 XML 的正确方式——除非性能在你的使用场景中至关重要。</p>
+      
+    
+      
+        <p>使用 xml2dict（我第一次是在 Vik Singh 的 Yahoo! BOSS 库中看到的，它能将 XML 文档转换为 Python 数据结构），再配合 httplib2，让整个应用的基础部分变得简洁而优雅。（请友好地忽略 _unescape_uri 方法的糟糕实现。它是十秒钟临时修复的方案，因为我发现自己转义得太过头了，但当时想先看看整个库是否能正常工作。）</p>
+      
+    
+      
+        <p>基于这五个方法，API 调用都非常简洁。下面是两个有代表性的例子：</p>
+      
+    
+      
+        <p>其实除了构造函数以及 http 和 xml 属性的实现之外，整个库的实现就这么多了。</p>
+      
+    
+      
+        <p>我还记得以前曾经想过，人们为 Amazon 或 Facebook 之类的 API 编写封装库真是太棒了。后来我逐渐意识到，实现一个封装库主要靠的是时间，而不是才华。现在我自己动手做了几个之后，进一步意识到，这甚至不是时间的问题，而仅仅是个“去做”的问题。（当然，维护封装库可能会把你累死。）</p>
+      
+    
+      
+        <p>如果我们能找到一种描述 API 的通用格式，就能彻底绕过编写封装库这道工序。这样的话，即使 API 开发者没有提供规范，也只需要几位开发者花几个小时把它写出来，我们就能为哪怕是最前沿的 API 获得漂亮的封装库。可能性如此之多，而时间却如此之少。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

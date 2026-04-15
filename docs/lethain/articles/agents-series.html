@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>构建内部 Agent · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>构建内部 Agent</h1>
+    <div class="meta">
+      2026-01-01 · 
+      <a href="https://lethain.com/agents-series/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>几周前在<a href="company-ai-adoption.html">推动 Imprint 的 AI 采用</a>这篇文章中，我提到了我们正在开发的内部 Agent 工作流。这并不是 Imprint 的核心业务——我们的核心是驱动联名信用卡项目——我希望记录一家像我们这样的公司是如何一步步构建这些内部能力的。</p>
+      
+    
+      
+        <p>基于那篇文章中提到的公司级公开 Prompt 库等想法，我准备写一系列更短的文章，分享我们在演进工作流过程中遇到的一些有趣问题以及采取的解决方法：</p>
+      
+    
+      
+        <div class="list-content"><a href="agents-skills.html">构建内部 Agent：为 Agent Skills 添加支持</a><a href="agents-large-files.html">构建内部 Agent：渐进式披露与处理大文件</a><a href="agents-context-compaction.html">构建内部 Agent：上下文窗口压缩</a><a href="agents-evals.html">构建内部 Agent：用 Evals 验证工作流</a><a href="agents-logging.html">构建内部 Agent：日志记录与可调试性</a><a href="agents-subagents.html">构建内部 Agent：子 Agent 支持</a><a href="agents-coordinators.html">构建内部 Agent：代码驱动 vs LLM 驱动的工作流</a><a href="agents-triggers.html">构建内部 Agent：触发器</a><a href="agents-iterative-refinement.html">构建内部 Agent：迭代优化 Prompt 与技能</a></div>
+      
+    
+      
+        <p>和之前那篇文章一样，我写这些并不是以行业专家的身份来公布最佳实践，而只是分享我们一路走来具体学到的东西。如果你也在开发内部框架，希望你能从这些文章中找到一些有价值的内容。</p>
+      
+    
+      
+        <h2>培养对 Agent 的直觉</h2>
+      
+    
+      
+        <p>随着越来越多的人阅读这些笔记，反复出现的反馈是：“我该怎么学习这些东西？”虽然我没有花时间评估这是否是最好的学习方式，但我可以分享自己觉得有效的方法：</p>
+      
+    
+      
+        <div class="list-content">阅读关于大型语言模型工作原理的入门材料，比如 Chip Huyen 写的《AI Engineering》。你也可以做一个简短的教程，你不需要自己去训练一个 LLM，只需要对它们的能力建立一个心智模型。用一个基础的 LLM API 写一个脚本，让它能根据 Prompt 进行回复。扩展这个脚本，使其支持工具调用（tool calling），实现一些基础工具，比如在本地 Git 仓库中搜索文件（或者其他功能）。实现一个类似 Anthropic Claude 的 tool_search 工具，它使用一个独立的上下文窗口来评估当前上下文与可用技能的匹配度，只返回与当前任务相关的技能，以保持主上下文窗口的简洁。实现一个虚拟文件系统，让工具可以操作那些不在当前上下文窗口中的文件引用。同时增加一系列操作该虚拟文件系统的工具，比如 load_file、grep_file 等。支持 Agent Skills，特别是 load_skills 工具，并将可用技能信息增强到 Prompt 中。编写工作流后评估机制，让它在每次工作流结束后自动运行，评估本次执行的质量。增加上下文窗口压缩（context-window compaction）功能，确保上下文长度始终低于设定上限。故意让某些工具的返回内容足够大，以至于威胁到上下文窗口的限制，迫使你去解决这个问题。</div>
+      
+    
+      
+        <p>在逐一实现上述每个功能之后，我相信你会对如何构建和扩展这类系统建立扎实的基础。唯一缺失的一环是支持<a href="agents-coordinators.html">构建内部 Agent：代码驱动 vs LLM 驱动的工作流</a>，但遗憾的是，我认为在简单示例中很难展现代码驱动 Agent 的必要性，因为 LLM 驱动的 Agent 已经足以解决大多数人为构造的例子。</p>
+      
+    
+      
+        <h2>为什么不直接使用 X？</h2>
+      
+    
+      
+        <p>目前已经有很多现成的 Agent 框架，包括 OpenAI Agents SDK 和 Claude 的 Agents SDK。最终我认为这些框架大多只是比较薄的封装，自己动手实现一遍能学到更多东西。但我不太确定从长期来看，是否值得自己从零构建一个框架。</p>
+      
+    
+      
+        <p>我的总体建议是：先自己造一个轮子用来丢弃，然后如果发现现有框架存在明显限制，再尝试在它们之上进行构建。尽管如此，我一点也不后悔我们选择自己开发，因为从代码角度来看，它真的非常简单。</p>
+      
+    
+      
+        <h2>最后的一些想法</h2>
+      
+    
+      
+        <p>我认为每家公司都应该在内部开展这项工作，即使是那些产品中完全不涉及 AI 的公司也不例外。这是一项非常有趣的工作，有巨大的改进空间。如果 AI 增强技术在 2026 年继续像 2025 年那样快速迭代，那么让一两个工程师投入在这上面，是一个相对低成本的去风险方式。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API 弃用的系统模型 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>API 弃用的系统模型</h1>
+    <div class="meta">
+      2025-04-24 · 
+      <a href="https://lethain.com/api-deprecation-model/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在 <a href="api-deprecation-strategy.html">Stripe 应该如何弃用 API？（~2016 年）</a> 一文中，其诊断结果基于这样一个论点：API 弃用是导致客户流失的重要原因。虽然公司内部有数据可以用来分析弃用与流失之间的相关性，但建立一个模型来帮助我们判断这种相关性是否也意味着因果关系，同样极具价值。</p>
+      
+    
+      
+        <p>本章将介绍以下内容：</p>
+      
+    
+      
+        <div class="list-content">从建模 API 弃用对用户留存的影响中获得的洞见；使用 GitHub 上的 lethain/systems 包开发系统模型。该模型可在 lethain/eng-strategy-models 仓库中找到；通过运行该模型从中学习。</div>
+      
+    
+      
+        <p>是时候去探究，相信 API 弃用是影响用户留存和流失的主要因素是否合理。</p>
+      
+    
+      
+        <p>本章选自《Crafting Engineering Strategy》。</p>
+      
+    
+      
+        <h2>核心洞见</h2>
+      
+    
+      
+        <p>在一个每轮基础客户流失率为 10% 的初始模型中，将每轮遇到 API 弃用的客户比例从 50% 降低到 10%，仅使集成客户的稳态数量增加了约 5%。</p>
+      
+    
+      
+        <p>然而，如果我们完全消除基础客户流失率，那么 10% 和 50% 的 API 弃用率之间就会出现巨大差异。</p>
+      
+    
+      
+        <p>这个模型最大的启示是：仅仅消除由 API 弃用导致的流失，并不会显著增加集成客户的数量。但如果不同时减少 API 弃用，我们也无法充分受益于基础流失率的降低。要实质性地增加集成客户的数量，需要同时降低这两种类型的流失。</p>
+      
+    
+      
+        <h2>模型草图</h2>
+      
+    
+      
+        <p>我们先从模型最理想的路径开始绘制：潜在客户流入成为活跃客户，然后进一步成为集成客户。这代表一位决定与 Stripe 的 API 集成，并成功完成集成流程的客户。</p>
+      
+    
+      
+        <p>如果问题空间仅限于此，业务会非常理想。不幸的是，客户偶尔还是会流失。这种流失通过两种方式体现：</p>
+      
+    
+      
+        <div class="list-content">基础流失：集成客户因各种原因离开 Stripe，包括公司解散等；经历 API 弃用后受其影响而流失，代表客户在所使用的 API 被弃用后决定离开的情况。</div>
+      
+    
+      
+        <p>此外还有再集成流：受 API 弃用影响的客户可以选择更新自己的集成以适配 API 变更。</p>
+      
+    
+      
+        <p>将所有部分整合起来，最终的草图包含五个存量（stock）和六条流量（flow）。</p>
+      
+    
+      
+        <p>你可以想象加入更多动态，例如流失客户的挽回，但这些动态不太可能显著改变我们对 API 弃用如何影响流失的理解。</p>
+      
+    
+      
+        <h2>分析推理</h2>
+      
+    
+      
+        <p>在获取客户方面，最重要的流量是客户获取和与 API 的初始集成。优化这些流量将增加现有集成的数量。</p>
+      
+    
+      
+        <p>驱动流失的流量是基础流失，以及 API 弃用与弃用影响流失的组合。对于支付 API 来说，降低基础流失率较为困难，因为许多流失客户是由于公司解散。从收入加权角度看，基础流失主要由非技术因素驱动，尤其是定价。无论哪种情况，要影响这条流量都十分困难，且往往需要显著降低利润率。</p>
+      
+    
+      
+        <p>另一方面，工程决策对 API 弃用的数量以及迁移后的再集成难度都有重大影响。由于支持再集成的工程工作同时也能改善初始集成体验，这是一个值得投入的有前景的机会。</p>
+      
+    
+      
+        <h2>模型实现</h2>
+      
+    
+      
+        <p>你可以在 GitHub 上找到该模型的完整实现，如果你想查看完整模型而非这里强调的片段。</p>
+      
+    
+      
+        <p>现在我们已经确定了最值得实验的方向，是时候构建模型来评估哪些流量最具影响力。</p>
+      
+    
+      
+        <p>我们的初始模型参数设定如下：</p>
+      
+    
+      
+        <pre><code># User Acquisition Flow
+[PotentialCustomers] &gt; EngagedCustomers @ 100
+# Initial Integration Flow
+EngagedCustomers &gt; IntegratedCustomers @ Leak(0.5)
+# Baseline Churn Flow
+IntegratedCustomers &gt; ChurnedCustomers @ Leak(0.1)
+# Experience Deprecation Flow
+IntegratedCustomers &gt; DeprecationImpactedCustomers @ Leak(0.5)
+# Reintegrated Flow
+DeprecationImpactedCustomers &gt; IntegratedCustomers @ Leak(0.9)
+# Deprecation-Influenced Churn
+DeprecationImpactedCustomers  &gt; ChurnedCustomers @ Leak(0.1)
+</code></pre>
+      
+    
+      
+        <p>这些数值是否合理，主要取决于我们如何定义每一轮的时长。如果一轮代表一个月，那么假设一半的集成客户会遇到 API 弃用就太过极端了。如果一轮是一年，这个比例虽然仍然偏高，但确实有一些 API 提供商 routinely 以这个频率进行弃用。（根据我的个人经验，可以确信 Facebook 的 Ads API 在 2012-2014 年期间，每个季度至少会弃用一个重要字段。）</p>
+      
+    
+      
+        <p>诚然，对于支付 API 来说这个弃用率偏高，主要是为了与下面练习部分中更合理的值形成对比。</p>
+      
+    
+      
+        <h2>模型演练</h2>
+      
+    
+      
+        <p>我们运行这个模型的目标是理解 API 弃用对客户流失的影响程度。我们将先绘制初始基准线，然后与各种不同场景进行对比，直到我们对曲线变化建立起直觉。</p>
+      
+    
+      
+        <p>初始图表在大约四十轮后趋于稳定，维持约 1000 个集成客户和 400 个正在处理已弃用 API 的客户。现在我们把“经历弃用”这条流量的影响客户数显著降低：</p>
+      
+    
+      
+        <pre><code># Initial setting with 50% experiencing deprecation per round
+IntegratedCustomers &gt; DeprecationImpactedCustomers @ Leak(0.5)
+
+# Less deprecation, only 10% experiencing per round
+IntegratedCustomers &gt; DeprecationImpactedCustomers @ Leak(0.1)
+</code></pre>
+      
+    
+      
+        <p>做出这些调整后，我们可以对比两个场景。</p>
+      
+    
+      
+        <p>降低弃用率能显著减少任意时刻正在处理弃用问题的公司数量，但对集成客户稳态数量的提升作用相对较小。这意味着必然有另一条流量对集成客户这个存量产生了重大影响。</p>
+      
+    
+      
+        <p>由于影响该存量的另一条流量只有基础流失，接下来我们就针对它进行演练。让我们把基础流失率设为零，并与初始模型进行对比：</p>
+      
+    
+      
+        <pre><code># Initial Baseline Churn Flow
+IntegratedCustomers &gt; ChurnedCustomers @ Leak(0.1)
+
+# Zeroed out Baseline Churn Flow
+IntegratedCustomers &gt; ChurnedCustomers @ Leak(0.0)
+</code></pre>
+      
+    
+      
+        <p>这些结果有力地表明，基础流失对整体的影响远大于弃用。在没有基础流失的情况下，集成客户数量稳定在约 1750，而初始模型中这一数字约为 1000。</p>
+      
+    
+      
+        <p>接下来，我们对比两个没有基础流失的场景：一个是高 API 弃用率（50%），另一个是低 API 弃用率（10%）。</p>
+      
+    
+      
+        <p>在没有基础流失的两个场景中，我们可以看到 10% 的 API 弃用率最终带来了约 6000 个集成客户，而 50% 弃用率下只有约 1750。更重要的是，在 10% 的场景中，集成客户的曲线没有显示出趋平的迹象，而是随着时间继续增长而非稳定。</p>
+      
+    
+      
+        <p>这里的启示是：大幅降低基础流失或 API 弃用中的任意一项，都会放大降低另一项所带来的收益。这些结果也再次印证了，应将降低流失视为一个系统层面的优化，而不仅仅是一系列孤立的改进。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

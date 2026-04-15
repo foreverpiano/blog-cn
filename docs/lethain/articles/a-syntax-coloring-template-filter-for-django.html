@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>一个用于 Django 的语法高亮模板过滤器 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>一个用于 Django 的语法高亮模板过滤器</h1>
+    <div class="meta">
+      2008-08-09 · 
+      <a href="https://lethain.com/a-syntax-coloring-template-filter-for-django/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>今晚我花了些时间为 Django 编写了一个模板过滤器，它可以在模板内部非常简单地实现语法高亮。你可以调用 Pygments 的任意 lexer，或者让 Pygments 自行检测合适的 lexer。下面是一个快速示例：</p>
+      
+    
+      
+        <p>这可能不是特别实用，但我认为它很好地展示了，一个简单的模板过滤器就能完成相当令人印象深刻的功能。继续阅读以了解安装细节，或者你可以在这里下载 syntax_colorize 应用。</p>
+      
+    
+      
+        <h2>安装与使用</h2>
+      
+    
+      
+        <div class="list-content">安装 Pygments 库。最简单的方式是通过 easy_install：sudo easy_install pygments
+下载 syntax_colorize 应用。你可以在这里获取它。将 syntax_colorize 应用放到你的 Python 路径中。在 OS X 10.5 上，操作大致如下：ln -s /Users/will/libraries/syntax_colorize /Library/Python/python2.5/site-packages/syntax_colorize
+将其添加到 INSTALLED_APPS 设置中。INSTALLED_APPS = (
+  &#x27;django.contrib.sites&#x27;,
+  &#x27;syntax_colorize&#x27;,
+  &#x27;etc etc&#x27;,
+)
+为 Pygments 创建 CSS 文件。我在 syntax_colorize/templatetags/syntax_color.py 文件中写了一个简单的辅助函数，所以进入该目录并启动 Python：cd syntax_colorize/templatetags/
+python
+然后在解释器中运行以下命令：&gt;&gt;&gt; import syntax_color
+&gt;&gt;&gt; syntax_color.generate_pygments_css()
+接着将生成的 pygments.css 文件复制到你的媒体目录中。
+更新你的基础模板的 head 标签，引入 pygments.css 文件。大致如下：&lt;head&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;/media/pygments.css&quot; type=&quot;text/css&quot;&gt;
+&lt;/head&gt;
+创建一个简单的视图，向模板传递一段代码。我用来测试的简单示例如下：from django.shortcuts import render_to_response
+def index(request):
+    code = &quot;&quot;&quot;def index(request):
+    from django.shortcuts import render_to_response
+    code = &quot;(define x 10)&quot;
+    return render_to_response(&#x27;index.html&#x27;,{&#x27;code&#x27;:code})
+&quot;&quot;&quot;
+    return render_to_response(&#x27;index.html&#x27;,{&#x27;code&#x27;:code})
+在实际使用中，你可能需要从数据库中获取代码，或者如果你使用 Google App Engine，则可能从 BigTable 获取。
+现在，在你想要使用语法高亮的 Django 模板中进行操作。记住上下文变量 code 是一个包含 Python 代码的字符串。使用 Python lexer 对 code 内容进行高亮的效果如下：{% load syntax_color %}
+&lt;p&gt; 来看看这段代码： &lt;/p&gt;
+{{ code|colorize:&quot;python&quot; }}
+&lt;p&gt; 哦，或许你想把它放在表格里？ &lt;/p&gt;
+{{ code|colorize_table:&quot;python&quot; }}
+使用 colorize_table 过滤器会将高亮后的代码片段放在带行号的表格中，但其他方面与 colorize 过滤器完全相同。</div>
+      
+    
+      
+        <p>希望这个小工具对你有用，如果有任何建议、意见或不满，请随时告诉我。</p>
+      
+    
+      
+        <h2>更新 8月12日 下午4:42</h2>
+      
+    
+      
+        <p>我为这个项目创建了一个 GitHub 仓库。你可以在这里访问它。如果你不想访问 GitHub 页面，也可以用 git 克隆一份本地副本：</p>
+      
+    
+      
+        <p>重命名目录并不是必须的，但如果不改，上述说明就无法完全按字面执行。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

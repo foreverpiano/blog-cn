@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube 可扩展性 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>YouTube 可扩展性</h1>
+    <div class="meta">
+      2007-07-08 · 
+      <a href="https://lethain.com/youtube-scalability/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>这场Tech Talk（可在以下链接观看）是西雅图可扩展性大会（Seattle Conference on Scalability）的一部分，主要介绍了 YouTube 如何应对可扩展性问题。这个话题我最近挺感兴趣的。（我正努力把这个网站从支持 1 个用户扩展到 5 个用户。）我最近订购了 Cal Henderson（Flickr 技术负责人）撰写的一本关于 Web 应用可扩展性的书，期待明天就能收到（同时还会收到一本纸质版的 SICP，死树版书籍在我的世界里依然是王道）。</p>
+      
+    
+      
+        <p>这场演讲还算不错，但我更希望它能再具体一些，多讲讲他们成功的解决方案，而不是那些失败的尝试。（另外，像“我们现在用 Bigtable 来解决这个问题”这样的表述简直让我想找个角落哭一场，谢谢啊，那我们该去哪里搞 Bigtable？哦，还有支撑它的那几十万台服务器呢？难道去街头找可疑人士买吗？）好了，进入笔记环节。</p>
+      
+    
+      
+        <div class="list-content">可扩展性就是不断迭代、发现并修复瓶颈的过程
+Python 在大多数时候“足够快”
+用 Psycho 对 Python 进行 JIT 编译
+对计算密集型部分（比如加密）编写 C 扩展
+通过增加机器和负载均衡来扩展
+用 Lighttpd 服务静态内容，Apache 服务动态内容
+每个视频由一个小型集群托管（实现故障冗余和应对流量峰值）
+保持硬件简单且廉价（支持成本更低、服务成本更低，也更容易找到现有资源获取帮助）
+始终从简单方案开始，然后逐步构建
+Lighttpd 默认是单进程的（在某些场景下会导致性能不佳）
+MySQL 数据库复制在写密集型系统中扩展性很差，写操作会挤占读操作
+本地内存 &gt; 其他任何存储，磁盘读取 &lt; 其他任何方式
+用 vmstat 进行性能分析
+层层叠加的多级缓存
+数据库分区是最佳的长期解决方案</div>
+      
+    
+      
+        <p>简单阐述一下数据库分区：其核心思想是拥有大量小型数据库（这样就不会有复制延迟的问题），同时使用哈希机制来决定某条数据应该存储或查询哪个数据库。这能提高缓存的局部性（从而提升缓存命中率），同时这些更小的数据库也更易于移植、更容易放入内存，而且体积小也有利于数据复制（用于备份等）。</p>
+      
+    
+      
+        <p>如你所见，我并没有捕捉到太多细节。唉，生活就是这样。哦，对了，西雅图可扩展性大会还有其他演讲者的多场 Tech Talk，或许其中一些会更具体一些。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

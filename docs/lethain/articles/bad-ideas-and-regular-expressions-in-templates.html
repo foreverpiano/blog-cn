@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>模板中的坏主意和正则表达式 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>模板中的坏主意和正则表达式</h1>
+    <div class="meta">
+      2008-11-05 · 
+      <a href="https://lethain.com/bad-ideas-and-regular-expressions-in-templates/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在我的一份（或多份）工作中，我经常要做大量的快速原型设计和功能模拟，有时就会用非常粗糙的方案来解决复杂的问题。不过，有些粗糙的方案尽管带着一丝糟糕的味道，却意外地挺有意思。</p>
+      
+    
+      
+        <p>这个故事说的就是其中一次。</p>
+      
+    
+      
+        <h2>场景</h2>
+      
+    
+      
+        <p>我当时在给一个客户的客户做一个系统原型。这个原型使用了一个较差的数据源，来模拟新系统基于优质数据源应该产生的效果，让这个较差的数据源看起来就像是使用了那个尚未存在的高级系统得到的结果。听懂了吗？刚才那句话可能故意写得有点绕，所以我再解释一次。这个原型系统涉及三个数据源：</p>
+      
+    
+      
+        <div class="list-content">生产环境中正在使用的数据源。一个计划中但尚未存在、预期会比现有数据源更好的数据源。一个比现有生产数据源更差的数据源，我需要用它来创建一个功能性模拟，让它看起来像是来自那个高级且尚未存在的数据源。</div>
+      
+    
+      
+        <p>这就是经典的挑战：用更少的资源做更多的事，但这里可能还带点小扭曲——让它看起来像是用更少的资源做了更多的事。简单来说，我需要在内容上展示一些特殊的元数据，但实际上我并没有那些需要展示的特殊元数据。</p>
+      
+    
+      
+        <h2>解决方案</h2>
+      
+    
+      
+        <p>在盯着那一堆可怜的卡片看了半天后，我意识到，我需要的那些元数据其实可以从数据关联的 URL 结构中提取出来。比如，如果一条数据的 URL 是 http://example.com/ab/video/etc/etc/，那它就是视频内容；而 http://blogs.example.com/etc/ 这样的则是博客内容。再加上另外六七种 URL 结构，我就有了足够的元数据，能把我手里贫瘠的数据“打磨”成可用的样子。</p>
+      
+    
+      
+        <p>即使有了这个发现，我仍然需要进行一些相当复杂的匹配，并且要根据匹配结果用不同的方式展示数据。当时我脑子不太清醒，所以没有选择在视图里做好匹配，给每条结果额外加一个值，让模板知道该用哪种方式来渲染每条数据。</p>
+      
+    
+      
+        <p>相反，我写了一个模板标签，来根据给定的正则表达式是否成功匹配来执行 if-else 逻辑。</p>
+      
+    
+      
+        <p>用法如下：</p>
+      
+    
+      
+        <p>这个方案有很多理由让人讨厌：正则表达式无法预编译和复用，你在模板里做了太多本该在视图里进行的计算。不过话说回来，我当时正在那个项目里疯狂地写各种奇奇怪怪的模板标签和过滤器。</p>
+      
+    
+      
+        <p>有时候，当你在临时代码里救火的时候，就会做出一些糟糕的决定，但这正是快速原型开发的全部乐趣所在：不管用什么办法，尽快把事情做出来。之后再回头审视自己的代码，下定决心再也不犯同样的错误。</p>
+      
+    
+      
+        <p>有时候，我们把这叫做学习。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>如何估算磁盘空间 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>如何估算磁盘空间</h1>
+    <div class="meta">
+      2022-07-08 · 
+      <a href="https://lethain.com/how-to-estimate-disk-space/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>几年前在面试 Nelson Elhage 应聘 Staff Engineer 时，他提到“估算”是一项特别有价值的技能。我之前没怎么思考过估算作为一项技能，但他的评论让我想起自己做过的最棒的一次架构面试。当时候选人通过询问几个关键细节（我记忆中是：每秒查询数、预期行数以及需要的列），显著缩小了可能的解决方案范围。</p>
+      
+    
+      
+        <p>长期以来，我在估算磁盘空间方面一直不算特别擅长，于是决定花几个小时专门练习这项技能，最终整理成这些笔记，希望对其他想提升估算能力的人也有帮助。我会先分享几个估算磁盘空间的有用规则，然后通过一个 SQLite3 示例代码来演示如何验证估算结果。</p>
+      
+    
+      
+        <h2>Kilobytes（1000 字节）和 Kibibytes（1024 字节）</h2>
+      
+    
+      
+        <p>估算大小时第一个容易混淆的地方是：1 kilobyte 到底是 1024 字节还是 1000 字节。“正确答案”是“kilobyte”（kB）等于 1000 字节，而“kibibyte”（KiB）等于 1024 字节。这种区分也适用于其他单位，例如 megabyte（MB，1000²）与 mebibyte（MiB，1024²），以及 gigabyte（GB，1000³）与 gibibyte（GiB，1024³）。</p>
+      
+    
+      
+        <p>这里有三点关键：（1）同时理解 kilobyte 和 kibibyte 两种单位；（2）意识到和你沟通的人可能不熟悉 kibibyte 这类单位；（3）根据对方的熟悉程度调整自己的表达方式。在现实中，过于追求技术上的绝对正确并不会得分。</p>
+      
+    
+      
+        <h2>UTF-8、整数等的大小估算</h2>
+      
+    
+      
+        <p>虽然值得熟悉的数据类型有很多，但最常用的包括：</p>
+      
+    
+      
+        <div class="list-content">UTF-8 字符的编码长度为 1-4 字节。具体应该按 1、2、3 还是 4 字节估算，取决于你要编码的内容。例如，如果只编码 ASCII 值，那么 1 字节就足够了。最重要的是能够解释你的理由。比如，说你采取最保守的情况、按每个字符 4 字节估算，是合理的。以 UTF-8 大小为基准，你可以估算 string、varchar、text 或其他类似字段的占用空间。这些字段的具体开销会因所使用的存储技术不同而有较大差异。整数的大小取决于你需要存储的最大值，4 字节是一个不错的基准。如果你想更精确，可以先确定最大整数值，然后通过以下公式计算所需字节数：maxRepresentableIntegerInNBytes(N) = 2^(N×8) - 1。例如，2 字节能表示的最大数字是 2^(2×8) - 1 = 65535。float 通常用 4 字节存储；boolean 在很多数据库（如 MySQL）中常被表示为 1 字节整数；enum 通常被表示为 2 字节整数（如 MySQL）；datetime 在很多数据库（如 MySQL）中常用 5 字节表示。</div>
+      
+    
+      
+        <p>掌握这些规则后，我们来实践一次数据库大小估算。假设数据库中有 10,000 个人，我们记录每个人的年龄和姓名。平均姓名长度为 25 个字符，支持的最大年龄是 125。那么这个数据库大概需要多少空间？</p>
+      
+    
+      
+        <pre><code>bytesPerName = 25 characters * 4 bytes = 100 bytes
+bytesPerAge = 1 byte  # because 2^(1 bytes * 8bits) = 255
+bytesPerRow = 100 bytes + 1 byte
+totalBytes = 101 bytes * 10,000 rows
+totalKiloBytes = (101 * 10000) / 1000          # 1,100 kB
+totalMegaBytes = (101 * 10000) / (1000 * 1000)   # 1.1 MB
+</code></pre>
+      
+    
+      
+        <p>也就是说，大约需要 1.1 MB 来存储这些数据。换算成 MiB 则是 0.96 MiB，计算过程如下：</p>
+      
+    
+      
+        <pre><code>(101 * 10000) / (1024 * 1024)  # 0.96 MiB
+</code></pre>
+      
+    
+      
+        <p>现在你已经可以估算各类数据集的大致大小了。</p>
+      
+    
+      
+        <h2>索引、复制等因素</h2>
+      
+    
+      
+        <p>理论上存储数据的成本和实际在数据库中存储数据的成本之间存在差距。你可能在使用基于副本的系统（如 MongoDB 或 Cassandra），它们会为每份数据保存三份拷贝；也可能在使用主从复制系统，保存两份拷贝。这种情况下存储影响很容易计算（分别是基础成本的 3 倍或 2 倍）。</p>
+      
+    
+      
+        <p>索引是在额外存储和更快的查询速度之间的经典权衡，但它们具体会占用多少存储空间，取决于索引本身的细节。一个简单的索引大小估算方法是：计算索引中所包含列的大小总和，乘以索引的行数，然后把这个结果加到基础数据存储成本上。如果你创建了一个覆盖所有字段的索引，那么可以粗略估算总存储成本会变成原来的两倍。</p>
+      
+    
+      
+        <p>根据所使用的具体数据库，还会有其他占用空间的功能。要真正理解它们对大小的影响，需要更深入地了解那个数据库。而最好的方法，就是直接用该数据库去验证你的估算。</p>
+      
+    
+      
+        <h2>使用 SQLite3 进行验证</h2>
+      
+    
+      
+        <p>好消息是验证数据大小相对简单，我们现在就用 Python 和 SQLite3 来演示。我们将重现上面那个场景：10,000 行记录，每行包含一个 25 字符长的名字和一个年龄。</p>
+      
+    
+      
+        <p>之前我们估算的结果是 0.96 MiB，但运行这个脚本后发现实际只有 344 KiB，大约是预期空间的三分之一多一点。稍微调试一下计算过程，我们会发现之前假设每个字符用 4 字节，但实际生成的姓名（截断后的 UUID4）全是 ASCII 字符，因此实际只需要 1 字节 per character。让我们基于这个修正重新估算：</p>
+      
+    
+      
+        <pre><code>bytesPerName = 25 characters * 1 byte = 25 bytes
+bytesPerAge = 1 byte
+bytesPerRow = 26 bytes
+totalKibiBytes = (26 * 10,000) / 1024  # 245 KIB
+</code></pre>
+      
+    
+      
+        <p>现在的结果已经相当接近了，考虑到肯定会存在一些额外开销。例如，SQLite3 会自动创建一个“rowid”列作为主键，它是一个 64 位整数，需要 4 字节来存储。如果把这 4 字节加到之前每行 26 字节的估算中，我们会得到 293 KiB 的估算值，这与实际结果已经很接近了。</p>
+      
+    
+      
+        <h2>去实践估算大小吧</h2>
+      
+    
+      
+        <p>估算数据大小是一项相对直接的技能，它具有两个特点：（a）很容易一直没学会，（b）一旦学会就会非常有用。它在系统架构设计、调试复杂分布式系统问题，以及面试中讨论架构问题时都很有帮助。通过磁盘空间估算，你可以回答以下一些关键问题：</p>
+      
+    
+      
+        <div class="list-content">数据是否能放进内存？是否能放在一台带 SSD 的服务器上？这部分数据是否需要分片到多台服务器？需要多少台？这类索引是否能放在一台服务器上？如果不能，该如何合理地对索引进行分区？等等。</div>
+      
+    
+      
+        <p>尽管我使用这项技巧已经有一段时间了，但仍然惊讶于它能在多大程度上有效地收敛解决方案空间。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

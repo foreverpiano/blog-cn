@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Django 与 Ubuntu Intrepid 部署指南 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Django 与 Ubuntu Intrepid 部署指南</h1>
+    <div class="meta">
+      2009-02-13 · 
+      <a href="https://lethain.com/the-django-and-ubuntu-intrepid-almanac/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>距离我第一次尝试搭建一个健康的 Django 部署环境已经过去一年多了（我的服务器所用 Ubuntu 版本的仓库停止维护，粗暴地提醒了我这一点）。在这段时间里，我学到了很多，也把最初的配置推到了极限，但终究还是需要进行一次全新的部署，采用更好的配置和更灵活的文件夹结构。</p>
+      
+    
+      
+        <p>与上一次服务器搭建指南相比，有些部分保持不变：依然使用 Ubuntu、Memcached、Postgres，并且仍然使用 Nginx 作为 Apache2 前面的反向代理。同时也有一些显著变化：改用 mod_wsgi 替代 mod_python，用 cmemcache 替代 python-memcached，采用了更合理的文件夹布局，并引入 virtualenv，从而可以轻松地在一个服务器上托管多个项目和域名（包括一些仅提供静态文件或 PHP 脚本的站点）。</p>
+      
+    
+      
+        <p>这不仅仅是一次更新，我还加入了一些“支线任务”，例如将服务器用作通过 SSH 访问的远程 Git 仓库，以及安装可插拔的 Django 库。最后，和我之前的教程一样，我尽量包含了把一台裸的 Ubuntu Intrepid 服务器转变为功能完备、支持多站点的 Django 服务器所需的每一个操作步骤。</p>
+      
+    
+      
+        <p>如果你在操作中遇到任何问题，或者有改进建议，请告诉我！</p>
+      
+    
+      
+        <h2>配置你的服务器</h2>
+      
+    
+      
+        <div class="list-content">想办法获取一台 Ubuntu Intrepid 的服务器或 VPS。（比如登录 SliceHost 控制台，申请一台运行 Ubuntu Intrepid 8.10 的 Slice。）记下 root 密码和服务器的 IP 地址。用 SSH 登录服务器。
+ssh root@255.255.255.255
+更新 apt-get 源。
+apt-get upgrade
+确保系统中有一个你喜欢的编辑器。Vim 已经预装，但我更喜欢 Emacs……
+apt-get install emacs
+创建你需要的非 root 账户，其中一个用于运行 Django。
+useradd django
+mkdir /home/django
+chown django:django /home/django
+useradd will
+mkdir /home/will
+chown will:will /home/will
+passwd will
+如果你不喜欢 sh，把默认 shell 改成更人性化的。
+chsh root -s /bin/bash
+chsh will -s /bin/bash
+chsh django -s /bin/bash
+（这些修改在下次登录时才会生效。）
+给你的账户（但不包括 Django）赋予 root 权限。
+visudo
+使用向下箭头找到类似下面这一行：
+root     ALL=(ALL) ALL
+在下面复制一行并把用户名改成你的：
+root     ALL=(ALL) ALL
+will     ALL=(ALL) ALL
+再打开一个终端（保持第一个终端的登录状态，以防配置 SSH 时出现严重问题），用非 root 用户 SSH 登录。
+ssh will@255.255.255.255
+确认能正常登录后退出。
+现在设置免密码登录。回到你的本机，
+scp ~/.ssh/id_dsa.pub will@255.255.255.255:~/
+ssh will@255.255.255.255
+mkdir .ssh
+mv id_dsa.pub .ssh/authorized_keys
+chmod go-w ~/.ssh/authorized_keys ~/.ssh/
+现在退出后再用 ssh 登录，应该不需要输入密码就能直接进入了。
+接下来稍微限制一下 SSH。
+sudo groupadd sshers
+sudo usermod -a -G sshers will
+sudo emacs /etc/ssh/sshd_config
+进行以下修改：
+#X11Forwarding yes
+X11Forwarding no
+并在文件末尾添加以下内容：
+UseDNS no
+AllowGroups sshers
+保存文件，然后重启 SSH 服务。
+sudo /etc/init.d/ssh restart
+退出 VPS，再次尝试登录。如果成功，再次打开 /etc/ssh/sshd_config。
+sudo emacs /etc/ssh/sshd_config
+在文件末尾添加：
+PasswordAuthentication no
+再次重启 SSH 服务。
+sudo /etc/init.d/ssh restart
+最后，禁用 root 账户的密码登录。
+sudo passwd -l root
+现在你的 VPS 只能通过已授权的账户和正确的 SSH 密钥从特定机器访问。
+接下来开始安装一些通用库。
+sudo apt-get install subversion git-core gcc curl
+sudo apt-get install build-essential python-dev python-setuptools
+sudo apt-get install python-egenix-mxdatetime memcached postfix
+现在配置 Postgres，首先需要安装一些依赖库。
+sudo apt-get install postgresql-8.3 postgresql-server-dev-8.3
+（注意：上面这条命令我确实需要执行两次才能成功安装。）
+接下来配置 postgres 用户。
+sudo -u postgres psql template1
+ALTER USER postgres WITH PASSWORD &#x27;password&#x27;;
+\q
+（请务必使用真实密码，不要真的用 &#x27;password&#x27;。）
+我们还需要修改 Postgres 的配置文件。
+sudo emacs /etc/postgresql/8.3/main/pg_hba.conf
+移动到文件底部，把所有以 host 开头的行都注释掉（在行首加 #）。（这可以防止数据库被外部访问。）
+修改后应该类似这样：
+# Database administrative login by UNIX sockets
+local   all         postgres                      ident sameuser
+# TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
+# &quot;local&quot; is for Unix domain socket connections only
+local   all         all                            password
+# IPv4 local connections:
+#host    all         all         127.0.0.1/32          md5
+# IPv6 local connections:
+#host    all         all         ::1/128               md5
+注意我们把第二行的 ident sameuser 改成了 password！
+然后重启 Postgres 使其重新加载配置。
+sudo /etc/init.d/postgresql-8.3 restart
+至此，Postgres 就已经配置好并正常运行了。
+现在来配置 memcached。这分为两步：先启动 memcached（非常简单），然后编译安装 cmemcache（稍复杂一些）。
+sudo memcached -u www-data -p 11211 -m 32 -d
+这条命令让 memcached 使用标准端口，以 www-data 用户（Ubuntu 默认用户）运行，并分配 32MB 内存。根据你预计要缓存的数据量和 VPS 的内存大小，你可能需要调高这个值。
+接下来安装 cmemcache。先安装 libmemcache：
+sudo apt-get install libmemcache-dev
+然后实际编译 cmemcache。
+su django
+mkdir ~/libs/
+cd ~/libs/
+wget http://gijsbert.org/downloads/cmemcache/cmemcache-0.95.tar.bz2
+tar -xjvf cmemcache-0.95.tar.bz2
+cd cmemcache-0.95
+exit
+我们稍后在配置 virtualenv 时再安装这个库。
+如果你无法安装 cmemcache，可以参考这些说明。
+或者，如果你想使用纯 Python 的 python-memcached（速度稍慢，但无需编译 C 模块），可以按以下方式安装：
+wget ftp://ftp.tummy.com/pub/python-memcached/python-memcached-latest.tar.gz
+tar -zxvf python-memcached-latest.tar
+cd python-memcached-1.43
+# 稍后在 virtualenv 内使用 python setup.py install
+我更推荐 cmemcache 是因为速度。但 python-memcached 也完全可用，如果你需要在 python-memcached 和完全不使用 memcached 之间二选一，那么选择前者显然是更好的。
+接下来配置 Nginx，它是一个轻量级服务器，我们将用它来提供静态文件并将动态请求反向代理给 Apache2。
+sudo apt-get install nginx
+我们可以快速验证它是否安装成功。
+sudo /etc/init.d/nginx start
+curl 127.0.0.1
+应该返回：
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;Welcome to nginx!&lt;/title&gt;
+&lt;/head&gt;
+&lt;body bgcolor=&quot;white&quot; text=&quot;black&quot;&gt;
+&lt;center&gt;&lt;h1&gt;Welcome to nginx!&lt;/h1&gt;&lt;/center&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+现在我们稍微修改一下 nginx.conf（参考这里的建议）。
+sudo emacs /etc/nginx/nginx.conf
+目前我们只需要做两个小改动：把第 2 行的 worker_processes 改成 4，
+worker_processes 4;
+然后取消第 18 行的注释，
+tcp_nopush on;
+之后我们不需要再修改这个文件，因为最后一行是：
+include /etc/nginx/sites-enabled/*;
+这让我们可以把各个站点的配置写在独立的文件里，大大减少了 nginx.conf 的杂乱。
+我们还需要创建一个 proxy.conf 文件，这是 Nginx 保持主配置文件干净的常见做法。
+sudo emacs /etc/nginx/proxy.conf
+文件内容如下：
+# proxy.conf
+proxy_redirect          off;
+proxy_set_header        Host            $host;
+proxy_set_header        X-Real-IP       $remote_addr;
+proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+client_max_body_size    10m;
+client_body_buffer_size 128k;
+proxy_connect_timeout   90;
+proxy_send_timeout      90;
+proxy_read_timeout      90;
+proxy_buffers           32 4k;
+最后，停止并启动 Nginx（我不知道最新版是否仍然如此，但历史经验告诉我，用 reload 或 restart 无法可靠地重新加载配置）。
+sudo /etc/init.d/nginx stop
+sudo /etc/init.d/nginx start
+现在开始配置 Apache2。首先安装必要的库。
+sudo apt-get install apache2 libapache2-mod-wsgi
+因为我们已经让 Nginx 监听了 80 端口，Apache 启动时会报错：
+(98)Address already in use: make_sock: could not bind to address 0.0.0.0:80
+no listening sockets available, shutting down
+Unable to open logs
+   ...fail!
+ invoke-rc.d: initscript apache2, action &quot;start&quot; failed.
+不用担心，我们马上解决。
+第一步是让 Apache 监听内部地址 127.0.0.1:80 而不是所有接口的 80 端口。
+sudo emacs /etc/apache2/ports.conf
+修改下面两行：
+NameVirtualHost 127.0.0.1:80
+Listen 127.0.0.1:80
+我们还要修改 apache2.conf：
+sudo emacs /etc/apache2/apache2.conf
+找到 KeepAlive（大约在第 77 行附近），将其修改为：
+# KeepAlive On
+KeepAlive Off
+这是因为 Nginx 目前还不支持 KeepAlive。
+现在再次尝试启动 Apache。
+sudo apache2ctl start
+可能会再次看到警告：
+apache2: Could not reliably determine the server&#x27;s fully qualified domain name, using 127.0.0.1 for ServerName
+[Thu Feb 12 17:14:46 2009] [warn] NameVirtualHost 127.0.0.1:80 has no VirtualHosts
+不用担心，这只是配置过程中的正常现象。
+终于可以安装 Django 了。切换到我们之前创建的 /home/django 目录，创建一些文件夹。
+su django
+mkdir domains
+mkdir libs
+mkdir .python-eggs
+exit
+然后调整权限。
+sudo chown django:www-data .python-eggs
+sudo chmod g+w .python-eggs/
+sudo usermod -a -G www-data django
+sudo usermod -a -G www-data will
+sudo chgrp -R www-data /home/django/domains
+sudo chmod -R 2750 /home/django/domains
+接下来获取 Django 源码。
+cd libs
+svn co http://code.djangoproject.com/svn/django/trunk/ django
+通常这时我们会把它软链接到 /usr/lib/python2.5/site-packages，但我们准备换一种更优雅的方式——使用 virtualenv 来隔离每个项目。
+sudo easy_install virtualenv
+我们稍后会在每个项目中单独配置 virtualenv。
+通用准备工作的最后一步是删除 Apache 和 Nginx 的默认站点。
+虽然配置正确的站点文件能避免意外显示默认页面，但直接通过 IP 地址访问时仍可能出现默认内容。虽然这种情况不常见，但还是去掉比较好。
+sudo rm /etc/apache2/sites-enabled/default
+sudo rm /etc/apache2/sites-enabled/000-default
+sudo rm /etc/nginx/sites-enabled/default
+你需要重启服务让改动生效。
+sudo /etc/init.d/nginx stop
+sudo /etc/init.d/nginx start
+sudo apache2ctl graceful
+现在我们可以创建一个真正的 Django 项目了。后续你可以用同样的流程部署任意数量的项目。
+首先为域名创建文件夹结构。（我用 substanceis.com 作为示例，它曾经托管过一个早已被遗忘的老项目。）
+cd /home/django/domains
+mkdir substanceis.com
+sudo mkdir -p substanceis.com/{public,log}
+sudo mkdir substanceis.com/public/media
+sudo chown -R django:www-data substanceis.com
+有些人还喜欢创建 private 和 backup 目录。你可以根据需要添加。
+public 目录用于存放由 Nginx 直接提供的公开静态文件。
+log 目录存放该域名的 Apache 和 Nginx 日志。
+项目目录本身放在 substanceis.com 文件夹内（mod_wsgi 配置文件也放在项目目录里）。
+现在为该项目创建虚拟环境。
+如果你还没用过 virtualenv，它能让你轻松地把项目沙箱化，让不同项目可以使用不同版本的库（比如一个项目用 Django 0.97pre，另一个用 1.1；一个用 Pygments 0.6，另一个用 1.1，等等）。
+这是在一台服务器上开发或托管多个应用时必不可少的工具。
+注意我们之前已经把 Django 从 SVN 下载到了 /home/django/libs/django。
+su django
+cd ~/domains/substanceis.com
+virtualenv --no-site-packages --unzip-setuptools substanceis.com
+cd ~/libs/django
+~/domains/substanceis.com/substanceis.com/bin/python setup.py install
+cd ~/libs/cmemcache-0.95
+~/domains/substanceis.com/substanceis.com/bin/python setup.py install
+你还需要安装 psycopg2（PostgreSQL 的 Python 接口）。
+cd domains/substanceis.com/substanceis.com/bin/
+./easy_install egenix-mx-base
+./easy_install psycopg2
+对于没有 easy_install 或 setup.py 的包，可以软链接到虚拟环境的 site-packages 目录：
+cd ~/libs/
+ln -s `pwd`/some_app /home/django/domains/substanceis.com/substanceis.com/lib/python2.5/site-packages/
+安装完成后，测试一下是否可用。
+~/domains/substanceis.com/substanceis.com/bin/python
+然后尝试导入：
+&gt;&gt;&gt; import django
+&gt;&gt;&gt;
+如果使用系统自带的 python：
+cd
+python
+则会得到：
+&gt;&gt;&gt; import django
+Traceback (most recent call last):
+  File &quot;&lt;stdin&gt;&quot;, line 1, in &lt;module&gt;
+ImportError: No module named django
+&gt;&gt;&gt;
+虚拟环境设置完成后，退出 django 用户。
+exit
+接下来为该域名创建 Nginx 虚拟主机配置。
+sudo emacs /etc/nginx/sites-available/substanceis.com
+如果你想去掉域名中的 www，可以在文件开头加上以下 server 配置：
+（请把 255.255.255.255 换成你 VPS 的实际 IP 地址）
+server {
+    listen   255.255.255.255:80;
+    server_name  www.substanceis.com;
+    rewrite ^/(.*) http://substanceis.com/$1 permanent;
+}
+无论是否去掉 www，文件其余部分应采用以下格式：
+（同样请把 255.255.255.255 换成实际 IP）
+server {
+    listen   255.255.255.255:80;
+    server_name www.substanceis.com substanceis.com;
+    access_log /home/django/domains/substanceis.com/log/access.log;
+    error_log  /home/django/domains/substanceis.com/log/error.log;
+
+    location / {
+        proxy_pass    http://127.0.0.1:80/;
+        include       /etc/nginx/proxy.conf;
+    }
+
+    location /media/ {
+        root   /home/django/domains/substanceis.com/public/;
+        expires 1d;
+    }
+}
+注意：如果你的静态资源经常变化，建议去掉 expires 1d 这行。它会添加一个头，告诉浏览器该资源在未来一天内不会变化，从而减少不必要的请求。
+这能让用户页面加载更快，也能降低你的服务器负载。如果你既想获得未来过期时间的优势，又有经常变化的媒体资源，标准做法是在文件名中加入版本号（me.1.png、me.2.png 等）。django-compress 对此提供了很好的支持（强烈推荐）。
+接下来让 Nginx 启用该站点，只需创建一个软链接：
+sudo ln -s /etc/nginx/sites-available/substanceis.com /etc/nginx/sites-enabled/substanceis.com
+最后重启 Nginx 让配置生效。
+sudo /etc/init.d/nginx stop
+sudo /etc/init.d/nginx start
+Nginx 配置完成。
+现在快速创建一个默认的 Django 项目。
+su django
+cd ~/domains/substanceis.com/
+./substanceis.com/bin/python substanceis.com/bin/django-admin.py startproject hello
+exit
+把 Django admin 的静态文件链接到 public/media 目录。
+sudo ln -s /home/django/domains/substanceis.com/substanceis.com/lib/python2.5/site-packages/django/contrib/admin/media /home/django/domains/substanceis.com/public/media/admin
+然后修改 hello/settings.py 中的 ADMIN_MEDIA_PREFIX：
+sudo emacs /home/django/domains/substanceis.com/hello/settings.py
+将其改为：
+#ADMIN_MEDIA_PREFIX = &#x27;/media/&#x27;
+ADMIN_MEDIA_PREFIX = &#x27;/media/admin/&#x27;
+接下来为该项目创建一个 Postgres 数据库。
+sudo su postgres
+createuser -P pg_substanceis
+# should not be a superuser
+# should not be able to create databases
+# should not be able to create more new roles
+createdb --encoding=UNICODE db_substanceis -O pg_substanceis
+exit
+然后更新 settings.py 中的数据库配置。
+sudo emacs hello/settings.py
+将 DATABASE_* 字段修改为：
+DATABASE_ENGINE = &#x27;postgresql_psycopg2&#x27;
+DATABASE_NAME = &#x27;db_substanceis&#x27;
+DATABASE_USER = &#x27;pg_substanceis&#x27;
+DATABASE_PASSWORD = &#x27;123456789&#x27;
+DATABASE_HOST = &#x27;&#x27;
+DATABASE_PORT = &#x27;&#x27;
+最后尝试同步数据库，验证配置是否正确。
+~/domains/substanceis.com/substanceis.com/bin/python hello/manage.py syncdb
+如果用户名、数据库名和密码都正确，你应该会看到熟悉的输出：
+Creating table auth_permission
+Creating table auth_group
+Creating table auth_user
+Creating table auth_message
+Creating table django_content_type
+Creating table django_session
+Creating table django_site
+...
+下一步是把 memcached 配置为项目的缓存后端。
+sudo emacs hello/settings.py
+添加以下配置：
+CACHE_BACKEND = &#x27;memcached://127.0.0.1:11211&#x27;
+CACHE_MIDDLEWARE_SECONDS = 60 * 5
+CACHE_MIDDLEWARE_KEY_PREFIX = &#x27;sis&#x27; # SubstanceIS
+CACHE_MIDDLEWARE_ANONYMOUS_ONLY = True
+你需要根据具体项目决定 CACHE_MIDDLEWARE_SECONDS 和 CACHE_MIDDLEWARE_ANONYMOUS_ONLY 的合适值。更多信息可以参考这里。
+CACHE_MIDDLEWARE_KEY_PREFIX 的值在所有使用同一 memcached 的项目中必须保持唯一。
+经过漫长的配置，我们终于到了最后一步：配置 mod_wsgi 和 Apache 来提供我们的项目。
+sudo emacs /home/django/domains/substanceis.com/hello/hello.wsgi
+在 hello.wsgi 中加入以下代码：
+ALLDIRS = [&#x27;/home/django/domains/substanceis.com/substanceis.com/lib/python2.5/site-packages&#x27;]
+# 注意上面的目录取决于你的 virtualenv 位置，每个项目都会不同！
+import os
+import sys
+import site
+prev_sys_path = list(sys.path)
+for directory in ALLDIRS:
+    site.addsitedir(directory)
+new_sys_path = []
+for item in list(sys.path):
+    if item not in prev_sys_path:
+        new_sys_path.append(item)
+sys.path.remove(item)
+sys.path[:0] = new_sys_path
+# 这个路径每个项目也会不同！
+sys.path.append(&#x27;/home/django/domains/substanceis.com/hello/&#x27;)
+os.environ[&#x27;PYTHON_EGG_CACHE&#x27;] = &#x27;/home/django/.python-eggs&#x27;
+os.environ[&#x27;DJANGO_SETTINGS_MODULE&#x27;] = &#x27;settings&#x27;
+import django.core.handlers.wsgi
+application = django.core.handlers.wsgi.WSGIHandler()
+接下来创建 Apache 的虚拟主机配置。
+sudo emacs /etc/apache2/sites-available/substanceis.com
+加入以下 VirtualHost 定义：
+&lt;VirtualHost 127.0.0.1:80&gt;
+    ServerName www.substanceis.com
+    ServerAlias substanceis.com
+
+    &lt;Directory /home/django/domains/substanceis.com/hello/&gt;
+        Order deny,allow
+        Allow from all
+    &lt;/Directory&gt;
+
+    LogLevel warn
+    ErrorLog  /home/django/domains/substanceis.com/log/apache_error.log
+    CustomLog /home/django/domains/substanceis.com/log/apache_access.log combined
+
+    WSGIDaemonProcess substanceis.com user=www-data group=www-data threads=25
+    WSGIProcessGroup substanceis.com
+    WSGIScriptAlias / /home/django/domains/substanceis.com/hello/hello.wsgi
+&lt;/VirtualHost&gt;
+最后启用该站点。
+sudo ln -s /etc/apache2/sites-available/substanceis.com /etc/apache2/sites-enabled/substanceis.com
+重启 Apache2 使其加载新站点。
+sudo apache2ctl graceful
+你可以用同样的步骤托管任意数量的项目。</div>
+      
+    
+      
+        <h2>一些额外选项</h2>
+      
+    
+      
+        <p>至此你的 mod_wsgi 服务器已经配置完成并可以正常工作了，下面是一些建议，你可以用新服务器做更多事情。</p>
+      
+    
+      
+        <div class="list-content">目前如果你直接访问 VPS 的 IP 地址，会发现没有任何内容返回。对大多数人来说这可能是期望的行为，但你可能希望当用户通过 IP 访问时显示一个静态页面（同样，你也可以用类似方法为某些域名只提供静态内容，而不是完整的 Django 项目）。
+首先创建一些目录：
+sudo mkdir /home/django/domains/default
+sudo mkdir -p /home/django/domains/default/{public,logs}
+然后创建一个首页：
+sudo emacs /home/django/domains/default/public/index.html
+内容如下：
+&lt;html&gt;
+&lt;head&gt;&lt;title&gt;Default&lt;/title&gt;&lt;/head&gt;
+&lt;body&gt;&lt;p&gt;Hi. Welcome to my default site.&lt;/p&gt;&lt;/body&gt;
+&lt;/html&gt;
+接下来配置 Nginx 的默认站点：
+sudo emacs /etc/nginx/sites-available/default
+写入以下配置（请把 255.255.255.255 换成你 VPS 的 IP）：
+server {
+    listen   80;
+    server_name 255.255.255.255;
+
+    access_log /home/django/domains/default/log/access.log;
+    error_log  /home/django/domains/default/log/error.log;
+
+    location / {
+        root /home/django/domains/default/public;
+        index index.html;
+    }
+}
+然后软链接到 sites-enabled：
+sudo ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+最后重启 nginx：
+sudo /etc/init.d/nginx stop
+sudo /etc/init.d/nginx start
+现在如果你在浏览器中输入 VPS 的 IP 地址，就会看到这个静态页面。（注意浏览器通常对同一域名限制并发连接数，所以如果你有重度页面，可以用这种方式创建一个专门的媒体子域名（media.example.com 等），让 Django 站点从该子域名加载静态资源，从而加快页面加载速度。）
+最有用的包之一是 PIL，它支持多种图像处理操作，也被一些 Django 应用所依赖。虽然它用 easy_install 安装不太顺利，但手动安装依然很简单。
+su django
+cd ~/libs
+wget http://effbot.org/downloads/Imaging-1.1.6.tar.gz
+tar -xzvf Imaging-*
+cd Imaging-1.1.6
+/domains/substanceis.com/substanceis.com/bin/python setup.py install
+现在在 substanceis.com 的虚拟环境中就可以使用 Image 模块了：
+&gt;&gt;&gt; import Image
+&gt;&gt;&gt;
+你做的 Django 开发越多，就会创建越多可复用的应用，也会复用别人开发的库，因此熟悉这个流程非常重要。下面我们花点时间安装几个 Django 社区开发的常用可复用应用。
+使用 virtualenv 的一个缺点是你需要为每个虚拟环境分别安装这些可插拔应用。当然，这也意味着你可以把生产环境锁定在某个特定版本，而另一个环境可以大胆尝试新版本。
+值得注意的是，使用 setup.py 或 easy_install 配合 virtualenv 安装的好处是你会得到一份“冻结”的代码副本，即使之后更新了源代码，环境也不会切换到新代码。
+反之，如果你正在积极开发某个应用，则最好将其软链接到环境的 site-packages 目录，这样修改后无需重新部署。
+两种方式都有用武之地，只要根据场景合理选择即可。
+首先安装之前提到过的 django-compress，它可以自动合并和压缩 JavaScript 和 CSS 文件。
+su django
+cd /django/home/libs
+sudo svn checkout http://django-compress.googlecode.com/svn/trunk/ django-compress
+cd django-compress
+~/domains/substanceis.com/substanceis.com/bin/python setup.py install
+验证是否可用：
+~/domains/substanceis.com/substanceis.com/bin/python
+在 Python 中输入：
+&gt;&gt;&gt; import compress
+&gt;&gt;&gt;
+只要没有报错，就说明安装成功。
+接下来安装 django-faq，这是一个可以在网站上创建 FAQ 的可插拔应用（可通过 Django admin 管理）。
+为了方便，我们这次用软链接的方式（更适合活跃开发）而不是 setup.py。
+cd /django/home/libs
+sudo git clone git://github.com/RockHoward/django-faq.git
+cd django-faq
+ln -s `pwd`/faq /home/django/domains/substanceis.com/substanceis.com/lib/python2.5/site-packages
+最后安装 django-mailer，它为 Django 提供了更强大的邮件发送框架。
+cd /django/home/libs
+sudo svn checkout http://django-mailer.googlecode.com/svn/trunk/ django-mailer
+cd django-mailer
+sudo ln -s `pwd`/mailer /home/django/domains/substanceis.com/substanceis.com/lib/python2.5/site-packages
+等等，推荐自己的项目是不是不太合适？算了，还是推荐一下吧。你可以看看 django-monetize，它能根据页面上下文动态展示不同类型的广告（以及捐赠请求等）。
+cd /django/home/libs
+sudo git clone git://github.com/lethain/django-monetize.git
+cd django-monetize
+sudo ln -s `pwd`/django_monetize /home/django/domains/substanceis.com/substanceis.com/lib/python2.5/site-packages
+除了这些可插拔应用，还有一些项目已经发展成构建在 Django 之上的小型框架。它们提供了大量功能，但安装方式往往不太标准。
+其中比较受欢迎的两个是社交框架 Pinax（安装指南）和网店平台 Satchmo（安装指南）。
+另外，我喜欢把 VPS 当作 Git 仓库使用——得益于分布式版本控制系统的诸多优点，这其实非常简单。
+cd
+mkdir git
+mkdir git/scripts
+cd git/scripts
+echo &quot;# a test&quot; &gt; test.py
+git init --bare
+然后退出 VPS，回到你的本地机器。
+在本地可以用 SSH 克隆这个仓库：
+mkdir my_repo
+cd my_repo
+git init
+echo &quot;a test&quot; &gt; test.py
+git add test.py
+git commit -m &quot;Initial commit.&quot;
+git remote add origin ssh://67.207.149.179/home/will/git/scripts
+git push origin master
+注意使用 --bare 意味着仓库的所有文件都保存在 .git 目录中，你无法直接在托管仓库中编辑文件。
+如果你希望在 VPS 上也能直接操作文件，应该从 origin 仓库 clone 出一份工作副本，然后正常地 push 和 pull。
+（如果你想用 Git 来推送 Django 项目代码，可以研究一下 Fabric 这类工具。）
+虽然没有做 Djangonaut 那么酷，但很多时候你可能还是希望 Apache 也能运行 PHP 脚本。
+sudo apt-get install php5
+sudo apache2ctl graceful
+然后只要把 .php 文件放到由 Apache（而不是 Nginx）服务的目录下，它们就会被正确执行。
+你可能需要把前面我们配置的 Django 配置和静态文件 Nginx 配置结合起来使用。</div>
+      
+    
+      
+        <h2>参考资源</h2>
+      
+    
+      
+        <p>本文大量参考了我去年写的关于 nginx+apache+mod_python+django 和 lighttpd+apache+mod_python+django 的两篇文章，同时也吸收了许多新的优秀资源。</p>
+      
+    
+      
+        <div class="list-content">Google Code 上的 mod_wsgi 页面是一个很好的起点。
+同样推荐 mod_wsgi 与 Django 集成的页面。
+在 Ubuntu 上配置 Nginx 虚拟主机。
+一份完整的 Nginx 配置文件示例。
+使用 mod_wsgi 配置 Django。
+让 Nginx 处理 IP 地址访问。
+将 virtualenv 与 mod_wsgi 配合使用。</div>
+      
+    
+      
+        <p>非常感谢以上所有资源的作者，没有它们就没有这篇指南。</p>
+      
+    
+      
+        <h2>2月13日更新：Virtualenv</h2>
+      
+    
+      
+        <p>Tom Schreiber 提到 virtualenv 是同时开发多个依赖不同版本库的项目的利器，在他的建议下我把这篇指南更新为包含 virtualenv。谢谢 Tom！</p>
+      
+    
+      
+        <h2>再次更新（2月13日）：杂项调整</h2>
+      
+    
+      
+        <p>一位热心的 Reddit 用户指出了一些改进点。特别是建议使用 chsh 来修改默认 shell（而不是手动编辑 /etc/passwd），让 Apache 只监听 127.0.0.1:80 而不是绑定到 *:8080（后者会对外暴露），以及让 Nginx 监听外部 IP:80 而不是 *:80。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>生成 Twitter 搜索结果的每日快照 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>生成 Twitter 搜索结果的每日快照</h1>
+    <div class="meta">
+      2022-04-07 · 
+      <a href="https://lethain.com/daily-twitter-snapshot/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>过去几年，我养成了一个并不好的习惯：经常打开 Twitter 搜索，看看是否有人提到我的文章。但其实我并不会拿这些信息做什么，最多可能点个“赞”。我喜欢使用 Twitter，但这个用法纯粹是浪费时间的无用习惯，所以我想试着把它自动化掉。</p>
+      
+    
+      
+        <p>我先创建了一个新的 Twitter Developer 账号，然后写了一个简单的脚本、GitHub 仓库和 GitHub Action，放在 lethain/social-context 中。</p>
+      
+    
+      
+        <p>核心部分可以在这里看到：</p>
+      
+    
+      
+        <div class="list-content">retrieve.py：调用 Twitter API、解析结果并将每条记录写入文本文件的脚本。github/workflows/scrape.yml：用于每天运行一次该脚本的 GitHub Action 配置。如果你进入“Settings” -&gt; “Secrets” -&gt; “Actions”，会看到我添加了一个名为 BEARER_TOKEN 的仓库密钥，那就是 Twitter 颁发的 API Bearer Token。</div>
+      
+    
+      
+        <p>搜索查询由 retrieve.py 的第 9-13 行驱动：</p>
+      
+    
+      
+        <p>如果你想用自己的搜索查询来运行，只需把元组替换成你要写入的文件名和你想执行的 Twitter 搜索语句即可。</p>
+      
+    
+      
+        <p>如果打开其中一个文件，比如 lethain.txt，你会看到类似这样的条目：</p>
+      
+    
+      
+        <pre><code>author: thebaffledengg
+Staff engineer reflects on overwork and expecting better from peers https://t.co/FiebOfkf2k
+
+url: https://lethain.com/hard-to-work-with/
+https://twitter.com/thebaffledengg/status/1512083389062418432
+</code></pre>
+      
+    
+      
+        <p>整体运行效果很好！有新推文时会产生新的 commit，否则什么都不会发生。我把它设置成每天运行一次，因为我想减少检查的频率，但你完全可以让它运行得更频繁。</p>
+      
+    
+      
+        <p>唯一麻烦的地方是怎样发送有用的通知。目前我在有新 commit 时（也就是出现新的搜索结果时）会收到邮件通知，但邮件里不包含实际变更的文件，所以我还得继续迭代一下这个部分。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

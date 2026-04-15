@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pitance 如何在 CouchDB 中实现文档版本管理 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Pitance 如何在 CouchDB 中实现文档版本管理</h1>
+    <div class="meta">
+      2009-09-17 · 
+      <a href="https://lethain.com/how-pitance-versions-documents-in-couchdb/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>Pitance 最重要的一项特性就是支持模板的版本管理。在之前使用 CouchDB 积累的一些经验基础上，我认为可以直接利用 Document API 提供的内置文档版本控制功能。显然很多人都想过这个主意，因为 CouchDB 的 wiki 中专门有一篇《Document Revisions》，里面有一句相当直白的话：</p>
+      
+    
+      
+        <blockquote>除了并发控制之外，你不能将文档修订版用于任何其他目的。</blockquote>
+      
+    
+      
+        <p>在思考版本管理方案的过程中，我偶然看到一篇博客文章，它给出了一些很有帮助的建议，让我一下子解决了大约 80% 的问题：</p>
+      
+    
+      
+        <div class="list-content">为每个文档创建一个 version 属性。例如：{ &quot;name&quot;: &quot;erlang_gen_server&quot;, &quot;version&quot;: 1 }
+让视图返回类似 [&quot;erlang_gen_server&quot;, 1] 的键。
+每次模板更新时，获取最新的修订版本，使用以下查询：
+?startkey=[&quot;erlang_gen_server&quot;, &quot;Z&quot;]
+&amp;endkey=[&quot;erlang_gen_server&quot;, 0]
+&amp;descending=true&amp;count=1
+将其版本号加一，然后创建一个新的 CouchDB 文档，键为 [&quot;erlang_gen_server&quot;, N+1]。
+获取所有版本使用：?startkey=[&quot;erlang_gen_server&quot;]
+&amp;endkey=[&quot;erlang_gen_server&quot;, &quot;Z&quot;]
+获取特定版本使用：?key=[&quot;erlang_gen_server&quot;, 2]</div>
+      
+    
+      
+        <p>正如我之前提到的，通过这个方案我已经完成了大约 80% 的工作，但仍然面临一个非常明显的问题：CouchDB-Lucene 以及我为语言和标签创建的视图，把模板的每个版本都当作独立文档来处理。
+这导致搜索 “Erlang” 时会返回 erlang_couchdb_app 的十几不同版本，让整个网站变得很难用。
+我的解决办法是在所有文档中维护一个 latest 属性：</p>
+      
+    
+      
+        <p>每次模板更新时，我会把之前标记为 latest 的版本改为 latest=false，然后创建新的版本并将其 latest 设置为 true。之后我更新了标签、语言以及 CouchDB-Lucene 使用的视图，让它们只输出最新的文档：</p>
+      
+    
+      
+        <p>虽然比预期多花了一些功夫（而且每次修改模板都需要更新两个文档，有人可能会觉得难以接受），但这个方案让我能够兼得两者的优势：既能维护带版本的模板，又不会在不需要的地方把版本信息暴露出来。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

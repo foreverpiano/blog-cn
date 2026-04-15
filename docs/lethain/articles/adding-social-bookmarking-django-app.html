@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>为 Django 应用添加社交书签功能 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>为 Django 应用添加社交书签功能</h1>
+    <div class="meta">
+      2007-07-14 · 
+      <a href="https://lethain.com/adding-social-bookmarking-django-app/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>当你搭建一个网站后，很可能会希望添加一些链接，让读者能够方便地将你的内容提交到社交书签和新闻聚合服务中。幸运的是，为你的 Django 应用添加这个功能非常简单。</p>
+      
+    
+      
+        <h2>创建模板</h2>
+      
+    
+      
+        <p>模板是这个功能中最复杂的部分，但依然非常简单（这应该是个好兆头）。在模板中，我假设你使用的是通用视图（generic views），因此内容对象会命名为 &#x27;object&#x27;。如果你使用的是自定义视图，那么存放内容的变量名可能会有所不同。另外请注意，你的对象需要有一个 get_absolute_url 方法。</p>
+      
+    
+      
+        <p>模板还需要能够访问当前的 Site 对象，不过我们稍后会介绍如何将 Site 传递给模板。</p>
+      
+    
+      
+        <p>以下是模板代码：</p>
+      
+    
+      
+        <p>你会注意到我们对所有构建的字符串都使用了 urlencode 过滤器，这一点非常重要，因为这些字符串将作为参数传递给社交网站的公共 API 地址。</p>
+      
+    
+      
+        <p>你需要将上面的模板片段引入到要提交到社交网站的页面模板中。我通常使用 include 标签来实现：</p>
+      
+    
+      
+        <p>这会直接把社交书签代码注入到模板中（比手动复制粘贴到多个模板中要方便得多）。</p>
+      
+    
+      
+        <h2>模板上下文</h2>
+      
+    
+      
+        <p>如前所述，我们还需要能访问 Site 实例。之所以需要 Site，是因为我们没有其他办法获取内容的完整 URL。我们使用 get_absolute_url 方法获取除域名之外的部分，但仍然需要 somehow 获得域名（这意味着你的 Site 中设置的域名必须是完整的域名，例如 www.lethain.com）。</p>
+      
+    
+      
+        <p>编写上下文处理器同样很简单。首先，在你的应用文件夹中创建一个新文件（我把它命名为 context.py），然后加入以下代码：</p>
+      
+    
+      
+        <p>接着在你的 settings.py 文件中添加以下配置：</p>
+      
+    
+      
+        <p>全部就是这些。如果有任何疑问，欢迎随时提问。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

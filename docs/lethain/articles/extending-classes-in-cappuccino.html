@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 Cappuccino 中扩展类 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 Cappuccino 中扩展类</h1>
+    <div class="meta">
+      2008-09-07 · 
+      <a href="https://lethain.com/extending-classes-in-cappuccino/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我发现 Cappuccino 最棒的一点就是它易于定制。人们通常认为大型框架会限制你的选择，但如果设计良好，它们也能以一种快速且简便的方式暴露定制逻辑，让你能够创建完全符合自己需求的控件。1</p>
+      
+    
+      
+        <p>在我开发 Mahou 第一个版本的时候，一直找不到一种直观的方式在应用中提供超链接。Cappuccino 专注于应用开发，与互联网的兼容性并不是特别好（当然，这只是缺少现成控件的问题，并非无法逾越的障碍）。</p>
+      
+    
+      
+        <p>我解决点击问题的方案是继承 CPTextField，创建一个点击后可跳转到任意 URL 的文本字段。我将用这个简单的例子来简要介绍如何扩展 Cappuccino。</p>
+      
+    
+      
+        <div class="list-content">扩展 Cappuccino 的第一步是确定要继承哪个类。Cappuccino 的文档非常优秀，能帮助你了解各种可供选择的类。选定要继承的类之后，还需要弄清楚应该在继承树的哪个层次进行继承。例如，CPTextField 的继承链相当长：CPObject -&gt; CPResponder -&gt; CPView -&gt; CPControl -&gt; CPTextField。这通常是通过沿着继承树向上查找，寻找合适的方法来实现的。不同的类专注于不同的功能子集（CPView 负责尺寸和位置，CPResponder 负责 UI 事件，CPControl 负责 UI 显示等等）。在我的例子中，我知道想要重写的功能位于 CPResponder 类中，因为我需要自定义对 UI 事件的响应。我们继续细化，找出具体要重写的方法。对于我的需求，这个文本字段需要在被点击时执行操作，所以我翻阅文档后决定重写 mouseDown: 或 mouseUp 方法。在抛硬币（并权衡了 UI 响应速度与“最小意外原则”）之后，我选择了 mouseDown:。最后我们需要实现具体功能。我们希望打开一个新窗口并加载特定的网页。我在 Objective-J 中没有找到直接方法，但幸运的是我知道如何用 JavaScript 实现，而 Objective-J 是 JavaScript 的超集，所以任何能在 JavaScript 中做到的事，都能在 Objective-J 中实现。这个 Objective-J 代码的初稿是这样的：
+
+import &lt;Foundation/CPObject.j&gt;
+import &lt;AppKit/CPTextField.j&gt;
+
+@implementation WLURLLabel : CPTextField
+-(void)mouseDown:(CPEvent)anEvent {
+    window.open(&quot;http://lethain.com&quot;);
+}
+@end
+
+不过，我很可能需要不止一个可点击的链接，所以硬编码 URL 显然不够灵活。于是我花了五分钟时间，让代码变得可复用：
+
+import &lt;Foundation/CPObject.j&gt;
+import &lt;AppKit/CPTextField.j&gt;
+
+@implementation WLURLLabel : CPTextField {
+    CPString _url;
+}
+
+-(void)mouseDown:(CPEvent)anEvent {
+    window.open([self url]);
+}
+
+-(CPString)url {
+    return _url;
+}
+
+-(void)setUrl: (CPString)aString {
+    _url = aString;
+}
+@end
+
+啊，存取方法（accessor 和 mutator）的优雅之处在 Cappuccino 中和在 Cocoa 中一样无处不在。最后一步是在代码中使用 WLURLLabel，大致如下：
+
+var myFrame = CGRectMake(0,0,100,30);
+var label = [[WLURLLabel alloc] initWithFrame:myFrame];
+[label setStringValue:@&quot;Click here to visit Google.&quot;];
+[label setUrl:@&quot;http://www.google.com&quot;];
+[label setFont:[CPFont boldSystemFontOfSize:12.0]];
+// 改变颜色让链接更明显
+[label setTextColor:[CPColor whiteColor]];
+[contentView addSubview:label];</div>
+      
+    
+      
+        <p>总的来说，在 Cappuccino 中定制组件是一个相当简单的过程。从这个简单例子中不容易看出的是，即使要做大型且看似复杂的修改，也会遵循完全相同的模式。</p>
+      
+    
+      
+        <p>这里体现出的许多优势，很大程度上得益于 Objective-J 的 import 机制。拥有一个条理清晰的导入机制，能让你轻松地将代码分散到多个组织良好的文件中，从而让代码更易复用，修改也更加迅速。</p>
+      
+    
+      
+        <p>如果你有任何问题或意见，欢迎告诉我！</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

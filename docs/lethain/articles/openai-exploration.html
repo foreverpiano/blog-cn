@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>探索 OpenAI · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>探索 OpenAI</h1>
+    <div class="meta">
+      2023-04-12 · 
+      <a href="https://lethain.com/openai-exploration/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我之前没怎么玩过最新的 LLM，于是决定花些时间深入了解一下。我特别感兴趣的是用 embeddings 来为用户提示补充额外相关数据这一用例（例如，当用户询问最近工单的进度时，把这些工单的当前状态注入到提示中）。这个用例很有意思，因为它对现有公司和产品来说非常容易落地，我猜 Stripe 将 GPT-4 与其文档集成的方案，大致也是采用类似思路。</p>
+      
+    
+      
+        <p>为了实际尝试，我写了一个脚本：它把我的所有文章转换成 embeddings，对用户输入的提示进行 tokenization，找出我内容中最相关的部分，然后把这些内容注入到扩展后的提示中，最后发送给 OpenAI 的 API。</p>
+      
+    
+      
+        <p>你可以在 Github 上看到代码，下面是关于这个项目的笔记。</p>
+      
+    
+      
+        <h2>参考资料</h2>
+      
+    
+      
+        <p>这个探索受到 Eugene Yan 和 Simon Willison 近期工作的启发。我要特别感谢 Eugene Yan 提出的建议，这些建议显著提升了回答的质量。</p>
+      
+    
+      
+        <p>下面分享的代码是从多个来源拼凑而成的：</p>
+      
+    
+      
+        <div class="list-content">OpenAI Cookbook on Question Answering using Embeddings、OpenAI Cookbook on preparing data for use in embeddings、OpenAI Cookbook on creating embeddings。</div>
+      
+    
+      
+        <p>我发现这些示例没有一个能像文档里写的那样直接跑通，但经过一番摸索、重新学习 Pandas 等，最终还是把它们调通了。</p>
+      
+    
+      
+        <h2>项目介绍</h2>
+      
+    
+      
+        <p>我的项目目标是让 OpenAI API 在回答问题时，能够了解我个人写作的全部内容，包括这个博客、StaffEng 和 Infrastructure Engineering。具体来说，就是把 Hugo 博客的 Markdown 文章转换成 embeddings，供 OpenAI 使用。</p>
+      
+    
+      
+        <p>你可以在 Github 上看到代码。我完全没有花精力让它容易阅读，但它是一个完整的可运行示例。你可以把第 112 行改成指向你自己博客的内容目录（以及把第 260 行的提示改成适合你的内容），就能用在自己的写作上了。</p>
+      
+    
+      
+        <p>下面是一张这个项目运行效果的截图。</p>
+      
+    
+      
+        <p>这个项目挺有意思的，因为它确实能跑起来。整个过程比我预想的要久一些，大概花了三个小时（中间有不少中断），主要原因是文档里的示例都或多或少有些问题，或者无法直接组合成能工作的代码。跑通之后，我又忍不住花了好几个小时继续调试。我的仓库代码写得很糟糕，但如果你在“用 embeddings 实现问答”这个功能上遇到困难，它是一个完整可运行的例子。</p>
+      
+    
+      
+        <p>关于这个项目的另一个看法是，我并不认为它是解决我目标问题特别有效的方式。它本质上只是用一个比较基础的 k-means 算法，把我博客文章的分词版本与查询进行匹配，然后把最匹配的内容作为上下文注入到 GPT 的查询中。在开始做之前，我其实期待能看到一些更复杂、更精妙的东西。这是一个非常合理且成本很低的方案（因为不需要任何模型训练或重训），但感觉比我想象的要更基础一些。</p>
+      
+    
+      
+        <p>另外值得一提的是，开发这个应用并运行几十次，总共只花了 0.5 美元。</p>
+      
+    
+      
+        <h2>一些思考</h2>
+      
+    
+      
+        <p>这是一个很有趣的项目，部分原因在于它让我暂时从过去几个月的主要工作中抽身出来——那就是撰写我的下一本书。写书和编辑是一项非常有价值的工作，但它缺少在没有任何用户的小项目上随意 hacking 的那种自由快乐。在不过度思考或过度结构化的前提下，下面是一些关于这个项目以及更广泛 AI 行业发展的 bullet points 思考：</p>
+      
+    
+      
+        <div class="list-content">作为一个已经在行业里工作了一段时间的人，很容易对新事物感到疲倦。我对最近 AI 热潮的第一反应，和当初对加密货币热潮的第一反应非常相似：我们见过太多 hype 了，而初期的 hype 很少能与它对行业或社会的长期影响画上等号。换句话说，我一开始并不信服。反过来说，我认为长期的工程领导力的一部分，就是保持对新事物的开放心态。这个行业在过去二十年里已经发生了翻天覆地的变化，移动开发就是一个最明显的例证。大多数东西不会显著改变行业，但有些东西会彻底改造它，我们应该对这些潜在的变革性项目保持谨慎的兴趣。我个人的判断是，新的 AI 浪潮会带来中度的变革，而非颠覆性的巨变。再展开说说我的想法：LLM 在解决非常通用的、较为平庸的问题上展现出了显著潜力。硅谷有一个非常常见但经常不被说破的模式：雇佣工程师，假装他们在解决问题，然后雇一大堆非工程师来真正解决问题，“直到技术将其自动化”，快速扩张业务，并寄希望于未来某一年自动化能解决利润率问题。LLM 的采用应该能成为提升这类业务利润率的有力工具，理论上也能通过改善潜在利润空间来催生新的业务。然而，我们已经经历了一个零利率政策的十年，这意味着当下的利润率并没有那么重要。这也意味着，那些理论上能被更高利润率催生的想法，其实已经在过去那个不关心利润的十年里被尝试过了。因此，LLM 会让这些业务变得更好，但这些业务本身大多已经被尝试过，其中很多最终失败的原因是市场规模不足，无法产生所需回报，而非单纯因为缺乏能提升利润率的技术来掩盖大型内部团队的运营成本。如果你把 LLM 能带来的利润提升机会放在一边（我认为这不会催生全新的商业想法，而只会改善过去十年已经尝试过的现有想法），那么思考这些工具的真正甜蜜点就变得很有意思。我的看法是，它们非常擅长为领域专家提供支持——在专家能把不准确带来的潜在损害控制在一定范围内的情况下。例如，Github Copilot 对熟练的程序员来说是非常可行的赋能方式，但如果把代码放在能访问敏感资源或数据的环境中，用它来培训新手则是非常危险的。然而，如果我们因此把专家从“作者”推向“编辑”角色，我不确定这对当前这一代已经精通写作（通常编辑能力稍弱）的专家来说，是否真的带来了速度上的提升。也许会出现新一代专家，他们首先是出色的编辑，其次才是作者，而这些工具会加速这一趋势的形成。如果真是这样，那么当前这一代领导者可能无法正确评估这些工具，但……我认为大多数人在面对大多数新技术时都会这么说，而这只在某些时候是正确的。（加密货币就是一个明显的例子，它在现实世界中背负着沉重的监管负担，并没有取代现有技术。）</div>
+      
+    
+      
+        <p>总之，这是一个有趣的项目，在花时间深入之后，我对这个领域能实现什么有了更直观的感觉，这正是我的目标。随着时间推移，我会一直保持好奇，看看这里最终会诞生些什么。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

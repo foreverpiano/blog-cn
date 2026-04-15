@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>从 Google Analytics 报告中提取数据 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>从 Google Analytics 报告中提取数据</h1>
+    <div class="meta">
+      2008-09-11 · 
+      <a href="https://lethain.com/extracting-data-from-google-analytics-reports/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>几个月前，我和优秀的 J.D. Hollis 合作一个项目，最终编写了一个简单的 Python 脚本，用于解析导出的 Google Analytics 数据。虽然那个项目遇到了一些障碍，但这个脚本本身相当实用，于是我决定以 MIT 许可协议将其开源发布。</p>
+      
+    
+      
+        <p>你可以从它的 GitHub 仓库下载 gareports_reader.py，或者直接下载整个项目文件夹的 zip 压缩包。</p>
+      
+    
+      
+        <h2>缘由</h2>
+      
+    
+      
+        <p>有时候你需要创建 Google Analytics 网页界面没有提供的自定义可视化图表，或者运行自定义的计算。你当然可以通过下载 CSV 格式的数据来实现，但导出的 CSV 数据集内容比较匮乏。另一方面，XML 数据集信息极其丰富，但要弄清楚如何正确解析 XML 并提取数据却相当困难。</p>
+      
+    
+      
+        <p>gareports_reader.py 负责处理解析和提取工作，让你能够用简单的 Python 数据结构（列表、datetime 和字典）来操作这些数据。</p>
+      
+    
+      
+        <h2>使用方法</h2>
+      
+    
+      
+        <p>首先登录 Google Analytics，然后选择你想要下载的数据时间范围。</p>
+      
+    
+      
+        <p>接着点击导出，并选择 XML 文件格式。</p>
+      
+    
+      
+        <p>现在进入一个同时包含 gareports_reader.py 和你导出的数据文件的文件夹。</p>
+      
+    
+      
+        <p>我通常会把 XML 文件重命名为更容易输入的名称。</p>
+      
+    
+      
+        <p>然后启动 Python 解释器（它应该能在 2.4 上运行，但我记不太清了，可以确定的是它肯定能在 2.5 上运行）。</p>
+      
+    
+      
+        <p>上面可以看到一些基本用法，但真正有价值的内容都在 dates 这个字段里。dates 是一个按时间顺序排序的列表，其中每个元素都是一个二元组（一个 datetime 对象和一个字典），结构如下：</p>
+      
+    
+      
+        <p>因此，我们可以这样创建一个每天页面浏览量的列表，然后这样计算总数：</p>
+      
+    
+      
+        <p>你也可以计算平均页面浏览量……</p>
+      
+    
+      
+        <p>注意所有数值都是以字符串形式存储的，因此在使用前需要先将其转换为浮点数。</p>
+      
+    
+      
+        <p>总之，gareports_reader.py 让 Google Analytics 的数据变得非常易于访问，你可以创建自己感兴趣的图表并运行相应的计算。</p>
+      
+    
+      
+        <h2>局限性</h2>
+      
+    
+      
+        <p>目前它仅支持 Dashboard 报告（即首页显示的报告）。扩展它以支持其他报告其实相当简单，但由于首页已经提供了极其丰富的数据集（每天的 search、unique、pageviews、newvisits、avgpageviews、direct、visists、visitors、boundrate、newvisitors、referral 和 timeonsite 等数值），对我当时的需求来说已经足够了。</p>
+      
+    
+      
+        <p>希望对你有帮助，如果有任何问题欢迎告诉我。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

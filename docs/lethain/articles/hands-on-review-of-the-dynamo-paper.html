@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dynamo 论文动手实践评测 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Dynamo 论文动手实践评测</h1>
+    <div class="meta">
+      2009-11-30 · 
+      <a href="https://lethain.com/hands-on-review-of-the-dynamo-paper/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近我有幸阅读了 Amazon Dynamo 论文，本打算整理一些结构化的笔记，却发现很难下笔，因为论文的话题切换得相当快。</p>
+      
+    
+      
+        <p>我认为一个很好的记录思路（同时也能加深理解）的方式，就是动手实现一个分布式键值存储，然后逐步加入 Dynamo 论文中讨论的各项改进。通过这个系列文章，最终我们将在一个分布式的 Erlang 系统中重新实现 Dynamo 的大部分核心思想。</p>
+      
+    
+      
+        <p>每一篇文章都会介绍一个概念，并将其应用到一个随着系列不断演进的分布式键值存储示例中。（某些文章可能会包含多个概念，目的是让每篇文章既有足够长度值得拥有独立 URI，又足够简短可以在一次阅读中消化。）</p>
+      
+    
+      
+        <h2>为什么选择 Dynamo 论文？</h2>
+      
+    
+      
+        <p>因为它涵盖了大量主题。其中包括 virtual nodes、consistent hashing、merkle trees、incremental scaling、vector clocks、gossip protocols、seeds 和 sloppy quorums。这些主题任何一个都足以单独成文，因此这篇 27 页的 Dynamo 论文不得不对许多细节一带而过。</p>
+      
+    
+      
+        <p>而一系列文章则有更多空间来深入探讨这些想法；通过动手构建项目，能带来一些实践的感觉，我认为这是呈现材料最有教益的方式。</p>
+      
+    
+      
+        <h2>为什么选择 Erlang？</h2>
+      
+    
+      
+        <p>Erlang 是设计分布式系统的绝佳选择。这并不是特别为消息传递唱赞歌，而更多是对 pg2 模块的致敬——它能够注册运行在其他主机上的进程，并像本地进程一样与之交互。</p>
+      
+    
+      
+        <p>我一直很享受用 Clojure 做实验，也长期是 Python 的忠实用户，但无论是它们还是绝大多数编程语言，都无法像 Erlang 这样以如此轻松的方式抽象掉跨机器操作。</p>
+      
+    
+      
+        <p>这是一条重要信息，所以请允许我再说一遍：对于分布式系统来说，Erlang 的核心优势在于 OTP 应用平台和 Erlang 虚拟机。模式匹配、消息传递和函数式编程都是强大的语言特性，但它们都可以被替代；而 OTP 和 Erlang VM 则不可替代。</p>
+      
+    
+      
+        <h2>前置要求？</h2>
+      
+    
+      
+        <p>本系列的目标读者是热衷编程的人，但不一定是热衷 Erlang 编程的人。阅读本系列，你只需要一点点坚持精神。如果要跟着动手实践，你需要熟悉 Erlang 语法，并安装好可运行的 erl，但并不需要事先熟悉 pg2 等模块。</p>
+      
+    
+      
+        <p>除了讨论 Dynamo 的实现之外，本系列的另一个目标是尽可能多地介绍实现和部署 Erlang 应用的各种重要概念，因此它非常适合 Erlang 新手作为启发性的阅读材料。</p>
+      
+    
+      
+        <h2>我们的原型</h2>
+      
+    
+      
+        <p>在本系列第一篇文章中，我们将构建分布式键值存储的初始版本。</p>
+      
+    
+      
+        <p>我们定义的初始接口如下：</p>
+      
+    
+      
+        <p>用法示例如下：</p>
+      
+    
+      
+        <p>这些函数定义大部分不会改变，但 start 函数会随着更多配置选项的加入而需要改进。现在让我们来实现初始版本（这些实现会在整个系列中发生较大变化）。</p>
+      
+    
+      
+        <h2>start 和 stop</h2>
+      
+    
+      
+        <p>在整个系列中，我们会大量依赖 pg2。pg2 是一个用于创建全局进程组的模块，进程可以在其中注册自己，从而可以被其他进程轻松发现。</p>
+      
+    
+      
+        <p>其真正价值在于，注册的进程不仅能被同一节点上的其他进程发现，也能被运行在其他节点上的进程发现。由于节点可以运行在不同的物理机器上，pg2 让我们能够以最小的麻烦实现跨机器扩展。</p>
+      
+    
+      
+        <p>使用 pg2 时，第一步是通过 pg2:create/1 创建一个进程组（这是一个幂等操作，对已存在的组再次调用不会产生副作用），之后通过 pg2:join/2 将进程加入该组。后来，可以通过 pg2:leave/2 从组中移除进程。（进程组本身可以通过 pg2:delete/1 删除。）</p>
+      
+    
+      
+        <p>因此，我们可以按如下方式实现 start/1（其中唯一的参数是一个整数，表示要创建的节点数量）：</p>
+      
+    
+      
+        <p>需要注意几点：</p>
+      
+    
+      
+        <div class="list-content">我们还没有介绍 kvs:store/1 函数，因此上面的代码目前还无法成功编译。spawn/3 用于使用指定的函数和参数创建进程，并返回进程标识符。pg2:join/2 的第二个参数接受由 spawn/3 返回的进程标识符。 你可以多次运行 start/1，也可以在多个节点上运行，所有创建的进程都会加入同一个进程组。因此，这个 start 函数已经支持跨多个物理主机利用进程。</div>
+      
+    
+      
+        <p>比 start/1 更简单的是我们的 stop/0 实现：</p>
+      
+    
+      
+        <p>注意 stop/0 会从 kvs 进程组中移除所有进程，这意味着它会移除在其他物理主机上创建的进程。目前这样是合理的，但随着系列推进，我们可能会希望创建一个更细致的停止机制。</p>
+      
+    
+      
+        <p>stop/0 的另一个有趣之处在于，它展示了本系列中消息传递的第一个例子。 Erlang 中消息传递的语法是</p>
+      
+    
+      
+        <p>其中 ReceiverPid 是接收者的进程标识符，TermToSend 是任意的 Erlang term。以下都是合法的消息传递示例：</p>
+      
+    
+      
+        <p>现在我们已经写好了 start/1 和 stop/0 函数，是时候编写包含真实键值存储逻辑的 store/1 函数了。</p>
+      
+    
+      
+        <h2>键值存储 store/1</h2>
+      
+    
+      
+        <p>store/1 函数是整个实现的核心。它维护键值存储、处理值的更新和传播，并负责为客户端检索值。</p>
+      
+    
+      
+        <p>在这个初始实现中，我们做了几个战略性的决定：</p>
+      
+    
+      
+        <div class="list-content">我们把值存储在属性列表（property list）中，因为它非常简单。不用说，属性列表并不适合存储大量数据（读写平均复杂度为 O(N/2)，最坏情况为 O(N)）。我们稍后会解决这个问题。我们把所有数据都存储在每个进程中，也就是说我们在做复制而不是分片。这只是暂时的状态，我们会在整个系列中逐步改进。读取总是从单个进程读取，如果我们能在确认其他所有进程都成功更新后再报告写入成功，这样做是合适的。这一点也会随着时间推移而改进。</div>
+      
+    
+      
+        <p>考虑到这些前提，以下是 store/1 的初始实现：</p>
+      
+    
+      
+        <p>store/1 有几个方面值得简单讨论：</p>
+      
+    
+      
+        <div class="list-content">这是第一次出现 receive 关键字，它是 Erlang 中使用消息传递的后半部分（前半部分是 ! 操作符）。receive 和 ! 一起工作的方式如下：
+% 在发送者进程
+Receiver ! {set, a, &quot;b&quot;}.
+% 在接收者进程
+receive
+    {set, Key, Val} -&gt;
+        io:format(&quot;Received ~p =&gt; ~p~n&quot;, [Key, Val]),
+end.
+还要注意 self/0 函数会返回调用它的进程的 pid，因此当发送者希望接收者回复时经常使用它。
+% 在发送者进程
+Receiver ! {self(), get, name}.
+% 在接收者进程
+receive
+    {Sender, get, Key} -&gt;
+        Value = get_from_somewhere(Key),
+        Sender ! {got, Key, Value}
+end.
+pg2:get_members/1 接受一个进程组名称，并返回当前所有成员的 pid 列表。它和 pg2:get_closest_pid/1 是在进程组中获取 pid 的两种机制。注意我们对 set 和 update 做了区分：set 是更新值的外部接口，而 update 是传播值的内部接口。（同时注意我们目前忽略了 updated 消息。）</div>
+      
+    
+      
+        <p>现在 store/1 的实现已经完成，是时候编写一些便捷的包装函数并从 kvs 模块导出，它们可以简化与 store/1 函数的交互。</p>
+      
+    
+      
+        <h2>get 和 set 接口</h2>
+      
+    
+      
+        <p>虽然可以直接与这些进程通信，但这需要了解很多细节。你需要知道它们注册在 kvs 进程组中，需要知道它们期望的消息格式，还需要确保交互是同步的（默认情况下 Erlang 的消息传递是异步的，但我们下面会看到同步消息传递的标准模式）。</p>
+      
+    
+      
+        <p>我们可以通过编写接口函数来缓解这些问题，这些函数用于执行键值存储中两个最重要的操作：设置和获取。</p>
+      
+    
+      
+        <p>首先来看 get/1 和 get/2 的实现。</p>
+      
+    
+      
+        <p>这个例子中出现了一些新内容：首先是 pg2:get_closest_pid/1，它会随机选择指定进程组中的一个进程，并优先选择与当前节点在同一节点上运行的 pid。这对于在进程组的各个 pid 之间均匀分配工作非常有用。</p>
+      
+    
+      
+        <p>其次，注意这里的“发送消息，然后使用 receive 阻塞等待响应”的模式，这是两个进程之间进行同步通信的常用方式。</p>
+      
+    
+      
+        <p>set/2 和 set/3 函数与 get/2 非常相似，遵循相同的模式，区别仅在于发送的消息和期望的响应。</p>
+      
+    
+      
+        <p>set/3 中应该没有什么我们没见过的东西，所以我们可以继续完成实现这个最简分布式键值存储的最后一项任务。</p>
+      
+    
+      
+        <h2>kvs 模块</h2>
+      
+    
+      
+        <p>最后，我们需要编写 kvs 模块的头部，这只需要几行代码。</p>
+      
+    
+      
+        <p>注意我们定义了 TIMEOUT，它表示等待响应的毫秒数。你也可以把 500 改成 infinity，表示不使用超时。不过目前 500 毫秒在功能上等价于 infinity，所以 500 是一个合理的默认值。</p>
+      
+    
+      
+        <h2>总结</h2>
+      
+    
+      
+        <p>本文撰写的完整代码可在 GitHub 上获取。（注意我链接的是 kvs.erl 文件的特定修订版本，而不是最新版本的代码。）</p>
+      
+    
+      
+        <p>现在我们已经为这个系列搭建好了基础设施，很快我们就能开始研究 Dynamo 论文中的思想，并逐步构建出一个看起来略微相似的东西。</p>
+      
+    
+      
+        <p>下一篇文章已经发布，将讨论如何加入持久化写入和一致性读取。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 LLM 生成系统模型 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 LLM 生成系统模型</h1>
+    <div class="meta">
+      2025-03-15 · 
+      <a href="https://lethain.com/ces-ai-generate-systems-model-llm/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>《Crafting Engineering Strategy》一书中有一章专门介绍<a href="strategy-systems-modeling.html">用系统建模来完善策略</a>，并提供了大量示例。这些示例主要使用 lethain/systems 这个 Python 库，在 Jupyter Notebook 中生成模型，相关示例代码位于 lethain/eng-strategy-models。虽然这是一种合理的方法，但它要求使用者学习该 systems 库的建模语法。</p>
+      
+    
+      
+        <p>本章将探讨如何让 LLM 替你编写系统模型语法，而无需深入学习这些语法细节。除了针对 systems 库的具体指导外，这也是一种可泛化的模式——即如何使用 LLM 来处理领域特定语言（domain-specific languages）。</p>
+      
+    
+      
+        <p>我们将依次介绍以下内容：</p>
+      
+    
+      
+        <div class="list-content">向上下文窗口中添加特定于问题领域的资源，以帮助 LLM 解决复杂问题；使用 LLM 编写符合 systems 规范的系统模型；让 LLM 一步步指导你运行系统模型的脚本；使用 Model Context Protocol (MCP) 服务来简化运行系统模型的过程，并通过 Claude Artifact 来探索结果。</div>
+      
+    
+      
+        <p>以下说明主要基于 Anthropic Claude.ai 的 Project 设置，但也应该可以适配其他方案，特别是当本地 MCP 服务在 Claude Desktop 之外的环境中得到更广泛支持之后。</p>
+      
+    
+      
+        <p>本章是《The AI Companion to Crafting Engineering Strategy》的一篇草稿，该书讨论了如何在 LLM 中使用《Crafting Engineering Strategy》，以帮助起草、完善和改进工程策略。</p>
+      
+    
+      
+        <h2>添加系统建模指令</h2>
+      
+    
+      
+        <p>在第一章<a href="ces-ai-foundation-of-collaboration.html">协作的基础（与 LLM 共同使用一本书）</a>中，我们已经配置了一个项目，将《Crafting Engineering Strategy》纳入上下文窗口。现在我们要继续使用这个技巧，向上下文窗口中添加更详细的系统模型创建指导。</p>
+      
+    
+      
+        <p>首先，从 lethain/systems 项目中获取 README.md 的文本副本。该文件详细解释了该库的语法和用法，对于让模型生成规范来说已经足够。一旦拿到文件，请将其上传到你的 Anthropic 项目中，和经过 LLM 优化的《Crafting Engineering Strategy》放在一起。</p>
+      
+    
+      
+        <p>这样一来，README 的内容就会出现在上下文窗口中，作为生成模型的 in-context learning (ICL) 示例。</p>
+      
+    
+      
+        <p>添加 README 后，你的项目将同时包含其内容和本书的各个章节。现在我们可以开始编写一个系统模型了。这个模型类似于<a href="modeling-hiring-funnel-systems.html">用 Systems 库建模招聘漏斗</a>中描述的招聘漏斗模型，但该模型并未包含在《Crafting Engineering Strategy》或 README.md 中。</p>
+      
+    
+      
+        <h2>创建模型</h2>
+      
+    
+      
+        <p>首先写一段对你要创建的系统的总体描述。我最初使用的提示词是：</p>
+      
+    
+      
+        <pre><code>Help me write a systems model specification for
+systems library to model a hiring pipeline system where:
+
+1. First stock is infinite stock of &quot;potential candidates&quot;
+2. Second stock is &quot;outreaches&quot;, with an in flow of 10 from
+   &quot;potential candidates&quot;
+3. Third stock is &quot;interested&quot;, with an in flow of 50%
+   from &quot;outreaches&quot;
+4. Fourth stock is &quot;active&quot;, with an in flow of 50%
+   from &quot;interested&quot;
+5. Fifth stock is &quot;offers&quot; with an in flow of 10% from &quot;active&quot;
+6. Sixth and final stock is &quot;hires&quot; with an in flow of
+   70% from &quot;offers&quot;
+
+All of these flows with percentages should be modeled using
+&quot;Leak&quot; flows, for example:
+
+    Outreaches &gt; Interested @ Leak(0.5)
+</code></pre>
+      
+    
+      
+        <p>这是一段相当详细的描述，不过只有最后几句关于 Leaks 的内容需要专门了解 systems 语法。我们稍后会再讨论“Leak”和“Conversion”的区别。这里最重要的一点是：即使我们不需要掌握 systems 语法，你仍然必须理解系统模型的工作原理，才能写出这样的规格说明。</p>
+      
+    
+      
+        <p>根据这个提示，Claude 生成了一份完整可用的模型，同时还附上了若干其他系统模型的示例链接。如果你遇到问题，这些示例可能有助于学习；你也可以将它们转换为 Markdown 并加入提示中，帮助 LLM 更好地修复它生成的错误。</p>
+      
+    
+      
+        <p>现在我们已经有了一个可用的提示，你可能已经注意到，之前关于使用 Leak 的提示其实并不太合理。这是因为 Leak 表示的是招聘流程中继续前进的那部分候选人，而它错误地将未继续前进的候选人建模为停留在之前的存量（stock）中。</p>
+      
+    
+      
+        <p>这并不准确：招聘漏斗中没有继续前进的候选人并不会停留在之前的存量里，他们会离开整个招聘流程。例如，一个没有拿到 offer 的候选人不会一直待在“Active”这个存量中，而是会彻底退出招聘流程。</p>
+      
+    
+      
+        <p>让我们来修复这个问题，提示 LLM 使用 Conversion 而不是 Leak，可以这样写：</p>
+      
+    
+      
+        <pre><code>Ok, this is a good start. Could you change the leaks
+to be conversions, since the others are actually getting lost?
+</code></pre>
+      
+    
+      
+        <p>我们可以看到，这个提示输出了修正后的模型。</p>
+      
+    
+      
+        <p>正如本节所示，只要提供足够且合适的文档，LLM 在编写正确语法方面表现得惊人地出色。真正的挑战在于，你需要足够清楚自己的目标，才能提供恰当的文档。</p>
+      
+    
+      
+        <h2>运行模型</h2>
+      
+    
+      
+        <p>一旦拥有了可用的系统模型语法，下一步就是从模型中获取数据。虽然我个人更喜欢在 Jupyter Notebook 中运行模型（如 lethain/eng-strategy-models 所示），但你也可以让 LLM 一步步指导你在本地运行这些模型。</p>
+      
+    
+      
+        <p>继续上面的提示，让我们请求运行新模型的指导：</p>
+      
+    
+      
+        <pre><code>Ok, that seems like a good systems model. Please write
+me the python script that uses the &quot;systems&quot; python
+library to run that model and generate the output as a table.
+</code></pre>
+      
+    
+      
+        <p>这会生成在本地安装 systems 库的说明，以及一个运行模型的脚本。完整的脚本可以在这个 Gist 中找到。</p>
+      
+    
+      
+        <p>如果你按照步骤安装并运行该脚本，会得到以下表格作为输出。</p>
+      
+    
+      
+        <p>接着，你可以将这个表格连同提示一起提供给 Claude.ai，让它创建一个 Artifact 来探索数据：</p>
+      
+    
+      
+        <pre><code>This is the library output, please produce an artifact
+that shows chart of active candidates over time:
+
+{table data omitted for brevity}
+</code></pre>
+      
+    
+      
+        <p>这将会生成一个 Artifact，以图表形式可视化该数据集。</p>
+      
+    
+      
+        <p>这种方法虽然可行，但相当笨拙，需要在聊天界面和终端之间来回切换。我们真正想要的是比 Jupyter Notebook 更好的体验，而这种方式明显更差。幸运的是，我们可以做得更好。</p>
+      
+    
+      
+        <h2>使用 Model Context Protocol 服务</h2>
+      
+    
+      
+        <p>现在我们已经完成了让 LLM 引导我们完成模型创建、运行和渲染整个流程的实验，可以坦率地承认：其中有些步骤其实并没有那么有用。更好的方案是让我们能够在聊天界面内完成所有步骤。</p>
+      
+    
+      
+        <p>幸运的是，我们可以通过创建一个 Model Context Protocol (MCP) 服务并将其暴露给 LLM 来实现这种体验。MCP 服务会为 LLM 提供工具，同时说明何时以及如何使用这些工具。一个简单的 MCP 服务可能提供获取当前天气、调用某个服务的 API 或查询搜索索引等工具。在本例中，MCP 服务还可以使用 systems 库来运行系统模型，具体实现可参考 lethain/systems-mcp 这个库。</p>
+      
+    
+      
+        <p>该仓库包含了安装说明，可以将其配置为与我们在<a href="ces-ai-foundation-of-collaboration.html">协作的基础（与 LLM 共同使用一本书）</a>中设置的 Claude Desktop 配合使用。安装完成后，你就可以按照以下步骤运行和渲染模型。</p>
+      
+    
+      
+        <p>这个 MCP 服务暴露了两个工具：load_systems_documentation 和 run_systems_model。第一个工具 load_systems_documentation 会将项目特定的文档和示例注入到上下文窗口中，作为 in-context learning 的材料，从而提升生成模型的质量。另一个工具 run_systems_model 则接收模型规格说明并运行它，以 JSON 格式返回结果。</p>
+      
+    
+      
+        <p>以下是 Claude.ai 使用这两个工具为一个社交网络生成系统模型的示例。请注意，加载的上下文中没有任何与社交网络相关的示例，因此这是一个真正的新 creation，而非对已有内容的简单复现。</p>
+      
+    
+      
+        <p>在生成系统模型的输出后，我们仍然需要探索这些数据。在 Jupyter Notebook 中，我们会用静态图表展示不同的切面。而在 Claude.ai 中，我们可以通过以下提示让它生成一个 Artifact 来探索这个数据集：</p>
+      
+    
+      
+        <pre><code>Create an artifact to render the output of the last
+systems model run in a chart and allow me to select
+which columns to include.
+</code></pre>
+      
+    
+      
+        <p>这将生成一个类似下面的 Artifact，允许你选择要渲染的列。</p>
+      
+    
+      
+        <p>至此，我们创造了一个比 Jupyter Notebook 更强大的工具——它能为你生成系统模型，同时也支持类似的探索场景。如果我们用更批判的眼光来看，会发现 Artifact 只包含了五轮而不是全部五十轮。我们可以通过以下方式修复：</p>
+      
+    
+      
+        <pre><code>Include all 50 rounds in the artifact, not just 5
+</code></pre>
+      
+    
+      
+        <p>不过，我们其实不应该需要专门提出这个要求。所以目前它还不是完美无缺，但你可以让它工作得相当好。也很容易想象，在不久的将来，工具和 Artifact 之间会连接得更好，让 LLM 能够直接将工具和 Artifact 关联起来，而不需要通过复制数据的方式间接连接。</p>
+      
+    
+      
+        <h2>总结</h2>
+      
+    
+      
+        <p>在本章中，我们从一个复杂问题入手，将其拆解成 LLM 能够解决的各个组成部分。我们使用文档来引导 LLM 写出正确的语法。我们加载了一个 Model Context Protocol 服务，将大量需要计算的工作交给真正擅长快速准确完成数学运算的软件。我们使用 Claude Artifact 不仅绘制了结果数据，还能对渲染后的数据进行探索。</p>
+      
+    
+      
+        <p>这种组合方法不仅解决了生成和运行系统模型这个具体问题，也是一种可泛化的思路，能够让那些看似杂乱的问题适配 LLM 驱动的工作流。这里有效的做法，在其他场景中同样有效——包括我们希望在下一章中用它来帮助生成 Wardley 地图。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

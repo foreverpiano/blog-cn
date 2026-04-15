@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>一个用于加载 CouchDB 文档的命令行工具 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>一个用于加载 CouchDB 文档的命令行工具</h1>
+    <div class="meta">
+      2008-12-09 · 
+      <a href="https://lethain.com/a-command-line-tool-for-loading-couchdb-documents/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>这个周末在使用 CouchDB 时，我发现自己既不满足于仅在 Futon 中创建内容，又不想为每次新尝试都编写一个全新的自定义脚本。我想要一个脚本，能够接受一个文件或目录，将其转换为 JSON，并上传到 CouchDB 中。</p>
+      
+    
+      
+        <p>于是，我把它写了出来。</p>
+      
+    
+      
+        <h2>理由</h2>
+      
+    
+      
+        <div class="list-content">在 Futon 中创建多行值并不特别直观，因此“先保存到另一个文件再粘贴”的备用方案并不理想。在实验过程中，我经常需要删除数据库，希望有一个快速简便的方式来加载示例数据和视图。我想要一种简单的方法来添加一次性数据，而无需编写用完即弃的代码（这正是命令行工具的完美应用场景）。用 Python 编写文档数据还能带来一些便利：良好的缩进和语法高亮让数据更清晰，通过 simplejson 轻松将数据结构转换为 JSON，既能验证 Python 数据结构的语法，也能确保输出的 JSON 有效。命令行工具之间的协作也比脚本好得多。</div>
+      
+    
+      
+        <h2>文件格式</h2>
+      
+    
+      
+        <p>该脚本支持四种可能的文件格式：</p>
+      
+    
+      
+        <div class="list-content">扩展名为 .py 的文件，内容为一个 Python dict。
+{ &#x27;_id&#x27;:&#x27;123&#x27;,&quot;title&quot;:&quot;hi&quot;,&quot;etc&quot;:&quot;blah&quot; }
+扩展名为 .py 的文件，内容为一个包含多个 dict 的 Python list。
+[ {&#x27;title&#x27;:&#x27;a&#x27;}, {&#x27;title&#x27;:&#x27;b&#x27;}]
+扩展名为 .js 或 .json 的文件，内容为一个 JSON dict。
+（嗯，简单的例子在结构上其实和 Python 示例完全相同。）
+扩展名为 .js 或 .json 的文件，内容为一个包含多个 dict 的 JSON array。
+（同样，这实际上和 Python list 示例完全相同。）</div>
+      
+    
+      
+        <p>数组格式始终通过批量文档 API 发送（数组中的每个 dict 都是一个文档），而 dict 格式则始终通过 PUT API 来创建文档。</p>
+      
+    
+      
+        <h2>使用方法</h2>
+      
+    
+      
+        <p>使用方法相当直观。</p>
+      
+    
+      
+        <pre><code>python doc_utils.py database-name
+python doc_utils.py db path/to/folder
+python doc_utils.py db path/my_views.py
+python doc_utils.py db --port=3432
+python doc_utils.py db --hostname=example.com
+</code></pre>
+      
+    
+      
+        <p>上述选项的任意组合也都支持，因此你可以用来将任意路径的内容加载到任意 CouchDB 实例中。</p>
+      
+    
+      
+        <h2>下载</h2>
+      
+    
+      
+        <p>你可以在它的 GitHub 仓库获取源代码，也可以直接下载 zip 压缩包。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

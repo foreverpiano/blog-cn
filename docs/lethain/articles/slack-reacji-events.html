@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>让 Slack 应用响应表情回应（reacji）。 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>让 Slack 应用响应表情回应（reacji）。</h1>
+    <div class="meta">
+      2019-11-09 · 
+      <a href="https://lethain.com/slack-reacji-events/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>这篇文章延续了<a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a>系列，在<a href="slack-app-home-python.html">在 Python 中为 Slack 应用添加 App Home</a>之后继续撰写。Slack 中许多微妙而自然产生的沟通模式，都是通过给消息添加表情符号（emoji）来实现的。我觉得在当前正在开发的这个应用中利用这种趣味性，会是一件很有意思的事。</p>
+      
+    
+      
+        <p>本文从 commit 4120 开始，到 commit 08eb 结束。</p>
+      
+    
+      
+        <h2>Slack app in Python 系列</h2>
+      
+    
+      
+        <div class="list-content"><a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a><a href="slack-app-home-python.html">在 Python 中为 Slack 应用添加 App Home</a><a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a><a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a><a href="slack-distribution.html">发布你的 Slack 应用</a></div>
+      
+    
+      
+        <h2>表情回应（Reacji）和自定义表情</h2>
+      
+    
+      
+        <p>Slack 的表情回应（emoji reactions 或称 reacji）是大家在频道中与消息互动的常用方式。</p>
+      
+    
+      
+        <p>在我们正在开发的应用中，我考虑加入 :ididit: 和 :udidit: 两个表情符号。大家可以用它们把自己的成就加入到成就清单，也可以用它们把别人的成就加到对方的清单里。我注意到有些人不喜欢或不重视记录自己的成就，这个设计或许能以一种有趣的方式，让团队和社区来帮助他们完成记录。</p>
+      
+    
+      
+        <p>通过工作区左上角菜单中的“Customize Slack”选项来添加这些表情。</p>
+      
+    
+      
+        <p>进入后点击“Add custom emoji”，然后想办法创建一张图片。我当时用 Omnigraffle 是因为它正好开着，不过你大概会用其他工具。</p>
+      
+    
+      
+        <p>上传你的图片，将其命名为 :udidit: 并点击保存。然后再为 :ididit: 表情重复相同的操作。</p>
+      
+    
+      
+        <p>现在我们有了自定义表情，接下来需要弄清楚如何在它们被使用时收到通知。</p>
+      
+    
+      
+        <h2>订阅 reaction_added 事件</h2>
+      
+    
+      
+        <p>每当有人添加表情符号时，如果您已订阅，就会向 Events API 触发一个对应的 reaction_added 事件。</p>
+      
+    
+      
+        <p>要订阅，请前往应用仪表盘的“Event Subscriptions”页面，展开“Subscribe to workspace events”，然后选择 reaction_added。</p>
+      
+    
+      
+        <p>记得点击下方的“Save Changes”，并用新的权限重新安装你的应用。</p>
+      
+    
+      
+        <h2>处理 reaction_added 事件</h2>
+      
+    
+      
+        <p>现在我们已经能收到这些事件，需要扩展 event_callback_event 来处理 reaction_added 事件，而不是让它报错。</p>
+      
+    
+      
+        <pre><code>def event_callback_event(request, parsed):
+    event_type = parsed[&#x27;event&#x27;][&#x27;type&#x27;]
+    if event_type == &#x27;app_home_opened&#x27;:
+        return app_home_opened_event(request, parsed)
+    elif event_type == &#x27;reaction_added&#x27;:
+        return reaction_added_event(request, parsed)
+    else:
+        raise Exception(&quot;unable to handle event_callback event type: %s&quot; % \
+                        (event_type,))</code></pre>
+      
+    
+      
+        <p>对于 reaction_added_event 的第一次实现，我们先简单地把收到的消息记录下来，以便查看它的参数结构。</p>
+      
+    
+      
+        <pre><code>def reaction_added_event(request, parsed):
+    print(parsed)
+    return &quot;Ok&quot;</code></pre>
+      
+    
+      
+        <p>我给一条消息加了 :relaxed: 表情，处理程序输出了 Slack 发送的以下内容。</p>
+      
+    
+      
+        <pre><code>{
+  &#x27;token&#x27;: &#x27;ttttttttttttt&#x27;,
+  &#x27;team_id&#x27;: &#x27;tiiiiiiiiiiii&#x27;,
+  &#x27;api_app_id&#x27;: &#x27;aaaaaaaa&#x27;,
+  &#x27;event&#x27;: {
+    &#x27;type&#x27;: &#x27;reaction_added&#x27;,
+    &#x27;user&#x27;: &#x27;uuuuuuuuu&#x27;, 
+    &#x27;item&#x27;: {
+      &#x27;type&#x27;: &#x27;message&#x27;,
+      &#x27;channel&#x27;: &#x27;ccccccccc&#x27;,
+      &#x27;ts&#x27;: &#x27;1573231294.000900&#x27;
+    },
+    &#x27;reaction&#x27;: &#x27;relaxed&#x27;,
+    &#x27;item_user&#x27;: &#x27;iuuuuuuuu&#x27;,
+    &#x27;event_ts&#x27;: &#x27;1573250406.000200&#x27;
+  },
+  &#x27;type&#x27;: &#x27;event_callback&#x27;,
+  &#x27;event_id&#x27;: &#x27;eeeeeeeee&#x27;,
+  &#x27;event_time&#x27;: 1573250406,
+  &#x27;authed_users&#x27;: [&#x27;uuuuuuuuuu&#x27;]
+}</code></pre>
+      
+    
+      
+        <p>我们首先要做的是筛选出我们关心的表情回应。我们只对之前添加的两个表情（:ididit: 和 :udidit:）做出反应，并且只处理针对消息（message）的回应，忽略文件等其他类型。</p>
+      
+    
+      
+        <pre><code>def reaction_added_event(request, parsed):
+    event = parsed[&#x27;event&#x27;]
+    if event[&#x27;reaction&#x27;] in (&#x27;ididit&#x27;, &#x27;udidit&#x27;):
+        if event[&#x27;item&#x27;][&#x27;type&#x27;] == &#x27;message&#x27;:
+            print(parsed)
+            print(&quot;yes, handling this message&quot;)
+
+    return &quot;Ok&quot;</code></pre>
+      
+    
+      
+        <p>筛选出合适的消息后，我们仍然不清楚消息的具体内容：你或者对方到底完成了什么？要解决这个问题，我们需要调用 conversations.history 接口，具体方法可参考“Retrieving messages”文档。</p>
+      
+    
+      
+        <h2>添加 channels:history 权限</h2>
+      
+    
+      
+        <p>在调用 channels.history 接口之前，我们需要先申请 channels:history 这个 OAuth 权限。进入应用仪表盘，点击“OAuth &amp; Permissions”，向下滚动找到 Scopes 区域，添加 channels:history。</p>
+      
+    
+      
+        <p>之后，重新安装你的应用以申请新增的 OAuth 权限。我们目前一直使用的是 bot token 而非 OAuth token，因此还需要把 OAuth token 添加到 env.yaml 文件中。你的 OAuth token 可以在应用管理后台的“OAuth &amp; Permissions”页面中找到，字段名为“OAuth Access Token”。</p>
+      
+    
+      
+        <pre><code>SLACK_SIGN_SECRET: your-secret
+SLACK_BOT_TOKEN: your-bot-token
+SLACK_OAUTH_TOKEN: your-oauth-token
+</code></pre>
+      
+    
+      
+        <p>配置完成后，我们就可以使用新的权限了。</p>
+      
+    
+      
+        <h2>调用 channels.history</h2>
+      
+    
+      
+        <p>我们之前实现了一个 slack_api 工具函数来简化 Slack API 调用，但这次无法轻易复用它。原因有两个：首先，conversations.history 需要 application/x-www-form-urlencoded 格式的请求，而其他接口接受的是 application/json；其次，这个接口要求使用 GET 而不是 POST（虽然用 requests.request 函数传入 HTTP 方法字符串就能解决）。</p>
+      
+    
+      
+        <p>为了快速绕过这些限制，我们将编写一个 get_message 函数直接调用 API，而不是基于 slack_api 来实现，虽然这有点不太理想。</p>
+      
+    
+      
+        <pre><code>def get_message(channel, msg_ts):
+    url = &quot;https://slack.com/api/conversations.history&quot;
+    bot_token = os.environ[&#x27;SLACK_OAUTH_TOKEN&#x27;].encode(&#x27;utf-8&#x27;)
+    params = {
+        &#x27;token&#x27;: bot_token,
+        &#x27;channel&#x27;: channel,
+        &#x27;latest&#x27;: msg_ts,
+        &#x27;limit&#x27;: 1,
+        &#x27;inclusive&#x27;: True
+    }
+    resp = requests.get(url, params=params)
+    return resp.json()</code></pre>
+      
+    
+      
+        <p>接着我们更新 reaction_added_event，让它使用这个新函数。</p>
+      
+    
+      
+        <pre><code>def reaction_added_event(request, parsed):
+    print(parsed)
+    event = parsed[&#x27;event&#x27;]
+    if event[&#x27;reaction&#x27;] in (&#x27;ididit&#x27;, &#x27;udidit&#x27;):
+        item = event[&#x27;item&#x27;]
+        if item[&#x27;type&#x27;] == &#x27;message&#x27;:
+            print(&quot;yes, handling this message&quot;)
+            channel = item[&#x27;channel&#x27;]
+            msg_ts = item[&#x27;ts&#x27;]
+            msg = get_message(channel, msg_ts)
+            print(msg)
+    return &quot;Ok&quot;</code></pre>
+      
+    
+      
+        <p>部署 event_post 函数后，给某条消息加上 :ididit:，我们就能看到 conversations.history 返回的数据格式了。</p>
+      
+    
+      
+        <pre><code>{
+  &#x27;ok&#x27;: True,
+  &#x27;latest&#x27;: &#x27;1573231294.000900&#x27;,
+  &#x27;messages&#x27;: [
+    {
+      &#x27;client_msg_id&#x27;: &#x27;cmiiiiiiiiiiiiiiiii&#x27;,
+      &#x27;type&#x27;: &#x27;message&#x27;,
+      &#x27;text&#x27;: &quot;I&#x27;ve finished upgrading the hosts!&quot;,
+      &#x27;user&#x27;: &#x27;uuuuuuu&#x27;,
+      &#x27;ts&#x27;: &#x27;1573231294.000900&#x27;,
+      &#x27;team&#x27;: &#x27;ttttttttt&#x27;,
+      &#x27;blocks&#x27;: [&quot;a lot of stuff omitted&quot;],
+      &#x27;reactions&#x27;: [
+        {
+          &#x27;name&#x27;: &#x27;ididit&#x27;,
+          &#x27;users&#x27;: [&#x27;uuuuuuu&#x27;],
+          &#x27;count&#x27;: 1
+        }
+      ]
+    }
+  ]</code></pre>
+      
+    
+      
+        <p>我们真正关心的是 messages/0/user 和 messages/0/text 这两个字段，之后可以根据是 :ididit: 还是 :udidit:，把这条消息加入到发言者或添加表情者的成就清单中。</p>
+      
+    
+      
+        <h2>整合起来</h2>
+      
+    
+      
+        <p>比较明显的是，我们目前还没有数据库来存储这些数据，这个问题将在下一篇文章中解决。目前我们先定义一个存储数据的接口，也就是 reflect 函数。</p>
+      
+    
+      
+        <pre><code>def reflect(team_id, user_id, text):
+    print(&quot;Reflected(%s, %s): %s&quot; % (team_id, user_id, text))</code></pre>
+      
+    
+      
+        <p>然后更新 reaction_added_event，让它调用这个函数。</p>
+      
+    
+      
+        <pre><code>def reaction_added_event(request, parsed):
+    event = parsed[&#x27;event&#x27;]
+    if event[&#x27;reaction&#x27;] in (&#x27;ididit&#x27;, &#x27;udidit&#x27;):
+        item = event[&#x27;item&#x27;]
+        event_user_id = event[&#x27;user&#x27;]
+        if item[&#x27;type&#x27;] == &#x27;message&#x27;:
+            channel = item[&#x27;channel&#x27;]
+            msg_ts = item[&#x27;ts&#x27;]
+            msg_resp = get_message(channel, msg_ts)
+            msg = msg_resp[&#x27;messages&#x27;][0]
+            msg_team_id, msg_user_id, text  = \
+              msg[&#x27;team&#x27;], msg[&#x27;user&#x27;], msg[&#x27;text&#x27;]
+            if event[&#x27;reaction&#x27;] == &#x27;ididit&#x27;:
+                reflect(msg_team_id, msg_user_id, text)
+            elif event[&#x27;reaction&#x27;] == &#x27;udidit&#x27;:
+                reflect(msg_team_id, event_user_id, text)
+    return &quot;Ok&quot;</code></pre>
+      
+    
+      
+        <p>再次部署后，我们就成功接入了 reacji 功能！</p>
+      
+    
+      
+        <h2>Reacji 作为交互界面</h2>
+      
+    
+      
+        <p>刚开始使用 Slack 时，我以为 reacji 只是个小把戏，但后来当我看到大家自然而然地用 :plus: 表情对消息进行投票时，我突然开了窍。没有人要求他们投票，这种行为却自然而然地出现了。正是这种自然的自由，加上严格的约束（它们只是带计数的微小图片），催生出了大量新颖的使用模式。</p>
+      
+    
+      
+        <p>并非每个 Slack 应用都必须接入 reacji，但我见过很多富有创意的集成，它们先承认用户已有的行为模式，再通过自动化动作来增强这些模式。</p>
+      
+    
+      
+        <p>reacji 作为用户界面的另一个巨大优势是，它比 Slash Commands 更容易被发现，后者通常对其他用户是隐藏的。有机增长和采用率是应用成功的基础，而 reacji 正是一种强大的实现机制。</p>
+      
+    
+      
+        <h2>集成中的摩擦</h2>
+      
+    
+      
+        <p>我得承认，这次让 reacji 正常工作花费的时间比我预想的要长。我开始写这篇文章时，本以为大部分准备工作已经完成，只需要引入一个新事件就行了。</p>
+      
+    
+      
+        <p>结果我需要增加一种新的 API 调用方式，因为 conversations.history 不支持 JSON 格式；同时还需要申请一个新的 API token，因为之前一直用的是 bot token 而不是 user token。单独来看，每个 Slack API 都设计得非常优秀，但组合在一起使用时，就会显现出一定的摩擦。</p>
+      
+    
+      
+        <p>这是大型、复杂 API 普遍面临的问题。我目前正在阅读《Building Evolutionary Architectures》，它对我在<a href="reclaim-unreasonable-software.html">收回不合理的软件</a>中讨论的思想进行了更好、更系统的阐述。API 的退化是可以预防的，但需要非常刻意地使用我文中称为“asserted properties”，而在 Ford/Parsons/Kua 的书中称为“fitness functions”的机制。</p>
+      
+    
+      
+        <h2>后续</h2>
+      
+    
+      
+        <p>现在我们已经到了 commit 08eb，还剩下两个目标：集成数据库，以及将应用发布到应用目录中。我接下来会先处理数据库部分，因为只包含假数据的应用很难发布，之后再完成发布步骤。</p>
+      
+    
+      
+        <p>系列文章后续见<a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a></p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

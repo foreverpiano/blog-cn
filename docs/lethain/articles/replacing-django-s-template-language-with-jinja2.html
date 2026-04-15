@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用 Jinja2 替换 Django 的模板语言 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>用 Jinja2 替换 Django 的模板语言</h1>
+    <div class="meta">
+      2008-07-22 · 
+      <a href="https://lethain.com/replacing-django-s-template-language-with-jinja2/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在这个示例中，我们将更深入地了解 Django 松散耦合哲学的灵活性，通过将其默认模板语言替换为 Jinja2。Jinja2 是一种与 Django 提供的模板语言非常相似的模板语言，但它提供了更多功能，例如模板中更灵活的 if 语法、可以在模板中对未定义对象进行操作时抛出错误（而 Django 的模板语言始终会静默失败），以及更灵活的模板获取方案。</p>
+      
+    
+      
+        <p>让我们开始吧。</p>
+      
+    
+      
+        <div class="list-content">首先我们需要下载并安装 Jinja2。
+sudo easy_install jinja2
+然后确保它能正常工作。
+import jinja2
+创建一个 Django 项目和应用。
+django_admin.py startproject loose_coupling
+cd loose_coupling
+python manage.py startapp with_jinja
+为你的项目创建一个 templates 文件夹，同时也为新应用创建一个。
+mkdir templates
+mkdir with_jinja/templates 
+mkdir with_jinja/templates/with_jinja
+打开 loose_coupling/settings.py，修改 INSTALLED_APPS 和 TEMPLATE_DIRS 的设置。
+INSTALLED_APPS = (
+    &#x27;loose_coupling.with_jinja&#x27;,
+    &#x27;django.contrib.auth&#x27;,
+    &#x27;django.contrib.contenttypes&#x27;,
+    &#x27;django.contrib.sessions&#x27;,
+    &#x27;django.contrib.sites&#x27;,
+)
+import os
+ROOT_PATH = os.path.dirname(__file__)
+TEMPLATE_DIRS = (
+    os.path.join(ROOT_PATH,&#x27;templates&#x27;),
+    os.path.join(ROOT_PATH,&#x27;with_jinja/templates&#x27;),
+)
+打开 loose_coupling/urls.py，将其内容修改为：
+from django.conf.urls.defaults import *
+urlpatterns = patterns(
+    &#x27;loose_coupling&#x27;,
+    (r&#x27;^$&#x27;,&#x27;with_jinja.views.index&#x27;),
+)
+现在我们只需要创建视图。首先打开 with_jinja/views.py，添加以下导入语句：
+import math,random
+from django.http import HttpResponse
+from django.conf import settings
+from jinja2 import FileSystemLoader, Environment
+接下来我们要编写一个简便方法来处理 Jinja2 的模板渲染。
+template_dirs = getattr(settings,&#x27;TEMPLATE_DIRS&#x27;)
+default_mimetype = gettattr(settings, &#x27;DEFAULT_CONTENT_TYPE&#x27;)
+env = Environment(loader=FileSystemLoader(template_dirs))
+def render_to_response(filename, context={},mimetype=default_mimetype):
+    template = env.get_template(filename)
+    rendered = template.render(**context)
+    return HttpResponse(rendered,mimetype=mimetype)
+然后，我们创建一个简单的自定义测试，供 Jinja2 模板在渲染输出时使用。
+def greater_than_fifty(x):
+    return x &gt; 50
+env.tests[&#x27;gtf&#x27;] = greater_than_fifty
+现在来创建我们要使用的 index 视图。
+def index(request):
+    n = int(math.floor(100 * random.random()))
+    return render_to_response(&#x27;with_jinja/index.html&#x27;,{&#x27;n&#x27;:n})
+如你所见，这是一个非常简单的视图，只是将一个生成的数字传递给我们之前创建的 render_to_response 函数。
+接下来，我们需要创建 index 视图尝试渲染的 index.html 模板。
+为此，我们先要在 loose_coupling/templates 目录下创建一个 base.html 模板。
+打开 loose_coupling/templates/base.html，在其中加入以下内容：
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt; Loosely Coupled Django &lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+  {% block content %}
+  {% endblock %}
+  &lt;/body&gt;
+&lt;/html&gt;
+现在我们需要创建 loose_coupling/with_jinja/templates/with_jinja/index.html 模板。
+它将继承我们的基础模板，并且非常简洁：
+{% extends &#x27;base.html&#x27; %}
+{% block content %}
+&lt;p&gt; 生成的数字是 {{ n }}。&lt;/p&gt;
+{% if n is gtf %}
+&lt;p&gt; 这个数字肯定大于五十。&lt;/p&gt;
+{% else %}
+&lt;p&gt; 遗憾的是，这个数字小于五十。&lt;/p&gt;
+{% endif %}
+{% endblock %}
+现在，保存所有文件并运行项目。
+python manage.py runserver
+访问 http://127.0.0.1:8000，你会看到 Django 开发服务器正愉快地渲染我们的 Jinja2 模板。</div>
+      
+    
+      
+        <p>（你可以在这里下载我们开发的项目压缩包。）</p>
+      
+    
+      
+        <p>得益于 Django 的松散耦合哲学，切换到使用 Jinja2 而不是默认模板语言其实非常轻松。随着本系列的继续，我们将看到这不仅仅是一个特例，而是在整个 Django 技术栈中普遍存在。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

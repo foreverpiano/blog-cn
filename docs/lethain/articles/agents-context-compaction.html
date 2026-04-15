@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>构建内部 Agent：上下文窗口压缩 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>构建内部 Agent：上下文窗口压缩</h1>
+    <div class="meta">
+      2025-12-26 · 
+      <a href="https://lethain.com/agents-context-compaction/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>虽然在大多数内部工作流中，我首选的模型仍是 ChatGPT 4.1，因为它的速度稳定且高度遵循指令，但即使其 1,047,576 token 的上下文窗口也会有不够用的时候。当上下文窗口空间耗尽时，你的 Agent 要么放弃，要么需要将庞大的上下文窗口压缩到更小的窗口中。下面是我们实现压缩的笔记。</p>
+      
+    
+      
+        <p>这是 <a href="agents-series.html">构建内部 Agent</a> 系列文章的一部分。</p>
+      
+    
+      
+        <h2>为什么压缩很重要</h2>
+      
+    
+      
+        <p>包含大量工具调用或用户消息的长时间运行工作流，以及任何处理大文件的工作流，常常会耗尽上下文窗口的空间。虽然对大多数内部 Agent 场景来说，上下文窗口耗尽并不常见，但要构建一个稳健、可靠的 Agent，最终无法回避这个问题，而压缩是一种直接有效的解决方案。</p>
+      
+    
+      
+        <h2>我们的实现方式</h2>
+      
+    
+      
+        <p>最初，在我们天真地认为压缩对内部工作流无关紧要的时候，我们实现了一个极其简陋的压缩方案：一旦 token 耗尽，就丢弃较旧的工具响应，直到腾出足够空间，然后继续执行。由于我们很少遇到压缩问题，这个方案效果不佳也没造成太大影响。但后来随着我们开始处理更多 ，这种不够优雅的做法开始让我感到不舒服。<a href="agents-large-files.html">构建内部 Agent：渐进式披露与处理大文件</a></p>
+      
+    
+      
+        <p>在第二次迭代压缩方案的头脑风暴中，我一开始执着于一个美好的想法，认为压缩应该放在  之后完成。但我始终无法为这个直觉找到具体的必要性理由，最后我们在没有子 Agent 支持的情况下实现了压缩。<a href="agents-subagents.html">构建内部 Agent：子 Agent 支持</a></p>
+      
+    
+      
+        <p>我们的压缩方案核心思路是：</p>
+      
+    
+      
+        <div class="list-content">在每条用户消息（包括工具响应）之后，添加一条系统消息，告知当前上下文窗口已消耗和可用的 token 数量。在这条系统消息中，我们还会包含最新的可读取文件列表。超过 10,000 token 的用户消息和工具响应会被转换为一个新的“虚拟文件”，上下文窗口中只保留其前 1,000 token。Agent 如果需要读取超出前 1,000 token 的内容，必须使用文件操作工具（1k 和 10k 都是可配置的值）。引入一组始终可用的“基础工具”，特别包含虚拟文件操作工具，因为我们最终发现大多数 Agent 如果缺少大量几乎不可见的内部工具就无法正常工作。这些工具包括 file_read（可读取整个文件、指定行范围或字节范围）和 file_regex（类似，但对文件执行正则扫描并返回限定数量的匹配结果）。每次使用文件都会记录在 files 数据中，以便 Agent 知道哪些内容已被读入上下文窗口（对预加载文件尤其重要），格式大致如下：
+&lt;files&gt;
+  &lt;file id=&#x27;a&#x27; name=&#x27;image.png&#x27; size=&#x27;32kb&#x27;&gt;
+    &lt;file_read /&gt;
+  &lt;/file&gt;
+  &lt;file id=&#x27;a&#x27; name=&#x27;image.png&#x27; size=&#x27;32kb&#x27;&gt;
+    &lt;file_read start_line=10 end_line=20 /&gt;
+  &lt;/file&gt;
+&lt;/files&gt;
+这个特性实现起来出乎意料地麻烦，主要是因为我是把 Agent 作为一个兼职项目断断续续做了几个月后才想到这个方案。如果能重来，我会从一开始就把文件作为核心内部概念，而不是后期再添加。如果某条消息将上下文窗口占用率推高到 80%（可配置）以上，就使用 Reddit 上声称 Claude Code 采用的压缩 Prompt。这个 Prompt 本身并不特别，只是已经存在且表现不错。压缩完成后，将之前的上下文窗口内容作为虚拟文件添加进来，允许 Agent 后续检索可能丢失的上下文片段。</div>
+      
+    
+      
+        <p>上述每个步骤都很简单，但组合在一起后，为处理复杂、长时间运行的工作流提供了相当强大的能力。当然，我们仍然对单个工作流可调用的工具数量设置了可配置上限（以防止 Agent 无限循环），但这使得处理大型或复杂数据的 Agent 成功率显著提高。</p>
+      
+    
+      
+        <h2>实际效果如何？下一步是什么？</h2>
+      
+    
+      
+        <p>与我们大多数新的内部 Agent 功能不同——那些通常都有明显的问题或迭代空间——这个压缩机制感觉已经足够好，可以很长时间都不需要再碰它。有两个原因：首先，我们的大多数工作流并不需要很大的上下文窗口；其次，老实说，这个方案目前运行得相当不错。</p>
+      
+    
+      
+        <p>如果未来上下文窗口显著扩大（我目前还没看到太多这方面的迹象），我们只需要调高一些默认值来使用更多 token 即可，而这里的核心算法似乎已经足够稳健。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

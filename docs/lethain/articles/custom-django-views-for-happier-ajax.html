@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>为更愉快的 Ajax 自定义 Django Views · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>为更愉快的 Ajax 自定义 Django Views</h1>
+    <div class="meta">
+      2008-09-24 · 
+      <a href="https://lethain.com/custom-django-views-for-happier-ajax/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>这篇文章接续《Intro to Unintrusive JavaScript with Django》的内容。在第一部分中，我们坚持不编写自定义视图来处理应用的 Ajax 部分，这导致了大量丑陋的代码和别扭的功能。</p>
+      
+    
+      
+        <p>在这第二部分，我们将跨出这一步，编写两个自定义视图来处理 Ajax，从而开启一个简单得多的 JavaScript 世界，减少约 90% 的糟糕体验。</p>
+      
+    
+      
+        <h2>更新 notes/urls.py</h2>
+      
+    
+      
+        <p>首先我们要更新 notes/urls.py 文件，加入两个新的 URL。更新完成后，文件内容应该如下所示：</p>
+      
+    
+      
+        <p>我们在这里所做的只是添加了 ^ajax_create/$ 和 ^note/(?P&lt;slug&gt;[-\w]+)/ajax_update/$ 这两个 URL 模式。</p>
+      
+    
+      
+        <h2>编写 ajax_create_note 视图</h2>
+      
+    
+      
+        <p>接下来我们需要真正编写两个新的视图：ajax_create_note 和 ajax_update_note。</p>
+      
+    
+      
+        <p>因为比较简单，我们将继续以之前相同的数据和格式传递给它们。</p>
+      
+    
+      
+        <p>最大的区别在于，我们会将响应序列化为 JSON 返回，这也是所有 JavaScript 生命体推荐的“饮食”。</p>
+      
+    
+      
+        <p>首先在 notes/views.py 文件顶部添加以下导入：</p>
+      
+    
+      
+        <p>然后再添加以下函数：</p>
+      
+    
+      
+        <p>正如前面提到的，ajax_create_note 与 create_note 之间唯一的重大区别是我们对输出进行了序列化。</p>
+      
+    
+      
+        <p>如果我们足够勤奋，可以对这两个方法进行大量重构，但本教程中我们会保持它们原样。</p>
+      
+    
+      
+        <p>现在我们需要更新 notes/note_list.html 模板中的 JavaScript，以利用这些变化。</p>
+      
+    
+      
+        <h2>更新 notes/note_list.html 模板</h2>
+      
+    
+      
+        <p>首先我们需要修改 create_note JavaScript 方法，让它向新的 URL 发送数据。</p>
+      
+    
+      
+        <p>把这一行从：</p>
+      
+    
+      
+        <p>改为：</p>
+      
+    
+      
+        <p>之后，我们在这里唯一需要做的改动就是去掉 done 函数里那些正则表达式的乱七八糟代码，换成简单愉快的写法（当然，也引入了一个安全漏洞，咳咳）。</p>
+      
+    
+      
+        <p>新的 done 函数如下所示：</p>
+      
+    
+      
+        <p>我们首先通过 eval 函数将传入的 JSON 转换为 JavaScript 数据结构。这是最简单地将 JSON 转换为可用形式的方法。</p>
+      
+    
+      
+        <p>这种做法并不安全，因为你实际上是在执行接收到的 JSON，如果其中包含任何恶意指令，你也会一并执行它们。</p>
+      
+    
+      
+        <p>目前我们先略过这个问题，你可以查看这篇文章中标题为“JSON Via Parse”的部分，了解如何做得更安全。</p>
+      
+    
+      
+        <p>现在你可以启动开发服务器并测试首页了。</p>
+      
+    
+      
+        <p>它的工作方式和之前一样，但不再依赖那些随意拼凑的正则表达式来剥离必要的内容。</p>
+      
+    
+      
+        <h2>编写 ajax_update_note 视图</h2>
+      
+    
+      
+        <p>接下来我们要在 notes/views.py 文件中创建 ajax_update_note 视图。同样，Ajax 和非 Ajax 的更新视图之间会有很多重叠代码，最大的区别仍然只是对输出进行序列化。</p>
+      
+    
+      
+        <p>打开 notes/views.py。</p>
+      
+    
+      
+        <p>通读一遍，确保你对里面的内容感到熟悉，然后我们再次进入 JavaScript 的领域。</p>
+      
+    
+      
+        <h2>更新 notes/note_detail.html 模板</h2>
+      
+    
+      
+        <p>打开 notes/note_detail.html。</p>
+      
+    
+      
+        <p>在 perform_update 函数中，我们将再次修改 args 字典。这次它会变成这样：</p>
+      
+    
+      
+        <p>我们只修改了要提交的 URL。不过现在我们要多做一些改变。我们第一次实现中最大的问题之一是它会发送不必要的更新。</p>
+      
+    
+      
+        <p>之前我们很难改进它，因为缺乏一些关键信息，但现在不同了。ajax_update_note 视图会返回我们所需的所有信息，让我们可以维护一个简单的数据历史记录，仅在真正发生变化时才提交更新。</p>
+      
+    
+      
+        <p>此外，对于容易出错的字段（slug），我们有足够的信息来回滚失败的更新，并在 slug 成功更新时重定向到笔记的新 URL。</p>
+      
+    
+      
+        <p>我们从历史记录开始。删除 initialTitleChange 和 initialSlugChange 的值，用以下代码替换：</p>
+      
+    
+      
+        <p>接下来我们需要更新 title_to_span 和 slug_to_span 函数，在发送更新前先与历史记录中保存的值进行比较。</p>
+      
+    
+      
+        <p>修改位于第 3 到 5 行。在发送更新之前，我们会检查它是否与当前值不同。如果确实要发送更新，则更新历史记录中保存的当前值。</p>
+      
+    
+      
+        <p>我们对 slug_to_span 也做同样的处理。</p>
+      
+    
+      
+        <p>我们也可以对文本输入框做同样的事情，但暂时先跳过。</p>
+      
+    
+      
+        <p>最后我们需要稍微更新一下 done 函数。</p>
+      
+    
+      
+        <p>我们首先将返回的 JSON 解析为 JavaScript 数据结构。然后是显示成功和错误消息的标准逻辑，以及处理 slug 字段更新的一些自定义逻辑。</p>
+      
+    
+      
+        <p>具体来说，如果我们成功更新了 slug，就会使用 JavaScript 重定向到笔记所在的新 URL；如果更新 slug 失败，则将 slug 字段（以及 history.slug）的值回滚到它实际的当前值（而不是我们试图修改成的值）。</p>
+      
+    
+      
+        <p>通过这些修改，note_detail.html 模板中的 Ajax 从一个负担沉重、糟糕透顶的混乱代码，进化成了比原来非 Ajax 版本更快、更愉悦的用户体验。</p>
+      
+    
+      
+        <h2>下载</h2>
+      
+    
+      
+        <p>你可以在这里下载第二部分的 Git 仓库。</p>
+      
+    
+      
+        <h2>继续前进</h2>
+      
+    
+      
+        <p>通过编写这两个额外的视图，我们能够真正简化 JavaScript，并提升应用的可用性。虽然很遗憾我们无法仅使用一个视图就获得同样的好处，但使用强大的 Ajax 也伴随着重大的责任。</p>
+      
+    
+      
+        <p>或者类似这样的话。</p>
+      
+    
+      
+        <p>在下一部分，我们将探讨如何为 Ajax 应用重新审视认证机制。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>开发面向服务的架构 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>开发面向服务的架构</h1>
+    <div class="meta">
+      2014-06-01 · 
+      <a href="https://lethain.com/lessons-from-developing-software-oriented-architectures/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在过去四年里，我一直专注于推出和维护面向服务的架构，希望自己在这方面积累的经验教训足够多，多少能总结出一些智慧。本文试图分享其中一些有用的心得。</p>
+      
+    
+      
+        <p>首先，我会简要介绍自己参与过的两个不同的 SOA，以提供一些背景，然后再深入探讨从中吸取的教训和观察到的现象。</p>
+      
+    
+      
+        <h2>Digg</h2>
+      
+    
+      
+        <p>在 Digg，我们的 SOA 由多个 Python 后端服务组成，这些服务相互通信，同时也被 PHP 前端服务器和 Tornado API 服务器调用。它们使用 Apache Thrift 来定义接口、客户端以及底层协议。我们有三个主要服务（用户、故事、评论），以及若干较小的服务。</p>
+      
+    
+      
+        <p>所有后端服务都部署在同一类机器上——前端服务器则是另一类——并且所有后端服务都从同一个 Git 仓库统一部署。</p>
+      
+    
+      
+        <h2>SocialCode</h2>
+      
+    
+      
+        <p>吸取了 Digg SOA 的经验后，我们在构建 SocialCode 的 SOA 时做了一些调整。后端服务和 API 依然使用 Python，但我们没有继续使用 Thrift，而是选择了 HTTP 作为协议。同时，我们将前端产品实现为 JavaScript 应用，让它们直接与 HTTP API 通信，从而使浏览器成为原生的 API 客户端。</p>
+      
+    
+      
+        <p>各 API 被隔离在各自的服务器上，以实现解耦的调试和扩展；它们拥有独立代码库，并可独立部署。</p>
+      
+    
+      
+        <p>有了这两种不同方法的背景，是时候来梳理我们在开发和维护这些系统过程中吸取的教训了：</p>
+      
+    
+      
+        <h2>SOA 是为了扩展团队规模</h2>
+      
+    
+      
+        <p>SOA 并不是万能药，相反，它会显著增加架构的复杂性。它也不是一种本质上的高性能架构，反而因为增加了更多组件而阻碍了性能。</p>
+      
+    
+      
+        <p>它本质上提供的唯一价值，是为大型团队提供一种有效的协作抽象，通过两种机制实现：定义清晰的接口可以降低沟通和破坏成本；将内部实现隐藏在接口之后，使得团队可以在不增加跨团队协调的情况下逐步投入质量改进（只要不修改接口，你就可以重写内部实现以获得各种改进，而不会影响 API 的客户端）。</p>
+      
+    
+      
+        <p>这些优势对于大型团队来说能发挥巨大作用。</p>
+      
+    
+      
+        <p>对于非常小的团队，它们未必能提供太多价值。我的直觉是，小团队如果通过转向 SOA 获得了巨大的性能提升，那么通过任何系统的重写或 overhaul 可能也能获得同样的收益，在这种情况下 SOA 多少有点转移注意力（red herring）的意味。</p>
+      
+    
+      
+        <h2>采用 SOA 需要缓慢推进</h2>
+      
+    
+      
+        <p>如果不应该立刻就开始使用 SOA，那么该如何过渡到 SOA 呢？答案是“缓慢而谨慎地进行”。你要么是在做一次完整的重写——那种情况下，祝你好运！——要么就是在逐步从现有的单体架构中迁移。</p>
+      
+    
+      
+        <p>如果你运营的是一家成功且正在增长的公司，需要在开发新功能和基础设施投入之间分配时间，那么增量迁移很可能是一个可行的策略。</p>
+      
+    
+      
+        <p>从添加简单且没有争议的服务开始，比如用户身份和认证服务，在添加下一个服务之前，先将每个服务推广到所有应用中。然后再继续添加，一个接一个，直到达到期望的一致性。（早期可能只需要几个服务。不要害怕慢慢来。）</p>
+      
+    
+      
+        <p>在迁移过程中一个值得考虑的有趣模式是：创建新的服务 API，但让它共享现有的数据库，允许现有客户端逐步迁移到新 API。一旦它们完全切换到新 API（此时仍在使用同一个旧数据库），你就可以再迁移到独立的数据库上。特别是在面对四五个具有不同开发进度表的团队时，这种技术可以帮助你在漫长的切换过程中避免数据不一致。</p>
+      
+    
+      
+        <h2>协议很重要</h2>
+      
+    
+      
+        <p>从 Digg 到 SocialCode，我们做出的最重要决策之一就是从 Thrift 协议切换到 HTTP。这不仅让浏览器能够作为原生客户端直接使用这些 API，更重要的是，它让调试和实验变得更加容易，因为大多数软件开发者对 HTTP 和 HTTP 服务器都极为熟悉，而熟悉 Thrift 的人相对较少。（这也延伸到可以复用他们已有的优化和调试 Web 服务器及请求的经验。）</p>
+      
+    
+      
+        <p>从另一方面看，Thrift 的自我描述性极强，这可能让它比许多 HTTP API 用起来更舒服（我们曾使用 tastypie 来创建一致的 API，效果非常好，但它的 API 和数据结构仍然比使用 Thrift 构建的同类 API 更加隐式和“魔法”）。</p>
+      
+    
+      
+        <p>根据你所使用的语言，在 Thrift 和 HTTP 之间，每小时优化投入所能获得的性能提升会有所不同。对于 Python，我发现使用 HTTP 更容易获得高性能，单纯是因为其生态系统极其健壮，而 Python 的 Thrift 服务器并没有得到社区那么多性能方面的投入。反过来，我也能轻易想象，对于更成熟的 Thrift 实现（比如 Java 实现），Thrift 协议固有的紧凑性可能会带来比 HTTP 更好的性能。</p>
+      
+    
+      
+        <p>最后一个需要考虑的因素是，即使使用 HTTP，你也不会免费获得浏览器支持。相反，如果你希望允许 Web 浏览器直接访问你的 API，那么每个 API 端点都需要实现请求认证和授权机制。这完全可行（个人经历：我们正在这么做），但需要投入一定的时间和思考，而不能像以前那样把认证和授权卸载到授权层（在 Digg，这项工作由我们的 PHP 和 Tornado 服务完成，它们负责对请求进行认证和授权，然后作为可信用户来调用我们的内部 API）。</p>
+      
+    
+      
+        <h2>笨拙的 API 客户端，还是智能的 API 客户端</h2>
+      
+    
+      
+        <p>紧随选择 SOA 协议之后，要决定的就是你将使用哪种 API 客户端来与你的 API 交互。总体上，这里存在一个权衡：是使用尽可能隐藏复杂性的复杂客户端（以牺牲控制权或感知能力为代价换取易用性），还是使用暴露底层 API 所有丑陋细节的“笨”客户端（以牺牲“常规场景”下的实现速度为代价换取控制权和感知能力）。</p>
+      
+    
+      
+        <p>就个人而言，我强烈支持使用笨拙的 API 客户端。</p>
+      
+    
+      
+        <p>我认为智能客户端会鼓励工程师把 SOA 当作一个单体应用来对待，而这是一个有漏洞的抽象。在我们当前的架构中，即便是在同一个机房内，我们执行的每个 API 请求也会因为 uWSGI 处理请求而产生大约 20ms 的开销（还不算在 API 内部执行逻辑或查询所花费的额外时间）。</p>
+      
+    
+      
+        <p>这是一个很大的开销，不应该轻易将其抽象掉。</p>
+      
+    
+      
+        <p>如果你和你的团队已经有丰富的 SOA 经验，那么使用智能客户端当然没问题；但如果还没有，我倾向于认为，让大家暴露在底层的实现成本之下是很重要的，直到你们能够为这种新的开发方式建立起心智成本模型。</p>
+      
+    
+      
+        <h2>跨团队的热点是糟糕的服务</h2>
+      
+    
+      
+        <p>如果你的组织更多是通过自愿协作和布道而不是行政命令来管理系统架构，那么阻止服务被采纳的最简单方法，就是创建一个服务来统一几个团队都在积极实现的某个能力。</p>
+      
+    
+      
+        <p>乍一看，这似乎显然是错误的：当然应该避免重复编写相同的组件。</p>
+      
+    
+      
+        <p>但在实践中，如果多个团队已经在实现类似的功能，并且都 commitment 了各自的时间表，那么试图统一实现可能为时已晚，而不至于迫使其中一个或两个团队放弃项目的进度或设计。当各种实现都稳定下来之后，再用它们作为构建共享服务的具体需求就会是很好的时机。</p>
+      
+    
+      
+        <p>把这条归档到“通过避免无谓的争论更快地到达目的地”一类。</p>
+      
+    
+      
+        <p>总的来说，我相信转向面向服务的架构，是将工程团队从大约五人扩展到二十人左右的一个重要阶段。它可能也恰好对应着从寻找产品市场契合度到规模化已经契合的业务的转型期。</p>
+      
+    
+      
+        <p>在撰写本文的过程中，我还思考了一些问题：</p>
+      
+    
+      
+        <div class="list-content">还有哪些其他方法可以高效地扩展工程团队？创建优秀 SOA 还有哪些重要建议？度量和监控可能是一个值得深入探讨的话题。</div>
+      
+    
+      
+        <p>我还遗漏了什么？</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>django-springsteen 与分布式搜索 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>django-springsteen 与分布式搜索</h1>
+    <div class="meta">
+      2009-02-25 · 
+      <a href="https://lethain.com/django-springsteen-and-distributed-search/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>很长一段时间以来，我一直想开发一个可插拔的 Django 应用，用于查询 Yahoo! BOSS。虽然实现本身相当简单，但这个应用需要加入一些特别的“调味料”来让它更具吸引力。我希望你会觉得它的味道还不错。</p>
+      
+    
+      
+        <p>这就是 django-springsteen。（名称的致敬完全来自 Justin Lilly。）</p>
+      
+    
+      
+        <p>springsteen 为 Yahoo! BOSS 提供了一个简单的封装，但更进一步，它提供了一个构建分布式搜索网络的简易框架。如果你梦想着一个每家博客网络都可以被搜索、每个细分领域都有自己的垂直搜索的世界，那么 springsteen 就是为你准备的。</p>
+      
+    
+      
+        <p>让我们从一些示例开始。</p>
+      
+    
+      
+        <h2>查询 BOSS 获取网页搜索结果</h2>
+      
+    
+      
+        <p>springsteen 预置了用于搜索 Yahoo! BOSS 的网页、图片和新闻结果的视图，这也是最简单的使用场景。</p>
+      
+    
+      
+        <p>然后访问 http://yourproject.com/search/web/（或者 /search/images/ 或 /search/news/），你立刻就会看到一个搜索页面等待着你。</p>
+      
+    
+      
+        <p>网页搜索结果（以及所有已实现的服务）的缓存使用你在 settings.py 中指定的缓存后端。缓存 Yahoo! BOSS 带来的速度提升可能并不明显，但对于更特别的服务（以及高频搜索）来说，缓存会成为一项更重要的特性。</p>
+      
+    
+      
+        <p>要改善外观，可以重写 springsteen/base.html 或 springsteen/results.html 模板。（你也可以重写 *_result.html 模板来自定义不同类型的结果。）</p>
+      
+    
+      
+        <h2>带站点限定的 BOSS 搜索结果</h2>
+      
+    
+      
+        <p>如果你只想获取单个站点的网页搜索结果（穷人版的站内搜索），可以继承 springsteen.services.Web 类（你也可以通过分别继承 springsteen.services.News 和 springsteen.services.Images 类来限制新闻或图片搜索）。</p>
+      
+    
+      
+        <p>首先是继承实现。</p>
+      
+    
+      
+        <p>你还可以添加其他参数，这些参数在 Yahoo! BOSS 的文档中都有定义。</p>
+      
+    
+      
+        <p>编写完自定义搜索类后，再编写一个使用它的视图。</p>
+      
+    
+      
+        <h2>并行查询多个服务</h2>
+      
+    
+      
+        <p>作为 Web 开发者，我经常犯的一个错误是按顺序发起 HTTP 请求，而这些请求本来可以并发执行。springsteen 的目标是聚合多个搜索服务，因此它必须能够并行请求和处理它们。</p>
+      
+    
+      
+        <p>要执行并发请求，只需指定多个服务即可。（请注意下面在 settings 中定义的值并非标准配置，但如果你喜欢这种组织全局变量的方式，可以把它们放到自己的 settings.py 中。）</p>
+      
+    
+      
+        <p>默认情况下，来自各个服务的结果会依次堆叠显示。例如，上面 my_search 的结果会先显示所有图片结果，然后才开始显示网页结果。</p>
+      
+    
+      
+        <p>结果排序是搜索中最困难的部分，springsteen 不会替你解决这个问题。它只会给你提供可以自行调整的控制杆。对于大多数中小规模的应用场景，你完全可以针对正在查询的服务编写相当简洁的排序逻辑，其效果往往会优于 springsteen 可能提供的任何通用算法。</p>
+      
+    
+      
+        <h2>通过 Springsteen 服务暴露搜索结果</h2>
+      
+    
+      
+        <p>因为 springsteen 的核心就是聚合各种搜索服务，所以它会逐步扩展以支持新的数据格式。不过有时候你只是想把新的数据暴露给 springsteen，并且还没有确定具体格式。</p>
+      
+    
+      
+        <p>在这种情况下，你可以使用 Springsteen Service。名字很酷，但实现其实非常简单。假设你能以某种方式获取到 CSV 格式的搜索结果（这不现实，只是举个例子）。</p>
+      
+    
+      
+        <p>假设你的数据长这样：</p>
+      
+    
+      
+        <pre><code>title, url, text
+abc, http://yadayad/abc/, some text here
+efg, http://yadayad/efg/, some text here as well
+</code></pre>
+      
+    
+      
+        <p>并且你有一个 csv_search 函数可以返回相关行。你可以按如下方式通过 Springsteen Service 将其暴露出来。</p>
+      
+    
+      
+        <p>目前 Springsteen Service 仅认可 title、url 和 text 这三个字段。随着需求增加，标准可能会被进一步完善以支持更多元数据。</p>
+      
+    
+      
+        <p>除了上面假设的 csv_search，你还可以用这种方式封装 Solango 或 Django-Sphinx 的结果，或者路由到你生态系统中非 Django 的 API 或服务。</p>
+      
+    
+      
+        <h2>搜索 API 的中继器与转换器</h2>
+      
+    
+      
+        <p>假设你想为自己的博客实现一个站内搜索 API，但又没有“工程资源”去集成 Solango 或 Django-Sphinx 这样的方案。</p>
+      
+    
+      
+        <p>首先我们需要继承 Web 类来获取我们站点的结果。</p>
+      
+    
+      
+        <p>然后我们需要将结果暴露出去。</p>
+      
+    
+      
+        <p>现在 Yahoo! BOSS 的结果就被转换成了 Springsteen Service 格式，可以被外部的 springsteen 搜索可靠地查询了。</p>
+      
+    
+      
+        <h2>从 Springsteen Service 获取结果</h2>
+      
+    
+      
+        <p>从 Springsteen Service 获取结果非常简单，和获取 Yahoo! BOSS 结果类似。</p>
+      
+    
+      
+        <p>springsteen 已经知道如何展示来自 Springsteen Service 的结果，因此集成过程相当简洁。</p>
+      
+    
+      
+        <h2>访问自定义服务</h2>
+      
+    
+      
+        <p>如果能让合作伙伴以你希望的格式（在本例中是 SpringsteenService）暴露服务，那自然是最简单的。但有时候你必须自己动手去解析数据。</p>
+      
+    
+      
+        <p>在 springsteen.services 中，SpringsteenService 和 BossSearch 类都提供了与不同数据格式对接的示例。</p>
+      
+    
+      
+        <p>关键是要编写一个 run 方法，用于获取结果并将其转换为 Python 的字典列表。如果你想使用现有的模板片段（web、news、image 或 springsteen results）来渲染它们，则应该在每个结果字典的 source 键中添加对应的值。</p>
+      
+    
+      
+        <p>如果你觉得跟随现有代码有困难，请告诉我，我很乐意提供一个关于如何继承 Service 和 CachableService 的完整指导。</p>
+      
+    
+      
+        <h2>springsteen 的未来</h2>
+      
+    
+      
+        <p>目前 springsteen 的核心部分已接近完成，我只需要稍作重构，以便能够方便地插入自定义排序逻辑。除此之外，还有无数的服务等待 springsteen 去学习如何查询和展示。</p>
+      
+    
+      
+        <p>目前已经有一个可工作的示例，既展示了如何通过 Springsteen Service 暴露数据，也展示了如何查询和聚合结果，希望在本周一之前能整理得足够清晰并发布出来。</p>
+      
+    
+      
+        <p>我希望 springsteen 以及它所代表的“由小玩家构建的分布式搜索”愿景能让你感到兴奋。我自己就对这样的前景充满热情——创建有针对性且相关的搜索框，其动力不是来自数据中心里成千上万的普通服务器，而是来自我的 VPS，以及你的。</p>
+      
+    
+      
+        <h2>下载</h2>
+      
+    
+      
+        <p>django-springsteen 可在 GitHub 上获取。</p>
+      
+    
+      
+        <p>我们都很忙，但非常欢迎你加入开发！</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

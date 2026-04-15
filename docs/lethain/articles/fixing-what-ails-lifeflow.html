@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>修复 LifeFlow 的问题 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>修复 LifeFlow 的问题</h1>
+    <div class="meta">
+      2008-12-03 · 
+      <a href="https://lethain.com/fixing-what-ails-lifeflow/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>如果你连开门都不会，怎么进入一栋建筑呢？最多也就是砸碎窗户爬进去。之后你可能会学会开门的技巧，但那扇窗户已经碎了。这正是中级开发者在项目中经常遇到的情况：他们缺乏足够的知识和经验从一开始就把设计做对，因此在设计演进过程中会犯下许多错误，然后再一一修正。</p>
+      
+    
+      
+        <p>LifeFlow 是我仍在使用的最老的 Django 应用，任何和我聊过或者看过代码仓库的人都知道，它已经逐渐长成了一个庞然大物。让我们快速盘点一下 LifeFlow 所具备的各种功能、它的一些设计决策，以及如何将 LifeFlow 从“破败”状态变成“优雅美丽”的路线图。</p>
+      
+    
+      
+        <h2>设计决策（破掉的窗户和门）</h2>
+      
+    
+      
+        <p>首先需要承认的是，LifeFlow 确实存在一些糟糕的设计决策。正如我在这篇文章开头所用的比喻，这里确实有几扇破窗户。</p>
+      
+    
+      
+        <div class="list-content">一键部署。当我开始做 LF 时，我刻意强调 app 而非 project 的区分，因为我希望 LF 能做到一键部署。不幸的是，在 Django 上部署对于 WordPress 用户群来说仍然过于复杂（我最初的目标用户是那些对 WordPress 有过编程经验的人，说白了就是我自己）。这既是一个错误，也是一个失败。随处可见的灵活性。LifeFlow 拥有大量灵活性，但其中很多都是 misguided 的灵活性——用任意方式覆盖了最佳实践。灵活性始终会是 LF 的核心，但现有的一些机制需要缩减。有多种方式可以到达同一篇文章。不同的人有不同的需求，特别是跨文化时，组织和定位内容的方式也各不相同。LifeFlow 希望提供广泛的标签和组织方式。</div>
+      
+    
+      
+        <p>说真的，我认为“一键部署”这个想法是 LifeFlow 所有重大问题的根源。只要放弃这个想法，应该就有可能挽救出一些好的东西。</p>
+      
+    
+      
+        <h2>功能特性（有价值的和误入歧途的）</h2>
+      
+    
+      
+        <p>在开始之前，先说明几个有用的缩写：</p>
+      
+    
+      
+        <div class="list-content">YAGNI：You Aren&#x27;t Gonna Need It（你不会需要它）。用于那些看似贴心有用、实际只是冗余的功能。AOBP：Arbitrary Over Best Practice（任意方案优于最佳实践）。用于那些用没有明显优势的任意方案取代最佳实践的地方。</div>
+      
+    
+      
+        <p>好了，现在来看功能清单和需要砍掉的部分：</p>
+      
+    
+      
+        <div class="list-content">支持皮肤（skins），让用户可以轻松注入自己的自定义 CSS 和 JS。将被移除。（AOBP）支持 mods，可以为 LifeFlow 添加任意功能。示例 mod 用于设置 StaticGenerator。将被移除。（YAGNI）文本过滤器，允许所有评论和文章通过任意过滤器进行修改。这个功能被用来渲染评论和文章，同时提供了极大的灵活性。你可以轻松实现评论脏话过滤器、把每篇文章中第一次出现的“Django”变成链接，或者几乎做任何事情。LifeFlow Editor（LFE），这是一个完整的 Ajax 化管理界面，用于管理 LifeFlow 部署（类似于 Django admin，但采用更偏向博客的工作流）。LFE 中集成了大量功能，包括文章渲染预览、“草稿”概念（区分已发布和未发布的文章）等等。简单的文件内容管理系统。多个自定义 Markdown 增强功能，包括动态博客上下文、自定义语法高亮机制，以及在 Markdown 中注入 ReStructured Text、Textile 和原始标记的语法。这些功能对我来说价值巨大，尤其是动态博客上下文，它有很多巧妙的设计（最有用的是，一旦你上传了命名文件或图片，它就能自动在文章间引用它们）。将“博客”拆分成多个 flows，flows 是内容的元标签。目的是在一个 LF 部署中托管多个具有不同内容和主题的博客，同时允许内容完全交叉融合（共享标签、共享归档、在首页相互混排等）。非基于日期的项目（Projects）。这是我非常想要的功能，但我同样非常不喜欢当前的实现。自己的 threaded 评论实现，附带反垃圾验证码的垃圾防护。（我的评论完全开放，却几乎没有垃圾评论。我并不认为自己的实现比别人优越，只是它足够不同，而且 LF 用户数量很少，垃圾评论者还没有摸清规律。）文章系列（series）作为一等公民，这带来了一些非常有用的组织优化。我认为这是一个非常有帮助的功能，能帮我节省大量在 WordPress 中需要花费的时间。基于通用日期视图的条目归档视图。标签云。集成在应用内的站点地图。十种不同类型的 RSS feed（全部、作者、flow、标签、系列、翻译、项目、评论、某文章的评论、语言）。多作者支持，每篇文章可以关联 0 个或多个作者。可以在文章发布时通知任意列表中的站点。BlogRoll，用于链接到其他作者。</div>
+      
+    
+      
+        <h2>变更计划（停止、创新与修复）</h2>
+      
+    
+      
+        <p>结合 LF 的目标与现实情况，以下是我计划进行的修改：</p>
+      
+    
+      
+        <div class="list-content">重置“向后兼容”保证。将 LifeFlow 拆分成多个应用。LifeFlow-Core 将包含核心可复用代码，其他所有 LifeFlow 应用都将依赖于 LF-Core。LifeFlow-Blog 将包含博客特定代码。LifeFlow-Projects 将接管项目的展示功能。LifeFlow-API 将暴露一个 RESTful API，用于管理 LifeFlow 内容。LifeFlow-Editor 将是 LifeFlow 的完整 Django Admin 替代品（基于 LF-API 实现）。重新组织代码仓库，以符合 Django 项目的目录设计最佳实践。增加更多测试，改进测试质量。大幅改进归档功能，这需要放弃基于日期的通用视图，重新实现一个定制版本。更好的翻译集成与支持。（我不希望翻译内容直接出现在主要 feed 或浏览页面中，但我希望保留翻译功能。）重构部分模型：将 SiteToNotify 概念移到 settings.py 配置中，而不是作为模型存在。将 Draft 和 Translation 模型合并到 Entry 模型中。</div>
+      
+    
+      
+        <p>我马上就要在新的分支里开始这项工作。让我们看看它会将我们带向何方。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

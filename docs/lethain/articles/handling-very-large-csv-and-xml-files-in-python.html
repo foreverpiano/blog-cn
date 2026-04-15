@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Python 处理大型 CSV 和 XML 文件 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Python 处理大型 CSV 和 XML 文件</h1>
+    <div class="meta">
+      2009-01-22 · 
+      <a href="https://lethain.com/handling-very-large-csv-and-xml-files-in-python/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>和大多数人一样，我从未意识到自己会需要处理大型文件。
+我知道会有一些几兆字节的数据文件，但
+我从未想到自己会求着 Perl 处理几百兆字节的 XML，更没想到这周我会让 Python 把 6.4 GB 的 CSV 转换成 6.5 GB 的 XML。</p>
+      
+    
+      
+        <p>几次内存溢出的经历会告诉你，处理大型文件的关键其实很简单：使用把一切当作数据流来处理的代码。
+对于输入，从磁盘分块读取；对于输出，频繁写入磁盘，让系统内存保持轻松无负担。</p>
+      
+    
+      
+        <p>当你自己读写文件时，这件事做对其实比想象中容易……</p>
+      
+    
+      
+        <p>……比做错要容易得多……</p>
+      
+    
+      
+        <p>……至少在简单情况下是这样。</p>
+      
+    
+      
+        <h2>在 Python 中加载大型 CSV 文件</h2>
+      
+    
+      
+        <p>Python 有一个出色的 csv 库，开箱即用就能处理大型文件。
+差不多是这样。</p>
+      
+    
+      
+        <p>盯着模块文档看了半天，我没找到有用的信息。于是我打开 csv.py 文件，证实了错误信息中 _csv 暗示的那一点：该模块的大部分代码（尤其是输入解析部分）是用 C 而不是 Python 实现的。</p>
+      
+    
+      
+        <p>盯着那个错误看了一会儿，我开始幻想如何用 StringIO 创建一个流预处理器，但没过多久我就意识到，要做到这一点，我得自己重新实现一个 csv 版本。</p>
+      
+    
+      
+        <p>于是我又回去翻博客，其中一篇博客里藏着我一直在寻找的关键信息：csv.field_size_limit。</p>
+      
+    
+      
+        <p>对，就是这样。之后这个“家伙”就顺利工作了。</p>
+      
+    
+      
+        <p>好吧，几乎是这样。我确实在处理到 1.5 GB 处遇到了一个 NULL 字节的问题。因为流处理代码使用的是基于 C 的 IO，NULL 字节会导致数据读取突然中断且无法恢复。为了绕过这个问题，我们需要对数据流进行预处理。你可以在 Python 中通过封装文件对象、用自定义类在返回每一行前进行清理来实现，但我为了简单起见，还是用了几个命令行工具。</p>
+      
+    
+      
+        <p>在那之后，6.4 GB 的 CSV 文件就毫无问题地处理完成了。</p>
+      
+    
+      
+        <h2>在 Python 中创建大型 XML 文件</h2>
+      
+    
+      
+        <p>这部分流程——把 CSV 的每一行转换成 XML 元素——进行得相当顺利，这要感谢 xml.sax.saxutils.XMLGenerator 类。创建元素的 API 算不上简洁，但它——和许多更花哨的方案不同——行为可预测，而且有一个杀手级特性：它能正确地将输出写入流。</p>
+      
+    
+      
+        <p>正如我之前提到的，创建元素的机制有点啰嗦，所以我写了几个包装函数来简化它（注意我把输出发送到标准输出，这样我就可以直接把字符串 print 到正在生成的文件中，例如创建 XML 文件的版本声明）。</p>
+      
+    
+      
+        <p>其用法如下：</p>
+      
+    
+      
+        <p>我遇到的唯一问题（在我的数据中）是一些四处游荡的换页符（^L，也就是 12，即 x0c），它们会干扰 XML 编码器。你可以在很多地方把它们去掉，比如改写主循环：</p>
+      
+    
+      
+        <p>真的，XMLGenerator 就这么正常工作了，即使在处理相当大的文件时也是如此。</p>
+      
+    
+      
+        <h2>性能表现</h2>
+      
+    
+      
+        <p>虽然我的脚本生成的 XML 元素种类与上面的例子不同，但复杂度并没有增加，性能也相当不错。将 6.4 GB 的 CSV 文件处理成 6.5 GB 的 XML 文件花费了 19 到 24 分钟，也就是说它大约每秒能读-处理-写 5 兆字节的数据。</p>
+      
+    
+      
+        <p>从原始速度来看，这算不上特别惊人，但用 Perl 的 XML::Twig 做类似的操作（实际上是 XML 到 XML 而不是 CSV 到 XML）时，处理一个约 100 兆的文件就要花 8 分钟，所以我对 Python 标准库的质量以及它处理大文件的能力还是相当满意的。</p>
+      
+    
+      
+        <p>标准库的广度和深度真的让 Python 成为编写这类简单一次性脚本的乐趣所在。
+要是它能有 Perl 那样更易用的正则表达式语法就好了……</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>试用 Google Container Engine · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>试用 Google Container Engine</h1>
+    <div class="meta">
+      2017-05-14 · 
+      <a href="https://lethain.com/trying-google-container-engine/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>阅读新闻时，有时会感觉初创公司 CTO 面临的核心挑战是，应该先推行服务编排策略，还是先搞自动驾驶汽车策略。尽管如此，我确实认为任何拥有超过几名工程师的技术公司都应该制定一套编排策略。为此，我最近花了不少时间来熟悉 Kubernetes，尤其是 Google Container Engine（GKE）。</p>
+      
+    
+      
+        <p>我心里具体的问题是：我个人能否在几乎零成本的情况下，获得我在工作中所享有的那种自动化、集成度和灵活性——在公司里，我受益于对 AWS Auto Scaling Groups 工具、Jenkins 集成以及整个开发生态系统的巨额投入，同时又不会给自己带来太多的维护负担。</p>
+      
+    
+      
+        <p>为了回答这个问题，我在这个周末把这个博客迁移到了 Kubernetes 和 GKE 上。目前它已经完全由 GKE 提供服务，原有的 AWS 基础设施也已关闭。（我将在未来一两周内迁移 systemsandpapers.com。）</p>
+      
+    
+      
+        <p>（这个举动多少有点讽刺，因为我。）<a href="fifth-blog-rewrite.html">第五次博客重写的笔记</a></p>
+      
+    
+      
+        <p>我采取的步骤如下：</p>
+      
+    
+      
+        <div class="list-content">创建一个由 GKE 托管的 Kubernetes 集群，使用三台 n1-standard-1 实例（每台有 1.8 GB 内存）。编写 Dockerfile，最初是把我现有的 Packer 配置直接翻译过来，让 Nginx 和 Go 二进制文件运行在同一个虚拟机里。（之前我一直在制作 AMI。）把我的博客代码库（叫 daedalus，虽然写得比较粗糙）从 Github 同步到 Google Source Repositories，基于“放在本地能降低构建延迟”这个合理但未经验证的假设。在 Container Builder 中创建一个构建触发器，每次我推送代码到 master 分支时就自动构建 Daedalus 的 Dockerfile，并将生成的镜像上传到 Container Registry，供 GKE 使用。（我曾短暂尝试用分支而非标签来标记容器镜像，结果发现 Kubernetes 不喜欢这种做法，而且还会破坏回滚功能。）让整个流程完全跑通，包括创建一个 Ingress 资源，使用 HTTP(S) Google Load Balancer 把流量路由到 daedalus。这时事情开始出现一点偏差，因为 GLB 没有类似 AWS ALB 那样的自动 SSL 证书管理能力，我显然需要自己管理证书。Let’s Encrypt 是最显而易见的选择，而 kube-lego 似乎是最常见的集成方式，于是我把它部署了上去。它确实能工作，但我真正想要的行为却很难用它来建模：我希望所有非 SSL 流量直接透传，所有 SSL 流量则先终止再透传。kube-lego 需要为每个域名和协议配置特定的路由规则（这从它要捕获 /.well-known/* 路径来响应 Let’s Encrypt 域名所有权挑战的角度来看是可以理解的），并且它会接管未匹配流量的路由，把它们导向一个默认的 Nginx 配置，而不是让我指向自己的 daedalus 节点。这对我需要处理的域名数量来说不太好用（大部分域名只是重定向到 lethain.com，但数量足够多到让每个域名一条规则会超出我对 GLB 限制的理解），于是我又回到了起点。经过一番思考，我认为最好的方案是将 Nginx 和 SSL 终止的工作拆出来做成独立的 Deployment，这样我就有了两个 Deployment：frontend 负责托管 Nginx 并进行 SSL 终止，daedalus 则只运行 Go 二进制文件。花了一些配置功夫后，我终于让它跑起来了：用一个 LoadBalancer 类型的 Service 把 TCP 流量导向 frontend Deployment，再由它反向代理到 daedalus Deployment 的 ClusterIP。我更新了 Nginx 配置，让它直接提供 Let’s Encrypt 的挑战文件，从而通过了验证。（我希望在切换 DNS 之前先给 lethain.com 申请一张新证书，所以实际上我临时修改了 AWS 实例上的 Nginx 配置，让它反向代理到 GCP 的负载均衡器来获取挑战文件。不过后来阅读资料时发现，用 301 重定向可能同样有效，而且没那么麻烦。）这样运行得相当不错，唯一的 caveat 是 frontend 只有一个 Pod，这是必要的简化，因为 certbot 会把文件写到本地，如果有多个 Pod，有些就拿不到文件来正确响应挑战。后来读了一些资料，最简单的解决办法是创建一个 cert-refresh Deployment，只运行一个实例，让 frontend Pod 把 /.well-known/* 的请求反向代理回这个实例。对于真正重要的事情（比如提供服务流量），仍然保持高可用；证书更新虽然严格来说不再是高可用的，但它的需求只是每天运行一次刷新脚本，所以即使可用性极差也能满足要求。大功告成！</div>
+      
+    
+      
+        <p>这个过程虽然涉及了不少调试和 hack，但最终只用了六个 YAML 文件（三个 Deployment、三个 Service）和三个 Dockerfile。如果需要，我可以在几分钟（好吧，算它三十分钟）内把整个环境重新搭建起来。</p>
+      
+    
+      
+        <p>更有意思的是，这成了我个人基础设施迄今为止最成熟、最方便的环境。从 push 到 Git 到容器上传，整个流水线都是自动化的，而我的部署现在只需要更新 deployment.yaml，把镜像 tag 指向新的版本，Kubernetes 就会执行一次增量 rollout，同时尊重健康检查，如果健康检查失败就会暂停 rollout。</p>
+      
+    
+      
+        <p>我甚至可以通过命令行进行回滚，这对我的个人基础设施来说是个全新的概念。</p>
+      
+    
+      
+        <p>容器构建过程中会向 Google Pub/Sub 发送事件，所以我猜再花一两个小时 hack 一下，我就能把 wiring 加上去，搭建一个完整的持续集成流水线。令人兴奋的是，这不仅适用于 daedalus 这样的个人应用，也适用于 frontend 节点这样的支撑性基础设施。如果我写错了 Nginx 配置，就不会再把网站搞挂了！（我之前待过的真正公司里，有些还做不到这一点！）</p>
+      
+    
+      
+        <p>总的来说，我非常 impressed，接下来一两周会把剩下的基础设施也迁过来，这样我就有一个稍微复杂一点的环境可以管理了。深入了解 Kubernetes 过程相当有趣，Google Cloud 整体也非常优秀，尽管它仍然给人一种感觉：虽然理念可能比 AWS 更简洁，但执行上还是有些粗糙（比如 gsutil 的使用体验就明显比 awscli 更让人困惑）。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LifeFlow 条目中引入资源的新方式 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>LifeFlow 条目中引入资源的新方式</h1>
+    <div class="meta">
+      2008-01-15 · 
+      <a href="https://lethain.com/new-style-including-resources-entries-lifeflow/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>简单提醒一下，LifeFlow 的 SVN 中进行了一次不兼容的改动。</p>
+      
+    
+      
+        <p>在此之前，要访问 Resource 文件中存储的文件，需要完成两个步骤：</p>
+      
+    
+      
+        <div class="list-content">在管理后台将 Resource 与 Entry 关联，然后写一个类似 [myresource][name_you_gave_it] 的链接。</div>
+      
+    
+      
+        <p>现在，你只需直接写：</p>
+      
+    
+      
+        <pre><code>[name of your resource][f name_you_gave_it]</code></pre>
+      
+    
+      
+        <p>请注意，对于之前使用旧方式编写的条目，除非你再次保存它们，否则不需要做任何修改。如果保持原样，它们不会重新渲染，直到你手动保存后触发重新渲染。因此，尽可能只用新方式撰写新条目，旧条目则保持不动。</p>
+      
+    
+      
+        <h2>为什么要进行这次改动？</h2>
+      
+    
+      
+        <p>早期我曾考虑动态地将资源与博客条目关联，并动态生成这些关联资源的 Markdown 引用。这正是 Dynamic Blog Context 诞生的基础。</p>
+      
+    
+      
+        <p>不幸的是，这个方案要求 Entry 对与其关联的 Resource 实例有深入的了解。这比看起来要复杂得多，因为 ManyToMany 关系要在对象完成数据库保存后才会建立。这意味着 Entry 需要先保存，才能正确渲染自己，而渲染又是保存过程的一部分。可以说是形成了一个循环。</p>
+      
+    
+      
+        <p>因此，解决这个尴尬循环的办法是：先保存一次以建立 ManyToMany 关系，过几秒后再保存一次来完成最终渲染（期间加入了一些逻辑以防止出现无限保存循环）。</p>
+      
+    
+      
+        <p>转向基于新的 Dynamic Blog Context 的方案后，就不再需要这种尴尬且丑陋的双重保存了。目前双重保存仍然存在，因为 DBC 的部分功能仍需要 Entry 对其所在的 ManyToMany 关系有最新的了解（例如，要生成所属系列中第一篇文章的链接，就需要知道它属于哪个系列）。</p>
+      
+    
+      
+        <p>不过，双重保存正在逐步被淘汰，一旦在不损失功能的前提下可行，它将被彻底移除。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

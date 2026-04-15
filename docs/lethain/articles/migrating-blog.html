@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSS 订阅源发生变化！博客将在未来几天内迁移 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>RSS 订阅源发生变化！博客将在未来几天内迁移</h1>
+    <div class="meta">
+      2021-03-25 · 
+      <a href="https://lethain.com/migrating-blog/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>tl;dr - 请通过 /feeds.xml 而不是 /feeds/ 订阅 RSS</p>
+      
+    
+      
+        <p>这个博客的当前版本已经运行了大约四年，自从我写下 <a href="fifth-blog-rewrite.html">第五次博客重写的笔记</a> 那篇文章以来。它一直作为一个 Golang 服务运行，从 S3 加载文章和文件，这在大多数情况下都运行得出奇地好。然而，有几件事情需要花费一些精力来维持正常运行。特别是每年都要花几个小时在 GCP Kubernetes 集群、Docker 构建和 LetsEncrypt SSL 证书上。我的实际实现最终和 Hugo 相当相似，最近我决定下定决心迁移到 Hugo。</p>
+      
+    
+      
+        <p>新的实现是纯粹的 Hugo，通过 SSL 在 lethain.com 上提供服务，由 Github Pages 托管，并通过 Github Pages 进行持续部署。我一直对这个博客采用“Cool URIs don’t change”的策略，在这次迁移中我也尽力保持 URI 的一致性。有少数 URI 现在已经不太合理了，例如 /all-posts/ 将重定向到 /，因为现在所有文章都可以直接在 / 上访问，但总体来说内容还是在原来的位置。</p>
+      
+    
+      
+        <p>唯一比较棘手的例外是 RSS 订阅源。十多年前我决定把它托管在 /feeds/，同时还支持一些过滤器，比如 /feeds/tags/os-x 来只获取特定标签的 RSS 订阅源。我很久以前就停止支持过滤的 RSS 订阅源了，但仍然会对任何以 /feeds/ 开头的 URI 返回通用的 RSS 订阅源。</p>
+      
+    
+      
+        <p>我的迁移计划大致如下：</p>
+      
+    
+      
+        <div class="list-content">更新现有的 Golang 服务，让它在 /feeds.xml 提供 RSS，同时保留现有位置。发布这篇文章解释 RSS 订阅源已经迁移。我希望这能帮助有动力的读者切换到 /feeds.xml。等待一天，让各种 RSS 阅读器获取这篇文章，这样即使出现问题，它们至少能看到解释。对 Hugo 版本进行修改，将 /feeds.xml 复制到 /feeds/ 和 /feeds/all/ 进行提供。将其他已知的 /feeds/* 变体重定向到 /feeds.xml。接受（希望是最小程度的）后果。</div>
+      
+    
+      
+        <p>我乐观地认为这应该能顺利进行，但我也希望细心的读者能把这篇文章当作 RSS 订阅源里的最后一篇文章，并手动修复订阅。抱歉给您带来不便，祝我们能继续再写十年！</p>
+      
+    
+      
+        <p>整体的外观和感觉主要是对现有网站的延续，同时在故事页面也借鉴了一些来自 Julia Evans 网站的想法。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SuperFamily 与 Lazyboy 的关系 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>SuperFamily 与 Lazyboy 的关系</h1>
+    <div class="meta">
+      2010-05-23 · 
+      <a href="https://lethain.com/supercolumn-relationships-with-lazyboy/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近我开始研究 Cassandra 及其 Python 客户端 Lazyboy。虽然文档已经相当不错，但我还是自己动手尝试并阅读了部分源代码后才真正理解它（当然，前提是我真的理解对了。如果我只是达到了理解的平台期，还望亲爱的读者不吝赐教）。</p>
+      
+    
+      
+        <p>我一向认为实践是最好的学习方式，那就让我们来构建一些东西吧。</p>
+      
+    
+      
+        <h2>建模我们的应用</h2>
+      
+    
+      
+        <p>对于这个项目，我决定构建一个简单的开发团队任务管理系统。</p>
+      
+    
+      
+        <p>我们的系统会有很多人。</p>
+      
+    
+      
+        <p>我们的系统也会有很多任务。</p>
+      
+    
+      
+        <p>每个任务会有零个或多个人员参与。</p>
+      
+    
+      
+        <p>基于这些关系，我们可能需要能够执行以下操作：</p>
+      
+    
+      
+        <div class="list-content">获取所有人员、获取所有任务、获取特定人员、获取特定任务、获取正在处理某个特定任务的人员。</div>
+      
+    
+      
+        <p>那么，我们该如何在 Cassandra 中建模呢？其实非常简单，只需遵循这条基本规则：</p>
+      
+    
+      
+        <blockquote>每种类型的文档对应一个 ColumnFamily，同时每种文档之间的关系也对应一个 ColumnFamily。</blockquote>
+      
+    
+      
+        <p>（ColumnFamily 是一组相似文档的集合。同一 ColumnFamily 中的文档不必拥有相同或相似的键/值，但通常保持一致会让你的应用更简洁，尤其是在你需要遍历数据时。）</p>
+      
+    
+      
+        <p>将这条规则应用到我们的应用中，我们有两种类型的文档：</p>
+      
+    
+      
+        <div class="list-content">tasks 和 members，</div>
+      
+    
+      
+        <p>同时它们之间还存在一种关系：</p>
+      
+    
+      
+        <div class="list-content">一个任务由零个或多个成员负责。</div>
+      
+    
+      
+        <p>换句话说，我们需要三个 ColumnFamily。</p>
+      
+    
+      
+        <p>接下来，在开始实现之前，我们先安装 Lazyboy 和 Cassandra。</p>
+      
+    
+      
+        <h2>安装前提条件</h2>
+      
+    
+      
+        <div class="list-content">下载 Cassandra 0.6.1。安装 Cassandra（以下是 OS X 的安装说明，其他操作系统可自行调整目录结构）：cd ~/Download
+tar -xvf apache-cassandra-*.gz
+mv apache-cassandra-0.6.1 ~/Library/cassandra
+为 Cassandra 创建必要的运行目录：tar -zxvf cassandra-$VERSION.tgz
+cd cassandra-$VERSION
+sudo mkdir -p /var/log/cassandra
+sudo chown -R `whoami` /var/log/cassandra
+sudo mkdir -p /var/lib/cassandra
+sudo chown -R `whoami` /var/lib/cassandra
+如果还没有 Git，先安装 Git。下载 Lazyboy，我们将把它作为 Cassandra 的 Python 客户端（注意需要使用 Python 2.5 或更高版本，OS X 10.5 或更高版本已自带）：mkdir ~/git &amp;&amp; cd ~/git        
+git clone http://github.com/digg/lazyboy.git
+sudo python setup.py</div>
+      
+    
+      
+        <p>现在前提条件都已满足，我们可以开始……配置了。</p>
+      
+    
+      
+        <h2>配置并启动 Cassandra</h2>
+      
+    
+      
+        <p>接下来，我们需要为项目配置合适的 Cassandra 设置。虽然 Cassandra 不强制要求遵守固定的 schema，但它要求在启动 Cassandra 进程之前定义每个 ColumnFamily。</p>
+      
+    
+      
+        <p>准确来说，这更像是声明它们的存在。打开 ~/Library/cassandra/conf/storage-conf.xml，将 &lt;Keyspaces/&gt; 标签内的现有内容替换为以下内容：</p>
+      
+    
+      
+        <p>现在，启动 Cassandra。</p>
+      
+    
+      
+        <pre><code>~/Library/cassandra/bin/cassandra
+</code></pre>
+      
+    
+      
+        <h2>使用 Lazyboy</h2>
+      
+    
+      
+        <p>现在各种组件都已经安装并配置好了，我们需要编写代码来使用 Lazyboy。（如果下面这部分看起来有点难懂，不妨先看看 Lazyboy 的 readme 和示例代码。）</p>
+      
+    
+      
+        <p>对于我们的每个 Column Family（Task、Member、TaskMember），都需要继承三个类：</p>
+      
+    
+      
+        <div class="list-content">lazyboy.key.Key 的子类，这样我们就可以写成 a = TaskKey(&quot;my-task-a&quot;)，而不是 a = Key(&quot;TaskManager&quot;, &quot;Task&quot;, &quot;my-task-a&quot;)。虽然不是必须的，但这是一个很不错的小模式。lazyboy.record.Record 的子类，用于访问特定 ColumnFamily 中的元素，配合 TaskKey 类，我们就可以写成：t1 = Task()
+t2 = Task().load(TaskKey(&quot;my-task-a&quot;))，而不是 t1 = Record()
+t1.key = Key(&quot;TaskManager&quot;, &quot;Task&quot;, &quot;my-task-a&quot;)
+t2 = Record().load(Key(&quot;TaskManager&quot;, &quot;Task&quot;, &quot;my-task-a&quot;))。
+Record 的子类还允许我们在保存列之前要求必须存在某些字段（稍后我们会深入讨论）。lazyboy.View 的子类，用于遍历某个 ColumnFamily 中的条目。</div>
+      
+    
+      
+        <p>Task 的三个子类如下所示：</p>
+      
+    
+      
+        <p>Member 和 TaskMember 也需要创建相同的类，具体可参考源代码。</p>
+      
+    
+      
+        <h2>创建与操作单个 Column</h2>
+      
+    
+      
+        <p>现在我们已经创建了所有类，可以开始用它们与 Cassandra 交互了。假设我们要创建一个 key 为 my-project-a 的新 Task。</p>
+      
+    
+      
+        <p>注意这里我们显式指定了 key，但这并非必需。如果不指定，系统会为你生成一个随机 key。</p>
+      
+    
+      
+        <p>保存 Task 之后，我们就可以随时检索它了。</p>
+      
+    
+      
+        <p>它表现得像一个字典，可以用来获取特定值，也支持使用字典语法进行更新。请注意，必须调用 save 方法才能将数据更新到 Cassandra 中。</p>
+      
+    
+      
+        <p>最后，我们还可以删除这个任务。</p>
+      
+    
+      
+        <p>通过这些示例，你已经掌握了足够的信息，可以将 Cassandra 当作一个简单的键值存储来使用。但仅仅局限于键值存储并不足以开发某些类型的应用，幸运的是 Cassandra 提供了更多功能。</p>
+      
+    
+      
+        <h2>获取多个 Column</h2>
+      
+    
+      
+        <p>除了获取特定 key 之外，我们还可以遍历 ColumnFamily 中的所有 key。为了简化示例，假设我们已经定义了以下函数：</p>
+      
+    
+      
+        <p>特别注意最后两行，我们显式地将新的 Member 添加到 MembersView 中。这对实现下面要介绍的那些查询操作至关重要。</p>
+      
+    
+      
+        <p>现在让我们尝试遍历所有的 Member 记录。</p>
+      
+    
+      
+        <p>不仅如此，我们还可以通过指定起始 key 来遍历一部分 Column：</p>
+      
+    
+      
+        <p>你可能会认为应该有办法指定迭代的结束范围，确实有，但目前需要一些技巧（这可能是 API 设计上的一个小疏忽，我写完这篇文章后会尽快提交一个补丁）。</p>
+      
+    
+      
+        <p>至此，我们已经从只能把 Cassandra 当作键值存储，提升到了能够遍历整个或部分 ColumnFamily 中的 key。</p>
+      
+    
+      
+        <h2>管理关系</h2>
+      
+    
+      
+        <p>实现我们总体计划的最后一步，是存储分配给特定 Task 的 Member 列表。最简单的想法可能是在 Task 里存一个逗号分隔的 key 列表，但随着写入量的增加，这种方式会变得不可靠，因为冲突时不会合并值，而是以最后一次写入为准。（我知道这听起来有点模糊，但我一直没能简洁地解释清楚，所以我需要另写一篇文章来详细说明，而不是在这篇里贪多。）</p>
+      
+    
+      
+        <p>更好的做法是使用一个新的 ColumnFamily（对我们来说是 TaskMember）来存储这些关系。对于每个 Task，我们还会创建一个具有相同 key 的 TaskMember，并用它来保存与 Member 的关联。</p>
+      
+    
+      
+        <p>首先我们来创建一些 Member 和一个 Task，同时创建一个与该 Task 拥有相同 key 的 TaskMember。</p>
+      
+    
+      
+        <p>现在让我们把 Will 和 Jill 添加到这个任务中，而让 Bill 独自留在外面。</p>
+      
+    
+      
+        <p>是的，我们所做的就是为每个想要加入项目的用户添加一条新的键值对。下面是一个不那么刻意的版本：</p>
+      
+    
+      
+        <p>然后你可以直接获取它并遍历，以确定当前分配给该任务的成员：</p>
+      
+    
+      
+        <p>这就是全部内容了。现在我们已经可以处理关系、键值存储以及范围迭代。使用这些简单的工具，你几乎可以构建任何东西。</p>
+      
+    
+      
+        <h2>结束</h2>
+      
+    
+      
+        <p>这段代码可以在我 fork 的 Lazyboy GitHub 仓库中找到，等我稍作清理后，我会考虑向官方仓库提交 pull request。</p>
+      
+    
+      
+        <p>如果有任何问题或意见，欢迎随时告诉我！</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

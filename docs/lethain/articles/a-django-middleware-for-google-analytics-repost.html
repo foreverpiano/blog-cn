@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>一个用于 Google Analytics 的 Django 中间件（转载） · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>一个用于 Google Analytics 的 Django 中间件（转载）</h1>
+    <div class="meta">
+      2007-06-14 · 
+      <a href="https://lethain.com/a-django-middleware-for-google-analytics-repost/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>这篇文章移植自原 Irrational Exuberance 博客，写于 2007 年中期：距今已近两年。</p>
+      
+    
+      
+        <p>Django 的魅力之一在于它被设计为极具灵活性。作为开发者，我们可以在多个位置接入 Django，而这些接入点允许我们访问 Django 的大多数内部机制。Django 开发者首先接触到的接入点是 urls.py 文件，我们在那里将 URL 映射到对应的应用。urls.py 是 Django 最基础的钩子，但有时 Django 的第二个钩子——Middleware（中间件）——能为我们带来真正的简洁性提升。在本文中，我们将首先介绍如何使用 GoogleAnalyticsMiddleware 将 Google Analytics 的调用代码注入到页面中，然后一步步讲解它是如何构建的。GoogleAnalyticsMiddleware 的源代码可在此处获取（采用 Lesser GNU 协议）。&lt;!--more--&gt;</p>
+      
+    
+      
+        <h2>使用 Google Analytics 中间件</h2>
+      
+    
+      
+        <p>如果你把它放在 django.middleware 目录下，那么需要添加的配置行应该是</p>
+      
+    
+      
+        <p>。接下来，你需要在 settings.py 文件中添加全局变量 ANALYTICS_ID，其值应为你的 Google Analytics ID。</p>
+      
+    
+      
+        <p>通常你不会想跟踪自己的访问数据，因此还提供了一个可选的全局变量 ANALYTICS_IGNORE_ADMIN。如果你将其设为 True，那么已登录管理员访问的页面将不会注入 Google Analytics 的 JavaScript 代码（这样既不会扭曲你的统计数据，也无需加载 JavaScript，大家都开心）。如果你想启用这个功能，应在 settings.py 中加入以下内容：</p>
+      
+    
+      
+        <p>如果你不想对管理员禁用跟踪，那就不需要做任何额外操作，因为默认情况下中间件会注入到所有页面中。设置工作到此结束。如果你想在不向 Google Analytics 发送真实数据的情况下进行测试，可以在 __init__ 方法中取消注释相关代码行。</p>
+      
+    
+      
+        <h2>开发这个中间件</h2>
+      
+    
+      
+        <p>process_request 用于在 Django 确定要渲染的视图之前拦截请求（可用于拒绝未授权用户）。process_view 用于在视图渲染前进行拦截并显示其他内容（比如错误信息，或者在用户下次登录时发送一次性消息）。process_response 则用于修改即将显示的内容。对于注入 Analytics 代码来说，process_response 正是我们需要的。</p>
+      
+    
+      
+        <h2>设计我们的中间件</h2>
+      
+    
+      
+        <div class="list-content">从 settings.py 中获取 ANALYTICS_ID 和 ANALYTICS_IGNORE_ADMIN 的值。除非没有设置 ANALYTICS_ID，否则预先构建用于调用 Analytics 的 JavaScript 对应的 HTML 代码。如果 ANALYTICS_ID 没有值，则将 process_response 设置为不做任何修改直接返回响应。否则如果 ANALYTICS_IGNORE_ADMIN 为 True，则将 process_response 设置为：除非当前登录的是管理员，否则注入 Analytics 代码。如果以上条件都不满足，则 process_response 始终注入 Analytics 代码。</div>
+      
+    
+      
+        <p>非常简单，这要感谢 Django 团队提供的元编程魔法。接下来我们需要一个简单的函数，根据 ID 构建 HTML 字符串，代码如下：</p>
+      
+    
+      
+        <p>这只是将一个值插入 Python 字符串的简单操作。它使用了 staticmethod 装饰器，因为该方法不需要访问实例的任何信息（使用 staticmethod 装饰器意味着它不会自动将 self 作为第一个参数传入）。</p>
+      
+    
+      
+        <h2>稍作延伸：一些辅助方法</h2>
+      
+    
+      
+        <p>将 Analytics 代码插入响应中的逻辑稍微复杂一些，但依然合理。</p>
+      
+    
+      
+        <p>我们从 response 中获取页面内容，扫描其中是否包含 &lt;/body&gt; 标签，如果有，则立即在其之前插入 Analytics 代码（这样 Analytics 脚本就不会拖慢页面加载速度）。不算太难。我们需要构建的最后一个辅助函数是用来将“是否为管理员用户”的检查“柯里化”（curry）到 insert_analytics 方法上的（仅当 ANALYTICS_IGNORE_ADMIN 为 True 时才会将两者柯里化在一起，但我们会在 __init__ 方法中完成这个逻辑）。（如果你想了解柯里化是什么，它是函数式编程中的一个概念，可以在这里看到解释。）这段代码稍显费解，但它让我们能够复用 insert_analytics 中的逻辑，无论是否需要忽略管理员用户。</p>
+      
+    
+      
+        <p>首先要注意的是，ignore_admin 是一个静态函数（它只是对函数进行操作，并不与类的某个具体实例绑定）。ignore_admin 方法的作用是返回内部函数 ignore_if_admin 针对参数 &#x27;func&#x27; 特化后的一个副本。因此返回的函数会记住 &#x27;func&#x27; 的值，即使它从未被显式作为参数传递（这是函数式编程中常见的惯用手法）。</p>
+      
+    
+      
+        <h2>回到构造函数</h2>
+      
+    
+      
+        <p>在 __init__ 方法中，我们首先尝试从 settings 文件中获取 ID，如果失败，则将 process_response 设置为 return_unaltered 方法。否则我们返回 insert_analytics 方法，如果需要忽略管理员，则将其放在 ignore_admin 方法中进行柯里化。多亏了这些辅助方法，__init__ 的逻辑清晰易懂。非常不错。</p>
+      
+    
+      
+        <h2>跳出细节看全局</h2>
+      
+    
+      
+        <p>总的来说，我们只用了不到五十行代码（不算空白行，就像人们在试图用行数说明问题时常做的那样）就写出了一个相当实用的中间件。算是一个不错的成果。现在我们已经完成了一个中间件，下次我们就会理解其中的基本原理，并能写出更有趣的东西。记得完整的源代码可在此处获取，而且它（与我们刚才构建的代码不同）包含了详细的注释。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

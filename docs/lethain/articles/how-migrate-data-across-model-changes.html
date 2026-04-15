@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>如何在模型变更时迁移数据 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>如何在模型变更时迁移数据</h1>
+    <div class="meta">
+      2007-07-01 · 
+      <a href="https://lethain.com/how-migrate-data-across-model-changes/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>当你创建一个 Django 应用时，会使用模型来表示你的内容、数据，以及网页的生命力。不幸的是，你最初创建的那批模型是错误的。第二批也是。目前正在使用的这批同样如此。当然，到现在为止它们已经相当不错，但还能更好。那么……为什么不呢？</p>
+      
+    
+      
+        <p>我对这个问题的回答通常是：“因为我死也不想去迁移数据。”早期我曾经手动往数据库里加了一列，并给它设置了一个合理的默认值，以避免数据库抛出意外的 NULL。然后我又写了一些代码，让每次保存模型时自动计算该列的正确值。</p>
+      
+    
+      
+        <p>请不要这么做。永远不要。这并不是一个聪明的做法。</p>
+      
+    
+      
+        <p>你听说过 fixture 吧？Django 文档在各处都提到了它，轻描淡写地假设你完全知道它是什么以及如何使用，因为它实在太容易用了，何必费心去写文档呢？好吧，这是个 beta 项目，我知道，我知道，而且它确实非常容易上手。你只是需要有人推你一把，而这篇文章就是我在为大家的利益推你一把。</p>
+      
+    
+      
+        <p>假设你有一个包含某些数据的数据库。我们先把数据导出到磁盘：</p>
+      
+    
+      
+        <p>默认情况下，数据会以 JSON 格式导出。这还可以，但 JSON 把我的日文编码数据弄坏了，所以我决定用 XML 来保存未来的数据转储。如果你只使用简单的 ASCII 数据，那么 JSON 应该没问题。不过，XML 用 BeautifulSoup 解析起来要容易得多，在进行复杂模型变更时有时是必需的。所以……我们还是用 XML 吧。</p>
+      
+    
+      
+        <p>现在数据已经保存好了。进入数据库，对你的模型做一些修改，比如你可能删掉整个模型，或者只是在现有模型上添加一个 CharField 或 BooleanField，什么改动都可以。</p>
+      
+    
+      
+        <p>然后重置你的数据库。</p>
+      
+    
+      
+        <p>现在只需把之前保存的数据加载进去即可。</p>
+      
+    
+      
+        <p>就是这样，你的数据已经在新表中重建了。随着变更复杂度的增加，这种技术会变得越来越困难，最终你可能会需要编写脚本来把旧的 XML 转换成新的格式。我唯一的鼓励是：写那些脚本，不要手动操作。一开始手动操作似乎更简单，但很快你就会犯人为错误，从而在数据文件中埋下定时炸弹。</p>
+      
+    
+      
+        <p>免责声明：在将此技术用于任何重要数据之前，请先进行一次测试演练。</p>
+      
+    
+      
+        <p>祝你好运，如果你正尝试对数据库进行更复杂的修改，欢迎随时向我提问。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

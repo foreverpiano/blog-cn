@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>为 Google Cloud Run 测试 Python 项目 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>为 Google Cloud Run 测试 Python 项目</h1>
+    <div class="meta">
+      2020-04-11 · 
+      <a href="https://lethain.com/testing-in-google-cloud-build/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近我一直在用 GCP 的 Cloud Run 来开发几个项目，包括 staffeng.com，总体上对它的表现非常满意。现在我已经熟悉了它的用法，对于一个新的 Python 项目，大概 20 分钟就能把下面这些全部搭好：</p>
+      
+    
+      
+        <div class="list-content">创建一个私有 GitHub 仓库；配置 Google Cloud Build 的构建触发器，当 master 分支有新提交推送到 GitHub 时自动触发；这些触发器会构建仓库中的 Dockerfile 并将其上传到 Google 的容器镜像仓库；自动从容器镜像仓库部署到我的 Google Cloud Run 服务端点；将 Cloud Run 的端点映射到自定义域名，由 Google 代为管理 SSL/TLS 证书。</div>
+      
+    
+      
+        <p>一旦完成初始设置，其开发流程至少不输于我在专业环境中用过的任何方案。这很大程度上是因为代码库很小、架构组件极少（只有一个 HTTP 服务），而且我通常也不需要太操心现有状态的管理。</p>
+      
+    
+      
+        <p>不过，目前的工具链里还有两点我觉得比较欠缺：</p>
+      
+    
+      
+        <div class="list-content">目前还没有一个好的示例，能把 Python 测试集成到这条流水线中。我搜了很久也没找到。只要构建成功，它就会直接部署；部署策略也不够健壮：它只是简单地用新容器替换现有容器。如果新容器健康检查失败……鬼知道会发生什么，因为它甚至不会真正执行健康检查。</div>
+      
+    
+      
+        <p>在今天要启动的这个项目中，我想尝试做得比上面好一些。首先我研究了测试相关的内容，老实说没找到特别理想的方案，最后只好把测试步骤直接加到了 Dockerfile 里：</p>
+      
+    
+      
+        <pre><code>FROM python:3.7-slim
+ENV APP_HOME /app
+WORKDIR $APP_HOME
+COPY ./src ./
+COPY ./tests ./tests
+COPY ./requirements.txt ./
+
+RUN pip install -r ./requirements.txt
+RUN PYTHONPATH=$PYTHONPATH:`pwd`/ pytest -v
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 app:app
+</code></pre>
+      
+    
+      
+        <p>其中运行测试的关键一行是：</p>
+      
+    
+      
+        <pre><code>RUN PYTHONPATH=$PYTHONPATH:`pwd`/ pytest -v
+</code></pre>
+      
+    
+      
+        <p>这种做法不算优雅，而且我不得不把 pytest 等所有测试依赖都加到 requirements.txt 里，导致生产环境的容器镜像稍微变大了一些。但最终它确实能在构建阶段运行测试，如果测试不通过就会让构建失败。</p>
+      
+    
+      
+        <p>如果想做得更规范、不污染生产容器，我觉得需要比 cloudbuild.yaml 所能提供的更复杂的方案，得有一个真正的多阶段构建流水线，中间可以插入钩子。也有可能是 cloudbuild.yaml 其实能实现我想要的功能，只是文档写得比较晦涩——当然我也没有深入研究过。</p>
+      
+    
+      
+        <p>这也大致就是我对部署策略当前状态的感受。如果你去看 Google Cloud Run 的 rollout 文档，你会发现所需的所有工具其实都是有的，你完全可以构建出合理的部署策略：</p>
+      
+    
+      
+        <pre><code># split 5% of traffic to latest revision
+gcloud run deploy --image hello-00005-blue --no-traffic
+gcloud run services update-traffic hello-srv --to-revisions LATEST=5
+
+# split 75%/25% traffic between two revisions
+gcloud run services update-traffic hello-srv --to-revisions hello2-00005-blue=75,hello2-00001-green=25
+
+# all traffic to latest revision
+gcloud alpha run services update-traffic hello-srv --to-latest
+</code></pre>
+      
+    
+      
+        <p>别误会，这些都是非常棒的基础组件。我相信你可以接入 Cloud Monitoring 拉取成功率数据，然后据此做出是否向前滚动的控制平面决策，但开箱即用的东西确实不多。这一点和 Kubernetes 形成了有趣的对比——Kubernetes 运维起来确实相当麻烦，但它确实能对新 Pod 进行自动验证和自动化回滚（前提是你写了有用的健康检查）。我用 Kubernetes 早期最喜欢的一个时刻，就是 rollout 了一个有问题的 Nginx 配置，结果 Pod 自动部署失败了！</p>
+      
+    
+      
+        <p>总的来说，Cloud Run 目前已经是我最喜欢的项目部署工具了。GCP 的工具套件也非常优秀，能让人以极快的速度搭建起一个相当不错的“业余级别”生产环境。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

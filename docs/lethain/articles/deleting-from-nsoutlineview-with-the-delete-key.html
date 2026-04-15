@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 Delete 键从 NSOutlineView 中删除项目 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 Delete 键从 NSOutlineView 中删除项目</h1>
+    <div class="meta">
+      2008-08-20 · 
+      <a href="https://lethain.com/deleting-from-nsoutlineview-with-the-delete-key/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>假设你正在开发一个 PyObjC 应用程序，正在考虑如何表示你的数据。你打开了一个 nib 文件（现在叫 xib），盯着 NSTableView 和 NSOutlineView 看了半天，最后选择了其中之一。假设你选了 NSOutlineView，那么你需要一种创建新节点的方法。这很简单，只需拖一个 NSButton 进来，并使用 NSAddTemplate 图标让大家明白它的功能。</p>
+      
+    
+      
+        <p>但接下来出现了一个重要问题：如何从你这个崭新的 NSOutlineView 中移除数据？最简单的办法是再添加一个按钮（或许用 NSRemoveTemplate 图标，你这个大胆的家伙）。如果你野心够大，甚至可以给这个按钮绑定一个快捷键，让 Delete 键也能生效。</p>
+      
+    
+      
+        <p>然而过一段时间后，你开始产生一种挥之不去的感觉。总觉得哪里不对劲。你几乎从不使用那个移除按钮，而是一直在按 Delete 键。甚至有一次你本想点添加，却不小心删除了东西。这时你终于愿意接受现实了：你只想按 Delete 键，根本不想要那个烦人的移除按钮。</p>
+      
+    
+      
+        <p>要实现这一点，你需要对 NSOutlineView（或者你正在使用的 NSTableView）进行子类化。代码大致如下：</p>
+      
+    
+      
+        <p>这是一个相当简单的技巧，但理解起来可能会有些困惑。特别是用 Python 如何表示非文本字符。这里最困难的是如何引用 Delete 字符，以便检查传入的按键是否匹配。幸运的是，Python 内置的 ord 函数可以将 ASCII 字符转换为它们的整数值，这让比较变得很简单。</p>
+      
+    
+      
+        <p>为了完整起见，下面是我用来实际从表格中移除节点的代码。在“# 在这里执行你的移除魔法”这一行，我使用的代码是：</p>
+      
+    
+      
+        <p>我使用的是自定义的 datasource 和 delegate，在 delegate 中，removeList_ 方法如下所示：</p>
+      
+    
+      
+        <p>在这段代码中，self.data 是一个包含我树状结构的类的实例，而 self.data.remove 是一个方法，它会递归地在树结构中查找并移除作为参数传入的节点。</p>
+      
+    
+      
+        <p>以后我遇到 PyObjC 的小技巧时，会继续把它们记录下来。如果你对某个特定主题特别感兴趣，请告诉我，我会很乐意去研究。</p>
+      
+    
+      
+        <p>我一直很高兴听到你的问题和评论。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

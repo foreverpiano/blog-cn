@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 CouchDB 与 Django 入门 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 CouchDB 与 Django 入门</h1>
+    <div class="meta">
+      2008-08-18 · 
+      <a href="https://lethain.com/an-introduction-to-using-couchdb-with-django/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>欢迎来到本系列的最后一篇文章。此前我们探讨了 Django 松散耦合哲学的优势。首先，我们用 Jinja2 替换了 Django 的模板系统；接着，用 SQLAlchemy 替代了 Django 的 ORM；在第三部分，也就是本文，我们将使用 CouchDB 来代替传统的对象关系型数据库进行数据存储。</p>
+      
+    
+      
+        <p>CouchDB 是我在过去一年里接触到的最令人兴奋的项目之一——用它激发过的半靠谱白日梦数量来衡量也不为过。它是关系型数据库的理念对手，不再专注于高度细节化的 schema（什么长整型、长度 25 的 varchar 以及二进制 blob 之类），而是直接处理文档。这些文档可以包含相同的字段，也允许出现不同的字段，这带来了类似于 Google BigTable 的灵活性。除此之外，CouchDB 还带来了一些意想不到的好东西，比如文档版本控制。</p>
+      
+    
+      
+        <p>在开始之前，你需要先安装 CouchDB，本教程不会详细介绍安装步骤（OS X 安装、Windows 安装、Ubuntu 安装）。</p>
+      
+    
+      
+        <h2>我们的项目</h2>
+      
+    
+      
+        <p>在本教程中，我们将使用 CouchDB 来存储一个简单 Django Web 应用的数据，该应用允许用户在线发布和编辑简单的文本文档。在正式开始前，我们需要做一些准备工作。</p>
+      
+    
+      
+        <div class="list-content">首先需要安装 Django。我们将使用 SVN 版本，安装方式如下（注意将 SITE-PACKAGES-DIR 替换为你 Python 的 site-packages 目录）：svn co http://code.djangoproject.com/svn/django/trunk/ django-trunk
+ln -s `pwd`/django-trunk/django SITE-PACKAGES-DIR/django
+接下来，需要安装与 CouchDB 交互的 Python 库 couchdb-python：easy_install couchdb
+第三步，创建一个 Django 项目（如果你不想一步步自己操作，可以下载本教程中创建的代码压缩包）。django-admin.py startproject comfy_django_example
+如果你系统中没有 django-admin.py 在 PATH 里，可能需要从本地 Django 签出目录中运行。对我来说是这样：~/svn/django-trunk/django/bin/django-admin.py startproject comfy_django_example
+现在，我们需要在 comfy_django_example 项目中创建一个 Django 应用。cd comfy_django_example
+python manage.py startapp couch_docs
+准备工作就快完成了，只需再配置几个设置。打开 comfy_django_example 目录下的 settings.py 文件，修改如下：INSTALLED_APPS = (
+    &#x27;comfy_django_example.couch_docs&#x27;,
+)
+我们还要修改 comfy_django_example/urls.py 文件，让它变成这样：urlpatterns = patterns(&#x27;comfy_django_example&#x27;,
+    (r&#x27;^&#x27;, include(&#x27;couch_docs.urls&#x27;)),
+)</div>
+      
+    
+      
+        <h2>认识 CouchDB</h2>
+      
+    
+      
+        <p>在继续开发 Web 应用之前，让我们先花几分钟在 Python 命令行下熟悉一下 CouchDB。</p>
+      
+    
+      
+        <p>首先，需要启动 CouchDB。如果你的符号链接设置正确，应该只需执行：</p>
+      
+    
+      
+        <p>然后启动 Python 解释器。</p>
+      
+    
+      
+        <p>首先需要创建一个 Server 实例，它代表你计算机上正在运行的本地 CouchDB 服务器。</p>
+      
+    
+      
+        <p>现在我们来创建几个数据库，遍历所有数据库，然后删除其中一个。</p>
+      
+    
+      
+        <p>接下来创建另一个数据库，并真正往里面存一些数据。</p>
+      
+    
+      
+        <p>我们也可以创建带名称的文档。</p>
+      
+    
+      
+        <p>从文档中获取和提取数据也非常简单。</p>
+      
+    
+      
+        <p>如果我们想运行特定查询，需要编写一个 JavaScript 函数。例如，假设我们要获取所有标题长度大于 4 的文档，可以这样写 JavaScript：</p>
+      
+    
+      
+        <p>现在，要在 Python 中运行这个查询，需要这样做：</p>
+      
+    
+      
+        <p>这个查询有点难懂，我们来拆解一下。emit 用于返回你想要的数据；第一个参数是结果集中的键，第二个参数是结果集中的值。下一个例子应该能帮你更好地理解。</p>
+      
+    
+      
+        <p>我们也可以使用列表推导式来访问数据。</p>
+      
+    
+      
+        <p>最后一个例子，我们将把所有步骤一次性走完。</p>
+      
+    
+      
+        <p>通过这些命令行实验，我们已经很容易想象如何用 CouchDB 来满足大多数数据存储、检索和操作的需求。现在，让我们进入重头戏：将 CouchDB 与 Django 集成起来。</p>
+      
+    
+      
+        <h2>将 CouchDB 与 Django 集成</h2>
+      
+    
+      
+        <p>我们将构建一个非常简单的应用。它包含两个视图：index 视图会显示所有可用文档的列表并允许创建新文档；detail 视图则允许编辑已有的文档。</p>
+      
+    
+      
+        <p>首先，我们来创建 couch_docs/urls.py 文件。</p>
+      
+    
+      
+        <p>接下来，需要编辑 couch_docs/views.py 文件。我们先引入必要的模块，并添加一些代码，如果名为 docs 的 CouchDB 数据库不存在就创建它。</p>
+      
+    
+      
+        <p>如果遵循最佳实践，你可能会希望在 settings.py 中添加一个 COUCHDB_SERVER 配置，然后这样写：</p>
+      
+    
+      
+        <p>但目前我们还是采用更简单（尽管灵活性稍差）的方案，即直接在 views.py 中指定服务器地址。下面我们来编写视图函数。</p>
+      
+    
+      
+        <p>index 视图完成两件事。在 GET 请求时，它会显示数据库中所有已有的文档；在 POST 请求时，它会创建一个新文档并重定向到该文档的 detail 视图。</p>
+      
+    
+      
+        <p>注意，我们以完全相同的方式将 rows 作为额外上下文传递给 index.html 模板，就像使用 Django ORM 查询数据时一样。</p>
+      
+    
+      
+        <p>detail 视图同样有两个功能。如果收到 GET 请求，它会显示文档（同时提供一个编辑表单）；如果是 POST 请求，则会更新文档。如果有人请求一个不存在的文档，我们还要抛出 404 错误。</p>
+      
+    
+      
+        <p>请注意，docs[id] = doc 这行代码不是可选的，如果没有这一行，即使更新了文档的键，数据库中的条目也不会被更新。我不确定这是库的一个疏忽，还是有意减少 HTTP 请求的决定，但这确实是一个容易让人困惑的陷阱。</p>
+      
+    
+      
+        <p>现在我们只需编写模板。首先，在 comfy_django_example/couch_docs/ 目录下创建模板文件夹。</p>
+      
+    
+      
+        <p>然后创建 index.html 模板。</p>
+      
+    
+      
+        <p>以及 detail.html 模板。</p>
+      
+    
+      
+        <p>至此，我们的新 Web 应用就完成了。去运行它试试看吧。</p>
+      
+    
+      
+        <p>然后访问 http://127.0.0.1:8000 就能看到它运行起来了。虽然很简单，但应该足以激发你关于如何结合 Django 和 CouchDB 做更多事情的创意。尤其是随着 CouchDB 的不断成熟，我认为这将是一个非常强大的组合。</p>
+      
+    
+      
+        <h2>下载教程代码</h2>
+      
+    
+      
+        <p>你可以在这里下载包含本项目的 zip 文件，但要获取最新版本，最方便的方式是查看该教程在 GitHub 上的仓库。</p>
+      
+    
+      
+        <h2>我们为什么要真的这么做？</h2>
+      
+    
+      
+        <p>这是一个重要的问题。是否真的存在这样的场景：使用 Django + CouchDB 比使用 PostgreSQL 或 MySQL 要合理得多？在我们放弃 Django Admin（以及 session 框架等）的情况下，是否真的获得了有价值的东西？</p>
+      
+    
+      
+        <p>尽管存在一些不便，但 CouchDB 确实有不少值得考虑的理由。设想一个允许用户下载其内容副本并进行修改的 Wiki。如果使用 CouchDB 实现，用户就可以上传他们的内容并将其合并到数据库中。开发者不需要为此编写自定义代码，因为这本身就是 CouchDB 的功能之一。如果新数据中有错误，你还可以利用版本控制系统回滚到之前的版本（除非它已经被数据库压缩操作删除了……咳咳）。</p>
+      
+    
+      
+        <p>再考虑一下类似 FreeBase 的系统，它可以根据不同类型的数据动态创建 schema。在关系型数据库中这样做会非常痛苦，因为你需要不断创建和修改表结构。但在 CouchDB 中，如果你想为某条数据增加一个字段，只需直接添加数据即可，它自然就能工作。拥有灵活的（或者说实际上不存在的）schema，能让某些类型的应用实现起来变得容易，而这些应用如果使用严格定义的 schema，可能需要天才般的灵感才能解决。</p>
+      
+    
+      
+        <p>最后，还有 Damien Katz 反复提到的观点——一旦开始优化，CouchDB 可能会变得非常快。</p>
+      
+    
+      
+        <h2>我们能鱼与熊掌兼得吗？</h2>
+      
+    
+      
+        <p>可以，当然可以。你可以使用 SQLite 或 PostgreSQL 数据库来管理 session 和用户，只用 CouchDB 来存储文档数据。这样，你就能在大部分数据上继续使用 Django Admin，同时还能在应用中适合的部分利用 CouchDB 基于文档的存储特性。</p>
+      
+    
+      
+        <p>这样做的额外复杂度对于最初的开发者来说不会太高。然而，扩展这样一个应用会比只使用关系型数据库或只使用 CouchDB 的应用需要更多的思考和努力。在资源有限的情况下（比如小型 VPS）高效部署这样的服务也会更困难。这些技术障碍并非不可逾越，但处理起来可能也不会特别愉快。</p>
+      
+    
+      
+        <h2>等等，这不是我想要的“鱼与熊掌”</h2>
+      
+    
+      
+        <p>哦，原来你是想在 CouchDB 之上实现 session 框架？你当然可以基于 CouchDB 自定义一套认证框架，而且理论上也可以（虽然可能需要超人般的努力，比如把 SQL 语句翻译成 CouchDB 的命令）创建一个 Django 后端，让它无缝地使用 CouchDB 而不是传统的关系型数据库。</p>
+      
+    
+      
+        <p>如果有人真的想承担这个项目，可能应该等到 CouchDB 达到 1.0 版本并且 API 稳定下来之后再说。不过……即便如此，我还是觉得这个项目会像一个地狱般的泥潭，能把成年人变成小孩，让人的意志比被要求用下推自动机实现 Perl 正则表达式崩溃得还要快。</p>
+      
+    
+      
+        <h2>Django 松散耦合系列完结</h2>
+      
+    
+      
+        <p>随着本文接近尾声，这个系列也随之结束。我们先后探讨了 Jinja2、SQLAlchemy，现在是 CouchDB，以及 Django 松散耦合的哲学如何让这些技术能够轻松地与 Django 集成。对我来说，写完这些文章后最持久的想法是：松散耦合当然不是完美的，但只要你愿意付出时间上的代价，它就能让你做任何你想做的事情。</p>
+      
+    
+      
+        <p>而对我而言，这个“代价”其实一点也不高。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

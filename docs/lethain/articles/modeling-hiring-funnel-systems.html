@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用 Systems 库建模招聘漏斗 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>用 Systems 库建模招聘漏斗</h1>
+    <div class="meta">
+      2018-09-18 · 
+      <a href="https://lethain.com/modeling-hiring-funnel-systems/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在写完《》之后，我每年都会在网上搜索一圈，寻找易用且价格合理的系统建模软件，但始终没有找到完全满意的。<a href="systems-thinking.html">系统思维导论</a></p>
+      
+    
+      
+        <p>后来，我决定做个实验：设计一种文本格式来描述模型（大致受 Graphviz 启发），并为其开发一些运行工具。这个实验最终催生了 Python 的 systems 库，本文将用它来建模一个。<a href="hiring-funnel.html">你的招聘漏斗</a></p>
+      
+    
+      
+        <p>我们从一个极简模型开始，逐步叠加概念，直到形成一个有趣的完整模型。安装说明见此处，大多数情况下你可以通过 Python 的 pip 安装：</p>
+      
+    
+      
+        <pre><code>python3 -m pip install systems
+</code></pre>
+      
+    
+      
+        <p>安装好 systems 之后，我们就可以开始编写模型，先从最简单的定义入手：</p>
+      
+    
+      
+        <pre><code>[Candidate] &gt; Prospect    @ 10
+Prospect    &gt; PhoneScreen @ 0.5
+PhoneScreen &gt; Onsite      @ 0.5
+Onsite      &gt; Offer       @ 0.25
+Offer       &gt; Accept      @ 0.5
+Accept      &gt; Hired       @ 1.0
+</code></pre>
+      
+    
+      
+        <p>拆解一下其中几个关键细节。每行代表两个存量（stock）和一个流量（flow）。</p>
+      
+    
+      
+        <pre><code>Prospect    &gt; PhoneScreen @ 0.5    
+</code></pre>
+      
+    
+      
+        <p>例如上面这行表示 Prospect 和 PhoneScreen 两个存量，之间有一个 50% 的转化流量。每一轮，Prospect 的全部数值会乘以 50%，所得数值会被加到 PhoneScreen 上，Prospect 本身则会被清零。但在本例中，它会立即被来自 Candidate 的流量重新填满：</p>
+      
+    
+      
+        <pre><code>[Candidate] &gt; Prospect    @ 10
+</code></pre>
+      
+    
+      
+        <p>被方括号包围的存量（如 [Candidate]）是无限存量，通常作为系统的入口或出口，代表当前你不想详细建模的其他外部系统。这里的流量用整数 10 表示，每轮会从 Candidate 取出 10 加入 Prospect。如果源存量不足 10，则会全部转走，不过由于源头是无限存量，这种情况一般不会发生。</p>
+      
+    
+      
+        <p>假设我们把模型写在了 hiring.txt 中，可以通过以下命令运行：</p>
+      
+    
+      
+        <pre><code>cat hiring.txt | systems-run
+</code></pre>
+      
+    
+      
+        <p>这会将模型运行 10 轮，输出如下：</p>
+      
+    
+      
+        <pre><code>        Prospect        PhoneScreen     Onsite  Offer   Accept  Hired
+0       0               0               0       0       0       0
+1       10              0               0       0       0       0
+2       10              5               0       0       0       0
+3       10              5               2       0       0       0
+4       10              5               4       0       0       0
+5       10              5               2       1       0       0
+6       10              5               4       1       0       0
+7       10              5               2       2       0       0
+8       10              5               4       0       1       0
+9       10              5               2       1       0       1
+10      10              5               4       1       0       1
+</code></pre>
+      
+    
+      
+        <p>有几点值得注意。首先，无限存量 [Candidate] 不会被显示，因为它的状态没什么意义。其次，把人招进来确实要花很长时间！最后要注意，转化流量要求源存量足够大，才能让输出为整数，因此你会看到 Onsite 和 Offer 在前序流量输入达到 4 和 2 之前，会在几轮中出现缓冲积累。</p>
+      
+    
+      
+        <p>这个模型还可以更贴近现实。比如，我们并不是每天都能稳定获得 10 个新 Prospect，而是取决于有多少 sourcer 在做 sourcing。同时，我们可能还会不断招聘更多 recruiter，直到招满 recruiting 的 headcount 为止。我们可以新增一个 Recruiters 存量来建模第二部分，初始值为 3，最大值为 8（假设你目前的 recruiter headcount 上限是 8）。</p>
+      
+    
+      
+        <pre><code>[Candidate] &gt; Recruiters(3, 7) @ 1
+</code></pre>
+      
+    
+      
+        <p>第 0 轮我们有 3 名 recruiter，每轮增加 1 名，直到达到 7 名便不再增加。</p>
+      
+    
+      
+        <p>更有意思的是，我们可以用 Recruiters 存量的当前值来决定每轮能找到多少 Prospect。例如，可以设定每名 recruiter 每轮能 sourcing 10 个 Prospect：</p>
+      
+    
+      
+        <pre><code>[Candidate] &gt; Prospect @ Recruiters * 10
+</code></pre>
+      
+    
+      
+        <p>第一轮我们会得到 30 个 Prospect，第二轮 40 个，最后一轮达到 70 个。现在运行模型：</p>
+      
+    
+      
+        <pre><code>cat hiring.txt | systems-run
+</code></pre>
+      
+    
+      
+        <p>得到以下结果（隐藏了 Hires 列以便屏幕显示）：</p>
+      
+    
+      
+        <pre><code>        Recruiter      Prospect        PhoneScrn       Onsite  Offer   Accep
+0       3               0               0               0       0       0
+1       4               30              0               0       0       0
+2       5               40              15              0       0       0
+3       6               50              20              7       0       0
+4       7               60              25              10      1       0
+5       7               70              30              12      3       0
+6       7               70              35              15      3       1
+7       7               70              35              17      3       1
+8       7               70              35              17      4       1
+9       7               70              35              17      4       2
+10      7               70              35              17      4       2
+</code></pre>
+      
+    
+      
+        <p>这已经相当酷了。我们仅用几分钟就建立了一个相当复杂的模型，而这个模型用电子表格会很难表达（尤其是存量上限带来的反压机制）。</p>
+      
+    
+      
+        <p>如果你想对这些输出做图表，可以将其导出为 CSV：</p>
+      
+    
+      
+        <pre><code>cat hiring-blog.txt | systems-run --csv
+</code></pre>
+      
+    
+      
+        <p>得到的结果类似下面这样：</p>
+      
+    
+      
+        <pre><code>,Recruiters,Prospect,PhoneScreen,Onsite,Offer,Accept
+0,3,0,0,0,0,0
+1,4,30,0,0,0,0
+2,5,40,15,0,0,0
+3,6,50,20,7,0,0
+4,7,60,25,10,1,0
+5,7,70,30,12,3,0
+6,7,70,35,15,3,1
+7,7,70,35,17,3,1
+8,7,70,35,17,4,1
+9,7,70,35,17,4,2
+10,7,70,35,17,4,2
+</code></pre>
+      
+    
+      
+        <p>systems 这个底层库还有很多功能可以继续添加，但我已经对它早期的灵活性和编写速度感到非常兴奋。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

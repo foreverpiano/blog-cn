@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>异步处理，却要同步语义？ · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>异步处理，却要同步语义？</h1>
+    <div class="meta">
+      2018-01-15 · 
+      <a href="https://lethain.com/async-processing-with-sync-semantics/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近我一直在更多地思考 ，特别是如何设计一个中等复杂度的 Web 应用，让它完全依赖于不可变日志，并通过日志处理器来维护物化视图。<a href="from-lambda-to-kappa-dataflow-paradigms.html">从 Lambda 到 Kappa 及 Dataflow 范式</a></p>
+      
+    
+      
+        <p>其中一些有趣的问题包括：</p>
+      
+    
+      
+        <div class="list-content">是否有好的实现方式？能否在不让发布事件和处理事件的进程实现紧密耦合的情况下完成？发布者能否完全不感知写入逻辑，同时仍能提供同步的行为？</div>
+      
+    
+      
+        <p>这似乎是个学习 docker-compose 的好机会，于是在周末我花了些时间，用 Docker 容器搭了一个运行 Kafka、Redis 和若干 Python 进程的简单集群。代码和 Docker 配置都放在了 Github（https://github.com/lethain/example-kappa-arch），下面是一些笔记和思考。</p>
+      
+    
+      
+        <h2>同步方式</h2>
+      
+    
+      
+        <p>首先，我实现了一个基础案例：一个 Python 应用直接向 Redis 写入数据。</p>
+      
+    
+      
+        <p>对应的时序图非常简单。</p>
+      
+    
+      
+        <p>一个略微简化的版本（完整版本在这里）大致如下：</p>
+      
+    
+      
+        <pre><code>@app.route(&#x27;/&lt;path:path&gt;&#x27;)
+def hello(path):
+    r = redis.Redis(host=&#x27;redis&#x27;)
+    ts = int(time.time())
+    r.zadd(RECENT_KEY, path, ts)
+    r.zincrby(TOP_KEY, path, 1)
+    recent = r.zrange(RECENT_KEY, 0, 10, desc=True, withscores=True)
+    top = r.zrange(TOP_KEY, 0, 10, desc=True, withscores=True)
+    now = datetime.datetime.now()
+    return render_template(&#x27;index.html&#x27;, path=path, recent=recent,
+                           top=top, elapsed=elapsed, now=now)
+</code></pre>
+      
+    
+      
+        <p>这运行得很好！所有逻辑都收敛在一个地方，但我们直接修改了状态，而且没有事件日志。很容易再加上一个事件日志（真实函数如下）：</p>
+      
+    
+      
+        <pre><code>publish(client, VIEW_TOPIC, path)
+</code></pre>
+      
+    
+      
+        <p>这时候我们的图变得稍微有趣了一些：</p>
+      
+    
+      
+        <p>但整体依然很简单，所有操作仍是同步的。</p>
+      
+    
+      
+        <p>现在我们有了事件日志，但状态并不是从日志中计算生成的。这意味着我们无法通过重放日志来重建状态，这完全违背了核心目标。（不过至少把数据送进了你的数据生态，方便后续处理！）</p>
+      
+    
+      
+        <h2>异步方式</h2>
+      
+    
+      
+        <p>要进入“事件日志驱动数据计算”的世界，最简单的方法就是把所有处理逻辑都移到消费者里。</p>
+      
+    
+      
+        <p>这很简单，但我们无法再控制返回给客户端的响应顺序，无法保证它发生在处理完成之后。</p>
+      
+    
+      
+        <p>现在的 Web 应用变成了这样：</p>
+      
+    
+      
+        <pre><code>@app.route(&#x27;/&lt;path:path&gt;&#x27;)
+def hello(path):
+    publish(client, VIEW_TOPIC, path)    
+    r = redis.Redis(host=&#x27;redis&#x27;)
+    recent = r.zrange(RECENT_KEY, 0, 10, desc=True, withscores=True)
+    top = r.zrange(TOP_KEY, 0, 10, desc=True, withscores=True)
+    now = datetime.datetime.now()
+    return render_template(&#x27;index.html&#x27;, path=path, recent=recent,
+                           top=top, elapsed=elapsed, now=now)
+</code></pre>
+      
+    
+      
+        <p>而写入逻辑则被移到了 Kafka consumer 中：</p>
+      
+    
+      
+        <pre><code>cli = get_client()
+topic = cli.topics[VIEW_TOPIC]
+consumer = topic.get_simple_consumer(reset_offset_on_start=True,
+                                     queued_max_messages=1)
+for message in consumer:
+    path = message.value.decode(&#x27;utf-8&#x27;)
+    r = redis.Redis(host=&#x27;redis&#x27;)
+    ts = int(time.time())
+    r.zadd(RECENT_KEY, path, ts)
+    r.zincrby(TOP_KEY, path, 1)
+</code></pre>
+      
+    
+      
+        <p>我们不仅失去了对时序的控制，还造成读写逻辑被割裂的尴尬局面。虽然我们获得了一个不可变事件日志可以重放生成状态这一激动人心的特性，但整个应用已经无法正常工作，而且变得更难理解。</p>
+      
+    
+      
+        <h2>解耦且同步</h2>
+      
+    
+      
+        <p>我们真正想要的是：从客户端视角来看，Web 进程的行为仍是同步的——必须等到下游所有处理都完成后才返回——同时又不引入任何紧耦合。</p>
+      
+    
+      
+        <p>嗯，这不就是那种罕见的“远程作用”（action at a distance）场景吗？</p>
+      
+    
+      
+        <p>你可以想到一些特定于实现的方案，比如用 Redis Pub/Sub，让 Web 进程订阅一个频道，等待对应事件的写入确认。这虽然是个有趣的做法，但会在 Web 进程和消费者进程之间产生实现上的强耦合，从而抵消了 Kappa 架构的很多优势。</p>
+      
+    
+      
+        <p>老实说，我目前还没看到能完全满足我需求的现成工具，但你可以大致想象一个这样的（有点模糊的）实现思路：</p>
+      
+    
+      
+        <div class="list-content">Web 把消息发给一个“同步协调进程”（sync process）；该进程把消息推入 Kafka，同时为每条消息注入一个唯一标识，并保持与 Web 的连接不关闭；下游各个消费者进程在完成处理后向 sync 进程“ack”；sync 进程要么维护一份需要确认的消费者清单（最好通过静态分析自动生成，而不是手动维护），要么通过采样系统行为来学习预期需要多少个 ack。采样听起来有点过度设计，但实际中你可能会用 p99 延迟来快速失败并继续处理。更有趣的一个轻量级 hack 是：你可能只需要依赖 p95 延迟，完全不实现“ack”机制也能工作。</div>
+      
+    
+      
+        <p>这里提到的“ack”概念，本质上可以看作异步处理中实现背压（back pressure）的一个具体例子。你真正希望的是：同步阻塞 Web 进程，直到所有下游消费者都处理完在当前消息发布时刻或之前产生的所有消息。（这让我想起水位线 watermark 的概念。）</p>
+      
+    
+      
+        <h2>结束思考</h2>
+      
+    
+      
+        <p>总的来说，我认为“让发布者和消费者的实现强解耦，同时还能进行时序协调”这个问题，目前还没有被现有工具很好地解决，但也看不出有什么根本性的障碍，只是现在做起来还有点别扭。</p>
+      
+    
+      
+        <p>我相信很快就会出现一些有趣的探索和实验！</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

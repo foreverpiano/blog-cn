@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《软件设计哲学》笔记 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>《软件设计哲学》笔记</h1>
+    <div class="meta">
+      2018-09-03 · 
+      <a href="https://lethain.com/notes-philosophy-software-design/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>赶上最近的潮流，在 Cindy 的推荐下，我买了一本 John Ousterhout 写的《A Philosophy of Software Design》。这本书只有 160 页，相当简洁，我最近几天快速浏览了一遍，边看边做了一些笔记。</p>
+      
+    
+      
+        <p>Michael Krause 还好心地推荐了 John Ousterhout 的一场精彩演讲，内容和这本书基本一致。</p>
+      
+    
+      
+        <p>《软件设计哲学》重点讨论软件中的复杂性问题，希望你“在软件的整个生命周期中，用复杂性来指导设计”。作者曾开设过一门关于软件设计的本科课程，模仿教学生写议论文的模式（初稿、写作、批改、重写、批改、再重写），并结合自己长期开发大型系统的经验，总结出了复杂性的各类表现及其应对方法。</p>
+      
+    
+      
+        <p>作者特别推荐将这本书作为代码评审时的实用工具，里面列出了一系列“红旗”（危险信号），包括信息泄露、浅模块、模糊的命名、实现细节污染接口、方法耦合、泛特混合等。（完整红旗清单见文末。）</p>
+      
+    
+      
+        <p>下面是我在阅读中特别感兴趣的一些片段摘录。</p>
+      
+    
+      
+        <pre><code>Complexity is anything that makes software hard to understand or to modify.
+</code></pre>
+      
+    
+      
+        <p>首先是对复杂性的一个宽泛定义，随着书的内容推进，定义会逐渐聚焦。</p>
+      
+    
+      
+        <pre><code>Isolating complexity in places that are rarely interacted with is
+roughly equivalent to eliminating complexity.
+</code></pre>
+      
+    
+      
+        <p>这点虽然比较显而易见，但仍然让我觉得很有洞见。我们平时很少认真思考复杂性到底是在哪里产生的，如果能在这方面做得更好，就能快速让系统变得更简单。</p>
+      
+    
+      
+        <pre><code>Complexity is more apparent to readers than to writers.
+If other people think a piece of code is complex, it is.
+</code></pre>
+      
+    
+      
+        <p>老生常谈，但很有道理。令人惊讶的是，人们（包括我自己）对这类反馈常常会非常抗拒。</p>
+      
+    
+      
+        <p>书中总结了复杂性的三种表现：变更放大、认知负担和未知的未知。变更放大是指一个局部修改却需要在很多其他地方进行改动，最好的预防方式是</p>
+      
+    
+      
+        <pre><code>reduce the amount of code that is affected by each design decision,
+so design changes don&#x27;t require very many code modifications.
+</code></pre>
+      
+    
+      
+        <p>认知负担要求我们转换思维，不要只盯着代码行数，而是要认识到：更多但更简单的代码，仍然比更少却更复杂的代码要更好。（这一点是我刚开始大量写 Go 时特别纠结的。所有东西都很简单，但代码长度远超我之前用 Python 写习惯的长度。）</p>
+      
+    
+      
+        <p>最后，未知的未知是指那些你希望知道、但从代码本身无法合理推断出的信息。</p>
+      
+    
+      
+        <p>接着，书中给出了复杂性的正式定义：</p>
+      
+    
+      
+        <pre><code>Complexity is caused by obscurity and dependencies.
+</code></pre>
+      
+    
+      
+        <p>以及复杂性各个子成分的定义：</p>
+      
+    
+      
+        <pre><code>Dependency is when code can&#x27;t be understood in isolation.
+Obscurity is when important information is not obvious.
+This can often be due to lack of documentation.
+</code></pre>
+      
+    
+      
+        <p>为什么复杂性这么难以管理？因为</p>
+      
+    
+      
+        <pre><code>Complexity is incremental, the result of thousands of choices.
+Which makes it hard to prevent and even harder to fix.
+</code></pre>
+      
+    
+      
+        <p>为了对抗复杂性的蔓延，作者建议区分“战略式编程”和“战术式编程”。</p>
+      
+    
+      
+        <pre><code>Tactical mindset is focused on getting something working,
+but makes it nearly impossible to produce good system design.
+</code></pre>
+      
+    
+      
+        <p>与之相对，战略式编程则改变了目标：</p>
+      
+    
+      
+        <pre><code>Strategic programming is realizing that working code isn&#x27;t enough.
+The primary goal is a good design that also solves your problem,
+not working code.
+</code></pre>
+      
+    
+      
+        <p>有趣的是，作者并不主张进行大规模的前期设计，而是建议持续进行大量的增量式设计改进工作。这和单纯“做敏捷”略有不同，因为敏捷过于关注功能特性，而</p>
+      
+    
+      
+        <pre><code>The increments of development should be abstractions, not features.
+...
+Ideally, when you have finished with each change, the system will
+have the structure it would have had if you had designed it from
+the start with that change in mind.
+</code></pre>
+      
+    
+      
+        <p>很多人会反对如此强调抽象，认为这并不一定有用——也就是常说的“You Aren’t Gonna Need It”（YAGNI）。但作者认为，</p>
+      
+    
+      
+        <pre><code>payoff for good design comes quickly. It&#x27;s unlikely that tactical approach
+is faster even for the first version, let alone the second.
+</code></pre>
+      
+    
+      
+        <p>这部分内容专门反驳了初创公司那种“快速上线、以后再修”的心态，认为这是一种虚假的二分法。</p>
+      
+    
+      
+        <p>管理复杂性最重要的方法，是把复杂性从接口转移到实现中：</p>
+      
+    
+      
+        <pre><code>Modules are interface and implementation.
+The best modules are where interface is much simpler than implementation.
+...
+It&#x27;s more important for a module to have a simple interface
+than a simple implementation.
+</code></pre>
+      
+    
+      
+        <p>不过在设计模块时必须非常小心，因为</p>
+      
+    
+      
+        <pre><code>An abstraction is a simplified view of an entity that omits
+unimportant details. Omitting details that are important leads
+to obscurity, creating a false abstraction.
+</code></pre>
+      
+    
+      
+        <p>如果做得好，这种技术被称为信息隐藏（information hiding）：</p>
+      
+    
+      
+        <pre><code>Each module should encapsulate a few pieces of knowledge,
+which represent design decisions.
+This knowledge should not appear in its interfaces,
+and hence are restricted to its implementation.
+Simpler interfaces correlate with better information hiding.
+</code></pre>
+      
+    
+      
+        <p>信息隐藏的反面是信息泄露（information leakage）：</p>
+      
+    
+      
+        <pre><code>When a design decision is used across multiple modules,
+coupling them together.
+</code></pre>
+      
+    
+      
+        <p>书中花了不少篇幅讨论异常（exception），指出它们偏离了代码的正常执行流，导致的问题往往比它们本身的代码量所暗示的要严重得多。因为你</p>
+      
+    
+      
+        <pre><code>Have to recover by either trying to revert (hard) or trying to repair
+and move forward (also hard). This leads to inconsistency in many cases.
+</code></pre>
+      
+    
+      
+        <p>解决办法是“把错误定义到不存在”（define errors out of existence），也就是设计接口时让错误根本无法发生。书中举了 unset 与 delete 的例子：前者确保某物不存在，后者则是确保之前存在的东西现在被删除了。另一个例子是从列表中取切片，与其抛出越界错误，不如对不存在的范围直接返回空更简单。</p>
+      
+    
+      
+        <p>最好的设计不是你的第一个设计，而应该是</p>
+      
+    
+      
+        <pre><code>Design it twice, taking radically different approaches.
+</code></pre>
+      
+    
+      
+        <p>关于这一点，书中有一段有趣的旁白：很多非常聪明的人，在早年的学习经历中被反复训练，认为自己的第一直觉就是正确的（因为足以拿高分），因此他们很难充分利用上面的设计技巧。</p>
+      
+    
+      
+        <p>大多数大型软件设计问题与学校作业有着本质区别：它们并非天生就被设计成可一次性解决的，因此从多个不同角度反复打磨会带来很大收益。</p>
+      
+    
+      
+        <p>最后，以一段对战略思维的结语作为收尾：</p>
+      
+    
+      
+        <pre><code>If you&#x27;re not making the design better, you are probably making it worse.
+</code></pre>
+      
+    
+      
+        <p>总的来说，这是一本非常值得一读的好书，强烈推荐！</p>
+      
+    
+      
+        <h2>红旗清单</h2>
+      
+    
+      
+        <p>书中完整的红旗清单如下，不过要想看每一条的具体定义，还是得买书哦！</p>
+      
+    
+      
+        <div class="list-content">Shallow module（浅模块）
+Information leakage（信息泄露）
+Temporal decomposition（时序分解）
+Overexposure（过度暴露）
+Pass-through methods（透传方法）
+Repetition of the same fragments of code（重复的代码片段）
+General-specific mixture（泛特混合）
+Conjoined methods（耦合方法）
+Non obvious code（不明显的代码）
+Hard to describe（难以描述）
+Comment repeats code（注释重复代码）
+Vague names（模糊的命名）
+Hard to pick name（难以取名）
+Implementation documentation contaminates interfaces（实现文档污染接口）</div>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

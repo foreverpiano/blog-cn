@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>开始使用 git-scraping · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>开始使用 git-scraping</h1>
+    <div class="meta">
+      2022-02-27 · 
+      <a href="https://lethain.com/trying-git-scraping/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在 Github 上查看本文对应的代码。</p>
+      
+    
+      
+        <p>我母亲在一家食品救助站工作，他们最近遇到了一个有趣的后勤难题：另一家非营利组织会捐赠几乎免费的肉类，但只有在对方更新网站后才能下单，而且必须在网站更新后的几个小时内尽快完成下单。对于熟悉现代商业环境的人来说，这类问题并不难解决——市面上有很多监控网站的供应商，价格也合理；但如果你从未接触过相关领域，这就会显得相当令人畏惧。</p>
+      
+    
+      
+        <p>对大多数人来说，更好的方案是找一家现有的供应商来解决这个问题，但我决定是时候深入研究一下 Simon Willison 的 git-scraping 工作了！</p>
+      
+    
+      
+        <p>我的目标很简单：</p>
+      
+    
+      
+        <div class="list-content">将网页的变化以 Git 提交的形式记录到 Github 仓库中，让非开发人员也能轻松订阅这些变化</div>
+      
+    
+      
+        <p>好，接下来我们正式开始。</p>
+      
+    
+      
+        <h2>追踪变化</h2>
+      
+    
+      
+        <p>我不想把那家非营利组织的网站公之于众，所以我将用自己的一个网站作为示例，原理是一样的。具体来说，我会抓取 infraeng.dev 这个站点。</p>
+      
+    
+      
+        <p>第一步，我在 Github 上创建了一个新的仓库。</p>
+      
+    
+      
+        <p>于是我就得到了一个全新的、空空如也的仓库。</p>
+      
+    
+      
+        <p>接着我把仓库克隆下来，并创建了 Github Workflow 的目录。</p>
+      
+    
+      
+        <pre><code>git clone git@github.com:lethain/infraeng-changes.git    
+mkdir -p .github/workflows
+emacs .github/workflows/scrape.yml
+</code></pre>
+      
+    
+      
+        <p>然后我参照 ca-fires-history/.github/workflows/scrape.yml 中的示例工作流，创建了 .github/workflows/scrape.yml 文件。唯一的改动是将第 17 行的内容从：</p>
+      
+    
+      
+        <pre><code>curl https://www.fire.ca.gov/umbraco/Api/IncidentApi/GetIncidents | jq . &gt; incidents.json
+</code></pre>
+      
+    
+      
+        <p>改成指向 infraeng.dev</p>
+      
+    
+      
+        <pre><code>curl https://infraeng.dev/ &gt; website.html
+</code></pre>
+      
+    
+      
+        <p>我提交了这个改动并推送到 Github，这个最简单的版本就运行起来了！</p>
+      
+    
+      
+        <h2>更干净的抓取方式</h2>
+      
+    
+      
+        <p>虽然上面能用，但它假设阅读者熟悉 HTML，而在这个场景中这个假设并不成立。因此我想写一个简单的脚本，从网站中提取目录并将其转换成纯文本表格。</p>
+      
+    
+      
+        <p>通常我可能会使用 beautifulsoup 来完成这件事，但这次我想不依赖任何第三方库，所以改用 Python 3 自带的 html.parser 模块。</p>
+      
+    
+      
+        <p>你可以在这里看到这个大约 30 行的 Python 清理脚本。</p>
+      
+    
+      
+        <p>然后我把 .github/workflows/scrape.yml 中第 17 行改成调用这个脚本：</p>
+      
+    
+      
+        <pre><code>curl https://infraeng.dev/ | python clean.py &gt; table-of-contents
+</code></pre>
+      
+    
+      
+        <p>现在它不再输出完整的 HTML，而是生成一个干净得多的目录文件！这是一个简洁、人类可读的文件，即使网站页眉或页脚发生变化也能保持稳定，同时很好地追踪目录内容的任何改动。</p>
+      
+    
+      
+        <h2>通知机制</h2>
+      
+    
+      
+        <p>现在我们有了一个不错的变化日志，如何才能让其他人订阅这些变化呢？</p>
+      
+    
+      
+        <p>最简单的方案是直接在提交 feed 后面加上 .atom，例如 infraeng-changes/commits/main.atom，然后把这个地址丢进 RSS 阅读器里。对习惯使用 RSS 阅读器的人来说，这很合适。但遗憾的是，很多人并没有 RSS 阅读器。</p>
+      
+    
+      
+        <p>另一个直接的方案是让大家注册一个 Github 账号，然后“关注（watch）”这个仓库来接收变化通知。</p>
+      
+    
+      
+        <p>如果我们想进一步做到 SMS 短信通知，这篇博客文章中的方案可以实现，它依赖 Twilio 的 action-sms action。</p>
+      
+    
+      
+        <p>我已经把这个 workflow 禁用了，但你仍然可以在 Github 上看到完整的代码。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

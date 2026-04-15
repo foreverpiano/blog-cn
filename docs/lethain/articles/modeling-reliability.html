@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>撰写可靠性策略：用系统模型思考复杂问题 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>撰写可靠性策略：用系统模型思考复杂问题</h1>
+    <div class="meta">
+      2019-02-09 · 
+      <a href="https://lethain.com/modeling-reliability/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>不久前，我写过一篇关于<a href="modeling-hiring-funnel-systems.html">用 Systems 库建模招聘漏斗</a>的文章，将其作为构建<a href="systems-thinking.html">系统思维导论</a>的示例。但那篇文章并没有深入探讨演化系统模型的过程如何带来帮助。</p>
+      
+    
+      
+        <p>正如我经常遇到的那样，灵感来源于我当前的工作。我们正在进行年度策略更新，讨论如何处理，而将建模纳入策略制定过程后，它意外地成为了一个非常有效的头脑风暴工具。<a href="infrastructure-between-cost-center-and-before-ego-trip.html">基础设施：介于成本中心与自我陶醉之间</a></p>
+      
+    
+      
+        <p>让我们以可靠性为例，说明这种方法的具体运作方式。</p>
+      
+    
+      
+        <p>非常感谢我的同事 Taleena 和 Davin，以及其他许多人，他们的洞见和工作帮助我们形成了对可靠性的理解和方法。</p>
+      
+    
+      
+        <h2>问题陈述</h2>
+      
+    
+      
+        <p>我们希望撰写一份策略文档，阐述我们处理可靠性的方法。这份<a href="strategies-visions.html">写作策略与愿景。</a>应当令人信服地回答四个问题：</p>
+      
+    
+      
+        <div class="list-content">当前的现实状态是什么？这是收集数据和背景信息，以确保我们的方法能应对真实的需求和挑战，其中也包括我们的目标。我们将采用哪些指导原则来应对当前状态？这些指导原则会指引我们采取哪些行动来解决当前状态？考虑到我们的<a href="infrastructure-planning.html">基础设施规划：用户、基线与时间框架</a>，我们实际会采取哪些行动？</div>
+      
+    
+      
+        <p>即使你在这个问题上已经工作多年，并且在当前公司也待了很久，这些问题仍然很难简洁地回答。当你支持的产品和基础设施快速扩展时，答案也不会变得更容易。</p>
+      
+    
+      
+        <p>这正是系统建模发挥作用的地方。</p>
+      
+    
+      
+        <p>以下系统模型将使用我去年编写的 systems 库来定义。希望其语法易于阅读，而且图表已经包含了大部分细节。唯一需要说明的是，flow（即@后面的部分）要么是速率，要么是转换。</p>
+      
+    
+      
+        <p>速率会将物质从输入 stock 转移到输出 stock，用整数或公式表示。转换则是将输入 stock 乘以一个转换因子，把结果加到输出 stock 上，同时清空输入 stock。转换用小数表示。</p>
+      
+    
+      
+        <p>可以在 Github 上查看代码，也可以在 Binder 上与之交互。</p>
+      
+    
+      
+        <h2>创建关于故障的事件数据</h2>
+      
+    
+      
+        <p>构建可靠性模型的一个起点，可能是从故障（incidents）的视角出发。我们的软件中时刻都在发生各种变化，有些是我们可控的，比如部署新版本；还有很多是我们无法控制的，比如硬件故障、发现新的漏洞等等。</p>
+      
+    
+      
+        <p>大多数变化都能顺利进行，但也有一部分会出现问题。当变化出现问题时，有时就会演变为一个故障。每个故障都是我们未能达成可靠性目标的事件；而一旦我们重新达到可靠性目标，就意味着故障已被缓解（mitigated）。</p>
+      
+    
+      
+        <p>从一个非常简单的模型开始，假设存在一个固定的变化转为故障的速率，以及一个固定的故障缓解速率：</p>
+      
+    
+      
+        <pre><code>[Changes] &gt; Incidents @ 2
+Incidents &gt; Mitigated @ 1
+</code></pre>
+      
+    
+      
+        <p>在这个模型中，我们会慢慢积累越来越多的故障，而未解决的故障数量会一直高于历史上已缓解的故障总数。这相当可怕。</p>
+      
+    
+      
+        <p>这是一个非常基础的模型，但我认为即使从中也能学到一些有用的东西。例如：</p>
+      
+    
+      
+        <div class="list-content">要理解我们的可靠性，我们需要检测和衡量很多指标。我们需要衡量变化的数量、故障数量和缓解数量。如果我们能精确地测量这些，就能得出系统中将变化转为故障、以及将故障转为已缓解故障的真实速率。我们目前没有任何（已认知的）从故障回到变化的反馈回路，如果没有这种回路，未缓解故障的数量就会随时间不断增长。故障缓解速率似乎是整个系统中最重要的流动，特别是当我们不想降低变化速率的时候——因为大多数业务都依赖于不断加快变化速率。</div>
+      
+    
+      
+        <p>这个简单的模型已经告诉我们，一份有用的策略文档需要包含哪些内容。特别重要的是，它会突出为什么一个故障管理程序是管理可靠性的前提：这是获取必要数据的唯一途径，让你能基于事实来讨论什么有效、什么无效。</p>
+      
+    
+      
+        <p>如果你还没有建立类似机制，我的建议是先停止阅读，花接下来一年的时间去建立并运行它，等有了数据后再回来。虽然如何建立故障管理程序可能超出了本文能覆盖的范围，但 Tammy Butow 的文章是一个极好的入门指南。</p>
+      
+    
+      
+        <h2>开发者在改变事物</h2>
+      
+    
+      
+        <p>前面模型的一个弱点是，故障的数量很可能不是一个固定速率，而是取决于变化的数量。而变化的数量又很可能取决于开发者的数量，在一家快速增长的公司里，这个数字通常还在不断增加。</p>
+      
+    
+      
+        <pre><code>[Hires] &gt; Developers   @ 1
+[Plans] &gt; Changes      @ Developers * 2
+Changes &gt; Incidents    @ 0.2
+Incidents &gt; Mitigated @ 1
+</code></pre>
+      
+    
+      
+        <p>这时候，我们缺乏从未缓解故障到变化的反馈回路就变得非常可怕，因为我们可以看到故障数量随时间快速增长，并最终超过变化速率。</p>
+      
+    
+      
+        <p>然而，如果你曾在故障频发的公司工作过，就会知道实际情况并非完全如此。随着故障数量上升，产品变化的速率会下降，因为人们会把注意力转向故障的修复工作。</p>
+      
+    
+      
+        <p>这正是我们一直在寻找的反馈回路。</p>
+      
+    
+      
+        <pre><code>[Hires] &gt; Developers   @ 1
+[Plans] &gt; Changes      @ (Developers * 2) - Incidents
+Changes &gt; Incidents    @ 0.2
+Incidents &gt; Mitigated @ 1
+</code></pre>
+      
+    
+      
+        <p>如果我们把从计划到变化的 flow 建模为受未解决故障数量影响而减少，那么会出现一个令人惊讶的结果。</p>
+      
+    
+      
+        <p>如果我们持续招聘更多开发者，但不提升故障缓解能力，那么我们会很快达到一个临界点：继续招聘不再能带来更多的变化。</p>
+      
+    
+      
+        <p>这个结果引出了我们可靠性策略的一个重要指导原则：只有在同等提升故障缓解能力的前提下，招聘才能真正提高生产力。</p>
+      
+    
+      
+        <h2>题外话：反向反馈回路</h2>
+      
+    
+      
+        <p>模型的详细程度总是一个问题，值得注意的是，由缓解引发的变更本身也会有缺陷率。因此，故障因不完善的缓解措施而引发新故障的情况并不罕见，这就形成了一个反向反馈回路，与我们刚刚建模的反馈回路相互作用。</p>
+      
+    
+      
+        <p>我选择不在模型中体现这一部分，但根据你当前的具体情况，这一点可能非常重要。决定对什么建模、什么忽略，最终取决于基于数据的判断。两家不同公司的有效可靠性模型，会包含和省略不同的方面。</p>
+      
+    
+      
+        <h2>提升故障缓解带宽</h2>
+      
+    
+      
+        <p>现在我们已经明确故障是限制可靠性和生产力的关键因素，接下来让我们围绕减少故障来扩展模型。虽然一次成功的缓解能解决一个未解决的故障，但通常并不能有效阻止未来的故障。而补救措施（remediations）则能消除某一类潜在故障，因此我们需要同时对缓解能力和补救能力进行建模，才能理解减少未解决故障的选择空间。</p>
+      
+    
+      
+        <p>许多公司采取的一种策略是引入 SRE 角色，专注于故障缓解。假设我们每招聘五名工程师就配一名 SRE，而每名 SRE 可以同时处理两个故障。</p>
+      
+    
+      
+        <pre><code>[Hires] &gt; Developers @ 5
+[Hires] &gt; SREs @ 1
+[Plans] &gt; Changes @ (Developers-Incidents) * 2
+Changes &gt; Incidents @ 0.2
+Incidents &gt; Mitigated @ SREs * 2
+</code></pre>
+      
+    
+      
+        <p>按 1:5 的比例招聘 SRE 相对较高，但看起来这应该能真正解决问题！</p>
+      
+    
+      
+        <p>有趣的是，它确实解决了一半的问题。我们避免了之前的变化速率平台期，能随着招聘更多开发者而持续增加变化，因此生产力重新开始上升。不幸的是，未解决的故障数量仍在增加，只是增速大幅放缓。仅仅招聘人员来缓解故障，似乎还不足以完全解决我们的挑战。</p>
+      
+    
+      
+        <p>接下来，我们加入补救工作对缺陷率（即变化导致故障的速率）的降低效果进行建模。这里我们假设每轮进行一次补救，并随着补救次数增加而降低缺陷率。</p>
+      
+    
+      
+        <pre><code>[Hires] &gt; Developers @ 5
+[Hires] &gt; SREs @ 1
+[Plans] &gt; Changes @ (Developers-Incidents) * 2
+Changes &gt; Incidents @ Conversion(1 / (1 + Remediated))
+Incidents &gt; Mitigated @ SREs * 2
+Mitigated &gt; Remediated @ 1
+</code></pre>
+      
+    
+      
+        <p>突然之间，我们又回到了正轨，尽管变化越来越多，但仍能将故障数量控制在一定范围内。</p>
+      
+    
+      
+        <p>既然我们通过增加补救就能得到理想的结果，我好奇是否可以完全移除模型中的 SRE 部分，将缓解速率固定为每轮一次，看是否能达到相同效果。</p>
+      
+    
+      
+        <pre><code>[Hires] &gt; Developers @ 5
+[Plans] &gt; Changes @ (Developers-Incidents) * 2
+Changes &gt; Incidents @ Conversion(1 / (1 + Remediated))
+Incidents &gt; Mitigated @ 1
+Mitigated &gt; Remediated @ 1
+</code></pre>
+      
+    
+      
+        <p>结果并不完全成功，但有趣的是，即使是非常小的固定缓解和补救数量，也能让我们从增加招聘中获益，这是一个让我感到惊讶的发现。</p>
+      
+    
+      
+        <p>如果我们愿意做一个小小的调整——比如每增加一百名工程师，就允许我们额外缓解一个故障（考虑到模型中他们在故障期间被从开发工作中拉走，这似乎合理）——那么这个微小的变化就能解决我们的可靠性问题。</p>
+      
+    
+      
+        <pre><code>[Hires] &gt; Developers @ 5
+[Plans] &gt; Changes @ (Developers-Incidents) * 2
+Changes &gt; Incidents @ Conversion(1 / (1 + Remediated))
+Incidents &gt; Mitigated @ Rate(1 + (Developers / 100))
+Mitigated &gt; Remediated @ 1
+</code></pre>
+      
+    
+      
+        <p>这使得系统能够持续改进，并保持故障数量稳定。</p>
+      
+    
+      
+        <p>在我看来，这是一个非常强大的结论。它意味着，只要你能适度扩展故障缓解能力，在稳态下，对补救措施进行很小的固定投入，就能支撑一个既可靠又高产的环境。</p>
+      
+    
+      
+        <p>反思从中得出的指导原则，我想到的是两点：一是确保我们始终对无法被挪用的补救工作进行投入；二是固定规模的缓解模型不会有效。我们不能简单地招聘一个八人 SRE 团队来负责所有缓解工作，并将其视为问题的终结。相反，如果我们设计一个与整体工程团队保持固定比例（比如 1:20）的 SRE 组织，并且只专注于缓解工作，就能达成目标。</p>
+      
+    
+      
+        <p>如果他们同时专注于缓解和补救，效果会更好。但有趣的是，在模型中，最关键的是提升缓解带宽，而不是增加补救数量。如果我们保持缓解带宽不变，而大幅增加补救数量（这听起来更有效），反而会得到一个有些反直觉的结果。</p>
+      
+    
+      
+        <pre><code>[Hires] &gt; Developers @ 5
+[Plans] &gt; Changes @ (Developers-Incidents) * 2
+Changes &gt; Incidents @ Conversion(1 / (1 + Remediated))
+Incidents &gt; Mitigated @ 1
+Mitigated &gt; Remediated @ Rate(1 + (Developers / 100))
+</code></pre>
+      
+    
+      
+        <p>这实际上并没有达成我们的可靠性目标。</p>
+      
+    
+      
+        <p>这是因为每项补救都能预防很多未来的故障，因此在数量较少时杠杆效应很高，但在数量很大时杠杆效应会下降。相反，缓解工作的杠杆效应不高，但在任何规模下都是必要的。</p>
+      
+    
+      
+        <h2>潜在故障</h2>
+      
+    
+      
+        <p>系统思考的核心观察之一是，有效的解决方案最初往往不起作用，因为它们正在消耗一个巨大的初始存量。这在可靠性工作中经常发生：人们开始关注可靠性、着手记录故障，结果一个季度后却发现故障数量反而增加了。</p>
+      
+    
+      
+        <p>这种令人沮丧的经历，通常是我所说的“潜在故障”（latent incidents）导致的。这些是等待发生的问题，由之前的变更引入，但尚未触发必要的边界条件而成为真正的事故。开始实施可靠性项目的人，通常拥有大量看不见的潜在故障存量，而消耗这个存量的过程，往往会让人误以为一个有效的可靠性项目正在失败。</p>
+      
+    
+      
+        <pre><code>[Hires] &gt; Developers(10) @ 5
+[Plans] &gt; Changes @ (Developers-Incidents) * 2
+Changes &gt; Latent(1000) @ Conversion(1 / (1 + Remediated))
+Latent &gt; Incidents @ 10
+Incidents &gt; Mitigated @ Rate(1 + (Developers / 100))
+Mitigated &gt; Remediated @ 1
+</code></pre>
+      
+    
+      
+        <p>具体来说，如果我们建模一个包含一千个潜在变更的巨大存量，那么初期的数据会显示我们的可靠性在变差，只有当这个存量被消耗完后，我们才能稳定可靠性和生产力。</p>
+      
+    
+      
+        <p>意识到这一点后，我们的指导原则中应该包含减少或至少衡量环境中潜在故障的措施，否则我们会对稳定性做出不准确的判断。</p>
+      
+    
+      
+        <p>这里可能有效的一些方法包括来自混沌工程的<a href="sketching-failure-injection-on-kubernetes.html">在 Kubernetes 上实现故障注入的初步探索</a>、集成测试等等。</p>
+      
+    
+      
+        <h2>并且它还会继续发展</h2>
+      
+    
+      
+        <p>这仅仅是利用演化可靠性模型来制定专注且有效策略的开始。你可以继续扩展这个模型的几种方向包括：</p>
+      
+    
+      
+        <div class="list-content">故障检测时间如何影响缓解时间？失败的缓解尝试如何制造更多故障或降低缓解速率？对工程师进行培训如何影响缺陷率？</div>
+      
+    
+      
+        <p>这不仅仅是扩展模型的问题，更重要的是利用模型，根据哪些措施真正有效来确定行动优先级。我们可以抽象地讨论更多补救如何降低未来变更的缺陷率，但现实中，可能存在某一项特定的补救措施，能将你未来的缺陷率降低 90%。要找出它，你必须去分析最频繁发生的故障的根本原因。</p>
+      
+    
+      
+        <p>建模的微妙力量在于，它能以很低的成本去想象多种未来，并为哪些未来最有可能达成目标提供一些温和的指引。下次当你面对一个特别困难的问题时，不妨尝试演化一个简单的模型，把它作为引导注意力、评估选项的工具。</p>
+      
+    
+      
+        <p>它们在头脑风暴中也非常有用，特别是能帮助你在选择方法前，识别哪些信息是最重要的。</p>
+      
+    
+      
+        <p>本次探索的部分代码在 GitHub 上，你可以在 Binder 上与之交互。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

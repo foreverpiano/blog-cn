@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 Redis 中存储有界时间箱 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 Redis 中存储有界时间箱</h1>
+    <div class="meta">
+      2011-04-07 · 
+      <a href="https://lethain.com/storing-bounded-timeboxes-in-redis/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>假设你正在开发一个简单的报表系统，用于追踪系统的错误率。然后呢——谁能想到——你决定使用 Python 和 Redis。听起来轻而易举！</p>
+      
+    
+      
+        <p>真的会这么简单吗？</p>
+      
+    
+      
+        <h2>安装</h2>
+      
+    
+      
+        <p>首先，在本地机器上安装并启动 Redis。</p>
+      
+    
+      
+        <pre><code>curl http://redis.googlecode.com/files/redis-2.2.4.tar.gz &gt; redis.tar.gz
+tar -xzvf redis.tar.gz
+cd redis-2.2.4
+make
+./src/redis-server
+</code></pre>
+      
+    
+      
+        <p>我们快速测试一下是否成功……</p>
+      
+    
+      
+        <pre><code>./src/redis-cli set a b
+./src/redis-cli get a
+</code></pre>
+      
+    
+      
+        <p>如果第二条命令返回 b，那就没问题了。很好。现在只需要安装 redispy。</p>
+      
+    
+      
+        <pre><code>virtualenv --no-site-packages zset
+cd zset
+. ./bin/activate
+pip install redis
+</code></pre>
+      
+    
+      
+        <p>检查是否安装成功……</p>
+      
+    
+      
+        <pre><code>:::pycon
+&gt;&gt;&gt; import redis
+&gt;&gt;&gt; cli = redis.Redis()
+&gt;&gt;&gt; cli.get(&quot;a&quot;)
+&#x27;b&#x27;
+</code></pre>
+      
+    
+      
+        <p>很好，现在我们可以回到有界时间箱的话题了。</p>
+      
+    
+      
+        <h2>什么是 Bounded Timeboxes？</h2>
+      
+    
+      
+        <p>和大家通常想象的不同，它不是一台 DeLorean，而且这个术语可能是我自己造的，不过我们还是继续往下说吧。在这篇文章里，“timebox” 指的是一段时间内包含某些活动的容器，比如“1 分钟前有 100 个 Diggs”或者“2 分钟前有 200 条推文”。“bounded”（有界）是指你只想存储固定数量的时间箱。下面举个例子会更清楚。</p>
+      
+    
+      
+        <p>你要为每个 URL 记录每分钟的页面浏览量。你决定为每个 URL 使用一个有序集合（sorted set），键是时间戳（秒）对 60 取模，值是该分钟的页面浏览次数。对这个有序集合进行读写操作大致如下：</p>
+      
+    
+      
+        <pre><code>:::python
+import time, redis
+PAGEVIEW_BUCKET = &quot;pv.%s&quot;
+
+def increment_pageview(url):
+    cli = redis.Redis()
+    bucket = int(time.time()) % 60
+    cli.zincrby(PAGEVIEW_BUCKET % url, bucket, 1)
+
+def get_pageviews(url, bucket):
+    cli = redis.Redis()
+    return cli.zscore(PAGEVIEW_BUCKET % url, bucket)
+</code></pre>
+      
+    
+      
+        <p>这种方式还算合理，也能让我们找出页面浏览量最高（或最低）的那些分钟，</p>
+      
+    
+      
+        <pre><code>:::python
+# get top 10 buckets by num pageviews, include num pageviews
+cli.revrange(PAGEVIEW_BUCKET % url, 0, 9, withscores=True)
+
+# get bottom 10 buckets by num pageviews, don&#x27;t include num pageviews
+cli.range(PAGEVIEW_BUCKET % url, 0, 9)
+</code></pre>
+      
+    
+      
+        <p>但它无法实现只保留最近 N 个时间桶，也无法方便地获取最近几个桶的页面浏览总量。</p>
+      
+    
+      
+        <p>如果只使用一个有序集合，要进行清理的话，你需要取出所有键、在 Python 中排序后再裁剪。对于规模较小的集合来说，这可能是一个可接受的——尽管有点让人心累——解决方案。</p>
+      
+    
+      
+        <pre><code>:::python
+MAX_BUCKETS = 10
+
+def increment_pageview(url):
+    cli = redis.Redis()
+    bucket = (int(time.time()) * 60,)
+    url_key = PAGEVIEW % url
+    cli.zincrby(url_key, bucket, 1)
+    num_keys = cli.zcard(url_key)
+    if num_keys &gt; MAX_BUCKETS:
+        all_keys = cli.rank(url_key, 0, num_keys, withscores=True)
+        # note that older buckets are always lower ranking ints,
+        # although they are being stored as strings, so we have
+        # to coerce them into ints
+        sorted_keys = sorted((int(a), b) for a,b in x.iteritems())
+        for key, score in sorted_keys[:num_keys-MAX_BUCKETS]:
+            cli.zrem(url_key, key)
+</code></pre>
+      
+    
+      
+        <p>它确实能工作，但说实话，实在不太优雅，而且把数据结构的操作从 Redis 推到了应用层。在这个场景下我们可能不用太担心（所有清理操作都是幂等的），但我们完全可以做得更好。</p>
+      
+    
+      
+        <p>所谓“更好”，在这里指的是：“虽然会多用一倍内存，但概念上更清晰，而且在大规模有序集合上性能更好。”</p>
+      
+    
+      
+        <h2>WATCH、MULTI 和 EXEC</h2>
+      
+    
+      
+        <p>解决办法是使用两个有序集合。第一个集合保存和之前一样的数据，第二个集合则将名称作为值，这样我们既能执行之前的操作，又能删除较旧的时间箱。</p>
+      
+    
+      
+        <p>我们还需要使用几个相对不那么常用的 Redis 命令，来确保在并发请求下两个有序集合保持同步：</p>
+      
+    
+      
+        <div class="list-content">WATCH 能让事务变成条件性的：如果你正在 WATCH 的值被其他客户端修改了，那么后续的事务就会失败。（你 WATCH A，用 GET A 获取它的值，然后 MULTI、INCR A 100、EXEC；如果在你 WATCH 之后、事务在 Redis 服务器执行完成之前，另一个客户端修改了 A，那么事务会失败，否则就会执行自增。）MULTI 让你把多个命令排入一个事务中，要么全部成功，要么全部失败。所有 WATCH 命令都必须在 MULTI 之前发出。EXEC 则执行自 MULTI 以来排队的所有命令。</div>
+      
+    
+      
+        <p>这些机制使得在 Redis 中执行较为复杂的事务操作成为可能。同时也能通过批量发送多个命令来提升性能。</p>
+      
+    
+      
+        <p>redispy 使用 pipeline 来暴露 MULTI 和 EXEC。下面这个例子是用极端“粗暴”的方式从有序集合中弹出两个元素（如果元素不够它会失败，否则会持续向服务器发起请求，直到能在其他客户端写入之前读到有序集合的末尾并删除读取到的元素）：</p>
+      
+    
+      
+        <pre><code>:::python
+cli = redis.Redis()
+while True:
+    try:
+        cli.watch(&quot;a&quot;)
+        (first, second) = cli.zrange(&quot;a&quot;, 0, 1)
+        cli.pipeline().zrem(&quot;a&quot;, first).zrem(&quot;a&quot;, second).execute()
+        break
+    except redis.exceptions.WatchError:
+        pass
+</code></pre>
+      
+    
+      
+        <p>如果存在大量写竞争，这种方式可能会把服务器打得很惨，但它绝对是事务性的。好了，让我们把同样的思路应用到构建有界时间箱上。</p>
+      
+    
+      
+        <pre><code>:::python
+import time, redis
+PAGEVIEW_BUCKET = &quot;pv.%s&quot;
+TIME_BUCKET = &quot;tb.%s&quot;
+MAX_BUCKETS = 1000
+
+def increment_pageview(url):
+    cli = redis.Redis()
+    bucket = int(time.time()) % 60
+    pv_key = PAGEVIEW_BUCKET % url
+    cli.zincrby(pv_key, bucket, 1)
+
+    # ensure that the bucket&#x27;s KV exists in TIME_BUCKET
+    tb_key = TIME_BUCKET % url
+    cli.watch(tb_key)
+    time_bucket_exists = cli.zscore(tb_key, bucket)
+    if not time_bucket_exists:
+        try:
+            cli.pipeline().zadd(tb_key, bucket, bucket).execute()
+        except redis.exceptions.WatchError:
+            # somebody else already initialized the key,
+            # we don&#x27;t need to initialize it again
+            pass
+
+    # trim any excess values
+    to_rem = cli.zrevrange(tb_key, MAX_BUCKETS, MAX_BUCKETS)
+    if to_rem:
+        # we aren&#x27;t watching any values, so no need catch WatchError
+        cli.pipeline().zrem(tb_key, bucket).zrem(pv_key, bucket).execute()
+
+def recent_buckets(url, offset, limit):
+    &quot;Get the most recent time buckets and their pageviews for a URL.&quot;
+    cli = redis.Redis()
+    tb_key = TIME_BUCKET % url
+    pv_key = PAGEVIEW_BUCKET % url
+
+    # note that we are watching the time bucket key,
+    # not the pageview key, so this watch will only fail
+    # if executed while a call to ``increment_pageview``
+    # trims one of the buckets, so we don&#x27;t expect for
+    # frequent failures here, but we can rest assured
+    # we will never return data for a bucket whose data
+    # we are no longer storing
+    while True:
+        try:
+            cli.watch(tb_key)
+            # end value is inclusive, so have to do limit-1 for
+            # traditional offset/limit expectations
+            recent_buckets = cli.zrevrange(tb_key, offset, limit-1)
+            pipe = cli.pipeline()
+            for bucket in recent_buckets:
+                pipe.zscore(bucket)
+            scores = pipe.execute()
+            return zip(recent_buckets, scores)
+        except redis.exceptions.WatchError:
+            pass
+</code></pre>
+      
+    
+      
+        <p>多么简洁的改进！不是吗？好吧，我想对于我们想实现的功能来说它确实有点复杂，但它确实满足了大多数希望维护固定数量时间桶的分析系统的需求。而且你很可能也学到了一些关于 WATCH、MULTI 和 EXEC 命令的知识。</p>
+      
+    
+      
+        <p>一如既往，如果你觉得这个教程还有哪些地方可以改进，或者我哪里写错了，请告诉我！感谢阅读！</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用小程序调试崩溃问题 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用小程序调试崩溃问题</h1>
+    <div class="meta">
+      2010-01-23 · 
+      <a href="https://lethain.com/debugging-crashes-with-small-scripts/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>上周我在工作中遇到了一个很有意思的 bug。我们有一个组件，每隔几周就会周期性地崩溃一次。内存占用并没有随着时间逐渐增长，CPU 使用率也没有上升。崩溃发生时正在处理的文件也没有任何规律可循。后来我们发现，它总是在处理大约三万二千个文件之后稳定崩溃，这才有了突破。</p>
+      
+    
+      
+        <p>进一步通过日志追踪，我们基本确定导致崩溃的是下面这一行：</p>
+      
+    
+      
+        <p>并且在日志中还发现了这样的错误信息：</p>
+      
+    
+      
+        <p>我不确定一年前的自己会如何处理这个问题，但最近我读了 Joe Armstrong 在《Coders at Work》中的访谈，他提到自己经常编写简单脚本去检查性能、试验算法等，这似乎正是解决当前问题的正确方法。</p>
+      
+    
+      
+        <p>首先我很好奇问题是否出在 global:register_name/2 上，于是我想尝试将单个进程注册超过 32,000 次。</p>
+      
+    
+      
+        <p>这确实产生了大量错误（global 不允许同一个 pid 注册多个名称），但从未出现 “Too many processes” 错误，因此问题似乎可以通过将同一个进程注册超过 32,000 次来复现。</p>
+      
+    
+      
+        <p>下一步是尝试注册 32,000 个不同的进程。</p>
+      
+    
+      
+        <p>第二次尝试成功复现了故障，运行一段时间后出现了 “Too many processes” 的错误信息。最后，我需要弄清楚问题是由于创建了太多进程，还是注册了太多不同的进程。</p>
+      
+    
+      
+        <p>为此，我给这些函数添加了超时，让它们只存活一秒而不是永远运行下去。</p>
+      
+    
+      
+        <p>这个脚本一直运行到了 100,000 次也没有崩溃。原来确切的限制是 32768，可以通过命令行参数 +P 来修改，具体说明见 erl 的文档。</p>
+      
+    
+      
+        <p>当然，单纯提高允许的进程数量并不是正确的解决办法。真正的解决方案是找出为什么会有 32,768 个进程一直挂起而没有被清理掉（后来发现是在一段部分实现的代码中，某个进程被 spawn 出来后一直在等待一条永远不会收到的消息）。</p>
+      
+    
+      
+        <p>今后我想我会编写更多小型测试脚本，把它作为调试工具箱里的新成员。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

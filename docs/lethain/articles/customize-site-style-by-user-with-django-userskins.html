@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 django-userskins 让用户自定义网站样式 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 django-userskins 让用户自定义网站样式</h1>
+    <div class="meta">
+      2008-10-27 · 
+      <a href="https://lethain.com/customize-site-style-by-user-with-django-userskins/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在我正在开发的一个 Django 项目中，我想让用户从若干种皮肤中进行选择，以个性化网站的界面（类似于 Twitter 新推出的皮肤切换功能），于是决定开发一个可插拔的 Django 应用来实现这个需求。</p>
+      
+    
+      
+        <p>django-userskins 就这样诞生了。</p>
+      
+    
+      
+        <p>自述文件（README）对实现细节已经讲得比较详尽，不过我还是在这里简单说明几点。</p>
+      
+    
+      
+        <h2>尽可能减少数据库访问次数</h2>
+      
+    
+      
+        <p>我认为尽量避免数据库查询非常重要，因为如果允许用户选择皮肤却导致网站加载变慢，那就得不偿失了。我的方案是使用 Cookie 来保持状态：如果已认证用户没有对应的 Cookie，就去数据库查一下他们的皮肤偏好并重新设置 Cookie。这样每个用户只需要在清除浏览器 Cookie 后才会访问一次数据库。</p>
+      
+    
+      
+        <p>此外，django-userskins 还提供了一个完全不访问数据库的选项，这种情况下仅通过 Cookie 来存储用户的皮肤偏好。</p>
+      
+    
+      
+        <h2>节约带宽</h2>
+      
+    
+      
+        <p>另一个我很重视的问题是尽可能节约带宽。为此，我不太喜欢那种把自定义样式表直接插入模板的做法，因为它无法利用缓存、压缩或 far-future-expires 机制，而且每次渲染模板都要重新发送样式内容。</p>
+      
+    
+      
+        <p>django-userskins 的做法是让你为每种皮肤指定要加载的 CSS 文件。一个简单的配置如下：</p>
+      
+    
+      
+        <p>这个配置会配合 userskin 模板标签使用……</p>
+      
+    
+      
+        <p>最终会渲染出类似下面的 HTML：</p>
+      
+    
+      
+        <p>更让我兴奋的是，django-userskins 可以和 django-compress 集成。你的配置文件大致会像这样：</p>
+      
+    
+      
+        <p>模板标签的使用方式完全不变，但会输出对应皮肤经过压缩、合并且带版本号的文件。</p>
+      
+    
+      
+        <p>将 django-compress 和 django-userskins 结合起来使用，你可以在支持用户选择皮肤的同时，不必在每个页面都额外发送数据；配合 far-future-expires 头部，甚至不需要额外发起一次 HTTP 请求来获取皮肤的 CSS 文件。再加上对数据库访问的最小化设计，django-userskins 可以在对网站性能和带宽影响极小的情况下使用。</p>
+      
+    
+      
+        <h2>已认证用户和匿名用户均可使用皮肤</h2>
+      
+    
+      
+        <p>django-userskins 的一个优点是，未登录的用户也能选择皮肤（通过 Cookie 持久化）。设置用户 Cookie 的代码可以非常简单（比如你在侧边栏放了一组可用的皮肤，用户点击链接即可切换）：</p>
+      
+    
+      
+        <p>如果你的网站不需要已认证用户，那么选择视图还可以写得更短：</p>
+      
+    
+      
+        <h2>还有什么遗漏的吗？</h2>
+      
+    
+      
+        <p>你能想到现有设计没有覆盖到的其他使用场景吗？欢迎告诉我，我会尽量把它纳入进来。</p>
+      
+    
+      
+        <p>我很快就会把 django-userskins 集成到自己的实际项目中，并会在遇到问题时继续打磨它。除非发现新的使用场景，否则我应该不会做太大的改动。</p>
+      
+    
+      
+        <p>项目 Git 仓库托管在 GitHub 上，自述文件也可以在那里找到。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LifeFlow 编辑器的技术细节 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>LifeFlow 编辑器的技术细节</h1>
+    <div class="meta">
+      2008-02-03 · 
+      <a href="https://lethain.com/technical-aspects-of-the-life-flow-editor/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>过去几天我投入了大量时间来实现 LifeFlow 编辑器，虽然还有很多工作要做，但它正在逐步成型，朝着我预想的方向发展。其中有一些有趣的细节值得分享。</p>
+      
+    
+      
+        <h2>通过 Ajax 通用更新模型</h2>
+      
+    
+      
+        <p>LFE 中我使用得最多的一个核心功能，就是在后台发送模型更新。这让我可以在不显式提交 POST 表单的情况下保持内容最新，既让编辑过程不那么打扰用户，也大大降低了数据丢失的风险。其中一个明显的好处是，你再也不会遇到因为保存失败而丢失所有数据的情况（因为现在的保存是增量式的，而不是一次性整体保存）。</p>
+      
+    
+      
+        <p>在之前开发的另一个 Django 应用中，我写过一个完全通用的更新函数，它会内省模型来获取待保存字段的类型，并据此进行相应处理。</p>
+      
+    
+      
+        <p>为了实现这种通用性，代码相当复杂。下面是一些相关代码片段，你可以大致浏览一下，不必细读。（读这段代码示例时如果知道我是把一个 JSON 序列化后的字典以 &#x27;json&#x27; 为键放在 POST 中提交，可能会更容易理解。虽然现在重写的话我可能不会再用这种方式，但当时用着还算顺手，尽管一开始听起来有点别扭。）</p>
+      
+    
+      
+        <p>最终代码看起来是这样的：</p>
+      
+    
+      
+        <p>呼，真是一种非常复杂的方式，主要是因为它必须足够通用，以应对各种结构不一致的模型。幸运的是，为 LifeFlow 编辑器实现所需的更新函数要简单得多：</p>
+      
+    
+      
+        <p>因为我只处理一个模型（准确来说是两个模型：Draft 和 Entry，但它们的字段完全重叠，所以可以忽略它们不是同一个模型这一点），我就不需要对字段本身进行内省，代码也干净了许多。另外一个方便的技巧是，我可以用 login_required 装饰器来限制对这些 Ajax 接口的访问。</p>
+      
+    
+      
+        <h2>高亮已选中的标签/流程/系列</h2>
+      
+    
+      
+        <p>有一个问题我花了一点时间思考，就是如何预先选中所有已经选择的标签。这是一个重要的视觉提示，所幸实现起来相当简单。</p>
+      
+    
+      
+        <p>首先，我在 Python 的视图中使用简单的列表推导式来确定哪些条目已经被选中：</p>
+      
+    
+      
+        <p>然后通过下面的模板片段来实现视觉上的高亮显示：</p>
+      
+    
+      
+        <p>@@ django+html</p>
+      
+    
+      
+        <p>非常简单。接下来是用于向服务器发送更新的 JavaScript 代码（使用 jQuery）。我没有使用任何明确的保存按钮，而是每当鼠标进入或离开包含该内容的 div 时就推送更新。</p>
+      
+    
+      
+        <p>注意 hover 函数接受两个参数，第一个是鼠标进入区域时调用的函数，第二个是鼠标离开时调用的函数。我给第一个参数传入了一个空操作的匿名函数，因为我不希望鼠标进入区域时执行任何操作。</p>
+      
+    
+      
+        <p>最后再附上用于切换可选择项目高亮效果的代码：</p>
+      
+    
+      
+        <h2>在 Draft 和 Entry 之间相互转换</h2>
+      
+    
+      
+        <p>代码中经常要做的一件事就是在 Draft 和 Entry 模型之间进行转换。这两个模型大部分字段都相同，Entry 是 Draft 的超集，唯一的区别是 Draft 有一个 edited 字段而 Entry 没有。</p>
+      
+    
+      
+        <p>我主要通过获取模型的 fields 字典，去掉不需要的字段，再补充缺失的内容来完成大部分工作。</p>
+      
+    
+      
+        <p>下面是将 Draft 转换为 Entry 的代码：</p>
+      
+    
+      
+        <p>将 Entry 实例转换为 Draft 则要简单一些：</p>
+      
+    
+      
+        <h2>动态渲染 Markdown 格式的文本</h2>
+      
+    
+      
+        <p>下面是处理格式化文本渲染的视图。如果传入了 model 和 id，则直接使用对应对象的 body 字段内容，否则会渲染 POST 数据中 &#x27;txt&#x27; 参数的内容。dbc_markup 是 Dynamic Blog Context markup 的缩写，它会依次应用代码语法高亮、Markdown 格式化，以及 LifeFlow 专属的 Dynamic Blog Context 扩展。</p>
+      
+    
+      
+        <p>虽然实现非常简单，但这个功能非常实用。</p>
+      
+    
+      
+        <p>总之，LifeFlow Editor 的代码中应该还有其他一些值得一看的有趣片段，但目前很多部分仍在开发中，代码还不够优雅。</p>
+      
+    
+      
+        <p>如果大家对这些实现的风格或细节有任何意见，欢迎告诉我。有些设计上的选择是因为这是一个后台工具，不需要做到极致的安全性（当然也不能暴露给危险的用户）。但整体来说，还有很长的路要走。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

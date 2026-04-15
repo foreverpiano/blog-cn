@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Epic PyObjC 第三部分：浏览、缓存、指示器 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Epic PyObjC 第三部分：浏览、缓存、指示器</h1>
+    <div class="meta">
+      2008-08-25 · 
+      <a href="https://lethain.com/epic-pyobjc-part-3-browsing-caching-indicating/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>欢迎来到 Epic PyObjC 教程系列的第三篇。本系列旨在全面介绍 PyObjC 以及 OS X Leopard 上的 Cocoa。在前一篇中，我们已经使用过 Cocoa Bindings 和 metaweb.py，这次我们将着眼于应用程序开发中的几个常见任务：读写磁盘文件、处理双击操作，以及使用 NSProgressIndicator 来提升用户体验。</p>
+      
+    
+      
+        <p>如果你还没有跟上这个项目的进度，可以在这里下载当前的项目状态。</p>
+      
+    
+      
+        <h2>双击在浏览器中查看</h2>
+      
+    
+      
+        <p>我们要做的第一件事是让 MetaWindow 在 NSTableView 的某一行被双击时，在浏览器中加载对应的页面。为此，我们需要为 tableView 和 array controller 添加 IBOutlets。我们需要使用 tableView 的 setDoubleAction_ 和 setTarget_ 方法，还需要通过 array controller 来获取当前选中的行。</p>
+      
+    
+      
+        <p>不过你可能会问，MWController 已经把搜索结果保存在它的 results 字段中了。如果我们直接询问 tableView 当前高亮的是哪一行，就不用去查 array controller 了！遗憾的是——尽管直觉上觉得可行——在我们的场景中这种做法并不能正常工作。如果你点击表格视图的列标题，就可以按字母或逆字母顺序重新排列列，但 results 字段中的数据对此一无所知。这些排序操作实际上都是由 array controller 处理的，因此只有 array controller 才真正知道数据与位置的对应关系。</p>
+      
+    
+      
+        <p>下面来看代码！</p>
+      
+    
+      
+        <p>在 MWController.py 的顶部加入对 webbrowser 的 import，让导入部分变成这样：</p>
+      
+    
+      
+        <p>接下来我们要在 MWController 中创建一个方法，用于在浏览器中打开当前选中行的对应条目。</p>
+      
+    
+      
+        <p>虽然这个方法看起来有点长，但主要是因为要处理两种异常情况：没有选中任何行时调用该方法，以及选中的行数据不完整。</p>
+      
+    
+      
+        <p>如果你之前没做过多少 Cocoa 开发，可能会觉得这些方法名像是凭空冒出来的，但实际上找到它们相当容易。在 XCode 中打开 Help 菜单，选择 Documentation（Shift-Option-Apple-?），然后在右侧的搜索框中查找。通常最简单的方式是按你正在使用的类来搜索，这里就是 NSArrayController 和 NSTableView。</p>
+      
+    
+      
+        <p>有了值得信赖的 Apple 开发者文档，大多数时候你甚至不需要联网就能进行开发——除非你在 XCode 的文档搜索中点开某个条目，却发现本地没有对应的文档……这种情况可能比你预想的更频繁。</p>
+      
+    
+      
+        <p>现在我们只需要设置 table view，让它在被双击时调用 open_ 方法。在 Cocoa 开发中，进行一次性初始化最好的时机是在类的 awakeFromNib 方法中。awakeFromNib 会在 nib 文件中序列化的对象被实例化时调用。由于我们在 MainMenu.xib（这是应用程序的主 nib 文件，会在启动时加载）中有一个 MWController 的实例，因此该实例的 awakeFromNib 方法会在程序启动时被调用。</p>
+      
+    
+      
+        <p>MWController 的 awakeFromNib 方法实现如下：</p>
+      
+    
+      
+        <p>你不一定非要检查 self.tableView 是否已经初始化（它几乎肯定已经初始化了），但正如我叔叔常说的：乐观地生活，谨慎地写代码1。</p>
+      
+    
+      
+        <p>现在保存所有文件，在 XCode 中 Build and Go 运行程序。启动后搜索一些内容，然后双击其中一行。它应该会在你默认的网页浏览器中打开对应的文章。</p>
+      
+    
+      
+        <p>相当简单，对吧？或许太过简单，你在想我为什么还要在这里详细说明？嗯，问得好。本教程的这一部分试图重现真实的应用程序开发流程：</p>
+      
+    
+      
+        <div class="list-content">有一个想法。把它加入到你的应用中。重复这个过程。</div>
+      
+    
+      
+        <p>希望通过让程序响应双击——以及接下来两个同样简短的例子——能让你对典型的 PyObjC 工作流程有所感受（也就是上面三个步骤，但多了一个第 1.5 步：查阅 Apple 文档来找到你需要的类和方法）。</p>
+      
+    
+      
+        <h2>将结果缓存到磁盘</h2>
+      
+    
+      
+        <p>接下来我们要为 metaweb.py 返回的结果添加一个简单的缓存层。它包含两种相对简单的情况，我们现在来分别考虑：处理有缓存的搜索，以及处理没有缓存的搜索。</p>
+      
+    
+      
+        <div class="list-content">处理有缓存的结果。当点击搜索按钮时，我们要检查一个缓存清单（一个字典，以搜索词作为 key，对应值是一个包含文件名和时间戳的二元组）。如果结果已被缓存，清单中就会有对应的 key，我们就能拿到那个二元组。首先检查时间戳是否超过一天。如果已经超过一天，我们就丢弃缓存的值，像没有缓存一样处理。否则，如果没有超过一天，就把 MWController 的 results 字段更新为缓存的数据，这些数据我们会根据二元组中的文件名从磁盘加载。处理没有缓存的结果。当我们搜索一个没有缓存的结果时，先确认它不在缓存中，然后通过 metaweb.py 获取数据，接着把新获取的结果存入缓存。最后我们将其当作有缓存的结果来处理。</div>
+      
+    
+      
+        <p>为了支持这些情况，我们需要创建一个持久化的缓存清单，在程序关闭时保存到磁盘，在程序启动时从磁盘加载。你还记得我们在 MetaWindowAppDelegate 中实现的 applicationDidFinishLaunching_ 和 applicationWillTerminate_ 这两个方法存根吗？现在终于要用上它们了。</p>
+      
+    
+      
+        <p>关于 PyObjC 中序列化选项的简短说明。</p>
+      
+    
+      
+        <p>Python 的 pickle 模块可能是你见过的最简单的数据序列化方式。当然，你也可以在 Cocoa 中通过实现 NSCoder 类方法来实现类似功能，但代码量要多得多。</p>
+      
+    
+      
+        <p>然而，pickle 无法序列化继承自 NSObject 的对象。这意味着它无法序列化任何 Cocoa 或 Objective-C 的类。虽然有些不便，但通常可以找到变通办法。</p>
+      
+    
+      
+        <p>最简单的解决办法是将对象转换成原生的 Python 类型。例如，如果你有一个 NSMutableDictionary，只需要把它转成 Python 的 dict 再序列化（反序列化时再转回 NSMutableDictionary）。</p>
+      
+    
+      
+        <p>不过最后，如果你发现自己正在处理一个特别庞大或复杂的继承自 NSObject 的类，可能还是直接使用 NSCoder 更好。最终你那些取巧的方案往往会变得足够复杂，让你觉得还不如直接用 NSCoder，所以不如现在就为将来的自己省点麻烦。</p>
+      
+    
+      
+        <p>还要记住，还有其他持久化数据的方案，比如 CoreData 和 SQLite，它们提供了不同于传统序列化的替代方式。</p>
+      
+    
+      
+        <p>在 XCode 中打开 MetaWindowAppDelegate.py。在文件顶部加入对 pickle 和 os 的 import。</p>
+      
+    
+      
+        <p>现在我们要把 applicationDidFinishLaunching_ 方法的存根替换成下面的代码：</p>
+      
+    
+      
+        <p>现在当 MetaWindow 启动时，它会尝试从 ~/Library/Application Support/MetaWindow 目录下加载 cache.serialized 文件。如果文件存在，就用其中的内容作为缓存，否则就用一个空字典作为缓存。</p>
+      
+    
+      
+        <p>我们还需要确保在程序关闭时保存 self.cache。为此我们来修改 applicationWillTerminate_ 方法。</p>
+      
+    
+      
+        <p>现在我们的缓存就能在程序多次启动和关闭之间持久保存了。保存并关闭 MetaWindowAppDelegate.py，然后打开 MWController.py。</p>
+      
+    
+      
+        <p>我们在 MWController 中要做的第一件事，是创建一个属性来从应用委托获取缓存。程序启动时的初始化顺序有时会比较奇怪，因此更安全的做法是等到真正需要缓存时再从应用委托获取，而不是在程序刚启动就立即索要。</p>
+      
+    
+      
+        <p>在 MWController.py 的开头，我们要加入对 pickle、md5、datetime 的 import，同时还要导入 AppKit 中的所有内容，最终会变成这样：</p>
+      
+    
+      
+        <p>在 MWController 中添加 _cache 字段，初始值为 None，代码如下：</p>
+      
+    
+      
+        <p>然后我们需要创建这个属性，把下面的代码加入到 MWController 中。</p>
+      
+    
+      
+        <p>这是我们第一次使用 NSApp，它是 Cocoa 提供的一个快捷方式，代表当前应用程序。它等价于 Python 中的 NSApplication.sharedApplication() 或 Objective-C 中的 [NSApplication sharedApplication]。</p>
+      
+    
+      
+        <p>我们刚刚编写的代码创建了一个名为 cache 的只读属性。Python 的 property 是使用访问器和修改器的语法糖，在这里使用它可以让我们懒加载应用委托中的缓存，而不会让使用代码变得杂乱。</p>
+      
+    
+      
+        <p>关于 Objective-C 中修改器和访问器的简短说明。当你阅读（或编写）Objective-C 代码时，你会遇到比一生中写 Python 代码时多得多的访问器和修改器。这是一种非常实用的模式，尤其适合实现懒初始化或动态值。</p>
+      
+    
+      
+        <p>除了这种模式本身的实用性之外，它在 Objective-C 中频繁出现还有一个原因：一个对象可以同时拥有同名的字段和方法（即字段和方法处于不同的命名空间）。这是受 Smalltalk 启发的方法调用语法带来的副作用，它能清楚地表明你是在访问字段还是调用方法：</p>
+      
+    
+      
+        <p>不幸的是，随着 Objective-C 2.0 的出现，这种区分在一定程度上被模糊了。有了 ObjC 2.0 之后，Apple 引入了与 Python 的 property 非常相似的属性机制，现在已经无法一眼看出 myObject.name 到底是在访问一个字段，还是隐藏了访问器/修改器对。</p>
+      
+    
+      
+        <p>新语法的支持者认为，如果你正确地封装了类并且不依赖实现细节，这种区分就无关紧要。但老一辈的开发者仍然为失去的优雅感到惋惜，直到今天，他们依然会在 Objective-C 1.0 的“坟前”献上鲜花。</p>
+      
+    
+      
+        <p>或者至少是写一篇博客文章。</p>
+      
+    
+      
+        <p>现在让我们创建一个从缓存中获取对象的方法。如果缓存的数据太旧，就应该假装没有缓存数据，以防止数据过时。</p>
+      
+    
+      
+        <p>得益于 datetime 模块提供的功能，检查数据的年龄变得非常简单。接下来我们需要创建一个用于缓存新结果的方法。</p>
+      
+    
+      
+        <p>注意我们是将结果保存到一个单独的文件中，然后只把文件名（以及创建时间）存到缓存清单里。我们也可以简化这个过程，直接把结果存到缓存里，但那样我们就必须始终把所有结果都保存在内存中。</p>
+      
+    
+      
+        <p>修改 MetaWindow 的最后一步是对 search_ 方法做一些调整。</p>
+      
+    
+      
+        <p>记住我们不能用 pickle 来序列化 Objective-C 对象，所以我们要小心地缓存 Python 数据，并在用于 tableView 之前再把它转换成 NSDictionary 对象。</p>
+      
+    
+      
+        <p>在完成缓存功能之前，我们还有最后一个小细节需要处理。</p>
+      
+    
+      
+        <p>按照现在的做法，缓存的文件永远不会被删除，尽管我们不希望把它们保留超过一天。让我们回到 MetaWindowAppDelegate.py，对 applicationWillTerminate_ 方法做一些改进。</p>
+      
+    
+      
+        <p>首先在文件开头加入对 datetime 的 import。</p>
+      
+    
+      
+        <p>然后找到 applicationWillTerminate_ 方法。我们需要剔除所有超过一天的结果。在解释器中稍微试验一下，我们就能很快找到解决方案。</p>
+      
+    
+      
+        <p>所以我们把 applicationWillTerminate_ 修改成下面这样：</p>
+      
+    
+      
+        <p>现在我们正在做好清理工作，MetaWindow 成了一个良好的公民。非常好。</p>
+      
+    
+      
+        <h2>在搜索时让 NSProgressIndicator 动起来</h2>
+      
+    
+      
+        <p>本部分要做的最后一件事是让搜索体验更具响应性。按照目前的情况，当你搜索未缓存的结果时，可能需要几秒钟才能完成，而在这段时间里搜索按钮会一直保持按下状态，让人感觉程序好像卡住了。</p>
+      
+    
+      
+        <p>如果能有一些明确的指示，告诉用户确实正在处理中，那就好多了。</p>
+      
+    
+      
+        <p>现在给 MWController 再添加一个 IBOutlet，命名为 indicator。</p>
+      
+    
+      
+        <p>接下来在 Interface Builder 中打开 MainMenu.xib。从 Library 窗口找到 Circular Progress Indicator，把它拖到 Window (Window) 窗口中。调整文本字段的大小，以便进度指示器能放在左上角。</p>
+      
+    
+      
+        <p>然后在 MainMenu.xib (English) 窗口中点击 Controller 对象，按住 Control 键，从 Controller 拖动到我们刚创建的圆形进度指示器上。松开鼠标后，从弹出的菜单中选择 indicator 来连接这个 IBOutlet。</p>
+      
+    
+      
+        <p>最后保存并回到 MWController 类。现在我们要对 search_ 方法做一些修改。具体来说，我们要在开始从 Metaweb 获取数据之前启动指示器的动画，并在数据获取完成后停止动画。</p>
+      
+    
+      
+        <p>保存、编译并运行程序。现在它应该会在搜索时让指示器动起来，用户也不再需要纠结程序是否已经卡死了。</p>
+      
+    
+      
+        <h2>第三部分总结</h2>
+      
+    
+      
+        <p>你可以下载当前项目的 zip 压缩包，或者从 GitHub 上的仓库获取代码。</p>
+      
+    
+      
+        <p>至此，本教程的第三部分就告一段落了。第四部分（也是最后一部分）将介绍如何实现拖放功能，同时给出一些其他可参考的资源建议，以及关于继续使用和享受 PyObjC 的一些思考。</p>
+      
+    
+      
+        <p>第四部分现已完成，你可以点击这里继续阅读。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

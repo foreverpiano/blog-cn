@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 Apache Beam 分析跨服务请求 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 Apache Beam 分析跨服务请求</h1>
+    <div class="meta">
+      2017-11-26 · 
+      <a href="https://lethain.com/analyzing-cross-service-requests-apache-beam/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在对之后，我想在每种技术上都写几个简单的程序，来更好地理解它们的工作原理。我决定从 Apache Beam 开始，因为它允许你编写可以在其他多个平台上运行的程序，这样我有望复用同一个程序来评估多种不同的引擎。<a href="from-lambda-to-kappa-dataflow-paradigms.html">从 Lambda 到 Kappa 及 Dataflow 范式</a></p>
+      
+    
+      
+        <p>作为一个玩具项目，我选择了在一个假设的微服务架构中分析跨服务请求。我选择这个问题有几个原因，首先是它不太适合使用固定大小的窗口，更适合采用 Google Dataflow 论文中描述的会话窗口（session windowing）策略来建模。它还很有趣，因为许多公司已经在所有请求中传递 request_id，如果 Apache Beam 能够成功提供实时的请求追踪分析，那将是对其方法的一个很有意思的验证。</p>
+      
+    
+      
+        <h2>环境准备</h2>
+      
+    
+      
+        <p>要跟着实践，最简单的方法是安装 Docker，克隆包含本示例代码的 Git 仓库，然后执行以下命令进入一个可以运行后续指令的终端：</p>
+      
+    
+      
+        <pre><code>git clone https://github.com/lethain/learning-beam
+cd learning-beam
+docker build -t &quot;learning-beam&quot; .
+docker run -it learning-beam /bin/bash
+cd /tmp
+python traces.py --input logs/output.* --output output
+cat output*
+</code></pre>
+      
+    
+      
+        <p>你也可以只使用 virtualenv 来完成，但调试时需自行承担风险！</p>
+      
+    
+      
+        <pre><code>git clone https://github.com/lethain/learning-beam
+cd learning-beam
+virtualenv env
+. ./env/bin/activate
+pip install apache_beam
+python traces.py --input logs/output.* --output output
+cat output*
+</code></pre>
+      
+    
+      
+        <p>如果你遇到问题，欢迎提交 Pull Request 或给我留言！</p>
+      
+    
+      
+        <p>除了配置环境之外，其他细节与我们为本次分析生成的合成数据有关。我们生成的是以 JSON 表示的日志条目，每个日志条目对应跨服务请求中的一个 span。</p>
+      
+    
+      
+        <pre><code>{
+  &quot;time&quot;: 0,
+  &quot;id&quot;: &quot;236ed3a7-5e13-4b4f-81c4-9b0f46a1e37f&quot;,
+  &quot;trace&quot;: &quot;b8c9e238-0310-492d-9a5d-137acd552354&quot;,
+  &quot;origin&quot;: {
+    &quot;service&quot;: &quot;app&quot;,
+    &quot;server&quot;: &quot;app-1&quot;,
+  },
+  &quot;destination&quot;: {
+    &quot;service&quot;: &quot;user&quot;,
+    &quot;server&quot;: &quot;user-1&quot;,
+  }
+}
+</code></pre>
+      
+    
+      
+        <p>作为一个简化假设，我们使用一个逻辑时钟，它在假设的基础设施开始发送请求时从 0 启动，其余行为与普通时钟一致（例如，时间 10 表示自基础设施启动以来已经过去了 10 秒）。</p>
+      
+    
+      
+        <p>你可以使用 generate_logs.py 工具来生成样本日志，但更方便的做法是直接使用 logs 目录中预先生成的内容，这些日志已按五秒的桶进行分组。</p>
+      
+    
+      
+        <h2>将多个 span 组合成一个 trace</h2>
+      
+    
+      
+        <p>这个任务的目标是将一系列如下格式的日志行：</p>
+      
+    
+      
+        <pre><code>{
+  &quot;time&quot;: 0,
+  &quot;id&quot;: &quot;236ed3a7-5e13-4b4f-81c4-9b0f46a1e37f&quot;,
+  &quot;trace&quot;: &quot;b8c9e238-0310-492d-9a5d-137acd552354&quot;,
+  &quot;origin&quot;: {
+    &quot;service&quot;: &quot;app&quot;,
+    &quot;server&quot;: &quot;app-1&quot;,
+  },
+  &quot;destination&quot;: {
+    &quot;service&quot;: &quot;user&quot;,
+    &quot;server&quot;: &quot;user-1&quot;,
+  }
+}
+</code></pre>
+      
+    
+      
+        <p>转换为如下格式的完整 trace：</p>
+      
+    
+      
+        <pre><code>[ebcf] 6 spans: cache (t: 0) -&gt; app (t: 1) -&gt; posts (t: 2) -&gt; ...
+[b6a1] 5 spans: search (t: 0) -&gt; db (t: 1) -&gt; queue (t: 2) -&gt; ...
+[325a] 2 spans: cache (t: 0) -&gt; frontend (t: 1)
+</code></pre>
+      
+    
+      
+        <p>完整代码已在 Github 上开源，因此我将重点介绍两个有趣的部分：定义 Pipeline，以及编写用于将 span 组装成 trace 摘要的 DoFn 函数。</p>
+      
+    
+      
+        <p>去掉配置部分后，整个 Pipeline 定义如下：</p>
+      
+    
+      
+        <pre><code>with beam.Pipeline(options=opts) as p:
+    lines = p | ReadFromText(args.input, coder=JsonCoder())
+    output = (lines
+              | beam.Map(lambda x: (x[&#x27;trace&#x27;], x))
+              | beam.GroupByKey()
+              | beam.ParDo(AssembleTrace())
+   )
+   output | WriteToText(args.output)
+</code></pre>
+      
+    
+      
+        <p>这段代码展示了：</p>
+      
+    
+      
+        <div class="list-content">创建一个 beam.Pipeline，读入我们的日志（JSON 格式），使用 trace key（本例中为 request_id）将其转换为 (key, value) 对，按 key 对数据进行分组（本例中是 trace），使用我们接下来会介绍的 AssembleTrace（继承自 beam.DoFn）来将分组后的 span 组装成一个 trace，最后将结果输出为文本文件。</div>
+      
+    
+      
+        <p>（Github 中的代码还展示了窗口相关的处理，但本例并未使用该功能，因此它实际上是一个空操作。）</p>
+      
+    
+      
+        <p>这个示例中另一个重要的代码是 AssembleTrace 类，接下来我们重点看看它：</p>
+      
+    
+      
+        <pre><code>class AssembleTrace(beam.DoFn):
+    &quot;DoFn for processing assembled traces.&quot;
+        def fmt_span(self, span):
+            &quot;Format a span for joining.&quot;
+            vals = (span[&#x27;destination&#x27;][&#x27;service&#x27;], span[&#x27;time&#x27;])
+            return &quot;%s (t: %s)&quot; % vals
+
+        def process(self, element, window=beam.DoFn.WindowParam):
+            &quot;Take traces grouped by trace id and analyze the trace.&quot;
+            trace = element[0]
+            spans = list(element[1])
+            spans.sort(key=lambda x: x[&#x27;time&#x27;])
+            services = &quot; -&gt; &quot;.join([self.fmt_span(span) for span in spans])
+            return [&quot;[%s] %s spans: %s&quot; % (trace, len(spans), services)]
+</code></pre>
+      
+    
+      
+        <p>其中的 process 方法是核心，它先解包 key 和分组后的值，对值进行排序，然后将它们拼接成一个表示 trace 的字符串。</p>
+      
+    
+      
+        <p>就是这么简单：现在你有了一个能从包含 span 的日志中构建请求 trace 的简单 Beam 程序。这显然是一个非常简单的例子，也没有实现实时构建 span，但总体来说，我对写出一个还算有用的程序所需要的代码量之少（以及需要理解的概念之少）印象深刻。</p>
+      
+    
+      
+        <p>接下来，我希望把它跑起来，并在流式 runner（可能是 Apache Flink）上实现 span 的实时组装！</p>
+      
+    
+      
+        <p>我主要参考了以下资源：</p>
+      
+    
+      
+        <div class="list-content">Apache Beam Programming Guide，它比 WordCount Example Walkthrough 更新得多，后者经常会告诉你某些功能在 Python SDK 中不存在，但 SDK 文档却显示它们是存在的。读取 JSON 日志行时，我参考了这个例子，它工作得很好。窗口相关的处理参考了 Windowed wordcount 示例，以及一个编写 beam.DoFn 子类的例子。</div>
+      
+    
+      
+        <p>总的来说，一旦我克服了对重载 | 运算符的烦躁，我对 Beam 的易用性还是相当满意的！</p>
+      
+    
+      
+        <p>后来我为这个任务写了一个 Spark 版本作为快速对比，它甚至更短，而且同样简单：</p>
+      
+    
+      
+        <pre><code>import json
+from pyspark.sql import SparkSession
+
+def fmt_span(span):
+    &quot;Format a span for joining.&quot;
+    vals = (span[&#x27;destination&#x27;][&#x27;service&#x27;], span[&#x27;time&#x27;])
+    return &quot;%s (t: %s)&quot; % vals
+
+def build_trace(kv):
+     trace, spans = kv
+     spans = list(spans)
+     spans.sort(key=lambda x: x[&#x27;time&#x27;])
+     services = &quot; -&gt; &quot;.join([fmt_span(span) for span in spans])
+     return &quot;[%s] %s spans: %s&quot; % (trace, len(spans), services)
+
+def run():
+    log_dir = &#x27;logs/*&#x27;
+    spark = SparkSession.builder.appName(&quot;RequestSessions&quot;).getOrCreate()
+    lines = spark.read.json(log_dir).cache().rdd
+    traces = lines.map(lambda x: (x[&#x27;trace&#x27;], x)) \
+                  .groupByKey() \
+                  .map(build_trace)
+    output = traces.collect()
+    spark.stop()
+
+if __name__ == &#x27;__main__&#x27;:
+    run()
+</code></pre>
+      
+    
+      
+        <p>我觉得避开 Beam 中的 parDo 术语会更简单一些，那感觉像是多余的概念负担，但整体上两者还是相当相似的。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>博客作者的 DRY 原则：LifeFlow 中的动态博客上下文 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>博客作者的 DRY 原则：LifeFlow 中的动态博客上下文</h1>
+    <div class="meta">
+      2008-01-09 · 
+      <a href="https://lethain.com/dont-repeat-yourself-bloggers-dynamic-blog-context/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>LifeFlow 的设计很大程度上源于三个观察：</p>
+      
+    
+      
+        <div class="list-content">Markdown 让写作变得有趣。链接让博客变得更好。而写链接很烦人。</div>
+      
+    
+      
+        <p>基于这些观察，Dynamic Blog Context（简称 DBC）应运而生。</p>
+      
+    
+      
+        <p>DBC 本质上是一组自动生成的可引用内容，你可以在撰写博客文章时使用它。你可能会频繁地为某个标签或某个项目创建临时引用链接，也可能会为查找上一篇文章的链接而烦恼，或者记不住某个系列文章第一篇的链接。</p>
+      
+    
+      
+        <p>Dynamic Blog Context 会尽量让这些事情变得简单一些。</p>
+      
+    
+      
+        <p>来看一个例子：</p>
+      
+    
+      
+        <pre><code>Please take a look [at my articles about Japan][tag japan].
+</code></pre>
+      
+    
+      
+        <p>这里（所谓的）魔法在于，它可以直接这样写就能正常工作，而不需要手动写成下面这样：</p>
+      
+    
+      
+        <pre><code>[tag japan]: /tags/japan/
+Please take a look [at my articles about Japan][tag japan].
+</code></pre>
+      
+    
+      
+        <p>这是一个令人愉快的便利功能，它能让你的文章与具体的 URL 和博客实现细节解耦。使用 DBC 后，即使你重新调整了博客结构，只需重新保存文章（DBC 是在保存时计算的），它们就会自动更新为新的结构。</p>
+      
+    
+      
+        <p>还有更多标签正在开发中（它们都相当简单，我正在想办法让用户可以贡献自己的标签，而不会破坏 SVN 的检出。目前你可以通过查看 lifeflow/markup/lifeflowmarkup.py 来添加，但那部分代码很可能在不久的将来会得到清理）——请查看项目页面了解最新详情——不过可以先看看当前可用的 DBC。</p>
+      
+    
+      
+        <div class="list-content">[tag slug] - 创建指向标签 @slug 的链接
+[comment pk] - 创建指向评论 @pk 的链接（对任何文章下的评论都有效）
+[project slug] - 创建指向项目 @slug 的链接
+[author] - 如果只有一位作者，则创建指向作者个人简介页的链接；如果作者数量不是一个，则创建指向 /author/ 页面的链接
+[comments] - 创建指向当前文章评论区的链接
+[projects] - 创建指向 /projects/ 页面的链接
+[series] - 创建指向 /articles/ 页面的链接
+[tags] - 创建指向站点标签云的链接</div>
+      
+    
+      
+        <p>即将推出的功能（可能今晚就能看到）：</p>
+      
+    
+      
+        <div class="list-content">[previous] - 指向上一篇文章的链接（仅当前一篇文章存在时有效）
+[next] - 指向下一篇文章的链接（仅当下一篇文章存在时有效）
+[series number_of_entry] - 指向该文章所属的第一个系列中的第 n 篇（从 1 开始计数，而非 0）文章（很少有文章同时属于多个系列，所以这在 99% 的情况下都是合理的行为）
+[series slug number_of_entry] - 从 slug 为 @slug 的系列中获取第 n 篇文章
+[freq alias] - 允许你定义常用链接并为其设置别名，相当于给你的链接建一个哈希表。</div>
+      
+    
+      
+        <p>毫无疑问，Dynamic Blog Context 还可以在其他很多地方发挥作用。我非常欢迎大家提出建议，告诉我你觉得还可以在哪里使用它。如果你有好的想法，请务必告诉我！</p>
+      
+    
+      
+        <h2>实现原理</h2>
+      
+    
+      
+        <p>（如果你对实现细节感到困惑，可能想先阅读这篇关于扩展 Python-Markdown 的文章。如果你完全不关心，可以直接跳到最后的思考部分。）</p>
+      
+    
+      
+        <p>DBC 的实现相当简单。我为 Python-Markdown 添加了一个新的预处理器，其主要运行函数是：</p>
+      
+    
+      
+        <p>run 方法由 Markdown 库在将 Markdown 渲染为 HTML 之前调用。它接收一个参数（除了 ubiquitous 的 self 之外）：lines。lines 是传递给 Markdown 渲染器的所有文本行组成的列表。</p>
+      
+    
+      
+        <p>大致会发生这样的事情：</p>
+      
+    
+      
+        <p>然后，我把这些行重新组合成一个大文本块（有点多余，但如果你想参与就必须遍历这些行），接着扫描文本寻找引用链接。基本上任何看起来像这样的内容：</p>
+      
+    
+      
+        <pre><code>[this is a description][and this is an id]
+</code></pre>
+      
+    
+      
+        <p>一旦找到引用链接，我会检查是否已经处理过这个 id，如果处理过就忽略它。否则，我会把它的 id 经过几个判断循环，检查是否匹配我已知的任何模式。如果匹配，我就为它创建一个新的引用链接。在处理完所有引用链接后，我会把新创建的引用添加到文本的最前面，然后将其传递给后续的预处理器（最终被转换为 HTML）。</p>
+      
+    
+      
+        <p>你可能注意到我在“我把它的 id 经过几个判断循环……”这里写得比较模糊。我想先解释整体流程，现在来详细说说这部分。</p>
+      
+    
+      
+        <p>DBC 生成的引用有两种类型（有点讽刺）：静态的和动态的。静态上下文是指那些不会变化的内容。例如 [tags] 这个引用，它永远指向 &#x27;/tags&#x27;（除非博客软件的结构发生改变，那时对应的字符串也需要修改）。静态上下文总是直接添加在文本顶部。它不需要访问数据库，而且包含它也没有坏处（在最终 HTML 渲染完成时它就会自然消失）。</p>
+      
+    
+      
+        <p>动态上下文的处理方式不同。这些内容无法用固定字符串表示，必须动态计算出来。其中很多计算需要访问数据库，因此只有当存在对应的引用链接时，才会去计算这些引用（同时也会注意只构建一次引用并缓存起来，避免多次引用时造成浪费）。</p>
+      
+    
+      
+        <p>当前的代码还有点丑陋（嵌套的流程控制一大堆），你可以在 SVN 中查看它的实现。</p>
+      
+    
+      
+        <h2>结束思考</h2>
+      
+    
+      
+        <p>总的来说，我认为这是一种相当优雅的方式，能让撰写博客文章变得更轻松快捷。它将“Don’t Repeat Yourself”（DRY）原则带到了博客写作流程中，我觉得这是一次胜利。</p>
+      
+    
+      
+        <p>我喜欢的另一个方面是，它在博客内容与它所引用的 URL 和资源之间提供了一层抽象。也许你经常引用维基百科上关于 Archaic Felines 的页面，结果维基百科的编辑们开了一个闭门会议，把页面重命名为 Archaic-but-not-in-a-demeaning-sense-Felines。这时你只需要在常用链接列表中修改一次，而不用在所有文章中逐一修改（还容易遗漏）。</p>
+      
+    
+      
+        <p>同理，如果某个粗心的实现者（比如我）把标签页的 URL 从 /tags/ 改成 /important-stuff/tags/，Dynamic Blog Context 可以让这次改动对文章完全透明。</p>
+      
+    
+      
+        <p>我很乐意听到任何想法（看来在 IE 7 中发表评论现在已经可以正常工作了——甚至可能是 IE 6？——虽然这不是我有意为之的）。</p>
+      
+    
+      
+        <h2>更新：1月13日</h2>
+      
+    
+      
+        <p>在过去几天里，这个系统得到了大幅度的优化和改进。最大的变化是它现在基于 Python-Markdown 的 SVN 最新版本，而不是较旧的 Python-Markdown 0.9。这意味着之前存在的很多问题一夜之间都消失了。不过，我也发现新的 Python-Markdown 对我在这里做的这种动态扩展不太友好（至少在集成方面如此，不过底层代码主体基本保持一致）。</p>
+      
+    
+      
+        <p>此外还实现了一些新的上下文。</p>
+      
+    
+      
+        <div class="list-content">[previous] - 上一篇文章
+[next] - 下一篇文章
+[series nth] - 系列中的第 @nth 篇文章
+[series slug nth] - slug 为 @slug 的系列中的第 @nth 篇文章
+[file name] - 名称为 @name 的文件（图片或其他）
+[f name] - file 的快捷写法</div>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

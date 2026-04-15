@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Extraction：从 HTML 文档中获取元数据 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Extraction：从 HTML 文档中获取元数据</h1>
+    <div class="meta">
+      2012-11-23 · 
+      <a href="https://lethain.com/extracting-metadata-from-html-documents-with-extraction/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我需要从 HTML 页面中提取标题、规范 URL、描述和图片，于是决定将这个功能独立出来，做成一个单独的库。后来我又下定决心完成整个流程，把它上传到 PyPi（这对我来说还是第一次），最终的结果就是 extraction。</p>
+      
+    
+      
+        <p>简单的内容提取看似常规，但实际经常出现，而且如果从零开始逐步演化，而不是围绕一个支持多种提取技术的框架来设计，很容易就会变成难以维护的乱七八糟的代码。</p>
+      
+    
+      
+        <p>希望 extraction 的框架能证明它还是有点用处的（目前内置的提取技术还比较简陋，但随着我逐渐深入使用，它应该会变得更加健壮）。</p>
+      
+    
+      
+        <p>Github 上的 README 比我在这里写的要详细得多，所以我就简单举个例子。</p>
+      
+    
+      
+        <p>首先，通过 PyPi 安装 extraction 和 requests：</p>
+      
+    
+      
+        <pre><code>pip install extraction
+pip install requests
+pip install html5lib
+</code></pre>
+      
+    
+      
+        <p>然后我们来简单玩一下。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; import extraction, requests
+&gt;&gt;&gt; ext = extraction.Extractor()
+&gt;&gt;&gt; url = &quot;http://www.cnn.com/2012/11/23/politics/fiscal-cliff/index.html&quot;
+&gt;&gt;&gt; x = ext.extract(requests.get(url).text, source_url=url)
+&gt;&gt;&gt; x
+&lt;Extracted: (title: &#x27;Some Republicans move away from no-tax pledge&#x27;, 3 more),
+            (url: &#x27;http://www.cnn.com/2012/11/23/politics/fiscal-clif&#x27;),
+            (image: &#x27;http://i2.cdn.turner.com/cnn/dam/assets/1211&#x27;, 7 more),
+            (feed: &#x27;http://rss.cnn.com/rss/cnn_politics.rss&#x27;),
+            (description: &#x27;Nothing riles up the tea party chatter&#x27;, 5 more)&gt;
+&gt;&gt;&gt; x.title
+u&#x27;Some Republicans move away from no-tax pledge - CNN.com&#x27;
+&gt;&gt;&gt; x.description
+u&#x27;Nothing riles up the tea party chattering class...&#x27;
+&gt;&gt;&gt; x.images
+[u&#x27;http://i2.cdn.turner.com/cnn/dam/assets/...&#x27;,
+ u&#x27;http://i.cdn.turner.com/cnn/images/1.gif&#x27;
+ u&quot;and five more...&quot;
+]
+</code></pre>
+      
+    
+      
+        <p>让我们用 extraction 自己的 Github 仓库试试：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; url = &quot;https://github.com/lethain/extraction&quot;
+&gt;&gt;&gt; x = ext.extract(requests.get(url).text, source_url=url)
+&gt;&gt;&gt; x
+&lt;Extracted: (title: &#x27;extraction&#x27;, 7 more),
+            (url: &#x27;https://github.com/lethain/extraction&#x27;),
+            (image: &#x27;https://a248.e.akamai.net/assets.githu...&#x27;, 4 more),
+            (description: &#x27;extraction - A Python library for ex...&#x27;, 6 more)&gt;
+&gt;&gt;&gt; x.titles
+[u&#x27;extraction&#x27;,
+ u&#x27;Extraction&#x27;,
+ u&#x27;lethain/extraction \xb7 GitHub&#x27;,
+ u&#x27;public lethain / extraction&#x27;,
+ u&quot;and four more...&quot;
+]
+</code></pre>
+      
+    
+      
+        <p>上面两个例子效果都还不错——很大程度上要归功于它们都实现了 Facebook Open Graph 标签。但作为一个新库，它在很多网站上肯定还会表现不佳。比如，它目前对 PyPi 的处理就很吃力，我会去研究一下：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; url = &quot;http://pypi.python.org/pypi/extraction/0.1.0&quot;
+&gt;&gt;&gt; x = ext.extract(requests.get(url).text, source_url=url)
+&gt;&gt;&gt; x
+&lt;Extracted: &gt;
+</code></pre>
+      
+    
+      
+        <p>让我们拭目以待，看它如何演进。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

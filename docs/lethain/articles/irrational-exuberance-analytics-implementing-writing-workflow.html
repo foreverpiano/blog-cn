@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IE 的新基础设施和写作工作流 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>IE 的新基础设施和写作工作流</h1>
+    <div class="meta">
+      2011-03-28 · 
+      <a href="https://lethain.com/irrational-exuberance-analytics-implementing-writing-workflow/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>继  之后，这次我整理了一篇关于 Sisyphus 具体实现的文章。我知道你们真的真的不关心，所以我保证很快就会不再谈论我的博客，转而开始正常更新内容。<a href="irrational-exuberance-returns-for-the-third-time.html">《非理性繁荣》的第三次重生</a></p>
+      
+    
+      
+        <p>[目录]</p>
+      
+    
+      
+        <p>Django 是我接触的第一个 Web 框架，而且至今仍是我最喜欢的框架，尽管我从未在工作中正式使用过它（我的大部分工作最终都偏向基础设施方向）。因此我决定在这个项目中继续使用它。（我也考虑过 Flask，它看起来是个很有趣的项目，但我打算把这个博客长期维护下去，用它来写第一个应用很可能会搞得一团糟。）</p>
+      
+    
+      
+        <p>在 Digg 我们大量使用 Redis，我对它产生了浓厚的欣赏之情。特别是它提供的有序集合（sorted sets）功能，让许多有趣的实验成为可能。因此，我没有采用标准的 PostgreSQL + Memcached 的 Django 技术栈，而是用 Redis 同时替换了二者。这其中两分是心血来潮，三分是我想尝试的具体想法（后面会详细说明）。</p>
+      
+    
+      
+        <p>部署方面我依然使用标准的 Django + mod_wsgi + Apache2，由 Nginx 负责提供静态资源并作为 Apache 的反向代理。这种方案至今运行良好，而且让我能直接参考我以前写的 。<a href="the-django-and-ubuntu-intrepid-almanac.html">Django 与 Ubuntu Intrepid 部署指南</a></p>
+      
+    
+      
+        <p>搜索功能由 Whoosh 驱动，对于需求非常有限的场景来说，这比 SOLR 简单得多——后者在一天只处理几次查询的情况下依然相当耗费内存。</p>
+      
+    
+      
+        <p>Popular 模块的目标是根据页面浏览量展示最优质的内容。它通过几个 Redis 有序集合来实现这一点。</p>
+      
+    
+      
+        <pre><code>:::python
+TAG_PAGES_ZSET_BY_TREND = &quot;tag_pages_by_trend.%s&quot;
+PAGE_ZSET_BY_TREND = &quot;pages_by_trend&quot;
+</code></pre>
+      
+    
+      
+        <p>页面首次创建时会获得一个等于当前时间戳的初始分数，每次页面被访问时，它在这些有序集合中的分数就会增加。</p>
+      
+    
+      
+        <pre><code>:::python
+def track(request, page, cli=None):
+    &quot;Log pageview into analytics.&quot;
+    slug = page[&#x27;slug&#x27;]
+    cli.zincrby(PAGE_ZSET_BY_TREND, slug, PAGEVIEW_BONUS)
+    for tag_slug in page[&#x27;tags&#x27;]:
+        cli.zincrby(TAG_PAGES_ZSET_BY_TREND % tag_slug, slug, PAGEVIEW_BONUS)
+</code></pre>
+      
+    
+      
+        <p>zincrby 是一个 O(log(N)) 的操作，但实际上同一个标签下的文章数量和网站总页面数都非常少（我目前不到四百篇）。在实践中，对内存数据库来说，即使是相对低效的操作通常也能很好地工作。</p>
+      
+    
+      
+        <p>要找出最受欢迎的故事并填充到模块中，只需：</p>
+      
+    
+      
+        <pre><code>:::python
+tag = &quot;django&quot;
+key = PAGE_ZSET_BY_TREND            # all pages key
+key = TAG_PAGES_ZSET_BY_TREND % tag # pages in a tag
+slugs = cli.zrevrange(key, 0, 3)
+</code></pre>
+      
+    
+      
+        <p>其中 zrevrange 的复杂度是 O(log(N)+M)，N 是页面总数，M 是要获取的页面数量。（让候选人实现一个有序集合是个很有趣的面试题。）</p>
+      
+    
+      
+        <p>与 Popular 模块类似，Similar Stories 模块同样依赖 Redis 有序集合来实现，但这次更多地利用了“集合”的特性。这个模块的目标是展示与当前正在阅读的页面高度相关的内容。</p>
+      
+    
+      
+        <p>它的实现方式是：取当前页面所有相同标签下的页面集合，对同时拥有多个相同标签的页面给予加分，同时也会考虑整个网站热门的页面。更简洁的表述是：</p>
+      
+    
+      
+        <pre><code>:::python
+sim_key = SIMILAR_PAGES_BY_TREND % slug
+tag_keys = [ TAG_PAGES_ZSET_BY_TREND % x for x in page[&#x27;tags&#x27;] ]
+cli.zunionstore(sim_key, tag_keys)
+# a page is always similar to itself, but rather boringly so
+cli.zrem(sim_key, slug)
+similar_slugs = cli.zrevrange(sim_key, 0, 3)
+</code></pre>
+      
+    
+      
+        <p>对于拥有几个标签的页面，我对这个极其简单的方法所取得的效果相当满意。即使是只有一个标签的页面，效果也还不错。它在没有标签的内容上会彻底失效，不过我想我也可以结合搜索功能拼凑出一个解决方案。</p>
+      
+    
+      
+        <p>Lifeflow 最奇怪的地方之一就是它的发文工作流。我的初衷是好的，但最终却做成了一个莫名其妙的 Ajax 界面，看起来就像是万圣节爆炸后进了 CSS 文件。在 &lt;textarea&gt; 里写作实在不怎么愉快，所以我基本都是在 Emacs 里写好，再把最终版本粘贴进去。</p>
+      
+    
+      
+        <p>到最后，我机器上留着一份 Markdown 文件，而 Postgres 里则是更新后的版本。将数据同步到本地开发环境非常麻烦，这导致我大量时间都在文章发布后才进行修改（不知为何，在博客上阅读和编辑比在 Emacs 里舒服得多）。</p>
+      
+    
+      
+        <p>我的新方案是将页面存储在 Git 中，并通过三个 Django 管理命令来加载它们：</p>
+      
+    
+      
+        <pre><code>python manage.py update_page ../some_file.html
+python manage.py update_markdown_page ../some_file.markdown
+python manage.py sync_sisyphus ../some_folder
+</code></pre>
+      
+    
+      
+        <p>前两个命令分别用于加载 HTML 和 Markdown 格式的页面（Markdown 使用 Python-Markdown 进行渲染），而第三个命令则接受以下文件夹结构：</p>
+      
+    
+      
+        <pre><code>some_folder
+- draft
+- edit
+- publish
+- static
+</code></pre>
+      
+    
+      
+        <p>draft 文件夹中的所有文件会被忽略，edit 文件夹中的页面会被添加到网站但处于编辑模式——它们不会出现在任何故事列表或 RSS 中，但可以通过 slug 直接访问；publish 文件夹中的所有文章则会正常加入故事列表、RSS 等。</p>
+      
+    
+      
+        <p>如果你把页面以这种带文件夹的结构存放在 Git 仓库里，就能非常轻松地在本地开发环境和“生产”环境随心所欲地写作和发布。</p>
+      
+    
+      
+        <p>静态资源的管理方式是将其放入 story 仓库的 static 文件夹，然后将该文件夹软链接到 Nginx 和/或 django.contrib.staticfiles 的 STATIC_ROOT 目录下。这个做法有点取巧，但能让静态资源与博客文章保持同步变得非常轻松。</p>
+      
+    
+      
+        <p>在 Sisyphus 第一个版本完成之前，pipeline 里还有几件事要做，特别是我想试验一个自己实现的数据分析系统。它会利用每个页面的 referrer 和浏览量，为读者提供一些上下文信息（这篇文章在哪里比较受欢迎？它在本博客其他文章中相对有多热门？从绝对数值来看它有多受欢迎，还是只有我自己读过这篇该死的东西？）</p>
+      
+    
+      
+        <p>感谢阅读。接下来几篇文章会转向不那么自恋的内容！</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

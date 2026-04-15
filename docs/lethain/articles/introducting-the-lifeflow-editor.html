@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>介绍 LifeFlow 编辑器 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>介绍 LifeFlow 编辑器</h1>
+    <div class="meta">
+      2008-02-03 · 
+      <a href="https://lethain.com/introducting-the-lifeflow-editor/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>好了，我刚刚完成 LifeFlow 编辑器约 80% 的功能开发，简直太兴奋了。事实上，我现在就是用它来写这篇文章的。</p>
+      
+    
+      
+        <h2>什么是 LifeFlow 编辑器？</h2>
+      
+    
+      
+        <p>LFE 将逐步发展成为 LifeFlow 专用的 Django Admin 替代方案。其当前目标是取代所有常见的博客写作任务，并支持一套专为博客设计的 workflow。其中很重要的一部分，就是对未发布草稿的完整支持。</p>
+      
+    
+      
+        <p>接下来，让我们一起导览一下 LFE，然后看看它在不久的将来还计划加入哪些功能。</p>
+      
+    
+      
+        <h2>一桶又一桶的写作流程</h2>
+      
+    
+      
+        <p>这是 LFE 的概览界面。它实现了我在写博客文章时常用的一种简单 workflow。你首先点击“新建”按钮，然后编辑文章、填写标题等。过一段时间后，你会不断修改这篇文章，直到自己感觉比较满意。这时你可以在 Rough 桶中选中它，点击“&gt;&gt;”按钮，将其推进到 Edited 桶。</p>
+      
+    
+      
+        <p>它会安安静静地呆在那里，直到你再次推进到 Published 桶。一旦推进到 Published 桶，它就会立即在博客上正式发布。如果操作失误，你随时可以用“&lt;&lt;”按钮将其从 Published 桶撤回到 Edited 或 Rough 桶。</p>
+      
+    
+      
+        <p>这里的奥妙在于使用了两个模型。一个是 Draft 模型，它没有任何必填字段，这样你就可以按照自己的节奏拼凑草稿，想到什么就填什么。但当你试图把一篇草稿从 Edited 桶推进到 Published 桶时，LifeFlow 会尝试将其转换为 Entry 模型的实例。由于 Entry 模型有一些必填字段，LF Editor 会通过 Ajax 弹出一个错误提示，告诉你这篇草稿还没有满足成为 Entry 的所有要求（目前错误信息还比较模糊，但很容易让它给出更有价值的反馈，这也是优先级很高的一项任务）。</p>
+      
+    
+      
+        <p>你可能会问，如果从 Published 桶撤回一篇文章会怎样？这时系统会销毁对应的 Entry 实例，并将其转换回 Draft 实例。因此在 Entry 和 Draft 两个模型之间存在一个无缝的双向通道。</p>
+      
+    
+      
+        <p>（虽然尚未实现，但不同桶的设计初衷之一是支持多级用户权限，例如作者、编辑和网站管理员。作者可以创建和编辑草稿，编辑可以把草稿推进到 Edited 桶并进行修改，而网站管理员则可以将文章推进到 Published 桶。我设想中的多人博客就可以按这种方式运作。）</p>
+      
+    
+      
+        <h2>撰写摘要</h2>
+      
+    
+      
+        <p>这是 LFE 文章编辑界面的第一个屏幕。在这里你可以输入标题和文章摘要。你可能会注意到这里没有保存按钮。啊！要慌了吗！</p>
+      
+    
+      
+        <p>其实完全不用慌。LFE 在保存和更新数据方面比 Django Admin 更智能，你不需要手动告诉它保存。比如当你离开撰写摘要的文本框时，它就会自动保存；当你离开标题输入框时，也会自动保存。</p>
+      
+    
+      
+        <p>在其他编辑区域，LFE 也采用同样的机制。比如选择完标签后，只要鼠标离开包含所有标签的区域，它就会保存；当你离开撰写正文的文本框时，也会自动保存。</p>
+      
+    
+      
+        <p>目前如果做一些奇怪的操作（比如点进文本框、把鼠标移开然后开始打字），保存的可靠性还有待提高。但只要你把鼠标留在当前正在编辑的区域内，它总是能正常工作。实际使用中你大概永远不用考虑这个问题，不过我以后会让它更稳定可靠。</p>
+      
+    
+      
+        <h2>为文章选择标签</h2>
+      
+    
+      
+        <p>这张截图展示了在 LFE 中如何选择标签。你只需点击想要的标签，它们就会变成橙色。然后把鼠标移出该区域即可保存。非常简单。</p>
+      
+    
+      
+        <h2>真正的写作环节</h2>
+      
+    
+      
+        <p>写一篇博客文章最主要的部分当然是……写文章本身，所以我想让这个过程尽可能舒服顺手。</p>
+      
+    
+      
+        <p>写作时你可以随时预览渲染结果（它会智能地使用模型中 use_markdown 字段的值，你可以通过页面顶部的下拉菜单修改）。渲染结果会显示在写作文本框下方，你也可以用“Hide Rendering”按钮将其隐藏。</p>
+      
+    
+      
+        <p>写博客的另一大工作是插入文件。LFE 通过这个精巧的文件展示组件来帮助完成这件事（也算是彻底终结了“widget”这个词原本的意义）。它会显示每个资源的 markdown_id（配合 Dynamic Blog Context 用来把文件插入到文章中），如果文件是图片（根据扩展名判断），还会显示一个小缩略图，方便你使用正确的图片。</p>
+      
+    
+      
+        <p>虽然还没实现，但我打算让它也能智能地辅助其他文件类型。比如为代码文件显示高亮版本，或者展示 zip 文件内包含的文件列表。</p>
+      
+    
+      
+        <p>![Screenshot of uploading a file in LFE][f lfe_uploading_for_real]</p>
+      
+    
+      
+        <p>在 LFE 中上传文件也相当简单。遗憾的是目前还不能通过 Ajax 上传，所以必须刷新页面，但实际体验并不坏，尤其是图片通常都是批量上传的（这也是我希望以后能更好地支持的功能）。</p>
+      
+    
+      
+        <h2>即将实现的功能</h2>
+      
+    
+      
+        <div class="list-content">在 LFE 中创建标签、flows 和系列的功能。已实现。删除 Rough 草稿的功能（必须先把文章降级为 Rough 草稿才能删除，这似乎是个合理的预防措施）。已实现。更详细的错误提示信息。已实现。支持选择作者（实现起来很简单，只是当时忘了做……）。管理关联的评论。为文章设置发布时间（并不难，只是还没来得及完成）。把渲染后的文本放到一个 iframe 中，并引入博客实际使用的 CSS。对已上传的代码/zip 文件提供额外支持。对了，目前还不能直接通过 LFE 登录或登出，我现在还是先用 Django Admin 登录后再跳转过去。登出按钮目前只是个 span……嗯。这些功能很快就会加上。</div>
+      
+    
+      
+        <p>还有其他问题吗？</p>
+      
+    
+      
+        <h2>总结</h2>
+      
+    
+      
+        <p>总之，就像我前面提到的，我是用 LFE 来写这篇文章的（虽然因为忘了实现作者选择功能，最后还是偷偷跑去 Django Admin 把自己加为作者），所以它已经是可用的了。显然它目前还缺少一些重要功能，但作为一个工具已经相当不错，尤其是在渲染预览和文件管理方面。不过请谨慎使用，因为它仍然处于紧张的开发中，而且使用时间还不长，可能存在一些 bug。特别是 Draft 和 Entry 模型之间的转换还有些问题，我明天会仔细看一下。</p>
+      
+    
+      
+        <p>敬请期待不久之后的诸多改进！也欢迎告诉我你对它的看法，以及你认为它还需要哪些功能才能成为真正有价值的工具。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

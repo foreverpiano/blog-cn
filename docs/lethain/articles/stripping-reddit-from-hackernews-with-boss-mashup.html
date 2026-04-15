@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用 BOSS Mashup 剔除 Hacker News 中的 Reddit 内容 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>用 BOSS Mashup 剔除 Hacker News 中的 Reddit 内容</h1>
+    <div class="meta">
+      2008-07-12 · 
+      <a href="https://lethain.com/stripping-reddit-from-hackernews-with-boss-mashup/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在之前的一篇文章中，我用 Python 和 Yahoo 的 BOSS Mashup Framework 写了一些搜索配方，现在我们开始实际做一个 Mashup。接下来我们通过一个相当简单的例子来实践我一直以来的一个想法：从 YC 的 Hacker News 中剔除所有来自 Reddit Programming 的转载内容。换句话说，计算 Hacker News 和 Reddit Programming 的交集，然后从 Hacker News 中移除这些交集内容，并返回剩余的结果。</p>
+      
+    
+      
+        <p>注意，在开始之前你需要先安装 BOSS Mashup Framework 并拥有一个 Yahoo BOSS App Id。相关流程我之前已经介绍过。</p>
+      
+    
+      
+        <h2>开始动手</h2>
+      
+    
+      
+        <p>首先我们来看如何获取 Hacker News 的 RSS feed。</p>
+      
+    
+      
+        <p>db.create 函数用于获取 RSS feed 的内容（也可以获取 Yahoo 公开搜索 API 的结果），并将其封装成一个便于操作的对象。</p>
+      
+    
+      
+        <p>db.select 会在所有结果上执行一个 map 操作，这里它对每一行都应用了 udfs.unnest_value 函数并返回结果。（udfs.unnest_value 函数会尝试把嵌套的字典展平为一个所有值都在顶层的单一字典。）作为 db.select 的快速示例，我们来写一个函数，把字典中的 hn$description 键去掉。</p>
+      
+    
+      
+        <p>好了，现在我们来获取 Reddit Programming 的 RSS feed。</p>
+      
+    
+      
+        <p>接下来我们要从 Hacker News 的结果中剔除所有 Reddit Programming 的内容。第一步是找到一种方法来关联两边的结果。通常标题会非常相似，但使用 URL 会更理想。Hacker News 会直接提供 URL，但 Reddit 把 URL 藏在 description 数据里，所以我们需要把它解析出来。</p>
+      
+    
+      
+        <p>幸运的是，我们可以用正则表达式很轻松地完成这件事。</p>
+      
+    
+      
+        <p>好了，食材已经备齐，现在只需要把这锅炖汤煮好。</p>
+      
+    
+      
+        <h2>寻找交集</h2>
+      
+    
+      
+        <p>让我们看看经过转换后的 Hacker News 和 Reddit Programming feed 中的一个样本条目。首先看 Hacker News 的：</p>
+      
+    
+      
+        <p>再来看 Reddit Programming 的（我们已经对它运行过 update_link 函数）：</p>
+      
+    
+      
+        <p>现在我们使用 link 这个键来找出两个 RSS feed 的交集。请注意，在 overlap 函数中我们使用 &#x27;link&#x27; 作为键，而不是分别使用 &#x27;rp$link&#x27; 和 &#x27;hn$link&#x27;。db.join 函数足够智能，它会在传递参数前把命名空间去掉。</p>
+      
+    
+      
+        <p>但是，我们的目标并不是找出交集，而是找出 Hacker News 中那些不在 Reddit Programming 中的内容。幸运的是，我们可以快速写一个 Python 函数来把交集剔除掉。</p>
+      
+    
+      
+        <p>我们终于达成了这个崇高的目标：创建了一个 Hacker News 的 feed，其中与 Reddit Programming 重复的条目已被剔除。把所有代码放在一起是这样的：</p>
+      
+    
+      
+        <p>我是第一个承认这其实是一个相当人为设计的例子。不过，它确实展示了 BOSS Mashup Framework 提供了一些好用的工具来玩耍。这个框架还有更多更深入的功能本文没有涉及，而且这个任务从某种意义上说也比较特殊——它比你用这个框架通常想完成的大多数事情都要困难一些。</p>
+      
+    
+      
+        <p>Mashup Framework 对以各种有趣的方式合并内容提供了大量支持——也就是所谓的“混搭”——但对于移除重复结果的支持却不多，这并不奇怪，因为那几乎和它的设计初衷完全相反。从这个角度看，这个框架仍然能相对轻松地完成任务，也算是对它能力的一种证明。当然了，即便完全不用 BOSS Mashup Framework，这个例子其实也很容易实现……</p>
+      
+    
+      
+        <p>在我下一篇文章（也很可能是短期内的最后一篇）关于 BOSS Mashup Framework 的教程中，我会把它用在一个它真正擅长的工作上。</p>
+      
+    
+      
+        <p>如果发现任何错误，或者你有任何问题，欢迎告诉我。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

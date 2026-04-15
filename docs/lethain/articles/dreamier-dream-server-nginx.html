@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>更梦幻的 Dream Server：使用 Nginx · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>更梦幻的 Dream Server：使用 Nginx</h1>
+    <div class="meta">
+      2007-07-17 · 
+      <a href="https://lethain.com/dreamier-dream-server-nginx/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>2009/2/13 本文更新版本（基于 Ubuntu Intrepid）可在此查看。</p>
+      
+    
+      
+        <p>在我之前的配置中，使用 mod_proxy 的方式存在一些问题。请求首先到达 Apache，如果是媒体文件，Apache 会将请求转发给 Lighttpd，Lighttpd 把文件传回 Apache，最后再由 Apache 发送给客户端。显然，这简直是疯了。</p>
+      
+    
+      
+        <p>因此我重新整理了指南，减少了那些灾难性的脑残操作。文章也进行了精简，所有关于安全的章节已被移除，你可以参考原始文章，但最好寻找更专业的服务器安全资源。</p>
+      
+    
+      
+        <p>主要流程基本不变，现在我们将使用 Nginx 作为前端代理和静态媒体服务器，用带 mod_python 的 Apache2 作为后端处理 Django 请求。放弃 Lighttpd 改用 Nginx，主要是因为 Nginx 来自俄罗斯，显得更具异域风情。</p>
+      
+    
+      
+        <p>另外，Lighttpd 还有一个烦人的内存泄漏问题。</p>
+      
+    
+      
+        <h2>最终效果</h2>
+      
+    
+      
+        <p>最终产物依然是一台 Ubuntu Feisty 服务器。它将使用 Nginx 作为前端（处理静态媒体，并将其他请求代理给 Apache2），Apache2 作为后端服务器。使用 memcached 进行缓存，Postgres 8.2 作为数据库。Django 仍是我们的首选框架。</p>
+      
+    
+      
+        <p>接下来进入有趣的部分。</p>
+      
+    
+      
+        <p>致谢和参考资源可在原始文章中找到。</p>
+      
+    
+      
+        <h2>将 Ubuntu Dapper 升级到 Feisty</h2>
+      
+    
+      
+        <p>从 Ubuntu Dapper（SliceHost 当前提供的 Ubuntu 系统）升级到 Feisty 过程快速且无痛。你必须按顺序升级：直接跳到 Feisty 可能会导致系统不稳定。最后执行的 &#x27;lsb_release -a&#x27; 只是为了确认升级是否成功，它应该显示已安装 Feisty。</p>
+      
+    
+      
+        <h2>安装 Apache 和其他库</h2>
+      
+    
+      
+        <p>注意：Ubuntu 仓库中的 psyco_pg2 似乎有问题，因此我们使用 easy_install 而不是 apt-get 来安装。</p>
+      
+    
+      
+        <h2>配置 Nginx</h2>
+      
+    
+      
+        <p>首先我们需要配置 Nginx。这里我们将使用 blog.kovyrin.net 提供的配置文件。该文件可直接在语法高亮代码片段下方下载。</p>
+      
+    
+      
+        <p>打开你的 nginx.conf 文件：</p>
+      
+    
+      
+        <p>然后完全清空文件内容，用我们从 kovyrin.net 借鉴的配置内容替换。</p>
+      
+    
+      
+        <p>你需要对配置文件做几处小的修改：</p>
+      
+    
+      
+        <div class="list-content">将 &quot;some-server.com www.some-server.com&quot; 替换为你的实际域名。将静态文件部分的较长正则表达式改为 /media/，并把静态媒体的 root 目录改为 /var/www/yourdomain.com/</div>
+      
+    
+      
+        <p>修改后的第一部分看起来如下：</p>
+      
+    
+      
+        <p>（是的，我承认把例子从 some-server.com 改成 yourdomain.com 还是很不直观。）</p>
+      
+    
+      
+        <p>第二部分则看起来像这样：</p>
+      
+    
+      
+        <p>我们把正则表达式改为 /media/，是因为不再需要进行一系列正则匹配。诚然，性能提升可能非常有限。</p>
+      
+    
+      
+        <p>现在我们来创建几个目录：</p>
+      
+    
+      
+        <p>好了，现在处理 Apache 的部分。</p>
+      
+    
+      
+        <h2>配置 Apache</h2>
+      
+    
+      
+        <p>第一步是修改 Apache 监听的端口：</p>
+      
+    
+      
+        <p>将 80 改成 8080，保存文件。</p>
+      
+    
+      
+        <p>接下来创建日志目录：</p>
+      
+    
+      
+        <p>然后编辑我们的 Apache 配置文件：</p>
+      
+    
+      
+        <p>这个文件初始为空，你需要加入以下内容：</p>
+      
+    
+      
+        <p>最后启用虚拟主机：</p>
+      
+    
+      
+        <h2>启动 Nginx 和 Apache</h2>
+      
+    
+      
+        <p>现在两个服务器都配置好了，我们需要启动它们。</p>
+      
+    
+      
+        <p>访问 www.yourserver.com:8080，你应该会看到 Apache 的默认页面。</p>
+      
+    
+      
+        <p>访问 www.yourserver.com……你应该还是看到 Apache 的默认页面。只不过这次查看 HTTP 头信息时，会发现它是通过 Nginx 提供的。</p>
+      
+    
+      
+        <p>现在我们来确认 Nginx 是否正确提供了静态媒体文件：</p>
+      
+    
+      
+        <p>在文件中写几句话，保存后访问 www.yourserver.com/media/test.txt，应该能看到你的文件内容。再访问 www.yourserver.com，这时应该不再显示 Apache 默认页面。</p>
+      
+    
+      
+        <p>现在重新启动 Apache：</p>
+      
+    
+      
+        <p>然后删除刚才创建的测试文件。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cocos2d iPhone中的触摸检测 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Cocos2d iPhone中的触摸检测</h1>
+    <div class="meta">
+      2008-10-20 · 
+      <a href="https://lethain.com/touch-detection-in-cocos2d-iphone/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>Ivan Moen 留言询问如何在 Cocos2d for iPhone 中检测哪些精灵被触摸，这也正是我原本打算（迟早）要写的主题，所以现在看来正是时候来详细说明一下。</p>
+      
+    
+      
+        <p>在开始之前，我想特别提到，这些代码片段的灵感主要来自 Luke Hatcher 编写的大量代码。</p>
+      
+    
+      
+        <p>总的来说，在 Cocos2d iPhone 中为像素添加触摸检测有三种不同的方法。你应该选择哪一种，取决于你应用程序的具体需求。在考虑这个话题时，重要的是要记住：你不仅仅是在检测触摸，而是在为你的应用集成一套用户界面管理系统。</p>
+      
+    
+      
+        <p>这三种方法分别是：</p>
+      
+    
+      
+        <div class="list-content">简单的输入管理。这里的“简单”并不是指愚蠢，而是像“哑导弹”那样——只会笔直飞行直到击中目标。更准确的描述是它不关心全局状态。虽然这种方式通常无法直接用于非演示类的正式应用，但它是另外两种方法的基础，因此非常重要。
+
+只需要继承 CocosNode，然后实现以下三个方法中的全部或部分即可（你不用在接口中声明它们，因为父类已经定义过了）：
+
+-(void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    UITouch *touch = [touches anyObject];
+    CGPoint location = [touch locationInView: [touch view]];
+    [self doWhateverYouWantToDo];
+    [self doItWithATouch:touch];
+}
+
+-(void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
+    UITouch *touch = [touches anyObject];
+    CGPoint location = [touch locationInView: [touch view]];
+    [self doWhateverYouWantToDo];
+    [self doItWithATouch:touch];
+}
+
+-(void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
+    UITouch *touch = [touches anyObject];
+    CGPoint location = [touch locationInView: [touch view]];
+    [self doWhateverYouWantToDo];
+    [self doItWithATouch:touch];
+}
+
+这三个方法的区别在于：touchesBegan 在用户手指首次按下屏幕时触发；touchesMoved 在用户按住手指并移动时（但还没抬起）触发；touchesEnded 则在用户抬起手指时触发。
+
+使用这三个方法，你可以轻松地在 Sprite（或其他任何 Cocos2d 子类）被触摸时执行相应的操作。对于简单的应用来说，这可能就足够了。
+
+自上而下的全局输入管理。下一种方法允许你对输入处理进行非常高级的控制，但也容易产生一个庞大的方法来处理应用中所有的输入管理。
+
+首先，你需要持有所有想要检测触摸的 Sprite 对象的引用。你可以手动管理这些引用，也可以让子类自动跟踪所有实例。
+
+跟踪实例引用相对简单，可以参考下面的代码：
+
+@interface MySprite : Sprite {}
++(NSMutableArray *)allMySprites;
++(void)track: (MySprite *)aSprite;
++(void)untrack: (MySprite *)aSprite;
+@end
+
+以及它的实现部分：
+
+@implementation MySprite
+static NSMutableArray * allMySprites = nil;
++(NSMutableArray *)allMySprites {
+    @synchronized(allMySprites) {
+        if (allMySprites == nil)
+            allMySprites = [[NSMutableArray alloc] init];
+        return allMySprites;
+    }
+    return nil;
+}
++(void)track: (MySprite *)aSprite {
+    @synchronized(allMySprites) {
+        [[MySprite allMySprites] addObject:aSprite];
+    }
+}
++(void)untrack: (MySprite *)aSprite {
+    @synchronized(allMySprites) {
+        [[MySprite allMySprites] removeObject:aSprite];
+    }
+}
+-(id)init {
+    self = [super init];
+    if (self) [MySprite track:self];
+    return self;
+}
+-(void)dealloc {
+    [MySprite untrack:self];
+    [super dealloc];
+}
+
+设置这个可能有点麻烦，但它在其他场合也很有用（比如查找距离某个点一定范围内的所有 MySprite 实例）。
+
+然后，在你的 Scene 对象中实现前面提到的三个方法，并用它来处理和分发点击事件。
+
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    UITouch *touch = [touches anyObject];
+    CGPoint location = [touch locationInView: [touch view]];
+    NSArray *mySprites = [MySprite allMySprites];
+    NSUInteger i, count = [mySprites count];
+    for (i = 0; i &lt; count; i++) {
+        MySprite *obj = (MySprite *)[mySprites objectAtIndex:i];
+        if (CGRectContainsPoint([obj rect], location)) {
+            // 只有当 obj 被触摸时，这里的代码才会被执行
+        }
+    }
+}
+
+这种方法的优势在于你对输入管理拥有极高的控制粒度。如果你只想在同时触摸两个 MySprite 实例时才执行操作，也可以轻松实现。或者只在某个全局条件满足时才响应，等等。这种方法让你在掌握最多信息的地方做出决策。
+
+但根据你想实现的用户输入逻辑不同，它也可能变得难以维护。为了更好地控制这一点，我通常会建立一个简单的用户输入模式系统。
+
+具体实现取决于你的应用，但你可以从将 NSObject 子类化为 UIMode 对象开始：
+
+@interface UIMode : NSObject {}
+-(id)init;
+-(void)setupWithObject: (id)anObject;
+-(void)tearDown: (UIMode *)nextMode;
+-(void)tick: (ccTime)dt;
+-(BOOL)touchBeganAt: (CGPoint)aPoint;
+-(BOOL)touchMovedAt: (CGPoint)aPoint;
+-(BOOL)touchEndedAt: (CGPoint)aPoint;
+@end
+
+UIMode 的所有方法实现都应该是空存根（stub），然后由子类按需重写。我的做法是让 touch?At 方法在决定处理某个触摸时返回 YES，否则返回 NO。这样用户界面模式就可以实现自定义逻辑，或者将触摸传递给默认的触摸处理逻辑。
+
+接下来像这样更新你的 Scene 子类的接口：
+
+@interface MyScene : Scene {
+    UIMode    *    currentMode;
+}
+-(UIMode *)currentMode;
+-(void)setCurrentMode: (UIMode *)aMode;
+
+然后在实现文件中添加类似以下的代码：
+
+-(UIMode *)currentMode {
+    return currentMode;
+}
+-(void)setCurrentMode: (UIMode *)aMode {
+    if (currentMode != nil) {
+        // tearDown 方法属于我们设想的 UIMode 类，
+        // 让 UIMode 可以在知道下一个模式的情况下自行清理，
+        // 以便在不同模式间正确过渡
+        [currentMode tearDown:aMode];
+        [currentMode release];
+    }
+    currentMode = [aMode retain];
+}
+
+最后，你需要更新 touchesBegan:withEvent 方法，让它先询问当前的 UIMode 是否要处理这次点击。
+
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    UITouch *touch = [touches anyObject];
+    CGPoint location = [touch locationInView: [touch view]];
+    // 将点击位置转发给 UIMode，如果 UIMode 决定处理这次点击，
+    // 则终止标准的点击处理流程
+    UIMode *uim = [self currentMode];
+    if (uim != nil &amp;&amp; [uim touchBeganAt:location]==YES) return;
+
+    NSArray *mySprites = [MySprite allMySprites];
+    NSUInteger i, count = [mySprites count];
+    for (i = 0; i &lt; count; i++) {
+        MySprite *obj = (MySprite *)[mySprites objectAtIndex:i];
+        if (CGRectContainsPoint([obj rect], location)) {
+            // 只有当 obj 被触摸时，这里的代码才会被执行
+        }
+    }
+}
+
+这是我比较喜欢的方法，因为它相对简单，却能提供极高的灵活性。我知道这里一下子贴了很多代码，对此表示歉意。希望你仍然能从这些杂乱的代码中找到贯穿其中的思路。
+
+自下而上的全局输入管理。对于这种方法我不会提供太多代码，因为我自己并不常用，它算是第一种和第二种方法之间的折中方案。
+
+对于 MySprite 类的每个实例，重写 touchesBegan:withEvent: 方法（以及你需要的 moved 和 ended 版本），然后通知一个全局对象说发生了触摸事件。
+
+代码大概会像这样：
+
+-(void)touchesBegan: (NSSet *)touches withEvent: (UIEvent *)event {
+    CurrentScene * s = [self currentScene];   // 这不是一个真实存在的方法
+    [s mySpriteTouched:self];
+}
+
+当然，这意味着你需要把当前场景的引用传递给每个 MySprite 实例，或者你也可以用单例模式来简化。
+
+static CurrentScene *sharedScene = nil;
++(CurrentScene *)sharedScene {
+    @synchronized(self) {
+        if (sharedScene == nil)
+            [[self alloc] init];
+    }
+    return sharedScene;
+}
++(void)releaseSharedScene {
+    @synchronized(self) {
+        if (sharedScene != nil) [sharedScene release];
+        sharedScene = nil;
+    }
+}
++(id)allocWithZone: (NSZone *)zone {
+    @synchronized(self) {
+        if (sharedScene == nil) {
+            sharedScene = [super allocWithZone:zone];
+            return sharedScene;
+        }
+    }
+    return nil;
+}
+-(id)retain {
+    return self;
+}
+-(unsigned)retainCount {
+    return UINT_MAX;
+}
+-(void)release {}
+-(id)autorelease {
+    return self;
+}
+
+这段代码在我看来有点乱，但仍然非常方便，因为它让我们可以将 touchesBegan:withEvent 方法简化为：
+
+-(void)touchesBegan: (NSSet *)touches withEvent: (UIEvent *)event {
+    [[CurrentScene sharedScene] mySpriteTouched:self];
+}
+
+这样我们就不必显式地把 CurrentScene 实例的引用传递给每一个 MySprite 了。
+
+Objective-C 中有很多这样写起来比较痛苦的代码，但一旦实现就能节省大量工作。我的建议是尽早使用它们，但不要频繁使用。</div>
+      
+    
+      
+        <p>好了，以上就是处理 Cocos2d iPhone 触摸检测的三种方法，全部浓缩在一篇有些混乱、组织得也只算勉强及格的文章里了。</p>
+      
+    
+      
+        <p>如果你有任何问题，欢迎告诉我。我希望这篇文章足以帮助你朝着正确的方向前进。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

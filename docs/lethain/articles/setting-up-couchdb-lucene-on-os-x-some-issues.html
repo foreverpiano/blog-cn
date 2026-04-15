@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 OS X 上搭建 CouchDB-Lucene · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 OS X 上搭建 CouchDB-Lucene</h1>
+    <div class="meta">
+      2009-02-06 · 
+      <a href="https://lethain.com/setting-up-couchdb-lucene-on-os-x-some-issues/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>以下是我在 OS X 上安装 CouchDB-Lucene 时整理的步骤。在标准的 OS X 10.5 系统上，你可以直接照着这些步骤操作，我认为在 10.4 上也应该适用。</p>
+      
+    
+      
+        <p>在 Linux 系统上的安装过程大体相同，但具体细节会有所差异。而 Windows 上基本没戏。</p>
+      
+    
+      
+        <p>哦，这里正好推荐两个项目页面：无模式数据库 CouchDB 和全文搜索引擎 Lucene。</p>
+      
+    
+      
+        <p>这是本文的第二个版本，更新为使用 Robert Newson 的 couchdb-lucene 分支，它比 Paul Davis 的版本更新。</p>
+      
+    
+      
+        <div class="list-content">从 SVN 检出 CouchDB 源码。  
+svn co http://svn.apache.org/repos/asf/couchdb/trunk couchdb  
+
+确保已安装依赖包。  
+port install automake autoconf libtool help2man  
+port install icu erlang spidermonkey curl  
+
+编译安装。  
+cd couchdb  
+./bootstrap  
+./configure  
+make &amp;&amp; sudo make install  
+
+如果你一个月前尝试安装 couchdb-lucene 时因崩溃而放弃，可能在系统中留下了损坏的 local.ini 文件（当然也可能有其他失败原因）。  
+如果是这种情况，请用 CouchDB 源码中的 local.ini 替换现有文件：  
+sudo cp etc/couchdb/local.ini /usr/local/etc/couchdb/  
+
+启动 CouchDB 并验证是否安装成功。先运行：  
+sudo /usr/local/var/bin/couchdb  
+
+然后在浏览器中访问 http://127.0.0.1:5984/，应该看到以下内容：  
+{&quot;couchdb&quot;:&quot;Welcome&quot;,&quot;version&quot;:&quot;0.9.0a741596-incubating&quot;}  
+
+如果还没有安装 Git，现在安装它：  
+sudo port install git  
+
+或者使用 git-osx-installer。  
+
+克隆 couchdb-lucene 项目。（我喜欢把所有 git 仓库放在 ~/git/ 目录下，这只是个人习惯。）  
+cd ~/git/  
+git clone git://github.com/rnewson/couchdb-lucene.git  
+
+现在让 OS X 允许我们使用 Java 1.6。这一步对 PowerPC 用户不可行，使用 10.4 或更早版本的用户也可能无法完成。  
+虽然这听起来有点荒谬，但我很庆幸自己平时不怎么在 OS X 上用 Java。  
+
+运行以下应用程序（这是一个 GUI 程序，你可以直接用鼠标打开）：  
+Applications/Utilities/Java/Java Preferences。  
+
+打开后，在窗口下方把 1.6 拖到最上方（抱歉，这个界面比较奇葩，很难描述得更精确）。然后退出。它不会提示你是否已修改或保存。  
+
+验证修改是否生效：  
+will-larsons-macbook:lib will$ java -version  
+java version &quot;1.6.0_07&quot;  
+Java(TM) SE Runtime Environment (build 1.6.0_07-b06-153)  
+Java HotSpot(TM) 64-Bit Server VM (build 1.6.0_07-b06-57, mixed mode)  
+
+2009年2月11日更新：上面修改当前 Java 版本的方法可能不够彻底。如果你运行下面的 mvn 时提示某个 Java 库缺少静态值 MINUTES，请尝试以下方案：  
+cd /System/Library/Frameworks/JavaVM.framework/Versions  
+sudo ln -s 1.6 ./Current  
+
+我没有遇到任何负面影响，但这可能不是一个好主意，总感觉不太对……  
+
+构建 couchdb-lucene：  
+cd couchdb-lucene  
+mvn  
+
+顺便记下 couchdb-lucene-SNAPSHOT-jar-with-dependencies.jar 的路径。  
+will-larsons-macbook:couchdb-lucene will$ cd target/  
+will-larsons-macbook:target will$ ls  
+archive-tmp  
+classes  
+couchdb-lucene-SNAPSHOT-jar-with-dependencies.jar  
+couchdb-lucene-SNAPSHOT.jar  
+maven-archiver  
+will-larsons-macbook:target will$ pwd  
+/Users/will/git/couchdb-lucene/target  
+
+你需要记住这个文件的完整路径。对我来说是：  
+/Users/will/git/couchdb-lucene/target/couchdb-lucene-SNAPSHOT-jar-with-dependencies.jar  
+
+现在可以创建一个数据库并导入一些数据了。  
+如果你没有特定数据，可以使用 Futon 工具：  
+访问 http://127.0.0.1:5984/_utils/，创建一个数据库并添加几个文档。  
+
+打开 local.ini 文件（没错，必须用 Emacs，哈哈）。  
+sudo emacs /usr/local/etc/couchdb/local.ini  
+
+在文件中加入以下内容（记得把 jar 路径改成你自己的！）：  
+[external]  
+fti = /System/Library/Frameworks/JavaVM.framework/Versions/1.6/Commands/java -jar /Users/will/git/couchdb-lucene/target/couchdb-lucene-SNAPSHOT-jar-with-dependencies.jar  
+
+[httpd_db_handlers]  
+_fti = {couch_httpd_external, handle_external_req, &lt;&lt;&quot;fti&quot;&gt;&gt;}  
+
+你可能会说：“但说明里写的是用 /usr/bin/java，为什么要用这么长的路径！”  
+因为虽然你把当前用户改成了 Java 1.6，但 root 用户仍然使用的是 Java 1.5。如果你通过 sudo 运行 CouchDB，就必须使用完整路径。  
+
+实际上，如果你是用 couchdb 用户运行 CouchDB，也最好使用完整路径，因为那个用户很可能也在用 Java 1.5。  
+
+再做一次完整性检查：关闭 CouchDB（在终端按 Control-C），然后重新启动（这样它会重新加载修改后的 local.ini）：  
+sudo /usr/local/bin/couchdb  
+
+如果看到以下信息，说明一切正常：  
+Apache CouchDB 0.9.0a741596-incubating (LogLevel=info) is starting.  
+Apache CouchDB has started. Time to relax.  
+
+如果看到下面这些，则说明 local.ini 文件中有错误：  
+Apache CouchDB 0.9.0a741596-incubating (LogLevel=info) is starting.  
+[error] [&lt;0.47.0&gt;] {error_report,&lt;0.22.0&gt;,  
+    {&lt;0.47.0&gt;,supervisor_report,  
+     [{supervisor,{local,couch_secondary_services}},  
+      {errorContext,start_error},  
+      etc,etc,etc,etc  
+Crash dump was written to: erl_crash.dump  
+init terminating in do_boot ()  
+
+现在来测试一下是否能正常工作：  
+http://127.0.0.1:5984/my_db/_fti?q=title:cat  
+
+太棒了！不过它可能会返回一个 application/json 类型的文件，浏览器可能会直接下载而不是显示内容。  
+
+我们可以在查询后面加上 &amp;debug 来解决这个问题：  
+http://127.0.0.1:5984/my_db/_fti?q=title:cat&amp;debug=true</div>
+      
+    
+      
+        <p>至此，你已经在 OS X 上成功运行了 CouchDB-Lucene。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

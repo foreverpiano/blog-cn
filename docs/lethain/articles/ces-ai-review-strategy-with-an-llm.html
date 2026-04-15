@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 LLM 审阅策略 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 LLM 审阅策略</h1>
+    <div class="meta">
+      2025-03-15 · 
+      <a href="https://lethain.com/ces-ai-review-strategy-with-an-llm/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在上一章中，我们。现在，我们要对那份策略进行审阅，找出可以改进的地方。理想情况下，每个组织都应该有人能快速为你的文档提供反馈，但实际情况常常并非如此——他们可能很忙，也可能根本不存在。在这些情况下，本章介绍的技巧就能成为非常有用的替代方案。<a href="ces-ai-cowriting-with-an-llm.html">与 LLM 共同撰写策略</a></p>
+      
+    
+      
+        <p>本章将涵盖以下内容：</p>
+      
+    
+      
+        <div class="list-content">使用 LLM 找出策略文档中的弱点；用 LLM 总结并提炼反馈，供策略作者参考；指导 LLM 如何处理提出的反馈，根据你对已标记问题的评估，改写现有的策略文档。</div>
+      
+    
+      
+        <p>读完本章后，你将能够找出上一章策略中的问题、简洁地表达这些问题，并根据反馈改写策略。</p>
+      
+    
+      
+        <p>本章是《The AI Companion to Crafting Engineering Strategy》中的一篇初稿。该书讨论了如何在 LLM 中使用《Crafting Engineering Strategy》的方法来起草、完善和改进工程策略。</p>
+      
+    
+      
+        <p>我们将把策略文本输入推理模型，寻找其中的空白。我们会使用支持扩展思考的推理模型，例如 OpenAI 的 o3 或 Anthropic 的 Claude Opus 4，并使用以下提示词：</p>
+      
+    
+      
+        <pre><code>Look for reasoning errors and unsubstantiated claims in this strategy:
+
+{text of strategy document}
+</code></pre>
+      
+    
+      
+        <p>在一章中我们搭建的项目里运行这个提示词后，它发现了一系列推理错误、缺乏依据的论断以及缺失的内容。下面我们逐类审阅这些问题。<a href="ces-ai-foundation-of-collaboration.html">协作的基础（与 LLM 共同使用一本书）</a></p>
+      
+    
+      
+        <p>首先，它发现了一些推理错误。这些错误与支撑策略的思考逻辑有关，从缺乏因果分析（例如，诊断是否真正与策略相关？），到探索过程中的幸存者偏差（例如，除了成功的政策案例，是否也应该考虑政策执行不佳的案例？）。</p>
+      
+    
+      
+        <p>接着，它识别出若干缺乏依据的论断。这些问题既包括诊断部分（如缺乏证据证明高级工程师在架构讨论上花费大量时间），也包括建议策略中随意设定的目标。这两类都是有效策略文档中应该解决的问题。</p>
+      
+    
+      
+        <p>最有价值的是，它还指出了一系列完全缺失的要素。其中特别重要的是，它发现缺少策略测试计划。我同意，这可能是整个方案中最重要的空白。</p>
+      
+    
+      
+        <p>这些反馈确实非常有用，指出了我们应该改进初稿的多个地方。但这个反馈最大的弱点是内容太多。幸运的是，我们可以将其精简为对作者最有价值的部分。</p>
+      
+    
+      
+        <h2>总结反馈</h2>
+      
+    
+      
+        <p>想象一下，这是一份其他人撰写的策略，我们需要为其提供反馈。我们不会把所有反馈一股脑丢过去，而是会选出最重要的 3-5 个问题，并给出如何改进的建议。</p>
+      
+    
+      
+        <p>通读上述反馈后，我认为最核心的三个问题是：</p>
+      
+    
+      
+        <div class="list-content">明确定义可衡量的指标，来判断 AAG 是否成为瓶颈（例如，从请求评审到评审完成所花费的时间）；为 SRE 团队增加一个为期 4 周的试点阶段，用于评估和优化是否要扩展到整个工程部；删除所有与耗时无关的任意成功指标（例如，“90% 的 ADR 合规率”并不是一个好的衡量标准，除非我们专门用它来理解那 10% 未合规的原因）。</div>
+      
+    
+      
+        <p>接下来，我们可以让 LLM 简洁地总结我们的反馈，并附上作者可如何落实这些建议的意见。在生成初始反馈的对话中继续提问，可以尝试以下提示词：</p>
+      
+    
+      
+        <pre><code>Rewrite the above feedback to focus on these three areas of feedback,
+eliminate most other feedback unless it seems essential, and make it
+as concise as possible:
+
+1. Identify what we can measure to determine if the AAG becomes
+    a bottleneck (e.g. time from requested review to review
+    being performed)
+2. Add a 4 week pilot phase for the SRE organization, which
+    we’ll use to evaluate and refine expanding this to all
+    of Engineering
+3. Eliminate all arbitrary success metrics other than those
+    related to elapsed time (e.g. 90% ADR compliance is not
+    a great measure unless we’re using that exclusively to
+    understand why the 10% aren’t happening)
+</code></pre>
+      
+    
+      
+        <p>LLM 随后生成了这份经过提炼的反馈版本（可在 Gist 中查看）。相比最初那份冗长的反馈，这份内容更接近我实际会提供给策略作者的版本。</p>
+      
+    
+      
+        <p>你可能还想再迭代一次，稍微调整一下语气，但整体上我认为具体内容是合理的。这种“先让 LLM  brainstorm 想法，再聚焦到具体点”的方法，是一种非常有效的做法。</p>
+      
+    
+      
+        <h2>融入反馈</h2>
+      
+    
+      
+        <p>在这一部分，我们再次切换视角，回到策略作者的立场——刚刚收到上述反馈的那个人。</p>
+      
+    
+      
+        <p>回到我们的 Crafting Engineering Strategy 项目中，我们将原始策略文档和反馈一起加入对话，然后用以下提示词说明如何具体处理这些反馈：</p>
+      
+    
+      
+        <pre><code>I want to incorporate the below feedback into our strategy document
+on engineering decision making. Follow this advice on how to
+incorporate the feedback:
+
+1. &quot;Measure AAG Bottleneck Risk&quot; -- prioritize addressing this,
+    we should measure using time feedback is requested in a Slack
+    channel until feedback is provided by the AAG as measured by
+    replying with a new document in the Slack thread
+2. &quot;Add 4-Week SRE Pilot Phase&quot; -- yes, we should do this,
+    add this as note below the policy/operations section rather
+    than making a big deal about it
+3. &quot;Replace Arbitrary Success Metrics&quot; -- remove any instances
+    of arbitrary success metrics, don&#x27;t try to suggest better ones
+</code></pre>
+      
+    
+      
+        <p>这生成了一个说明，解释了反馈是如何被处理的，同时还输出了完整修订后的策略文档。</p>
+      
+    
+      
+        <p>效果很好，也再次提醒我们应该使用“LLM 作为实习生”的技巧：前沿 LLM 非常擅长严格按照你明确指示的方向执行，但它们仍然缺乏你的良好判断力。只要表述清晰，你就能得到最佳输出。</p>
+      
+    
+      
+        <h2>总结</h2>
+      
+    
+      
+        <p>在本章中，我们从一份策略初稿出发，生成反馈、提炼反馈，然后决定如何将这些反馈融入修订版策略中。虽然我不会说这份策略已经完美，但它相比初始版本有了显著改进，而且完成速度很快，我们也无需等待其他人抽出时间来提供反馈。</p>
+      
+    
+      
+        <p>如果你所在的组织拥有充足的高级工程师资源，我相信你们本来就能快速产出一份同等水准的文档，但速度不会这么快。更重要的是，我相信你们的组织能够写出比这份更好的策略，但很多组织根本没有足够的人力或带宽来做到这一点。也许你是公司里唯一一位 Staff-plus 工程师，也许你正试图在另一位有经验的工程师忙完项目前先迭代一份草稿。在这些情况下，我发现这些技巧出奇地有用。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

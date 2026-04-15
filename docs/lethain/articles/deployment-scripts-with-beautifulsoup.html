@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 BeautifulSoup 实现部署脚本 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 BeautifulSoup 实现部署脚本</h1>
+    <div class="meta">
+      2008-06-09 · 
+      <a href="https://lethain.com/deployment-scripts-with-beautifulsoup/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在开发《Processed Tower Defense》的过程中，我们很快就发现代码量越来越大，全部放在单个文件里已经不合适了。虽然计算机并不觉得文件很大，但查找和维护代码变得非常困难，尤其是我们使用纯文本编辑器（我用 Emacs，Peter 用 TextMate）而不是 IDE 的情况下。</p>
+      
+    
+      
+        <p>Peter 很干脆地把原本庞大的 ptd.js 拆成了五六个文件，但这样又带来了一个新问题：部署游戏时如何把这些“碎片”重新拼装起来？</p>
+      
+    
+      
+        <p>幸运的是，Python 和 BeautifulSoup 帮了我大忙，让我能够写出一个简洁而强大的部署脚本。首先，我在 HTML 中为所有需要加载的 JavaScript 文件添加了一个容器 div，如下所示：</p>
+      
+    
+      
+        <p>然后将它们合并到一起：</p>
+      
+    
+      
+        <p>BeautifulSoup 的 findAll 方法可以轻松找到 ptd.html 中所有的 script 标签。接着我们遍历这些标签，把所有通过 src 引入的脚本文件内容追加到正在创建的 merged_js 文件中。</p>
+      
+    
+      
+        <h2>临时插播一条消息。</h2>
+      
+    
+      
+        <p>我们可以用 Python 的列表推导式重写这个循环，让代码更加简洁优雅。</p>
+      
+    
+      
+        <p>如果我们不是有良好习惯、会关闭打开文件的程序员，还可以把这段代码压缩成一行：</p>
+      
+    
+      
+        <p>可惜，我们是有责任心的程序员，不会打开文件后忘记关闭。不过，我仍然认为，偶尔尝试用列表推导式重写循环是个有趣且有价值的练习，既能复习语法，又能欣赏它们简洁优雅的表达力。</p>
+      
+    
+      
+        <h2>回到原来的话题……</h2>
+      
+    
+      
+        <p>好了，我们已经把引入的 JavaScript 文件合并成了一个文件。现在需要把整个 js_imports 这个 div 替换成对这个新合并文件的单一引用，这一步也非常简单。</p>
+      
+    
+      
+        <p>我们只需在 soup 中找到 js_imports 标签，然后用 replaceWith 方法插入一个新创建的 Tag 即可。这样我们就修复了 HTML 文件并合并了 JavaScript 文件，但还有几处需要清理。</p>
+      
+    
+      
+        <p>首先，需要把修改后的 HTML 写回文件：</p>
+      
+    
+      
+        <p>这步也相当简单。之后最后一步，是对 JavaScript 文件进行压缩以节省空间。</p>
+      
+    
+      
+        <p>这会压缩 deploy/ptd.js 文件，为我们节省一些空间。虽然一次性压缩整个文件感觉有点反直觉（而不是先压缩各部分再合并），但根据我的经验，如果逐个压缩后再合并，很容易导致代码出错。</p>
+      
+    
+      
+        <p>现在部署脚本里相对复杂的部分已经处理完毕，剩下的工作用一个简单的 shell 脚本就能轻松完成。你的 shell 脚本最终可能会像下面这样：</p>
+      
+    
+      
+        <p>自从体会到用 BeautifulSoup 操作 HTML 的便利之后，我就迷上了这种方式，开始把所有静态网页都改成类似的简单构建脚本。例如，ptdef.com 就是先运行 PTD 的部署脚本，再在这个基础上运行第二个部署脚本：它会提取内联的 JavaScript，并将其与游戏内容一起注入到 ptdef.com 的模板中。</p>
+      
+    
+      
+        <p>另外，我个人极其简洁的网站 willarson.com 也是基于一个简单的 HTML 模板，把 Markdown 内容渲染后注入进去生成最终版本。它的构建脚本只有懒人友好的 24 行，短到可以当作睡前读物快速浏览一下：</p>
+      
+    
+      
+        <p>该脚本由一个简单的 shell 脚本驱动：</p>
+      
+    
+      
+        <p>总之，我希望这些想法能对其他人有所帮助，通过编写灵活方便的部署脚本来简化项目和网站的构建流程。</p>
+      
+    
+      
+        <p>如果你遇到任何问题或有疑问，欢迎告诉我。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

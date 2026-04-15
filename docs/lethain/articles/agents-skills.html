@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>构建内部 Agent：为 Agent Skills 添加支持 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>构建内部 Agent：为 Agent Skills 添加支持</h1>
+    <div class="meta">
+      2025-12-26 · 
+      <a href="https://lethain.com/agents-skills/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>当 Anthropic 推出 Agent Skills 时，我最初对它解决的问题持怀疑态度——我们不能直接用提示和工具吗？——但后来我逐渐理解了它的价值，并明确地在我们的内部 Agent 框架中实现了技能。本文将讨论技能所解决的问题、Imprint 工程团队如何实现它们、它们为我们带来的实际效果，以及未来可能的改进方向。</p>
+      
+    
+      
+        <p>这是 <a href="agents-series.html">构建内部 Agent</a> 系列文章的一部分。</p>
+      
+    
+      
+        <h2>Agent Skills 解决了什么问题？</h2>
+      
+    
+      
+        <p>Agent Skills 是一系列技术，用于解决两个重要的工作流问题：</p>
+      
+    
+      
+        <div class="list-content">使用 <a href="agents-large-files.html">构建内部 Agent：渐进式披露与处理大文件</a> 更有效地利用受限的上下文窗口，最大限度地减少上下文窗口中冲突或不必要的上下文；提供可复用的代码片段来解决重复出现的问题，避免每个工作流创建者都要重复解决诸如 Slack 格式化或处理大文件之类的问题。</div>
+      
+    
+      
+        <p>这些问题在我们刚开始构建内部工作流时显得微不足道，但当内部工作流数量达到几十个时，两者都变得难以管理。没有可复用的片段，我就失去了同时改进所有工作流的杠杆；没有渐进式披露，Agent 就会接收到大量无关内容，导致它们感到困惑，尤其是在 Markdown 和 Slack 的 mrkdwn 格式语言不一致的情况下，而这两种格式对我们工作流所使用的不同工具都很重要。</p>
+      
+    
+      
+        <h2>我们如何实现 Agent Skills</h2>
+      
+    
+      
+        <p>首先要说明的是，我知道实现 Agent Skills 并非必需，因为你可以直接集成 Claude 的 Agent Skills API 支持。然而，我们的一个核心设计决策是保持平台无关性，以便能够轻松切换不同的模型提供商，因此我们决定在自己的框架内实现技能。</p>
+      
+    
+      
+        <p>确定这一点后，我们开始通过查阅 agentskills.io 上的 Agent Skills 文档，并将他们的 Python 参考实现 skills-ref 克隆到我们的仓库中，以便 Claude Code 可以访问。</p>
+      
+    
+      
+        <p>最终的实现包含以下核心特性：</p>
+      
+    
+      
+        <div class="list-content">技能存放在 skills/ 目录下，每个技能都有自己的子目录，其中包含一个 SKILL.md 文件；每个技能都是一个 Markdown 文件，包含如下元数据：
+---
+name: pdf-processing
+description: Extract text and tables...
+metadata:
+  author: example-org
+  version: &quot;1.0&quot;
+---
+可用技能列表（包含元数据中的描述）会在每个工作流开始时注入到系统提示中，Agent 可以通过 load_skills 工具将整个文件加载到上下文窗口；更新了工作流配置，允许可选指定所需、允许和禁止的技能，从而修改注入到系统提示中的暴露技能列表。我猜测为特定工作流强制要求某些技能可能是一种反模式（“就让 Agent 自己决定吧！”），但实现起来非常简单，而且我能想象到未来可能会有用处；使用 Notion MCP 检索我们提示仓库中的所有现有提示，识别其中隐含的技能，编写这些初始技能，并确定需要修改哪些 Notion 提示以删除现在已冗余的部分。</div>
+      
+    
+      
+        <p>然后我们将其部署到生产环境。</p>
+      
+    
+      
+        <h2>实际效果如何</h2>
+      
+    
+      
+        <p>人类总是会犯错。例如，我见过很多人类提交的 JIRA 工单没有说明他们遇到的实际问题。大家对此习以为常，当人类犯错时，人们会责怪人类。但当 Agent 犯错时，令人惊讶的是，有相当比例的人会将其视为 Agent 这一类技术的根本性缺陷，而不是想“哦，我应该去更新那个提示”。</p>
+      
+    
+      
+        <p>技能作为一种工具，在我们因精确指定行为过于繁琐而依赖隐式行为的情况下，对持续细化这些边缘案例极为有用。一个例子是，我们要求每条 Slack 消息都以指向生成该回复的提示的链接结尾。这一直有效，但格式的细节却会以一种烦人且分散注意力的方式变化：有时是 [title](link) 的形式，有时只是链接，有时又是 [link](link)。有了技能之后，现在（几乎总是）保持一致，而无需任何人在他们的工作流提示中特意加入这些指令。</p>
+      
+    
+      
+        <p>同样，处理大文件需要一系列不同的工具，这些工具会从上下文学习（In-Context Learning，简称 ICL，即在提示中包含若干正确和错误用法的示例）中受益，这是完全没人愿意加到自己工作流提示里的东西，但它能非常有效地改善工作流对这些工具的使用方式。</p>
+      
+    
+      
+        <p>对于我最初深表怀疑的东西，现在我希望自己能更早地实现技能。</p>
+      
+    
+      
+        <h2>未来可能的方向</h2>
+      
+    
+      
+        <p>虽然我们的技能实现目前运行良好，但未来还有几个我想利用的机会：</p>
+      
+    
+      
+        <div class="list-content">添加一个 load_subskill 技能，以支持 skills/{skill}/* 目录下除了 SKILL.md 之外的其他文件。目前这还不是主要障碍，但随着某些技能变得更加复杂，将不同用例拆分成不同文件的能力将提升我们使用技能进行渐进式披露的效果；Anthropic 相比我们的一个显著优势是他们拥有沙箱化的 Python 解释器，这允许技能中包含完整的 Python 脚本，并由工具指定和运行。例如，解析 PDF 的脚本可以包含在技能中，这非常方便。我们目前还没有为 Agent 准备好沙箱解释器，但理论上这可以显著减少我们需要实现的自定义技能数量；至少，它能在需要可靠数学运算的操作上表现更好，而不是依赖 LLM 尽力去执行数学相关的操作。</div>
+      
+    
+      
+        <p>我认为这两点实际上都相当容易实现。第一点只是一个简单功能，Claude 几分钟就能完成。后者实现起来有点烦人，但也可以在不到一小时内完成——运行第二个 Lambda，使用 Node.js 搭配 Pyodide，然后将对该 Lambda 的访问暴露为一个工具。只是让 Python 进程去调用 Node.js 进程来运行沙箱 Python 显得太不优雅，所以我还没动手。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

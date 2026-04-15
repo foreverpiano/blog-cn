@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 Erlang 中实现 Join · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 Erlang 中实现 Join</h1>
+    <div class="meta">
+      2008-05-04 · 
+      <a href="https://lethain.com/writing-join-in-erlang/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>今天早些时候，我需要在 Erlang 中实现字符串拼接，找了半天 lists 模块里的 join 函数后，才发现根本没有这个函数。于是问题就来了：该如何实现 join 呢？</p>
+      
+    
+      
+        <p>实现 join 最简单的方法是使用 reduce/fold。Erlang 在 lists:foldl 和 lists:foldr 中提供了这两个函数，分别从左和从右进行折叠。我选择从左折叠，因此用于折叠的函数长这样：</p>
+      
+    
+      
+        <p>然后我们把它应用到一个列表上。</p>
+      
+    
+      
+        <p>现在基本能用了，但还存在一个小问题：结果前面会多出一个分隔符（比如用 &quot;, &quot; 拼接 [&quot;one&quot;, &quot;two&quot;, &quot;three&quot;] 会得到 &quot;, one, two, three&quot;）。幸运的是，我们处理的是链表，去掉前面的多余部分是一个 O(c) 的操作（其中 c 是分隔符列表的长度）。</p>
+      
+    
+      
+        <p>再加上对空列表的保护，我们就得到了一个相当简洁的解决方案。</p>
+      
+    
+      
+        <p>我对这个方案还算满意，但还是觉得值得再写一个不使用 fold 的版本。</p>
+      
+    
+      
+        <p>这个方案需要处理三种情况。</p>
+      
+    
+      
+        <div class="list-content">是第一个元素吗？如果是，则递归调用，累积结果设为 list[0]，待处理列表设为 list[1:]。没有剩余元素了吗？如果是，则直接返回累积的结果。否则，对 list[1:] 递归调用，并将分隔符和 list[0] 追加到累积结果中。</div>
+      
+    
+      
+        <p>虽然按代码行数来看并不特别简洁，但我个人觉得这个 Erlang 实现相当优雅。</p>
+      
+    
+      
+        <p>我最喜欢的部分是所有的逻辑都通过函数定义的模式匹配来处理，而不是使用显式的 case 或 if/else 结构。至于可读性，我觉得可以和 Scheme 中一个大致等价的函数对比一下。</p>
+      
+    
+      
+        <p>对比两者，我认为 Erlang 实现的一个缺点是，大多数程序员（包括我自己）对 if-else 范式比对模式匹配更熟悉。不过我还是觉得 Erlang 的方案更简洁，也更容易理解。总的来说，在我对 Erlang 及其概念有了一些了解之后，我现在更喜欢 Erlang 的这个方案。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

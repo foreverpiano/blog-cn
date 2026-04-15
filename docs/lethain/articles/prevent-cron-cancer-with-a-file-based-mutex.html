@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用基于文件的互斥锁防止 Cron 任务“癌变” · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>用基于文件的互斥锁防止 Cron 任务“癌变”</h1>
+    <div class="meta">
+      2008-12-03 · 
+      <a href="https://lethain.com/prevent-cron-cancer-with-a-file-based-mutex/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近在工作中，我需要编写一个脚本，它会遍历目录中所有匹配特定正则表达式的文件，对这些文件执行一些操作，然后将其删除。我不希望脚本一直运行着，于是决定通过 cron 任务让它每分钟执行一次（如果没有需要处理的文件，脚本会立刻退出）。</p>
+      
+    
+      
+        <p>但我的计划有个小问题：脚本有可能运行超过一分钟，如果同时有两个实例在运行，那可就麻烦了。在思考了几分钟后，我找到了一个简单且有效的解决方案——使用文件作为互斥锁（mutex）。</p>
+      
+    
+      
+        <h2>原理</h2>
+      
+    
+      
+        <p>这个机制的运作方式非常简单：</p>
+      
+    
+      
+        <div class="list-content">脚本启动时，首先检查是否存在一个名为 my_script.lock 的文件。如果文件不存在，则创建它，并将当前 Unix 时间戳作为其唯一内容写入文件。如果文件存在，且文件中记录的时间戳是在最近一小时之内，则终止脚本。（如果没有在上面那一步终止）则继续执行脚本逻辑。脚本执行完毕后，删除 my_script.lock 文件。</div>
+      
+    
+      
+        <p>最初我并没有在文件中写入时间戳，但加上时间戳后，即使脚本因崩溃而长时间没有释放锁，也能让锁自动过期，而无需手动删除锁文件。</p>
+      
+    
+      
+        <h2>Perl 实现</h2>
+      
+    
+      
+        <p>在 Perl 中实现这个基于文件的互斥锁既快速又简单。除非你是个糟糕的 Perl 程序员，否则只需要花一点时间把必要的文档拼凑起来就行了。</p>
+      
+    
+      
+        <p>我确实花了不少时间才把它拼凑出来。</p>
+      
+    
+      
+        <p>是的，我到现在还是不太懂 Perl 风格的布尔值写法。也许哪位热心的 Perl 高手能告诉我更 idiomatic 的写法，我会非常感激的。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 GCP 上用 Python 创建 Slack 应用 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 GCP 上用 Python 创建 Slack 应用</h1>
+    <div class="meta">
+      2019-11-06 · 
+      <a href="https://lethain.com/creating-slack-app-python/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>上周我和一位正在开发应用的人聊了聊，他想让 1:1 会议变得更好，包括 <a href="tools-for-operating-a-growing-org.html">管理不断扩张组织的工具</a>。最让我印象深刻的是这样一个想法：如果把这个工具做成 Slack 应用，而不是网页应用，可能会更快，也能带来更好的用户体验。</p>
+      
+    
+      
+        <p>这让我产生了一个有趣的问题：Slack 的生态系统和工具链是否已经发展到，使用 Slack 技术栈比使用传统的 Web 技术栈更快、更简单了？</p>
+      
+    
+      
+        <p>带着这个疑问，我决定花些时间试验 Slack API，感受一下它的开发体验和灵活性。为了在减少基础设施复杂性的同时保留通往生产环境的路径，我决定用 GCP 的 Cloud Functions 构建几个无服务器函数。</p>
+      
+    
+      
+        <p>以下是我的笔记。</p>
+      
+    
+      
+        <p>lethain/reflect-slack-app 的 commit 5359 包含了这篇文章的代码</p>
+      
+    
+      
+        <h2>Slack 应用 Python 系列</h2>
+      
+    
+      
+        <div class="list-content"><a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a><a href="slack-app-home-python.html">在 Python 中为 Slack 应用添加 App Home</a><a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a><a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a><a href="slack-distribution.html">发布你的 Slack 应用</a></div>
+      
+    
+      
+        <h2>要做什么？</h2>
+      
+    
+      
+        <p>过去一年左右，我在工作中 ，让大家了解我的工作重点，也方便撰写 Julia Evans 所说的“炫耀文档”（一份用来记录成就、追踪进度并撰写自我评估的清单）。<a href="weekly-updates.html">发送每周 5-15 更新。</a></p>
+      
+    
+      
+        <p>我之前尝试过用一个简单的 Web 应用来处理这件事，但这个问题其实并不需要 Web 应用。确实，很容易就能想象出一个简化的实现，只需要两个命令：/reflect 和 /recall。</p>
+      
+    
+      
+        <p>/reflect 用来记录工作：</p>
+      
+    
+      
+        <pre><code>/reflect finished writing reviews #reviews #mgmt
+/reflect implemented prototype of load balancing tool #programming
+</code></pre>
+      
+    
+      
+        <p>/recall 用来查看你的记录：</p>
+      
+    
+      
+        <pre><code>/recall #mgmt
+/recall #programing
+/recall last 7 days #mgmt
+</code></pre>
+      
+    
+      
+        <p>这是一个简单的界面，但应该已经足够了。</p>
+      
+    
+      
+        <h2>起步</h2>
+      
+    
+      
+        <p>应用需要在特定工作空间内开发，所以我先创建了一个新的 Slack 工作空间，然后创建了一个名为“Reflect”的 Slack App。</p>
+      
+    
+      
+        <p>Slack 把 /recall 这样的命令称为 Slash Command。每次你在 Slack 中输入 Slash Command，Slack 都会处理它，并向你为该命令注册的端点发送一个 POST 请求。</p>
+      
+    
+      
+        <p>你的端点可以返回 text/plain 类型的文本，直接显示在用户界面中；也可以返回 application/json 以支持更复杂的渲染，我们后面会深入讨论。</p>
+      
+    
+      
+        <p>为了将特定命令映射到正确的后端代码，你可以为每个 Slash Command 指定不同的端点。或者，你也可以检查 Slack 发来的请求中的 command 键值对，根据其值进行分发。</p>
+      
+    
+      
+        <h2>配置 Cloud Functions</h2>
+      
+    
+      
+        <p>为了注册 Slash Command，其中一个必填字段是 Request URL，即每次命令被触发时接收 POST 请求的 HTTPS 端点。虽然 ，但我想模拟一个更接近生产的体验，因此选择使用 Google Cloud Functions 来托管这些端点。<a href="examples-delightful-developer-experiences.html">2019 年一些令人愉悦的开发者体验</a></p>
+      
+    
+      
+        <p>首先我在 Github 上创建了 reflect-slack-app 仓库并克隆到本地：</p>
+      
+    
+      
+        <pre><code>git clone git@github.com:lethain/reflect-slack-app.git
+cd reflect-slack-app
+</code></pre>
+      
+    
+      
+        <p>然后按照说明创建了一个名为 ReflectSlackApp 的新 GCP 项目。</p>
+      
+    
+      
+        <p>接着在这个新项目中启用了 Cloud Functions API。</p>
+      
+    
+      
+        <p>题外话：必须逐个启用 API 绝对是 GCP 开发者 onboarding 体验中最糟糕的部分。我相信这个设计有其合理性（防止意外计费等），但我觉得如果 GCP 默认把所有服务都打开，并设置一个较低的单功能预算上限，用户体验会好得多。当然，这需要他们实现硬性预算上限，而我认为他们目前还没有。但我认为为了加快 onboarding 速度、减少用户流失，这是值得的。</p>
+      
+    
+      
+        <p>接下来是搭建 reflect-slack-app/ 的脚手架，参考了 helloworld 示例的大致结构。</p>
+      
+    
+      
+        <pre><code>python3 -m venv venv
+source venv/bin/activate
+mkdir reflect
+emacs reflect/main.py
+</code></pre>
+      
+    
+      
+        <p>我们先从最简单的 Slash Command 处理程序开始，它会忽略传入的消息，并返回一段静态的 text/plain 文本。虽然现在什么都做不了，但可以用来验证连通性是否正确。</p>
+      
+    
+      
+        <pre><code>def reflect_post(request):
+    return &quot;Reflect!&quot;</code></pre>
+      
+    
+      
+        <p>在上传函数之前，我确保将 gcloud 配置指向了刚创建的新项目（好吧，我承认我一开始忘了，结果花了不少时间排查）：</p>
+      
+    
+      
+        <pre><code>gcloud projects list
+PROJECT_ID              NAME                    PROJECT_NUMBER
+...
+reflectslackapp         ReflectSlackApp         0000000000000
+...
+gcloud config set project reflectslackapp
+</code></pre>
+      
+    
+      
+        <p>然后就可以部署函数了：</p>
+      
+    
+      
+        <pre><code>cd reflect-slack-app/reflect
+gcloud functions deploy reflect_post --runtime python37 --trigger-http
+</code></pre>
+      
+    
+      
+        <p>第一次运行时，它会询问是否允许未经身份验证的调用（这里的身份验证指的是 Google ID Token 认证），如果你希望 Slack 能够访问，就必须允许：</p>
+      
+    
+      
+        <pre><code>Allow unauthenticated invocations of new function [reflect_post]?
+(y/N)?
+y
+</code></pre>
+      
+    
+      
+        <p>部署完成后，就可以通过 curl 测试了：</p>
+      
+    
+      
+        <pre><code>curl https://your-url-here.cloudfunctions.net/reflect_post
+Reflect!
+</code></pre>
+      
+    
+      
+        <p>太好了，现在我们有了一个端点，可以指向新的 Slash Command，然后就可以回去继续配置 Slack App 了。</p>
+      
+    
+      
+        <h2>API 平台是否应该引入 FaaS？</h2>
+      
+    
+      
+        <p>在继续之前，有一个有趣的问题值得思考：API 平台是否应该让用户自己去搭建函数即服务（FaaS）环境，还是直接为用户托管函数？</p>
+      
+    
+      
+        <p>Google Cloud Functions、AWS Lambda 如今设置起来已经相当简单，但仍然会给用户带来明显的 onboarding 摩擦，这也是为什么 Twilio Functions 这样的方案能在简化 onboarding 方面大受欢迎。</p>
+      
+    
+      
+        <p>从长远来看，我认为很少有公司值得投入基础设施来支撑生产负载——AWS 和 GCP 与你整体工作流的集成会比 Twilio 或 Slack 更好。但在早期 onboarding 和试验阶段，生产级别的质量标准其实只是摩擦。</p>
+      
+    
+      
+        <p>我希望看到一种标准化的模式：让 Slack 或 Twilio 这样的平台成为托管简单集成的发射台，当用户的集成达到一定复杂度后，能一键导出到 AWS/Azure/GCP。这能让新用户更快地进行试验，对平台和用户都是双赢，同时不会把完整的生产级摩擦强加给任何一方。</p>
+      
+    
+      
+        <p>对 API 平台自身而言，还有一个更重要的隐藏好处：托管长尾集成能让你获得对这些集成实现的访问权和控制权。有了这些访问权限，你就可以  它们，例如即使维护者已经不活跃，也能自动把它们从已废弃的功能上迁移。这一点非常有价值，因为长尾中的缓慢废弃是 API 平台成功的核心限制之一。<a href="refactoring-programmatically.html">用程序化方式重构 Ruby 代码</a></p>
+      
+    
+      
+        <h2>注册 /reflect</h2>
+      
+    
+      
+        <p>端点准备好之后，下一步是在 Slack 应用仪表盘中注册 /reflect 这个 Slash Command。</p>
+      
+    
+      
+        <p>这需要填写 Command、Request URL、Short Description 和 Usage Hint。其中最重要的两个是命令（这里应该是 /reflect）和请求 URL，后者会在你用 gcloud CLI 部署函数时输出，大致像这样：</p>
+      
+    
+      
+        <pre><code>https://your-url-here.cloudfunctions.net/reflect_post
+</code></pre>
+      
+    
+      
+        <p>注册完成后，我们就完成了一半的工作。</p>
+      
+    
+      
+        <h2>添加 /recall</h2>
+      
+    
+      
+        <p>既然 /reflect 已经实现，我们还需要添加 /recall 命令。首先增加一个支持它的端点，然后在 Slack 应用中注册它：</p>
+      
+    
+      
+        <p>添加端点：</p>
+      
+    
+      
+        <pre><code>mkdir reflect
+emacs reflect/main.py
+</code></pre>
+      
+    
+      
+        <p>接着我们给出 recall_post 最简单的实现：</p>
+      
+    
+      
+        <pre><code>def recall_post(request):
+    return &quot;Recall!&quot;</code></pre>
+      
+    
+      
+        <p>然后上传实现：</p>
+      
+    
+      
+        <pre><code>cd reflect-slack-app/reflect
+gcloud functions deploy recall_post --runtime python37 --trigger-http
+</code></pre>
+      
+    
+      
+        <p>最后，用创建该函数时返回的新请求 URL，在你的 Slack App 中完成注册。</p>
+      
+    
+      
+        <h2>将应用安装到工作空间</h2>
+      
+    
+      
+        <p>接下来，你需要进入左侧导航栏的“Install App”，点击“Install App to Workspace”将应用添加到你的工作空间。这会要求你批准一些权限。</p>
+      
+    
+      
+        <p>安装完成后，我们可以切换到关联的工作空间，试用这些命令进行验证。</p>
+      
+    
+      
+        <p>它们能用了！虽然目前还没什么实际功能，但我们已经验证了连通性，可以开始真正的实现了。</p>
+      
+    
+      
+        <h2>开发循环</h2>
+      
+    
+      
+        <p>这也展示了迭代这些命令的开发反馈循环：修改代码，部署更新后的函数，执行命令并查看响应。</p>
+      
+    
+      
+        <p>当出现问题时，我发现通过 Google 的 Stackdriver 查看错误信息来进行调试还是比较直观的。我确实希望 Slack 能记录我最近几百条错误信息并在仪表盘中展示，以便更轻松地调试，但使用服务端可见性也已经足够好了。</p>
+      
+    
+      
+        <p>Google 的教程其实还可以提供更快的开发循环：示例中完全可以包含一个简单的 __main__ 实现，在本地暴露端点以便快速测试。当然，对这么简单的函数来说，写单元测试并在部署前运行也是很容易的。</p>
+      
+    
+      
+        <h2>格式化响应</h2>
+      
+    
+      
+        <p>脚手架搭好后，现在我们可以把响应格式化成有用的样子了。Slack 消息由格式化块（blocks）组成，你可以用 Block Kit Builder 快速试验。</p>
+      
+    
+      
+        <p>我们希望端点返回类似以下结构的 JSON：</p>
+      
+    
+      
+        <pre><code>{
+  &quot;blocks&quot;: [{}, {}, {}],
+}</code></pre>
+      
+    
+      
+        <p>有很多种 block 类型，但我们最初会使用 section 和 divider。Divider 本质上就是一条水平分割线，非常简单：</p>
+      
+    
+      
+        <pre><code>{
+  &quot;type&quot;: &quot;divider&quot;
+}</code></pre>
+      
+    
+      
+        <p>Section 可以渲染 Slack 称为 mrkdwn 的部分 Markdown 语法，长这样：</p>
+      
+    
+      
+        <pre><code>{
+  &quot;type&quot;: &quot;section&quot;,
+  &quot;text&quot;: {
+    &quot;type&quot;: &quot;mrkdwn&quot;,
+    &quot;text&quot;: &quot;This is *sort of* Markdown&quot;
+  }
+}</code></pre>
+      
+    
+      
+        <p>你熟悉的很多 Markdown 语法在这里都不生效，具体细节请参考 mrkdwn 文档。</p>
+      
+    
+      
+        <p>把这些组合起来，一个完整的响应大概是这样的：</p>
+      
+    
+      
+        <pre><code>{
+  &quot;blocks&quot;: [
+    {
+      &quot;type&quot;: &quot;section&quot;,
+      &quot;text&quot;: {
+        &quot;type&quot;: &quot;mrkdwn&quot;,
+        &quot;text&quot;: &quot;This is *sort of* Markdown&quot;
+      }
+    },
+    {
+      &quot;type&quot;: &quot;divider&quot;
+    }
+  ]
+}</code></pre>
+      
+    
+      
+        <p>现在我们需要更新 Flask 的响应格式以符合这个结构。提醒一下，完整代码在 Github 上，不需要从这些片段中拼凑。</p>
+      
+    
+      
+        <p>我们还没有把通过 /reflect 发送的消息存起来，所以目前会随机生成一些假消息用于渲染：</p>
+      
+    
+      
+        <pre><code>def recall(team_id, user_id, text):
+    &quot;Recall for (`team_id`, `user_id`) filtered by parameters in `text`&quot;
+    import random
+    return [&quot;I did something {}&quot;.format(x)
+            for x in range(random.randint(3, 10))]</code></pre>
+      
+    
+      
+        <p>它会返回一个包含可变数量字符串的列表：</p>
+      
+    
+      
+        <pre><code>[
+  &quot;I did something 0&quot;
+  &quot;I did something 1&quot;
+  &quot;I did something 2&quot;
+]</code></pre>
+      
+    
+      
+        <p>我们将在更新后的 recall_post 函数中使用这个函数：</p>
+      
+    
+      
+        <pre><code>def recall_post(request):
+    data = request.form
+    team_id, user_id, text = data[&#x27;team_id&#x27;], data[&#x27;user_id&#x27;], data[&#x27;text&#x27;]
+    items = recall(team_id, user_id, text)
+    items_text = &quot;\n&quot;.join([&quot;%s. %s&quot; % (i, x)
+                  for i, x in enumerate(items, 1)])
+
+    block_args = [
+        (&#x27;mrkdwn&#x27;, &quot;Recalling `{}`&quot;.format(text)),
+        (&#x27;divider&#x27;,),
+        (&#x27;mrkdwn&#x27;, items_text),
+        (&#x27;divider&#x27;,),
+        (&#x27;mrkdwn&#x27;, &quot;_Trying filtering_ `/recall last 7 days #mgmt`.&quot;),
+        (&#x27;mrkdwn&#x27;, &quot;_Share your response by adding_ `public`&quot;),
+    ]
+
+    resp = {
+       &quot;text&quot;: items_text,
+       &quot;blocks&quot;: [block(*args) for args in block_args]
+    }
+    return jsonify(resp)</code></pre>
+      
+    
+      
+        <p>block 函数是一个辅助函数，用于将类型和可选文本的元组转换成 section，例如：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; block(tuple(&#x27;divider&#x27;))
+{
+    &quot;type&quot;: &quot;divider&quot;
+}</code></pre>
+      
+    
+      
+        <p>它的实现是：</p>
+      
+    
+      
+        <pre><code>def block(typ, text=None):
+    if typ == &quot;mrkdwn&quot;:
+        return {
+            &quot;type&quot;: &quot;section&quot;,
+            &quot;text&quot;: {
+                &quot;text&quot;: text,
+                &quot;type&quot;: &quot;mrkdwn&quot;
+            }
+        }
+    else:
+        return {
+            &quot;type&quot;: typ
+        }</code></pre>
+      
+    
+      
+        <p>现在当我们使用 /recall 时，响应已经格式良好：</p>
+      
+    
+      
+        <p>如果使用真实数据肯定会更好，但我们已经能看到应用各部分如何组合在一起了，而且我们只写了非常少的样板代码（文本用户界面真棒）。</p>
+      
+    
+      
+        <h2>公开还是临时消息</h2>
+      
+    
+      
+        <p>你可以通过 response_type 字段控制响应是发送到频道还是仅私下显示给个人。默认情况下只显示给发出命令的用户，这等价于将 response_type 设置为 ephemeral：</p>
+      
+    
+      
+        <pre><code>{
+  ...
+  &quot;response_type&quot;: &quot;ephemeral&quot;,
+  ...
+}</code></pre>
+      
+    
+      
+        <p>或者，我们也可以让频道里的每个人都看到：</p>
+      
+    
+      
+        <pre><code>{
+  ...
+  &quot;response_type&quot;: &quot;in_channel&quot;,
+  ...
+}</code></pre>
+      
+    
+      
+        <p>试验之后，我决定让用户自己控制消息可见性：在输入 /recall 时，如果消息文本中 anywhere 位置包含 public 参数，例如：</p>
+      
+    
+      
+        <pre><code>/recall last 7 days #mgmt public
+</code></pre>
+      
+    
+      
+        <p>就会发送到频道而不是只显示给自己。这通过对上面 recall_post 的一行扩展实现得很粗糙：</p>
+      
+    
+      
+        <pre><code>resp = {
+    &quot;text&quot;: items_text,
+    &quot;response_type&quot;: &quot;in_channel&quot; if &quot;public&quot; in text else &quot;ephemeral&quot;,
+    &quot;blocks&quot;: [block(*args) for args in block_args]
+}</code></pre>
+      
+    
+      
+        <p>在真正的实现中，你肯定需要对内容进行分词，避免文本中出现 #public 这样的标签就触发公开标志等情况。</p>
+      
+    
+      
+        <h2>可发现性</h2>
+      
+    
+      
+        <p>我认为试验 public 这样的标志对成功的 Slack 应用非常重要。因为我使用 Slack 的经验是，Slash Command 最大的挑战之一就是可发现性。命令的可发现性长期以来一直困扰着 IRC 等纯文本媒介。</p>
+      
+    
+      
+        <p>我用过的唯一在命令发现方面做得特别好的文本媒介是多人地下城（MUD），它们提供类似 commands 的指令来列出所有可用操作，并通过增强的游戏性来奖励玩家学习它们。（我记得 Slack 以前支持过 /commands 但后来移除了，可能是受某些实现限制的影响。）</p>
+      
+    
+      
+        <p>因此，在 Stripe 内部的事故沟通 Slack 应用等工具中，我们非常重视在发到频道的任何文本中增加命令的可发现性，并在用户使用命令时提示其他可用命令。一个同时体现两者的例子是：当你在 recall 中使用 public 标志时，你的响应会告诉其他人如何使用这个命令：</p>
+      
+    
+      
+        <pre><code>Try filtering by tag and date `/recall last 7 days #mgmt`
+Share with the room by adding `public` anywhere in your response
+</code></pre>
+      
+    
+      
+        <p>你可以想象一个“学习型”版本：跟踪用户使用命令的次数，随着时间推移逐渐减少提示。或者在用户熟悉基础功能后，再逐步增加提示。</p>
+      
+    
+      
+        <h2>验证请求</h2>
+      
+    
+      
+        <p>在把这个原型称为完成之前的最后一步，我想实现请求验证，以确保我们只处理来自 Slack 本身的请求。如果不做验证，别人就可以伪造流量发到你的端点，那就太糟糕了。</p>
+      
+    
+      
+        <p>我在  中详细写了生成签名的细节，所以这里就直接给出 verify 函数，不再解释。verify 应该是每个 Slash Command 处理程序中的第一步。<a href="python-hmac-sha256.html">Python 和 Flask 中的 HMAC SHA256 签名</a></p>
+      
+    
+      
+        <pre><code>def verify(request,secret):
+    body = request.get_data()
+    timestamp = request.headers[&#x27;X-Slack-Request-Timestamp&#x27;]
+    sig_basestring = &#x27;v0:%s:%s&#x27; % (timestamp, body.decode(&#x27;utf-8&#x27;))
+    computed_sha = hmac.new(secret,
+                            sig_basestring.encode(&#x27;utf-8&#x27;),
+                            digestmod=hashlib.sha256).hexdigest()
+    my_sig = &#x27;v0=%s&#x27; % (computed_sha,)
+    slack_sig = request.headers[&#x27;X-Slack-Signature&#x27;]
+    if my_sig != slack_sig:
+        err_str = &quot;my_sig %s does not equal slack_sig %s&quot; % \
+                   (my_sig, slack_sig))
+        raise Exception(err_str)
+
+def recall_post(request):
+    signing_secret = b&#x27;your secret from some config tool&#x27;
+    verify(request, signing_secret)
+    return &quot;Signatures match, yay.&quot;</code></pre>
+      
+    
+      
+        <p>接下来的问题是，我们应该如何安全地存储签名密钥（signing secret），让 Cloud Function 可以读取它，同时避免把它提交到我希望公开放在 Github 上的仓库里。</p>
+      
+    
+      
+        <p>最简单的方法是把密钥放到环境变量中，用 --env-vars-file 标志指定一个包含密钥的文件。</p>
+      
+    
+      
+        <p>我们将创建 reflect/env.yaml，内容为：</p>
+      
+    
+      
+        <pre><code>SLACK_SIGN_SECRET: your-secret-goes-here
+</code></pre>
+      
+    
+      
+        <p>然后更新 recall_post，从环境变量中读取密钥。</p>
+      
+    
+      
+        <pre><code>
+def recall_post(request):
+    signing_secret = os.environ[&#x27;SLACK_SIGN_SECRET&#x27;].encode(&#x27;utf-8&#x27;)
+    verify(request, signing_secret)</code></pre>
+      
+    
+      
+        <p>现在部署函数时需要运行：</p>
+      
+    
+      
+        <pre><code>cd reflect
+gcloud functions deploy \
+recall_post --env-vars-file env.yaml \
+--runtime python37 --trigger-http
+</code></pre>
+      
+    
+      
+        <p>注意，其实只有第一次部署函数时才需要最后两个参数，但后面再指定也无妨，你可以根据情况保留或省略。</p>
+      
+    
+      
+        <p>这篇博客中描述的把密钥存到 Google Cloud Key Management Service 的方式在安全性上要好得多。如果你正在构建重要的东西，最好采用那种方式，而不是把密钥塞进环境变量。</p>
+      
+    
+      
+        <h2>结束思考</h2>
+      
+    
+      
+        <p>做到这一步后，我最想做的就是继续完善它，把它变成一个完整、可用的应用。排在前四位的功能是：</p>
+      
+    
+      
+        <div class="list-content">添加 App Home，展示过去几周的记录，并支持一定程度的内联排序和筛选。使用 Events API 让用户可以给消息打标签，方便后续回忆。甚至可以给别人的消息打标签，用于他们的 recall，让团队成员互相支持。也许……加一个数据库来保存数据，而不是随机生成。把 Reflect 上架到应用目录，让其他人也能使用。</div>
+      
+    
+      
+        <p>希望接下来几周我能抽出时间把这些部分也实现并写出来。不管怎样，我对 Slack 生态系统提供的开发体验印象非常深刻，也很期待继续探索。</p>
+      
+    
+      
+        <p>系列文章后续：《<a href="slack-app-home-python.html">在 Python 中为 Slack 应用添加 App Home</a>》</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

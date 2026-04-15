@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>向访问器和修改器致敬 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>向访问器和修改器致敬</h1>
+    <div class="meta">
+      2008-03-12 · 
+      <a href="https://lethain.com/tip-your-hat-to-accessors-and-mutators/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我还记得本科刚开始学习编程时，老师们反复强调：在面向对象代码中，应该始终使用访问器（accessor）和修改器（mutator）来获取和修改数据。当然，那时候我们更常把它们叫做 getter 和 setter 方法，大多数学生都讨厌它们。我记得特别有一个学生坚决拒绝使用它们，认为这些东西“很蠢”。而据说，他现在成了一名职业程序员。</p>
+      
+    
+      
+        <p>我认为很多新手程序员对访问器和修改器产生了误解，这可能是因为很少有人清楚地解释为什么要这么做。教授们可能会告诉学生应该始终使用 setter/getter 对来处理数据交互，但我从未听到过为什么它们重要的解释。当你刚开始学习编程时，头脑里已经被大量新信息塞满，大脑会自动丢弃那些它不理解或认为无关紧要的内容。那个觉得它们很蠢的学生认为，这些只是传统的冗余代码，不值得花费额外的代码行。</p>
+      
+    
+      
+        <p>然而，我编程的时间越长，就越能体会到访问器和修改器那微妙的价值。</p>
+      
+    
+      
+        <h2>惰性初始化</h2>
+      
+    
+      
+        <p>我第一次意识到访问器方法的价值，是在学习如何使用 Java 的 Swing 图形包时。那门课使用的是 Visual Eclipse，它会为你生成大量代码。我注意到，程序启动时很少有变量被初始化，大多数东西都是在它们的访问器方法中进行初始化的。</p>
+      
+    
+      
+        <p>不同于过去那些毫无意义的访问器：</p>
+      
+    
+      
+        <p>我开始看到真正有实际作用的访问器：</p>
+      
+    
+      
+        <p>访问器的价值突然变得清晰起来。你可以用它来初始化对象中的变量，但只有在真正需要它们的时候才会初始化。如果你只在极少数情况下使用某个变量，那也没关系——只有当你真的进入那种罕见场景时，它才会被初始化。或者你有大量计算密集型的运算，但每次只需要其中一部分结果，这也没问题，因为惰性初始化——访问器的第一个福利——可以帮你分摊这些成本。</p>
+      
+    
+      
+        <p>在更复杂的问题中，你可以实现动态规划算法，只生成并缓存你真正关心的那些值，并把这一切都隐藏在访问器背后：</p>
+      
+    
+      
+        <p>这是一种在不增加类公共 API 复杂性的前提下，大幅提升性能的绝佳方式。</p>
+      
+    
+      
+        <h2>访问控制</h2>
+      
+    
+      
+        <p>访问器的另一个用途是验证调用对象是否有权限使用某个访问器。也许你只允许关联的主对象才能调用你的访问器方法：</p>
+      
+    
+      
+        <p>这是一个相当简单的例子，但你可以将其扩展到更有用的场景中。例如，在多个程序之间共享的分布式对象中，某些数据需要受到保护，不能被随意访问。</p>
+      
+    
+      
+        <h2>修改器</h2>
+      
+    
+      
+        <p>好了，我们已经讨论了访问器的重要性，现在来看看修改器。修改器的理由相对更显而易见，但仍然值得深入考察。</p>
+      
+    
+      
+        <h2>数据验证</h2>
+      
+    
+      
+        <p>你通常希望在更新数据之前验证更新是否有效，而修改器正是做这件事的完美场所。</p>
+      
+    
+      
+        <h2>清理和设置工作</h2>
+      
+    
+      
+        <p>此外，当你使用修改器时，可以在更新为新值之前对旧值进行清理。例如，你可能有一个频繁写入的文件流，需要先把它关闭，然后再打开一个指向新文件的新流。</p>
+      
+    
+      
+        <p>这对于没有自动垃圾回收机制的语言尤其重要，但即使是带垃圾回收的语言，有时也需要显式的清理操作（例如打破引用循环）。</p>
+      
+    
+      
+        <h2>继承</h2>
+      
+    
+      
+        <p>当你开始对对象进行子类化时，修改器和设置器的真正潜力就显现出来了。你可以复用已有的验证或设置代码，只需添加少量额外逻辑即可。</p>
+      
+    
+      
+        <p>例如，你可能希望子类返回与超类相同的结果，但要变成大写而不是小写：</p>
+      
+    
+      
+        <p>或者你可能想创建一个会记录自身操作的子类。</p>
+      
+    
+      
+        <p>又或者，你可能想为修改器增加额外的验证逻辑：</p>
+      
+    
+      
+        <p>这些用途中有些作用更强，有些相对较弱，但综合起来，它们为编写访问器和修改器的实践提供了强有力的理由。这远远超出了最基本的辩护——即直接访问对象的成员会将代码与实现细节紧密绑定，从而打破抽象层。</p>
+      
+    
+      
+        <p>是我高估了访问器和修改器的价值吗？它们是否只在 Objective C、Java 或 C++ 这些老旧繁琐的语言中才有价值，而在如今动态脚本语言的乌托邦中就显得浪费？我知道自己曾经也对它们很反感，但随着项目规模和复杂度的增加，我发现越来越难以忽视它们带来的帮助。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

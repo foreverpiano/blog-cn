@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《事务模型》论文综述 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>《事务模型》论文综述</h1>
+    <div class="meta">
+      2009-08-18 · 
+      <a href="https://lethain.com/paper-review-of-a-transaction-model/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在读完 Lampson 的《计算机系统设计中的提示》之后，最让我着迷的主题是容错（fault tolerance）和故障恢复。它本身就极具吸引力，而随着我们正在构建的复杂系统逐渐引入“故障中的清醒”机制，这个主题又增添了几分魅力。因此，我接下来阅读的论文是 Jim Gray 在 1980 年发表的《A Transaction Model》。</p>
+      
+    
+      
+        <p>从宏观角度来看，《A Transaction Model》讨论了系统如何发生故障、并发问题、一致性级别、如何判断具有一致性要求的系统中并发事务的合法性、并发事务所带来的风险、并发事务的解决方案、分布式数据库以及以事务为中心的编程语言可能涉及的各个方面。</p>
+      
+    
+      
+        <h2>事务</h2>
+      
+    
+      
+        <p>作为对后续总结的快速铺垫，我们先引入 Gray 对事务的定义，他提出了两个核心要求：</p>
+      
+    
+      
+        <blockquote>必须被精确执行一次（可靠性）。必须与并发执行事务所引入的一致性约束临时违反情况相隔离（一致性）。</blockquote>
+      
+    
+      
+        <p>对包括我自己在内的许多开发者来说，事务通常只在选择 MySQL 存储引擎，或者争论 MySQL 与 PostgreSQL 各自优劣时才会被提到。然而，我逐渐形成一个想法：事务其实可以应用于更高层次，而且大多数系统都可以用事务来描述——当然要附带一个说明，即它们并不特别追求可靠性和一致性。</p>
+      
+    
+      
+        <p>例如，设想一个正在尝试发布推文的 Twitter 客户端。预提交阶段包括撰写推文，而提交阶段则是真正发送到 Twitter 并在客户端 GUI 中显示它。然而，有可能（取决于你每天接触多少毒舌内容，或许还很常见）Twitter 服务不可用，或者你的 API 使用权限被临时封禁一小时。在这种情况下，客户端需要撤销预提交的操作（从 GUI 中移除你刚写的推文），然后要么重新尝试预提交和提交阶段，要么彻底放弃整个事务。</p>
+      
+    
+      
+        <p>我不确定用事务来建模这个 Twitter 客户端逻辑是否特别有价值，但如果抱有更大的雄心，我能想象出更多有趣的例子——将整个程序视为一系列事务，将成为一种强大的简化模型。</p>
+      
+    
+      
+        <h2>可靠性</h2>
+      
+    
+      
+        <p>论文详细梳理了各种类型的错误——我在这里就不逐一复述了——但从最宏观的角度，它讨论了两种故障：事务重启和系统重启。这两者的区别正如其名称所暗示的那样。</p>
+      
+    
+      
+        <p>更有意思的是 Gray 将资源分为四类：</p>
+      
+    
+      
+        <div class="list-content">真实资源（real resources）代表物理实体（ATM 机吐出的真实货币）；稳定资源（stable resources）代表能在系统重启后继续存在的实体（写入磁盘的文件）；易失资源（volatile resources）是在系统重启时会丢失的实体（某个变量的当前值）；可恢复易失资源（volatile-recoverable resources）以快速访问的形式存在，但有备份机制，能在系统重启后重建（例如使用内存存储并备份到磁盘的 Mnesia）。</div>
+      
+    
+      
+        <p>用这些概念思考的最大好处是，它能更清晰地确定事务应该回退到哪里，同时也能帮助判断你的系统是否不可恢复（即依赖某个易失值来完成系统重启后的恢复）。</p>
+      
+    
+      
+        <p>我要提到的最后一个概念——类似于 Lampson《计算机系统设计中的提示》中讨论的事件日志——是撤销日志（undo logs）和重做日志（redo logs），它们使系统能够回滚事务的预提交操作。</p>
+      
+    
+      
+        <p>本质上，在执行预提交步骤之前，这些操作会被写入重做日志。然后每执行一步，就从重做日志中弹出，并推入撤销日志。这样，任何时候都可以完整地执行或回滚预提交阶段的所有事件。</p>
+      
+    
+      
+        <p>有了稳定的撤销和重做日志，即使在系统重启时正在进行的事务也能被合理地撤销。这是一个相当惊人的特性，许多系统如果具备它都会受益匪浅，但真正拥有的却寥寥无几。</p>
+      
+    
+      
+        <h2>并发</h2>
+      
+    
+      
+        <p>我不会在此过多展开，因为论文对此没有进行深入探讨，但核心思想是：当并发事务被记录到日志中，且其效果等价于某组串行执行的事务时，会产生若干积极的特性。</p>
+      
+    
+      
+        <p>如果并发事务无法以等价于某个串行事务历史的方式被记录，那么系统的合理性就会受到质疑。</p>
+      
+    
+      
+        <h2>一致性级别</h2>
+      
+    
+      
+        <p>在探讨实现一致性事务的具体方案之前，Gray 定义了三种一致性级别：</p>
+      
+    
+      
+        <blockquote>三级一致性之前被定义为一种获取锁来覆盖所有操作、并将所有锁保持到事务提交的协议。它已被证明能够防止并发异常。为了支持事务重启，所有系统都会获取 X 模式锁来覆盖写操作并保持到事务提交，这被称为一级一致性锁协议。如果系统还为读操作获取 S 模式锁，但在提交前就释放这些锁，则提供二级一致性。</blockquote>
+      
+    
+      
+        <p>关于使用不太严格的一级和二级一致性在性能上的相对表现，Gray 写道：</p>
+      
+    
+      
+        <blockquote>在我们所做的实验中，三级一致性的成本（吞吐量和处理器开销）与较低级别的一致性几乎无法区分。</blockquote>
+      
+    
+      
+        <p>我发现他简短评论为什么其他人仍然在使用 supposedly 同等高效却一致性更弱的一级和二级一致性时，相当好笑，或者说相当扎心。</p>
+      
+    
+      
+        <p>很多次我见过其他人——当然我自己也肯定犯过——拼命为我们已经用错误方式做过的事情寻找解释，然后试图说明它其实是一个理性的决定，而不仅仅是一个欠考虑的选择。Gray 给出的两个借口是：实现的复杂性，以及想象但未经证实的性能优势。这两种说法听起来都相当熟悉。</p>
+      
+    
+      
+        <h2>分布式问题</h2>
+      
+    
+      
+        <p>当一个事务在其生命周期中跨越多个不同节点时，如何重启该事务的问题得到了讨论，这与我们目前在工作中遇到的最棘手的问题非常相似。</p>
+      
+    
+      
+        <p>Gray 的建议是：每个节点必须记录它从哪个源节点接收到某个事务，记录在自己节点上发生步骤的重做-撤销历史，并记录该事务接下来要前往的节点。这样就可以在多个节点之间维护完整的重做-撤销历史。</p>
+      
+    
+      
+        <p>在内存文件备份数据库（它们本身就是一种分布式数据库）以及将这些内存和文件后端部分进一步分布到多个节点方面，还有大量有趣的思考工作值得深入。</p>
+      
+    
+      
+        <h2>事务与编程语言</h2>
+      
+    
+      
+        <p>在论文的最后部分，Gray 非常简要地描述了他的事务研究成果如何被融入未来的编程语言。其中描述的语言特性有一部分与 Java 或 Objective-C 的方法级锁非常相似（在 Java 中，可以给方法加上 synchronized 修饰符，它会透明地生成一个锁）。</p>
+      
+    
+      
+        <p>另一部分则较少被采用（虽然我觉得 McCarthy 的语言 Elephant——我对它的全部了解就是它的口号是“大象永不忘记”——可能与之相关），但似乎非常吸引人：</p>
+      
+    
+      
+        <div class="list-content">在语言层面增加对维护事务所需要的重做和撤销日志的支持；在语言层面增加对将属性标记为真实、稳定、可恢复易失和易失的支持，并让语言实现负责维护实现稳定和可恢复易失属性所需的记录工作。</div>
+      
+    
+      
+        <p>这可能是我年轻导致的局限，但我目前没有听说有哪门通用编程语言已经采纳了这些特性。不过我确实认为，为 Python（或其他你选择的语言）编写一个支持这种事务中心和持久化中心编程方式的库应该是相当直接的。</p>
+      
+    
+      
+        <h2>总结思考</h2>
+      
+    
+      
+        <p>《A Transaction Model》是一篇非常易读的论文，包含了许多有趣的想法，同时也是学习事务的绝佳入门读物。阅读那些已有二十六年历史却依然完全相关的论文总是令人感到奇妙，这篇论文无疑属于其中之一。</p>
+      
+    
+      
+        <p>对我来说最有趣的部分——正如之前提到的——是容错能力和从失败事务中恢复，我将会从其引用的文献中寻找更多阅读材料。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

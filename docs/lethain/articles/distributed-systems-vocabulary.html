@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>分布式系统词汇表 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>分布式系统词汇表</h1>
+    <div class="meta">
+      2019-08-11 · 
+      <a href="https://lethain.com/distributed-systems-vocabulary/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近我花了大量时间讨论分布式系统是如何故障的，以及预防这些故障的策略，发现缺乏一套共享的词汇表，对高效深入的交流构成了重大障碍。</p>
+      
+    
+      
+        <p>鉴于我接下来打算在这个领域写更多内容的模糊计划，我整理了这份自己认为最有效的词汇表。希望它本身就能提供价值，最坏的情况也是让我以后不用反复解释那些基础定义！</p>
+      
+    
+      
+        <p>想要原始出处吗？当然可以！</p>
+      
+    
+      
+        <div class="list-content">CAP Twelve Years Later: How the “Rules” Have Changed, Brewer；Harvest, Yield, and Scalable Tolerant Systems, Fox, Brewer；The Transaction Concept: Virtues and Limitations, Gray；BASE: an ACID Alternative, Pritchett；Keeping CALM: When Distributed Consistency is Easy, Hellerstein, Alvaro；Eventually Consistent, Vogel；以及更多<a href="some-of-my-favorite-technical-papers.html">我最喜欢的一些技术论文。</a></div>
+      
+    
+      
+        <h2>CAP：一致性、可用性、分区</h2>
+      
+    
+      
+        <p>任何关于分布式系统的讨论，都要从 CAP 定理开始。该定理认为，你只能同时拥有以下三个属性中的两个：</p>
+      
+    
+      
+        <blockquote>一致性（C）：等价于拥有数据的单一最新副本；该数据的高可用性（A）（支持更新）；以及对网络分区的容忍能力（P）。</blockquote>
+      
+    
+      
+        <p>需要注意的是，CAP 的原始作者后来强调“‘2 of 3’的说法是有误导性的”，特别是因为：（1）生产系统会在一致性和可用性之间做出大量不同的选择（而非一次总体选择）；（2）“这三个属性都是连续的，而非二元的。”</p>
+      
+    
+      
+        <p>对一致性和可用性连续特性的最有用探索之一，是《Harvest, Yield and Scalable Tolerant Systems》这篇论文。</p>
+      
+    
+      
+        <h2>Harvest 和 Yield</h2>
+      
+    
+      
+        <p>Fox 和 Brewer 撰写的《Harvest, Yield, and Scalable Tolerant Systems》进一步完善了 CAP 的思想，以更好地应对其属性非二元性的特点。</p>
+      
+    
+      
+        <div class="list-content">Yield 是成功完成请求的概率（也就是你平时谈论可用性时通常衡量的指标）；Harvest 是响应中包含的数据量相对于理想情况下应该可用的数据量的比例。</div>
+      
+    
+      
+        <p>使用这套词汇，我们可以更细致地讨论可用性权衡。例如，搜索引擎始终返回结果，但在某个节点不可用时可能不包含全部结果，这种情况就被描述为“harvest degradation（收获退化）”。</p>
+      
+    
+      
+        <p>它还引入了正交机制（orthogonal mechanisms）的概念，主张移除系统间所有运行时的接口，转而依赖编译期接口，从而让它们能够独立运行。一个现实中的例子是：在编译时为最常见的内容构建一个静态缓存，定期重建并分发它，而不尝试实时更新缓存。（这实际上就是这个博客的工作方式——每个实例都拥有自己完整的数据快照，并定期拉取更新。）</p>
+      
+    
+      
+        <h2>ACID</h2>
+      
+    
+      
+        <p>ACID 由 Jim Gray 在 1981 年的论文《The Transaction Concept: Virtues and Limitations》中提出，它描述了一个事务所必需的四个核心属性：</p>
+      
+    
+      
+        <div class="list-content">原子性（Atomicity）—— 要么全部变更发生，要么全部不发生；一致性（Consistency）—— 事务不能将数据库带入无效状态（注意，这与 CAP 中的一致性含义相当不同）；隔离性（Isolation）—— 并发执行不会改变结果；持久性（Durability）—— 变更效果在故障后仍能保留。</div>
+      
+    
+      
+        <p>这正是大多数 SQL 数据库（如 MySQL 和 PostgreSQL）所采用的方式，也被部分（但远非全部）NoSQL 数据库采用（例如 Neo4j 就遵循 ACID）。</p>
+      
+    
+      
+        <h2>BASE</h2>
+      
+    
+      
+        <p>BASE 是 ACID 的一种替代方案：</p>
+      
+    
+      
+        <blockquote>BASE 与 ACID 完全对立。ACID 是悲观的，在每个操作结束时强制保证一致性；而 BASE 是乐观的，它接受数据库一致性会处于不断变化的状态。</blockquote>
+      
+    
+      
+        <p>BASE 中的字母分别代表：</p>
+      
+    
+      
+        <div class="list-content">Basically Available（基本可用）—— 通过优先选择 Yield 而非 Harvest 来实现 CAP 中的 Availability；Soft state（软状态）—— 状态会随着时间因变更而不断演化，在任意时间点都不保证存在一个绝对正确的版本；Eventually consistent（最终一致性）—— 如果不再有新的变更，状态最终会达到一致。</div>
+      
+    
+      
+        <p>许多 NoSQL 数据库都遵循这一模型，例如 Cassandra、Datomic、Dynamo、Riak 等等。</p>
+      
+    
+      
+        <p>想了解更多细节的话，Brewer 的演讲《Towards Robust Distributed Systems》是另一个很好的资源。</p>
+      
+    
+      
+        <h2>CALM</h2>
+      
+    
+      
+        <p>最近我越来越多地听到 CALM，即 Consistency as Logical Monotonicity（一致性即逻辑单调性），其详细阐述见《Keeping CALM: When Distributed Consistency is Easy》。它的核心定理是：</p>
+      
+    
+      
+        <blockquote>当且仅当一个程序是单调的（monotonic），它才存在一个一致的、无需协调的分布式实现。</blockquote>
+      
+    
+      
+        <p>Adrian Colyer 对《Keeping CALM》的总结是非常好的补充阅读（他的所有总结文章都很值得读）。</p>
+      
+    
+      
+        <h2>可用性配置</h2>
+      
+    
+      
+        <p>可用性配置包括：</p>
+      
+    
+      
+        <div class="list-content">Active-active（主主）意味着请求可以路由到任意节点并被正确处理；Active-passive（主备）意味着请求总是被路由到单个活跃节点，但当当前活跃节点出现问题时，可以快速选举出一个新的活跃节点。</div>
+      
+    
+      
+        <p>还有另一种使用“hot（热）”、“cold（冷）”和“warm（温）”的表述方式，有时“hot”表示“active”，“cold”表示“passive”。然而，这些术语有时也被用来描述数据读取的频率，比如 Amazon S3 Glacier 提供的“cold storage（冷存储）”用于存放不常访问的数据。</p>
+      
+    
+      
+        <p>为避免混淆，我建议用“active”和“passive”来描述可用性特性，而用“hot”、“warm”和“cold”来描述数据读取频率。</p>
+      
+    
+      
+        <h2>算法</h2>
+      
+    
+      
+        <p>经常被提及的算法包括：</p>
+      
+    
+      
+        <div class="list-content">Paxos 是最初的分布式共识算法，其改进版本被 Chubby 和许多其他系统采用。（Zookeeper 的 ZAB 也与 Paxos 类似。）RAFT 是一种更为简单的共识算法，被 Consul 采用；SWIM 是一种用于组成员管理的分布式 Gossip 协议（例如用于确定缓存环的成员等）；Two-phase commit（两阶段提交）是一种用于实现分布式原子提交的协议。</div>
+      
+    
+      
+        <h2>一致性级别</h2>
+      
+    
+      
+        <p>以下是一致性级别，来自 Werner Vogel 的《Eventually Consistent》：</p>
+      
+    
+      
+        <div class="list-content">Strong consistency（强一致性）—— 更新完成后，所有后续操作都会正确使用新值；Weak consistency（弱一致性）—— 更新完成后的操作可能不会正确使用新值；Eventual consistency（最终一致性）—— 如果不再对对象进行新的更新，最终它会返回正确的值；Inconsistency window（不一致窗口）—— 从更新发生到系统保证返回正确值之间的时间段；Casual consistency（因果一致性）—— 一旦某个更新版本被传递给一个进程，就保证它不会再使用旧版本；Monotonic read consistency（单调读一致性）—— 类似于因果一致性，但从接收进程的角度来看：一旦进程看到某个版本，就永远不会再使用比它更旧的版本；Monotonic write consistency（单调写一致性）—— 同一个进程内的写操作会被串行化；Read-your-writes consistency（读己之写一致性）—— 写操作之后的所有读都能看到更新后的版本；Session consistency（会话一致性）—— 在同一个会话内，写之后的读始终是正确的。Read level、write level 和 replica level 指的是分布式存储系统中参与读、写和复制某条数据的节点数量。Dynamo 论文对此有详细描述，Cassandra 和 MongoDB（以及许多其他系统）也都大量采用这种方式。</div>
+      
+    
+      
+        <h2>冲突解决</h2>
+      
+    
+      
+        <p>分布式系统的冲突解决机制包括：</p>
+      
+    
+      
+        <div class="list-content">last writer wins（最后写入者胜出）—— 最近写入的版本被视为正确版本；read repair（读时修复）—— 在读时修复不一致，会降低读性能；write repair（写时修复）—— 在写时修复不一致，会降低写性能；asynchronous repair（异步修复）—— 在读写操作之外以某种方式异步修复不一致；vector clocks（向量时钟）—— 通过创建逻辑时钟来协调写入，详见 Dynamo 论文。</div>
+      
+    
+      
+        <h2>其他术语</h2>
+      
+    
+      
+        <div class="list-content">Single point of failure（SPOF，单点故障）是指某个组件失效会导致依赖它的服务全部失效；是一组共享同一 SPOF 的组件；Fault tolerant（容错）描述的是在同一功能级别上拥有多个故障域的系统；Replication（复制）是将变更从一个进程流式传输到另一个进程；Synchronous replication（同步复制）是指在主节点提交变更的同时也在副本上提交（例如 MySQL 的半同步复制，通常非常非常慢）。<a href="fault-domains.html">描述故障域</a></div>
+      
+    
+      
+        <p>这远非一套完整的术语，分布式系统中还有非常非常多的概念，我会随着时间继续更新和迭代这篇文章。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

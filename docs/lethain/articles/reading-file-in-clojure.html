@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 Clojure 中读取文件 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 Clojure 中读取文件</h1>
+    <div class="meta">
+      2009-11-15 · 
+      <a href="https://lethain.com/reading-file-in-clojure/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>这个周末花了一些时间开始学习 Clojure（得益于《Setting Up Clojure for Mac OS X Leopard》这篇优秀的教程帮助我搭建开发环境），没想到查找如何简洁地读取文件却多花了不少时间。所以在这里整理一些关于这个主题的想法。</p>
+      
+    
+      
+        <h2>slurp</h2>
+      
+    
+      
+        <p>读取文件最简单的方法就是直接使用 slurp。</p>
+      
+    
+      
+        <p>对于简单的脚本来说，这可能就足够了，但它存在几个问题：</p>
+      
+    
+      
+        <div class="list-content">它会把整个文件一次性读入内存，因此不适合处理大文件，而且不会按行（或其他分隔符）拆分内容，而按行读取通常才是我们想要的方式。</div>
+      
+    
+      
+        <h2>java.io.BufferedReader</h2>
+      
+    
+      
+        <p>如果需要更具扩展性的流式处理方式，java.io.BufferedReader 是一个简单而高效的选择。</p>
+      
+    
+      
+        <p>BufferedReader 包装了 FileReader，为文件提供了一个延迟加载的接口，而 line-seq 让我们可以把这个流当作一个列表来处理，背后实际是通过调用 BufferedReader 的 readLine 方法实现的。</p>
+      
+    
+      
+        <p>在上面代码的基础上，你可以写一个通用的函数来对文件中的每一行进行归约处理。</p>
+      
+    
+      
+        <p>上面的代码片段只是统计了文件中的行数，但你可以修改 process-line 函数，使其能够从文件中检测并提取 token。</p>
+      
+    
+      
+        <p>此时运行这个脚本：</p>
+      
+    
+      
+        <p>总的来说，对于大多数文件读取场景，BufferedReader 和 line-seq 应该已经足够了（BufferedReader 也是 Java 中读取大文件的推荐方式），但 Clojure 里总是有更多实现方式。</p>
+      
+    
+      
+        <h2>clojure.contrib.duck-streams</h2>
+      
+    
+      
+        <p>如果你已经安装了 clojure.contrib，那么还有一种稍微更简洁的流式处理文件的方法：duck-streams。</p>
+      
+    
+      
+        <p>把前面的 BufferedReader 示例改成使用 duck-streams，代码如下：</p>
+      
+    
+      
+        <p>代码更加简洁，但你通常会使用 duck-streams.read-lines，是因为你已经在使用 duck-streams 的其他功能（比如用 spit 写出文件，用 append-spit 向文件追加内容）。</p>
+      
+    
+      
+        <p>在 Clojure 中读取文件还有很多其他方法，但以上这些应该足够让你上手了。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

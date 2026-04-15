@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 Python 中为 Slack 应用添加 App Home · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 Python 中为 Slack 应用添加 App Home</h1>
+    <div class="meta">
+      2019-11-08 · 
+      <a href="https://lethain.com/slack-app-home-python/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在 <a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a> 的基础上，我想继续扩展 reflect-slack-app，为其加入 App Home 功能。</p>
+      
+    
+      
+        <p>App Home 界面允许工作区中的每位用户拥有一个由应用驱动的个性化视图，应用可以在其中分享任何想展示的数据或交互元素（按钮等）。想让用户配置应用设置？可以实现！想让用户查看最近的活动？可以实现！想让用户了解所有进行中项目的当前状态？也可以实现！</p>
+      
+    
+      
+        <p>该功能目前处于 Beta 阶段。在开始研究这个 API 之前，我其实并不知道它的存在，尽管我一直希望有这样的功能。对我来说，App Home 的概念特别有吸引力，因为它是一个绝佳的机制，既可以（a）为用户汇总信息，又可以（b）提升应用功能的发现性。</p>
+      
+    
+      
+        <p>它也代表着从聊天机器人和 Slash Command 驱动的交互，向更丰富、更接近 Web 风格的体验迈出了有意义的一步。好了，接下来我们进入具体的集成环节。</p>
+      
+    
+      
+        <p>本文从 commit 5359 开始，到 commit 4120 结束。</p>
+      
+    
+      
+        <h2>Slack 应用 Python 系列</h2>
+      
+    
+      
+        <div class="list-content"><a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a><a href="slack-app-home-python.html">在 Python 中为 Slack 应用添加 App Home</a><a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a><a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a><a href="slack-distribution.html">发布你的 Slack 应用</a></div>
+      
+    
+      
+        <h2>启用 App Home</h2>
+      
+    
+      
+        <p>第一步是在应用仪表盘中为 App Home 功能进行注册。</p>
+      
+    
+      
+        <p>由于该功能仍处于 Beta 阶段，系统会显示免责声明，提醒你它可能发生变化。你必须接受它。</p>
+      
+    
+      
+        <p>App Home 需要一个 Bot User，但我们不会用它来实现任何聊天机器人功能，也不会让用户向机器人发送消息（他们将继续使用 /reflect 和 /recall 这两个 Slash Command），因此可以直接禁用“Messages Tab”，以免造成混淆。</p>
+      
+    
+      
+        <p>现在我们已经设置好了 App Home，接下来该如何真正渲染它呢？</p>
+      
+    
+      
+        <h2>注册 app_home_opened 事件</h2>
+      
+    
+      
+        <p>我们需要从 Events API 注册 app_home_opened 事件。这意味着我们必须先集成 Event APIs，才能继续后续工作。</p>
+      
+    
+      
+        <p>第一步是在应用仪表盘中启用 Events API。</p>
+      
+    
+      
+        <p>启用 Events API 后，下一步是设置 Request URL。这又需要先为 url_verification 事件创建一个处理器。当我们添加 URL 后，Slack 会发送一条以 application/json 编码的消息（与 Slash Command 使用的 application/x-www-form-urlencoded 不同）。</p>
+      
+    
+      
+        <pre><code>{
+  &quot;token&quot;: &quot;random token&quot;,
+  &quot;challenge&quot;: &quot;challenge to return&quot;,
+  &quot;type&quot;: &quot;url_verification&quot;
+}</code></pre>
+      
+    
+      
+        <p>这条消息中包含一个 challenge 键值对，我们需要将其值原样返回在一个 JSON 消息中。</p>
+      
+    
+      
+        <pre><code>{
+  &quot;challenge&quot;: &quot;challenge to return&quot;
+}</code></pre>
+      
+    
+      
+        <p>为了启动集成，我们现在切换到 lethain/reflect-slack-app 代码仓库，从 commit 3aa6 开始，打开 reflect/main.py 文件，新增一个函数：</p>
+      
+    
+      
+        <pre><code>def event_post(request):
+    signing_secret = os.environ[&#x27;SLACK_SIGN_SECRET&#x27;].encode(&#x27;utf-8&#x27;)
+    verify(request, signing_secret)
+
+    parsed = request.json
+    challenge = parsed[&#x27;challenge&#x27;]
+    return jsonify({&quot;challenge&quot;: challenge})</code></pre>
+      
+    
+      
+        <p>注意我们使用了 <a href="python-hmac-sha256.html">Python 和 Flask 中的 HMAC SHA256 签名</a> 来验证请求的真实性。验证请求签名是来自 Slack 的“现代”验证方式。还有一种较旧的方法是使用 url_verification 事件发送的 token 参数。如果使用那种已被废弃的方式，你需要捕获提供的 token（上面例子中的随机 token），并验证后续所有请求都带有该 token。由于我们使用的是请求签名验证，因此可以安全地忽略这个 token。</p>
+      
+    
+      
+        <p>现在我们需要创建一个新的 Cloud Function 来提供 event_post 函数。</p>
+      
+    
+      
+        <pre><code>&gt; gcloud functions deploy event_post \
+--env-vars-file env.yaml \
+ --runtime python37 \
+--trigger-http
+
+Allow unauthenticated invocations of new function [event_post]? (y/N)?
+&gt; y
+Deploying function (may take a while - up to 2 minutes)...
+</code></pre>
+      
+    
+      
+        <p>这会返回一个类似以下的 URL：</p>
+      
+    
+      
+        <pre><code>https://your-app-here.cloudfunctions.net/event_post
+</code></pre>
+      
+    
+      
+        <p>我们将这个 URL 添加到应用仪表盘的 Events Subscriptions 标签页中。</p>
+      
+    
+      
+        <p>当你粘贴 URL 后，Slack 会自动进行验证，如果成功，会在上方显示“Verified”；如果失败，则会在下方显示非常有帮助的调试信息，包括你的端点返回的意外响应。</p>
+      
+    
+      
+        <p>URL 验证通过后，打开“Subscribe to bot events”，订阅 app_home_opened 事件。</p>
+      
+    
+      
+        <p>最后，你必须点击底部的“Save Changes”。这一步很容易被忽略，如果你不小心关闭标签页而没有保存，就得把这些步骤全部重做一遍。</p>
+      
+    
+      
+        <h2>重新安装应用</h2>
+      
+    
+      
+        <p>现在我们已经启用了 App Home 和 Event Subscriptions，需要重新安装应用以申请这些额外的权限。</p>
+      
+    
+      
+        <p>这时神奇的事情发生了：如果你回到已安装该应用的工作区，搜索应用名称，就会发现应用的 App Home 已经可用了。</p>
+      
+    
+      
+        <p>点击它，让我们开始吧。</p>
+      
+    
+      
+        <h2>从 Events API 路由事件</h2>
+      
+    
+      
+        <p>第一次加载 App Home 时界面有点简陋，只显示一个“正在开发中”的画面。我们最终会修复这个问题，但这需要几个步骤。</p>
+      
+    
+      
+        <p>首先，我们需要处理每次用户访问应用 App Home 时发送的 app_home_opened 事件。Events API 有两层事件类型，因此 event_post 收到的请求结构如下：</p>
+      
+    
+      
+        <pre><code>{
+  &quot;type&quot;: &quot;event_callback&quot;,
+  &quot;event&quot;: {
+    &quot;type&quot;: &quot;app_home_opened&quot;,
+    &quot;other&quot;: &quot;stuff&quot;
+  },
+  &quot;other&quot;: &quot;stuff&quot;
+}</code></pre>
+      
+    
+      
+        <p>了解格式后，我们可以对 event_post 进行一些重构，将不同消息类型和事件类型的处理拆分开来。</p>
+      
+    
+      
+        <pre><code>def event_post(request):
+    signing_secret = os.environ[&#x27;SLACK_SIGN_SECRET&#x27;].encode(&#x27;utf-8&#x27;)
+    verify(request, signing_secret)
+    parsed = request.json
+    event_type = parsed[&#x27;type&#x27;]
+    if event_type == &#x27;url_verification&#x27;:
+        return url_verification_event(request, parsed)
+    if event_type == &#x27;event_callback&#x27;:
+        return event_callback_event(request, parsed)
+    else:
+        raise Exception(&quot;unable to handle event type: %s&quot; % (event_type,))
+
+def url_verification_event(request, parsed):
+    challenge = parsed[&#x27;challenge&#x27;]
+    return jsonify({&quot;challenge&quot;: challenge})
+
+def event_callback_event(request, parsed):
+    event_type = parsed[&#x27;event&#x27;][&#x27;type&#x27;]
+    if event_type == &#x27;app_home_opened&#x27;:
+        return app_home_opened_event(request, parsed)
+    else:
+        raise Exception(&quot;unable to handle event_callback event type: %s&quot; \
+                        % (event_type,))
+
+def app_home_opened_event(request, parsed):
+    print(parsed)
+    return &quot;to be implemented&quot;</code></pre>
+      
+    
+      
+        <p>如果我们部署这个更新版本，然后从 App Home 切换出去再切回来，日志中就会包含一条完整的 app_home_opened 事件消息：</p>
+      
+    
+      
+        <pre><code>{
+  &#x27;token&#x27;: &#x27;token-token-token&#x27;,
+  &#x27;team_id&#x27;: &#x27;tttttttttt&#x27;,
+  &#x27;api_app_id&#x27;: &#x27;aaaaaaaa&#x27;,
+  &#x27;event&#x27;: {
+    &#x27;type&#x27;: &#x27;app_home_opened&#x27;,
+    &#x27;user&#x27;: &#x27;uuuuuuuuuu&#x27;,
+    &#x27;channel&#x27;: &#x27;ccccccccc&#x27;,
+    &#x27;tab&#x27;: &#x27;home&#x27;
+  },
+  &#x27;type&#x27;: &#x27;event_callback&#x27;,
+  &#x27;event_id&#x27;: &#x27;eeeeeeeeee&#x27;,
+  &#x27;event_time&#x27;: 1500000000
+}</code></pre>
+      
+    
+      
+        <p>现在你可能会想，我们只要更新 app_home_opened_event 函数，返回一些 Block Kit 元素就能渲染了，但事情没那么简单。我们的处理器需要调用 Slack Web API 中的 views.publish 方法。</p>
+      
+    
+      
+        <h2>调用 Web API</h2>
+      
+    
+      
+        <p>Slack 的 Web API 是一个相当典型的 HTTP API。在我们的场景中，需要向 views.publish 发送 POST 请求，地址为：</p>
+      
+    
+      
+        <pre><code>https://slack.com/api/views.publish
+</code></pre>
+      
+    
+      
+        <p>我们将发送 application/json 格式的请求体，大致如下：</p>
+      
+    
+      
+        <pre><code>{
+  &quot;user_id&quot;: &quot;uuuuuuuuuuu&quot;,
+  &quot;view&quot;: {
+    &quot;type&quot;: &quot;home&quot;,
+    &quot;blocks&quot;: [
+      {
+        &quot;type&quot;: &quot;section&quot;,
+        &quot;text&quot;: {
+          &quot;type&quot;: &quot;mrkdwn&quot;,
+          &quot;text&quot;: &quot;To be implemented&quot;
+        }
+      }
+    ]
+  }
+}</code></pre>
+      
+    
+      
+        <p>其中的每个 block 都符合我们之前  时使用的格式。<a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a></p>
+      
+    
+      
+        <p>我们还需要在 HTTP 请求头中带上机器人的 token，你可以在应用仪表盘的“OAuth &amp; Permissions” 标签页中找到它：</p>
+      
+    
+      
+        <pre><code>Authorization: Bearer xoxp-xxxxxxxxx-xxxx
+</code></pre>
+      
+    
+      
+        <p>我们首先扩展 reflect/env.yaml 文件，把这个 token 加进去：</p>
+      
+    
+      
+        <pre><code>SLACK_SIGN_SECRET: your-signing-secret-here
+SLACK_BOT_TOKEN: your-bot-token
+</code></pre>
+      
+    
+      
+        <p>我们将使用 Python 的 requests 库向 Slack 的 API 发送请求。第一步是向仓库中添加 requests/requirements.txt 文件，让 Cloud Functions 知道我们的依赖：</p>
+      
+    
+      
+        <pre><code>requests==2.20.0
+</code></pre>
+      
+    
+      
+        <p>我们还希望在本地虚拟环境中安装它，以便进行任何本地验证（上次我们已经创建了虚拟环境）：</p>
+      
+    
+      
+        <pre><code>source ../venv/bin/activate
+pip install requests==2.20.0
+</code></pre>
+      
+    
+      
+        <p>然后我们可以在 reflect/main.py 中编写一个工具函数来执行请求：</p>
+      
+    
+      
+        <pre><code>import requests
+
+def slack_api(endpoint, msg):
+    url = &quot;https://slack.com/api/%s&quot; % (endpoint,)
+    bot_token = os.environ[&#x27;SLACK_BOT_TOKEN&#x27;].encode(&#x27;utf-8&#x27;)
+    headers = {
+        &quot;Authorization&quot;: &quot;Bearer %s&quot; % (bot_token.decode(&#x27;utf-8&#x27;),),
+        &quot;Content-Type&quot;: &quot;application/json; charset=utf-8&quot;,
+    }
+    resp = requests.post(url, json=msg, headers=headers)
+    if resp.status_code != 200:
+        raise Exception(&quot;Error calling slack api (%s): %s&quot; % \
+                        (resp.status_code, resp.content))
+    return resp.json()</code></pre>
+      
+    
+      
+        <p>slack_api 函数中有几个细节值得一提。首先，我们设置了 Authorization 请求头来验证身份，如果没有正确设置，请求会失败。其次，如果不指定字符集，Slack API 会发出警告，因此我们确保 Content-Type 中包含字符集。</p>
+      
+    
+      
+        <h2>渲染我们的 App Home</h2>
+      
+    
+      
+        <p>现在有了这个工具函数，我们可以像下面这样调用它：</p>
+      
+    
+      
+        <pre><code>msg = {&#x27;some&#x27;:&#x27; stuff&#x27;}
+slack_api(&quot;views.publish&quot;, msg)</code></pre>
+      
+    
+      
+        <p>终于，当我们收到 app_home_opened 事件时可以做一些有意义的事情了——让它渲染的内容和 /reflect Slash Command 返回的内容基本一致：</p>
+      
+    
+      
+        <pre><code>def app_home_opened_event(request, parsed):
+    user_id = parsed[&#x27;event&#x27;][&#x27;user&#x27;]
+    team_id = parsed[&#x27;team_id&#x27;]
+    items = recall(team_id, user_id, &quot;last 14 days&quot;)
+    items_text = &quot;\n&quot;.join([&quot;%s. %s&quot; % (i, x) \
+                            for i, x in enumerate(items, 1)])
+    blocks_spec = [
+        (&#x27;mrkdwn&#x27;, &quot;Your home tab for Reflect&quot;),
+        (&#x27;divider&#x27;,),
+        (&#x27;mrkdwn&#x27;, items_text),
+        (&#x27;divider&#x27;,),
+        (&#x27;mrkdwn&#x27;, &quot;Some more stuff here&quot;),
+    ]
+    blocks = [block(*x) for x in blocks_spec]
+    msg = {
+        &quot;user_id&quot;: user_id,
+        &quot;view&quot;: {
+            &quot;type&quot;: &quot;home&quot;,
+            &quot;blocks&quot;: blocks,
+        }
+    }
+    resp = slack_api(&quot;views.publish&quot;, msg)
+    return &quot;OK&quot;</code></pre>
+      
+    
+      
+        <p>如果我们部署更新后的代码，然后刷新 App Home 标签页，就会发生很棒的事情……</p>
+      
+    
+      
+        <p>……它真的生效了！</p>
+      
+    
+      
+        <h2>让 App Home 真正有用起来</h2>
+      
+    
+      
+        <p>我们目前实现的功能还比较基础，但你可以想象这个概念能被扩展到什么程度。它可以用来配置 /recall 默认返回多少天的结果，可以用来创建一个“导出到邮件”的组件，可以显示过去三个月你记录的任务数量等等。</p>
+      
+    
+      
+        <p>你甚至可以想象它注入一张个性化图片，里面是按标签统计的项目直方图之类的。虽然我不确定加载用户特定生成的图片的授权机制该怎么处理，而且查看 image block 的规范后，我怀疑目前还没有支持。</p>
+      
+    
+      
+        <p>在玩具应用 Reflect 的背景下，我认为最重要的功能应该是展示最近添加的任务摘要，以及如何使用各种 Slash Command 的示例，以帮助用户更好地发现功能。</p>
+      
+    
+      
+        <h2>下一步</h2>
+      
+    
+      
+        <p>从  继承下来的目标是：（1）搭建好 App Home；（2）允许用户通过 reacji 添加成就；（3）集成一个真正的数据库；（4）发布到应用目录。<a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a></p>
+      
+    
+      
+        <p>当我们到达 lethain/reflect-slack-app 的 commit 4120 时，我们已经有了一个简单但可用的 App Home，这让我们从清单上又划掉了一项。我们也已经集成了 Events API，因此我认为 reacji 集成应该会相当直接，而这正是我们接下来要做的。</p>
+      
+    
+      
+        <p>系列文章后续见 <a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a></p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

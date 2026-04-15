@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>快速上手 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>快速上手</h1>
+    <div class="meta">
+      2008-06-15 · 
+      <a href="https://lethain.com/wielding-django-up-to-speed/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>（这是 Ken 的 Django 系列文章《Wielding Django》的第二篇。—— Will）</p>
+      
+    
+      
+        <p>上一次，我们搭建了一个最简 Django 应用，目的是展示其核心概念。本文将对这个极简版本进行完善，做出我们的第一个（虽然依然非常简单）Web 应用。</p>
+      
+    
+      
+        <h2>settings.py</h2>
+      
+    
+      
+        <p>如果参数很少，直接调用 settings.configure() 并逐个传入也没问题。但随着我们使用 Django 的功能越来越多，需要设置的参数也会增加，这样写起来会很笨重。因此 Django 允许你把这些设置放到一个单独的文件中。大多数人把它叫做 settings.py，不过你也可以用任意你喜欢的名字。</p>
+      
+    
+      
+        <p>使用你上次创建的项目目录，在其中创建一个 settings.py 文件，并写入以下内容：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas0ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>现在也是时候把这个应用变成一个正规的 Python 模块了。首先，确保你选择的名称没有被占用；像 django、site、test 这样诱人的名字已经被占用了。为了保险起见，如果你的目录名叫 mydir，请在 Python 解释器中执行 import mydir，它应该会报错。一旦你确定了一个合适的包名（目录名），就在该目录下创建一个空的 __init__.py 文件：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas1ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <h2>manage.py</h2>
+      
+    
+      
+        <p>在你再次输入上次那些代码来启动服务器之前，请注意 Django 提供了一个灵活的框架来处理各种管理任务。大多数人通过一个名为 manage.py 的文件来使用它，你应该把它复制到你的项目目录中：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas2ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>该文件的核心内容其实只有：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas3ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>project_template 目录还包含其他一些文件，django-admin.py createproject 会在每个新项目中把它们全部生成出来。你并不需要这些文件；我们正在逐步构建自己真正需要的东西。</p>
+      
+    
+      
+        <p>然后你可以运行：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas4ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>默认情况下，服务器只接受来自本机的连接。如果你想把它展示给其他人，可以改成运行：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas5ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>（或者你想用的其他端口），这样它的访问地址就会是 http://your-machine:8000/。</p>
+      
+    
+      
+        <p>管理命令默认会在 settings.py 中查找配置。</p>
+      
+    
+      
+        <h2>请求参数和 AJAX</h2>
+      
+    
+      
+        <p>让我们回到应用本身。一个静态页面实在太无聊了，我们直接来玩 AJAX。下面是一个新的应用文件 math_app.py：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas6ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>把 ROOT_URLCONF 改成 math_app，启动服务器，然后访问 http://127.0.0.1:8000/compute/add/?a=2&amp;b=4。你应该会看到 6.0。</p>
+      
+    
+      
+        <p>基本结构应该已经很熟悉了：urlpatterns 定义了 URL 如何映射到视图函数，而视图（compute）则根据请求生成响应。但有几处发生了变化：</p>
+      
+    
+      
+        <div class="list-content">正则表达式现在可以匹配参数：\w 匹配字母或数字，\w+ 匹配一个或多个这样的字符，(?P&lt;op&gt;\w+) 则给这个序列起名为 op。这些都是普通的 Python re 模块的功能。Django 会把从正则表达式中提取的参数传递给视图函数：compute 会额外收到一个名为 op 的关键字参数。它永远是字符串类型，即使正则匹配的是数字（\d）。request.GET 是一个包含 GET 参数（a 和 b）的字典，同样也都是字符串。</div>
+      
+    
+      
+        <p>另外，getattr(operator, &#x27;add&#x27;) 和 operator.add 是完全等价的。下面是这部分代码的另一种实现方式：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas7ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <h2>处理错误</h2>
+      
+    
+      
+        <p>好吧，你不小心打错了一个字，于是看到了错误页面。（如果你没遇到过，请在视图函数里加一行 assert False 让它出错。）目前这个错误页面不是很有帮助，主要有两个原因。我们很快就能把它们都解决。</p>
+      
+    
+      
+        <div class="list-content">当出现错误时，Django 会在 ROOT_URLCONF 模块中寻找一个名为 handler500 的变量。哎呀，我们还没有定义它。不过我们可以直接导入它（顺便也导入处理 404 错误的 handler404）：</div>
+      
+    
+      
+        <p>qaodmasdkwaspemas8ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>它们本身就是视图函数，你也可以提供自己的实现。另外，大多数人会直接用 import *，但这样会让 PyFlakes 无法正常工作。另外提醒一下，404 和 500 是标准的 HTTP 状态码。</p>
+      
+    
+      
+        <div class="list-content">在开发阶段（但生产环境不要这么做！）能看到详细的错误信息会很有帮助。如果开启了 DEBUG 模式，Django 会为服务器错误提供一个非常友好的错误页面。只需在 settings.py 中加入以下内容：</div>
+      
+    
+      
+        <p>qaodmasdkwaspemas9ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>现在再制造一次拼写错误，然后访问错误页面。点击代码行和“Local vars”标题可以展开查看详细信息。尽情享受吧！现在让我们回到正事上来。</p>
+      
+    
+      
+        <h2>提供静态页面</h2>
+      
+    
+      
+        <p>好吧，看到服务器返回一个数字还是有点无聊。如果我们想要用户界面，就需要一些 HTML。当然，你可以再写一个视图函数，返回一个包含完整 HTML 的 HttpResponse（记得传入 mimetype=&#x27;text/html&#x27; 参数，这样浏览器就不会把它当成纯文本）。但这样维护起来很痛苦。幸运的是，Django 提供了更好的方式：内置的 django.views.static.serve 视图。它接受两个参数：document_root 和 path。下面是两种使用它的方法：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas10ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>（别忘了把 request 也传给另一个视图函数，我差点忘了！）或者：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas11ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>url 的第三个参数如果是字典，就可以用来给视图传递额外的参数。另外你会注意到，你也可以用字符串来指定视图；Django 会自动导入并使用它们。这两种技巧在你自己的视图中也可以使用。</p>
+      
+    
+      
+        <p>注意这种方式和你之前在 PHP 或其他 Web 开发中习惯的方式有一个重要区别：URL 和文件之间没有必然的对应关系。你可以完全控制这个映射。例如，你可能习惯把 &#x27;/&#x27; 当成 &#x27;/index.html&#x27;（或 index.php 之类的）的同义词。但在你的 Django 服务器上，/index.html 会返回错误（试试看！），因为你没有显式地声明这个映射。</p>
+      
+    
+      
+        <p>好了，让我们来做一个用户界面。在你的应用目录下创建一个 static 目录，然后把以下 HTML 内容放到 static/index.html 中：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas12ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>我使用了 Google 的 AJAX API 托管服务来获取 Dojo；感谢 Will 推荐这个实用的服务。</p>
+      
+    
+      
+        <p>当然，这界面现在还很丑，但它展示了核心思想。下次我们将开始构建一个真正的应用，并使用一些即使是资深 Django 开发者也可能感到新鲜的简单技巧。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

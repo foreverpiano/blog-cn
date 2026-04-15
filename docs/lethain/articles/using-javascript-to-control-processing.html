@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 Javascript 控制 Processing · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 Javascript 控制 Processing</h1>
+    <div class="meta">
+      2008-05-11 · 
+      <a href="https://lethain.com/using-javascript-to-control-processing/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在之前的一篇文章中，我提到过 Processing.js 最吸引人的特性之一，就是能够编写类似 Processing 的代码，但使用 Javascript 而不是 Java 1.3 语法来实现逻辑部分。不过我当时没有给出具体示例，所以今天早上我决定做一个简单的例子，就是下面这个。</p>
+      
+    
+      
+        <h2>准备工作</h2>
+      
+    
+      
+        <div class="list-content">新建一个文件夹来存放你的文件。下载 [Processing.js][processing.js] 到该文件夹中。在同一个文件夹里创建两个空文件：test.html 和 myapp.js。</div>
+      
+    
+      
+        <h2>test.html</h2>
+      
+    
+      
+        <p>接下来，我们需要往 test.html 中填写一些通用的代码。</p>
+      
+    
+      
+        <p>除了对 myapp 的引用之外，这是一个基础模板，你可以在其他使用 Processing.js 并以 Javascript 作为控制语言的项目中复用。</p>
+      
+    
+      
+        <h2>myapp.js</h2>
+      
+    
+      
+        <p>剩下的工作就是把一些 Processing 代码翻译成 Javascript。这些代码都将放在 myapp.js 文件中。因为我昨天刚玩过 Setup 和 Draw 的例子，所以我选择了它，它能很好地展示整个翻译过程。</p>
+      
+    
+      
+        <p>首先来看这个程序的 Processing 版本。</p>
+      
+    
+      
+        <p>由于它充分利用了 Processing 内置的魔法，上面的代码非常简洁。记住这一点，稍后我们还会提到它。在此之前，先来看看 myapp.js 的内容，以及我用 Javascript 实现的版本。</p>
+      
+    
+      
+        <p>这里最明显的区别是 Javascript 版本有 22 行，而 Processing 版本只有 14 行。除此之外，Javascript 版本也更加啰嗦。我们一会儿再来看如何改进它，但首先你应该在浏览器中打开 test.html，你会看到我们已经成功地将这个例子翻译成了 Javascript。</p>
+      
+    
+      
+        <h2>改进 Javascript 版本</h2>
+      
+    
+      
+        <p>正如我之前简单提到的，Processing 代码特别简洁的原因在于它内置的一些魔法。在 Processing 中，我们定义了 draw 方法，但并没有在任何地方显式调用它（Processing 已经知道该怎么处理）。我们使用 frameRate 来定义帧率，但使用该帧率的循环是在幕后创建的。Processing 并不会纠结于保持命名空间干净，它只是尽量让事情变得简单1。</p>
+      
+    
+      
+        <p>Javascript 版本没有这些魔法，因此会更加冗长和杂乱。意识到这一点后，我们需要退一步思考：是想要实现一些方便的魔法，还是坚持可靠的可预测性。我个人认为，Processing 的全部魅力就在于它的魔法——让任何人都能轻松写出令人印象深刻的东西——所以我的答案是：“是的，请给我那些魔法把戏。”</p>
+      
+    
+      
+        <p>让我们看看能做些什么。</p>
+      
+    
+      
+        <p>首先，我写了一个小型工具库，其中包含了这个例子所需的魔法。</p>
+      
+    
+      
+        <p>基本上，我们通过彻底滥用全局命名空间，重现了一小部分 Processing 的魔法。假设你能接受道德上的影响，那就来看看我们这个小程序的新 Javascript 版本吧：</p>
+      
+    
+      
+        <p>代码从 22 行减少到了 14 行，现在和原始的 Processing 示例一样长了。实际上，它几乎和原始版本一模一样，这并不能有力地证明我所说的“用 Javascript 写草稿代码比用老旧的 Java 语法更愉快”这个观点。不过，在更复杂的例子中，我认为 Javascript 的优势会更加明显2。</p>
+      
+    
+      
+        <p>（编辑于 5 月 11 日 21:43 上面的代码实际上不能直接使用，它需要被包裹在一个名为 draw_myapp 的函数中，以便在合适的时间加载。这样会额外增加两行代码，使 Javascript 版本从 14 行变成 16 行。唉。）</p>
+      
+    
+      
+        <h2>结束思考</h2>
+      
+    
+      
+        <p>虽然我完全支持将 Javascript 作为控制语言，但我不确定其带来的好处是否值得分散开发者对 Processing 的知识掌握，也不确定这些想象中的好处是否值得去编写一个库，为 Processing.js 提供一个更具魔力的接口层。用这种方式编写的程序无法与 Processing 桌面版程序一起使用，这当然是一种损失，但它也并非没有一些补偿性的好处。</p>
+      
+    
+      
+        <p>其他人有什么想法呢？</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

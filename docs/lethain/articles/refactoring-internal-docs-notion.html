@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>重构 Notion 中的内部文档 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>重构 Notion 中的内部文档</h1>
+    <div class="meta">
+      2026-02-05 · 
+      <a href="https://lethain.com/refactoring-internal-docs-notion/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在我们最近的开发者生产力调查中，文档是收到第二多反馈的问题领域。本文详细记录了我采取的具体步骤，以验证一个人在多大程度上能改善整个组织的文档质量——我始终坚持高标准，只进行真正有效的改动，而非表面上看起来 impressive 的优化。</p>
+      
+    
+      
+        <h2>诊断分析</h2>
+      
+    
+      
+        <p>我们当时主要面临以下几个问题：</p>
+      
+    
+      
+        <div class="list-content">我们在 2025 年 1 月从 Confluence 迁移到 Notion，这导致大量明显过时的旧页面仍然存在。这些页面让其他文档也显得维护不佳。我们在“用 Git 管理的文件记录文档”和“在 Notion 中管理文档”之间缺乏一致的标准，导致大量内容重复。重复又让人们觉得与其费力去理清已有的 N 个版本，还不如直接创建第 N+1 个版本。过去一年我们有不少新人加入，他们不确定自己是否有权限更新文档，也不知道某个文件是否由专人负责。我们开始主要通过 Notion AI 来暴露和查找内容，这使得层级组织的重要性降低，同时哪怕是被藏在角落里的不准确内容片段，也会产生负面影响。</div>
+      
+    
+      
+        <p>此外，Notion 本身还存在一些限制，进一步加剧了问题：</p>
+      
+    
+      
+        <div class="list-content">无法通过 API 判断非 wiki 页面是否经过验证。虽然可以判断 wiki 页面是否验证，但没有人使用 wiki 页面。无法通过 API 获取 Notion Teamspace 中的所有页面，必须手动获取该 Teamspace 的顶级页面列表，再逐层查找其子页面。Notion 没有“归档”功能，无法将文档从搜索结果中排除。除最后编辑时间外，无法通过 API 查看页面的浏览量或使用情况。</div>
+      
+    
+      
+        <h2>策略</h2>
+      
+    
+      
+        <p>针对上述诊断，我们采用的策略如下：</p>
+      
+    
+      
+        <div class="list-content">优先优化 Notion AI 的结果，而非手动查找：我们目前使用 Notion 的主要方式是直接访问特定页面链接或通过 Notion AI，而非手动浏览。因此，那些容易过时且重复内容的“FAQ”页面现在反而有害，而以前它们很有价值。重复和过时内容比没有内容更糟糕：不要自己写一份流程指南，而是直接链接到原始文档，或去更新源文档。优先使用版本控制中的自然文档：我们更倾向于链接到 GitHub 中的 README，而不是在 Notion 中重复这些内容，因为 README 更可能保持更新。人人都可以整理文档：我们宁愿让大家尝试清理文档（即使犯一些小错误），也不希望文档长期处于糟糕状态。自动化永远优于手动：我们是一个忙碌的团队，同时要做很多事情，很难持续投入大量时间进行深度人工整理。聚焦的 curation 很好，但全局层面不现实。</div>
+      
+    
+      
+        <h2>实施</h2>
+      
+    
+      
+        <p>接下来是具体执行这些策略的做法：</p>
+      
+    
+      
+        <div class="list-content">创建“Scheduled to Archive”和“Archive”两个 Teamspace。Archive 是私有 Teamspace，放入其中的文档不会污染搜索索引。而 Scheduled to Archive 是公开的，任何人都可以把文档添加到它的根页面。我们有一个每周运行的脚本，会把 Scheduled to Archive 中的所有内容迁移到 Archive。这是我们在 Notion 现有约束下能找到的最有效的归档实现方式。清理过期页面。编写了一个脚本，从根页面开始递归构建层级结构，为每个页面补充其所有子页面的最后编辑时间，然后将自身及所有子页面最后编辑时间都超过 N 天的页面全部归档。针对 3-4 个最核心的顶级页面运行此脚本后，我们总共归档了约 1500 页过期的文档。压缩陈旧层级。开发了第二个脚本，用于识别那些埋藏在陈旧层级中的当前有效页面（例如 15 个不准确文档中唯一被更新的那一页）。找到“被埋没的有效页面”后，将其提升到祖父页面层级，并把原父页面及其陈旧子页面一起移到 Scheduled to Archive。这个脚本会找出所有候选页面，然后由我逐一审核通过或拒绝。其中最大的挑战是 API 无法获取“验证”状态，因此无法批量标记某个页面及其所有子页面为可信。失效链接检测器。开发了第三个脚本，递归遍历层级结构并找出所有 404 链接。该脚本必须被禁止访问 Archive 空间，否则已归档页面都会显示为 404。这样做避免了需要再去已归档内容中逐一排查。两种方式都可以，主要是偏好问题。在大规模迁移完成后运行此脚本，确保不会留下大量指向已归档文档的“幽灵链接”，否则即使移除了很多坏内容，文档体验依然会很差。人工审查关键页面。在完成上述所有自动化步骤后，我又逐一检查了所有新员工文档，确保它们都链接到了顶级入职指南、写明了清晰的前提条件、标出了遇到问题时可以求助的 Slack 频道，并且不与 Git 管理的 README 重复，而是在适当地方直接链接到对应 README。对于工程和技术的顶级页面，我也进行了相对轻量的类似审查——总体上这些页面已经比较整洁。</div>
+      
+    
+      
+        <p>总的来说，我大概花了 8 个小时，完全没有占用其他人的时间，却有望显著提升我们文档的质量。虽然特定领域仍有许多工作要做，但我乐观地认为，重复内容大幅减少、同时大家能看到我们正在积极维护文档，这些变化也会让后续的改进工作变得更容易。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

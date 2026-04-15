@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>写作、数据与分析 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>写作、数据与分析</h1>
+    <div class="meta">
+      2011-04-10 · 
+      <a href="https://lethain.com/writing-analytics-and-analysis/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>你要么靠数据驱动，要么靠直觉行事。</p>
+      
+    
+      
+        <p>如果你拥有敏锐的直觉和强大的团队，那自然能做得很好。但问题的关键在于，没有数据你就无法衡量自己的直觉——所以即便你做出的决策很出色，本质上也只是在凭自我感觉行事。</p>
+      
+    
+      
+        <p>这个关键问题会递归应用到用数据理解流量和使用情况上：如果你对如何使用数据有良好直觉，那会做得不错；否则，你就需要关于“数据使用”的数据。</p>
+      
+    
+      
+        <p>这确实是个难题。所以，我们还是来谈谈数据分析吧。</p>
+      
+    
+      
+        <h2>作为访客上下文的分析数据</h2>
+      
+    
+      
+        <p>互联网上的内容创作者往往与读者之间存在完全的信息不对称：作者无所不知，读者一无所知。对于那些思考过这种状况的出版者，我猜很多人更喜欢这种不对称——因为“在互联网上，没人知道你是一条狗”，他们也不想让别人知道自己花了多少时间去写那些很少被阅读的内容。（对职业出版者来说，这其中也有竞争层面的考量。）</p>
+      
+    
+      
+        <p>最近我逐渐形成一个假设：向读者分享有用的分析数据，能为他们正在阅读的内容提供上下文，从而改善阅读体验。</p>
+      
+    
+      
+        <p>正如知道一篇文章是四年前发布的可能是个警示信号一样，知道自己是某篇文章的早期读者，也能提醒你这可能是个粗糙的版本，或者来自一个不受欢迎的来源。如果能看到这个网站过去一周的页面浏览量，你的阅读体验是否会发生改变？</p>
+      
+    
+      
+        <p>如果你还能看到主要引荐来源和热门内容呢？上周末我临时拼凑了一个博客分析系统，并开始在 /analytics/ 页面公开这些数据以及更多信息。</p>
+      
+    
+      
+        <p>如果你主要感兴趣的是理解单篇内容的全生命周期（研究内容的传播或无人问津，无疑是业余出版者最有趣的课题之一），那你需要用另一种视角来分析数据。基于这个考虑，本站每篇文章的分析数据都可以在其 URL 前加上 /analytics/ 来查看。</p>
+      
+    
+      
+        <p>例如：</p>
+      
+    
+      
+        <p><a href="introduction-to-architecting-systems-for-scale.html">构建可扩展系统的架构导论</a></p>
+      
+    
+      
+        <p>会变成</p>
+      
+    
+      
+        <p>/analytics/introduction-to-architecting-systems-for-scale/</p>
+      
+    
+      
+        <p>目前你可以看到一些汇总统计、最近几天的页面浏览量，以及该内容的顶级引荐来源。未来可能还会添加更多功能。</p>
+      
+    
+      
+        <p>我还计划将这些信息逐步加入右侧栏的模块中，但目前仍处于实验的思考阶段。</p>
+      
+    
+      
+        <h2>数据来源</h2>
+      
+    
+      
+        <p>这些分析数据来自三个渠道。首先是 Google Analytics 四年的历史存档。其次，我从 Nginx 访问日志中提取了自从我[重新推出这个博客并去掉 Google Analytics](Irrational Exuberance’s Third Rebirth) 以来的数据。最后，我还为昨天上线追踪机制后发生的事件添加了实时追踪功能。</p>
+      
+    
+      
+        <p>访问日志解析器和实时事件解析器共用了一些基本的自动流量过滤机制，这些机制到目前为止很好地保持了流量水平的稳定，从关闭 Google Analytics 平稳过渡到自建系统。这些机制包括：</p>
+      
+    
+      
+        <div class="list-content">一个需要忽略的用户代理黑名单；忽略所有用户代理中包含“bot”的不区分大小写匹配；每个 IP 每分钟只统计第一次行为，即使漏掉某些机器人，其突发行为的影响也会被减轻。（这是通过 Redis 的 watch、multi、exec 命令以及检查 timebucket key 是否存在来实现的。）</div>
+      
+    
+      
+        <p>那些不在黑名单中、用户代理不含“bot”、且将请求限制在每个 IP 每分钟一次的自动化行为，仍然会被统计。但我更在意的是方向正确的数据，以便研究内容的传播和使用情况——就算有一些自动化流量混进来，我也不太在意。</p>
+      
+    
+      
+        <h2>四年的数据</h2>
+      
+    
+      
+        <p>在整合各个数据源的过程中，我顺便制作了几张图表，展示这个博客迄今为止的积累。</p>
+      
+    
+      
+        <p>首先是从一开始的每日页面浏览量。</p>
+      
+    
+      
+        <p>这张图最让我印象深刻的是，在我两年前停止频繁写作之后（恰好与工作开始变得繁忙，并且此后一直很忙的时间点重合），流量表现出的韧性。</p>
+      
+    
+      
+        <p>接下来是热门引荐来源，并不令人意外。</p>
+      
+    
+      
+        <p>在我上次频繁写作的时候，我的一般印象是，只有社交新闻聚合网站（特别是我所处的细分领域里的 Reddit Programming 和 Hacker News）才能带来流量爆发。</p>
+      
+    
+      
+        <p>查看最近一篇文章的分析数据后，我很好奇 Twitter 和 Facebook 是否能在利基技术内容上与聚合网站一较高下。（我的假设是，有相当一部分直接流量来自未设置引荐信息的原生 Twitter 客户端，但很难下定论。）</p>
+      
+    
+      
+        <p>将过去四年的流量加总，Google Analytics 显示这些内容累计获得了约 120 万次有效页面浏览。如果我更积极地投放广告（假设每次点击 0.1 美元，点击率 1%），我本可以赚到 1200 美元。</p>
+      
+    
+      
+        <p>考虑到投入的写作时间，这其实是一笔相当糟糕的生意，但这个博客确实帮我拿到了第一份开发工作——稍微换个角度衡量，它已经带来了巨大的回报。</p>
+      
+    
+      
+        <h2>未来在召唤</h2>
+      
+    
+      
+        <p>有了这些分析数据，我非常兴奋地想要开始尝试不同的内容形式（、等等），以及不同的主题（Redis、架构、Python 等等）！<a href="using-flot-js-with-digg-streaming-api.html">使用 Flot.js 结合 Digg Streaming API</a><a href="dont-make-me-think-steve-krug-review.html">别逼我为你的观点辩护</a></p>
+      
+    
+      
+        <p>最重要的是，我很高兴能重新开始写作。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

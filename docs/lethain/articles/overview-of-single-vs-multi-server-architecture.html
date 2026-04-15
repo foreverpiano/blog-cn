@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>单服务器与多服务器架构概述 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>单服务器与多服务器架构概述</h1>
+    <div class="meta">
+      2009-02-16 · 
+      <a href="https://lethain.com/overview-of-single-vs-multi-server-architecture/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>每次我发布配置 Django 服务器的搭建指南时，总会有人问我是如何选择 Nginx 和 Apache 的多服务器方案，而不是其他众多替代方案。这个问题可以分为两个部分：</p>
+      
+    
+      
+        <div class="list-content">为什么要采用多服务器方案而不是单服务器方案？为什么特别选择 Nginx、Apache 和 mod_wsgi，而不是 Nginx、mod_python、fcgi、Lighttpd 等其他组合？</div>
+      
+    
+      
+        <p>本文将重点解释第一个问题：为什么使用多服务器架构来部署 Django 项目？</p>
+      
+    
+      
+        <h2>相关组件</h2>
+      
+    
+      
+        <p>在服务器架构中存在多种相互竞争的组件，对于本文的讨论而言，具体使用哪个组件并不是特别重要。更准确地说：</p>
+      
+    
+      
+        <div class="list-content">当我提到 Nginx 时，它可以是任何轻量级的 HTTP 服务器，比如 Lighttpd，甚至是精简版的 Apache。当我提到 Apache 和 mod_wsgi 时，它也可以是 Apache 加 mod_python，或者是运行 FCGI 的 Nginx。总之就是任何用于服务 Django 项目的服务器。Postgres 是我选择的数据库，但你也可以换成 MySQL 或 SQLite。甚至在本讨论范围内，你使用 CouchDB 也完全没问题。缓存方面我提到的是 memcached，虽然它的直接竞争者不多，但只要存在类似方案，都可以相互替换使用。</div>
+      
+    
+      
+        <h2>单服务器方案</h2>
+      
+    
+      
+        <p>部署 Django 项目最简单的方式是配置一台服务器同时处理动态内容（Django 生成的页面）和静态内容（图片、CSS、JavaScript 等）。</p>
+      
+    
+      
+        <p>单服务器方案最大的优势在于其简洁性。尤其是 Apache（其他系统也类似），针对上述配置搭建起来非常快速和简单（我个人觉得 Nginx + fcgi 稍微复杂一些，但也完全可行）。</p>
+      
+    
+      
+        <p>另一个优势是你只需要同时运行一个服务器，而服务器会消耗大量的内存和 CPU，尤其是在资源有限的小型 VPS 上。</p>
+      
+    
+      
+        <p>然而，当网站访问量增加需要扩展时，单服务器方案就显得有些笨拙了。与其他方案一样，你可以通过购买更强大的 VPS 或服务器来进行垂直扩展，但在通过升级硬件来提升容量不再划算时，问题就会开始出现。</p>
+      
+    
+      
+        <p>到了这个阶段，通常第一步是将数据库迁移到第二台机器上，这相对容易实现。但当你需要为动态或静态内容增加更多容量时，这种架构就显得不够灵活。此时你唯一的选择就是增加更多的机器，并置于负载均衡器之后。</p>
+      
+    
+      
+        <p>虽然在实际部署中，你很可能已经把 Postgres 放在单独的机器上了。</p>
+      
+    
+      
+        <p>总的来说，单服务器方案在资源有限的环境中可能是最高效的选择，配置也相对简单1，但它需要用同一套配置同时处理静态和动态内容，因此随着需求增长，可能会产生效率问题（我们稍后会深入讨论）。</p>
+      
+    
+      
+        <h2>多服务器方案</h2>
+      
+    
+      
+        <p>任何读过 mod_python 使用教程的人大概都见过“胖线程”（fat threads）这个词，这是用来描述启用 mod_python 后的 Apache 工作线程的流行说法。因为每个 mod_python 工作线程都需要关联一个 Python 解释器，导致每个线程大约会消耗 20MB 的内存。</p>
+      
+    
+      
+        <p>这样的设计有其合理性，而且 mod_python 在处理动态请求时速度极快，因此这个代价是值得的。但是，为什么要让一个重量级的线程去服务静态文件呢？明明一个轻量级的线程就足够了。此外，我们如何防止数量相对较少的重量级线程被慢速连接占用，从而导致能同时服务的用户数量减少呢？</p>
+      
+    
+      
+        <p>对这个问题的标准答案是：使用一个轻量级服务器作为用户访问的第一入口，负责提供静态资源，并将动态请求代理给第二台服务器上的重量级线程处理。</p>
+      
+    
+      
+        <p>多服务器方案的核心观点是：专业化带来效率。通过让一台服务器专门处理动态内容，我们可以针对性地调整其设置以最大化性能。让另一台服务器专门处理静态内容，同样也能对其进行优化。</p>
+      
+    
+      
+        <p>除了“专业化带来优化”这一论点外，多服务器方案相比单服务器还有另一个优势：便于高效扩展。由于我们已经将不同职责分开，这使得我们能够非常容易地只在需要的地方增加容量，从而实现高效扩展。</p>
+      
+    
+      
+        <p>只需对配置文件进行少量修改，你就可以从单机模式切换到多机模式。如果你的瓶颈在于动态内容的处理，这个过程会尤其简单。</p>
+      
+    
+      
+        <p>诚然，这种方案要求 Nginx 同时承担反向代理和静态文件服务器的角色，如果静态文件服务所需的吞吐量超过单台机器的承受能力，你就需要转向服务器池（server pool）模式（这也彻底实现了职责分离）。</p>
+      
+    
+      
+        <p>在一定程度上，垂直扩展（购买更强大的 VPS 或服务器）比水平扩展要容易得多，所以应该优先考虑垂直扩展。但当垂直扩展不再具有成本优势时，多服务器方案能提供极大的灵活性，并且由于专业化分工，每台服务器都能获得更高的性能提升。</p>
+      
+    
+      
+        <p>最终，在单服务器和多服务器方案之间并没有绝对的对错之分。虽然多服务器方案最终会超越单服务器的性能，但在资源非常有限的情况下，它的表现可能会不如单服务器。</p>
+      
+    
+      
+        <p>尽管如此，我使用多服务器方案的经验非常正面，即使在资源非常有限的情况下（VPS 只有 256MB 内存）。所以——如果你愿意多做一些配置工作——我个人还是推荐从一开始就采用多服务器架构。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

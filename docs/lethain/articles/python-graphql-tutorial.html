@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 GraphQL 与 Python 的快速教程 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 GraphQL 与 Python 的快速教程</h1>
+    <div class="meta">
+      2018-11-18 · 
+      <a href="https://lethain.com/python-graphql-tutorial/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>今年早些时候，我花了一些时间试验用 gRPC 来定义和集成服务端/客户端，今年周末我想花点时间用 GraphQL 做一次类似的试验。</p>
+      
+    
+      
+        <p>我没找到特别完整的 Python GraphQL 教程，因此写了这篇笔记，希望对想在 Python 中尝试 GraphQL 的人有所帮助。</p>
+      
+    
+      
+        <p>完整的教程代码在 Github 上。</p>
+      
+    
+      
+        <h2>目标</h2>
+      
+    
+      
+        <p>在 Digg，我们有一个简单的服务，它会爬取给定的 URL 并返回其标题、摘要以及值得关注的图片。早期的 Digg 严重依赖不可靠的爬取启发式方法来提取这些特征，但如今大多数网站都提供了足够的社交媒体元数据，大大简化了这个过程。</p>
+      
+    
+      
+        <p>我们要构建的项目就是重现那个爬取服务，并使用我几年前编写的 extraction 库（最近我把它更新为支持 Python 3，因此又想起它）。</p>
+      
+    
+      
+        <p>完成后，我们会提交类似以下的客户端请求：</p>
+      
+    
+      
+        <pre><code>{
+  website(url: &quot;https://lethain.com/migrations&quot;) {
+      title
+      image
+  }
+}</code></pre>
+      
+    
+      
+        <p>服务器的响应将是：</p>
+      
+    
+      
+        <pre><code>{
+  &quot;data&quot;: {
+    &quot;website&quot;: {
+      &quot;title&quot;: &quot;Migrations: the sole scalable fix to tech debt.&quot;,
+      &quot;image&quot;: &quot;https://lethain.com/static/blog/2018/migrations-hero.png&quot;,
+    }
+  }
+}
+</code></pre>
+      
+    
+      
+        <p>每个网站还会包含一个 description 字段。</p>
+      
+    
+      
+        <h2>环境准备</h2>
+      
+    
+      
+        <p>假设你本地已安装 Python 3，我们先创建一个虚拟环境来管理依赖，然后安装所需包：</p>
+      
+    
+      
+        <pre><code>mkdir tutorial
+cd tutorial
+python3 -m venv env
+. ./env/bin/activate
+pip install extraction graphene flask-graphql requests
+</code></pre>
+      
+    
+      
+        <p>如果你想使用本教程中完全一致的版本，可以在 Github 的 requirements.txt 文件中找到。</p>
+      
+    
+      
+        <h2>爬取与提取</h2>
+      
+    
+      
+        <p>在进入 GraphQL 之前，我们先快速编写爬取网站并提取数据的代码，这部分相对独立。</p>
+      
+    
+      
+        <p>使用 extraction 和 requests 库，代码如下：</p>
+      
+    
+      
+        <pre><code>
+import graphene
+import extraction
+import requests
+
+def extract(url):
+    html = requests.get(url).text
+    extracted = extraction.Extractor().extract(html, source_url=url)
+    return extracted
+</code></pre>
+      
+    
+      
+        <p>使用方式如下：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; extract(&#x27;https://lethain.com/migrations&#x27;)
+&lt;Extracted:
+  (title: &#x27;Migrations: the sole scalable fix to tech debt.&#x27;, 4 more),
+  (url: &#x27;https://lethain.com/migrations/&#x27;, 1 more),
+  (image: &#x27;https://lethain.com/static/blog/2018/migrations-he&#x27;, 1 more),
+  (description: &#x27;Migrations are both essential and frustratingly&#x27;, 5 more),
+  (feed: &#x27;https://lethain.com/feeds/&#x27;)&gt;
+</code></pre>
+      
+    
+      
+        <p>每个 Extracted 对象会提供五项数据：title、url、image、description 和 feed。</p>
+      
+    
+      
+        <p>完整代码见 extraction_tutorial/schema.py</p>
+      
+    
+      
+        <h2>Schema 定义</h2>
+      
+    
+      
+        <p>每个 GraphQL API 的基础都是 GraphQL schema，它描述了对外暴露的 API 的对象、字段和类型。我们使用 Graphene 来把 schema 描述为 Python 对象。</p>
+      
+    
+      
+        <p>编写一个描述已提取网站的 schema 相当简单，例如：</p>
+      
+    
+      
+        <pre><code>import graphene
+
+class Website(graphene.ObjectType):
+    url = graphene.String(required=True)
+    title = graphene.String()
+    description = graphene.String()
+    image = graphene.String()</code></pre>
+      
+    
+      
+        <p>这里我们只使用了 graphene.String 来描述字段类型，但每个字段都可以是我们定义的其他对象，也可以是枚举、标量、列表等其他类型。</p>
+      
+    
+      
+        <p>稍显意外的是，我们还需要编写一个 schema 来描述获取这些对象的查询：</p>
+      
+    
+      
+        <pre><code>import graphene
+
+class Query(graphene.ObjectType):
+    website = graphene.Field(Website, url=graphene.String())
+
+    def resolve_website(self, info, url):
+        extracted = extract(url)
+        return Website(url=url,
+                       title=extracted.title,
+                       description=extracted.description,
+                       image=extracted.image)</code></pre>
+      
+    
+      
+        <p>在这个例子中，website 是我们支持查询的对象类型，url 是会传递给解析函数的参数，而 resolve_website 会在每次请求 website 对象时被调用。</p>
+      
+    
+      
+        <p>注意这里有很多“魔法”，名称必须完全匹配才能正常工作。我在写这段代码时遇到的大多数问题都是字段名打错，导致无法正确匹配。另外要注意 extract 是我们在前一节编写的函数。</p>
+      
+    
+      
+        <p>最后一步是创建一个 graphene.Schema 实例，你会把它传给服务器来描述你创建的新 API：</p>
+      
+    
+      
+        <pre><code>schema = graphene.Schema(query=Query)</code></pre>
+      
+    
+      
+        <p>至此，你已经创建了</p>
+      
+    
+      
+        <p>完整代码见 extraction_tutorial/schema.py</p>
+      
+    
+      
+        <h2>服务端</h2>
+      
+    
+      
+        <p>现在我们已经写好了 schema，可以使用 flask 和 flask-graphql 通过 HTTP 来提供服务：</p>
+      
+    
+      
+        <pre><code>
+from flask import Flask
+from flask_graphql import GraphQLView
+from extraction_tutorial.schema import schema
+
+app = Flask(__name__)
+app.add_url_rule(
+  &#x27;/&#x27;,
+  view_func=GraphQLView.as_view(&#x27;graphql&#x27;, schema=schema, graphiql=True)
+)
+app.run()
+</code></pre>
+      
+    
+      
+        <p>注意，除非你下载了示例代码，否则你的 schema 的导入路径会不同。如果你不想折腾导入路径，把 schema 和服务器代码放在同一个文件中也是完全可以的。</p>
+      
+    
+      
+        <p>现在可以通过以下命令启动服务器：</p>
+      
+    
+      
+        <pre><code>python server.py</code></pre>
+      
+    
+      
+        <p>启动后它会在 localhost:5000 提供服务。</p>
+      
+    
+      
+        <p>完整代码见 extraction_tutorial/server.py</p>
+      
+    
+      
+        <h2>客户端</h2>
+      
+    
+      
+        <p>虽然存在专门的 GraphQL 客户端，但你并不需要使用它们来请求新 API，用你熟悉的 HTTP 客户端即可，本例中我们依然使用 requests。</p>
+      
+    
+      
+        <pre><code>import requests
+
+q = &quot;&quot;&quot;
+{
+  website(url: &quot;https://lethain.com/migrations&quot;) {
+    title
+    image
+    description
+  }
+}
+&quot;&quot;&quot;
+
+resp = requests.post(&quot;http://localhost:5000/&quot;, params={&#x27;query&#x27;: q})
+print(resp.text)</code></pre>
+      
+    
+      
+        <p>运行该脚本，输出结果为：</p>
+      
+    
+      
+        <pre><code>{
+  &quot;data&quot;: {
+    &quot;website&quot;: {
+      &quot;title&quot;: &quot;Migrations: the sole scalable fix to tech debt.&quot;,
+      &quot;image&quot;:&quot;https://lethain.com/static/blog/2018/migrations-hero.png&quot;,
+      &quot;description&quot;:&quot;Migrations are both essential and frustratingly...&quot;
+    }
+  }
+}</code></pre>
+      
+    
+      
+        <p>你可以自定义 q 的内容来获取不同的字段，甚至可以使用别名（aliases）一次性获取多个对象。</p>
+      
+    
+      
+        <p>完整代码见 extraction_tutorial/http_client.py</p>
+      
+    
+      
+        <h2>扩展对象</h2>
+      
+    
+      
+        <p>GraphQL 最有趣和令人兴奋的地方之一，就是可以非常容易地扩展对象，而不会给客户端带来兼容性问题。例如，假设我们想通过新增一个 feed 字段来返回页面的 RSS 源。</p>
+      
+    
+      
+        <p>我们可以把它添加到 Website，并更新 resolve_website 方法来返回 feed 字段，如下所示：</p>
+      
+    
+      
+        <pre><code>import graphene
+
+class Website(graphene.ObjectType):
+    url = graphene.String(required=True)
+    title = graphene.String()
+    description = graphene.String()
+    image = graphene.String()
+    feed = graphene.String()    
+
+class Query(graphene.ObjectType):
+    website = graphene.Field(Website, url=graphene.String())
+
+    def resolve_website(self, info, url):
+        extracted = extract(url)
+        return Website(url=url,
+                       title=extracted.title,
+                       description=extracted.description,
+                       image=extracted.image,
+                       feed=extracted.feed)</code></pre>
+      
+    
+      
+        <p>如果你想获取这个新字段，只需更新查询，增加对它的请求即可，与你已经在获取的 title、image 等字段一起返回。</p>
+      
+    
+      
+        <h2>自省（Introspection）</h2>
+      
+    
+      
+        <p>GraphQL 最强大的特性之一是它的服务器支持自省（introspection），这使得人类和自动化工具都能了解可用的对象和操作。</p>
+      
+    
+      
+        <p>最直观的例子是：如果你运行我们构建的示例，可以访问 localhost:5000，使用 GraphiQL 直接测试你的新 API。</p>
+      
+    
+      
+        <p>这些能力并不局限于 GraphiQL，你也可以使用与查询新 API 相同的查询接口来与之集成。一个简单的例子是我们可以查询示例服务暴露了哪些查询：</p>
+      
+    
+      
+        <pre><code>{
+  __type(name: &quot;Query&quot;) {
+    fields {
+      name
+      args {
+        name
+      }
+    }
+  }
+}</code></pre>
+      
+    
+      
+        <p>服务器会返回：</p>
+      
+    
+      
+        <pre><code>{
+  &quot;data&quot;: {
+    &quot;__type&quot;: {
+      &quot;fields&quot;: [
+        {
+          &quot;name&quot;: &quot;website&quot;,
+          &quot;args&quot;: [{ &quot;name&quot;: &quot;url&quot; }]
+        }
+      ]
+    }
+  }
+}</code></pre>
+      
+    
+      
+        <p>还有很多其他自省查询可用，虽然写起来有点繁琐，但为工具开发者提供了巨大的能力。非常值得尝试！</p>
+      
+    
+      
+        <h2>总结思考</h2>
+      
+    
+      
+        <p>总体而言，我对 GraphQL 的易用性印象深刻，更让我惊讶的是集成起来也非常简单。这种描述对象的方式比 gRPC 更直观，后者仍然更像是编写协议而不是描述对象。</p>
+      
+    
+      
+        <p>在这个阶段，如果我要写一个产品 API，GraphQL 会是我第一个选择的工具；而如果我要写基础设施，我仍然更倾向于 gRPC，特别是它的认证机制和对 HTTP/2 的深度集成（例如双向流）。</p>
+      
+    
+      
+        <p>这里还有很多问题值得后续深入研究：</p>
+      
+    
+      
+        <div class="list-content">它们在数据压缩方面的表现如何？如果服务器已经在压缩结果，压缩是否真的重要？GraphQL 的协议压缩是否较差，但因为客户端必须显式请求所需字段，从而在字段层面获得了更好的压缩效果？它们的字段废弃（deprecation）机制在实践中效果如何？两者都有相应的废弃方案，但都不算完美，GraphQL 的废弃警告似乎略胜一筹，因为你可以让客户端库把 API 返回的所有废弃警告以日志形式输出。</div>
+      
+    
+      
+        <p>我相信还有很多其他问题值得探索！</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

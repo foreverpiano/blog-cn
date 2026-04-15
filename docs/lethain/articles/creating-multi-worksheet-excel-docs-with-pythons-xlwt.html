@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 xlwt 创建多工作表 Excel 文档 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 xlwt 创建多工作表 Excel 文档</h1>
+    <div class="meta">
+      2012-11-04 · 
+      <a href="https://lethain.com/creating-multi-worksheet-excel-docs-with-pythons-xlwt/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>本教程将介绍如何使用 xlwt 库在 Python 中创建一个包含多个工作表的 Excel 文档。我们以计算 AWS 服务器费用为例，除了 xlwt 之外，还会使用 requests 从 Amazon 下载最新的 EC2 定价数据。</p>
+      
+    
+      
+        <p>我选择这个例子，是因为我本周刚做过同样的事情，当时用的是效率低下的“搜索-复制-粘贴”方法。（遗憾的是，这也意味着我的定价信息已经过时了。）</p>
+      
+    
+      
+        <h2>准备工作</h2>
+      
+    
+      
+        <p>在开始之前，我们先创建一个 virtualenv 来安装 Python 依赖包。（如果你之前没用过 virtualenv，可以看看这里的介绍，它是一种管理不同项目依赖包的简便方法。）</p>
+      
+    
+      
+        <pre><code>:::shell
+mkdir -p ~/code/
+cd ~/code
+virtualenv --no-site-packages aws_expenses
+</code></pre>
+      
+    
+      
+        <p>接下来，在新建的 virtualenv 中安装以下依赖：</p>
+      
+    
+      
+        <pre><code>:::shell
+cd ~/code/aws_expenses
+. bin/activate
+pip install requests==0.14.2 xlwt==0.7.4
+</code></pre>
+      
+    
+      
+        <p>现在我们可以快速验证安装是否成功：</p>
+      
+    
+      
+        <pre><code>:::shell
+~/code/aws_expenses/bin/python
+</code></pre>
+      
+    
+      
+        <p>最后，确认导入能正常工作：</p>
+      
+    
+      
+        <pre><code>:::pycon
+&gt;&gt;&gt; import xlwt
+&gt;&gt;&gt; xlwt.__VERSION__
+&#x27;0.7.4
+&gt;&gt;&gt; import requests
+&gt;&gt;&gt; requests.__version__
+&#x27;0.14.2&#x27;
+</code></pre>
+      
+    
+      
+        <p>现在我们已经准备就绪，可以开始写了。</p>
+      
+    
+      
+        <h2>通过 API 获取 AWS 定价信息</h2>
+      
+    
+      
+        <p>首先，我们来对 AWS EC2 定价数据进行逆向工程，将其转化为有用的格式：</p>
+      
+    
+      
+        <pre><code>:::pycon
+&gt;&gt;&gt; import requests
+&gt;&gt;&gt; url = &quot;http://aws.amazon.com/ec2/pricing/pricing-on-demand-instances.json&quot;
+&gt;&gt;&gt; pricing = requests.get(url).json
+&gt;&gt;&gt; pricing.keys()
+[u&#x27;vers&#x27;, u&#x27;config&#x27;]
+&gt;&gt;&gt; pricing[&#x27;vers&#x27;]
+0.01
+&gt;&gt;&gt; pricing[&#x27;config&#x27;].keys()
+[u&#x27;regions&#x27;, u&#x27;rate&#x27;, u&#x27;currencies&#x27;, u&#x27;valueColumns&#x27;]
+&gt;&gt;&gt; type(pricing[&#x27;config&#x27;][&#x27;regions&#x27;]
+&lt;type &#x27;list&#x27;&gt;
+&gt;&gt;&gt; pricing[&#x27;config&#x27;][&#x27;regions&#x27;][0].keys()
+[u&#x27;region&#x27;, u&#x27;instanceTypes&#x27;]
+&gt;&gt;&gt; pricing[&#x27;config&#x27;][&#x27;regions&#x27;][0][&#x27;region&#x27;]
+u&#x27;us-east&#x27;
+&gt;&gt;&gt; pricing[&#x27;config&#x27;][&#x27;regions&#x27;][0][&#x27;instanceTypes&#x27;][0].keys()
+[u&#x27;type&#x27;, u&#x27;sizes&#x27;]
+&gt;&gt;&gt; type(pricing[&#x27;config&#x27;][&#x27;regions&#x27;][0][&#x27;instanceTypes&#x27;][0][&#x27;sizes&#x27;])
+&lt;type &#x27;list&#x27;&gt;
+&gt;&gt;&gt; pricing[&#x27;config&#x27;][&#x27;regions&#x27;][0][&#x27;instanceTypes&#x27;][0][&#x27;sizes&#x27;][0]
+{u&#x27;valueColumns&#x27;: [
+    {u&#x27;prices&#x27;: {u&#x27;USD&#x27;: u&#x27;0.065&#x27;},
+     u&#x27;name&#x27;: u&#x27;linux&#x27;},
+    {u&#x27;prices&#x27;: {u&#x27;USD&#x27;: u&#x27;0.115&#x27;},
+     u&#x27;name&#x27;: u&#x27;mswin&#x27;}
+   ],
+ u&#x27;size&#x27;: u&#x27;sm&#x27;}
+</code></pre>
+      
+    
+      
+        <p>好了，在这片数据的海洋中畅游一番后，我们已经收集到了足够的信息，可以规划出想要的数据结构。</p>
+      
+    
+      
+        <p>我们做三个简化假设：</p>
+      
+    
+      
+        <div class="list-content">只关注 us-east 区域，只关注 Linux 机器，只关注以美元（USD）计价的价格。</div>
+      
+    
+      
+        <p>在这些简化假设下，我们可以用一个包含三元组的列表来合理地表示感兴趣的数据，每个三元组包含以下信息：</p>
+      
+    
+      
+        <pre><code>:::python
+(instanceType, size, price)
+</code></pre>
+      
+    
+      
+        <p>例如，一个小型标准实例可以表示为：</p>
+      
+    
+      
+        <pre><code>:::python
+(&#x27;stdODI&#x27;, &#x27;sm&#x27;, &#x27;0.115&#x27;)
+</code></pre>
+      
+    
+      
+        <p>我们可以使用以下函数来实现这个功能：</p>
+      
+    
+      
+        <pre><code>:::python
+EC2_URL = &quot;http://aws.amazon.com/ec2/pricing/pricing-on-demand-instances.json&quot;
+def prices(region_name=&quot;us-east&quot;, os=&quot;linux&quot;, currency=&quot;USD&quot;):
+    prices = requests.get(EC2_URL).json
+    region = next((x for x in prices[&#x27;config&#x27;][&#x27;regions&#x27;] \
+                   if x[&#x27;region&#x27;] == region_name))
+    price_tuples = []
+    for instance_type in region[&#x27;instanceTypes&#x27;]:
+        instance_name = instance_type[&#x27;type&#x27;]
+        for size in instance_type[&#x27;sizes&#x27;]:
+            size_name = size[&#x27;size&#x27;]
+            size_price = next((x for x in size[&#x27;valueColumns&#x27;] \
+                               if x[&#x27;name&#x27;] == os))[&#x27;prices&#x27;][currency]
+            price_tuples.append((instance_name, size_name, size_price))
+    return price_tuples
+</code></pre>
+      
+    
+      
+        <p>使用方法如下：</p>
+      
+    
+      
+        <pre><code>:::pycon
+&gt;&gt;&gt; prices()
+[(u&#x27;stdODI&#x27;, u&#x27;sm&#x27;, u&#x27;0.065&#x27;),
+ (u&#x27;stdODI&#x27;, u&#x27;med&#x27;, u&#x27;0.130&#x27;),
+ ...
+]
+</code></pre>
+      
+    
+      
+        <p>现在我们已经能够获取 AWS 定价数据，接下来就把这些数据写入 Excel。</p>
+      
+    
+      
+        <h2>将 AWS 定价信息写入 Excel</h2>
+      
+    
+      
+        <p>我们先来创建一个只包含价格表头行的 Excel 文件：</p>
+      
+    
+      
+        <pre><code>:::python
+import xlwt
+wb = xlwt.Workbook()
+ws = wb.add_sheet(&#x27;EC2 Pricing&#x27;)
+
+headers = (&#x27;Type&#x27;, &#x27;Size&#x27;, &#x27;Price/hour (USD)&#x27;, &#x27;Price/month (USD)&#x27;)
+for i, header in enumerate(headers):
+    ws.row(0).write(i, header)
+
+wb.save(&#x27;aws.xls&#x27;)
+</code></pre>
+      
+    
+      
+        <p>我们使用 enumerate 来记录表头的位置——后面处理实际定价数据时也会这样做——因为 xlwt 的接口不支持 append 操作。</p>
+      
+    
+      
+        <p>下面是把定价数据写在表头下方的代码片段：</p>
+      
+    
+      
+        <pre><code>:::python
+# this is the prices function we wrote above
+aws_prices = prices()
+
+# this converts (0,0) to A1, (1,0) to B1 and so on
+from xlwt.Utils import rowcol_to_cell
+
+for i, (instance, size, price) in enumerate(aws_prices, start=1):
+    ws.row(i).write(0, instance)
+    ws.row(i).write(1, size)
+    ws.row(i).write(2, float(price))
+
+    # this generates the formula C0 * (30 * 24),
+    # calculating the monthly rate from the hourly rate
+    hourly_cell = rowcol_to_cell(i, 2)
+    hours_in_month = 24 * 30
+    ws.row(i).write(3, xlwt.Formula(&quot;%s * %s&quot; % (hourly_cell, hours_in_month)))
+</code></pre>
+      
+    
+      
+        <p>现在我们已经从 AWS 数据生成了一个完整的 Excel 电子表格，其中包含可正常工作的公式。</p>
+      
+    
+      
+        <p>（到目前为止的完整代码可在 Github 上查看。）</p>
+      
+    
+      
+        <h2>创建跨工作表引用</h2>
+      
+    
+      
+        <p>最后一步是使用这些数据创建一个用于预测费用的第二个工作表。首先，为新的“Instances”工作表创建表头：</p>
+      
+    
+      
+        <pre><code>:::python
+headers = (&#x27;Type&#x27;, &#x27;Size&#x27;, &#x27;Num Instances&#x27;, &#x27;Cost/month (USD)&#x27;)
+for i, header in enumerate(headers):
+    ws.row(0).write(i, header)
+</code></pre>
+      
+    
+      
+        <p>接下来，我们看看如何创建对“EC2 Pricing”工作表的跨工作表引用：</p>
+      
+    
+      
+        <pre><code>:::python
+for i, (instance, size, _) in enumerate(aws_prices, start=1):
+    ws.row(i).write(0, instance)
+    ws.row(i).write(1, size)
+
+    # instead of cost, we&#x27;re writing the number of EC2 instances
+    ws.row(i).write(2, 0)
+
+    # multiplying monthly price by number of instances
+    instances_cell = rowcol_to_cell(i, 2)
+    monthly_price_cell = rowcol_to_cell(i, 3)
+    formula = &quot;&#x27;EC2 Pricing&#x27;!%s * %s&quot; % (monthly_price_cell, instances_cell)
+    ws.row(i).write(3, xlwt.Formula(formula), style)
+</code></pre>
+      
+    
+      
+        <p>现在，我们只需要修改“Num Instances”（实例数量）列的值，就可以随意调整基础设施成本。最后，我们再添加一行来计算所有实例的总基础设施成本。</p>
+      
+    
+      
+        <p>使用 Excel 的 SUM 函数，这变得非常简单：</p>
+      
+    
+      
+        <pre><code>:::python
+# calculate total infrastructure cost
+num_rows = len(ws.rows)
+ws.row(num_rows).write(2, &quot;Total&quot;)
+
+first_price_cell = rowcol_to_cell(1, 3)
+last_price_cell = rowcol_to_cell(num_rows-1, 3)
+total_formula = &quot;SUM(%s:%s)&quot; % (first_price_cell, last_price_cell)
+ws.row(num_rows).write(3, xlwt.Formula(total_formula), style)
+</code></pre>
+      
+    
+      
+        <p>最后，我们需要在创建工作簿时调用这个新的 write_instances 函数。请注意，必须先创建“EC2 Pricing”工作表，然后才能填充“Instances”工作表，因为 xlwt 会验证交叉引用的工作表是否存在。</p>
+      
+    
+      
+        <p>它只验证工作表是否存在——并不检查具体的交叉引用行是否存在——因此你可以先创建 Instances 工作表再创建 EC2 Pricing 工作表，只要在两者都存在之后再调用 write_instances 即可。</p>
+      
+    
+      
+        <p>将所有函数组合起来，完整的使用示例如下：</p>
+      
+    
+      
+        <pre><code>:::python
+wb = xlwt.Workbook()
+ws1 = wb.add_sheet(&#x27;Instances&#x27;)
+ws2 = wb.add_sheet(&#x27;EC2 Pricing&#x27;)
+
+aws_prices = prices()
+write_prices(ws2, aws_prices)
+write_instances(ws1, aws_prices)
+
+wb.save(&#x27;aws.xls&#x27;)
+</code></pre>
+      
+    
+      
+        <p>至此，所有部分都已整合完成，我们使用 xlwt 创建了一个多工作表的 Excel 文档。</p>
+      
+    
+      
+        <p>该脚本的完整代码已在 Github 上以 excel.py 形式提供。</p>
+      
+    
+      
+        <p>你也可以在 Google Docs 上查看生成后的电子表格。</p>
+      
+    
+      
+        <p>如果你想进一步了解 xlwt，可以看看他们在 Github 上的示例代码仓库。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

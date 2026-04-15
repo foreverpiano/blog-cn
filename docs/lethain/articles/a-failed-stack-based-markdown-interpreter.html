@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>一个失败的基于栈的 Markdown 解释器 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>一个失败的基于栈的 Markdown 解释器</h1>
+    <div class="meta">
+      2009-09-27 · 
+      <a href="https://lethain.com/a-failed-stack-based-markdown-interpreter/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我周末的一个项目是尝试用 Erlang 写一个基于栈的 Markdown 解释器。首先要承认，这个项目在完整性和性能上都失败了。</p>
+      
+    
+      
+        <p>Markdown 的行内语法用栈来解析非常直截了当：</p>
+      
+    
+      
+        <pre><code>*test*
+**test**
+`test`
+[test][http://test.com/ &quot;test&quot;)
+[test]: http://test.com/ &quot;test&quot;
+[test][test]
+</code></pre>
+      
+    
+      
+        <p>即使是像 *test **this** out `please *if you won&#x27;t mind* it`* 这样相当复杂的嵌套组合，用基于栈的解释器也容易处理，尽管如果用正则表达式来实现可能会非常复杂。</p>
+      
+    
+      
+        <p>然而，Markdown 的多行结构用朴素的实现就变得非常棘手，或者至少在缺乏前期规划的朴素实现下是如此。</p>
+      
+    
+      
+        <p>以无序列表的语法为例：</p>
+      
+    
+      
+        <pre><code>- this is a list
+- yep, still a list
+- still a list
+</code></pre>
+      
+    
+      
+        <p>在创建每个 &lt;li&gt; 元素之前，你需要检查栈上是否已经存在 &lt;ul&gt; 元素。如果没有，就添加它，否则继续。关闭标签则更复杂一些，需要在关闭 &lt;li&gt; 元素时检查下一行内容并做出判断。</p>
+      
+    
+      
+        <p>接下来是引用块（blockquotes），其行为与 &lt;ul&gt; 类似，只是栈上没有 &lt;li&gt; 元素来帮助跟踪当前位置。</p>
+      
+    
+      
+        <p>然后是代码块，其行为与引用块类似。</p>
+      
+    
+      
+        <p>再就是段落，默认情况下没有被其他标签包裹的文本都会被视为段落。</p>
+      
+    
+      
+        <p>将这些结构与多级缩进以及对换行符处理不一致（引用块里的换行会变成空格，而 pre 块里的换行仍保持换行等）结合起来，这次初始实现中缺乏规划的问题就显得极为致命。</p>
+      
+    
+      
+        <p>下面是这个初始实现取得的一些进展细节，但我现在要重新从头设计多行解析的部分。我还没决定是否继续为多行解析保留基于栈的概念，但我倾向于先做一个预编译阶段，构建出所有多行结构的 DOM，然后只对单行内容使用栈解析器。</p>
+      
+    
+      
+        <h2>完整性</h2>
+      
+    
+      
+        <p>erlang_markdown 当前的测试用例包括：</p>
+      
+    
+      
+        <p>以及运行测试用例的输出结果：</p>
+      
+    
+      
+        <p>第一个问题可以通过在输入末尾添加一个换行符来解决，但它实际上应该能直接正常工作。第二个问题暴露出了根本性的规划缺失，这导致这个部分实现变得极难修改，也注定它无法完全符合规范。</p>
+      
+    
+      
+        <p>你会注意到测试并未覆盖多级结构。设计上已经考虑到了这些，我相当确定让它们工作起来并不困难，但老实说，多行解析的整体设计存在足够严重的缺陷，不值得再花功夫去优化它。</p>
+      
+    
+      
+        <h2>性能</h2>
+      
+    
+      
+        <p>对于大型文档来说，性能也相当糟糕。其中有一些明显的 O(n^2) 操作（将累积的二进制数据合并成字符串再转回二进制不可能是个廉价操作），此外即兴实现也可能带来一些不那么明显的性能问题。</p>
+      
+    
+      
+        <p>是的，简直惨不忍睹。出于好奇，我去掉了最后一步对整个结构调用 list_to_binary 的操作，然后重新运行测试：</p>
+      
+    
+      
+        <p>结果不知怎么花了几乎两倍的时间。我姑且把它当成一次异常，但它显然没有奇迹般地改善性能。</p>
+      
+    
+      
+        <h2>经过一些后续工作之后……</h2>
+      
+    
+      
+        <p>我重新设计了多行逻辑，使其更加系统化（概念与之前类似，但实现上更为系统），现在已经能通过所有测试了。唯一缺少的功能是缩进列表，这确实是个相当重要的缺失。</p>
+      
+    
+      
+        <p>性能也得到了显著提升：</p>
+      
+    
+      
+        <p>这次我更系统地测试了去掉最终 list_to_binary 调用后的性能，结果似乎完全不一致。虽然总是比带上它要快，但有时候会极其快（快 10 倍），有时候又没那么明显……</p>
+      
+    
+      
+        <p>既然所有数据都在内存中，缓存应该不会产生太大影响。也许我遗漏了什么。</p>
+      
+    
+      
+        <p>嗯。还有更多工作要做。等 GitHub 恢复正常后我会把修改推送上去。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

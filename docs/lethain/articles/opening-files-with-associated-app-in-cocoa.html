@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在 Cocoa 中使用关联应用程序打开文件 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>在 Cocoa 中使用关联应用程序打开文件</h1>
+    <div class="meta">
+      2008-04-05 · 
+      <a href="https://lethain.com/opening-files-with-associated-app-in-cocoa/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在目前这个用 Cocoa 和 Objective C 开发的项目中，我遇到了一段需要打开文件的代码，但我并不确定要用哪个应用程序来打开。我希望能重现 Finder 中双击文件的效果（即根据文件扩展名，使用用户指定的默认应用程序打开文件），幸运的是，这实现起来非常简单。</p>
+      
+    
+      
+        <p>经过一番摸索，我发现 Carbon 中这个功能是通过 LaunchServices 实现的，但很快我又发现 Cocoa 中并不存在 LaunchServices。我花了不少时间寻找 Cocoa 中的对应方案，越来越感到沮丧。我差点就打算在 Cocoa 应用中引入 Carbon 框架了，但决定再最后尝试一次：我确信 Cocoa 一定有对应的方法，只是不知道它藏在哪里。</p>
+      
+    
+      
+        <p>在阅读 Cocoa 概览文档时，我找到了 Google 和 Apple 官方文档搜索都未能告诉我的答案：NSWorkspace 就是 LaunchServices 在 Cocoa 中的等价物。</p>
+      
+    
+      
+        <p>有了这个知识点，一切都豁然开朗。查看 NSWorkspace 的文档后发现，*openFile:(NSString *)aPath* 方法正是我所需要的功能。</p>
+      
+    
+      
+        <p>使用方法非常简单：</p>
+      
+    
+      
+        <p>注意代码中使用的是 [NSWorkspace sharedWorkspace]，而不是标准的 Objective C 写法如 [[NSWorkspace alloc] init]。这是因为系统中存在一个全局共享的 workspace，你可以直接使用它，而无需自己去分配和初始化。其最大的好处是使用完后不需要（更准确地说是不能）手动 release 它。openFile 方法的参数是一个 NSString，包含你要打开文件的路径。</p>
+      
+    
+      
+        <p>这再次印证了我开发 Cocoa 时的座右铭：一旦你知道，它就很简单；不知道的时候，它似乎不可能。而跨越这个认知鸿沟的过程，既非简单也非不可能，往往在两个极端之间摇摆。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

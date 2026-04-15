@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>定期任务编排方案 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>定期任务编排方案</h1>
+    <div class="meta">
+      2017-04-30 · 
+      <a href="https://lethain.com/orchestrating-periodic-tasks/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>可靠地定期运行任务并不容易。要实现“exactly once”（仅执行一次）的常规行为，需要采用单实例部署（这会引入单点故障），或者实现领导者选举机制来决定由哪个实例来执行任务。这也正是像 Chubby 这类将选举作为基础原语的系统如此强大的原因。</p>
+      
+    
+      
+        <p>在深入讨论之前，先明确几个定义：</p>
+      
+    
+      
+        <div class="list-content">调度（Scheduling）是决定任务是否应该运行以及何时运行。编排（Orchestration）则是决定任务在哪里以及如何运行。</div>
+      
+    
+      
+        <p>即便你已经具备正确调度任务的能力，仍然需要另一套机制来将任务编排到合适的位置。而要高效地完成这件事，调度器和编排器之间需要相当程度地耦合。例如，判断任务是否成功完成是由编排器掌握的信息，但决定在何种条件下重启任务，则可能希望由编排器来定义，尤其是针对长时间运行的任务（比如，你是否希望出现队头阻塞行为等）。</p>
+      
+    
+      
+        <p>最近在公司内部我们针对这个领域进行了更多讨论。由于我有一段时间没有探索过这方面的方案，因此决定重新调研一下。</p>
+      
+    
+      
+        <p>首先，谈谈我们希望具备的特性：</p>
+      
+    
+      
+        <div class="list-content">语言无关——我们希望有一个统一的框架，能够为我们使用的所有编程语言运行定期任务，而不是为每种语言单独部署一套。熟悉的部署范式——正确做好部署（包括代码审查、静态检查、回滚等）本身就很难，我们更倾向于对定期任务和长期运行的服务采用同一套部署方式和机制。这一点既出于杠杆效应（我们可以在一个地方提升所有人的体验），也出于培训和推广的考虑。可靠性——这些都是业务关键任务，调度和编排组件都必须可靠且可预测。可复用——理想情况下，我们能用同一套编排器同时服务定期任务和长期运行任务。这能降低维护开销，让我们更快积累运维经验，也为后续基于装箱（bin-packing）的集群效率优化留下空间。避免厂商锁定——最好找到一个不依赖特定云厂商的方案，例如不采用 AWS、GCP 或 Azure 的专有云服务。</div>
+      
+    
+      
+        <p>带着这些需求，我花了一些时间调研常见的解决方案：</p>
+      
+    
+      
+        <div class="list-content">AWS Lambda 结合 Scheduled Events 是一个云端解决方案，能够满足大部分常规使用场景，在调度和编排两方面均能提供支持。它在灵活性上不算特别突出，但提供了类似 cron 的基础能力。如果你刚好在使用它支持的语言（Node.js、Java、C#、Python），那可能已经足够了。（如果你需要在编排层获得更多灵活性，也可以使用 Amazon EC2 Container Service 和 AWS Lambda 的混合方案。）
+
+Google 的 Cloud Functions 可以搭配 App Engine Cron Service，并通过 Google Cloud Pub/Sub 进行协调，从而获得与 AWS Lambda Scheduled Events 类似甚至完全一致的调度行为，只是需要调用的组件更多一些。目前 Cloud Functions 对语言的支持仍有限，仅支持 Node.js 运行时，不过可以预期未来会逐步增加。（当然，你也可以发挥创意，让任务去调用已运行的服务，从而突破 Cloud Compute 的语言限制。）
+
+Chronos 是一个运行在 Mesos 之上的调度器，它同时帮你处理了调度和编排两部分，并在两方面都提供了不错的灵活性。运行 Mesos 本身有一定复杂度，但如果你已经具备运维 Mesos 的经验，这会是一个很好的选择。
+
+Kubernetes 的 Cron Jobs 提供了与 Chronos 类似的方案，只不过运行在 Kubernetes 而非 Mesos 上，适合已经部署了 Kubernetes 的组织。
+
+cron 至今仍被广泛用作调度器。如果你将其运行在预制的 AMI 上，并置于大小为 1 的 Auto Scaling Group 中，那么可以依靠 ASG 来完成“选举”，确保只有一个实例在运行。虽然存在单点故障，但系统恢复速度相对较快。它的缺点是不提供任何编排原语，因此你仍需要将其与另一套系统集成来处理编排（例如在 Amazon EC2 Container Service 上启动容器，或调用 AWS Lambda）。好处是你可以继续使用现有的服务器镜像和部署策略。
+
+Python Celery 被许多 Python 团队用来实现这类功能，但它在调度方面面临与 cron 类似的问题，且编排功能较为简单，同时仅限于 Python（不过我最近发现了一个用 Go 实现的 Celery worker，实在令人惊讶）。在这个类别里，无论在 Python 还是其他语言生态中，都存在大量类似的解决方案。
+
+Dkron 是一个纯粹的调度器，旨在提供容错的调度能力，即使部分节点失效也能正常工作（即替你解决了领导者选举和领导者切换的问题，而不需要自己基于 Zookeeper 等自行实现）。它还提供了一个不错的 UI，不过根据你的安全和合规要求，这个 UI 可能是利弊共存。
+
+Bistro 大体上也属于这个领域，但它更侧重于对集群中每台资源都运行一次任务，而不是在集群中某台资源上只运行一次任务。</div>
+      
+    
+      
+        <p>在上述选项中，对于规模较大的公司来说，最终很可能选择以下几种：基于云的方案（AWS Scheduled Lambdas 或 App Engine Cron）、已经在运维 Mesos 的团队选择的 Chronos，或者已经在使用 Kubernetes 的团队选择的 Kubernetes Cron Jobs。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

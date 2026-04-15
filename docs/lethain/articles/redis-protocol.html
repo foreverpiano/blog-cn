@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redis 协议相当出色。 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Redis 协议相当出色。</h1>
+    <div class="meta">
+      2018-04-10 · 
+      <a href="https://lethain.com/redis-protocol/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>虽然它并非无处不在，但如今已经有很多人使用过 Redis。它支持多种数据结构，例如列表、哈希、HyperLogLog，甚至还支持发布/订阅。它吞吐量惊人，同时又是单线程的，因此你不需要调试任何奇怪的并发相关问题。</p>
+      
+    
+      
+        <p>我最喜欢 Redis 的地方？正是它的协议。</p>
+      
+    
+      
+        <p>让我们思考一下如何用 python-redis 设置一个新值：</p>
+      
+    
+      
+        <pre><code>import redis
+cli = redis.Redis()
+cli.set(&#x27;a&#x27;, &#x27;hello&#x27;)</code></pre>
+      
+    
+      
+        <p>客户端通过网络发送的请求是这样的：</p>
+      
+    
+      
+        <pre><code>*3\r\n
+$3\r\n
+SET\r\n
+$1\r\n
+A\r\n
+$5\r\n
+hello\r\n</code></pre>
+      
+    
+      
+        <p>每一行都以 \r\n 结尾。客户端以 *3 开头的行开始每个命令，这表示该命令将带有三个参数。每个参数占两行，第一行以 $ 开头，后跟一个整数，声明下一行的字节数（不包括结尾的 \r\n）。</p>
+      
+    
+      
+        <p>服务端响应非常简洁：</p>
+      
+    
+      
+        <pre><code>+OK\r\n</code></pre>
+      
+    
+      
+        <p>成功了！+OK\r\n 是所有没有返回值的成功操作的肯定确认消息。如果出现错误，例如我们试图对一个字符串值调用 incr，它会返回如下格式的错误：</p>
+      
+    
+      
+        <pre><code>-ERR value is not an integer or out of range\r\n</code></pre>
+      
+    
+      
+        <p>现在，让我们获取刚才设置的值：</p>
+      
+    
+      
+        <pre><code># returns &#x27;hello&#x27;
+cli.get(&#x27;a&#x27;)</code></pre>
+      
+    
+      
+        <p>客户端发送的内容为：</p>
+      
+    
+      
+        <pre><code>*2\r\n
+$3\r\n
+GET\r\n
+$1\r\n
+a\r\n</code></pre>
+      
+    
+      
+        <p>服务端响应是：</p>
+      
+    
+      
+        <pre><code>$5\r\n
+hello\r\n</code></pre>
+      
+    
+      
+        <p>我非常喜欢这个协议的很多方面！</p>
+      
+    
+      
+        <p>它足够简单，你在一两个小时内就能实现一个简单的客户端或服务端！</p>
+      
+    
+      
+        <p>它是人类可读的！</p>
+      
+    
+      
+        <p>明确的行数和每行长度意味着你不需要解析内容本身！</p>
+      
+    
+      
+        <p>我还觉得把它和 Memcache 协议对比时特别惊艳，后者本身也是一项了不起的成就，但实现起来要 confusing 得多。</p>
+      
+    
+      
+        <p>如果你想自己复现这个实验，我当时使用的魔法命令是：</p>
+      
+    
+      
+        <pre><code>sudo ngrep -d lo0 -t &#x27;&#x27; &#x27;tcp and port 6379&#x27;</code></pre>
+      
+    
+      
+        <p>它捕获了本地 Redis 服务器的所有 localhost 流量。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>持久化写入与一致性读取 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>持久化写入与一致性读取</h1>
+    <div class="meta">
+      2009-11-30 · 
+      <a href="https://lethain.com/durable-writes-consistent-reads/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在用极简方式实现了一个键值存储之后，是时候朝着 Dynamo 的目标迈出前两步改进：实现持久化写入（Durable Writes）和一致性读取（Consistent Reads）。</p>
+      
+    
+      
+        <h2>W、R 和 N</h2>
+      
+    
+      
+        <p>在我们最初的实现中，收到更新请求后会立即通知客户端操作成功，并没有确认更新是否真正写入了远程节点。</p>
+      
+    
+      
+        <p>这种方式虽然实现简单，但并不可靠，因为它假设写入一定成功。可能是其他进程已经宕机，但我们仍然会忠实地告知客户端他们的修改已被成功记录。</p>
+      
+    
+      
+        <p>为了解决这个缺陷，我们将把读写操作改为“一阶段提交”（one-phase commit），而不是目前这种“零阶段提交”（zero phase commit，又称盲目发射）。在收到客户端的写请求后，接收节点会等待参与写入的节点返回成功确认，然后再响应客户端。</p>
+      
+    
+      
+        <p>然而，一旦决定采用更复杂的提交协议，就会出现几个问题：</p>
+      
+    
+      
+        <div class="list-content">既然我们需要在告知客户端写入成功前进行等待，那么到底应该等待多少个节点呢？同样地，当读取数据时，我们应该查询多少个节点后再将结果返回给客户端？</div>
+      
+    
+      
+        <p>Dynamo 并没有给出固定答案，而是将这两个值（以及第三个值——数据复制的节点数）设计成可配置的，从而使每个 Dynamo 集群都能根据使用者的需求进行高度定制。</p>
+      
+    
+      
+        <p>这几个可配置的值分别是：</p>
+      
+    
+      
+        <div class="list-content">N 表示每份数据要复制到的节点数量（在我们当前的实现中，N 等于系统中的节点总数）。W 表示在通知用户写入成功前，必须完成写入的节点数（我们的实现目前是 W := N，某种程度上是这样）。R 表示读取一个 key 时需要咨询的节点数（当前实现中 R := 1）。</div>
+      
+    
+      
+        <p>将这些值以不同方式组合，可以产生性质截然不同的数据存储系统。采用 W := N、R := 1 的系统会在通知用户成功前向所有节点写入数据，这是一个写入可用性较低的系统——单个节点宕机就会阻止后续写入。但由于它能保证更新被写入所有节点，所以只需从单个节点读取就能拿到最新值，因此读取可用性非常高。</p>
+      
+    
+      
+        <p>另一个极端是 W := 1、R := N 的系统，它的写入可用性很高，但读取可用性很低。如果绝不能拒绝写入请求，那么这种低效的读取可能是可以接受的。</p>
+      
+    
+      
+        <p>对大多数用户来说，W 和 R 的取值会介于 1 和 N 之间。根据 Dynamo 论文，Amazon 发现对大多数应用而言，N := 3、W := 2、R := 2 是一个性能和可靠性之间较为合理的折衷。</p>
+      
+    
+      
+        <p>现在让我们来看看如何扩展键值存储，使其能够支持可配置的 W 和 R 值（N 的处理我们稍后再说）。</p>
+      
+    
+      
+        <h2>记录（Record）、配置与 kvs.hrl</h2>
+      
+    
+      
+        <p>在上一篇中我提到过，-define 通常放在单独的 .hrl 文件中，现在我们开始使用它。本次我们将把它命名为 kvs.hrl。</p>
+      
+    
+      
+        <p>首先，我们会为 W 和 R 添加常量定义（同时把 TIMEOUT 也移过来），</p>
+      
+    
+      
+        <p>但更重要的是，我们要创建一个 Erlang record 来管理 kvs:store/1 不断增加的状态。</p>
+      
+    
+      
+        <p>Erlang record 本质上是一个带语法糖的元组，方便人类在不记住元素顺序的情况下访问其中的值。对大多数场景来说，这个语法糖就是使用 record 的最大收益，但相比属性列表（property list），它也具有一定的性能优势。</p>
+      
+    
+      
+        <p>我们的 kvs_store record 初始看起来是这样的：</p>
+      
+    
+      
+        <p>我们将使用 data 字段存放键值映射，pending_reads 存放那些还在等待其他节点返回值才能返回给用户的读请求，pending_writes 则存放那些正在等待其他节点确认才能通知用户写入成功的写请求。</p>
+      
+    
+      
+        <p>我们需要在 kvs.erl 文件顶部添加 -include 来使用这个 record 定义。</p>
+      
+    
+      
+        <p>同时我们还要更新 kvs:start/1 函数以使用这个 record：</p>
+      
+    
+      
+        <p>完成后，我们就可以继续实现持久化写入了。</p>
+      
+    
+      
+        <h2>持久化写入（Durable Writes）</h2>
+      
+    
+      
+        <p>实现持久化写入的第一步是更新 store/1 函数的接口（这个修改对后续的一致性读取也同样必要）。函数的元数（arity）保持不变，但我们将传递新的 kvs_store record，而不是原来的属性列表。</p>
+      
+    
+      
+        <p>持怀疑态度的读者可能会问：既然可以直接把函数定义改成</p>
+      
+    
+      
+        <p>然后就完事了，为什么还要费力去定义 record 呢？</p>
+      
+    
+      
+        <p>使用 record 的理由是，你只需要取出需要的数据，而不用去处理那些用不到的值。当 record 的元数从 1 增加到 3、从 3 增加到 6 乃至更多时，这一点会变得特别有意义。当然，最终这也是一个风格问题。</p>
+      
+    
+      
+        <p>现在我们已经更新了函数定义，接下来该修改 receive 代码块了。我们将分别讨论 set、update 和 updated 消息，但请记住它们都是针对 store/1 邮箱的模式匹配。</p>
+      
+    
+      
+        <h2>set、update 与 updated</h2>
+      
+    
+      
+        <p>接收到 set 模式的消息是更新流程的起点，因此我们从这里开始。</p>
+      
+    
+      
+        <p>之前 set 会把更新后的键值对广播给所有节点，然后立即通知用户写入成功。现在我们将记录来自写入节点的 ack 数量，等它超过 W 阈值后再通知用户写入成功。</p>
+      
+    
+      
+        <p>经过这些修改后，所有节点都会在 pending_writes 中维护一个属性列表，里面存放所有已发起但尚未达到 W 阈值的持久化写操作。pending_writes 的 key 是由客户端进程 ID（即调用 kvs:set/2 的 pid）和被更新的 key 组成的二元组；value 则是计数器，表示还需要多少个额外确认才能超过写入阈值。</p>
+      
+    
+      
+        <p>当节点收到 update 消息时，会通知最初接收 set 消息的那个节点，说自己已经成功更新了该 key 的值。</p>
+      
+    
+      
+        <p>当其他节点确认写入成功后，对应的写入计数器会递减。一旦计数器减到 0，就会通知 Client pid 写入已持久化成功，并将该写操作从 pending_writes 列表中删除。后续再收到的关于该更新的确认将被忽略。</p>
+      
+    
+      
+        <h2>一致性读取（Consistent Reads）</h2>
+      
+    
+      
+        <p>实现一致性读取的模式与持久化写入类似，但增加了协调不一致读结果的复杂度（比如一个节点返回 5，另一个节点返回 16，该怎么办）。</p>
+      
+    
+      
+        <p>首先我们实现读请求扇出（read fanout），它会将读请求发送给其他节点，然后把这次读操作加入 pending_reads。</p>
+      
+    
+      
+        <p>接着是把本地该 key 的值发回给最初收到 get 消息的节点。</p>
+      
+    
+      
+        <p>最后是处理 pending_reads 中计数器递减，以及通过 retrieve 消息收集各节点返回值的逻辑。</p>
+      
+    
+      
+        <p>注意，我们目前使用的是一个非常简陋的算法来解决不一致读：选择出现次数最多的值（如果有多个值出现次数相同，则根据读节点响应的先后顺序间接选择一个）。如果我们暂时能忍受这个不太优雅的做法，那么下一篇将会探讨如何利用各种时钟来大幅提升读一致性。</p>
+      
+    
+      
+        <h2>失败的读写操作</h2>
+      
+    
+      
+        <p>除了解决不一致的算法比较弱之外，我们当前实现另一个不足之处是对失败或无法完成的读写操作的处理。</p>
+      
+    
+      
+        <p>假设一个系统设置 W := 10，但由于节点故障当前只有 5 个可用节点。这时写入计数器永远不会归零，因此用户永远得不到响应，这显然不是一个可用的系统。</p>
+      
+    
+      
+        <p>一个合理的解决方案是：将所有超过一定超时时间的待处理操作视为失败，并通知用户该读/写操作失败。</p>
+      
+    
+      
+        <p>当前我们没有记录 set 或 get 请求到达的时间，因此需要扩展 pending_reads 和 pending_writes 中保存的信息，加入时间戳。</p>
+      
+    
+      
+        <p>首先我们要写一个工具函数，把 erlang:now/0 的输出转换成自纪元以来的秒数，</p>
+      
+    
+      
+        <p>然后需要更新若干 receive 模式，首先是 set 模式，它需要修改为创建一个包含“所需写入数量”和“请求到达时间”的二元组（之前只有所需写入数量）。</p>
+      
+    
+      
+        <p>updated 也需要相应修改，以便从新的二元组中正确提取 Count，并在递减 Count 时正确构造值。</p>
+      
+    
+      
+        <p>读取部分也需要做对应的修改，但我们大概不必逐一展示这些变化（如果你感兴趣，可以查看发生这些修改的 diff）。</p>
+      
+    
+      
+        <p>我们要做的最后一个重要改动是在 store/1 的 receive 代码块之后添加一个 after 子句，这使我们能够定期检查过期的读写操作。</p>
+      
+    
+      
+        <p>filter_writes/1 和 filter_reads/1 负责检测那些耗时过长的待处理操作，通知客户端请求失败，并分别从 pending_writes 和 pending_reads 列表中移除这些失败的操作。</p>
+      
+    
+      
+        <p>把这些函数放在 receive 代码块外面并不是严格必须的，但由于 receive 块已经变得相当庞大，把它拆分一下会更容易维护。</p>
+      
+    
+      
+        <p>（这也是我们第一次看到 Erlang 的 if 表达式，我个人对它的 guard 没有对 case 的模式匹配那么喜欢。这当然是风格问题，但我倾向于在所有场景下都使用 case，除非出现类似 case X of true -&gt; A; false -&gt; B end; 这样的代码，那样就显得有点刻意回避 if 了。）</p>
+      
+    
+      
+        <p>最后，最后一个修改，我们还需要把超时值添加到 kvs.hrl 中。</p>
+      
+    
+      
+        <p>完成所有修改后，让我们用单个节点启动 kvs，并配置 W := 3、R := 3。</p>
+      
+    
+      
+        <p>这就是我们对失败的待处理读写操作的成功处理。很好。</p>
+      
+    
+      
+        <p>至此，我们的第二批修改告一段落；更新后的代码快照已在 GitHub 上提供。</p>
+      
+    
+      
+        <p>在下一篇文章中，我们将以更严谨的方式对待一致性读取，探讨使用物理时钟、逻辑时钟和向量时钟对值进行版本化和协调的效果。</p>
+      
+    
+      
+        <p>这篇文章应该会在几天内发布。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

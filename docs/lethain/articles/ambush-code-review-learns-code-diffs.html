@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ambush Code Review 学会了生成代码差异 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Ambush Code Review 学会了生成代码差异</h1>
+    <div class="meta">
+      2008-06-18 · 
+      <a href="https://lethain.com/ambush-code-review-learns-code-diffs/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>今天我花了几个小时重构了 Ambush Code Review，它已经变得比最初的实现好得多。主要有两个重要改进：</p>
+      
+    
+      
+        <div class="list-content">使用起来更方便了。它现在能做一些真正有趣的事情。</div>
+      
+    
+      
+        <p>以前，对代码片段发表回复的操作相当别扭。我自己当然知道怎么用，但不确定其他人是否清楚，而且那本来就是一个不太理想的折中方案。现在，只需点击两下按钮，就能用你的修改更新已发布的片段。但真正有趣的新功能是：它现在可以生成同一片段不同版本之间的差异（diff），并将它们显示在当前版本的下方。</p>
+      
+    
+      
+        <p>你可以去看截图对应的那个代码片段，我觉得这是一个相当吸引人的特性。因为 ACR 的核心目标就是让大家更容易对代码片段提出改进建议（比如，当有人把代码片段贴到 IRC 聊天室求助时，如果能直接向他们展示如何修复，岂不是很棒？）。</p>
+      
+    
+      
+        <p>现在它已经从一个粗糙的“me too”服务向前迈了一步，变得稍微有趣了一些，我很乐意听到大家的反馈。</p>
+      
+    
+      
+        <h2>实现代码差异功能</h2>
+      
+    
+      
+        <p>接下来简单聊聊不同版本间差异的实现过程。事情并没有完全按预期发展——在我以为会很困难的地方反而很简单，而我以为很简单的地方却比较麻烦。活到老，学到老。</p>
+      
+    
+      
+        <p>真正简单的部分其实是生成差异片段本身。difflib 模块作为 Python 标准库的一部分，把这个任务变得无比轻松。相关代码大致如下（欢迎来这里改进这段代码，我目前对如何正确处理 unified_diff 函数返回的生成器还有点困惑……）：</p>
+      
+    
+      
+        <p>也就是说，我几乎什么都没做，只是简单地调用了模块提供的一个函数。但之后的事情就变得有点棘手了。</p>
+      
+    
+      
+        <p>问题始于 BigTable 中用来描述字段的 db.ListProperty 属性，它需要一个类型参数。当然，没问题。它要求类型必须是特定列表中的一个。好吧，有一大堆可选类型，也没问题。它还要求列表中的所有条目必须是同一类型。嗯，我只想存 diff，所以类型肯定一致，也没问题。然后它在你设置了 db.Text 属性类型后却无视了它，并抱怨说 unicode 类型不能在数据库中存储超过 500 字节的内容。这就成了问题。</p>
+      
+    
+      
+        <p>于是我用一些老派 ingenuity 和新派对后果的漠不关心，临时拼凑出了自己的列表方案——使用 simplejson 进行序列化和反序列化。</p>
+      
+    
+      
+        <p>我不会说这是一个绝妙或甚至是好的方案，但它是一个足够好的方案，而这似乎正是 Web 应用最终都会回归的本质。数据库访问次数被降到了最低，而 CPU 在 Web 开发中几乎从来都不是瓶颈。你可能会问我为什么选择 simplejson 而不是 pickle，答案其实很简单：simplejson 用起来非常方便，省去了我必须用 StringIO 来模拟文件让 pickle 进行序列化和反序列化的麻烦。</p>
+      
+    
+      
+        <p>希望这个代码解析还算有点意思，如果有任何问题，欢迎告诉我。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

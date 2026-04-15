@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>关于使用 Erlang 开发的一些想法 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>关于使用 Erlang 开发的一些想法</h1>
+    <div class="meta">
+      2008-04-30 · 
+      <a href="https://lethain.com/thoughts-on-dating-erlang/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>最近我正在一个项目中使用 Erlang，目前体验还算不错。这个项目需要搭建一个服务器，用于解析我自定义的数据包格式，下面是一些使用过程中的感想。</p>
+      
+    
+      
+        <h2>消息传递</h2>
+      
+    
+      
+        <p>在解析完收到的数据包后，服务器需要将解析后的数据写入数据库。由于各种原因，我希望尝试让整个系统中只有一个进程负责与数据库（一个 SQL 数据库，很可能是 Postgres，而且不是分布式数据库）进行交互。我以前用 Python 尝试过类似的做法，结果很快就变得一团糟。幸运的是，Erlang 的消息传递范式让这个需求实现起来非常简单。</p>
+      
+    
+      
+        <p>我实现了一个循环运行的数据存储进程，它持续等待传入的消息，然后进行存储操作。</p>
+      
+    
+      
+        <p>接着，我需要在启动代码中注册这个进程，以便其他进程能够找到并与之通信。</p>
+      
+    
+      
+        <p>有了这个设置之后，任何需要存储数据的进程只需向数据存储进程发送一条消息即可，队列管理、并发处理全部由系统负责，完全不需要使用互斥锁或信号量。</p>
+      
+    
+      
+        <p>消息传递为（某些类型的）并发问题提供了一种透明的解决方案，在经历过传统的线程编程之后，这简直让人耳目一新。当然，这种实现的简洁性很大程度上得益于 Erlang 的消息传递是基于进程（process）而非线程（thread）。两者的核心区别在于：进程之间不能共享数据，而线程可以共享数据。</p>
+      
+    
+      
+        <p>如果你还没有太多积极的并发编程经验，我强烈推荐你试试 Erlang，哪怕你并不打算严肃地使用它。当你看到并发编程竟然可以如此简单且高效时，那种感觉真的很棒。</p>
+      
+    
+      
+        <h2>简洁的服务器循环</h2>
+      
+    
+      
+        <p>在网上搜索“Erlang socket tutorial”或者“Erlang gen_tcp man”，你会发现许多几乎一模一样的例子，展示了一个相当强大的服务器循环。（我最早找到的那个例子就是下面这段代码的来源，我只做了少量修改，所有错误都由我自己负责，链接在这里。）</p>
+      
+    
+      
+        <p>这是一个非常精简的服务器，但同时也功能强大。它循环等待新的连接到来，然后为每个新连接生成一个独立的进程去处理。由于 Erlang 的进程比大多数语言的线程实现要轻量得多， 这实际上是一个可行的方案，而非天方夜谭（我一边说一边暗自祈祷，而且完全没有实际数据支撑）。</p>
+      
+    
+      
+        <h2>字符串即列表</h2>
+      
+    
+      
+        <p>Erlang 没有专门的字符串类型和工具，字符串本质上就是数字列表。这意味着你可以使用所有操作列表的函数来处理它们（prefix、nthtail、map、foreach、fold，应有尽有）。但考虑到每个字符要占用 8 个字节的内存，它在字符串处理方面的表现并不算出色。不过，完成任务是完全没问题的。</p>
+      
+    
+      
+        <p>在我的项目中，服务器需要从传入的数据包中解析出数据。我必须承认，大学时上过的一门网络课程在这方面帮了我大忙——我们当时就是用有限状态机来解析数据包，而不是使用正则表达式这样更简单的工具。</p>
+      
+    
+      
+        <p>下面是一段解析代码的片段，它会构建一个以双换行符“\n\n”结束的 token。</p>
+      
+    
+      
+        <p>我当然不会说这段代码一眼就能看懂，但它确实展示了 Erlang 的模式匹配功能如何让你轻松描述复杂的逻辑（我强烈怀疑存在比我这个更清晰的写法，我这个版本多少有点初学者乱炖的感觉）。</p>
+      
+    
+      
+        <p>如果把这段代码翻译成 Python（大致翻译，忽略“先反向构建链表再翻转”这种函数式编程惯用法），结果会大不相同。</p>
+      
+    
+      
+        <p>所谓不同，就是明显更容易阅读。公平地说，我在写 Erlang 版本时故意避免声明变量（试图通过限制自己来找到更优雅的方案，但目前还没完全成功）。不过，我实际用 Python 实现这个功能时会更简单（其中一个重要原因是 Python 没有尾调用优化，这使得上面的方案更像一个玩具而非实用工具）。</p>
+      
+    
+      
+        <p>明显简洁多了，而如果使用正则表达式，代码可能会稍长一些，但可读性也差不多。我就不继续强调这一点了（也就是说我不会贴出 Objective-C 的版本），因为我很确定这段 Erlang 代码的丑陋主要是我自己的问题，最坏的情况也不过是它与函数式编程风格不太匹配。</p>
+      
+    
+      
+        <p>问题：Haskell 是怎么处理字符串的？</p>
+      
+    
+      
+        <h2>小吐槽</h2>
+      
+    
+      
+        <p>每当我学习一门新语言时，总有两个问题让我持续感到烦躁，而 Erlang 和其他大多数语言一样也没能幸免：我不太喜欢大多数语言都自己发明一套字符串格式化的迷你语言，同时还各自搞一套列表推导式的迷你语言。我知道有人会说，如果我们停止探索更好的方案，就会失去一些东西，但我希望读者想想 Perl 的正则表达式。它们很强大，对吧？更棒的是，你只需要学会一次，就能在几乎所有语言里使用这个强大的工具，不是吗？</p>
+      
+    
+      
+        <p>如果列表推导式和字符串格式化这些迷你语言也能在不同语言间标准化，让它们同样成为我们跨语言工具箱中的强大概念，那该有多好？</p>
+      
+    
+      
+        <h2>继续前进</h2>
+      
+    
+      
+        <p>大约一年前，我曾短暂接触过 Erlang，但没坚持下去。当时我觉得它的语法有点刺眼，文档也不好，等等等等。从那时到现在，Erlang 本身并没有发生根本性的变化，但这次再次尝试却让我感觉愉快得多。语法不知不觉就适应了，函数式编程也没有让我感到困惑，学习曲线也没有特别陡峭。</p>
+      
+    
+      
+        <p>我可能会说自己终于为 Erlang 做好了准备，但这话听起来有点矫情。我真正想说的是，Erlang 是一门值得去了解的有趣语言，对于某些特定问题领域，它能提供优雅而精妙的解决方案。它不会像你花几周时间学习 Scheme 那样彻底改变你的世界观，但有时候，我们的世界也许只需要这样的改变就足够了。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

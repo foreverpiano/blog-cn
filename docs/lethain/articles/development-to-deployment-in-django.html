@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>从开发到部署：Django 实践 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>从开发到部署：Django 实践</h1>
+    <div class="meta">
+      2008-11-03 · 
+      <a href="https://lethain.com/development-to-deployment-in-django/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我在 Django 开发中做过的最有价值的事情之一，就是建立一套稳定一致的开发到部署流程。下面我将快速介绍一些让我工作更轻松的做法，同时也很想听听大家都在使用哪些技巧。</p>
+      
+    
+      
+        <h2>local_settings.py 进阶用法</h2>
+      
+    
+      
+        <p>在 Django 部署中，最有效的技巧之一是在 settings.py 文件的末尾加上以下四行代码：</p>
+      
+    
+      
+        <p>这样就可以用 local_settings.py 的内容来覆盖 settings.py 中的配置。对于一个公开共享的项目，你只能做到提供一个 local_settings.py 模板让用户自行定制。但如果你控制着生产环境和开发环境（比如私有项目），就可以把这个方法发挥得更深入。</p>
+      
+    
+      
+        <p>我会创建一个 production_settings.py 文件存放生产服务器的配置，再创建一个 devel_settings.py 用于本地开发。两者都纳入版本控制，然后在本地代码库中创建一个 local_settings.py，内容如下：</p>
+      
+    
+      
+        <p>而在生产环境的代码库中，local_settings.py 则是这样的：</p>
+      
+    
+      
+        <p>最后，确保 local_settings.py 被版本控制系统忽略。</p>
+      
+    
+      
+        <p>我喜欢这种设置，因为它（和标准的 local_settings.py 技巧一样）能方便地修改共享配置。此外，这个方法还无需 SSH 到生产服务器就能修改生产配置，而且比在仓库中同时维护 production 和 development 分支要简单得多（后者需要进行大量无意义的合并）。</p>
+      
+    
+      
+        <h2>devel_settings.py 和 production_settings.py</h2>
+      
+    
+      
+        <p>我的 devel_settings.py 文件几乎在所有项目中都长得一模一样。你的配置可能会有所不同，但我发现，维护一个标准化的项目模板（而不是每次都用 django-admin startproject 创建新项目）能节省不少思考的时间。</p>
+      
+    
+      
+        <p>我的 devel_settings.py 大致是这样的：</p>
+      
+    
+      
+        <p>production_settings.py 的内容则会有更多变化，因为它取决于 Postgres 和 Memcached 的具体设置，但整体看起来大致如下：</p>
+      
+    
+      
+        <p>你的生产配置很可能和这个差别很大。</p>
+      
+    
+      
+        <h2>三个仓库的故事</h2>
+      
+    
+      
+        <p>我整个开发-部署流程的基础是三个代码仓库（使用分布式版本控制会更简单一些，不过用 Subversion 或 CVS 也能实现类似效果）。</p>
+      
+    
+      
+        <div class="list-content">一个托管在非本地也非生产环境的主仓库。我用自己的 Slicehost 服务器来托管所有私有 git 仓库（它有每日和每周备份，如果出问题我也能自己修复），你也可以使用付费的 GitHub 账号或其他类似服务。每个开发者本地都有一个仓库，定期推送到主仓库。每台生产服务器上都有一个生产仓库。</div>
+      
+    
+      
+        <p>开发者主要在本地机器上工作，将代码推送到主仓库的对应分支上。他们也会偶尔从主仓库拉取更新，以保持仓库同步。</p>
+      
+    
+      
+        <p>生产仓库通过以下方式保持更新：</p>
+      
+    
+      
+        <div class="list-content">使用 Fabric 远程命令生产服务器拉取最新代码。这适用于大中小型部署，始终都是最佳选择，不需要再考虑其他方案。通过 SSH 登录生产服务器手动拉取更新，或者写一个批处理脚本来完成。这种方式对于单机部署已经足够，但如果环境更复杂，就应该采用专门的部署方案。设置 cron 任务定期自动拉取。这是最简单、最偷懒的做法，但在大多数情况下并不推荐。</div>
+      
+    
+      
+        <p>使用这套流程后，从开发环境推送一个改动到生产环境只需要两个步骤：</p>
+      
+    
+      
+        <p>我强烈建议再添加一个 fab revert hash-to-revert-to 命令，以便在部署出现问题时能够快速回滚。</p>
+      
+    
+      
+        <h2>生产服务器设置</h2>
+      
+    
+      
+        <p>我会把目录结构保持得非常简单且统一。所有生产服务器上都有一个名为 django 的用户，其密码已被禁用且没有 SSH 权限。开发者在生产机器上有账号，他们属于 django 用户组，因此可以修改 django 用户的所有文件（把 SSH 配置成免密登录能省掉你好几天的麻烦）。</p>
+      
+    
+      
+        <p>我会根据版本控制系统将第三方库按文件夹组织，通常会有 git 和 svn 文件夹，根据实际情况也可能出现 hg 或 bzr 文件夹。（好吧，我承认我几乎没用过 bzr 文件夹，只是想说得更全面一些。）然后我把它们全部软链接到 /usr/python2.?/site-packages/ 目录下（最近几年我一直在用 Python 2.5，不过未来一两年如果 2.6 有显著性能提升，我可能会升级）。</p>
+      
+    
+      
+        <p>我更喜欢直接链接到仓库的检出目录（而不是用 setup.py 安装），这样以后如果需要更新库，在所有生产服务器上操作会更方便。</p>
+      
+    
+      
+        <p>对于静态资源，我会把项目或应用仓库中需要的文件夹软链接到 /var/www/example.com/media/，然后让 Nginx 负责提供服务。（我依然很满意 Nginx + Apache2 + mod_python 的组合，尽管它已经不太被最潮的开发者们青睐，他们现在都转投 WSGI 了。）</p>
+      
+    
+      
+        <h2>测试……</h2>
+      
+    
+      
+        <p>你可以在测试集成上做很多有创意的事情（比如只有所有测试通过才允许部署脚本推送到生产环境，或者在主仓库的 post-commit hook 中运行测试，并在测试失败时邮件通知开发者等等）。但我目前仍然是手动运行测试。这大概会是我接下来要改进的下一个环节。</p>
+      
+    
+      
+        <p>你有没有使用这里没有提到的其他技巧？或者拥有更好的整体设计方案？我很想知道大家是如何解决这个普遍存在的问题的。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

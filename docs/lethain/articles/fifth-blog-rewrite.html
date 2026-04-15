@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第五次博客重写的笔记 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>第五次博客重写的笔记</h1>
+    <div class="meta">
+      2017-04-02 · 
+      <a href="https://lethain.com/fifth-blog-rewrite/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我 2017 年的项目之一是清理自己的各种在线账号。一开始只是关闭一些不再使用的服务、换用密码管理器、购买 YubiKey，并在所有地方启用 2FA。</p>
+      
+    
+      
+        <p>后来事情变得稍微复杂一些：我把所有域名从 GoDaddy 转移到 AWS Route53 作为域名注册商，最后又把虚拟机从 Linode 迁移到了 AWS。（并不是对 Linode 有意见，只是想要更多它目前无法提供的资源。）</p>
+      
+    
+      
+        <p>和往常一样，这件事最终又让我重写了博客。</p>
+      
+    
+      
+        <p>（有趣的是，写完之后我才意识到，这已经是我第二次在博客文章里宣称自己把博客重写了五次。也许以后的规矩就是不管重写多少次都宣称这是第五次。）</p>
+      
+    
+      
+        <p>出于各种莫名其妙的原因，我每隔一两年就要重写一次博客。大多数时候，我都把它当作学习一门编程语言、一套库或者某种托管基础设施的机会。</p>
+      
+    
+      
+        <p>这些年来，它从最初运行在 Slicehost（老实说也曾在 DreamHost 上跑过一阵）上一个极其复杂的 Django 应用，变成了运行在 Linode 上的 Go 应用，而在过去几周，我又把它重写成一个更简单的 Go 应用，并迁移到了 AWS。</p>
+      
+    
+      
+        <p>旧的架构非常简单：</p>
+      
+    
+      
+        <p>本质上就是一台拥有公网 IP 的 Linode 服务器，直接接收流量。它用 Nginx 作为前端，反向代理一个基于 net/http 的 Go 服务，所有持久化数据都依赖本地运行的 Redis 实例。Redis 负责实时统计来计算趋势文章，另外还有一个命令行工具从 Git 仓库读取 Markdown 文章并插入 Redis。</p>
+      
+    
+      
+        <p>而新的实现依然相当简单，虽然多了一些组件。</p>
+      
+    
+      
+        <p>外部流量先到达 AWS ALB，然后被负载均衡分发到 ASG 中的实例，这些实例基于打包好的 AMI 运行着一个 Go 服务。（我重写了这个 Go 服务，让它变得更简单，但整体思路差不多。）AMI 是通过 Packer 构建的（我在用 Terraform 配置整体 AWS 环境的过程中半途感到烦躁，后面可能会再回去重做。）</p>
+      
+    
+      
+        <p>我思考了如何在 ASG 的多个实例之间管理状态，最终采用了一个相当基础的方案：</p>
+      
+    
+      
+        <div class="list-content">借鉴 Jekyll 的思路，用一个 index.yaml 文件和所有博客文章一起编译生成一个 packed.yaml。这个 packed.yaml 包含了运行博客所需的全部数据，加上静态资源路径，就是所有实例需要维护的全部状态。运行一个定期同步脚本，把 packed.yaml 和静态资源从 S3 同步到每一台实例。改用 Google Analytics，不再自己用 Redis 管理统计数据。作为附带结果，我放弃了自动推断趋势文章，转而手动精选热门文章。趋势算法理论上应该是一种更快、更聪明的置顶方式，但实际上我从未认真调优过算法，导致旧文章长期霸占榜首。</div>
+      
+    
+      
+        <p>当 ASG 启动新实例时，它会先在健康检查中失败，直到成功完成一次内容同步为止，这样上面的策略也能干净地支持新实例。（不过我的健康检查逻辑似乎有个漏洞，有时会过早通过，我后面得抽时间查一下。）</p>
+      
+    
+      
+        <p>其他几个亮点：</p>
+      
+    
+      
+        <div class="list-content">加入了 HTTPS 支持，并把所有 HTTP 请求重定向到 HTTPS。搜索功能现在正常工作了，以前 Blekko（Go 库）经常莫名其妙地变旧。引入了 hero header image 的概念，并添加了相应的 Open Graph 标签，让它能被正确抓取。把侧边栏从首页移除，为 hero 图片和其他内容腾出空间。放弃了趋势算法，转向人工精选。我觉得这算是“跟上了互联网潮流”，不过这完全是个巧合。</div>
+      
+    
+      
+        <p>最后，放一些改版前后的对比图。</p>
+      
+    
+      
+        <p>旧的文章列表页面：</p>
+      
+    
+      
+        <p>新的文章列表页面：</p>
+      
+    
+      
+        <p>一篇没有 hero 图片的旧文章：</p>
+      
+    
+      
+        <p>一篇带有 hero 图片的新文章：</p>
+      
+    
+      
+        <p>总的来说，我依然觉得很荒谬——我自己维护着一个博客，花在重写和管理上的时间远多于实际写作的时间，但，这就是生活中的小小乐趣吧。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

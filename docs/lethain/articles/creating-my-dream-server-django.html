@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>打造我的 Django 梦幻服务器 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>打造我的 Django 梦幻服务器</h1>
+    <div class="meta">
+      2007-07-13 · 
+      <a href="https://lethain.com/creating-my-dream-server-django/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>2009/2/13 本文针对 Ubuntu Intrepid 的更新版本可在此查看。</p>
+      
+    
+      
+        <p>注意：本文已改版，使用 Nginx 作为 Apache2 的前端，而非本文中那种比较少见的配置。你可能更想查看改版后的内容。</p>
+      
+    
+      
+        <p>当你在构建对自己很重要的东西时，你会希望把它建立在坚实的基础上。再没有什么比开发出一款优秀的软件，却跑在一个配置糟糕的服务器上更让人沮丧了。最近我决定不再忍受这种感觉，于是重新搭建了我的服务器，下面是我的操作记录。</p>
+      
+    
+      
+        <p>最终成品是一台运行 Ubuntu Feisty 的服务器，使用 Apache2 + mod_python 来提供 Django 应用，lighttpd 负责提供静态文件。它使用 memcached 作为缓存后端，数据库则采用 Postgres 8.2。按照这些步骤搭建的机器实际上正在运行这个博客——一个 Django 应用。我是在 SliceHost 256MB 的 VPS 上完成安装的，这些步骤同样适用于任何 Ubuntu 服务器（对共享主机则不太适用）。</p>
+      
+    
+      
+        <p>接下来进入有趣的部分。</p>
+      
+    
+      
+        <h2>致谢</h2>
+      
+    
+      
+        <p>这份搭建指南整合了大量由不同作者撰写的资源。下面是我在搭建过程中参考的资料，我也会在正文中相应位置给出链接。</p>
+      
+    
+      
+        <div class="list-content">[Feisty 服务器相关操作指南][server][Feisty 初始设置入门指南][start][将 SliceHost 升级到 Ubuntu Feisty][feisty][在 SliceHost 上搭建 MySQL + Django 服务器][start][在 Ubuntu 上安装 Postgres][postgres][DjangoJoe 撰写的在 SliceHost 上用 CentOS + Postgres 搭建 Django 环境][centos][将 Lighttpd 配置为 Apache 的静态文件服务器][lighttpd]</div>
+      
+    
+      
+        <h2>将 Ubuntu Dapper 升级到 Feisty</h2>
+      
+    
+      
+        <p>以下步骤参考自[这里][feisty]。</p>
+      
+    
+      
+        <p>从 Ubuntu Dapper（SliceHost 当前的 Ubuntu 系统）升级到 Feisty 过程快速且简单。不过你必须按顺序进行升级，直接跳到 Feisty 可能会导致系统不稳定。最后执行的 &#x27;lsb_release -a&#x27; 只是为了确认升级是否成功，它应该显示你现在安装的是 Ubuntu Feisty。</p>
+      
+    
+      
+        <h2>安装 Apache 及其他依赖库</h2>
+      
+    
+      
+        <p>主要参考自[这里][apache]。</p>
+      
+    
+      
+        <p>这里我们安装了一系列库。其中有些会有有趣的配置界面需要逐步完成，但难度都不大。你可能会注意到 psyco_pg2 没有通过 apt-get 安装，那是因为 apt 仓库里的 psyco_pg2 无法正常工作（一直导致段错误）。</p>
+      
+    
+      
+        <p>这应该是整个安装过程中最轻松的部分。美好的时光总是短暂。</p>
+      
+    
+      
+        <h2>PostgreSQL</h2>
+      
+    
+      
+        <p>步骤参考自[这里][postgres]和[这里][centos]。</p>
+      
+    
+      
+        <p>请记得把下面代码中的 &#x27;password&#x27; 替换成你自己的密码。</p>
+      
+    
+      
+        <p>接下来我们编辑 pg_hba.conf 文件。</p>
+      
+    
+      
+        <p>找到文件末尾，将所有以 host 开头的行都注释掉（除非你需要远程访问数据库）。最后 local 那行应该修改为：</p>
+      
+    
+      
+        <p>最后我们重启 Postgres：</p>
+      
+    
+      
+        <h2>配置 memcached</h2>
+      
+    
+      
+        <p>现在我们要设置 memcached。这一步非常简单，它将为你的 Django 应用提供强大的缓存功能。第一步是：</p>
+      
+    
+      
+        <p>在 Ubuntu 中，www-data 是运行 Web 服务器的用户，这与其他发行版中的 apache 用户类似。使用 -u www-data 参数运行 memcached，意味着我们将以和 Web 服务器相同的用户身份运行它。11211 是 memcached 的默认端口，除非你要同时运行多个 memcached 实例，否则不需要修改。由于我的 VPS 总内存只有 256MB，而且我的 Django 应用需要缓存的数据并不多，我选择了给 memcached 分配 32MB 内存。如果你的 VPS 内存更大，你可能希望分配更多内存给 memcached。</p>
+      
+    
+      
+        <p>接下来我们需要安装 python-memcached，这是 Python 的 memcached 客户端。还有一个替代的 cmemcached 库，速度是 python-memcached 的两倍，但我编译时遇到了问题（可能是因为我从仓库而不是源码安装的 memcached）。安装 python-memcached 非常简单：</p>
+      
+    
+      
+        <p>到此为止就完成了。</p>
+      
+    
+      
+        <p>在撰写本文时（2007 年 7 月 12 日），Django 的当前 SVN 版本与 python-memcached 存在兼容性问题。补丁已经提交并正在审核中，希望这个问题很快就能解决。如果有人因此受到影响，可以给我发邮件或留言，我会更新本文加入必要的修改步骤。</p>
+      
+    
+      
+        <h2>创建非 root 账户</h2>
+      
+    
+      
+        <p>现在来做一些安全相关的操作。我对安全了解不多，但总比没有强。</p>
+      
+    
+      
+        <p>复制 root 的那一行，为你的新账户创建一个类似的条目。</p>
+      
+    
+      
+        <p>现在关闭当前 SSH 连接，用刚刚创建的新用户重新登录。</p>
+      
+    
+      
+        <p>然后禁用 root 账户。</p>
+      
+    
+      
+        <p>禁用 root 账户的思路是：避免使用一个众所周知且可通过 SSH 访问的用户名。同时也不希望别人能轻易通过 su 切换到 root。当然，你的新账户仍然可以被访问，但至少它是你自己的账户，而不是一个广为人知的用户名。</p>
+      
+    
+      
+        <h2>使用 SSH 密钥实现免密登录</h2>
+      
+    
+      
+        <p>这更多是为了方便，但当我们禁用密码登录后（当然你也可以不禁用），它也能提升安全性。我假设你已经在本地机器的 ~/.ssh 目录下有一组 rsa 密钥。如果你没有（或者你在用 Windows 等系统），最好去找一篇更详细的教程。</p>
+      
+    
+      
+        <p>现在远程登录应该已经自动完成。接下来我们对 SSH 进行进一步限制。</p>
+      
+    
+      
+        <p>你需要做以下修改：</p>
+      
+    
+      
+        <p>（PAM 可以防止暴力破解 SSH 登录，在禁用密码登录后这一威胁已不复存在。）</p>
+      
+    
+      
+        <p>现在只有持有有效密钥的用户才能通过 SSH 登录……也就是说只有你自己的账户可以登录。如果你想让其他人也能登录，可以让他们把自己的公钥发给你，或者临时开启密码登录让他们先配置好 SSH。</p>
+      
+    
+      
+        <h2>配置 iptables</h2>
+      
+    
+      
+        <p>是的……我现在还不知道怎么在 Ubuntu 上配置 iptables。也就是说我不知道配置文件在哪里。命令行工具快把我逼疯了。我拒绝再学一门新的迷你语言！难道每个日常任务都需要一门迷你语言吗？</p>
+      
+    
+      
+        <p>尽管如此，你还是应该完成这一步。希望我很快能搞懂帮助文档，然后更新本文。</p>
+      
+    
+      
+        <h2>设置 Django 等</h2>
+      
+    
+      
+        <p>现在我们要设置 Django。首先为我们的 Django 应用创建一个 Postgres 用户：</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clojure Agent 的几个示例 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Clojure Agent 的几个示例</h1>
+    <div class="meta">
+      2009-11-22 · 
+      <a href="https://lethain.com/a-couple-of-clojure-agent-examples/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我已经在工作中每天使用 Erlang 近一年了，当初开始学习 Clojure 时，最先关注的就是 Clojure 的 agent。当时我还挺困惑的。1</p>
+      
+    
+      
+        <p>Erlang 中的 actor 概念是一个拥有邮箱的进程，它逐个取出并处理消息。actor 进程包含了所有消息处理的逻辑，其行为可以是将消息存入内部队列，也可以是完全忽略该消息。</p>
+      
+    
+      
+        <p>而 Clojure 的 agent 则反转了消息处理逻辑的所有权：向 agent 提交的是函数，这些函数会被存入邮箱并按顺序执行。</p>
+      
+    
+      
+        <p>agent 本身只持有状态，而不包含逻辑。</p>
+      
+    
+      
+        <p>使用 Clojure agent 更像是操作一个数据结构，而不是与某个服务进行交互。2 这很有道理，因为 Clojure agent 是一种机制，用于对特定数据结构实例按顺序执行操作。在分布式计算中，一个简洁且易于理解的顺序修改机制其实非常有用。3</p>
+      
+    
+      
+        <p>现在我们来看几个相对简单的 Clojure agent 使用示例。</p>
+      
+    
+      
+        <h2>顺序写入文件</h2>
+      
+    
+      
+        <p>许多 Java 类并未设计成线程安全的，但借助 agent 就可以在多线程环境中安全地使用它们。</p>
+      
+    
+      
+        <p>这个示例会向一个共享的日志文件写入内容，许多 actor 在互不感知对方的情况下记录自己的进度，并且不假设 java.io.BufferedWriter 类是线程安全的。</p>
+      
+    
+      
+        <p>注意 write 函数的最终返回值是 BufferedWriter 的引用。这一点很重要，因为 agent 的值会被设置为通过 send 发送的函数的返回值。因此，如果 write 定义成下面这样：</p>
+      
+    
+      
+        <p>那么只有第一次写入能正常工作，之后 agent 的值就会变成 nil，后续对 log 的调用就会尝试在 nil 上调用 .write，从而抛出错误。</p>
+      
+    
+      
+        <p>（关于在 Clojure 中写入文件的更深入讨论。）</p>
+      
+    
+      
+        <h2>并行 HTTP 请求</h2>
+      
+    
+      
+        <p>虽然前面我说 agent 主要是用来对操作进行排序，但这种异步的顺序执行机制，使得当有多个 agent 都排有待处理消息时，就能够利用多核资源（单个 agent 的任务无法拆分到多个核心上执行）。</p>
+      
+    
+      
+        <p>注意这里使用了 send-off 而不是 send；send-off 适用于会阻塞在 IO 上的函数，而 send 则适用于会占用 CPU 的函数。</p>
+      
+    
+      
+        <p>（await-for 可以阻塞任意数量的线程，直到它们全部完成或达到指定的毫秒超时时间。）</p>
+      
+    
+      
+        <p>根据 Steve Gilardi 的有益评论澄清了 apply 的语义后，这里删除了几行代码。</p>
+      
+    
+      
+        <h2>将 Agent 作为消息中继</h2>
+      
+    
+      
+        <p>在最后一个示例中，我们将消息通过 N 个 agent 组成的链进行中继。同时我们还会使用链外的一个 agent 来记录整个链的执行进度。这种日志记录方式让我们只需持有链中第一个 agent 的引用，就能查看整个中继过程的进度，这在分布式系统中是一种相当常见的模式（尽管通常你会使用更接近 RabbitMQ 而非单进程的工具）。</p>
+      
+    
+      
+        <p>这个示例最有意思的地方大概是使用 agent 向其他 agent 发送 agent，从而形成一个完全异步的编程模型。</p>
+      
+    
+      
+        <p>此外，虽然这个例子本身相当复杂，但消息中继实际上是一个工作管道的最简版本，其中每个 agent 都会对传入的消息进行一些处理，然后再将其传递给下一个环节。</p>
+      
+    
+      
+        <p>暂时就到这里。希望这些示例能为使用 Clojure agent 提供一个不错的起点。如果你在使用过程中遇到任何问题，欢迎告诉我。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

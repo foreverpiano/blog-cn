@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BeepBeep、CouchDB 与一个简易博客 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>BeepBeep、CouchDB 与一个简易博客</h1>
+    <div class="meta">
+      2009-07-09 · 
+      <a href="https://lethain.com/beepbeep-couchdb-and-a-trivial-blog/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>Django 的核心概念之一是松耦合。Django 框架是一个工具齐全的工具箱，里面装满了能很好协作的优秀工具，但它并不会强迫你必须使用它最推荐的那些软件：如果你愿意，完全可以忽略现有工具，引入自己的。</p>
+      
+    
+      
+        <p>将 BeepBeep 与 Django 比较，有人可能会说“微框架”其实是一种委婉的说法，意思是 BeepBeep 是一个空工具箱。BeepBeep 愿意充当你各个组件之间强大而灵活的胶水，但它坚定奉行“工具自备”（Bring-Your-Own-Tools）的理念。</p>
+      
+    
+      
+        <p>在本教程中，我们将介绍一个值得与 BeepBeep 搭配使用的强大工具：CouchDB。</p>
+      
+    
+      
+        <p>我们将使用 CouchDB 创建一个非常简单的博客。通过表单发送 HTTP POST 来创建博客文章，并提供简单的视图来列出所有文章和查看单篇文章。毫无疑问，这个博客功能非常简陋，但涉及的概念却不少，所以我们开始吧。</p>
+      
+    
+      
+        <p>你可以在 GitHub 上的 BeepBeep Examples 仓库中查看完整的代码。</p>
+      
+    
+      
+        <h2>依赖与设置</h2>
+      
+    
+      
+        <div class="list-content">首先，如果还没有安装 BeepBeep，请按照其安装说明操作。接下来，如果尚未安装和配置 CouchDB，请先完成这一步。使用 new_beep.erl 创建 BB_Blog 的项目文件：
+
+cd ~/git/beepbeep/
+./script/new_beep.erl BB_Blog ../BB_Blog
+
+从 GitHub 仓库安装 erlang_couchdb：
+git clone git://github.com/ngerakines/erlang_couchdb.git
+
+然后编译它，并将生成的 beam 文件复制到 BB_Blog/deps/ 目录下：
+cd erlang_couchdb
+make
+mkdir ../BB_Blog/bb_blog/deps/erlang_couchdb
+mkdir ../BB_Blog/bb_blog/deps/erlang_couchdb/ebin
+cp ebin/* ../BB_Blog/bb_blog/deps/erlang_couchdb/ebin/
+
+请注意，erlang_couchdb 需要 Erlang R12B5 或更高版本，因此你可能需要升级你的 Erlang 安装。
+
+设置的最后一步是验证依赖是否正确安装。首先我们需要构建 BB_Blog 应用：
+cd ~/git/BB_Blog/bb_blog/
+make
+
+然后在后台启动 CouchDB：
+couchdb &amp;
+
+接着启动 BB_Blog 应用服务器：
+cd ~/git/BB_Blog/bb_blog/
+./start-server.sh
+
+然后测试创建一个 CouchDB 数据库：
+2&gt; erlang_couchdb:create_database({&quot;localhost&quot;, 5984}, &quot;test_db2&quot;).
+ok
+
+这表明 CouchDB、erlang_couchdb 和 BeepBeep 都在正常运行，一切顺利。太好了。
+
+如果出现与上述不同的情况，请在评论中贴出你收到的错误信息。</div>
+      
+    
+      
+        <h2>拼装一些 CouchDB 功能</h2>
+      
+    
+      
+        <p>要将 CouchDB 用作我们的文档存储，我们需要创建一个数据库。为了能检索文档，我们需要创建一个 CouchDB 视图。我们可能还需要一个清空当前文档的方法、获取指定文档的方法等等。</p>
+      
+    
+      
+        <p>我们将把这些功能放在 src/bb_blog_utils.erl 文件中。我会略过这个文件的细节，如果你之前没有使用过 CouchDB，可能需要先查看其文档。</p>
+      
+    
+      
+        <p>现在重新编译应用，</p>
+      
+    
+      
+        <p>你可以快速测试这个接口：运行 ./start-server.sh，然后尝试以下命令：</p>
+      
+    
+      
+        <p>现在我们与 CouchDB 的接口已经准备就绪，接下来只需要……完成剩下的所有工作。</p>
+      
+    
+      
+        <h2>教 start-server.sh 一些新把戏</h2>
+      
+    
+      
+        <p>重构的第一步是让 start-server.sh 脚本变得更加灵活。扩展之后，我们可以从命令行创建 CouchDB 数据库、检查数据库状态，以及重置数据库。</p>
+      
+    
+      
+        <p>用以下代码替换当前内容：</p>
+      
+    
+      
+        <p>保存文件后，你可以测试新的 manage.sh 脚本。</p>
+      
+    
+      
+        <p>注意 server 和 dev_server 的区别：server 以 -detached 模式运行，而 dev_server 在当前控制台运行。</p>
+      
+    
+      
+        <h2>扩展 BB_Blog 以显示博客文章</h2>
+      
+    
+      
+        <p>要显示博客文章，我们需要创建两个控制器、两个 handle_request 实现以及三个模板。</p>
+      
+    
+      
+        <p>首先让我们创建首页，它将允许用户查看所有已有的博客文章。请打开 src/home_controller.erl，并将其内容替换为：</p>
+      
+    
+      
+        <p>这段代码有点丑，主要是因为反序列化后的 JSON 格式所致。它无疑可以再清理一下，但简单来说，它做了以下几件事：</p>
+      
+    
+      
+        <div class="list-content">从 CouchDB 获取文档；将 CouchDB 文档转换成 ErlyDLT 友好的格式；使用转换后的文档渲染 home/index.html 模板。</div>
+      
+    
+      
+        <p>一个快速调试技巧：如果你在 BeepBeep 代码中加入类似以下的语句：</p>
+      
+    
+      
+        <p>并且以 dev_server 模式运行（即服务器附加到控制台），你就能非常方便地看到传入的数据。</p>
+      
+    
+      
+        <p>当然，把内容打印到控制台算不上最先进的调试技术，但当你记不清那些反序列化 JSON 数据结构的奇怪格式时，它还是相当实用的。</p>
+      
+    
+      
+        <p>依靠我们的 CouchDB 工具函数，这里的逻辑相当简洁。接下来我们需要调整 views/base.html，稍微清理一下默认模板：</p>
+      
+    
+      
+        <p>同时调整 views/home/index.html：</p>
+      
+    
+      
+        <p>然后编译代码并访问 http://localhost:8000。它应该会显示一个简单的博客文章列表。太棒了！</p>
+      
+    
+      
+        <p>现在可以把 views/home/show.html 删掉了，因为我们不再需要它。</p>
+      
+    
+      
+        <p>显示博客文章的最后一步，是创建一个控制器和视图组合，根据 slug 来显示单个文章。请创建 src/blog_controller.erl 文件。</p>
+      
+    
+      
+        <p>由于我们只处理一条结果，这次的清理过程要简洁一些。</p>
+      
+    
+      
+        <p>接下来，我们需要创建 blog/view.html 视图。</p>
+      
+    
+      
+        <p>并填入以下内容：</p>
+      
+    
+      
+        <p>然后再次编译源码，访问 http://localhost:8000，点击我们之前创建的其中一篇（或者说唯一一篇）文章，就可以查看它的完整内容了。</p>
+      
+    
+      
+        <h2>我们可以创建博客文章的那一节</h2>
+      
+    
+      
+        <p>现在我们已经可以查看博客文章了，如果还能真正创建文章就更好了。那么，让我们开始动手吧。</p>
+      
+    
+      
+        <p>注意，本节引入了一个稍新的内容，即如何在 BeepBeep 中处理 POST 请求提交的数据。</p>
+      
+    
+      
+        <p>返回 src/blog_controller.erl，添加以下请求处理器：</p>
+      
+    
+      
+        <p>你还需要把现有的 handle_request 实现结尾的 . 改成 ;</p>
+      
+    
+      
+        <p>然后创建 views/blog/create.html 模板，</p>
+      
+    
+      
+        <p>完成之后编译代码，访问 http://localhost:8000/blog/create/，就可以开始写你的博客了……虽然目前这个博客还非常简陋和笨拙。</p>
+      
+    
+      
+        <h2>结束语</h2>
+      
+    
+      
+        <p>通过这第三篇 BeepBeep 教程，我们已经接近掌握构建一个真正 Web 应用所需的许多工具。在本教程中，我刻意删减了一些我原本想介绍的功能，因为这篇教程的核心是展示如何将 CouchDB 与 BeepBeep 结合使用，而不是要构建一个功能完备的博客应用。因此，对于最终如此简陋的应用状态，我深表歉意，但希望它仍然对你有所启发。</p>
+      
+    
+      
+        <p>你可以在 BeepBeep Examples 仓库的 BB_Blog 目录下获取 BB_Blog 的源代码。一如既往，我很乐意听到任何意见或吐槽，我也会继续思考这个 BeepBeep 教程系列接下来该往哪里走。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

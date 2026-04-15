@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Python 中的并行 HTTP 请求 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Python 中的并行 HTTP 请求</h1>
+    <div class="meta">
+      2008-12-02 · 
+      <a href="https://lethain.com/parallel-http-requests-in-python/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>上周我正在为一位客户做性能优化工作，我们取得的最大改进之一就是让 HTTP 请求并行执行。如果你的服务器在渲染页面之前需要调用两到三个 API（这是 Mashup 开发者的梦魇），那么顺序请求会严重拖累性能。在那位客户的项目中，解决方案必须用 PHP 实现，但今晚我决定为 Python 写一个类似的方案（可能也有人提出过这个想法）。</p>
+      
+    
+      
+        <p>利用 threading 和 urllib 模块，这个任务实现起来相当简单。我的（非常基础的）策略是为每个请求创建一个线程，不断轮询这些线程直到它们全部完成，然后将接收到的数据以列表形式返回，列表中的每个元素都是 (url, data) 的二元组。我的另一个需求是希望能为所有线程设置一个统一的超时时间（同样是为了保持响应迅速）。</p>
+      
+    
+      
+        <p>最终我的代码如下（假设它保存在一个名为 multi_get.py 的文件中，后续示例都基于此）：</p>
+      
+    
+      
+        <p>使用方法如下：</p>
+      
+    
+      
+        <p>我将它与下面这个简单的顺序实现进行了对比测试，</p>
+      
+    
+      
+        <p>结果正如预期。在我的网络环境下，MSN 需要 1.14 秒才能加载完成，而 Yahoo 和 Google 大约在 0.1 到 0.2 秒之间（谁知道呢，也许它们因为 User-Agent 拒绝了请求并返回了错误页面）。第一个并行执行的脚本，其总耗时只比最慢的单个请求慢十到二十毫秒，而顺序执行的脚本则要长得多（基本上是所有响应时间之和）。</p>
+      
+    
+      
+        <p>当你构建下一个 Django 或 TurboGears Mashup 时——甚至计划下一次注定失败的 Google 网页抓取冒险——不妨试试并行请求，看看它能带来多大的帮助。</p>
+      
+    
+      
+        <p>（你也可以使用 asyncore 模块来解决这个问题，但它给我抛出了一些奇怪的错误，所以我选择了基于线程的方案。鉴于线程方案表现优秀，我决定就保持原样；使用 asyncore 应该也能实现类似功能，但你需要编写更多胶水代码来处理 HTTP 相关部分，尤其是当你想支持比 GET 请求更复杂的操作时。）</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>T 的历史 · Paul Graham 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Paul Graham 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>T 的历史</h1>
+    <div class="meta">
+      August 1982 · 
+      <a href="https://www.paulgraham.com/thist.html" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>（T 是历史上最好的 Lisp 实现之一，为简洁的设计树立了标杆，后来出现的多数方言都难以企及。下面由 Olin Shivers 讲述 T 的发展历程。）</p>
+      
+    
+      
+        <p>大约在 1981-1982 年间，耶鲁大学计算机系拥有一个由 Roger Schank 领导的强大 AI 研究组，他们聘请本科生 Jonathan Rees 来为研究编程实现一种新的 Lisp。Jonathan、我以及 Dan Weld（现在是华盛顿大学教授）是当时耶鲁仅有的三个人，他们发现了早期 Sussman 和 Steele 的“lambda”系列论文，包括 Guy 那篇具有开创性的硕士论文《Rabbit》——第一个 Scheme 编译器。当时 Dan 是大四学生，Jonathan 和我是大三。系里的灵魂人物 Alan Perlis 刚刚发现函数式编程，正在开设一门研究生讨论课，内容涵盖 Hope、Miranda 和 Scheme 等早期函数式语言。我们三人设法混进了这门研究生课程，也正是在那里我们相识。</p>
+      
+    
+      
+        <p>补充一下背景：那时 Common Lisp 还不存在（相关工作才刚刚启动）。MIT Scheme 也不存在。Scheme 只不过是 AI 实验室的几份技术报告和一篇硕士论文。我们谈论的是一颗小到不能再小的种子晶体。当时 Lisp 社区在优化动态作用域语言的编译实现方面积累了大量经验，以至于当时普遍的观点是：“词法作用域理论上很有趣，但实现起来效率很低；动态作用域才是速度上的选择。”我不是在开玩笑。举两个例子，我曾在不同场合从 Richard Stallman（emacs lisp 的设计者和实现者）和 Richard Fateman（伯克利教授，也是 franz lisp 的主要推动者，无疑是早期 Vax 时代最重要的 Lisp 实现，因为它真正交付且能工作）那里听到这种说法。我问 RMS 为什么 emacs lisp 要用动态作用域，他明确的回答是词法作用域效率太低。所以我想强调的是，即使在 1982 年（以及此后多年），对于 Lisp 实现领域的专家来说，Scheme 也是一种激进的、完全不被接受的想法。而在 Lisp/AI 社区之外……带垃圾回收的语言更是绝对不被接受。（与我们现在所处的 Perl 和 Java 时代形成鲜明对比。多亏了 Perl，可以毫不夸张地说，到 2001 年，已经有数十亿美元的服务是构建在带 GC 的语言之上的。）</p>
+      
+    
+      
+        <p>Jonathan 前一年从耶鲁休学去了 MIT。当时重要的变化是 32 位机器开始出现，带来了 32 位地址空间——非常大的地址空间。AI 社区中很多现有的语言技术都是为 PDP-11（16 位机器）开发的，更重要的是为主力机型 PDP-10 和 PDP-20 开发的。我要补充一句，我非常喜欢“十号机”（PDP-10）。它的指令集能印满一页大号字体，而且非常酷。那套指令集是黑客的梦想，你可以在上面玩各种有趣的把戏。例如，有一个著名的黑客技巧，能用*一条指令*完成：（1）从自由列表中取出一个 cons 单元，（2）更新自由列表，以及（3）如果自由列表耗尽则跳转到 GC。PDP-10 是一台 36 位机器，拥有 18 位字寻址的地址空间。注意这意味着什么：一个 cons 单元可以刚好放进一个字。很多人声称 PDP-10 是世界上第一台 Lisp 机器。我同意他们的看法。</p>
+      
+    
+      
+        <p>PDP-10 上有两种极其优秀、成熟且高度优化的 Lisp 实现，一种是“东海岸”的（来自 MIT 的 Maclisp），另一种是“西海岸”的（来自斯坦福和 Xerox PARC 的 Interlisp）。你还可以用 CMU 开发的一种漂亮的、接近 C 层次的语言 Bliss 来给 PDP-10 编程。每当我看到 C 语言，就会想起 Bliss，然后忍不住想哭。</p>
+      
+    
+      
+        <p>问题在于 PDP-10 那有限的 18 位地址空间。程序员们正在把它撑爆。当 DEC 推出 Vax，摩托罗拉 68000 也开始出现在 Sun 和 Apollo 工作站上时，人们意识到这些架构的 32 位地址空间是一次 discontinuous 的技术跃升，在这些机器上实现语言也会是类似的跃升。例如，有了真正巨大的地址空间，你会想要从根本上改变 GC 技术和数据表示方式。</p>
+      
+    
+      
+        <p>伯克利是推动 Vax 在大学中普及的重要力量，他们拿到了 ARPA 合同，为 Vax 开发 Berkeley Unix（后来这项工作在 Bill Joy 的推动下衍生出 Sun 公司）。这项工作的一部分是为 Vax 开发 Lisp，即在 Fateman 指导下实现的 franz lisp。Franz 的设计更接近 Maclisp 而非 Interlisp，这使得 Macsyma（Fateman 关心的项目）能够被移植到 Vax 上。Franz 还明显受到哈佛一个不太为人所知的 Lisp 实现的影响。</p>
+      
+    
+      
+        <p>MIT 对 Vax 的回应是启动了 NIL 项目。NIL 的意思是“New Implementation of Lisp”。Jonathan 在离开耶鲁的那一年参与了这个项目。这是一个非常非常优秀的项目，但最终却因为过早优化而受挫——它非常庞大、非常激进、也非常复杂。举例来说，他们在通用编译器还没写出来之前，就已经分配人员去手工精心调优大整数包的汇编代码。NIL 项目由顶尖人员完成（我记得 Jonl White 和 George Carrette 是主要负责人）。但它始终没有真正交付。比原计划晚了好几年才完成，到那时它已经基本无关紧要了。（这种事我也经历过。那是一种非常痛苦的体验。我在大学时还很时髦地批判“过早优化”，却并不真正理解它，直到我自己犯了一次极其可怕的过早优化错误，以至于现在我能通过残留疤痕组织的刺痛来预测什么时候会下雨。现在我真的懂了过早优化。）这类项目的起源和最终失败，在事后看来，总能从早期讨论的那些口号中清晰地看出来。一个关键的警示短语总是类似这样：“我们要扔掉所有旧的垃圾，重新开始，彻底把事情做对。”（不幸的是，这个观察并不实用，因为这种策略有时确实能带来巨大的回报。只是风险非常高。）</p>
+      
+    
+      
+        <p>Jonathan 在 NIL 项目上工作了一年，然后回到耶鲁读大四，被计算机系聘请来实现一种新的 Lisp。他做了一个*极其激进*的决定：他要实现一个优化的、本地代码的 *Scheme* 系统。他决定把它命名为 T。这个名字很棒，原因有几个。当然，它简短而简单。它也契合耶鲁计算机系的文化，因为那里有一系列用单个字母命名的程序历史：e、c、z 和 u。（这些是本地开发的、功能复杂的屏幕编辑器家族，大致可以和 emacs 相比，但风格完全不同。）最后，如果你是个 Lisp 黑客，你就会知道 NIL 是 Lisp 中的假值常量……而 T 是规范的真值常量。所以“T is not NIL。”</p>
+      
+    
+      
+        <p>让我再次强调，决定去构建一个 Scheme 实现是多么激进的决定。那时*唯一*曾经被构建过的 Scheme 实现，只是 Steele 为他的硕士论文所做的研究原型。当时所有正在生产环境中使用的严肃 Lisp 都是动态作用域的。凡是没有仔细阅读过 Rabbit 论文的人，都不相信词法作用域能实际工作；即使是少数*读过*它的人，也是在一定程度上凭着信仰跳跃，认为这能在严肃的生产环境中行得通——理论与实践之间的差距，在实践中要比在理论上大得多。</p>
+      
+    
+      
+        <p>（例如，MIT 另一个大型实现项目——面向 Lisp Machine 的 Zetalisp——保留了动态作用域，但允许编译器在某种程度上打破语义，然后又因 Scheme 的出现，把词法闭包作为一种相当笨拙的特殊形式加入进来。）</p>
+      
+    
+      
+        <p>（那些在爱丁堡从事早期 ML 等系统的欧洲人，大概会觉得我们美国人在 80 年代初关于作用域规则和实现策略的折腾和混乱显得极其无知。对此我只能说抱歉。）</p>
+      
+    
+      
+        <p>除了 Roger Schank，另一个做出资源承诺、聘请 Jonathan 来开发 T 的人是 John O&#x27;Donnell，他后来成为 Multiflow 的核心人物，该公司将 Josh Fisher 1983 年从耶鲁分拆出来的 VLIW 架构和编译器技术商业化。我猜测 Alan Perlis 可能也参与了这个决定，虽然我并不确定。拿出经费让 Jonathan 去尝试构建一个生产质量的 Scheme 实现，是相当勇敢的行为，与 Jonathan 自己敢于尝试的决定同样值得敬佩。</p>
+      
+    
+      
+        <p>Jonathan 从 NIL 项目带回耶鲁一大批非常优秀的实现技术——主要是为新一代机器架构精心打磨的基本数据表示方式，在数据低位使用 tag 位。例如，如果把 fixnum 的 tag 设为“000”，那么你就可以用一条指令完成 fixnum 的加减，完全没有 tag 处理的开销；乘法只需一次预移位，除法只需一次后移位。这比 Maclisp 必须对 fixnum 进行装箱以及为此所需的所有繁琐支持（在我看来）要进步得多。另外，由于 Vax 是*字节*可寻址的，你可以简单地通过调整寻址模式中的常量偏移量来剥离 cons 单元数据的类型 tag。也就是说，cons 单元用双字对齐的地址来表示，该地址指向存放 car 和 cdr 字段的两字内存块。让内存块双字对齐意味着其地址低三位始终为零，也就是不需要的。因此地址的低三位就被用来存放类型 tag。假设我们用“010”（十进制 2）作为 cons 的类型 tag。那么你就可以用一条指令取出寄存器 r7 中 pair 的 cdr：load r8, r7[4-2]，其中“4”让你前进一个字（4 字节）到达 cdr 字段，而“-2”则修正了类型 tag。也就是说，你可以用*零*运行时开销剥离类型 tag。漂亮！闭包和栈帧的表示方式也非常巧妙。</p>
+      
+    
+      
+        <p>Jonathan 被 NIL 项目未能完成的经历所警示，因此他对避免过早优化非常谨慎。所以他先快速写了一个又脏又简陋的原型实现，只是为了让东西能跑起来。（我记得他用 Maclisp 写的，我印象中把它叫做“cheapy”。）在那之后，所有后续实现的开发都是用 T 自身完成的——T 2 是用 T 1 实现的。</p>
+      
+    
+      
+        <p>T 2 是第一个真正优秀的实现，包含了我上面描述的所有技巧。它能在 Vax 和刚刚出现的 68000 上运行。它足够稳固，成为一个严肃的系统，拥有真正依赖它的用户。</p>
+      
+    
+      
+        <p>大约同一时期，Sussman 的团队开始走上一条最终通向 MIT Scheme 的开发道路，而与之交织的教学道路则通向 Sussman 和 Abelson 的著作《Structure and Interpretation of Computer Programs》。Lisp Machine 项目也分拆出了 Symbolics 和 LMI，使得 Maclisp 衍生出 Zetalisp 和 Flavors，后者又对 Common Lisp 及其对象系统 CLOS 产生了巨大影响。但我跑题了。还是回到耶鲁。</p>
+      
+    
+      
+        <p>T 还使用了一种非常酷的 GC。PDP-10 上的 Maclisp 使用的是 mark&amp;sweep GC（其中一个版本以“在寄存器集合中运行”而闻名，不过那是另一个故事），它用“BIBOP”方案来编码类型信息——所有对象都被装箱，并按类型分隔到不同的页。因此对象地址的高位可以用来索引页表，告诉你那一页里存放的是哪种东西。这在像 PDP-10 这样内存紧凑的系统上调优得很好。然而随着地址空间变大，你就会想要使用 stop&amp;copy，因为 stop&amp;copy 只需为你复制存活的数据付费，而不需要为垃圾的数量付费。这非常适合在 32 位机器上分配的大堆。大多数 stop&amp;copy 收集器几乎无一例外地实现 Cheney 算法，它对堆进行广度优先搜索。但 BFS 对内存局部性不太好——它在复制时会把拓扑上相近的数据结构分散到堆的各处。这不好。T 使用了一种不太知名（但相当简单——描述它的研究论文大约只有 2 页）由 Clark 提出的算法，它实现的是*深度*优先遍历。（正如 Cheney 算法巧妙地利用已有的堆数据结构来提供 BFS 搜索队列，Clark 的算法则利用堆来提供搜索栈。）深度优先搜索意味着，如果你对一个链表进行 GC，GC 会先沿着链表的主干一路走完，再去处理链表元素，因此那些“主干”单元最终会顺序排列在内存中。你的链表变成了一个向量！（某种意义上）这对局部性来说*棒极了*。然而，</p>
+      
+    
+      
+        <p>- T 在 80 年代后期放弃了这个算法，转而使用经典的 BFS 算法。David Kranz（他很快就会在这故事里出现）当时告诉我，他之所以切换，是因为 BFS 算法的复制阶段具有稍微更好的常数因子。</p>
+      
+    
+      
+        <p>- 我刚才告诉你们的那个关于“stop&amp;copy 只为你需要的东西付费，而 mark&amp;sweep 还得为垃圾付费”的标准说法，其实是不正确的。我们所有人几十年来都相信它。但哈佛的 Norman Ramsey 巧妙地证明，你可以实现一个与 stop&amp;copy 具有*完全相同*渐近代价的 mark&amp;sweep。这对内存紧凑、堆数据同质的系统来说是个好消息。Norman 的观察其实非常明显和简单，看完之后你会觉得并不惊人。只是，它竟然躲过了*所有其他人*的眼睛*几十年*。而且不是因为大家不在意；GC 受到了研究者的大量关注。这里面是有教训的。</p>
+      
+    
+      
+        <p>我只在 T 里见过深度优先的收集器。顺便说一句，T 的垃圾收集器是用 T 自身写的。这也是一件略显惊人的事情。它之所以能实现，是因为 T 是本地代码编译的，而且垃圾收集器是由编译器作者编写的。他们*完全清楚*编译器会如何处理他们的源码，因此他们可以小心地编写收集器，使其在运行时不需要进行堆分配。</p>
+      
+    
+      
+        <p>（这不像听起来那么简单。它不仅仅是简单地写代码然后永远不调用 malloc() 或 new 方法。它与 lambda 的处理方式紧密相关。好的 Scheme 编译器会根据编译时能确定的关于 lambda 的信息——它们如何被使用、被传递到哪里、使用点与定义点的关系等等——对程序中的 lambda 采用不同的实现方式。有些 lambda 直接消失了。有些 lambda 变成带有寄存器/变量绑定的控制流汇合点。有些 lambda 变成栈帧。但有些 lambda 会导致堆分配来产生通用闭包。所以你必须理解编译器会如何处理你写的每一个 lambda。而一个 Scheme 程序的基本骨架就是建立在 lambda 之上的。）</p>
+      
+    
+      
+        <p>T 的另一个实现上的成就是，它允许在用户代码的*任意两条指令*之间发生中断。这给编译器带来了相当大的负担，以至于在我所知道的所有 Scheme 实现中，T 在这方面是*独一无二*的。要理解为什么在有垃圾回收的情况下这很难，你可以读我十年后写的一篇论文《Atomic heap transactions and fine-grain interrupts》，可以在 http://www.cc.gatech.edu/~shivers/citations.html#heap 找到。（你不需要成为一个重度的 lambda 演算高手也能读懂这篇论文；它就是写给普通黑客看的。）T 还允许你用 T 本身来编写中断（Unix 信号）处理程序，这相当令人愉快。</p>
+      
+    
+      
+        <p>T 不仅仅有实现技术，还有大量漂亮的语言设计工作。Jonathan 抓住机会，在运行时库甚至所选的名字上与向后兼容彻底决裂。在 T 2 的开发过程中，另一位 Lisp 奇才 Kent Pitman 从 MIT 来到了耶鲁。他和 Jonathan 为这门语言倾注了大量设计精力，而它确实非常、非常*干净*。一些小而难的事情：他们选择了一套标准的词素，并以一种规律的方式将它们组合成标准过程的名字，这样你在写代码时就能容易地记住或重构出名字。（我在为 Scheme 社区开发的 SRFI 中也遵循了这个做法。这不是一项容易的任务。）</p>
+      
+    
+      
+        <p>更大、更深层的事情：他们设计了一个漂亮的对象系统，并将其集成到赋值机制中——正如 Common Lisp 的 SETF 允许你使用访问器进行赋值，例如在 Common Lisp 中 (setf (car x) y) 等价于 (rplaca x y)，在 T 中，(set! (car x) y) 是 ((setter car) x y) 的简写。像 CAR 这样的访问器函数会处理“泛型函数”或“消息”如 SETTER——当 CAR 收到 SETTER 消息时，会返回 SET-CAR! 过程。编译器能够将这个优化成实现 SET-CAR! 操作的单条 Vax 存储指令，但语义机制是完全通用的——你可以定义自己的访问器过程，给它们加上 SETTER 方法，然后在 SET! 形式中使用它们。</p>
+      
+    
+      
+        <p>（这在编译器的实际实现中非常好用。AST 是一棵对象树，双向连接——父节点知道它的子节点，子节点也有指向父节点的链接。如果优化器用类似 (set! (if-node:else n) new-child) 的方式修改 if 节点 N 的 else 部分，这实际上是 ((setter if-node:else) n new-child)，那么 if-node:else 的 SETTER 方法会为你做大量工作——它会断开旧子节点，把 NEW-CHILD 安装为 N 的 else 字段，并将 NEW-CHILD 的 parent 字段设为 N。因此你永远不会忘记保持所有链接的一致性；这一切都由单条 SET! 赋值就帮你处理好了。）</p>
+      
+    
+      
+        <p>在 Kent 回 MIT 的时候，新的研究生 Norman Adams 与 Jonathan 搭上了线。T 2 及其编译器 TC，是 Jonathan、Kent 和 Norman 经过大约一年艰苦、专注的工作后完成的。我从耶鲁毕业，去了 CMU 读 AI 方向的研究生。Jonathan 开始考虑下一代编译器。</p>
+      
+    
+      
+        <p>在我读研的第一年，Jonathan 遇到了 Forrest Baskett，后者是当时顶尖工业 CS 实验室之一——DEC 西部研究实验室的主任，那里完成了大量重要的 RISC 工作（例如，你可以说 David Wall 在那里关于过程间寄存器分配的工作，终结了伯克利提出的、最终出现在 SPARC 中的重叠寄存器栈架构特性）。Forrest 很喜欢 Jonathan，邀请他带一个团队在夏天去 WRL，为他们正在构建的机器（一台在当时惊人的 RISC，叫做 Titan）实现 T。Jonathan 的团队包括他自己、Norman、Jim Philbin、David Kranz、Richard Kelsey、John Lamping 和我。Lamping 在斯坦福，我在 CMU，其余的人是耶鲁的研究生（除了 Jonathan，他是耶鲁的雇员）。</p>
+      
+    
+      
+        <p>这就把我们带到了 1984 年夏天。任务是构建世界上优化程度最高的 Scheme 编译器。我们想和 C 与 Fortran 竞争。新系统叫做 T3，编译器将被称为 Orbit。我们都到了 WRL，然后划分了编译器的职责。Norman 将负责汇编器。Philbin 负责运行时（据我回忆）。Jonathan 是项目负责人，（我认为）写了链接器。Kranz 负责后端。Kelsey 负责前端。我在前一个学期已经在 CMU 成为数据流分析的专家，这个主题我完全沉迷其中。所有顶尖的编译器都会做 DFA。它对于所有真正酷的优化都是必需的，比如循环不变式外提、全局寄存器分配、全局公共子表达式消除、拷贝传播、归纳变量消除。我知道此前没有任何 Scheme 或 Lisp 编译器提供过这些高级优化。我迫不及待地想让它发生。我一直在用 T 写 3D 图形代码，非常希望我的浮点矩阵乘法能得到完整的 DFA 优化。给 T 构建一个 DFA 模块，我们肯定能从队伍中脱颖而出。所以当我们划分编译器工作时，我让大家都别和我抢，并大声宣称 DFA 是我的。好的，大家说。你来做 DFA 模块。Lamping 报名和我一起做。</p>
+      
+    
+      
+        <p>Lamping 和我把那个夏天剩下的时间都花在了失败上。跑到斯坦福图书馆去查论文。在白板上反复讨论。盯着空中发呆。写一点点实验代码。失败。弄清楚*为什么*从来没有人给 Scheme 提供过 DFA 优化。简而言之，经典数据流分析算法需要的基本要素在 Scheme 程序中是不可用的。这真的很令人沮丧。我赚的钱比一生中任何时候都多（每周 600 美元）。我正在和*很棒*的家伙们一起做一个很酷的项目。我以前从没去过加州，所以正在发现旧金山——我最喜欢的美国城市，也是世界上第二喜欢的城市。1984 年的硅谷很美，不像今天这样拥挤的购物中心兼高速公路地狱。我每天骑自行车上班的时候，天气都完美而美好。我和一个漂亮的红发女孩谈恋爱了。而每一天，我去 WRL，失败八个小时，然后回家。</p>
+      
+    
+      
+        <p>那不是一个愉快的夏天。</p>
+      
+    
+      
+        <p>夏天结束时，我夹着尾巴灰溜溜地回到 CMU，一行代码都没有给 Orbit 贡献。</p>
+      
+    
+      
+        <p>然而其他人完成了。编译器在夏天结束时还没有完工，但第二年在耶鲁完成了。而且它是世界上优化程度最高的 Scheme 编译器（尽管它没有做数据流分析），这个纪录保持了*很长时间*——也许有十年？</p>
+      
+    
+      
+        <p>它也是对 Steele 在其硕士论文中提出的论点的巨大验证，即 CPS 是一种优秀的编译器中间表示。Orbit 在这一点上非常 hardcore——编译器做的第一件事就是将用户程序翻译成 CPS，然后在整个执行过程中都以这种标准形式进行操作。事实证明，这种方法能从 Rabbit 成功扩展到一个生产级的、本地代码编译器。</p>
+      
+    
+      
+        <p>David Kranz 把他在后端所做的工作——那是一段非常复杂的代码，对数据表示、寄存器分配，特别是 lambda 进行了大量复杂的分析——变成了他的博士论文。Orbit 生成的代码实际上击败了 Apollo（一家 Sun 级别工作站公司）用来实现该工作站*操作系统*的 Pascal 实现；这是一个巨大的胜利。随后 David 去了 MIT，把他的编译器技术带到 Bert Halstead 的并行 Lisp 项目中，后来又与 Steve Ward 合作开展了最终变成 Curl 的研究项目。当 Ward 把 Curl 分拆成公司时，Halstead 和 Kranz 成了那里的高级技术人员。</p>
+      
+    
+      
+        <p>我们把 Kranz 的论文叫做 PhD #1。它的标题是《An Optimising Compiler for Scheme》，我认为这是对 William Wulf 那本具有开创性的 Bliss 编译器论文的致敬，后者被描述在一本标题简单的书《The Design of an Optimising Compiler》中（我的那本有签名）。Wulf 的 Bliss 编译器是我们所有人仰望的榜样——它曾一度拥有“世界上优化程度最高的编译器”的头衔。</p>
+      
+    
+      
+        <p>（还记得 Bliss 吗？再多加一些交叉引用，Wulf 当时离开了 CMU，创办了 Tartan Labs 公司，将这项编译器技术商业化用于 C。他带走了 Guy Steele，后者刚刚在 CMU 任教期间领导完成 Common Lisp 的定义。Tartan 后来倒闭了，Wulf 去了 UVa 担任高级职位，现在是国家科学政策层面的重要人物，例如领导美国国家科学院关于反恐技术的研究。Steele 去了 Thinking Machines，然后把他的语言开发技能投入到 Sun 的 Java 项目中。）</p>
+      
+    
+      
+        <p>Kranz 的论文是耶鲁计算机科学系的技术报告。我认为任何对函数式编程语言严肃编译器技术感兴趣的人都应该必读它。你大概可以从一个以 http://www.cs.yale.edu/ 开头的网页上订购或下载到它。</p>
+      
+    
+      
+        <p>Richard Kelsey 把他的前端——一个非常激进的基于 CPS 的优化器——一直扩展到底，产生了一个完整的、第二个编译器，他称之为“TC”，即“Transformational Compiler”。他的方法就是不断地把程序从一种简单的、CPS 的、lambda 的语言变换成更简单的语言，直到语言简单到只剩下 16 个变量……r1 到 r15，这时你就可以干掉 lambda 并称之为汇编了。这是一项美丽的工作，而且和 Kranz 的论文一样，是任何想为函数式编程语言做编译器的人的必读材料。它对普林斯顿的 Andrew Appel 产生了巨大影响，后者后来在和 Bell Labs 的 Dave MacQueen 小组一起为 SML 构建 SML/NJ 编译器时，采用了其中的很多思想；Andrew 在他随后写的关于那个编译器的书《Compiling With Continuations》中描述了这一点。然而，与 SML/NJ 编译器不同，Kelsey 基于 CPS 的编译器在编译时使用了运行时栈来进行过程调用。他在论文中实际上还为 Basic 等标准的“非 lambda”过程式语言描述了前端。</p>
+      
+    
+      
+        <p>因此，CPS 作为编译器 IR 的这条论点谱系，从 Steele 的 Rabbit 编译器，经过 T 的 Orbit，一直延续到 SML/NJ。到那时，Rice 的 Sabry 和 Felleisen 发表了一系列非常重量级的论文，猛烈抨击 CPS 作为表示方式，并提出了一种叫做 A-Normal Form 的替代方案。ANF 已经流行了大约十年；CPS 则不再受青睐。这条线后来又跳轨到了 CMU 的 ML 社区，在那里接上了重要的类型化中间语言的轨迹，并通向康奈尔和耶鲁，但我现在不打算继续追踪它。不过，为了告诉你我对这个问题的立场，我认为从 CPS 到 ANF 的整个运动是个坏主意（尽管 Sabry 和 Felleisen 的技术观察和数学像他们这样水平的人所应有的那样坚如磐石）。</p>
+      
+    
+      
+        <p>我们把 Kelsey 的论文叫做 PhD #2。</p>
+      
+    
+      
+        <p>Kelsey 后来在东北大学当教授，然后离开去了 NEC 在普林斯顿的知名实验室，在那里他参与了 Kali 分布式系统的工作。他还把所有 CPS 相关的人在直觉层面都知道的事情精确地写到了纸面上：经典编译器社区中的整个“SSA”革命，本质上是对 CPS 的重新发现。（哼。）NEC 普林斯顿后来聚集了一批非常 impressive 的 Scheme/ML 黑客：来自 Rice 的 Stephen Weeks 和 Andrew Wright，Kevin Lang（他开发了一个不太知名但相当漂亮、优雅、免费且可移植的面向对象 Scheme，叫 Oaklisp），Kelsey，Jim Philbin，Henry Cetjin，以及 Jeff Siskind。当 NEC 普林斯顿变成一个疯狂而有毒的地方时，Kelsey 和前面名单中几乎所有人一样，跳到了创业公司，他在那里和 Rees 以及一位 MIT 校友 Patrick Sobalvarro 一起做了一个创业公司，后者因 GC 方面的工作而早早成名。那家创业公司在去年的 dotcom 崩盘中倒闭了，而 Kelsey 现在正在做他的第二个创业公司。</p>
+      
+    
+      
+        <p>Norman Adams 把他的汇编器变成了一个硕士学位。它也是一件很酷的软件。他的汇编器不接受线性文本流；编译器交给它的是一个*图结构*。它自己对图进行序列化，以最小化跳转指令的跨度，并且还有其他巧妙的功能（例如，它实际上是一个构建汇编器的可移植框架）。然后他拿了硕士学位跑去了 Tektronix，在那里为 Motorola 88000 开发了一个非常高性能的 Scheme 实现，叫“screme”，后来又去了 Xerox PARC，在那里他从事普适计算和一个叫做 SchemeXeroX（对“Team Xerox”的玩笑）的 Scheme 实现，和 Pavel Curtis 一起工作。他在 dotcom 热潮刚开始时离开了 Xerox，很早就加入了创业公司 Ariba，这就是为什么（1）Ariba 的主要产品有一个用 Java 实现的 Scheme 配置系统，以及（2）他现在是个有钱人。</p>
+      
+    
+      
+        <p>Lamping 的故事也许是最奇怪的。他回到斯坦福，参与了一个非常晦涩的理论问题，叫最优 lambda 归约，他为自己的博士论文彻底解决了它。这是一项相当值得注意的成就，因为那些头脑尖锐的理论语义学家在欧洲为此挣扎了很长时间。他们挣扎得如此辛苦，以至于当这个来自斯坦福的黑客坐下来就把问题解决了的时候，他们似乎……很恼火。John 似乎完全不够资格解决这个问题，除了，呃，脑子以外什么都没带。例如，有一篇自命不凡的法国论文，有点把 Lamping 贬低为“autodidact”（自学者），然后继续（请注意，我要小心地说，在正确致谢 John 的前提下）在他的工作基础上构建。因此，Lamping 从此就被那些认识并喜欢他的人永远贴上了这个搞笑的头衔/术语。他永远也甩不掉它了。John Lamping，自学者。</p>
+      
+    
+      
+        <p>John 后来去了 Xerox PARC，在那里他和 Gregor Kiczales 组成团队，研究了一系列有趣的编程语言问题，其中最著名的是“面向切面编程”。同样的，这里的故事偏离了 T，所以我就不继续了。出于同样的原因，我们不会把 John 的论文称为“PhD #3”——它与他在 T 项目上的工作并没有真正的联系。</p>
+      
+    
+      
+        <p>在 WRL 那个夏天过去大约三年后，我*终于*想出了如何为 Scheme 做数据流分析，这结束了我生命中一段漫长而相当不快乐的时期。我正式从 AI 学生转为 PL 学生，找了 Peter Lee 作为共同导师（因为我原来的导师 Allen Newell 虽然无疑是我个人认识的最伟大的学者，但不是 PL 领域的人），并把这一切写成*我的*博士论文。我们可以称之为 PhD #3。</p>
+      
+    
+      
+        <p>顺便说一句，我要补充，在我看来，我论文中最深刻也最强大的部分，是（a）似乎没人知道，而且（b）理论基础最不稳固的那部分：环境回流分析（environment reflow analysis）。如果哪天有个感兴趣的人拿走我论文的这一部分，真正把它带到一个新高度，我肯定会非常高兴。</p>
+      
+    
+      
+        <p>Jim Philbin 和 Kelsey 一样，也去了 NEC，在那里他构建了一个为函数式编程语言调优的操作系统，叫做 STING（或者也许拼作“STNG”——无论如何它的发音是“sting”）。他当然是用 T 来实现的，而且可以看出它根植于他在 T3 上的工作。（在某种意义上，为函数式语言实现运行时，就要求你在底层真实操作系统之上实现一个小型虚拟 OS。）把它叫做 PhD #4。Jim 后来离开了 Scheme，去和 Kai Li 在普林斯顿做并行处理器和系统工作。</p>
+      
+    
+      
+        <p>Jonathan 去了 MIT 读研究生，和 Gerry Sussman 以及 David Gifford 一起工作。在研究了一系列有趣的问题之后，Jonathan 也写了一篇关于函数式语言操作系统的论文，在其中你可以将语言安全性作为基本的保护机制。把它叫做 PhD #5。然后他对昆虫学（真的是虫子——不是计算机 bug）产生了兴趣，在欧洲做了博士后，接着回到美国，在追求像 1982 年的 T 那样激进和不寻常的研究课题与创业公司之间来回切换。</p>
+      
+    
+      
+        <p>（Jonathan 还*用 Scheme* 写了他的论文，同时论文也是*关于* Scheme 的。他为论文用 Scheme 做了一个叫“markup”的小型文字处理器，允许你写标准文本，中间穿插用花括号分隔的命令。（嗯。文本和花括号里的命令。听起来熟悉吗？）命令用 Scheme 定义；markup 处理器有多个后端，比如 HTML 和 PostScript。Scott Draves 后来为他在 CMU 关于部分求值和高性能图形渲染的博士论文扩展了 markup。）</p>
+      
+    
+      
+        <p>我想这涵盖了整个 T 团队。有趣的是，从一个单一的暑期项目中，竟然产生了*五篇*博士论文级别的成果（以及一篇硕士级别的）。</p>
+      
+    
+      
+        <p>我花了相当多篇幅讨论 T 的实现技术。然而，它作为一门语言*设计*也值得研究，而在这里，Jonathan 是唯一最重要的影响者。T 主要是他的孩子。它是一个相当漂亮的设计。</p>
+      
+    
+      
+        <p>当 RISC 革命发生时，Orbit 被移植到了 80 年代后期的 RISC 处理器：MIPS 和 SPARC。正是在这个时候，Clark GC 被移除，换成了 Cheney 收集器。在 CMU，我把 Orbit 移植到了 IBM 的 POWER 架构的前身，叫 ROMP 或者 RT/PC。</p>
+      
+    
+      
+        <p>Orbit 的限制因素之一是其后端的复杂性。它被 Kranz 的论文很好地记录下来，非常精妙，但也是一大堆乱糟糟的代码。出于对这种复杂性的反应，Scheme 48 诞生了——当 Kelsey 到东北大学当教授时，Jonathan 还在 MIT；他和 Jonathan 一起开发了 Scheme 48。它第一次被用于 Jonathan 在康奈尔参与的一个自主机器人系统。这个名字意在反映这样一个想法：这个实现应该清晰简单到你能相信它可以在 48 小时内写出来（或者也许，当 S48 变得足够复杂时，这个说法被改成了“可以在 48 小时内*读完*”）。Scheme 48 与 T3 和 Orbit 在技术上几乎没有重叠——没有本地代码编译器，没有对象系统，没有 CPS IR。它的创新在于它的模块系统、定义其 VM 的语言（“pre-scheme”），以及它的栈管理技术。这些都是有趣的技术点。栈不是通过 push 和 pop 来管理，而是通过 push 和一个分代 GC 来管理。我相信 Kelsey 为此写过一篇论文，讨论了它的优点。模块系统有点像 SML 的，但支持模块化的宏，并且还有另一个相当酷的特性：当你定义一个模块时，有些子句让你指定哪些文件存放模块的源码。但*其他*子句让你指定使用哪个“reader”过程来把文件中的字符流翻译成交给编译器的 s-表达式树。因此你可以处理具有不同具体语法的文件——R5RS 语法、scsh 语法、S48 语法、PLT Scheme 语法、guile 语法，或许还有中缀语法（这是经常被讨论的）。这消除了一个恼人的、底层但持久的障碍，使得在不同 Scheme 实现之间共享代码变得更容易。</p>
+      
+    
+      
+        <p>Pre-scheme 也相当有趣。Kelsey 也为此发表了一篇论文，我相信。它是 Scheme，因为你可以把它加载到一个 Scheme 系统里并运行代码。但它是有限制的——它要求你以一种允许完全的 Hindley-Milner 静态类型推断的方式编写，而且所有高阶过程在编译时都被 beta-替换掉了，这意味着你可以*直接*把一个 prescheme 程序翻译成具有 C 语言效率的“自然”C 代码。也就是说，你可以把 prescheme 看作是编写底层代码时一个真正令人愉快的 C 的替代品。而且你可以在你选择的交互式 Scheme 开发环境中调试你的 prescheme 程序，然后切换开关把它翻译成 C 代码，因为 prescheme 只是一个受限的 Scheme。Scheme 48 的字节码解释器就是用 prescheme 写的。Prescheme 后来有点销声匿迹了——除了他写的那篇学术论文之外，Kelsey 始终没有抽出时间把它文档化并变成一个其他人可以使用的独立工具（Ian Horswill 在西北大学的小组是个例外——他们用 prescheme 做了有趣的工作）。不过，那里面还是有一些值得挖掘的想法。</p>
+      
+    
+      
+        <p>我后来在 1992 年左右捡起了 Scheme 48 来构建 scsh，但我们已经开始偏离 T 了，所以我就不再继续这个线头。</p>
+      
+    
+      
+        <p>高级语言实现工作的织锦是非常丰富且相互交织的，梳理它的过程是一项极其有趣、能让你愉快地投入一生的任务。我在这篇 rambling 的文章里只追踪了这块织锦中一条选定的线；还有很多其他重要的线。但据我所知，这就是 T 的故事。</p>
+      
+    
+      
+        <p>一个警示说明：在所有主要当事人仍然健在的情况下写历史的风险是，会有人跳出来指出你的错误。我确信我的回忆中*确实*存在错误，但我也有理由相信我把握住了大致正确的脉络。像 Jonathan 这样的人当然能给出权威得多的叙述。</p>
+      
+    
+      
+        <p>下面是一些我提到的论文的引用。</p>
+      
+    
+      
+        <p>这是第一篇关于 T 的论文，基于 T2：</p>
+      
+    
+      
+        <p>Jonathan A. Rees and Norman I. Adams IV. T: A dialect of Lisp or, Lambda: The ultimate software tool. In Conference Record of the 1982 ACM Symposium on LISP and Functional Programming, pages 114-122, August 1982.</p>
+      
+    
+      
+        <p>这是关于 T3 的 Orbit 的总体概述：</p>
+      
+    
+      
+        <p>ORBIT: An optimizing compiler for Scheme. In Proceedings of the SIGPLAN &#x27;86 Symposium on Compiler Construction, published as SIGPLAN Notices 21(7), pages 219-233. Association for Computing Machinery, July 1986.</p>
+      
+    
+      
+        <p>后来还有第三篇论文，由 Jonathan 和 Norman 撰写，讨论对象系统的一般问题以及 T 的对象系统。我没有它的引用。</p>
+      
+    
+      
+        <p>T 的参考手册也值得一读，可以了解这门语言的特性：</p>
+      
+    
+      
+        <p>Jonathan A.Rees, Norman I.Adams IV and James R. Meehan. The T Manual. 4th edition, Yale University, Department of Computer Science, January 1984. 如果大家感兴趣，我大概也能贴出它的 PostScript 源码。</p>
+      
+    
+      
+        <p>Kelsey 的论文：</p>
+      
+    
+      
+        <p>Compilation by Program Transformation. Ph.D.dissertation, Yale University, May 1989. Research Report 702, Department of Computer Science. 这篇论文的会议版发表在 POPL 89 上。</p>
+      
+    
+      
+        <p>Kranz 的论文：</p>
+      
+    
+      
+        <p>David Kranz. ORBIT: An Optimizing Compiler for Scheme. Ph.D. dissertation, Yale University, February 1988. Research Report 632, Department of Computer Science.</p>
+      
+    
+      
+        <p>更多信息：</p>
+      
+    
+      
+        <p>T 项目 <a href="weinreb.html">Dan Weinreb 谈 NIL</a></p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://www.paulgraham.com" target="_blank" rel="noopener">paulgraham.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'pg_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

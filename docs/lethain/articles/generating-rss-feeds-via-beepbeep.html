@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 BeepBeep 生成 RSS Feed · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 BeepBeep 生成 RSS Feed</h1>
+    <div class="meta">
+      2009-09-20 · 
+      <a href="https://lethain.com/generating-rss-feeds-via-beepbeep/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>使用 BeepBeep 这样轻量级微框架的乐趣之一在于，你只需花几天时间深入研究代码，就能对整个项目有相当扎实的掌握。但它的不足之处在于，许多在 Django 等成熟框架中开箱即用的组件，你往往需要自己重新实现。今天要说的例子就是生成 RSS feed。</p>
+      
+    
+      
+        <p>幸运的是，RSS feed 其实相当简单。它本质上就是遵循以下格式的 XML 文档：</p>
+      
+    
+      
+        <p>我编写了一个 BeepBeep 控制器模板（完整代码可点击这里查看 BeepBeep 生成 RSS feed 的实现），它正是这么做的。这里我不会重复贴出具体实现，但会简单介绍一下它的用法。生成 RSS feed 的核心在于下面这个 handle_request/2 函数的实现：</p>
+      
+    
+      
+        <p>其中 Channels 是一个由二元组组成的列表，每个二元组的第一个元素是一个属性列表，用于描述 channel，第二个元素则是一个属性列表的集合，用于描述该 channel 中的各个 item。更复杂的使用示例如下：</p>
+      
+    
+      
+        <p>-define(RSS_ITEM_DEFAULTS, [{title, &quot;my item&quot;}, {link, &quot;http://example.com/&quot;}, {description, &quot;an item&quot;}, {pub_date, &quot;&quot;}, {guid, 0}]).
+-define(RSS_CHANNEL_DEFAULTS, [{title, &quot;my channel&quot;}, {link, &quot;http://example.com/&quot;}, {description, &quot;a channel&quot;}, {language, &quot;en-us&quot;}]).</p>
+      
+    
+      
+        <p>正如上面的例子所示，使用方式很简单——虽然略显啰嗦——但应该足以完成任务。在某些方面，我觉得它比 Django 的 syndication 框架更加灵活和直观，当然这也情有可原，因为后者的功能要丰富得多。我承认这并不是一个完全公平的比较。</p>
+      
+    
+      
+        <p>如何为 BeepBeep 开发可重用的库，这也是我最近一直在思考的一个普遍话题。目前我的做法是，在合理范围内保持后端无关性，否则就统一使用 CouchDB 作为持久化方案。随着我继续将 BeepBeep 作为开发 Web 应用的基础平台，我可能会进一步完善这个方法（比如引入存储抽象层？）。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

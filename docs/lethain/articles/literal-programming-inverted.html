@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>什么是 literate programming 的反面。 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>什么是 literate programming 的反面。</h1>
+    <div class="meta">
+      2019-07-14 · 
+      <a href="https://lethain.com/literal-programming-inverted/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>编程领域我最喜欢却始终没有真正落地的一个想法是 literate programming。它探讨如果我们把代码和文档——也就是“怎么做”和“为什么”——更紧密地融合，通常放在同一个文件里，编写和阅读软件的过程会变成什么样子。</p>
+      
+    
+      
+        <p>当我回顾  时，我希望自己当时能拥有相反的工具：强大、易于扩展的写书工具。如果非要紧急造一个名字的话，我们或许可以叫它“可编程读写能力”（programmable literacy）。<a href="learned-writing-book.html">写书让我学到的东西</a></p>
+      
+    
+      
+        <p>想象一下，你写的书里每个章节都标记了前置内容！这样就能轻松确保内容顺序正确，即使多次重构内容，也很容易避免引用尚未引入的概念。</p>
+      
+    
+      
+        <p>我最近还发现了一种相当小众的奇幻/科幻子类型叫 LitRPG，我实在无法推荐（这个类型的写作质量本来就参差不齐，而这个子类型的质量更是明显偏低），但它的结构很有意思。特别是这类作品经常反复渲染相同结构化的内容（比如描述主角的状态表格），这让我开始思考：作者要在几百页的篇幅里维护那么多可变状态，有什么工具能帮助他们避免连续性错误呢？</p>
+      
+    
+      
+        <p>把这些想法与我想初步接触 Rust 的愿望结合在一起，我在过去一周左右的时间里快速写出了 literal。说清楚一点，这不是高质量的 Rust 代码，因为我对 Rust 的工作原理还一知半解，但它确实是一个可运行的概念验证，展示了“可编程读写能力”的一个简单版本可以如何实现。</p>
+      
+    
+      
+        <p>简而言之，你用 Markdown 语法写作，加入一些额外的指令，其中之一是渲染模板（使用 Tera 所支持的 Django 模板语言子集）。</p>
+      
+    
+      
+        <p>你的文档文件可能长这样：</p>
+      
+    
+      
+        <pre><code>\init title My Cool Book
+\init author Will
+\init chapter 1
+\init chapter_title First Chapter    
+\render templates/chapter.md
+
+This is an insightful chapter, filled with insight.
+
+\incr chapter 1
+\incr chapter_title Second Chapter
+\render templates/chapter.md    
+
+Honestly, not as good as chapter one.
+</code></pre>
+      
+    
+      
+        <p>然后你的 templates/chapter.md 会是这样的：</p>
+      
+    
+      
+        <pre><code>## Chapter {{ chapter }}: {{ chapter_title }}
+*{{ title }} by {{ author }}.*
+</code></pre>
+      
+    
+      
+        <p>接着你运行 literal 来展开内容，或许再通过 pandoc 进行渲染。例如，你可以用下面命令把它转换成 epub 格式的电子书：</p>
+      
+    
+      
+        <pre><code>./literal book.md | pandoc -f gfm -o mybook.epub
+</code></pre>
+      
+    
+      
+        <p>我还添加了一些非常简单的断言支持，如果功能更强大，可以用来绘制书中预期状态并确保其前置条件得到满足。你可以想象一个完整版本，本质上就是写书的“测试驱动开发”。</p>
+      
+    
+      
+        <pre><code>\init chapter 1
+\assert chapter 1
+
+Do some stuff
+
+\incr chapter 1
+\assert chapter 2
+</code></pre>
+      
+    
+      
+        <p>这些断言都会成功，但如果你尝试一个错误的断言，比如：</p>
+      
+    
+      
+        <pre><code>\init chapter 1
+\assert chapter 2
+</code></pre>
+      
+    
+      
+        <p>老实说，目前这个工具本身并没有那么实用，但它是一个很好的 Rust 学习项目。我认为如果继续构建一个更强大的工具包——支持渲染计算值、更实用的数据结构，甚至任意代码执行——你能做出非常强大（也非常小众）的东西。</p>
+      
+    
+      
+        <p>总的来说，这是一次有趣的探索，我期待不久后能真正理解 Rust 的借用概念（我老是忍不住把它想成引用，这似乎微妙地错了）。这也是我写的最大的一个个人项目完全使用 VSCode，我正慢慢把它当成默认 IDE，用在那些让 Emacs 感到吃力的项目上。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Erlang 进程组间的负载均衡 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Erlang 进程组间的负载均衡</h1>
+    <div class="meta">
+      2009-09-12 · 
+      <a href="https://lethain.com/load-balancing-across-erlang-process-groups/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在我们正在开发的应用中，数据会依次经过一系列步骤，每个步骤对数据进行转换。这是一个 Erlang 系统，每个步骤对应一个进程组，组内有一个或多个进程（每个进程都是 gen_server）。任意一个进程组的成员都能处理任意文件，所以抽象来看，其处理逻辑大致如下：</p>
+      
+    
+      
+        <p>这种设计形成了一个非常灵活的数据处理流水线。但当我们从实现功能转向进行负载测试时，开始发现进程组内的工作分配并不均匀。在负载足够高的情况下，组内某个 pid 可能会累积 20 个任务，而另一个 pid 的队列却为空。</p>
+      
+    
+      
+        <p>问题的根源在于 pg2:get_closest_pid/1，它采用了一种简单的 pid 选择算法：</p>
+      
+    
+      
+        <div class="list-content">如果存在本地进程，则随机选择一个本地进程，否则随机选择一个远程进程。</div>
+      
+    
+      
+        <p>我们临时讨论了如何解决这个问题，并想出了一个（在我看来）相当新颖的方案。我们所有的 gen_server 调用都是同步的，这意味着进程的消息队列长度就等于分配给它的未处理任务数量。</p>
+      
+    
+      
+        <p>因此，我们可以简单地遍历整个进程组，选择消息队列最短的那个进程。这样，我们可以把 get_closest_pid/1 替换成 get_best_pid/1。（抱歉这个名字起得不太好。我另一个备选是 get_unencumbered_pid/1，但可能又显得有点长。）</p>
+      
+    
+      
+        <p>把前面例子中的 pg2:get_closest_pid/1 替换为 get_best_pid/1 后，现在就可以在所有进程组之间实现负载均衡了。这原本是一个可能比较棘手的问题，但 Erlang 让解决方案变得相当简洁。</p>
+      
+    
+      
+        <p>额外的好处是，一位备受尊敬的同事指出，可以使用 erlang:get_process_info 返回的 stack_size 值作为队列长度相同时的决胜依据。理由是，一个正在处理数据的进程可能暂时没有额外的消息排队，因此无法区分一个空闲进程和一个正在工作的进程。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Python 和 Flask 中的 HMAC SHA256 签名 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Python 和 Flask 中的 HMAC SHA256 签名</h1>
+    <div class="meta">
+      2019-11-06 · 
+      <a href="https://lethain.com/python-hmac-sha256/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>我最近在研究 Slack API，稍后会写一篇更详细的文章。其中集成过程中需要生成 HMAC SHA256 签名来验证请求是否来自 Slack。我在网上没找到太多有用的资料，有些像 hmac 模块的官方文档也没有提供示例。这里给以后遇到同样问题的朋友们一些快速参考。</p>
+      
+    
+      
+        <p>感谢 Joe Kampschmidt 的文章，他很好地讲解了签名相关内容。</p>
+      
+    
+      
+        <p>第一步是改造你的测试应用，让它能捕获完整的请求头和原始请求体，以便验证自己的实现是否正确。</p>
+      
+    
+      
+        <p>如果你使用 Flask 作为服务器，获取原始请求体稍微有点麻烦。因为当 Content-Type 是 application/x-www-form-urlencoded 时，Flask 会自动把数据转换成字典，而不是原始字符串。这种转换导致我们很难直接拿到原始字符串。</p>
+      
+    
+      
+        <p>幸运的是，你可以使用 Request.get_data 来获取原始请求体，但必须在调用 Request.form 之前进行。实际上你可以先调用 Request.get_data，之后再调用 Request.form，只要注意调用顺序就行。</p>
+      
+    
+      
+        <pre><code>def recall_post(request):
+    # must not call request.form here
+    headers = request.headers()
+    data = request.get_data()
+    print(headers)
+    print(data)
+
+
+    # calling request.form is fine now
+    request.form
+    return &quot;%s %s&quot; % (headers, data)</code></pre>
+      
+    
+      
+        <p>当你拿到请求头和原始数据后，就可以测试生成签名并与 Slack 发送的签名进行对比。你需要从传入请求中提取的值包括：</p>
+      
+    
+      
+        <pre><code>
+timestamp = request.headers[&#x27;X-Slack-Request-Timestamp&#x27;]
+expected_sig = request.headers[&#x27;X-Slack-Signature&#x27;]</code></pre>
+      
+    
+      
+        <p>你还需要前往 Slack 仪表盘中的 Application 页面获取 Signing Secret。拿到这些信息以及通过 Request.get_data 获取的原始 POST 请求体后，就可以用它们来测试生成自己的签名了。</p>
+      
+    
+      
+        <pre><code>import hmac, hashlib
+
+body = b&#x27;token=etc&amp;team_id=etc&amp;...&#x27;
+timestamp = b&#x27;100000000000&#x27;
+base = &#x27;v0:%s:%s&#x27; % (timestamp.decode(&#x27;utf-8&#x27;), body.decode(&#x27;utf-8&#x27;))
+secret = b&#x27;1234&#x27;
+computed = hmac.new(secret, base.encode(&#x27;utf-8&#x27;),
+                    digestmod=hashlib.sha256).hexdigest()
+sig = &#x27;v0=%s&#x27; % (computed,)
+
+print(sig)</code></pre>
+      
+    
+      
+        <p>如果使用真实数据，最终生成的签名应该与 X-Slack-Signature 请求头中 Slack 提供的签名完全一致。</p>
+      
+    
+      
+        <p>把以上内容整合起来，服务器端的验证函数大致如下：</p>
+      
+    
+      
+        <pre><code>def verify(request,secret):
+    body = request.get_data()
+    timestamp = request.headers[&#x27;X-Slack-Request-Timestamp&#x27;]
+    sig_basestring = &#x27;v0:%s:%s&#x27; % (timestamp, body.decode(&#x27;utf-8&#x27;))
+    computed_sha = hmac.new(secret,
+                            sig_basestring.encode(&#x27;utf-8&#x27;),
+                            digestmod=hashlib.sha256).hexdigest()
+    my_sig = &#x27;v0=%s&#x27; % (computed_sha,)
+    slack_sig = request.headers[&#x27;X-Slack-Signature&#x27;]
+    if my_sig != slack_sig:
+        err_str = &quot;my_sig %s does not equal slack_sig %s&quot; % \
+                   (my_sig, slack_sig))
+        raise Exception(err_str)
+
+def recall_post(request):
+    signing_secret = b&#x27;your secret from some config tool&#x27;
+    verify(request, signing_secret)
+    return &quot;Signatures match, yay.&quot;</code></pre>
+      
+    
+      
+        <p>现在，只要你在处理函数中调用 verify，就能确信收到的请求确实来自 Slack。希望这篇文章能帮到大家，节省一点时间！</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

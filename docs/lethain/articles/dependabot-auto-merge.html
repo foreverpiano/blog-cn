@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自动合并 Dependabot PR · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>自动合并 Dependabot PR</h1>
+    <div class="meta">
+      2025-12-18 · 
+      <a href="https://lethain.com/dependabot-auto-merge/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>软件开发中一个反复出现的主题就是修复安全问题。
+目前大多数代码托管服务都提供了相当不错的漏洞报告功能，但很多组织仍然难以及时应用这些修复。
+上周我们在讨论如何降低这个流程的负担时，我突然想到：能不能直接自动合并 GitHub Dependabot 提交的拉取请求呢？</p>
+      
+    
+      
+        <p>结果证明，[答案是可以]，而且效果还不错。
+你可以控制想要自动合并的更新类型（补丁更新、小版本更新、大版本更新等），它也会尊重你设置的自动化检查。
+如果你有完善的 CI/CD 流程，会强制运行代码 lint、类型检查和测试，那么这个方案会工作得特别好。
+如果你还没有，那么这将是一个非常有效的机制——虽然可能会让你经历一番折腾，但最终能帮你建立起良好的代码 lint、类型检查和测试体系。</p>
+      
+    
+      
+        <p>过去几天，我已经在公司大约十几个仓库里启用了这套机制。
+下面以我的博客仓库为例，介绍具体的配置方法。</p>
+      
+    
+      
+        <p>首先，在仓库中创建一个 .github/workflows/dependabot-auto-merge.yml 文件，内容如下：</p>
+      
+    
+      
+        <p>然后进入仓库设置页面（类似 https://github.com/lethain/irrational_hugo/settings），开启仓库的自动合并功能。
+这个功能仍然会严格遵守所有必需的分支规则，例如必须通过测试、需要审批等。</p>
+      
+    
+      
+        <p>接着，确保你为仓库中的代码 lint、类型检查和测试配置了合适的 status check。</p>
+      
+    
+      
+        <p>然后启用 Dependabot（路径类似 https://github.com/lethain/irrational_hugo/settings/security_analysis）。
+即使使用默认设置也完全够用。</p>
+      
+    
+      
+        <p>至此就全部完成了。今后 Dependabot 提交的 PR 将会自动合并。
+这里面当然存在一些细节问题——我已经遇到过一次因为缺少测试而被自动合并的 issue——但我认为这反而是一种宝贵的推动力，能促使我们提升测试质量，而不是放弃或退缩这个方案。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

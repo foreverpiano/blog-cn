@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PyObjC 中的命名和大小写规范 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>PyObjC 中的命名和大小写规范</h1>
+    <div class="meta">
+      2008-09-04 · 
+      <a href="https://lethain.com/naming-and-casing-convention-in-pyobjc/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在我关于 PyObjC 和 Cocoa 的教程中，一个核心观点是：PyObjC 就是 Python，同时它也是 Objective-C。当你开始考虑如何命名方法和变量时，这一点最容易让人感到困惑。Python 推荐的方法命名风格（正如 PEP 8 中所讨论的）是全部使用小写字母，并用下划线分隔单词。</p>
+      
+    
+      
+        <p>因此，合适的函数名称看起来像 subtract、remove_child_node 或 perform_caching。此外，私有实例变量和方法通常以一个下划线开头，形成类似 _words 或 _add_child_node 的名称。</p>
+      
+    
+      
+        <p>不幸的是，这些命名约定很容易与 PyObjC 描述 Objective-C 方法的约定发生冲突，后者将下划线视为等同于 Objective-C 方法中的冒号。</p>
+      
+    
+      
+        <p>例如，Python 方法 remove_child_node(self, node) 看起来像是 Objective-C 方法 remove:child:node:，但实际上只接收一个参数而不是三个。因此，remove_child_node 方法无法被 Objective-C 类、Cocoa 绑定以及 Interface Builder 访问。</p>
+      
+    
+      
+        <p>即使是不合理地放置下划线，例如私有实例变量 _nodes（它无法合理地转换成 Objective-C 方法），也会导致无法访问。</p>
+      
+    
+      
+        <p>由于标准的 Python 约定不适用，看来为 PyObjC 编写 Python 函数应该采用不同的命名规范：像写 Objective-C 一样写方法，然后再将其转换成 Python 定义。</p>
+      
+    
+      
+        <p>使用这个规范，我们来重新处理 remove_child_node(self, node)。首先将其翻译成 -(id)removeChildNode:(id)node;，然后再转换成 Python 形式 removeChildNode_(self, node)。另一个例子，方法 perform_caching 变成 -(void)performCaching;，进而转换成 performCaching(self)。</p>
+      
+    
+      
+        <p>正如 PEP 8 所提到的，有时为了保持理智必须打破常规，这似乎就是其中之一。在一个文档相对匮乏的世界里，使用小写开头的驼峰命名法（lower-first camel-casing）能让 PyObjC 开发变得更合理一些，而理智不会接受更差的选择。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用 Python 实现的战争纸牌游戏 · Will Larson 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Will Larson 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>用 Python 实现的战争纸牌游戏</h1>
+    <div class="meta">
+      2012-12-02 · 
+      <a href="https://lethain.com/war-card-game-in-python/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在清理我笔记本电脑上的代码仓库时，我偶然发现了一个我在一次编程面试中编写的战争纸牌游戏（War）实现。虽然算不上惊艳，但它确实是一个相当不错的面试题目。</p>
+      
+    
+      
+        <pre><code>
+&quot;&quot;&quot;
+Implement the card game war. Rules are:
+
+1. Deal out deck of 52 cards between two users.
+2. Each player plays a card. Higher card wins. Winner takes both cards.
+3. If players tie, then each player puts down three cards, and the third
+   card competes.
+   If a player has less than 3 cards, then they put down all of their cards
+   and their final card competes against the other player&#x27;s third card.
+   Continue doing this until tie is broken.
+   Winner takes all cards.
+4. Game is over when a player doesn&#x27;t have any cards. The player with
+   cards remaining is the winner.
+&quot;&quot;&quot;
+import random
+
+def generate_deck(suites=4, type_cards=13):
+    &quot;Generate a randomized deck of cards.&quot;
+    cards = []
+    for suite in range(suites):
+        for type_card in range(1, type_cards+1):
+            cards.append(type_card)
+    random.shuffle(cards)
+    return cards
+
+def play_war(deck):
+    a_cards = deck[:len(deck)/2]
+    b_cards = deck[len(deck)/2:]
+    a_stash = []
+    b_stash = []
+
+    round = 1
+    while a_cards and b_cards:
+        # by using pop, we&#x27;re playing from the end forward
+        a_card = a_cards.pop()
+        b_card = b_cards.pop()
+
+        if a_card == b_card:
+            a_stash.extend([a_card]+a_cards[-3:])
+            a_cards = a_cards[:-3]
+            a_cards.append(a_stash.pop())
+
+            b_stash.extend([b_card]+b_cards[-3:])
+            b_cards = b_cards[:-3]
+            b_cards.append(b_stash.pop())
+        elif a_card &gt; b_card:
+            # ordering of a_stash and b_stash is undefined by game rules
+            a_cards = [a_card, b_card] + a_stash + b_stash + a_cards
+            a_stash = []
+            b_stash = []
+        elif b_card &gt; a_card:
+            # ordering of a_stash and b_stash is undefined by game rules
+            b_cards = [b_card, a_card] + b_stash + a_stash + b_cards
+            a_stash = []
+            b_stash = []
+
+        print &quot;round %s: a_cards: %s, a_stash %s, b_cards %s, b_stash %s&quot; %
+	       (round, len(a_cards), len(a_stash), len(b_cards), len(b_stash))
+        round += 1
+
+
+if __name__ == &quot;__main__&quot;:
+    deck = generate_deck()
+    play_war(deck)
+</code></pre>
+      
+    
+      
+        <p>去掉开头的注释后，大约只有五十行代码。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lethain.com" target="_blank" rel="noopener">lethain.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lethain_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>

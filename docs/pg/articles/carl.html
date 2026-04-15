@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carl de Marcken：Orbitz 背后的故事 · Paul Graham 文集</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Paul Graham 文集</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Carl de Marcken：Orbitz 背后的故事</h1>
+    <div class="meta">
+      
+      <a href="https://www.paulgraham.com/carl.html" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>（以下是 ITA Software 的 Carl de Marcken 写给一位朋友的邮件，描述他们在软件行业最严苛的应用中使用 Lisp 的经历。）</p>
+      
+    
+      
+        <p>日期：2001 年 1 月 12 日 星期五 15:42:34 -0500</p>
+      
+    
+      
+        <p>发件人：Carl de Marcken</p>
+      
+    
+      
+        <p>Geoffrey，</p>
+      
+    
+      
+        <p>以下是一些有趣的细节……</p>
+      
+    
+      
+        <p>1. 目前 Sabre、Galileo、Amadeus 和 Worldspan 各自运行着价值数百万美元的 IBM 和 Unisys 大型机，来处理航空公司电话客服、机场柜台、旅行社以及旅行网站（除了我们自己和我们客户的网站）所产生的大部分查询。他们的计算机安置在堪萨斯城、丹佛、德国和亚特兰大的防爆、防火（名副其实）的大型设施中，主要运行汇编语言代码以追求性能。根据我们观察到的，他们的算法相当基础：在我们指出之前，我认为他们并不真正理解自己试图解决的问题有多么困难，也不清楚他们的解决方案距离最优有多远。</p>
+      
+    
+      
+        <p>2. ITA Software 正在逐步用运行在 Linux PC 上的 Common Lisp 代码，替换行业的硬件和软件，这些代码采用相对复杂的算法，充分展现了我们的学术计算机科学背景。查看这些代码运行效果最简单的地方就是我们的网站 www.itasoftware.com。</p>
+      
+    
+      
+        <p>3. 我们绝大部分“思考”相关的代码都是用 Common Lisp 编写的。我们在 Linux/Intel、HPUX/PA 和 NT/Intel 平台上同时运行 CMUCL 和 Franz，核心搜索引擎大约有 20 万行 Lisp 代码。我们网站的页面生成代码也主要用 Common Lisp 编写，不过其中也有相当一部分 Java 代码。</p>
+      
+    
+      
+        <p>4. 由于我们有大约 2GB 的静态数据需要快速访问，我们使用 C++ 代码来内存映射包含无指针 C 结构体（航班、票价等）的大型文件，然后通过外部数据访问从 Common Lisp 中读取这些数据。一个结构体字段访问会被编译成两到三条指令，因此访问 C 而非 Lisp 对象几乎没有任何性能损失。通过这种方式，我们让 Lisp 垃圾回收器不会看到这些数据（对 Lisp 来说，每个指向 C 对象的指针只是一个 fixnum，尽管我们经常临时把这些指针包装成 Lisp 对象以提高调试能力）。因此我们的 Lisp 镜像只有大约 250MB 的“工作”数据结构和代码。</p>
+      
+    
+      
+        <p>5. 每次访问我们网站的查询都会通过 TCP/IP 发送到一个运行在双 800MHz x86 Linux 服务器（2GB 内存，售价 3000 美元，而类似能力的大型机大约要 100 万美元）上的 Lisp 进程，该进程会为其分配 5 到 15 秒的 CPU 时间。我们的一位客户将拥有 200 台这样的机器，每台运行 2 到 3 个 Lisp 进程。我们通过在一台机器上运行多个进程来节省内存，因为虚拟内存系统会自动在进程间共享我们的只读内存映射文件。</p>
+      
+    
+      
+        <p>6. 如果你想在两周后从 BOS 飞往 LAX，三周后再飞回，愿意接受往返出发时间各有 24 小时的窗口，并限制为“合理”航线（最多 3 段航班，总时长约 10 小时以内），那么大约有 5000 种去程方式和 5000 种回程方式。列出它们基本上是一个简单的图搜索问题（有一些小麻烦，但不多），任何人都可以在几分之一秒内完成。</p>
+      
+    
+      
+        <p>7. 真正的挑战在于，一个固定的行程（从 BOS 到 LAX 的一组固定航班和一组固定的回程航班），即使每方向只有两段航班，也可能有超过 10,000 种适用的“票价”组合，每种票价都有复杂的限制条件，必须针对航班和其他票价进行检查。这意味着这个简单旅程的搜索空间数量级为 5000 × 5000 × 10000，一个朴素的程序需要进行大量计算才能验证每一种可能性。如果 suitably 形式化，甚至无法明确判断寻找最便宜航班的问题是否是 NP 完全的，因为很难为能产生最便宜价格的解决方案的大小设定一个界限。如果你愿意忽略宇宙能量限制，那么实际上可以以一种不算太不合理的方式形式化最便宜价格问题，并通过归约到 Post 对应问题（Post correspondence problem）来证明其不可判定性 :-)。</p>
+      
+    
+      
+        <p>8. 我们的 Lisp 代码运行着非常聪明的算法，能在合理时间内生成一个我们称为“pricing-graph”的数据结构，从中我们可以非常高效地回答形如“给我第 k 个最佳解决方案（一组已验证的航班和票价），按函数 f 排序”的查询，当然前提是对 f 有一定限制，而 pricing-graph 所代表的答案数量根据行程类型在 10^20 到 10^30 之间。通过这种方式，我们可以合理地宣称：在 10 秒内我们能生成 10^30 个答案，即使我们不可能枚举出所有这些答案的列表。</p>
+      
+    
+      
+        <p>9. 我们可以在 800MHz 的机器上进行 10 秒的 Lisp 计算，而只分配不到 5KB 的新数据。这是因为我们预先分配了所有需要的数据结构，并对超出限制的查询直接放弃。这可能会让许多 Lisp 程序员感到不安，但面对 250MB 的镜像和实时性约束，我们无法负担生成垃圾。因而我们不使用 cons，而是使用“cons!”，它从一个预分配的 10,000,000 个单元的数组中获取单元，并在每次查询后重置。</p>
+      
+    
+      
+        <p>10. 我们的大量 Lisp 代码被设计成能编译成非常高效的汇编。我们大量使用 Lisp 的宏功能，但回避了许多其他 Lisp 特性，比如闭包、泛型函数、复杂的序列函数以及垃圾回收。我们正在进行海量的计算——能在现代机器上获得 10 秒时间已经是极大的恩赐——但如果我们有任何一点马虎，10 秒就可能变成十分钟，这对旅行代理或网站来说是无法接受的。我们反汇编几乎每一个 Lisp 函数来寻找低效之处，并推动 CMUCL 和 Franz 对我们的代码进行更好的编译优化。</p>
+      
+    
+      
+        <p>11. 偶尔我们不得不把一些代码从 Lisp 迁移到 C++，通常是因为数据加载问题（Lisp 垃圾回收器无法处理数 GB 的数据，也没有办法快速地将数 GB 数据加载到 Lisp 中）。我们的经验是代码量会膨胀 10 倍；我认为公司里没有任何程序员后悔选择了 Common Lisp。</p>
+      
+    
+      
+        <p>12. 我们在让非 Lisp 程序员阅读、理解并扩展我们的 Lisp 代码方面几乎没有遇到麻烦。唯一真正的问题是，大多数程序员所接受的 Lisp 培训教会他们以非常低效的方式编码，完全不关注编译器。当然，随着 STL 和 Java 的出现，我认为其他语言的程序员也变得相当无知。</p>
+      
+    
+      
+        <p>日期：2002 年 1 月 15 日 星期二 17:49:04 -0800</p>
+      
+    
+      
+        <p>发件人：Carl de Marcken</p>
+      
+    
+      
+        <p>Paul，</p>
+      
+    
+      
+        <p>我不反对把它发布到网站上，但请注明这条消息已经比较旧了，世界在不断变化：我们现在有数千个 CPU 在运行我们的代码，并且有各种航空公司和主要网站（例如 Orbitz）依赖于它。随着我们的系统逐步取代，大型机正在逐渐消失。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://www.paulgraham.com" target="_blank" rel="noopener">paulgraham.com</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'pg_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+</body>
+</html>
