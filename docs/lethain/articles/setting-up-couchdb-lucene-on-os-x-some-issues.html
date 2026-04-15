@@ -29,19 +29,19 @@
   <div class="article-content">
     
       
-        <p>以下是我在 OS X 上安装 CouchDB-Lucene 时整理的步骤。在标准的 OS X 10.5 系统上，你可以直接按照这些步骤操作，我认为在 10.4 上也应该可以。</p>
+        <p>以下是我在 OS X 上安装 CouchDB-Lucene 时整理的步骤。你可以在标准的 OS X 10.5 系统上逐字照着这些步骤操作，10.4 系统应该也可以。</p>
       
     
       
-        <p>在 Linux 系统上的安装过程大体相同，但具体细节会有所差异。至于 Windows，那就别指望了。</p>
+        <p>在 Linux 系统上的安装过程大体相似，但具体细节会有所不同。而 Windows 系统则基本没戏。</p>
       
     
       
-        <p>哦，这里顺便提一下可爱又无模式（Schemaless）的数据库 CouchDB 以及全文搜索引擎 Lucene 的相关页面。</p>
+        <p>哦，这里顺便提一下那两个值得喜爱的项目：无模式数据库 CouchDB 和全文搜索引擎 Lucene。</p>
       
     
       
-        <p>这是本文的第二个版本，更新为使用 Robert Newson 的 CouchDB-Lucene 分支，该分支比 Paul Davis 的版本更新。</p>
+        <p>这是本文的第二个版本，更新为使用 Robert Newson 的 couchdb-lucene 分支，该分支比 Paul Davis 的版本更新。</p>
       
     
       
@@ -123,12 +123,33 @@ will-larsons-macbook:target will$ pwd
       
     
       
+        <pre><code>will-larsons-macbook:couchdb-lucene will$ cd target/
+will-larsons-macbook:target will$ ls
+archive-tmp
+classes
+couchdb-lucene-SNAPSHOT-jar-with-dependencies.jar
+couchdb-lucene-SNAPSHOT.jar
+maven-archiver
+will-larsons-macbook:target will$ pwd
+/Users/will/git/couchdb-lucene/target
+</code></pre>
+      
+    
+      
         <pre><code>/Users/will/git/couchdb-lucene/target/couchdb-lucene-SNAPSHOT-jar-with-dependencies.jar
 </code></pre>
       
     
       
         <pre><code>sudo emacs /usr/local/etc/couchdb/local.ini
+</code></pre>
+      
+    
+      
+        <pre><code>[external]
+fti = /System/Library/Frameworks/JavaVM.framework/Versions/1.6/Commands/java -jar /Users/will/git/couchdb-lucene/target/couchdb-lucene-SNAPSHOT-jar-with-dependencies.jar
+[httpd_db_handlers]
+_fti = {couch_httpd_external, handle_external_req, &lt;&lt;&quot;fti&quot;&gt;&gt;}
 </code></pre>
       
     
@@ -174,11 +195,11 @@ init terminating in do_boot ()
       
     
       
-        <div class="list-content">从 SVN 检出 CouchDB 源码。确认你已经安装了所需依赖。编译它。如果你一个月前尝试安装过 couchdb-lucene，最后气得放弃了，那你的系统里可能还留着一个损坏的 local.ini 文件。（当然你也可能有其他失败路径。）如果是这种情况，请用 CouchDB 源码中的 local.ini 替换你当前的文件。启动 CouchDB 并验证安装是否成功。首先运行它，然后在浏览器中访问 http://127.0.0.1:5984/，你应该会看到以下内容：如果没有安装 Git，请先安装它。你也可以使用 git-osx-installer。克隆 couchdb-lucene 项目。（我习惯把所有 git 仓库放在 ~/git/ 目录下，不过这只是个人喜好。）现在我们请求 OS X 允许使用 Java 1.6。这一步对使用 PowerPC 的用户不可行，使用 10.4 或更早版本的用户也可能无法完成。我觉得这有点荒谬，不过幸好我并不经常在 OS X 上使用 Java。运行位于 Applications/Utilities/Java/Java Preferences 的应用程序（这是一个 GUI 程序，你可以直接用鼠标打开）。打开后，在窗口下半部分把 1.6 拖到最上面（抱歉，这个界面设计得太复杂，很难描述得更精确）。然后退出。注意，它不会告诉你已经做了修改，也不会确认是否保存。真是的。验证修改是否生效：2009 年 2 月 11 日更新：上面修改当前 Java 版本的方法可能还不够。如果你在下面运行 mvn 时遇到错误，提示某个 Java 库缺少静态值 MINUTES，请尝试以下解决方案：我目前没有遇到任何负面影响，但这么做可能整体上不是个好主意，感觉确实有点不对……编译 couchdb-lucene。在这个目录里你应该能找到 couchdb-lucene-SNAPSHOT-jar-with-dependencies.jar 的路径。你需要记住这个文件的完整路径。对我来说是：现在是时候创建一个数据库并向其中上传一些数据了。如果你还没有特定的数据，可以使用 Futon 来设置；访问 http://127.0.0.1:5984/_utils/，创建一个数据库并添加几个文档。打开你的 local.ini 文件。（是的，必须用 Emacs，;)）在其中添加以下内容（记得把 jar 路径改成你系统上的实际路径！）：你可能会说：“但说明里写的是用 /usr/bin/java，管它那么长的路径干嘛！”而我想说，虽然你已经把当前用户的 Java 改成 1.6 了，但 root 用户仍然在使用 Java 1.5，如果你是通过 sudo 运行 CouchDB，那就需要使用较长的完整路径。其实，如果你是用 couchdb 用户运行 CouchDB，可能也需要使用完整路径，因为那个用户很可能也在用 Java 1.5。再做一次完整性检查：关闭 CouchDB（在它运行的终端里按 Control-C），然后重新启动它（这样它就会加载新的 local.ini 文件）。如果你看到以下内容，那就没问题了：相反，如果你看到这个，那就说明你的 local.ini 文件某处有错误。现在来测试一下它是否能正常工作。太棒了！只不过它可能只是返回了一个 application/json 类型的文件，这意味着你的浏览器可能会直接下载它，而不是在页面上显示出来。我们可以在查询后面加上 &amp;debug 来解决这个问题。</div>
+        <div class="list-content">从 SVN 检出 CouchDB 源码。确认你已满足所有依赖条件。编译安装。如果你在一个月前尝试过安装 couchdb-lucene 却最终愤怒放弃，那么你的系统中可能还留有一个损坏的 local.ini 文件。（当然也可能有其他失败的原因。）在这种情况下，请用 CouchDB 源码中的 local.ini 替换你当前的那个文件。启动 CouchDB 并验证是否安装成功。先运行它，然后访问 http://127.0.0.1:5984/，你应该会看到以下内容：如果还没有安装 Git，请先安装它。或者你也可以使用 git-osx-installer。克隆 couchdb-lucene 项目。（我个人喜欢把所有 git 仓库都放在 ~/git/ 目录下，这只是个人习惯。）现在我们得请求 OS X 允许我们使用 Java 1.6。这一步对使用 PowerPC 的用户来说无法实现，使用 10.4 或更早版本的用户也可能不行。我觉得这有点荒谬，不过幸好我不常在 OS X 上用 Java。运行应用程序（这个可以直接用鼠标操作，因为它有图形界面）：Applications/Utilities/Java/Java Preferences。打开后，把 1.6 拖到窗口下方列表的最顶部（抱歉，这个界面实在太反人类，很难描述得更精确）。然后退出。它不会告诉你做了什么修改，也不会确认是否已保存。真是气人。验证修改是否生效：补充（2009/2/11）：上面修改当前 Java 版本的方法可能不够彻底。如果你运行下面的 mvn 时提示某个 Java 库缺少静态值 MINUTES，请尝试以下方案：我目前还没有遇到任何负面影响，但这么做可能总体上不是个好主意，总觉得哪里不对劲……编译 couchdb-lucene。在当前目录下，你应该记下 couchdb-lucene-SNAPSHOT-jar-with-dependencies.jar 的路径。你需要记住这个文件的完整路径。对我来说是：现在可以创建一个数据库，并向其中导入一些数据了。如果你还没有特定数据，可以使用 Futon 来操作：访问 http://127.0.0.1:5984/_utils/，创建一个数据库并添加几个文档。打开你的 local.ini 文件。（没错，必须用 Emacs，;）然后添加以下内容（记得把 jar 路径改成你自己系统的！）：你可能会说：“但说明里不是说用 /usr/bin/java 吗？谁要用那么长的路径！”而我要说，虽然你已经把当前用户改成使用 Java 1.6，但 root 用户仍然在使用 Java 1.5，如果你通过 sudo 运行 CouchDB，就必须使用完整的路径。其实，如果你是通过 couchdb 用户运行 CouchDB，也最好使用完整路径，因为那个用户很可能也在用 Java 1.5。再做一次完整性检查：先关闭 CouchDB（在它运行的终端里按 Control-C），然后重新启动它（这样就会加载新的 local.ini 文件）。如果你看到下面这样，就说明没问题：反之，如果你看到的是这个，那就说明你的 local.ini 文件里某处有错误。现在来测试一下是否能正常工作。太棒了！只是它很可能只是返回了一个 application/json 类型的文件，导致浏览器直接下载而不是直接显示。我们可以在查询末尾加上 &amp;debug 来解决这个问题。</div>
       
     
       
-        <p>好了，现在你已经在 OS X 上成功运行 CouchDB-Lucene 了。</p>
+        <p>至此，你已在 OS X 上成功运行了 CouchDB-Lucene。</p>
       
     
   </div>

@@ -33,15 +33,15 @@
       
     
       
-        <p>（另外，我已大幅简化了在 Google App Engine 上部署 django-springsteen 的流程，具体说明见此文。但你仍需要阅读本文以了解如何定制 Springsteen。）</p>
+        <p>（另外，我已大幅简化了在 Google App Engine 上部署 django-springsteen 的流程，详见此处说明。不过你仍应阅读本文，以了解如何定制 Springsteen。）</p>
       
     
       
-        <p>Vik Singh 几个月前率先在 Google App Engine 上运行了 Yahoo! BOSS，但 django-springsteen 与 BOSS Mashup Framework 是完全不同的“魔法师”，所以还请容许我稍作重复。</p>
+        <p>Vik Singh 几个月前率先在 Google App Engine 上运行了 Yahoo! BOSS，但 django-springsteen 与 BOSS Mashup Framework 属于不同的“魔法”，因此希望你能容忍少许重复的内容。</p>
       
     
       
-        <p>本文将一步步介绍如何利用 Springsteen 内置的对 Yahoo! BOSS、Twitter 和 Amazon 的支持，快速部署一个略具特色的专业搜索引擎。整个过程不应超过半小时。</p>
+        <p>本文将简要介绍如何利用 Springsteen 内置的对 Yahoo! BOSS、Twitter 和 Amazon 的支持，部署一个略具特色的专业搜索引擎。整个过程应该不会超过半小时。</p>
       
     
       
@@ -64,6 +64,28 @@ rm -rf django/bin django/contrib/admin django/contrib/auth
 rm -rf django/contrib/databrowse django/test
 rm -rf django/contrib/admindocs django/contrib/gis
 </code></pre>
+      
+    
+      
+        <pre><code>import logging, os, sys
+# Google App Engine imports.
+from google.appengine.ext.webapp import util
+# Remove the standard version of Django.
+for k in [k for k in sys.modules if k.startswith(&#x27;django&#x27;)]:
+del sys.modules[k]
+# Force sys.path to have our own directory first, in case we want to import
+# from it.
+sys.path.insert(0, os.path.abspath(os.path.dirname(file)))
+# Must set this env var before importing any part of Django
+os.environ[&#x27;DJANGO_SETTINGS_MODULE&#x27;] = &#x27;settings&#x27;
+import django.core.handlers.wsgi
+def main():
+# Create a Django application for WSGI.
+application = django.core.handlers.wsgi.WSGIHandler()
+&lt;span class=&quot;c&quot;&gt;# Run the WSGI CGI handler with that application.&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;util&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;run_wsgi_app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;application&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+if name == &#x27;main&#x27;:
+main()</code></pre>
       
     
       
@@ -153,6 +175,30 @@ from django.conf import settings
       
     
       
+        <pre><code>def ranking(query, results):
+    query = query.lower()
+    def rank(result):
+        score = 0.0
+        title = result[&#x27;title&#x27;].lower()
+        if title in query:
+            score += 1.0
+        return score
+&lt;span class=&quot;n&quot;&gt;scored&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rank&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;results&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;scored2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;domains&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;score&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;scored&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;domain&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;url&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;replace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;http://&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;split&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;/&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)[&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;times_viewed&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;domains&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;domain&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;new_score&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;score&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;times_viewed&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;0.1&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;scored2&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;new_score&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;domains&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;domain&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;times_viewed&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;1&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;scored2&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sort&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;scored2&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+</code></pre>
+      
+    
+      
         <pre><code>&lt;span class=&quot;n&quot;&gt;scored&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rank&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;results&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
 &lt;span class=&quot;n&quot;&gt;scored2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
 &lt;span class=&quot;n&quot;&gt;domains&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
@@ -219,7 +265,83 @@ dev_appserver.py ./
       
     
       
-        <div class="list-content">首先注册一个新的 Google App Engine 应用。我使用的是 djangosearch，因为我第一次写那个蹩脚的 Yahoo! BOSS on GAE 教程时就注册了这个名字。看来我还没有陷入老一套。从 GitHub 上检出 django-springsteen 的源码。接下来我们要从 django-springsteen 的代码仓库中挑选一些有用的部分，针对我们的新需求进行调整，并丢弃其余内容。然后从 djangoproject.com/download/ 下载一个较新的 Django tarball。（我们需要删除部分文件以符合 Google App Engine 每个应用不超过 1000 个文件的限制。你也可以通过压缩文件的方式绕过限制，但这种方法相对更简单。）实际上，除了某些模板中使用了 safe 过滤器之外，django-springsteen 与 Django 0.96 基本兼容。如果你愿意把这些 safe 过滤器去掉，就不必安装较新版本的 Django。接下来我们需要从针对 Google App Engine 的 django_example 中借用几个文件。首先创建 djangosearch/main.py 文件，内容如下。接着创建 djangosearch/app.yaml 文件。（请记得把 djangosearch 替换为你注册的应用名称。）最后是 djangosearch/index.yaml。然后打开 djangosearch/local_settings.py，在文件末尾添加以下内容。创建 djangosearch/boss_settings.py 文件，其中仅包含 BOSS_APP_ID 参数，如果你有 Amazon 账号，也可以加上 AMAZON_ACCESS_KEY。（你需要在这里和这里注册才能获得 AWS Affiliate ID，如果你想在搜索结果中加入 Amazon 结果的话。这算是用 Springsteen 开箱即用的服务来变现的最没创意的办法了。）修改 djangosearch/urls.py 文件，删除所有对 example_project 的引用，同时移除多余的 URL 模式。暂停一下。让我们为新的搜索引擎选一个主题。嗯……好吧，我们做一个专注于 Apple 产品的搜索引擎。能出什么问题呢？接下来配置我们的搜索结果。打开 djangosearch/views.py，先把里面的内容全部清空。从添加以下导入语句开始重建：接着创建我们的 Amazon 商品服务（如果你拥有 Amazon Affiliates AWS Key 的话）。然后创建一个 Apple 风格的 Twitter 服务。最后我们只需混入来自 Yahoo! BOSS 的网页搜索结果，并把新的搜索引擎暴露出去。简短提醒请注意，当你在本地测试 springsteen 应用时，Yahoo! BOSS 的搜索结果无法成功获取。但一旦你将应用部署到生产环境，结果就能正常获取。我会研究一个补丁来解决这个问题，不过不必过于担心。此时我们已经让一切正常工作了，但搜索结果只是简单地叠加在一起。当然，你可能会喜欢把 Amazon 联盟链接堆在最上面，但用户未必喜欢。现在是时候稍微接触一下相关性（relevancy）了。你肯定希望最相关的结果能冒到顶部（可以在这里玩个冒泡排序的梗），但如果只是简单地把不同来源的结果堆在一起，除非来源 A 的所有结果都比来源 B 更相关，来源 B 的所有结果都比来源 C 更相关，以此类推，否则无法实现这一点。下面我们来实现一个非常简单的相关性算法来解决这些问题。你可以把相关性方法分为两类：根据结果自身价值打分，我们可以称之为内在相关性（intrinsic relevance）；根据结果之间的相互关系打分，我们可以称之为上下文相关性（contextual relevance）。我们在这里将二者稍作结合。首先提升标题中包含查询词的结果，其次对来自已出现过的域名的第 2 到第 N 个结果进行惩罚。将以下代码放在 views.py 中 search 函数的上方。然后更新 search 函数，让它使用这个排序函数。现在我们的搜索结果会使用上面的排序函数进行排名。这是一种相当基础的相关性处理方式，但希望能展示基本的概念。现在搜索引擎已经可以运行了，是时候定制你网站的模板了。首先在 djangosearch 目录下创建一个 templates 文件夹，再创建一个 templates/springsteen 子文件夹，并放入几个空文件。然后编辑 templates/base.html 文件。接下来编辑 templates/springsteen/base.html（这个文件内容很少）。随着你继续定制搜索结果的外观，你可能会想要覆盖 templates/springsteen/results.html，但目前它作为默认模板已经相当不错了。创建一些 CSS 来美化网站。目前的 base.html 假设你会提供 reset.css 和 search.css 文件。最近我倾向于使用 YUI 的 reset.css，并为 search.css 简单拼凑了一些自定义样式。测试一切是否正常。如果一切正常，就可以将其推送到 Google App Engine，大功告成。</div>
+        <div class="list-content">首先注册一个新的 Google App Engine 应用。我使用的是 djangosearch，因为我第一次写那个简陋的 Yahoo! BOSS on GAE 教程时已经注册过了。看来我还没有陷入僵化，这挺好的。
+
+从 GitHub 上检出 django-springsteen 的源代码。
+
+现在我们要从 django-springsteen 的代码仓库中挑选一些有用的部分，根据我们的新需求进行调整，并丢弃其余内容。
+
+接下来从 djangoproject.com/download/ 下载最新的 Django tarball。
+
+（我们需要删除这些文件以满足 Google App Engine 单个应用不超过 1000 个文件的限制。你也可以通过文件压缩等技巧来规避，但这种方式相对简单一些。）
+
+实际上，django-springsteen 与 Django 0.96 基本兼容，唯一的问题是部分模板中使用了 safe 过滤器。如果你愿意把这些 safe 过滤器去掉，就不必安装较新版本的 Django。
+
+接下来我们需要从 Google App Engine 的 django_example 中借用几个文件。
+
+首先创建 djangosearch/main.py 文件，内容如下。
+
+接下来创建 djangosearch/app.yaml 文件。（请记得将 djangosearch 替换为你注册的应用名称。）
+
+最后创建 djangosearch/index.yaml。
+
+然后打开 djangosearch/local_settings.py，在文件末尾添加以下内容。
+
+创建 djangosearch/boss_settings.py 文件，只需包含 BOSS_APP_ID 参数，如果你有 Amazon 密钥，也可以加上 AMAZON_ACCESS_KEY。
+
+（如果你希望在搜索结果中包含 Amazon 商品，需要在这里和这里注册以获取 AWS Affiliate ID。对于开箱即用的 Springsteen 服务来说，这是最没创意的 monetization 方式。）
+
+修改 djangosearch/urls.py 文件，删除所有对 example_project 的引用，并移除多余的 URL 模式。
+
+暂停一下。让我们为新的搜索引擎选一个主题。嗯……嗯……好吧，我们做一个专注于 Apple 产品的搜索引擎。能出什么问题呢？
+
+接下来配置我们的搜索结果。打开 djangosearch/views.py，先把所有内容清空。
+
+然后从添加以下 import 开始重建：
+
+接下来创建 Amazon 商品服务（如果你有 Amazon Affiliates AWS 密钥的话）。
+
+接着创建一个 Apple 风味的 Twitter 服务。
+
+最后我们只需混入来自 Yahoo! BOSS 的网页搜索结果，然后把新的搜索引擎暴露出去。
+
+简短提醒
+
+请注意，当你在本地测试 springsteen 应用时，Yahoo! BOSS 的搜索结果无法成功获取。但一旦你将应用推送到生产环境，结果就能正常获取。我会研究一个补丁来解决这个问题，但不必过于担心。
+
+至此所有功能都已正常工作，但搜索结果只是简单地堆叠在一起。当然，你可能喜欢把 Amazon 联盟链接放在最上面，但用户未必喜欢。现在是浅尝一下相关性排序的好时机。
+
+你肯定希望最相关的结果排在最前面（可以在这里玩个冒泡排序的梗），但简单地把不同来源的结果堆叠在一起无法实现这一点，除非来源 A 的所有结果都比来源 B 更相关，来源 B 的所有结果都比来源 C 更相关，以此类推。下面我们尝试实现一个非常简单的相关性算法来解决这些问题。
+
+你可以把相关性方法分为两类：
+- 根据结果自身特点打分，我们可以称之为内在相关性（intrinsic relevance）。
+- 根据结果之间的相互关系打分，我们可以称之为上下文相关性（contextual relevance）。
+
+我们在这里会两者都用一点。首先提升标题中包含查询词的结果，其次对来自已出现过的域名的第 2 至第 N 条结果进行惩罚。
+
+把以下代码放在 views.py 中 search 函数的上方。
+
+然后更新 search 函数，让它使用这个排序函数。
+
+现在我们的结果会使用上面的排序函数进行排名。这是一种相当基础的相关性处理方式，但希望能说明基本概念。
+
+现在搜索引擎已经可以正常运行了，是时候定制网站的模板了。
+
+首先在 djangosearch 目录下创建一个 templates 文件夹，再创建一个 templates/springsteen 子文件夹，并放入几个空文件。
+
+然后编辑 templates/base.html 文件。
+
+接下来编辑 templates/springsteen/base.html（这个文件内容很简短）。
+
+随着你继续定制搜索结果的外观，你可能会想要覆盖 templates/springsteen/results.html，但目前它已经是一个合理的默认模板了。
+
+创建一些 CSS 来美化网站。
+
+当前的 base.html 假设你会有 reset.css 和 search.css 文件。最近我倾向于使用 YUI 的 reset.css，然后为 search.css 拼凑了一些自定义样式。
+
+测试一切是否正常。
+
+如果一切正常，就可以推送到 Google App Engine，大功告成。</div>
       
     
       
@@ -234,19 +356,25 @@ SPRINGSTEEN_MAX_MATCHES = 10
       
     
       
-        <div class="list-content">你会发现默认情况下你无法翻页超过 3-4 页。这是因为 Springsteen 内置了一个安全机制，当你面对大量数据源时这个机制很有意义，但当你实际上只使用一个数据源时就显得有点烦人了。你可以在 local_settings.py 中通过添加下面这行来覆盖该设置：另外，目前这个配置没有使用任何缓存，因此在翻到较靠后的页数时（例如显示第 100-110 条结果）效率会很低。在 GAE 上可以使用 memcache，我会在未来一两天内写一个补丁，让 Springsteen 能够利用这一功能。</div>
+        <div class="list-content">你会发现默认情况下只能翻到 3-4 页。这是因为 Springsteen 内置了一个安全机制，当你对接大量数据源时这个机制很有意义，但当你实际上只使用一个数据源时就显得有点烦人了。
+
+你可以在 local_settings.py 中添加下面这行来覆盖该设置：
+
+另外，目前这个配置没有使用任何缓存，因此在翻到较后面的页数时（例如显示第 100-110 条结果）效率会明显下降。
+
+在 GAE 上是可以使用 memcache 的，我会在接下来一两天内写一个补丁，让 Springsteen 能够利用这项功能。</div>
       
     
       
-        <p>如果你在 Google App Engine 上部署 Springsteen 时遇到任何问题或有疑问，请告诉我！我觉得如今的技术环境已经非常惊人，能以零成本、几乎零投入的方式推出这样一个产品。</p>
+        <p>如果你在 Google App Engine 上部署 Springsteen 时遇到任何问题或有疑问，请告诉我！我觉得如今的技术环境已经非常惊人，能以零成本和几乎零门槛的方式推出这样一款产品。</p>
       
     
       
-        <p>我想我们有责任好好利用它。</p>
+        <p>我想我们有责任好好利用这一点。</p>
       
     
       
-        <p>我会在一两天内发布一个可复用的软件包，等我把缓存机制更新为能与 Google App Engine 良好配合的版本之后再发布。（如果我现在就发布，人们会立即使用，然后抱怨它表现得和宣传的一样……）</p>
+        <p>我会在一两天内发布一个可复用的打包版本，前提是我把缓存机制更新到能够与 Google App Engine 友好配合。（如果我现在就发布，大家会用它，然后抱怨它“表现得和广告里说的一样”……）</p>
       
     
   </div>

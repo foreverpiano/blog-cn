@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>优雅地扩展 Python Markdown 以实现语法高亮 · Will Larson 文集</title>
+  <title>干净地扩展 Python Markdown 以实现语法高亮 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>优雅地扩展 Python Markdown 以实现语法高亮</h1>
+    <h1>干净地扩展 Python Markdown 以实现语法高亮</h1>
     <div class="meta">
       2008-01-09 · 
       <a href="https://lethain.com/cleanly-extending-python-markdown-syntax-highlight/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,11 +29,11 @@
   <div class="article-content">
     
       
-        <p>当我开始搭建自己的博客时，最先着手的事情之一就是为文章添加代码语法高亮功能。我甚至为此写过一篇比较粗糙的文章。</p>
+        <p>当我最初开始搭建自己的博客时，最先着手的事情之一就是为文章添加代码语法高亮功能。我甚至为此写过一篇比较粗糙的文章。</p>
       
     
       
-        <p>整个问题的核心在于扩展 Markdown，使其支持一种能够标记需要高亮代码块的语法。我至今仍很满意自己当时选择的语法：</p>
+        <p>整个挑战的核心在于如何扩展 Markdown，让它支持一种能标明代码块需要高亮的语法。我至今仍然很喜欢自己选择的这种语法：</p>
       
     
       
@@ -43,24 +43,30 @@
       
     
       
-        <p>它并不花哨，但足以完成任务。然而，我第一次尝试扩展 Python-Markdown 来正确渲染这种语法时，写得相当糟糕。虽然它能工作，效果也还行，但它几乎把整个 Python-Markdown 库都搅得一团糟。</p>
+        <pre><code>def add(a, b):
+    return a + b
+</code></pre>
       
     
       
-        <p>在某些情况下这或许可以原谅，但 Python-Markdown 的开发者特意将它设计成易于扩展的……所以我对此感到有些愧疚。由于最近在博客软件上投入了很多精力，我决定是时候修正之前的愚蠢行为了。</p>
+        <p>它并不花哨，但足以完成任务。然而，我第一次尝试扩展 Python-Markdown 来正确渲染这种语法时，写得相当糟糕。虽然它确实能工作，效果也还凑合，但它在运行过程中把整个 Python-Markdown 库搞得乱七八糟。</p>
       
     
       
-        <p>让我们开始动手吧。</p>
+        <p>在某些情况下这或许可以原谅，但 Python-Markdown 的实现者已经特意让它变得易于扩展……所以我对此感到有些心虚。随着我越来越多地改进自己的博客软件，我决定现在是时候修正之前的愚蠢行为了。</p>
       
     
       
-        <h3>第一步：获取一份新的 Markdown</h3>
+        <p>让我们开始吧。</p>
+      
+    
+      
+        <h3>第一步：获取一份新的 Markdown 副本</h3>
         
       
     
       
-        <p>我之前修改过的 Markdown 副本已经残破不堪，所以我需要一份全新的。同时你最好也顺便安装一份 Pygments。</p>
+        <p>我之前修改过的 Markdown 副本已经残破不堪，所以我必须重新获取一份全新的。你同时也应该顺便安装一份 pygments。</p>
       
     
       
@@ -74,15 +80,15 @@
       
     
       
-        <p>Markdown 库中有一个功能完整的示例（搜索 FOOTNOTE 即可跳转到它），这非常有用。每当遇到困惑时，就去参考它寻求指导。</p>
+        <p>Markdown 库中有一个功能完整的示例（搜索 FOOTNOTE 就能跳转到它），这非常有帮助。每当你感到困惑时，就去参考那个示例。</p>
       
     
       
-        <p>现在我们需要创建一个新模块来存放我们的代码。它不应该（也不适合）与 markdown.py 放在同一个文件中。我把它命名为 code.py，因为我把它放在了一个叫 markup 的文件夹里。如果你把它放在名称不那么明确的文件夹中，可能需要取一个更好的名字。</p>
+        <p>现在我们需要新建一个模块来存放我们的代码。它不应该（也不适合）和 markdown.py 放在同一个文件中。我把它命名为 code.py，并放在一个叫 markup 的文件夹里。如果你把它放在名称不那么明确的文件夹中，可能需要起一个更好的名字。</p>
       
     
       
-        <p>你首先需要编写的是一个预处理器。预处理器需要定义一个函数：</p>
+        <p>你首先需要编写的是一个 preprocessor。Preprocessor 需要定义一个函数：</p>
       
     
       
@@ -93,7 +99,7 @@
       
     
       
-        <p>Markdown 库会按 &quot;\n&quot; 分割所有行，然后把结果传给你。如果你想把文本当作一个整体来处理，就得自己重新拼接：</p>
+        <p>Markdown 库会按照 &quot;\n&quot; 分割所有行，然后把结果传给你。如果你想把文本当作一个整体来处理，就得自己重新拼接：</p>
       
     
       
@@ -102,7 +108,7 @@
       
     
       
-        <p>所以我们的类将命名为 CodeBlockPreprocessor（很抓眼球吧），它将包含以下 run 方法：</p>
+        <p>所以我们的类将命名为 CodeBlockPreprocessor（挺好记的，对吧），它将包含以下 run 方法：</p>
       
     
       
@@ -132,15 +138,15 @@
       
     
       
-        <p>我们逐行遍历，寻找代码块的起始标记（一行开头连续的两个 @ 符号）。找到后就忽略后续内容，直到遇到结束标记（如果没有结束标记，那么起始标记之后的所有内容都会被丢弃……虽然有点粗糙，但也能防止不该出现的内容混进来）。然后我们使用 Pygments 对起始和结束标记之间的代码进行着色，使用起始行指定的 lexer（例如 @@ ruby 就使用 ruby，@@ html+django 就使用 html+django）。</p>
+        <p>我们遍历所有行，寻找代码块的开始标记（即一行开头连续的两个 @ 符号）。找到之后就忽略后续文本，直到遇到结束标记（如果没有结束标记，那么开始标记之后的所有内容都会被丢弃……虽然有点粗暴，但也不会让不想要的内容混进来）。然后我们使用 Pygments 对开始和结束标记之间的代码进行着色，使用的 lexer 由代码块开始那一行指定（例如 @@ ruby 会使用 ruby lexer，@@ html+django 则使用 html+django）。</p>
       
     
       
-        <p>完成 run 方法之后，我们只需再写一些通用代码，很快就能得到一个干净的 Python-Markdown 扩展。</p>
+        <p>完成 run 方法之后，我们只需再写一些通用的代码，很快就能得到一个干净的 Python-Markdown 扩展。</p>
       
     
       
-        <p>首先我们需要在文件顶部引入一些模块：</p>
+        <p>首先我们需要在文件顶部进行一些引入：</p>
       
     
       
@@ -153,7 +159,7 @@ from pygments.lexers import get_lexer_by_name
       
     
       
-        <p>然后我们要编写一个简单的类，用来注册我们的新预处理器。</p>
+        <p>然后我们需要编写一个简单的类，用来管理我们新加入的 preprocessor。</p>
       
     
       
@@ -167,11 +173,11 @@ from pygments.lexers import get_lexer_by_name
       
     
       
-        <p>这可能是最简单的类了。它接收一个 Markdown 类的实例，然后将 CodeBlockPreprocessor 的实例添加到其预处理器列表中（放在 HTML_BLOCK_PREPROCESSOR 之前）。</p>
+        <p>这个类非常简单。你接收一个 Markdown 类的实例，然后把 CodeBlockPreprocessor 的实例添加到它的 preprocessor 列表中（放在 HTML_BLOCK_PREPROCESSOR 之前）。</p>
       
     
       
-        <p>最后，我们需要写一个函数来使用新的预处理器调用 markdown。</p>
+        <p>最后，我们需要写一个函数，用我们新的 preprocessor 来调用 markdown。</p>
       
     
       
@@ -185,7 +191,7 @@ from pygments.lexers import get_lexer_by_name
       
     
       
-        <p>我们创建一个 Markdown 实例，添加我们的扩展，然后就可以渲染了。如果需要，我们也可以让它支持从命令行接收参数：</p>
+        <p>我们创建一个 Markdown 实例，添加我们的扩展，然后就开始渲染。如果需要，我们也可以让它接受命令行参数：</p>
       
     
       
@@ -195,7 +201,7 @@ from pygments.lexers import get_lexer_by_name
       
     
       
-        <p>虽然第一次修改 Python-Markdown 时感觉费力不讨好，但它实际上是一个设计精良的库，也是“如何设计便于他人干净扩展的库”的好范例。有空的时候读读它的源码吧。</p>
+        <p>虽然第一次修改 Python-Markdown 时感觉付出的努力大于收获，但它实际上是一个设计非常优秀的库，也是“如何设计易于被他人干净扩展的库”的好范例。有空的时候读读它的源码吧。</p>
       
     
   </div>

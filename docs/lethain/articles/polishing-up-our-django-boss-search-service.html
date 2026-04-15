@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>完善我们的 Django 与 Yahoo BOSS 搜索服务 · Will Larson 文集</title>
+  <title>完善我们的 Django 与 BOSS 搜索服务 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>完善我们的 Django 与 Yahoo BOSS 搜索服务</h1>
+    <h1>完善我们的 Django 与 BOSS 搜索服务</h1>
     <div class="meta">
       2008-07-12 · 
       <a href="https://lethain.com/polishing-up-our-django-boss-search-service/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,11 +29,11 @@
   <div class="article-content">
     
       
-        <p>在本系列的第一部分，我们花了不少时间搭建 Yahoo BOSS Mashup Framework，最后实现了一个极其简陋的搜索服务。如果您没有跟着第一部分实践，可以在这里下载我们已完成的代码压缩包，但仍需按照第一部分的说明去申请 BOSS App ID。本系列第二部分，我们将进一步完善这个搜索服务：</p>
+        <p>在本系列的第一部分，我们花了一些时间来搭建 Yahoo BOSS Mashup Framework，最后实现了一个极为简陋的搜索服务。如果你没有跟随第一部分进行实践，可以在这里下载我们已开发完成的代码压缩包，但你仍需按照第一部分的说明获取 BOSS App ID。在本系列的第二部分，我们将进一步丰富这个搜索服务：</p>
       
     
       
-        <div class="list-content">我们要让用户能够搜索网页、Yahoo 新闻或图片，并支持对搜索结果进行分页浏览。</div>
+        <div class="list-content">我们将允许用户搜索网页、Yahoo 新闻或图片。同时支持用户对搜索结果进行分页浏览。</div>
       
     
       
@@ -46,7 +46,7 @@
       
     
       
-        <p>首先，打开 my_search/yahoo_search/views.py，看看里面的 SearchForm。目前它的内容是这样的：</p>
+        <p>首先，打开 my_search/yahoo_search/views.py 文件，查看其中的 SearchForm。目前它的内容如下：</p>
       
     
       
@@ -56,7 +56,7 @@
       
     
       
-        <p>接下来我们要为其增加切换搜索类型的能力：</p>
+        <p>现在我们要增加切换搜索类型的能力：</p>
       
     
       
@@ -73,7 +73,7 @@ search_type = forms.ChoiceField(SEARCH_TYPES)
       
     
       
-        <p>现在我们来改进 search 函数，让它接受第二个参数，用于决定执行哪种类型的搜索。</p>
+        <p>接下来我们改进 search 函数，让它接受第二个参数来决定执行哪种类型的搜索。</p>
       
     
       
@@ -85,7 +85,7 @@ search_type = forms.ChoiceField(SEARCH_TYPES)
       
     
       
-        <p>然后更新 index 函数，将我们通过 SearchForm 获取到的 search_type 值传递给 search 函数。</p>
+        <p>然后更新 index 函数，将 SearchForm 捕获的 search_type 值传递给 search 函数。</p>
       
     
       
@@ -104,7 +104,7 @@ search_type = forms.ChoiceField(SEARCH_TYPES)
       
     
       
-        <p>现在可以运行开发服务器了。</p>
+        <p>现在，运行开发服务器。</p>
       
     
       
@@ -113,7 +113,7 @@ search_type = forms.ChoiceField(SEARCH_TYPES)
       
     
       
-        <p>然后访问 http://127.0.0.1:8000/，你会发现现在可以搜索网页、图片或 Yahoo 新闻了。挺不错的。接下来我们着手实现搜索结果的分页功能。</p>
+        <p>然后访问 http://127.0.0.1:8000/，你会发现现在可以搜索网页、图片或 Yahoo 新闻了。相当不错。接下来我们着手实现搜索结果的分页功能。</p>
       
     
       
@@ -122,11 +122,32 @@ search_type = forms.ChoiceField(SEARCH_TYPES)
       
     
       
-        <p>在使用 Django 时，一提到分页，你首先应该想到的是 Paginator 类，它能帮你处理所有分页相关的繁杂逻辑。不过，我们这里处理的不是普通的列表（或 QuerySet，否则就可以直接使用 QuerySetPaginator），所以需要稍作调整。</p>
+        <p>当你在使用 Django 并想到分页时，应该立刻联想到 Paginator 类，它能很好地处理所有分页的复杂细节。然而，我们当前处理的并非普通的列表（或 QuerySet，否则我们可以使用 QuerySetPaginator），因此需要做一些适配工作。</p>
       
     
       
-        <p>我们将创建一个中间类 BossResultList，来实现 Paginator 所需的那部分 Python 列表功能。幸运的是，只需要实现三个方法：__getitem__(self, i)、__getslice__ 和 __len__。在 my_search/yahoo_search 目录下创建一个 boss_utils.py 文件，并在其中加入以下代码：</p>
+        <p>我们将通过创建一个中间类 BossResultList 来实现，该类会提供 Paginator 所需的部分 Python 列表功能。幸运的是，只需要实现三个方法：__getitem__(self, i)、__getslice__ 和 __len__。在 my_search/yahoo_search 目录下创建一个名为 boss_utils.py 的文件，并在其中写入以下代码：</p>
+      
+    
+      
+        <pre><code>from yos.yql import db
+class BossResultList(object):
+def init(self, response):
+self.data = response
+details = self.data[&#x27;ysearchresponse&#x27;]
+self.__start = int(details[&#x27;start&#x27;])
+self.__count = int(details[&#x27;count&#x27;])
+self.__totalhits = int(details[&#x27;totalhits&#x27;])
+self.__results = db.create(data=self.data).rows
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;__getitem__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__results&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;__getslice__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;j&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__results&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;j&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;__len__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;         
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__totalhits&lt;/span&gt;
+</code></pre>
       
     
       
@@ -142,11 +163,11 @@ search_type = forms.ChoiceField(SEARCH_TYPES)
       
     
       
-        <p>BossResultList 接收 ysearch_search 的返回结果，并将其伪装成一个列表。这种抽象并不完美，因为它只能访问初始化时传入的那部分结果，但已经足以让我们利用 Paginator 了。</p>
+        <p>BossResultList 接收 ysearch_search 的返回结果，并将其伪装成一个列表。这并不是一个完美的抽象，因为它只允许访问初始化时传入的结果子集，但这已足以让我们利用 Paginator。</p>
       
     
       
-        <p>现在回到 my_search/yahoo_search/views.py，添加两个导入：</p>
+        <p>现在回到 my_search/yahoo_search/views.py，添加两个导入语句：</p>
       
     
       
@@ -156,7 +177,7 @@ from boss_utils import BossResultList
       
     
       
-        <p>然后修改 search 函数，使其能良好地配合我们新创建的 BossResultList。</p>
+        <p>然后我们调整 search 函数，使其能与新的 BossResultList 良好协作。</p>
       
     
       
@@ -166,11 +187,11 @@ from boss_utils import BossResultList
       
     
       
-        <p>这个改动是必要的，因为 BossResultList 需要直接使用返回结果中的某些数据，而这些数据在通过 db.create 存入数据库后就无法保留了。（特别是 totalhits 字段，我们需要用它来告诉用户针对当前查询一共可以提供多少页结果。）</p>
+        <p>这个改动是必要的，因为 BossResultList 需要直接使用返回结果中的某些数据，而这些数据在通过 db.create 转换为数据库对象后就无法保留了。（特别是它需要访问 totalhits 字段，以便告诉用户针对当前搜索词我们可以提供多少页结果。）</p>
       
     
       
-        <p>在完成搜索应用的更新之前，还剩下两个小细节：重构 index 函数，并更新 index.html 模板。更新模板相对简单，但必须先写好 index 函数，而这部分需要进行一次较为彻底的重写。因为改动较多，我会先给出完整的函数代码，让你先阅读一遍，然后再对其中几个关键点进行说明。</p>
+        <p>在完成搜索应用的更新之前，我们还剩下两个小细节：重构 index 函数，以及更新 index.html 模板。更新模板相对简单，但必须先写好 index 函数，而这需要对函数进行一次较为彻底的重写。由于改动较多，我会先给出完整函数，让你先阅读一遍，然后再对其中几个关键细节进行说明。</p>
       
     
       
@@ -202,7 +223,7 @@ from boss_utils import BossResultList
       
     
       
-        <div class="list-content">我们现在改用 GET 而不是 POST。其实一开始就不应该用 POST，在此表示歉意。因为使用 GET，很难区分用户是第一次访问页面还是在提交搜索请求。这也是为什么当表单无效时，我们不显示 newforms 生成的错误信息，而是展示一个空的表单：只有用户首次进入页面时才会遇到无效表单，我们不希望一上来就给用户看到错误提示。Paginator 的页码从 1 开始计数，而不是从 0，所以我们计算 start 时使用 (page-1)*count 而不是 page*count。我们需要 total_pages 和 page，因为要让用户知道自己当前在搜索结果的哪个位置（例如，第 5 页，共 412 页）。</div>
+        <div class="list-content">我们现在改用 GET 而非 POST。其实一开始就不应该使用 POST，对此我表示抱歉。因为改用 GET 后，很难区分用户是第一次访问页面还是在提交搜索请求。这也是为什么当表单无效时，我们不显示 newforms 生成的错误信息，而是显示一个空表单：只有用户首次进入页面时才会遇到无效表单，我们不希望用错误信息来迎接新用户。Paginator 的页码从 1 开始而非 0，因此我们计算 start 时使用 (page-1)*count 而不是 page*count。我们需要 total_pages 和 page，因为希望让用户知道自己当前处于搜索结果的第几页（例如，第 5 页，共 412 页）。</div>
       
     
       
@@ -211,7 +232,7 @@ from boss_utils import BossResultList
       
     
       
-        <p>和 index 函数类似，index.html 模板也进行了大幅度的修改。幸运的是，模板的改动大多不难理解。重构后的模板大致如下：</p>
+        <p>和 index 函数一样，index.html 模板也进行了大幅度的调整。幸运的是，模板的改动大多不难理解。改版后的模板内容如下：</p>
       
     
       
@@ -254,7 +275,7 @@ from boss_utils import BossResultList
       
     
       
-        <p>最复杂的地方在于处理结果页面的前进和后退。我们主要依靠 Paginator 返回的 Page 对象来处理大部分复杂逻辑（在模板里这个 Page 被命名为 results），但因为还需要同时保留搜索关键词和搜索类型，代码会稍微复杂一些。</p>
+        <p>最复杂的地方在于处理搜索结果页面的前进和后退。我们在这里大量使用 Paginator 返回的 Page 对象来处理大部分复杂逻辑（在模板上下文中该 Page 被命名为 results），但因为还需要跟踪搜索关键词和搜索类型，所以会稍微复杂一些。</p>
       
     
       
@@ -263,16 +284,16 @@ from boss_utils import BossResultList
       
     
       
-        <p>你可以在这里获取本教程的完整代码。请注意，你需要按照本教程第一部分的说明申请 Yahoo BOSS App ID，并在 my_project/config.json 中填写相应的配置信息。</p>
+        <p>你可以在这里获取本教程的完整代码。请注意，你需要按照本教程第一部分的说明获取 Yahoo BOSS App ID，并将你的配置信息填写到 my_project/config.json 文件中。</p>
       
     
       
-        <h3>试一试</h3>
+        <h3>实际体验</h3>
         
       
     
       
-        <p>好了，现在我们可以测试一下全部功能了。进入 my_search 目录，运行开发服务器。</p>
+        <p>好了，现在我们可以测试一下所有功能了。进入 my_search 目录，运行开发服务器。</p>
       
     
       
@@ -281,7 +302,7 @@ from boss_utils import BossResultList
       
     
       
-        <p>然后访问 http://127.0.0.1:8000/，你会看到改进后的搜索界面，大致如下：</p>
+        <p>然后访问 http://127.0.0.1:8000/，你会看到改进后的搜索引擎界面如下：</p>
       
     
       
@@ -292,11 +313,11 @@ from boss_utils import BossResultList
       
     
       
-        <p>挺不错的，你说呢？希望这个教程对你有帮助，如果有任何问题，欢迎随时告诉我。</p>
+        <p>挺酷的，不是吗？希望这个教程对你有所帮助，如果有任何问题，欢迎随时告诉我。</p>
       
     
       
-        <div class="list-content">Python 文档明确指出 __getslice__ 已被弃用，但文档中建议的“使用 slice object”的处理方式却完全没有说清楚。因此我采用了快速简便的实现方式，同时也承认这并不是推荐的做法。↩当然，实现一个更完整的版本，让用户能够无缝访问整个搜索结果集会是一个很有趣的练习，如果有时间我会尝试把它做出来。↩</div>
+        <div class="list-content">Python 官方文档明确指出 __getslice__ 已被废弃，但文档建议的“使用 slice 对象”的处理方式却完全没有说清楚。因此我采用了这种快速简单的方式，同时也承认这并非推荐的做法。↩当然，实现一个更完整的版本以支持无缝访问整个搜索结果集会是一个很有趣的练习，如果有时间我会尝试把它做出来。↩</div>
       
     
   </div>

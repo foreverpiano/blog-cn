@@ -29,15 +29,15 @@
   <div class="article-content">
     
       
-        <p>我一直在慢慢丰富与 Cocos2d iPhone 相关的文章，在这篇文章中，我想展示一些真正实用的代码，来解决 iPhone 游戏开发者普遍面临的一个问题：如何制作一个新手教学指南，帮助新用户学会玩我的游戏？</p>
+        <p>我一直在逐步增加与 Cocos2d iPhone 相关的文章。在这篇文章中，我想展示一些真正实用的代码，来解决 iPhone 游戏开发者普遍面临的一个问题：如何创建一个新手指南，帮助新用户学会玩我的游戏？</p>
       
     
       
-        <p>下面的代码实现了一个简单的幻灯片播放器，它可以循环显示任意数量的图片和文本标签，播放结束后会将自身从场景栈中弹出。在此过程中，我们还将完整演示如何在 Cocos2d 中处理触摸检测，并体会到 Cocos2d iPhone 开发是多么快捷和令人愉快。</p>
+        <p>下面的代码实现了一个简单的幻灯片播放器，它可以循环显示任意数量的图片和文字标签，播放结束后会自动从场景栈中弹出自己。在此过程中，我们将完整演示如何在 Cocos2d 中处理触摸检测，并体会到 Cocos2d iPhone 开发是多么快捷和令人愉悦。</p>
       
     
       
-        <p>SlideShowLayer 类的使用方法如下：</p>
+        <p>SlideShowLayer 类的使用方式如下：</p>
       
     
       
@@ -70,11 +70,11 @@ SlideShowLayer * ssl = [SlideShowLayer node];
       
     
       
-        <p>目前还有一些限制（所有标签和图片必须位于同一位置，且所有标签必须具有相同的宽高），但在此基础上进行改进应该并不困难。除此之外，它已经是一个相当可复用且灵活的工具，足以用来展示最简单的幻灯片。</p>
+        <p>目前还存在一些限制（所有标签和图片必须位于同一位置，且所有标签必须具有相同的高度和宽度），但针对这些方面对代码进行改进应该并不困难。除此之外，它已经是一个相当可复用且灵活的工具，足以用来展示最简单的幻灯片。</p>
       
     
       
-        <p>我将把完整代码分成两大块（SlideShowLayer.h 一块，SlideShowLayer.m 一块）贴出，以便大家直接复制粘贴。注释会以内联的 Objective-C 注释形式写在代码中。</p>
+        <p>我会将完整代码分成两大块（SlideShowLayer.h 一块，SlideShowLayer.m 一块）贴出来，方便大家直接复制粘贴。注释会以内联的 Objective-C 注释形式写在代码中。</p>
       
     
       
@@ -165,16 +165,186 @@ andDescription: (NSString )descString;
       
     
       
+        <pre><code>/* 
+ *  SlideShowLayer by Will Larson and Luke Hatcher. 10/29/2008.
+ *  Released under MIT License.
+ *  Please check out from repository for full license detail.
+ */
+#import &quot;SlideShowLayer.h&quot;
+@implementation SlideShowLayer
+-(id)init {
+self = [super init];
+if (self) {
+/*
+         * setting isTouchEnabled is the magic step that
+         * allows the layer to be registered for UI events.
+         * forgetting this step will lead to great confusion :-/
+         */
+isTouchEnabled = YES;
+slidePosition = -1;
+backgrounds = [[NSMutableArray alloc] init];
+descriptions = [[NSMutableArray alloc] init];
+[self setFontName:@&quot;Helvetica&quot;];
+[self setFontSize:24];
+}
+return self;
+}
+- (void) dealloc {
+[backgrounds release];
+backgrounds = nil;
+[descriptions release];
+descriptions = nil;
+[background release];
+background = nil;
+[description release];
+description = nil;
+[fontSize release];
+fontSize = nil;
+[super dealloc];
+}
+-(void)touchesEnded:(NSSet )touches withEvent:(UIEvent )event {
+/*
+     *  We are using pushScene/popScene instead of replaceScene
+     *  (which has superior memory usage characteristics), because
+     *  it makes integrating SlideShowLayer much simpler, and helps
+     *  avoid binding the code to one application without requiring
+     *  us to use the delegate pattern.
+     */
+if ([self hasNextSlide]) [self displayNextSlide];     
+else [[Director sharedDirector] popScene];
+}
+-(void)addSlideWithBackground: (NSString )imageString
+andDescription: (NSString )descString {
+[[self backgrounds] addObject:imageString];
+[[self descriptions] addObject:descString];
+}
+-(void)displayFirstSlide {
+if ([[self backgrounds] count] &gt; 0) {
+[self setSlidePosition:0];
+[self displaySlide:[self slidePosition]];
+}
+}
+-(void)displayNextSlide {
+if ([self hasNextSlide]) {
+[self setSlidePosition:[self slidePosition]+1];
+[self displaySlide:[self slidePosition]];
+}
+}
+-(void)displayPreviousSlide {
+if ([self hasPreviousSlide]) {
+[self setSlidePosition:[self slidePosition]-1];
+[self displaySlide:[self slidePosition]];
+}
+}
+-(void)displaySlide: (int)slideNumber {
+/*
+     * Remove existing slide and description.
+     */
+if ([self background]) {
+[self remove:[self background]];
+}
+if ([self description]) {
+[self remove:[self description]];
+}
+&lt;span class=&quot;c&quot;&gt;/*&lt;/span&gt;
+* Retrieve and generate necessary details for next slide.
+/
+NSString bgString = [[self backgrounds] objectAtIndex:slideNumber];
+NSString descString = [[self descriptions] objectAtIndex:slideNumber];
+Sprite bg = [Sprite spriteWithFile:bgString];
+bg.position = cpv([self backgroundXPosition], [self backgroundYPosition]);
+CocosNode * desc = [Label labelWithString:descString
+dimensions:CGSizeMake([self descriptionWidth],
+[self descriptionHeight])
+alignment:UITextAlignmentCenter
+fontName:[self fontName]
+fontSize:[self fontSize]];
+desc.position = cpv([self descriptionXPosition], [self descriptionYPosition]);&lt;span class=&quot;c&quot;&gt;// Add the background and desc to the layer.&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;self&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;setBackground:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;self&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;setDescription:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;desc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;self&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;add:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;self&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;add:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;desc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;    
+}-(BOOL)hasNextSlide {
+return ([self slidePosition]+1 &lt; [[self backgrounds] count]);
+}-(BOOL)hasPreviousSlide {
+return ([self slidePosition] &gt; 0);
+}-(Sprite )background {
+return background;
+}
+-(void)setBackground: (Sprite )aSprite {
+if (background) [background release];
+background = [aSprite retain];
+}-(CocosNode )description {
+return description;
+}
+-(void)setDescription: (CocosNode )aCocosNode {
+if (description) [description release];
+description = [aCocosNode retain];
+}-(NSMutableArray *)backgrounds {
+return backgrounds;
+}-(NSMutableArray *)descriptions {
+return descriptions;
+}-(NSString *)fontName {
+return fontName
+}-(int)fontSize {
+return fontSize;
+}-(void)setFontSize: (int)anInt {
+fontSize = anInt;
+}-(void)setFontName: (NSString *)aFontName {
+if (fontName) [fontName release];
+fontName = [aFontName retain];
+}-(int)slidePosition {
+return slidePosition;
+}-(void)setSlidePosition: (int)anInt {
+slidePosition = anInt;
+}-(int)backgroundXPosition {
+return backgroundXPosition;
+}-(void)setBackgroundXPosition: (int)anInt {
+backgroundXPosition = anInt;
+}-(int)backgroundYPosition {
+return backgroundYPosition;
+}-(void)setBackgroundYPosition: (int)anInt {
+backgroundYPosition = anInt;
+}-(int)descriptionXPosition {
+return descriptionXPosition;
+}
+-(void)setDescriptionXPosition: (int)anInt {
+descriptionXPosition = anInt;
+}-(int)descriptionYPosition {
+return descriptionYPosition;
+}-(void)setDescriptionYPosition: (int)anInt {
+descriptionYPosition = anInt;
+}-(int)descriptionWidth {
+return descriptionWidth;
+}-(void)setDescriptionWidth: (int)anInt {
+descriptionWidth = anInt;
+}-(int)descriptionHeight {
+return descriptionHeight;
+}-(void)setDescriptionHeight: (int)anInt {
+descriptionHeight = anInt;
+}@end</code></pre>
+      
+    
+      
         <pre><code>&lt;span class=&quot;c&quot;&gt;/*&lt;/span&gt;
 </code></pre>
       
     
       
-        <p>希望这能成为一个良好的起点，你可以基于它继续开发并应用到自己的项目中。我近期会清理这些代码并将其放入代码仓库，之后会在这里贴出链接。</p>
+        <pre><code>&lt;span class=&quot;c&quot;&gt;// Add the background and desc to the layer.&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;self&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;setBackground:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;self&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;setDescription:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;desc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;self&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;add:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;self&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;add:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;desc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;    
+</code></pre>
       
     
       
-        <p>如果你有任何问题或建议，欢迎告诉我。</p>
+        <p>希望这能成为一个不错的起点，你可以以此为基础在自己的应用中使用。我不久后会清理这段代码并放入代码仓库，之后会在这里贴出链接。</p>
+      
+    
+      
+        <p>如果你有任何问题或意见，欢迎告诉我。</p>
       
     
   </div>

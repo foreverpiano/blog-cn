@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Epic PyObjC 第四部分：拖放功能与多 Nib 文件 · Will Larson 文集</title>
+  <title>史诗级 PyObjC 教程第四部分：拖放功能与多 Nib 文件 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>Epic PyObjC 第四部分：拖放功能与多 Nib 文件</h1>
+    <h1>史诗级 PyObjC 教程第四部分：拖放功能与多 Nib 文件</h1>
     <div class="meta">
       2008-08-26 · 
       <a href="https://lethain.com/epic-pyobjc-part-4-drag-drop-multiple-nibs/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,23 +29,23 @@
   <div class="article-content">
     
       
-        <p>欢迎来到 Epic PyObjC 教程系列的第四篇。在教程的第三部分，我们重点完成了三个较小的任务：处理双击操作、将数据缓存到磁盘，以及添加进度指示器。</p>
+        <p>欢迎来到 Epic PyObjC 教程系列的第四篇。在教程的第三部分，我们重点完成了三个较小的任务：处理双击事件、将数据缓存到磁盘，以及添加进度指示器。</p>
       
     
       
-        <p>这一次，我们将聚焦于 Cocoa 应用程序开发中两个稍显棘手但极其重要的模式。我们会先实现一些拖放功能，最后再探讨如何在应用程序运行时使用第二个 nib 文件来创建新窗口。</p>
+        <p>这一次，我们将聚焦于 Cocoa 应用开发中两个稍显棘手、但极其重要的模式。我们首先实现拖放功能，最后学习如何在程序运行时使用第二个 nib 文件来创建新窗口。</p>
       
     
       
-        <p>在第三篇文章中，我曾说会在这一篇里附上资源列表，但后来想到要介绍使用第二个 nib（理解它将大大拓宽你的 Cocoa 视野），我觉得这是一个真正值得深入的话题。如果把拖放、多 nib 和资源列表都塞进一篇文章，内容就太多了。</p>
+        <p>在第三篇文章中，我曾说会在本篇提供一份资源列表，但后来想到应该介绍使用第二个 nib 文件（理解它能大大拓宽你的 Cocoa 视野），我觉得这是一个真正值得深入的话题。如果把拖放、多 nib 文件和资源列表放在一篇文章里，内容就太多了。</p>
       
     
       
-        <p>如果你之前没有跟上，可以下载当前项目的 zip 压缩包。</p>
+        <p>如果你之前没有跟上进度，可以下载当前项目的 zip 压缩包。</p>
       
     
       
-        <p>既然这是我们在这个系列中最后一次合作，那就来点有趣的吧。</p>
+        <p>既然这是我们在这个系列中的最后一曲，那就来点有趣的吧。</p>
       
     
       
@@ -54,48 +54,48 @@
       
     
       
-        <p>我本想以自己长期致力于拖放概念为开场，但那是在撒谎。大约一年半前（别告诉招聘人员），当我刚开始接触 PyObjC 和 Cocoa 时，开发了第一个比较复杂的应用程序，并且颇为自豪。当时最常听到的两个批评是：不要使用 brushed metal 风格（我至今还没从反 brushed metal 的阴谋中恢复过来），以及“在两个列表之间传输内容，用拖放不是比双击更好吗？”</p>
+        <p>我本想以自己长期对拖放概念的执着开始讨论，但在 Cocoa 和 PyObjC 领域，这其实是谎言。大约一年半前（别告诉招聘人员），当我刚开始接触 PyObjC 和 Cocoa 时，做出了第一个相当复杂的应用，并为此颇为自豪。我记得最清楚的两个批评是：不要使用金属质感外观（我至今仍未从反金属外观阴谋中恢复过来），以及“在两个列表之间传输内容，用拖放不是比双击更好吗？”</p>
       
     
       
-        <p>我记得自己当时嘟囔了一些蹩脚的借口，说自己没做，主要是觉得它比想象中更难搞懂——反正谁需要拖放功能呢？</p>
+        <p>我当时大概咕哝了一些蹩脚的借口，说自己没做是因为它比想象中更难理解，但谁又真正需要拖放呢？</p>
       
     
       
-        <p>好吧，过去的种种不提，现在我和你都需要拖放功能。拖放是为数不多的几个地方之一，你可以在用户界面上大胆实验，做一些真正有趣的事情，而不会打破太多惯例让用户诅咒你。拖放就是 Cocoa 编程中的西部蛮荒之地。</p>
+        <p>好吧，不管之前如何，现在我和你都需要拖放功能。拖放是少数几个你可以在用户界面上大胆实验、做出真正有趣事情的地方，而不会打破太多惯例导致用户咒骂你。拖放就是 Cocoa 编程中的西部荒野。</p>
       
     
       
-        <p>拖放功能的巨大潜力之所以没有被充分挖掘，仅仅是因为它并非必需。大多数应用程序都可以不用或只用很少的拖放功能，因此开发者也就这么做了。但是，我要说，不能再这样下去了！</p>
+        <p>拖放的巨大潜力之所以没有被充分探索，仅仅是因为它并非必需。大多数应用都可以不用或只用很少的拖放功能，因此也就这么实现了。但是，我要说，这种情况该结束了！</p>
       
     
       
-        <p>有无数直观、有趣且实用的方式可以更多地使用拖放功能。下面并不是一份完整的清单，只是起点：</p>
+        <p>使用拖放的方式有无数种直观、有趣且实用的方法。下面这份列表绝不全面，仅作为一个起点：</p>
       
     
       
-        <div class="list-content">允许将文本和内容拖放到 Dock 图标上。这是实现应用程序间通信的绝佳方式。在 MetaWindow 中，我们可以让拖到 Dock 图标上的字符串自动触发搜索。（我在这里写过一篇简短的实现细节。）让导出数据像拖放一样简单。假设你想通过邮件发送一份报告，如果能直接把表格拖进 Mail.app，让它自动转换成 PDF，那该多好？但如果你拖到一个纯文本邮件里呢？那它可以导出为纯文本。如果导出数据一直这么简单，而且不同应用之间真正协作，那该多棒？在拖放数据时要考虑上下文。如果用户正在输入电话地址，能用正则表达式从一段文字中解析出电话号码就很棒了。如果拖进来的是一个电话号码列表，它能自动识别并全部添加进去，那就更好了。我们习惯于给应用程序提供严格格式的输入，但真正能让用户随意丢数据、然后由应用自动处理细节的程序，才更有可能让用户爱上它。当然，我们必须让用户知道他们可以随意丢数据，因为他们已经被训练成计算机的秘书，如果你的应用不解放他们，他们是不会主动这么做的。</div>
+        <div class="list-content">允许将文本和内容拖放到 Dock 图标上。这是促进应用间通信的绝佳方式。在 MetaWindow 中，我们可以让它自动搜索拖到 Dock 图标上的字符串。（我在这里写过一篇简短的实现细节文章。）让数据导出变得像拖放一样简单。假设你想通过邮件发送一份报告，如果能直接把表格拖到 Mail.app 中，让它自动转换为 PDF，那该多好？但如果你拖到的是纯文本邮件呢？那它可能会以文本格式导出数据。如果导出数据能始终这么简单，而且应用之间真正相互配合，那该有多棒？要善于根据上下文进行数据的拖放操作。如果用户正要输入一个电话号码，能用正则表达式从一段文字中自动解析出号码就太好了。如果拖进来的是一个电话号码列表，它能自动识别并全部添加进去，那就更好了。我们已经习惯了给应用提供严格格式的输入，但那些允许用户随意扔数据并自动处理细节的应用，真正有潜力让用户爱上它们。当然，我们必须让用户知道他们可以随意操作，因为他们已经被训练成计算机的秘书，除非你的应用解放他们，否则他们不会主动这么做。</div>
       
     
       
-        <p>总而言之，拖放就是 Cocoa 编程中的 Unix 管道。它是让应用程序之间协作最简单、最无缝的方式。一旦我们开始发挥创意，它就会开启一个充满意想不到的组合与实用性的世界。</p>
+        <p>总而言之，拖放就是 Cocoa 编程中的 Unix 管道。它是应用之间协作最简单、最无缝的方式，一旦我们开始发挥创意，它将开启一个充满意外组合和实用价值的新世界。</p>
       
     
       
-        <h3>拖放功能：通过拖放进行搜索</h3>
+        <h3>拖放功能：在搜索窗口中通过拖放搜索</h3>
         
       
     
       
-        <p>在 MetaWindow 中，我们打算实现两种拖放功能，首先是允许用户把文本拖到搜索窗口中来进行搜索。不只是搜索文本框，而是整个包含文本框的窗口。这样能增大有效点击区域，使用起来也更快。</p>
+        <p>在 MetaWindow 中，我们将实现两种拖放操作，首先是允许将文本拖入搜索窗口来进行搜索。不仅仅是搜索文本框，而是包含它的整个窗口。这样能创造更大的有效目标区域，使用起来也更快。</p>
       
     
       
-        <p>我们首先需要打开 MWController.py，创建一个辅助函数，它接受一个搜索字符串作为参数，然后执行搜索（同时更新文本框显示搜索字符串以提供视觉反馈）。我们需要这样做，因为接下来我们要子类化 NSWindow 来监听拖放操作，如果在子类中处理搜索逻辑，就得重复实现搜索代码。通过给 NSWindow 子类添加一个 IBOutlet 并将其连接到 MWController 的 search_ 方法，我们就能避免重复代码。</p>
+        <p>我们首先需要打开 MWController.py，创建一个辅助函数，它接受一个搜索字符串作为参数，然后执行搜索（同时更新文本框以提供视觉反馈）。我们需要这样做，因为接下来我们要子类化 NSWindow 来监听拖放操作，如果把搜索逻辑写在那个子类里，就得重复实现搜索逻辑。我们通过给 NSWindow 子类添加一个 IBOutlet，并将其连接到 MWController 的 search_ 方法来避免重复代码。</p>
       
     
       
-        <p>因此我们要在 MWController 中添加 dragSearch 方法。</p>
+        <p>因此，我们在 MWController 中添加了 dragSearch 方法。</p>
       
     
       
@@ -110,11 +110,11 @@
       
     
       
-        <p>现在，我们需要创建一个新文件。前往“文件”菜单，选择“新建文件”（Command-N）。我们实际上想子类化 NSWindow，但没有现成的模板，所以我们先创建一个 Python 的 NSObject 子类文件，然后根据需要修改。把文件命名为 MWDragWindow.py，并把它拖到 Xcode 大纲视图的 Classes 分组中（纯粹为了组织管理）。</p>
+        <p>现在，我们需要创建一个新文件。前往“文件”菜单，选择“新建文件”（Command-N）。我们真正想子类化的是 NSWindow，但没有现成的模板，所以我们先创建一个 Python 的 NSObject 子类文件，然后根据需要修改它。将文件命名为 MWDragWindow.py，并将其拖到 Xcode 侧边栏的“Classes”分组中（纯粹为了组织目的）。</p>
       
     
       
-        <p>接下来——这个容易忘记但非常关键的步骤——打开 main.py，添加对 MWDragWindow 的 import，让它看起来像这样：</p>
+        <p>接下来——这个容易忘记但至关重要的步骤——打开 main.py，添加对 MWDragWindow 的 import，让它看起来像这样：</p>
       
     
       
@@ -142,7 +142,7 @@ from AppKit import *
       
     
       
-        <p>接下来我们要把 MWDragWindow 从继承 NSObject 改成继承 NSWindow。同时给它添加一个名为 controller 的 IBOutlet。</p>
+        <p>接下来我们要把 MWDragWindow 从继承 NSObject 改为继承 NSWindow。同时给它添加一个名为 controller 的 IBOutlet。</p>
       
     
       
@@ -152,11 +152,11 @@ from AppKit import *
       
     
       
-        <p>继续，我们开始让它支持拖放操作。第一步是注册它要响应的粘贴板类型。这里我们只想监听 NSStringPboardType，即文本的粘贴板类型。</p>
+        <p>继续，我们开始让它支持拖放操作。第一步是注册它将响应的粘贴板类型。在本例中，我们只想监听 NSStringPboardType，这是文本的粘贴板类型。</p>
       
     
       
-        <p>要注册拖放类型，需要调用对象的 registerForDraggedTypes_ 方法，传入一个要监听的类型列表。通常最简单的方法是在 awakeFromNib 方法中完成，因为该方法会在对象初始化时被调用。</p>
+        <p>要注册拖放类型，需要调用对象的 registerForDraggedTypes_ 方法，并传入一个要监听的类型列表。通常最简单的方法是在 awakeFromNib 方法中完成，这会在对象初始化时被调用。</p>
       
     
       
@@ -170,19 +170,19 @@ from AppKit import *
       
     
       
-        <p>注意要给 registerForDraggedTypes_ 传入一个列表，而不是直接传入 NSStringPboardType。</p>
+        <p>注意要给 registerForDraggedTypes_ 传递一个类型列表，而不是直接传入 NSStringPboardType。</p>
       
     
       
-        <p>关于用户自定义粘贴板类型的简短说明。</p>
+        <p>关于用户自定义粘贴板类型的简要说明。</p>
       
     
       
-        <p>Cocoa 已经支持多种不同类型的粘贴板。我们正在使用 NSStringPboardType，但还有很多其他现成的类型可供选择：NSUrlPboardType、NSColorPboardType、NSFilenamesPboardType、NSFileContentsPboardType 等等。</p>
+        <p>Cocoa 已经支持许多不同类型的粘贴板。我们正在使用 NSStringPboardType，但还有很多其他现成的类型可供选择：NSURLPboardType、NSColorPboardType、NSFilenamesPboardType、NSFileContentsPboardType 等等。</p>
       
     
       
-        <p>不过有时候，你要拖放的内容不属于任何现有的粘贴板类型。这时，你可以创建自己的粘贴板类型。粘贴板类型实际上只是一个字符串，所以创建一个粘贴板类型只需定义一个模块级变量，包含这个字符串，然后在任何使用同一粘贴板的其他模块中导入它即可。</p>
+        <p>然而，有时你要拖放的内容超出了现有粘贴板类型的范围。在这种情况下，你可以创建自己的粘贴板类型。粘贴板类型实际上只是一个字符串，因此创建一个粘贴板类型就像创建一个模块级变量并将其导入到使用同一粘贴板的其他模块一样简单。</p>
       
     
       
@@ -195,7 +195,7 @@ self.registerForDraggedTypes_([MWRowPboardType])
       
     
       
-        <p>在另一个模块中使用它时是这样的：</p>
+        <p>在另一个模块中使用它的方式如下：</p>
       
     
       
@@ -207,19 +207,19 @@ class AnotherWindow(NSWindow):
       
     
       
-        <p>通常，用户自定义的粘贴板类型只能在声明它的应用程序内使用，因为其他应用程序不知道它的存在。不过，如果开发者主动公开他们粘贴板的字符串，就不一定是这样了。</p>
+        <p>通常，用户自定义的粘贴板类型只能在声明它的应用内使用，因为其他应用不会知道它的存在。不过，如果开发者主动公开他们的粘贴板字符串，那就不一定了。</p>
       
     
       
-        <p>现在 MWDragWindow 已经注册了 NSStringPboardType，我们还需要实现两个方法来告诉它如何处理传入的拖放。</p>
+        <p>现在 MWDragWindow 已经注册了 NSStringPboardType，我们还需要实现两个方法来告诉它如何处理传入的拖放操作。</p>
       
     
       
-        <p>第一个是 draggingEntered_，用于决定用哪种视觉效果来表示传入的拖放。例如，如果你正在把文本拖进一个文本框，可能希望使用 NSDragOperationAdd；但如果你是在把对象链接在一起，则更适合使用 NSDragOperationLink。不过最重要的操作可能是 NSDragOperationNone，当你拒绝一个拖放事件时就返回它。</p>
+        <p>第一个是 draggingEntered_，它用于决定用哪种视觉效果来表示正在进入的拖放。例如，如果你正在把文本拖入一个文本框，可能希望使用 NSDragOperationAdd；但如果你是在将对象链接在一起，则更适合使用 NSDragOperationLink。然而，最重要的操作可能是 NSDragOperationNone，当你拒绝一个传入的拖放事件时就返回它。</p>
       
     
       
-        <p>当你返回 NSDragOperationNone 时，就不会有任何视觉反馈，表示这个对象拒绝处理该拖放类型。这为用户提供了视觉提示，告诉他们应用程序/窗口/字段可以接受哪些类型的数据。</p>
+        <p>当你返回 NSDragOperationNone 时，就不会有任何视觉反馈，表示对象拒绝处理该拖放类型。这为用户提供了视觉提示，告诉他们应用/窗口/字段能接受哪些类型的数据。</p>
       
     
       
@@ -238,11 +238,11 @@ class AnotherWindow(NSWindow):
       
     
       
-        <p>如果粘贴板包含 NSStringPboardType，我们就接受，否则拒绝。我们使用 NSDragOperationCopy 的视觉效果，因为这是文本框响应 NSStringPboardType 时使用的效果，在不同拖放视觉效果之间切换可能会让人不安（除非你想表示拖放到不同位置会有不同行为，那样就完全合适）。</p>
+        <p>如果粘贴板包含 NSStringPboardType，我们就处理它，否则就不处理。我们使用 NSDragOperationCopy 的视觉效果，因为这是文本框响应 NSStringPboardType 时使用的效果，在不同拖放效果之间切换可能会让人感到不安（除非你想表示如果在不同位置释放会有不同行为，那样的话就完全合适）。</p>
       
     
       
-        <p>draggingEntered_ 负责接受或拒绝拖放以及显示拖放的视觉效果，但目前我们还没有处理传入拖放的内容。这通过实现 performDragOperation_ 来完成。</p>
+        <p>draggingEntered_ 负责接受或拒绝拖放，以及显示拖放时的视觉效果，但目前我们还没有处理传入拖放的内容。这是通过实现 performDragOperation_ 来完成的。</p>
       
     
       
@@ -258,23 +258,23 @@ class AnotherWindow(NSWindow):
       
     
       
-        <p>如果我们从 performDragOperation_ 返回 False，应用程序会视觉上表示拖放被拒绝——如果返回 True，则表示拖放成功——但实际处理传入数据的责任在于我们。</p>
+        <p>如果我们从 performDragOperation_ 返回 False，应用会视觉上表示拖放被拒绝——如果返回 True，则表示拖放成功——但真正处理传入数据的工作由我们自己完成。</p>
       
     
       
-        <p>这里我们只是调用 MWController 的 dragSearch 方法，把粘贴板中 NSStringPboardType 对应的字符串传给它，让 MWController 来处理后续工作。</p>
+        <p>这里我们只是调用 MWController 的 dragSearch 方法，传入粘贴板中 NSStringPboardType 类型对应的字符串，然后让 MWController 来处理后续工作。</p>
       
     
       
-        <p>最后要做的事情是打开 Interface Builder 并做一些修改，所以现在打开 MainMenu.xib。</p>
+        <p>最后要做的事情是打开 Interface Builder 并做一些修改，所以请打开 MainMenu.xib。</p>
       
     
       
-        <p>打开 Inspector，选择 Window (Window)，切换到第六个标签页。此时 Inspector 的标题会变成 Window Identity。</p>
+        <p>打开 Inspector，选择 Window (Window)，然后切换到第六个标签页。此时 Inspector 的标题会变为“Window Identity”。</p>
       
     
       
-        <p>在 Inspector 顶部的 Class Identity 部分，在 Class 字段中把 NSWindow 替换为 MWDragWindow。然后在包含所有对象的窗口中，按住 Control 键，从 Window (Window) 拖动到 Controller 并释放。从弹出菜单中选择 controller。</p>
+        <p>在 Inspector 顶部“Class Identity”部分，在“Class”字段中把 NSWindow 替换为 MWDragWindow。然后在包含所有对象的窗口中，按住 Control 键，从 Window (Window) 拖到 Controller 上并释放。在弹出菜单中选择 controller。</p>
       
     
       
@@ -285,24 +285,24 @@ class AnotherWindow(NSWindow):
       
     
       
-        <p>现在把一些文本拖到窗口中，松开鼠标，它就会开始搜索，就像我们在文本框中输入文本并点击搜索一样。</p>
+        <p>现在把一些文本拖到窗口中，释放鼠标，它就会开始搜索，就像我们在文本框中输入文本并点击搜索一样。</p>
       
     
       
-        <h3>拖放功能：通过拖动导出数据</h3>
+        <h3>拖放功能：通过拖拽导出数据</h3>
         
       
     
       
-        <p>既然我们已经在窗口中实现了拖放，接下来要看看另一个常见的拖放场景：在 NSTableView 中实现拖放。</p>
+        <p>既然我们已经在窗口中实现了拖放，接下来我们要看看另一个常见的拖放场景：在 NSTableView 中实现拖放。</p>
       
     
       
-        <p>传统上，拖放是由 NSTableView 的 datasource 处理的，但如果你还记得第二部分，我们还没有指定 datasource，所以处理方式会有所不同。事实上，我们将通过子类化 NSArrayController 类，并在 MainMenu.xib 中把控制器对象的类改成我们的自定义类来实现拖放。</p>
+        <p>传统上，拖放操作是在 NSTableView 的 datasource 中处理的，但如果你还记得第二部分，我们还没有指定 datasource，所以知道处理方式会有所不同。事实上，我们将通过子类化 NSArrayController 类，并在 MainMenu.xib 中把控制器对象的类改为我们的自定义类来实现拖放功能。</p>
       
     
       
-        <p>让我们先在项目中创建一个新文件，从 NSObject 子类化，命名为 MWDragArrayController.py，并把 import 添加到 main.py，让 main.py 中的导入部分变成这样：</p>
+        <p>让我们先在项目中创建一个新文件，从 NSObject 子类化，命名为 MWDragArrayController.py，并将其导入到 main.py 中，让 main.py 中的导入部分变成这样：</p>
       
     
       
@@ -316,7 +316,7 @@ import MWDragArrayController
       
     
       
-        <p>现在回到 MWDragArrayController.py，把 MWDragArrayController 从继承 NSObject 改成继承 NSArrayController，同时从 AppKit 导入 NSStringPboardType。</p>
+        <p>现在回到 MWDragArrayController.py，我们把 MWDragArrayController 从继承 NSObject 改为继承 NSArrayController，同时从 AppKit 导入 NSStringPboardType。</p>
       
     
       
@@ -328,19 +328,19 @@ pass
       
     
       
-        <p>我们先快速绕道一下，打开 Interface Builder 中的 MainMenu.xib。选中 Array Controller 实例，打开 Inspector，选择 Identity 标签（第六个），把类从 NSArrayController 改为 MWDragArrayController。</p>
+        <p>让我们快速绕道一下，打开 Interface Builder 中的 MainMenu.xib。选择 Array Controller 实例，打开 Inspector，选择 Identity 标签页（第六个），将类从 NSArrayController 改为 MWDragArrayController。</p>
       
     
       
-        <p>然后，这个很容易忘记但非常重要的步骤：选中 table view（注意不是包含它的 scroll view，所以要点击两次），将其 delegate 和 datasource 出口都连接到 Drag Array Controller。</p>
+        <p>然后，这个很容易忘记但非常重要的步骤：你需要选中 table view（不是包含它的 scroll view，所以要点击两次），并将其 delegate 和 datasource outlet 都连接到 Drag Array Controller。</p>
       
     
       
-        <p>保存并关闭 Interface Builder，返回编辑 MWDragArrayController.py。</p>
+        <p>保存并关闭 Interface Builder，然后回到编辑 MWDragArrayController.py。</p>
       
     
       
-        <p>令人惊讶的是，我们几乎已经完成了！只需要在 MWDragArrayController 中添加这个方法：</p>
+        <p>令人惊讶的是，我们几乎已经完成了！我们只需要在 MWDragArrayController 中添加以下方法：</p>
       
     
       
@@ -354,11 +354,11 @@ pass
       
     
       
-        <p>保存并构建应用，搜索一些内容，然后把表格中的一行拖出来。很酷吧，但还有点不对劲：你不能拖到其他应用程序里。这很不方便，大大降低了拖放的实用性。</p>
+        <p>保存并构建应用，搜索一些内容，然后把表格中的一行拖出去。很酷吧，但有些问题：你无法拖到其他应用程序中。这非常不方便，也大大降低了拖拽的实用性。</p>
       
     
       
-        <p>要修复这个问题，打开 MWController，找到 awakeFromNib 方法，添加下面这行代码：</p>
+        <p>要修复这个问题，打开 MWController，进入 awakeFromNib 方法，添加下面这行代码：</p>
       
     
       
@@ -367,7 +367,7 @@ pass
       
     
       
-        <p>综合起来，MWController 的 awakeFromNib 方法应该是这样的：</p>
+        <p>综合起来，MWController 的 awakeFromNib 方法是这样的：</p>
       
     
       
@@ -380,11 +380,11 @@ pass
       
     
       
-        <p>现在保存并再次构建 MetaWindow。你应该可以把表格行的内容拖到其他应用程序中了。</p>
+        <p>现在保存并重新构建 MetaWindow。你应该能够把表格行中的内容拖到其他应用程序中了。</p>
       
     
       
-        <p>这就总结了我们在 MetaWindow 中对拖放功能的探索。我们不会再研究把数据拖进表格视图，主要因为我实在想不出任何有意义的使用场景——毕竟我们展示的 Metaweb 结果是不可变的。如果 MetaWindow 未来被扩展为可以修改数据，那么这种操作可能会有价值（比如作为一种导入数据的方式）。</p>
+        <p>这就总结了我们在 MetaWindow 中对拖放功能的探索。我们不会讨论如何把数据拖入我们的表格视图，主要是因为我无法想象在当前场景下有什么合理的用途——我们把 Metaweb 返回的结果当作不可变数据来展示。如果 MetaWindow 以后扩展到支持修改数据，那么这种操作可能会有价值（比如作为一种导入数据的方式）。</p>
       
     
       
@@ -393,27 +393,27 @@ pass
       
     
       
-        <p>是时候开始探讨 Epic PyObjC 教程系列的最后一个主题了，这也是一个非常重要的主题：在同一个项目中使用多个 nib 文件。很多应用程序可以避免使用多个 nib。例如，如果你看 iTunes 处理播放列表的方式，默认情况下点击一个播放列表，它就会在主窗口的列表中显示。</p>
+        <p>是时候开始探讨 Epic PyObjC 教程系列的最后一个主题了，这也是一个非常重要的主题：在同一个项目中使用多个 nib 文件。对于许多应用，你可以避免使用多个 nib 文件。例如，如果你看看 iTunes 处理播放列表的方式，默认情况下点击播放列表时，它只是在主窗口的列表中显示。</p>
       
     
       
-        <p>这用一个 nib 就能实现。毫无问题。但如果你双击一个播放列表，它会打开一个新窗口。而这个操作用一个 nib 是无法实现的（除非你用代码手动创建并填充窗口，虽然可行，但通常要多做很多工作）。</p>
+        <p>这用一个 nib 就能做到。没问题。但如果你双击一个播放列表，它会打开一个新窗口。而这一点，用单个 nib 是无法实现的（除非你用代码手动创建并填充窗口，虽然可行，但通常要多做很多工作）。</p>
       
     
       
-        <p>一旦你从简单应用升级到更复杂的程序，就必然需要学习如何在一个项目中使用多个 nib——就像我们在本教程中看过的所有内容一样，一旦你坐下来认真做，其实并没有那么难。</p>
+        <p>一旦你从简单应用升级到更复杂的应用，你不可避免地需要学习如何在同一个项目中使用多个 nib 文件——就像我们在本教程中看到的所有内容一样，一旦你坐下来认真去做，其实并没有那么难。</p>
       
     
       
-        <p>目前，当你双击一行时，它会在网页浏览器中打开该条目的页面，但如果能改成打开一个新窗口，显示关于该条目的更多详细信息，那就更好了。目前我们只是浅尝辄止地使用了 metaweb.py 返回的数据，如果给每个结果分配一整个窗口，我们可以展示多得多的信息。</p>
+        <p>目前，当你双击一行时，它会在网页浏览器中打开该条目的页面，但如果能打开一个新窗口，向我们展示关于该条目的更多细节，那就更好了。目前我们只是浅尝辄止地展示了 metaweb.py 返回的数据，如果为每个结果专门分配一个窗口，我们可以展示多得多的内容。</p>
       
     
       
-        <p>要把额外的 nib 集成到项目中，我们需要完成三个步骤：</p>
+        <p>我们将通过以下三个步骤将额外的 nib 集成到项目中：</p>
       
     
       
-        <div class="list-content">创建一个自定义的 Python 类，继承自 NSWindowController，在初始化时接收特定行的字典。创建一个新的 nib，我们把它叫做 RowWindow.xib，在其中将 File&#x27;s Owner 的类设置为我们自定义的 NSWindowController 子类。更新 MWController 中的 open_ 方法，让它使用 RowWindow.xib 创建新窗口，而不是在浏览器中打开条目页面。</div>
+        <div class="list-content">创建一个继承自 NSWindowController 的自定义 Python 类，在初始化时传入特定行的字典。创建一个新的 nib 文件，我们称之为 RowWindow.xib，在其中将 File&#x27;s Owner 的类设置为我们自定义的 NSWindowController 子类。更新 MWController 中的 open_ 方法，让它使用 RowWindow.xib 创建新窗口，而不是在浏览器中打开条目页面。</div>
       
     
       
@@ -422,7 +422,7 @@ pass
       
     
       
-        <p>首先，我们创建一个名为 MWRowWindowController.py 的新文件。最初它会继承自 NSObject，但我们要把它的父类改为 NSWindowController，同时给它添加一个名为 rowDict 的属性。</p>
+        <p>首先，我们创建一个名为 MWRowWindowController.py 的新文件。最初它会继承自 NSObject，但我们将其父类改为 NSWindowController，并添加一个名为 rowDict 的字段。</p>
       
     
       
@@ -456,15 +456,15 @@ import MWRowWindowController
       
     
       
-        <p>创建一个新文件，这次选择 Window XIB 模板，命名为 RowWindow.xib。然后在 Interface Builder 中打开它。</p>
+        <p>创建一个新文件，这次选择 Window XIB 模板，并将其命名为 RowWindow.xib。然后在 Interface Builder 中打开它。</p>
       
     
       
-        <p>首先打开 Inspector，选中 File&#x27;s Owner，然后切换到 Identity 标签，把它的类从 NSObject 改为 RowWindowController。接着在 nib 的窗口中创建一个 NSTextField，选中它，切换到 Bindings 标签。</p>
+        <p>首先，打开 Inspector 并选择 File&#x27;s Owner，然后切换到 Identity 标签页，将其类从 NSObject 改为 RowWindowController。接下来在 nib 的窗口中创建一个 NSTextField，选中它，切换到 Bindings 标签页。</p>
       
     
       
-        <p>对于 Value 绑定，把它绑定到 File&#x27;s Owner，在 Model Key Path 中输入 rowDict.name。</p>
+        <p>对于 Value 绑定，将其绑定到 File&#x27;s Owner，在 Model Key Path 中输入 rowDict.name。</p>
       
     
       
@@ -475,11 +475,11 @@ import MWRowWindowController
       
     
       
-        <p>这是又一个使用 Cocoa 绑定来避免重复代码的例子。它们是你的好朋友。</p>
+        <p>这是另一个使用 Cocoa bindings 来避免重复代码的例子。它们是你的好朋友。</p>
       
     
       
-        <p>最后，我们需要点击 File&#x27;s Owner，把它的 window 出口连接到 Window (Window)。</p>
+        <p>最后，我们需要点击 File&#x27;s Owner，并将其 window outlet 连接到 Window (Window)。</p>
       
     
       
@@ -488,7 +488,7 @@ import MWRowWindowController
       
     
       
-        <p>我们最后一步是更新 MWController 中的 open_ 方法。为此，我们先在 MWController.py 中添加对 MWRowWindowController 类的导入。</p>
+        <p>对我们来说最后一步是更新 MWController 中的 open_ 方法。为此，我们首先需要在 MWController.py 中添加对 MWRowWindowController 类的导入。</p>
       
     
       
@@ -504,6 +504,23 @@ from Foundation import *
       
     
       
+        <pre><code>def open_(self,sender):
+    selectedObjs = self.arrayController.selectedObjects()
+    if len(selectedObjs) == 0:
+        NSLog(u&quot;No selected row!&quot;)
+        return
+&lt;span class=&quot;n&quot;&gt;row&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;selectedObjs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;NSLog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;u&amp;quot;Row: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;has_key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;id&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;id&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;NSLog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;u&amp;quot;Row has no id!&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;
+    
+&lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;u&amp;quot;http://www.freebase.com/view&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;id&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;webbrowser&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+</code></pre>
+      
+    
+      
         <pre><code>&lt;span class=&quot;n&quot;&gt;row&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;selectedObjs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
 &lt;span class=&quot;n&quot;&gt;NSLog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;u&amp;quot;Row: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
 &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;has_key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;id&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;id&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
@@ -516,7 +533,7 @@ from Foundation import *
       
     
       
-        <p>除了最后两行，其他部分都已经很完美了。把最后两行删掉，换成下面这些：</p>
+        <p>除了最后两行，其他一切都已经是完美的。可以删除最后两行，并替换为以下内容：</p>
       
     
       
@@ -528,11 +545,11 @@ rwc.retain()
       
     
       
-        <p>现在构建并运行应用程序。搜索一些内容，然后双击某一行，你会看到它打开了一个显示名称的新窗口。当然我们还需要填充窗口里的其他内容，但现在你已经掌握了足够知识，可以自己完成了。</p>
+        <p>现在构建并运行应用。搜索一些内容，然后双击某一行，你会看到它打开了一个显示名称的新窗口。当然我们还需要丰富这个窗口显示的内容，但现在你已经掌握了足够知识，可以自己完成了。</p>
       
     
       
-        <p>好了，我们完成了。</p>
+        <p>就这样，我们完成了。</p>
       
     
       
@@ -541,19 +558,19 @@ rwc.retain()
       
     
       
-        <p>嗯……“完成”可能说得有点太早了。我们当前的实现有两个明显的问题。首先是我们对 rwc 调用了 retain，但从来没有调用 release，所以没有让垃圾回收器释放那个窗口。</p>
+        <p>嗯……“完成”可能是个比较强的词。我们当前的实现存在两个明显的问题。首先是我们对 rwc 调用了 retain，但从未调用 release，因此没有让垃圾回收器释放那个窗口。</p>
       
     
       
-        <p>第二个问题是，如果你连续两次点击同一行，就会为同一个条目打开两个窗口。如果它能把已存在的窗口提到最前面，而不是再创建一个，那就优雅多了。</p>
+        <p>第二个问题是，如果你连续两次点击同一行，就会为那一行打开两个窗口。如果它能把已有的窗口带到最前面，而不是创建第二个窗口，那就优雅多了。</p>
       
     
       
-        <p>好消息是，这两个问题的解决方案是重叠的，而且不会花太多时间。</p>
+        <p>好消息是，解决这两个问题的方案是重叠的，而且不会花费太多时间。</p>
       
     
       
-        <p>首先在 MWController 中添加一个名为 rowCache 的属性，初始化为一个空字典。</p>
+        <p>首先在 MWController 中添加一个名为 rowCache 的字段，初始化为一个空字典。</p>
       
     
       
@@ -570,6 +587,30 @@ rwc.retain()
     
       
         <p>我们将使用 rowCache 来跟踪窗口控制器，以便能够复用它们。现在我们最后一次重写 open_ 方法：</p>
+      
+    
+      
+        <pre><code>def open_(self,sender):
+    selectedObjs = self.arrayController.selectedObjects()
+    if len(selectedObjs) == 0:
+        NSLog(u&quot;No selected row!&quot;)
+        return
+&lt;span class=&quot;n&quot;&gt;row&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;selectedObjs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;NSLog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;u&amp;quot;Row: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;has_key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;id&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;id&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;NSLog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;u&amp;quot;Row has no id!&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;
+    
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rowCache&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;has_key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;rwc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rowCache&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;rwc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;showWindow_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;rwc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MWRowWindowController&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;alloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initWithWindowNibName_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;u&amp;quot;RowWindow&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;rwc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rowDict&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;rwc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;showWindow_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;rwc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;retain&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rowCache&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rwc&lt;/span&gt;
+</code></pre>
       
     
       
@@ -592,11 +633,11 @@ rwc.retain()
       
     
       
-        <p>修改相当简单：在创建一个新的 MWRowWindowController 之前，我们先检查 rowCache 中是否已经有一个对应的窗口控制器。</p>
+        <p>修改相当简单：在创建新的 MWRowWindowController 之前，我们先检查 rowCache 中是否已经有一个对应的窗口控制器。</p>
       
     
       
-        <p>你可以构建并运行程序，看看它如何正确地复用窗口。哈利路亚。</p>
+        <p>你可以构建并运行应用，看看它如何正确地复用窗口。哈利路亚。</p>
       
     
       
@@ -609,11 +650,11 @@ rwc.retain()
       
     
       
-        <p>到目前为止，在我们探索 PyObjC 和 Cocoa 的旅程中，我们已经接触了许多 Cocoa 主题和概念：release、retain、Cocoa Bindings、NSArrayController 以及拖放功能。我要添加到你工具箱的最后一个工具是 dealloc。dealloc 是在继承自 NSObject 的对象即将被垃圾回收释放内存时调用的方法。这是你在所有被 retain 的引用变成内存泄漏之前，最后一次清理它们的机会。</p>
+        <p>到目前为止，在我们探索 PyObjC 和 Cocoa 的旅程中，我们已经接触了许多 Cocoa 主题和概念：release、retain、Cocoa Bindings、NSArrayController 以及拖放。我要添加到你武器库的最后一个工具是 dealloc。dealloc 是在继承自 NSObject 的对象即将被垃圾回收器释放时调用的方法。这是你在那些被 retain 的引用变成内存泄漏之前最后一次清理的机会。</p>
       
     
       
-        <p>每个 dealloc 方法都包含两个步骤（顺序非常重要）：</p>
+        <p>每个 dealloc 方法都有两个步骤（顺序非常重要）：</p>
       
     
       
@@ -621,11 +662,11 @@ rwc.retain()
       
     
       
-        <p>第二步很容易忘记，但它也是导致内存泄漏的常见原因之一。</p>
+        <p>第二步很容易忘记，但它是导致内存泄漏的常见原因之一。</p>
       
     
       
-        <p>MWController 的 dealloc 方法应该是这样的：</p>
+        <p>MWController 的 dealloc 方法将是这样的：</p>
       
     
       
@@ -638,7 +679,7 @@ rwc.retain()
       
     
       
-        <p>以后你应该读一读《Cocoa 内存管理指南》，它全面介绍了深入内存管理时会遇到的各种微妙之处。</p>
+        <p>以后你应该阅读《Cocoa 内存管理指南》，它是对深入内存管理时遇到的各种细微差别的全面介绍。</p>
       
     
       
@@ -647,23 +688,23 @@ rwc.retain()
       
     
       
-        <p>你可以下载当前项目的 zip 压缩包，或者从 GitHub 上的代码仓库获取代码。</p>
+        <p>你可以下载当前项目的 zip 压缩包，或者从 GitHub 仓库获取代码。</p>
       
     
       
-        <p>我们终于完成了本教程的编程部分。这是一段漫长、也许对某些人来说颇为艰难的旅程。第五篇也是最后一篇将包含各种资源，帮助你继续迈向 PyObjC 和 Cocoa 的精通之路。</p>
+        <p>我们终于完成了本教程的编程部分。这是一段漫长、也许对某些人来说颇为艰难的旅程。第五篇也是最后一篇将包含各种资源，帮助你继续走向 PyObjC 和 Cocoa 的精通之路。</p>
       
     
       
-        <p>最后一个我想讨论的话题是 MetaWindow 的未来，也就是我们在这个教程中一起构建的这个应用程序。它确实是一个有点奇怪、考虑得不够全面的项目，尤其当我们意识到目前这个版本其实相当没用的时候，就更明显了。</p>
+        <p>我想讨论的最后一个话题是 MetaWindow 的未来，也就是我们在这个教程中一起构建的这个应用。它无疑是一个有点奇怪、考虑不够周全的项目，尤其当我们意识到它目前实际上几乎没什么用的时候，这一点就更明显了。</p>
       
     
       
-        <p>尽管如此，我依然相信在它之下藏着一个有用的应用程序。GitHub 仓库目前维护得一塌糊涂，为此我深表歉意。请允许我含糊地解释一下：一边写应用一边还要写教程，实在有些尴尬。我打算清理一下代码仓库，也非常希望看到其他人来试试把它变成一个真正有用且有趣的东西。如果你在过程中遇到问题，我很乐意回答或提供帮助。</p>
+        <p>尽管如此，我确实认为在深处藏着一个有用的应用。GitHub 仓库目前维护得一塌糊涂，对此我深表歉意。插入一些模糊的借口吧，比如一边写教程一边开发应用的尴尬性。我打算清理这个仓库，也非常乐于看到其他人尝试把它变成一个有用且有趣的东西。我很乐意回答问题或帮助解决出现的问题。</p>
       
     
       
-        <p>我很想投入更多时间到 MetaWindow 上，但在写这个系列的过程中已经有些懈怠，短期内恐怕不会有太多时间来开发 MW。</p>
+        <p>我很想投入更多时间到 MetaWindow 上，但在写这个系列的过程中已经有些疏忽，短期内也不会有多少时间来开发 MW。</p>
       
     
       

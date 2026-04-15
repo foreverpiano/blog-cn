@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>让 Django 应用同时能在 GAE 上和独立环境运行 · Will Larson 文集</title>
+  <title>让 Django 应用在 GAE 上和非 GAE 环境下都能运行 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>让 Django 应用同时能在 GAE 上和独立环境运行</h1>
+    <h1>让 Django 应用在 GAE 上和非 GAE 环境下都能运行</h1>
     <div class="meta">
       2009-03-10 · 
       <a href="https://lethain.com/making-django-apps-run-on-and-off-gae/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,24 +29,24 @@
   <div class="article-content">
     
       
-        <p>目前有一个新兴且不断发展的领域，专门致力于弥合 Google App Engine（GAE）上的 Django 与标准 Django 部署之间的差距。其中历史最久的是 Google App Engine Helper for Django，它主要帮助将现有的 Django 应用迁移到 GAE；而最近 django-gae2django 的知名度逐渐提高，它支持将项目从 GAE 迁移回普通 Django 环境。</p>
+        <p>目前有一个新兴且不断发展的“家庭手工业”，专门致力于弥合 Google App Engine（GAE）上的 Django 与标准 Django 部署之间的差异。其中历史最久的项目是 Google App Engine Helper for Django，它主要帮助将现有的 Django 应用迁移到 GAE；而最近 django-gae2django 的知名度也在不断提高，它支持将项目往相反方向迁移（即从 GAE 迁移到普通 Django）。</p>
       
     
       
-        <p>不过这两者都不是开箱即用的解决方案，都需要对代码进行一些特殊调整或修改。考虑到 Bigtable 与传统关系型数据库在能力和设计上的差异，我认为真正意义上的一次性、完全兼容的解决方案可能永远不会出现。</p>
+        <p>这两个方案都不是即插即用的替代方案，都需要对代码进行一些特殊的调整或修改。事实上，考虑到 Bigtable 与传统关系型数据库在能力和设计上的巨大差异，我认为一个“一刀切”的即插即用解决方案可能永远不会出现。</p>
       
     
       
-        <p>尽管如此，我们仍然可以编写同时兼容普通部署和 GAE 部署的可插拔 Django 应用，并在必要时优雅降级。这正是我将 django-springsteen 移植到 GAE 时所采用的策略。</p>
+        <p>尽管如此，我们仍然可以编写能在普通部署和 GAE 部署下都能良好工作的可插拔 Django 应用，并在必要时优雅地降级。这正是我在将 django-springsteen 移植到 GAE 时所采用的策略。</p>
       
     
       
-        <h3>又一层抽象</h3>
+        <h3>又一个抽象层</h3>
         
       
     
       
-        <p>这种方法带来的代价是需要再引入一层抽象。下面是我第一次尝试将 Springsteen 的缓存机制移植到 GAE 的代码：</p>
+        <p>这种方法带来的痛苦在于，它需要引入又一层抽象。下面是我第一次尝试将 Springsteen 的缓存机制移植到 GAE 的代码。</p>
       
     
       
@@ -67,7 +67,7 @@ except ImportError:
       
     
       
-        <p>在第一次尝试中，我愿意接受优雅降级的方案。随后在其他代码中，我像这样使用这些函数：</p>
+        <p>在第一次尝试中，我愿意接受这种优雅降级的解决方案。随后在其他代码中，我像这样使用这些函数：</p>
       
     
       
@@ -78,7 +78,7 @@ ab = cache_get(&quot;yada&quot;)
       
     
       
-        <p>在 GAE 上实际测试后，我很快意识到对于 Springsteen 来说，优雅降级的方案还不够理想，于是我补全了之前留空的 cache_get 和 cache_put 函数。</p>
+        <p>在 GAE 上实际测试后，我很快意识到对 Springsteen 而言，优雅降级的方案还不够完善，于是我补全了之前占位的 cache_get 和 cache_put 函数。</p>
       
     
       
@@ -99,19 +99,60 @@ except ImportError:
       
     
       
-        <p>接下来的调整则没那么通用，而是更针对 Springsteen 自身特点。Springsteen 可以选择记录所有查询以便后续分析，默认情况下它使用 Python 的 logging 模块来实现。</p>
+        <p>接下来我做的适配就没有那么通用了，而是更加针对 Springsteen 的特性。Springsteen 可以选择记录所有查询以便后续分析，默认使用 Python 的 logging 模块来实现。</p>
       
     
       
-        <p>虽然将查询记录到 queries.log 文件便于后续解析和分析，但如果把查询记录到 GAE 的管理后台日志查看器中，后续的数据分析几乎就无法进行了。</p>
+        <p>然而，虽然把查询记录到 queries.log 文件中后续解析和分析非常方便，但如果把查询记录到 GAE 的管理后台日志查看器中，后续几乎无法对这些数据进行有效分析。</p>
       
     
       
-        <p>因此，我决定让 GAE 版本将查询写入 Bigtable 数据结构，后续可以通过查询这个结构来进行分析并生成统计信息。</p>
+        <p>因此，我决定让 GAE 版本将查询写入 Bigtable 数据结构中，后续可以通过查询该结构来进行分析并生成统计信息。</p>
       
     
       
-        <p>我使用上述代码的变体实现了这个功能。</p>
+        <p>我使用上述代码的一个变体实现了这个功能。</p>
+      
+    
+      
+        <pre><code># springsteen/utils.py
+from django.conf import settings
+try:
+    # Setup utilities for App Engine deployment
+    import google.appengine.api
+    if getattr(settings, &#x27;SPRINGSTEEN_LOG_QUERIES&#x27;, False):
+        from google.appengine.ext import db
+    &lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;QueryLog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;db&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;db&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;StringProperty&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;log_query&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;msg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;logged&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;QueryLog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;logged&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;msg&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lower&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;logged&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;put&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;log_query&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;msg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
+except ImportError:
+# Setup utilities for normal Django deployment
+import logging, os&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;getattr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;settings&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;SPRINGSTEEN_LOG_QUERIES&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;False&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_logger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;logger&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;logging&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;getLogger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;hdlr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;logging&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FileHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;settings&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SPRINGSTEEN_LOG_DIR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;formatter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;logging&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Formatter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%(message)s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; 
+        &lt;span class=&quot;n&quot;&gt;hdlr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setFormatter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;formatter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;logger&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;addHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hdlr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;logger&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setLevel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;logging&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;INFO&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;logger&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;QUERY_LOGGER&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;get_logger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;findjango&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;queries.log&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;log_query&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;msg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;QUERY_LOGGER&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;msg&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lower&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
+    
+&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;log_query&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;msg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
+</code></pre>
       
     
       
@@ -129,11 +170,33 @@ except ImportError:
       
     
       
-        <p>通过这个模式，我能够根据不同的部署场景以不同方式启用查询日志，也可以根据 settings.py 中 SPRINGSTEEN_LOG_QUERIES 的值完全禁用它。</p>
+        <pre><code>&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;getattr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;settings&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;SPRINGSTEEN_LOG_QUERIES&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;False&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_logger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;logger&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;logging&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;getLogger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;hdlr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;logging&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FileHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;settings&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SPRINGSTEEN_LOG_DIR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;formatter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;logging&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Formatter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%(message)s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; 
+        &lt;span class=&quot;n&quot;&gt;hdlr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setFormatter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;formatter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;logger&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;addHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hdlr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;logger&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setLevel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;logging&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;INFO&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;logger&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;QUERY_LOGGER&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;get_logger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;findjango&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;queries.log&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;log_query&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;msg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;QUERY_LOGGER&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;msg&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lower&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
+    
+&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;log_query&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;msg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
+</code></pre>
       
     
       
-        <p>上述代码的使用方式和大家预期的一样：</p>
+        <p>使用这种模式，我能够根据不同的部署场景以不同方式开启查询日志，也可以根据 settings.py 中 SPRINGSTEEN_LOG_QUERIES 的值完全禁用它。</p>
+      
+    
+      
+        <p>上面这段代码的使用方式正如你所预期的那样：</p>
       
     
       
@@ -143,11 +206,11 @@ log_query(&quot;python&quot;)
       
     
       
-        <p>稍加想象你就能看出，如何将这个思路扩展，为两个平台上的数据创建、编辑、查询和删除操作编写封装层。</p>
+        <p>稍加想象你就会明白，如何将这个概念扩展出去，为两个平台上的数据创建、编辑、查询和删除操作编写包装器。</p>
       
     
       
-        <p>它算不上优雅——也不免费——但也不算特别复杂。</p>
+        <p>这并不漂亮——也不免费——但也没有特别复杂。</p>
       
     
       
@@ -156,19 +219,19 @@ log_query(&quot;python&quot;)
       
     
       
-        <p>这种方法最大的问题在于，它不允许开发者直接使用自己熟悉的功能，而是每个应用都要重新造一个最小化的轮子。</p>
+        <p>这种方法最大的问题在于，它不允许开发者使用他们熟悉的功能，而是让每个应用都重新发明一个属于自己的最小轮子。</p>
       
     
       
-        <p>另一方面，它让完全没有 Google App Engine 经验的开发者也能将应用部署到 GAE 以及普通环境，而无需对代码做任何修改。</p>
+        <p>从另一方面来说，它让完全没有 Google App Engine 经验的开发者也能将应用部署到 GAE 以及普通环境，而无需对代码做任何修改。</p>
       
     
       
-        <p>此外，每个应用都能以最适合自身性能和功能需求的方式进行优雅降级或模拟功能。这使得我们可以比那些更宏大的 Django-GAE 和 GAE-Django 项目进行更加细粒度的优化。</p>
+        <p>此外，每个应用都能以最适合自身性能和功能需求的方式优雅降级或模拟功能。这使得我们可以比那些更雄心勃勃的 Django-GAE 和 GAE-Django 项目进行更加细粒度的优化。</p>
       
     
       
-        <p>我并不指望这种方法会广泛流行，但对于某些可重用、兼容性问题相对较小的应用来说，它是一种相当合理的方案，能够减轻用户在部署上的负担。</p>
+        <p>我并不指望这种方法会流行起来，但对于某些可复用、兼容性差异较小的应用来说，它是一种相当合理的方案，能够减轻用户在部署方面的负担。</p>
       
     
   </div>

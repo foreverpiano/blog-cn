@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JSON、面向对象的视图，以及开始做一个真正的应用 · Will Larson 文集</title>
+  <title>JSON、面向对象的视图，以及启动一个真正的应用 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>JSON、面向对象的视图，以及开始做一个真正的应用</h1>
+    <h1>JSON、面向对象的视图，以及启动一个真正的应用</h1>
     <div class="meta">
       2008-06-22 · 
       <a href="https://lethain.com/json-object-oriented-views-and-starting-a-real-app/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,11 +29,11 @@
   <div class="article-content">
     
       
-        <p>欢迎来到 Wielding Django 的第三期，由 Will Larson 友情主持。正如我在第一期中所承诺的，这一期适合已经使用过 Django 的开发者。我们将简要介绍 JSON 和面向对象的视图，然后开始构建一个真正（虽然很小）的应用。</p>
+        <p>欢迎来到 Wielding Django 的第三期，由 Will Larson 友情主持。正如我在第一期中所承诺的，从这一期开始，有过 Django 经验的读者可以正式加入我们了。本期我们会先讨论 JSON 和面向对象视图，然后开始构建一个真正（虽然很小）的应用。</p>
       
     
       
-        <p>我们会用到 django-webapp 中的一些代码，这是一个我为 Web 应用开发总结的代码和设计模式集合。我从中抽取了一些作为代码片段，但最方便的方式还是直接获取全部代码：</p>
+        <p>我们将使用来自 django-webapp 中的一些代码。django-webapp 是我在 Web 应用开发过程中积累的有用代码和设计模式的集合。我从中提取了一些作为代码片段，但你可能会发现直接获取整个代码库会更方便：</p>
       
     
       
@@ -47,7 +47,7 @@
       
     
       
-        <p>上一次我们只返回了一个原始数字，但返回更结构化的数据也很简单。我们可以使用 XML，但它在某些实现中显得笨重且缓慢。快速、轻量级编码的非官方标准是 JSON，而在 Python 中生成 JSON 非常容易。下面是上次的 compute 函数，现在改成返回 JSON。</p>
+        <p>上次我们只返回了一个原始数字，但返回更结构化的数据其实非常简单。我们可以使用 XML，但它是一种较为笨重且（在某些实现中）较慢的编码方式。目前快速、轻量级编码的非官方标准是 JSON，而且在 Python 中生成 JSON 非常容易。下面是上次那个 compute 函数，现在改成了返回 JSON。</p>
       
     
       
@@ -65,15 +65,15 @@ result=operation(a, b)))
       
     
       
-        <p>对于大多数包含多个元素的字典，我更喜欢使用 dict(abc=de) 这种写法。它不需要给 key 加引号，而且这也是关键字参数的通用写法，我个人非常喜欢。但它的效果和 {&#x27;op&#x27;: op, &#x27;a&#x27;: a} 等写法完全相同。</p>
+        <p>对于大多数包含多个键值的字典，我更喜欢使用 dict(abc=de) 这种写法。它不需要给键加引号，而且这也是关键字参数的常规写法，我个人非常喜欢。当然，它和 {&#x27;op&#x27;: op, &#x27;a&#x27;: a} 的写法完全等价。</p>
       
     
       
-        <p>dwa.serialize 是 django-webapp 的一部分，同时也是代码片段 801（它需要代码片段 800）。而 JsonResponse 只是进行 JSON 编码，然后把结果包装成一个 HttpResponse。（默认情况下，它会在结果外包裹 JavaScript 注释以保证安全；大多数 JavaScript 框架都能处理这种情况。）请注意，JSON 的顶层对象必须是一个 dict（甚至不能是数组）。</p>
+        <p>dwa.serialize 是 django-webapp 的一部分，也是代码片段 801（它依赖代码片段 800）。而 JsonResponse 只是进行 JSON 编码，然后把结果包装成一个 HttpResponse。（默认情况下，它会在结果外包裹 JavaScript 注释以提高安全性，大多数 JavaScript 框架都能处理这种情况。）请注意，JSON 的顶层对象必须是一个 dict（甚至不能是数组）。</p>
       
     
       
-        <p>但还有一种更简单的方法。Django 支持“中间件”（middleware），它提供了一组钩子，可以介入请求和响应的各个处理环节。我们可以拦截响应处理过程，在必要时自动进行 JSON 编码。这正是代码片段 803 所做的事情（它同样包含在 django-webapp 中）。要启用该中间件，请在 settings.py 中添加以下内容：</p>
+        <p>但还有更简单的方法。Django 支持“中间件”（middleware），它提供了一组钩子，可以介入请求和响应的各个处理阶段。我们可以拦截响应处理过程，在必要时自动进行 JSON 编码。这正是代码片段 803 所做的事情（它同样包含在 django-webapp 中）。要启用该中间件，请在 settings.py 中添加以下内容：</p>
       
     
       
@@ -84,7 +84,7 @@ result=operation(a, b)))
       
     
       
-        <p>这样你的视图就可以直接返回 dict，它们会被自动编码为 JSON。</p>
+        <p>这样你的视图函数就可以直接返回 dict，它们会被自动编码为 JSON。</p>
       
     
       
@@ -93,7 +93,7 @@ result=operation(a, b)))
       
     
       
-        <p>如果服务器在处理 AJAX 请求时发生错误，即使是可靠的 Firebug 也很难看清真实的错误信息。因此你可能希望添加 AjaxErrorMiddleware 来解决这个问题。我的 MIDDLEWARE_CLASSES 配置如下：</p>
+        <p>当服务器在处理 AJAX 请求时发生错误时，即使是可靠的 Firebug 也很难看到实际的错误信息。因此你可能会想添加 AjaxErrorMiddleware 来解决这个问题。我的 MIDDLEWARE_CLASSES 配置如下：</p>
       
     
       
@@ -105,7 +105,7 @@ result=operation(a, b)))
       
     
       
-        <p>请记住要把 JsonEncodingMiddleware 放在最后，这样它才能最先处理视图返回的内容。</p>
+        <p>记住要把 JsonEncodingMiddleware 放在最后，这样它才能最先处理视图返回的内容。</p>
       
     
       
@@ -114,7 +114,7 @@ result=operation(a, b)))
       
     
       
-        <p>Django 的视图本质上就是一个可调用对象，它接收一个 HttpRequest 作为第一个参数。那么什么样的对象符合条件呢？</p>
+        <p>Django 的视图本质上就是一个可调用对象，它接收一个 HttpRequest 作为第一个参数。那么哪些东西符合这个要求呢？</p>
       
     
       
@@ -149,11 +149,33 @@ result=operation(a, b)))
       
     
       
-        <p>可能还有其他我没想到的形式。总之，Django 的教程（包括本系列）通常从视图函数开始。有时视图类会被当作更高级的技术。我还没在其他地方见过有人使用实例方法作为视图，但我发现它非常有用，所以在这里专门介绍一下。</p>
+        <p>可能还有其他我没想到的形式。总之，Django 的教程（包括本系列）通常都从视图函数开始讲起。有时视图类会被当作一种进阶技巧介绍。我还没见过有人在实际项目中使用实例方法作为视图，但我发现它非常有用，所以在这里给它一些展示空间。</p>
       
     
       
-        <p>作为一个简单的例子，我们把之前的小数学应用改写成使用面向对象视图的形式：</p>
+        <p>作为一个简单的例子，我们把之前那个数学小应用改写成使用面向对象视图的形式：</p>
+      
+    
+      
+        <pre><code>from django.conf.urls.defaults import url, handler404, handler500
+from dwa.serialize import JsonResponse
+class MathAPI(object):
+def perform_operation(self, op, a, b):
+import operator
+operation = getattr(operator, op)
+return operation(a, b)
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;compute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;op&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;a&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;b&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;JsonResponse&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;dict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;op&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;op&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;perform_operation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;op&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;url_patterns&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;regex&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;r&amp;#39;^compute/(?P&amp;lt;op&amp;gt;\w+)/$&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;view&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;compute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)]&lt;/span&gt;
+urlpatterns = MathAPI().url_patterns()
+urlpatterns.append(
+url(r&#x27;^$&#x27;, &#x27;django.views.static.serve&#x27;, dict(document_root=&#x27;public&#x27;, path=&#x27;index.html&#x27;)))</code></pre>
       
     
       
@@ -170,15 +192,15 @@ result=operation(a, b)))
       
     
       
-        <p>几点说明：</p>
+        <p>几点观察：</p>
       
     
       
-        <p>1. 我们干净地分离了这个 API 相关的所有 URL 模式。对于更通用的解决方案，我们可能需要添加一个 prefix 参数，以便轻松修改 API 的挂载路径。我们甚至可以子类化 Django 内部的 URL 解析器，但它并不是为了便于扩展而设计的。</p>
+        <p>1. 我们干净利落地把这个 API 相关的所有 URL 规则都分离了出来。对于更通用的解决方案，我们可能需要添加一个 prefix 参数，以便轻松修改 API 的挂载路径。我们甚至可以子类化 Django 内部的 URL 解析器，但它并不是为了便于扩展而设计的。</p>
       
     
       
-        <p>2. 实际的计算逻辑（perform_operation）与 Web 接口（compute）被清晰分离，因此你可以独立地对其中任何一个进行子类化。下面是一个无厘头的例子：</p>
+        <p>2. 实际的计算逻辑（perform_operation）与面向 Web 的接口（compute）被清晰地分开了，因此你可以独立地对其中任何一个进行子类化。举一个有趣的例子：</p>
       
     
       
@@ -191,6 +213,20 @@ urlpatterns = HtamAPI().url_patterns()
     
       
         <p>3. 添加新功能非常容易：</p>
+      
+    
+      
+        <pre><code>class ExtendedMathAPI(MathAPI):
+    def get_constant(self, const):
+        if const == &#x27;pi&#x27;: return 3.1
+        elif const == &#x27;e&#x27;: return 2.7
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;constant&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;const&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;JsonResponse&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;dict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;const&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get_constant&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;const&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;url_patterns&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;super&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ExtendedMathAPI&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;url_patterns&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;r&amp;#39;^const/(?P&amp;lt;const&amp;gt;\w+)/&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;constant&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)]&lt;/span&gt;
+</code></pre>
       
     
       
@@ -209,19 +245,68 @@ urlpatterns = HtamAPI().url_patterns()
       
     
       
-        <p>本系列接下来的内容将致力于把这些想法发展成快速应用开发的有用技术。但为了让我保持诚实，我们应该做一些比简单数学更有挑战性和趣味性的东西。而且它不能是又一个博客、wiki 或 reddit 克隆……</p>
+        <p>本系列接下来的内容将专注于将这些想法发展成实用的技巧，以支持快速应用开发。但为了不纸上谈兵，我们应该做一个比简单数学运算更有挑战性、也更有趣的东西。而且它还不能是又一个博客、Wiki 或 Reddit 克隆……</p>
       
     
       
-        <p>于是我决定做一个简化版的应用，这个应用我已经想开发很久了。我热爱上帝的话语，因为它向我显明祂是谁（祂真的非常美好！）以及我是谁。我经常非正式地背诵其中的部分内容，因为在很多情况下回忆这些经文都很有帮助。但我常常会忘记某些词句，或者记不清一段经文的具体位置，所以我想要一个能帮助我复习的工具。它需要能在任何地方使用，因此这个工具的最佳实现形式本来应该是打孔卡……好吧，那就用 HTML、CSS、JavaScript、DOM、DHTML、JSON、AJAX、Django 这些 Web 应用流行词汇来实现吧。</p>
+        <p>于是我决定做一个简化版的应用，这个想法我已经想了好一阵子了。我热爱上帝的话语，因为它向我显明了祂是谁（祂实在美好！）以及我自己是谁。我也常常非正式地背诵其中的段落，因为在很多情况下回想起来都很有帮助。但我经常会忘记某些词句，或者记不清一段经文的具体位置，所以我想要一个能帮助我复习的工具。它需要能在任何地方使用，所以这个工具的最佳实现形式是……打孔卡。好吧……那就用 HTML、CSS、JavaScript、DOM、DHTML、JSON、AJAX、Django 这些 Web 应用时髦词的组合吧。</p>
       
     
       
-        <blockquote>只要提到“上帝”就会让很多人情绪激动，无论持何种观点。如果你确实有话想说，（a）请先想清楚再发帖，（b）请发到我的博客上。因此在 Will 的博客上，我们还是把注意力集中在 Django 本身。</blockquote>
+        <blockquote>只要提到“上帝”，无论持何种观点，许多人都会情绪激动。如果你确实有话想说，（a）请先想清楚再发帖，（b）请发到我的博客上。因此，在 Will 的这个博客上，我们还是把注意力集中在 Django 本身。</blockquote>
       
     
       
-        <p>我将在后续文章中详细介绍，但这里先展示整个服务端的接口代码（不含数据库模型）来激发大家的兴趣：</p>
+        <p>我会在后面的文章中详细介绍，但为了让你先有个概念，我先把整个服务端的接口代码（不含数据库模型）贴在下面：</p>
+      
+    
+      
+        <pre><code>from django.conf.urls.defaults import url, handler404, handler500
+from dwa.resource import Resource, ResourceCollection
+from dwa.api import AjaxAPI
+from dwa.util import static_url
+from scripmem.models import MemoryPassage, ActivityLogEntry
+class MemoryPassageResource(Resource):
+url = &#x27;passages&#x27;
+queryset = MemoryPassage.objects.all()
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;detail&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;d&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;as_dict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;bool&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GET&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;html&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;False&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;html&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;passage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;html&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;d&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;list_entry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;as_dict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;list_view_POST&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;passage&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MemoryPassage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;objects&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;create_from_ref&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;POST&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;ref&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;detail&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;passage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;next_view&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;to_review&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MemoryPassage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;objects&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;order_by&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;last_reviewed&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)[&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;detail&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;to_review&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;url_patterns&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;prefix&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;url_prefix&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;prefix&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;url&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;super&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MemoryPassageResource&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;url_patterns&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;prefix&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; \
+        &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;^&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;/next/$&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;url_prefix&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;next_view&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)]&lt;/span&gt;
+class ActivityLogResource(Resource):
+url = &#x27;log&#x27;
+queryset = ActivityLogEntry.objects.all()class ScripMemAPI(AjaxAPI):
+@AjaxAPI.exported
+def completed(self, request, passage_id, score):
+passage = MemoryPassage.objects.get(id=passage_id)
+ActivityLogEntry.objects.create(passage=passage, score=int(score))
+return {&#x27;status&#x27;: &#x27;ok&#x27;}scripmem_collection = ResourceCollection((
+MemoryPassageResource,
+ActivityLogResource
+))urlpatterns = scripmem_collection.url_patterns() + ScripMemAPI().url_patterns()# Static serving
+static_pages = (
+&#x27;index.html&#x27;,
+&#x27;scripmem.js&#x27;,
+&#x27;style.css&#x27;,
+)urlpatterns += [static_url(page, page) for page in static_pages]
+urlpatterns.append(static_url(&#x27;&#x27;, &#x27;index.html&#x27;))</code></pre>
       
     
       
@@ -250,15 +335,15 @@ urlpatterns = HtamAPI().url_patterns()
       
     
       
-        <p>当然这还不完整（比如缺少用户管理功能），但它展示了基本的设计思路。我认为这是一种非常实用的设计策略：先找到并实现你想法的核心要素，然后不断尝试和打磨它。</p>
+        <p>当然这还不完整（比如缺少用户管理），但它展示了基本的设计思路。我认为这是一种普遍有用的设计策略：先找出并实现你想法的核心本质，然后不断试用和打磨它。</p>
       
     
       
-        <p>下次我们将看看我在 django-webapp 中使用的一些技巧，这些技巧可以帮助我和你们开发应用。</p>
+        <p>下次我们会一起看看我在 django-webapp 中使用的一些技巧，正是这些技巧让我的应用（以及你的应用）得以实现。</p>
       
     
       
-        <p>如果有人真的有兴趣一起开发这个应用，请直接联系我；它确实需要更多人的帮助。</p>
+        <p>如果有人真的对这个特定应用感兴趣并愿意一起开发，请直接联系我；它确实需要更多人的帮助。</p>
       
     
   </div>

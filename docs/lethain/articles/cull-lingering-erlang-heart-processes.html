@@ -53,7 +53,23 @@ erl -heart -detached -run myscript start 8000
       
     
       
-        <pre><code>ps aux</code></pre>
+        <pre><code>use strict;
+my $output = ps aux;
+my @lines = split(&quot;\n&quot;, $output);
+my %pids = ();
+foreach my $line (@lines) {
+if ($line =~ m/\w+[ ]+(\d+).*$/) {
+$pids{$1} = 1;
+}
+}
+foreach my $line (@lines) {
+if ($line =~ m/\w+[ ]+(\d+).* heart -pid (\d+)$/) {
+if ($pids{$2} != 1) {
+exec(&quot;kill $1&quot;);
+}
+}
+}
+</code></pre>
       
     
       

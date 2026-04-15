@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Django 的 Google Analytics 中间件（转载） · Will Larson 文集</title>
+  <title>一个用于 Google Analytics 的 Django Middleware（转载） · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>Django 的 Google Analytics 中间件（转载）</h1>
+    <h1>一个用于 Google Analytics 的 Django Middleware（转载）</h1>
     <div class="meta">
       2007-06-14 · 
       <a href="https://lethain.com/a-django-middleware-for-google-analytics-repost/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,15 +29,15 @@
   <div class="article-content">
     
       
-        <p>本文移植自原 Irrational Exuberance 博客，撰写于 2007 年中期，距今已近两年。</p>
+        <p>这篇文章移植自原 Irrational Exuberance 博客，写于 2007 年中期：距今已近两年。</p>
       
     
       
-        <p>Django 的优雅之处在于它被设计为极具灵活性。作为开发者，我们可以在多个位置接入 Django，而这些接入点几乎可以触达框架的所有核心组件。Django 开发者最先接触到的通常是 urls.py 文件，用于将 URL 映射到对应的应用。urls.py 是 Django 最基础的钩子，但有时它的第二个钩子——Middleware（中间件）——能带来更简洁的实现。本文将首先介绍如何使用 GoogleAnalyticsMiddleware 在页面中注入 Google Analytics 调用代码，随后我们将逐步剖析它的构建过程。该中间件的源代码可在此获取（采用 Lesser GNU 许可协议）。&lt;!--more--&gt;</p>
+        <p>Django 的美妙之处在于它被设计为最大化灵活性。作为开发者，我们可以在多个位置接入 Django，而这些接入点允许我们访问 Django 的大部分内部组件。Django 开发者首先接触到的接入点是 urls.py 文件，我们在那里将 URL 映射到对应的应用。urls.py 是 Django 最基础的接入方式，但有时 Django 的第二个接入点——Middleware——能为我们带来简洁性上的切实提升。在本文中，我们会先看看如何使用 GoogleAnalyticsMiddleware 将 Google Analytics 的调用代码注入到页面中，然后再逐步讲解它是如何构建的。GoogleAnalyticsMiddleware 的源代码可在此获取（采用 Lesser GNU 协议）。&lt;!--more--&gt;</p>
       
     
       
-        <h2>使用 Google Analytics 中间件</h2>
+        <h2>使用 Google Analytics Middleware</h2>
         
       
     
@@ -53,7 +53,7 @@
       
     
       
-        <p>如果你将其放在 django.middleware 目录下，那么应该这样写：</p>
+        <p>如果你把它放在 django.middleware 目录下，那么这一行应该写成</p>
       
     
       
@@ -62,7 +62,7 @@
       
     
       
-        <p>接下来需要在 settings.py 中添加全局变量 ANALYTICS_ID，其值应为你的 Google Analytics ID。</p>
+        <p>。接下来你需要在 settings.py 文件中添加全局变量 ANALYTICS_ID，其值应该是你的 Google Analytics ID。</p>
       
     
       
@@ -71,7 +71,7 @@
       
     
       
-        <p>通常我们不希望跟踪自己的访问数据，为此可以设置第二个可选的全局变量 ANALYTICS_IGNORE_ADMIN。如果将其设为 True，那么已登录管理员访问页面时将不会注入 Google Analytics 的 JavaScript 代码（这样既不会干扰统计数据，也无需加载脚本，皆大欢喜）。如果要启用此功能，请在 settings.py 中加入以下内容：</p>
+        <p>通常你不会想跟踪自己的访问数据，因此还提供了一个可选的全局变量 ANALYTICS_IGNORE_ADMIN。如果你将其设为 True，那么已登录管理员访问页面时将不会注入 Google Analytics 的 JavaScript 代码（这样既不会干扰你的统计数据，也不用加载 JavaScript，皆大欢喜）。如果你想使用这个功能，应该在 settings.py 中加入以下内容：</p>
       
     
       
@@ -80,11 +80,11 @@
       
     
       
-        <p>如果你不想对管理员禁用跟踪，那么无需额外操作，因为默认情况下中间件会注入到所有页面中。配置工作到此结束。如果你想在不向 Google Analytics 发送真实数据的情况下进行测试，可以取消 init 方法中某行的注释。</p>
+        <p>如果你不想对管理员禁用跟踪，那么无需做任何额外操作，因为默认情况下中间件会注入到所有页面中。配置工作到此结束。如果你想在不向 Google Analytics 发送真实数据的情况下进行测试，可以取消 init 方法中对应那一行的注释。</p>
       
     
       
-        <h2>开发这个中间件</h2>
+        <h2>开发这个 Middleware</h2>
         
       
     
@@ -96,20 +96,16 @@ process_response(self, request, response)
       
     
       
-        <p>process_request 用于在 Django 确定要渲染的视图之前拦截请求（可用于拒绝未授权用户）。process_view 用于在视图渲染前进行拦截并返回其他内容（比如错误信息，或者在用户下次登录时发送一次性提示）。process_response 则用于修改即将返回给用户的内容。对于注入 Analytics 代码来说，process_response 正是我们需要的。</p>
+        <p>process_request 用于在 Django 确定要渲染的视图之前拦截请求（可用于拒绝未授权用户）。process_view 用于在视图渲染前进行拦截并显示其他内容（比如错误信息，或者在用户下次登录时发送一次性消息）。process_response 则用于修改即将显示的内容。对于注入 Analytics 代码来说，process_response 正是我们需要的。</p>
       
     
       
-        <h3>设计我们的中间件</h3>
+        <h3>设计我们的 Middleware</h3>
         
       
     
       
-        <div class="list-content">从 settings.py 中获取 ANALYTICS_ID 和 ANALYTICS_IGNORE_ADMIN 的值。
-除非 ANALYTICS_ID 为空，否则预先生成调用 Analytics 的 JavaScript 对应的 HTML 代码。
-如果没有设置 ANALYTICS_ID，则让 process_response 直接返回不做修改的响应。
-如果 ANALYTICS_IGNORE_ADMIN 为 True，则让 process_response 在非管理员登录时注入 Analytics 代码。
-否则 process_response 始终注入 Analytics 代码。</div>
+        <div class="list-content">从 settings.py 中获取 ANALYTICS_ID 和 ANALYTICS_IGNORE_ADMIN 的值。除非没有设置 ANALYTICS_ID，否则预先生成调用 Analytics 的 JavaScript 对应的 HTML 代码。如果没有设置 ANALYTICS_ID，则将 process_response 设置为不做任何修改直接返回响应。否则如果 ANALYTICS_IGNORE_ADMIN 为 True，则将 process_response 设置为：除非当前登录的是管理员，否则注入 Analytics 代码。如果以上条件都不满足，则 process_response 始终注入 Analytics 代码。</div>
       
     
       
@@ -120,7 +116,7 @@ ignore = settings.ANALYTICS_IGNORE_ADMIN
       
     
       
-        <p>非常简洁，这要归功于 Django 团队提供的元编程特性。接下来我们需要一个简单的函数，根据 ID 生成相应的 HTML 字符串，代码如下：</p>
+        <p>非常简单，这要归功于 Django 团队提供的元编程魔法。接下来我们需要一个简单的函数，根据 ID 来构建 HTML 字符串，代码如下：</p>
       
     
       
@@ -131,11 +127,11 @@ def form_analytics_string(id):
       
     
       
-        <p>这只是将值插入 Python 字符串的简单操作。它使用了 staticmethod 装饰器，因为该方法不需要访问实例的任何状态（使用 staticmethod 装饰器后，它不会自动接收 self 作为第一个参数）。</p>
+        <p>这只是简单地将值插入到 Python 字符串中。它使用了 staticmethod 装饰器，因为该方法不需要访问实例的任何信息（使用 staticmethod 装饰器意味着它不会自动把 self 作为第一个参数传入）。</p>
       
     
       
-        <h3>稍作迂回：一些辅助方法</h3>
+        <h3>短暂的题外话：一些辅助方法</h3>
         
       
     
@@ -146,7 +142,7 @@ def form_analytics_string(id):
       
     
       
-        <p>将 Analytics 代码插入响应体的过程稍微复杂一些，但依然清晰易懂。</p>
+        <p>将 Analytics 代码插入到响应中的逻辑稍微复杂一些，但依然合理。</p>
       
     
       
@@ -162,8 +158,7 @@ def form_analytics_string(id):
       
     
       
-        <p>我们先获取响应的内容，扫描其中是否包含 &lt;/body&gt; 标签，如果找到，就将 Analytics 代码插入到它之前（这样不会拖慢页面加载速度）。不算太难。我们还需要实现的最后一个辅助函数，是将“是否为管理员”的检查通过柯里化（currying）附加到 insert_analytics 方法上（仅当 ANALYTICS_IGNORE_ADMIN 为 True 时才会进行柯里化，这个逻辑将在 init 方法中处理）。
-（如果你不了解柯里化是什么，它是函数式编程中的概念，可以在这里看到解释。）这段代码略显费解，但它让我们能够复用 insert_analytics 的逻辑，无论是否需要忽略管理员用户。</p>
+        <p>我们从 response 中获取内容，扫描其中是否含有 &lt;/body&gt; 标签，如果有，就立即在它之前插入 Analytics 代码（这样 Analytics 脚本就不会拖慢页面的加载时间）。不算太难。我们需要构建的最后一个辅助函数是用来将“是否为管理员用户”的检查通过柯里化（currying）的方式绑定到 insert_analytics 方法上（只有当 ANALYTICS_IGNORE_ADMIN 变量为 True 时才会进行这种柯里化，而我们会在 init 方法中完成这个逻辑判断）。（如果你不知道柯里化是什么，它是函数式编程中的一个概念，可以在这里看到解释。）这段代码乍看有些令人困惑，但它让我们无论是否需要忽略管理员用户，都能复用 insert_analytics 中的代码。</p>
       
     
       
@@ -178,11 +173,11 @@ def ignore_admin(func):
       
     
       
-        <p>首先要注意的是 ignore_admin 是一个静态函数（它只对函数进行操作，并不依赖类的特定实例）。ignore_admin 方法的实际作用是返回内部函数 ignore_if_admin 针对参数 &#x27;func&#x27; 进行特化后的副本。因此返回的函数会“记住” func 的值，即使它从未被显式作为参数传递（这是函数式编程中常见的技巧）。</p>
+        <p>首先要注意 ignore_admin 是一个静态函数（它只是对函数进行操作，并不和类的某个特定实例绑定）。ignore_admin 方法的实际作用是返回内部函数 ignore_if_admin 针对参数 &#x27;func&#x27; 进行特化后的副本。因此返回的函数会“记住” func 的值，即使它从未被显式作为参数传递（这是函数式编程中常见的用法）。</p>
       
     
       
-        <h3>回到构造器</h3>
+        <h3>回到构造方法</h3>
         
       
     
@@ -204,12 +199,57 @@ def ignore_admin(func):
       
     
       
-        <p>在 __init__ 方法中，我们首先尝试从 settings 文件获取 ID，如果失败，则将 process_response 设置为 return_unaltered 方法。否则根据情况返回 insert_analytics 方法，如果需要忽略管理员，则会通过 ignore_admin 进行柯里化。多亏了这些辅助方法，init 逻辑清晰易懂，非常不错。</p>
+        <p>在 init 方法中，我们首先尝试从 settings 文件中获取 ID，如果失败，就将 process_response 设置为 return_unaltered 方法。否则我们返回 insert_analytics 方法，并在需要时通过 ignore_admin 方法进行柯里化。由于有了这些辅助方法，init 的代码相当清晰易懂。非常不错。</p>
       
     
       
         <h3>跳出细节看整体</h3>
         
+      
+    
+      
+        <pre><code>from django.conf import settings
+class GoogleAnalyticsMiddleware(object):
+    def __init__(self):
+        &#x27;Constructor for GoogleAnalyticsMiddleware&#x27;
+        try:
+            id = settings.ANALYTICS_ID
+            self.html = self.form_analytics_string(id)
+            self.process_response = self.insert_analytics
+            try:
+                ignore = settings.ANALYTICS_IGNORE_ADMIN
+                if ignore is True:
+                    self.process_response = self.ignore_admin(
+                        self.process_response)
+            except AttributeError:
+                pass
+        except AttributeError:
+            self.process_response = self.return_unaltered
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;insert_analytics&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;upper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;&amp;amp;lt;/BODY&amp;amp;gt;&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;content&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;html&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;content&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;return_unaltered&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt;
+
+&lt;span class=&quot;nd&quot;&gt;@staticmethod&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;ignore_admin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;ignore_if_admin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;is_authenticated&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;is_staff&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ignore_if_admin&lt;/span&gt;
+
+&lt;span class=&quot;nd&quot;&gt;@staticmethod&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;form_analytics_string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;&amp;quot;&amp;quot;&amp;amp;lt;script src=&amp;quot;http://www.google-analytics.com/urchin.js&amp;quot; type=&amp;quot;text/javascript&amp;quot;&amp;amp;gt;&amp;amp;lt;/script&amp;amp;gt;&amp;amp;lt;script type=&amp;quot;text/javascript&amp;quot;&amp;amp;gt;  _uacct = &amp;quot;&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;;  urchinTracker();&amp;amp;lt;/script&amp;amp;gt;&amp;quot;&amp;quot;&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+</code></pre>
       
     
       
@@ -241,7 +281,7 @@ def ignore_admin(func):
       
     
       
-        <p>总的来说，我们只用了不到五十行代码（忽略空白行，这是人们在讨论代码行数时惯用的做法）就实现了一个还算实用的中间件。成果不错。既然我们已经写过一个中间件，下次我们就会理解其核心原理，从而可以开发更有趣的功能。提醒一下，完整的源代码可在此获取，而且（与我们刚刚构建的代码不同）它包含了详细的注释。</p>
+        <p>总的来说，我们只用了不到五十行代码（忽略空白行，就像人们在试图用代码行数说明问题时常做的那样）就写出了一个相当实用的 Middleware。这成绩还不错。现在我们已经写过一个 Middleware，下次我们就会理解其基本原理，并能写出更有趣的东西。别忘了完整的源代码可在此获取，而且它（和我们刚才逐步构建的代码不同）包含了注释。</p>
       
     
   </div>

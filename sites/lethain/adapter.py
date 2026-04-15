@@ -221,20 +221,33 @@ def _parse_article(html: str, index_entry: dict, all_slugs: set[str]) -> dict:
     }
 
 
+def _get_code_text(pre: Tag) -> str:
+    """Extract code text from a <pre> element.
+    Use only a direct child <code> (recursive=False); otherwise use pre's own text."""
+    code_el = pre.find("code", recursive=False)
+    return code_el.get_text() if code_el else pre.get_text()
+
+
 def _walk_block(el: Tag, segments: list, all_slugs: set[str],
-                internal_links: list, entry_url: str):
+                internal_links: list, entry_url: str,
+                _emitted_pres: set | None = None, _emitted_imgs: set | None = None):
     """Recursively walk a block element tree, emitting segments in document order.
 
-    Handles headings, pre/code, figure, img, blockquote, lists, paragraphs
-    at any nesting depth (inside div, ol, ul, li, etc.).
+    Never mutates the source tree. Tracks emitted pre/img nodes by id() to avoid
+    double-emitting when the same node is reachable from multiple paths.
     """
+    if _emitted_pres is None:
+        _emitted_pres = set()
+    if _emitted_imgs is None:
+        _emitted_imgs = set()
+
     for child in el.children:
         if not isinstance(child, Tag):
             continue
 
         tag = child.name
 
-        # Headings — emit immediately, any depth
+        # Headings
         if tag in ("h2", "h3", "h4"):
             text = _process_element_text(child, all_slugs, internal_links)
             if text.strip():
@@ -242,88 +255,115 @@ def _walk_block(el: Tag, segments: list, all_slugs: set[str],
                 seg["heading_level"] = int(tag[1])
                 segments.append(seg)
 
-        # Code blocks — emit raw text, never recurse into
+        # Code blocks — emit all <pre> nodes including nested ones
         elif tag == "pre":
-            code_el = child.find("code")
-            code_text = code_el.get_text() if code_el else child.get_text()
-            if code_text.strip():
-                segments.append({
-                    "index": len(segments), "type": "code",
-                    "text": code_text, "footnote_refs": [], "links": [],
-                })
+            if id(child) not in _emitted_pres:
+                _emitted_pres.add(id(child))
+                code_text = _get_code_text(child)
+                if code_text.strip():
+                    segments.append({
+                        "index": len(segments), "type": "code",
+                        "text": code_text, "footnote_refs": [], "links": [],
+                    })
+                # Also emit any nested <pre> nodes (highlight wrappers)
+                for nested_pre in child.find_all("pre"):
+                    if id(nested_pre) not in _emitted_pres:
+                        _emitted_pres.add(id(nested_pre))
+                        ct = _get_code_text(nested_pre)
+                        if ct.strip():
+                            segments.append({
+                                "index": len(segments), "type": "code",
+                                "text": ct, "footnote_refs": [], "links": [],
+                            })
 
         # Figure elements
         elif tag == "figure":
             _extract_figure(child, segments, entry_url)
+            for img in child.find_all("img", src=True):
+                _emitted_imgs.add(id(img))
 
-        # Blockquotes
-        elif tag == "blockquote":
-            # Strip any nested <pre> first, emit them separately
-            for nested_pre in child.find_all("pre"):
-                code_el = nested_pre.find("code")
-                ct = code_el.get_text() if code_el else nested_pre.get_text()
-                if ct.strip():
-                    segments.append({
-                        "index": len(segments), "type": "code",
-                        "text": ct, "footnote_refs": [], "links": [],
-                    })
-                nested_pre.decompose()
-            text = _process_element_text(child, all_slugs, internal_links)
-            if text.strip():
-                segments.append(_make_seg(len(segments), "blockquote", text.strip()))
+        # Standalone <img> (not inside p or figure)
+        elif tag == "img" and child.get("src"):
+            if id(child) not in _emitted_imgs:
+                _emitted_imgs.add(id(child))
+                _extract_img(child, segments, entry_url)
 
-        # Paragraphs — check for image-only first
+        # Paragraphs
         elif tag == "p":
             img = child.find("img")
-            if img and img.get("src"):
-                # Check if there's meaningful text besides the image
-                text_content = child.get_text(strip=True)
-                img_alt = img.get("alt", "")
-                # If the only text is the alt text or empty, treat as figure
-                non_img_text = text_content.replace(img_alt, "").strip()
-                if len(non_img_text) < 3:
-                    _extract_img(img, segments, entry_url)
-                else:
-                    # Mixed content: emit image then text
-                    _extract_img(img, segments, entry_url)
-                    text = _process_element_text(child, all_slugs, internal_links)
-                    if text.strip() and len(text.strip()) >= 3:
-                        segments.append(_make_seg(len(segments), "paragraph", text.strip()))
+            if img and img.get("src") and id(img) not in _emitted_imgs:
+                _emitted_imgs.add(id(img))
+                _extract_img(img, segments, entry_url)
+                # Also extract text if there's meaningful content beyond the image
+                clone = _clone_without(child, {"pre", "img", "figure"})
+                text = _process_element_text(clone, all_slugs, internal_links)
+                if text.strip() and len(text.strip()) >= 3:
+                    segments.append(_make_seg(len(segments), "paragraph", text.strip()))
             else:
                 text = _process_element_text(child, all_slugs, internal_links)
                 if text.strip() and len(text.strip()) >= 3:
                     segments.append(_make_seg(len(segments), "paragraph", text.strip()))
 
-        # Lists — extract text but also recurse for nested pre/img/headings
-        elif tag in ("ul", "ol"):
-            # First, extract and emit any nested <pre> blocks
+        # Blockquotes — emit nested pre/img first, then text from cleaned clone
+        elif tag == "blockquote":
             for nested_pre in child.find_all("pre"):
-                code_el = nested_pre.find("code")
-                ct = code_el.get_text() if code_el else nested_pre.get_text()
-                if ct.strip():
-                    segments.append({
-                        "index": len(segments), "type": "code",
-                        "text": ct, "footnote_refs": [], "links": [],
-                    })
-                nested_pre.decompose()
-            # Extract any nested images
+                if id(nested_pre) not in _emitted_pres:
+                    _emitted_pres.add(id(nested_pre))
+                    ct = _get_code_text(nested_pre)
+                    if ct.strip():
+                        segments.append({
+                            "index": len(segments), "type": "code",
+                            "text": ct, "footnote_refs": [], "links": [],
+                        })
             for nested_img in child.find_all("img", src=True):
-                _extract_img(nested_img, segments, entry_url)
-                # Remove from tree so it doesn't appear in text
-                nested_img.decompose()
-            # Now get the list text (code/images already removed)
-            text = _process_element_text(child, all_slugs, internal_links)
+                if id(nested_img) not in _emitted_imgs:
+                    _emitted_imgs.add(id(nested_img))
+                    _extract_img(nested_img, segments, entry_url)
+            clone = _clone_without(child, {"pre", "img", "figure"})
+            text = _process_element_text(clone, all_slugs, internal_links)
+            if text.strip():
+                segments.append(_make_seg(len(segments), "blockquote", text.strip()))
+
+        # Lists — emit nested pre/img first, then text from cleaned clone
+        elif tag in ("ul", "ol"):
+            for nested_pre in child.find_all("pre"):
+                if id(nested_pre) not in _emitted_pres:
+                    _emitted_pres.add(id(nested_pre))
+                    ct = _get_code_text(nested_pre)
+                    if ct.strip():
+                        segments.append({
+                            "index": len(segments), "type": "code",
+                            "text": ct, "footnote_refs": [], "links": [],
+                        })
+            for nested_img in child.find_all("img", src=True):
+                if id(nested_img) not in _emitted_imgs:
+                    _emitted_imgs.add(id(nested_img))
+                    _extract_img(nested_img, segments, entry_url)
+            clone = _clone_without(child, {"pre", "img", "figure"})
+            text = _process_element_text(clone, all_slugs, internal_links)
             if text.strip():
                 segments.append(_make_seg(len(segments), "list", text.strip()))
 
         # Container elements — recurse into
         elif tag in ("div", "section", "article", "main", "span",
                      "li", "dd", "dt", "td", "th", "details", "summary"):
-            _walk_block(child, segments, all_slugs, internal_links, entry_url)
+            _walk_block(child, segments, all_slugs, internal_links, entry_url,
+                        _emitted_pres, _emitted_imgs)
 
-        # Unknown tags with children — recurse to not lose content
-        elif hasattr(child, 'children') and len(list(child.children)) > 0:
-            _walk_block(child, segments, all_slugs, internal_links, entry_url)
+        # Unknown tags with children — recurse
+        elif list(child.children):
+            _walk_block(child, segments, all_slugs, internal_links, entry_url,
+                        _emitted_pres, _emitted_imgs)
+
+
+def _clone_without(el: Tag, strip_tags: set) -> Tag:
+    """Create a deep copy of an element with specified tag types removed."""
+    from copy import copy
+    clone = copy(el)
+    for tag_name in strip_tags:
+        for node in clone.find_all(tag_name):
+            node.decompose()
+    return clone
 
 
 def _make_seg(index: int, seg_type: str, text: str) -> dict:
@@ -379,9 +419,9 @@ def _extract_seg_links(text: str) -> list[dict]:
 
 
 def _extract_figure(el: Tag, segments: list, page_url: str):
-    """Extract a figure element (img + optional caption)."""
+    """Extract a figure element (img + optional caption). Skip tracking pixels."""
     img = el.find("img")
-    if not img or not img.get("src"):
+    if not img or not img.get("src") or _is_tracking_pixel(img["src"]):
         return
     src = img["src"]
     abs_url = urljoin(page_url, src) if not src.startswith("http") else src
@@ -396,10 +436,18 @@ def _extract_figure(el: Tag, segments: list, page_url: str):
     })
 
 
+def _is_tracking_pixel(src: str) -> bool:
+    lower = src.lower()
+    return any(x in lower for x in [
+        "assoc-amazon.com", "amazon-adsystem.com", "doubleclick.net",
+        "1x1", "pixel", "beacon", "spacer", "trans_1x1",
+    ])
+
+
 def _extract_img(img: Tag, segments: list, page_url: str):
-    """Extract a standalone img element."""
+    """Extract a standalone img element. Skip tracking pixels."""
     src = img.get("src", "")
-    if not src:
+    if not src or _is_tracking_pixel(src):
         return
     abs_url = urljoin(page_url, src) if not src.startswith("http") else src
     alt_text = img.get("alt", "")

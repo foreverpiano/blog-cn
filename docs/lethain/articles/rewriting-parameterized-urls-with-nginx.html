@@ -29,7 +29,7 @@
   <div class="article-content">
     
       
-        <p>上周日（以及今天凌晨），我的目标是彻底关闭旧的 WordPress 博客，将有价值的内容重新发布到这个博客上，并完成我一直害怕的那一步——在新旧博客之间设置重定向。</p>
+        <p>上周日（以及今天凌晨的一部分时间），我的目标是彻底淘汰我的旧 WordPress 博客，把有价值的内容重新发布到这个博客上，同时——这是我一直最害怕的一步——在新旧博客之间设置重定向。</p>
       
     
       
@@ -43,7 +43,7 @@ http://willarson.com/blog/?p=41
       
     
       
-        <p>完全称不上美观的 URL。人们谈论重写 pretty URL 时，通常指的是将下面这种格式的 URL：</p>
+        <p>一点都不美观。当人们谈论重写 pretty URL 时，他们指的是将这种格式的 URL：</p>
       
     
       
@@ -52,11 +52,28 @@ http://willarson.com/blog/?p=41
       
     
       
-        <p>转换成 /p=3 这样的形式，但反方向的操作却很少被讨论。特别是在 Nginx 上，其 rewrite 模块的资料远不如 Apache 的 mod_rewrite 丰富。在仔细阅读了 Nginx Http Core Module 文档后，我终于想出了一个解决方案。</p>
+        <p>转换成 /p=3 这样的形式，但反向操作却很少被讨论。尤其是 Nginx，它的 rewrite 模块受到的关注远少于 Apache 的 mod_rewrite。在仔细阅读了 Nginx Http Core Module 文档之后，我总算想出了一个解决方案。</p>
       
     
       
-        <p>以下是 willarson.com 稍作泛化的 server 配置：</p>
+        <p>以下是 willarson.com 经过（稍作泛化）的 server 配置：</p>
+      
+    
+      
+        <pre><code>server {
+       listen *:80;
+       server_name www.willarson.com willarson.com;
+       if ($args ~ &quot;p=(.*)&quot;) {
+              set $p $1;
+              rewrite ^/blog/?(.*)$  /redirect/$p/ permanent;
+       }
+       access_log /home/django/domains/willarson.com/log/access.log;
+       error_log /home/django/domains/willarson.com/log/error.log;
+   &lt;span class=&quot;kn&quot;&gt;location&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;kn&quot;&gt;root&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/home/django/domains/willarson.com/public&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;kn&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;index.html&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+}</code></pre>
       
     
       
@@ -68,11 +85,11 @@ http://willarson.com/blog/?p=41
       
     
       
-        <p>这里的关键是 set $p $1; 这行。在较新版本的 Nginx 中（至少比 Ubuntu Intrepid 打包的版本新），你可以跳过这一步，直接使用 $arg_p（也可能是 $arg_P，文档对此表述不清）。</p>
+        <p>关键在于 set $p $1; 这一行。在较新版本的 Nginx 中（至少比 Ubuntu Intrepid 打包的版本新），你可以跳过这一步，直接使用 $arg_p（也可能需要 $arg_P，文档对此表述并不清晰）。</p>
       
     
       
-        <p>它以一种丑陋但有效的方式，将类似下面的 URL</p>
+        <p>它以其丑陋而又辉煌的方式，将类似下面的 URL</p>
       
     
       
@@ -86,7 +103,7 @@ http://willarson.com/blog/?p=41
       
     
       
-        <p>重写。虽然这看起来挺糟糕，但对我非常简单的需求来说已经足够了。之后我又写了一个同样不怎么优雅的 Python 脚本用来生成重定向页面。</p>
+        <p>这种做法相当丑陋，但对于我非常简单的需求来说已经足够了。之后我又写了一个同样简陋的 Python 脚本用来生成重定向页面。</p>
       
     
       
@@ -115,15 +132,15 @@ window.location = &quot;%s&quot;
       
     
       
-        <p>（我决定使用新的 canonical meta tag，是因为它更新且时髦，希望能帮助把旧博客的 Google 权重顺利转移到新博客上。让我们拭目以待。）</p>
+        <p>（我决定使用新的 canonical meta 标签，因为它比较新颖，而且有望帮助把旧博客的 Google 权重转移到新博客上。让我们拭目以待。）</p>
       
     
       
-        <p>然后我为每篇文章确定了从旧博客到新博客的映射关系（旧博客总共只有大约 27 篇文章，其中 9 篇值得重新发布，5 篇值得定向重定向到更新的内容，其余则全部重定向到新博客首页。大致原则是：有流量的内容都做了定制重定向指向相关新内容，而那些“文字垃圾”则统一跳转到首页）。</p>
+        <p>然后我为每篇文章确定了从旧博客到新博客的映射关系（旧博客总共只有大约 27 篇文章，其中 9 篇值得重新发布，另外 5 篇值得定向重定向到更新的内容，其余的则统一重定向到新博客首页。大体上，有流量的内容都会得到一个指向相关页面的定制重定向，而那些“文字垃圾”则采用通用的首页重定向）。</p>
       
     
       
-        <p>接着我为每个页面做了类似下面的设置：</p>
+        <p>接着我为每一页做了类似下面的设置：</p>
       
     
       
@@ -134,11 +151,11 @@ python create_redirect http://lethain.com/etc/etc/ &gt; 17/index.html
       
     
       
-        <p>你可以点击试试看。</p>
+        <p>你可以实际试试看。</p>
       
     
       
-        <p>至此，全部搞定。</p>
+        <p>这就是整个故事。</p>
       
     
   </div>

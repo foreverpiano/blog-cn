@@ -29,19 +29,19 @@
   <div class="article-content">
     
       
-        <p>我花了整个下午的时间，试图完成一件看似非常简单的事情：让 Cocoa 应用程序能够接受拖拽到其 Dock 图标上的文本（以及应用程序图标，虽然这不是我的主要关注点）。让它接受文件非常容易，我也没费多少功夫就让它能接受 txt 文件，但要让它接受高亮选中的文本字符串，却是完全另一回事。</p>
+        <p>我花了整个下午的时间，试图实现一个看起来应该非常简单的功能：让 Cocoa 应用程序能够接受拖拽到其 Dock 图标上的文本（以及应用程序图标，虽然这不是我的主要关注点）。让它接受文件相对简单，我也没费多少功夫就让它能接受 txt 文件，但要让它接受选中的文本字符串，却是完全另一回事。</p>
       
     
       
-        <p>在重新组合搜索关键词并尝试各种想法之后，我终于找到了两个关键资源：</p>
+        <p>在反复组合搜索关键词并尝试各种想法后，我终于找到了两个关键资源：</p>
       
     
       
-        <div class="list-content">Cocoa Scripting Guide 中关于 Mac OS 发送的 open content Apple Event 的小节，以及提供系统服务的文档。</div>
+        <div class="list-content">Cocoa Scripting Guide 中关于 Mac OS 发送的 open content Apple Event 的小节，以及提供系统服务的相关文档。</div>
       
     
       
-        <p>如果我是 Cocoa 编程档案里的乐于助人的幽灵，我就会把你留在这里，让你自己把它们拼凑起来，但我没那么残忍，所以我们来更仔细地看看细节。我当时使用的是 PyObjC，因此我会先给出 Python 示例，然后再把核心部分移植到 Objective-C。</p>
+        <p>如果我是 Cocoa 编程档案里的热心幽灵，我就会把你们丢在这里自己去拼凑，但我不至于那么残忍，所以我们还是来更仔细地看看具体细节。我当时使用的是 PyObjC，因此我会先给出 Python 示例，但也会把核心部分移植到 Objective-C。</p>
       
     
       
@@ -50,7 +50,7 @@
       
     
       
-        <p>首先，你需要在应用程序的 delegate 中创建一个单向系统服务的实现。一个简单的、使用 NSLog 输出传入文本的服务看起来像这样：</p>
+        <p>首先，你需要在应用程序的委托中创建一个单向系统服务的实现。一个使用 NSLog 记录传入文本的简单服务看起来像这样：</p>
       
     
       
@@ -61,7 +61,7 @@
       
     
       
-        <p>然后你需要在应用程序 delegate 的 applicationDidFinishLaunching: 方法中注册这个服务：</p>
+        <p>然后你需要在应用程序委托的 applicationDidFinishLaunching: 方法中注册这个服务：</p>
       
     
       
@@ -71,7 +71,21 @@
       
     
       
-        <p>把它们组合起来后看起来是这样的：</p>
+        <p>把它们合在一起，大概是这样的：</p>
+      
+    
+      
+        <pre><code>from AppKit import *
+import objc
+class MyAppDelegate(NSObject):
+&quot;My Application Delegate.&quot;
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;applicationDidFinishLaunching_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sender&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;NSApp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setServicesProvider_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;doString_userData_error_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pboard&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;userData&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;pboardString&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pboard&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stringForType_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;NSStringPboardType&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;NSLog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;u&amp;quot;&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pboardString&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+</code></pre>
       
     
       
@@ -85,7 +99,26 @@
       
     
       
-        <p>这几乎能用了，但还缺少一点 PyObjC 特有的“调味料”来正确处理所有事情。下面这个不再崩溃且错误信息清晰的实现是这样的：</p>
+        <p>这几乎能用了，但还缺少一点 PyObjC 特有的“调味料”才能正确处理。不会崩溃且不再报莫名其妙错误的实现是这样的：</p>
+      
+    
+      
+        <pre><code>from AppKit import *
+import objc
+def serviceSelector(fn):
+# this is the signature of service selectors
+return objc.selector(fn, signature=&quot;v@:@@o^@&quot;)
+class MyAppDelegate(NSObject):
+&quot;My Application Delegate.&quot;
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;applicationDidFinishLaunching_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sender&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;NSApp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setServicesProvider_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;doString_userData_error_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pboard&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;userData&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;pboardString&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pboard&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stringForType_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;NSStringPboardType&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;NSLog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;u&amp;quot;&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pboardString&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;lookupString_userData_error_&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;serviceSelector&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lookupString_userData_error_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+</code></pre>
       
     
       
@@ -101,7 +134,7 @@
       
     
       
-        <p>将这段代码移植到 Objective-C 相当直接。两个方法实现大致如下：</p>
+        <p>把这段代码移植到 Objective-C 相当直接。两个方法实现大致如下：</p>
       
     
       
@@ -121,19 +154,19 @@ NSLog(@&quot;%@&quot;,pboardString);
       
     
       
-        <p>最后你需要做的是在 Info.plist 文件中添加几个简单的设置来注册你的系统服务。首先，打开 Info.plist 文件进行编辑，然后添加一个名为 Services 的新键（自动补全应该能帮到你），其值是一个数组。</p>
+        <p>最后你需要做的是在 Info.plist 文件中添加几个简单的设置来注册你的系统服务。首先，打开 Info.plist 文件进行编辑。然后添加一个名为 Services 的新键（自动补全应该能帮到你），其值是一个数组。</p>
       
     
       
-        <p>在 Services 键对应的数组中，Xcode 会创建一个名为 Item 1 的键（非常直观）。Item 1 的值也是一个数组。它已经创建了一个名为 Menu 的键，Menu 下面有一个名为 default 的子项。default 的值应该是一个直观的服务名称，比如可能是“Search dictionary”或“Add to list”，具体取决于你的服务要做什么。</p>
+        <p>在 Services 键对应的数组中，Xcode 会创建一个直观地命名为“Item 1”的键。Item 1 的值同样是一个数组。它已经创建了一个名为 Menu 的键，下面有一个名为 default 的子项。default 的值应该是一个直观的服务名称，比如“Search dictionary”或“Add to list”，具体取决于你的服务功能。</p>
       
     
       
-        <p>现在，你只需要再为 Item 1 添加两个子项就完成了。首先是 Instance method name 键，其值应为上面代码中的 doString。其次是 Send Types 键，其值是一个数组，数组中的第一个 Item 1 的值为 NSStringPboardType。</p>
+        <p>现在，你只需要再为 Item 1 添加两个子项就完成了。首先是 Instance method name 键，其值对应上面代码中的 doString。其次是 Send Types 键，它的值是一个数组，第一个子项 Item 1 的值应为 NSStringPboardType。</p>
       
     
       
-        <p>如果上面的解释还不够完美，这里有一张图片可以帮助澄清。</p>
+        <p>如果上面的解释还不够清晰，这里有一张图片可以帮助说明。</p>
       
     
       
@@ -144,7 +177,7 @@ NSLog(@&quot;%@&quot;,pboardString);
       
     
       
-        <p>现在，当你构建应用程序后，选中一些文本并将其拖拽到 Dock 中的应用图标上，它应该会友好地亮起，愉快地接收你的文本。</p>
+        <p>现在构建你的应用程序，选中一些文本并将其拖到 Dock 中的应用图标上，它应该会友好地亮起，愉快地接收你的文本。</p>
       
     
       

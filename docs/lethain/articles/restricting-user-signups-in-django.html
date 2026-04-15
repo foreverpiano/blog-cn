@@ -29,11 +29,11 @@
   <div class="article-content">
     
       
-        <p>我正在开发一个 Django 应用，它正逐步接近某种形式的发布，但我希望能够缓慢地扩大规模，从少数目标用户开始，然后逐步迭代。之前我对 django-authopenid 印象深刻，它支持 OpenID 以及传统的注册和登录功能，我也想继续使用它。于是我坐下来设计了一个巧妙的方案，让我可以在不修改 django-authopenid 内部代码的情况下限制用户注册。</p>
+        <p>我正在开发一个 Django 应用，它正逐步接近某种形式的发布，但我希望能够缓慢地逐步开放，从少数目标用户开始，然后逐步迭代。我之前对 django-authopenid 印象深刻，它支持 OpenID 以及传统的注册和登录功能，我希望能继续使用它。于是我坐下来设计了一个巧妙的方案，让我能够在不修改 django-authopenid 内部代码的情况下限制用户注册。</p>
       
     
       
-        <p>我这个方案的核心是 AppInvite 模型，它可以创建带有使用次数限制的注册邀请码。</p>
+        <p>我的方案核心是 AppInvite 模型，它允许创建具有使用次数限制的注册码。</p>
       
     
       
@@ -45,7 +45,7 @@
       
     
       
-        <p>然后我修改了项目的 urls.py，以覆盖 django-authopenid 的注册页面：</p>
+        <p>然后我修改了项目的 urls.py，来覆盖 django-authopenid 的注册页面：</p>
       
     
       
@@ -55,11 +55,37 @@
       
     
       
-        <p>正如之前提到的，我不想修改 django-authopenid 的内部实现，因为这只是一个针对临时问题的快速解决方案，而不是一个需要长期保留的核心代码。</p>
+        <p>正如之前提到的，我不想破坏 django-authopenid 的内部实现，因为这只是针对临时问题的快速修复，而不是一个会长期保留的核心代码。</p>
       
     
       
         <p>接下来我需要编写 restrict_signup 视图：</p>
+      
+    
+      
+        <pre><code>from django_authopenid.views import signup
+from django.shortcuts import render_to_response
+from models import AppInvite
+def restrict_signup(request):
+&quot;If posting, pass it directly to signup.&quot;
+if request.method == &#x27;POST&#x27;:
+return signup(request)
+&lt;span class=&quot;n&quot;&gt;extra&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GET&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;has_key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;pw&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;pw&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;pw&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ai&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AppInvite&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;objects&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;password&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ai&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;ai&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ai&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ai&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;current&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ai&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;max&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ai&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;current&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ai&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;current&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;1&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ai&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;save&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;signup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;extra&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;error&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;The signup code &amp;#39;&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39; has expired.&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pw&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;extra&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;error&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;&amp;#39;&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39; isn&amp;#39;t a valid signup code.&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pw&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;render_to_response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;restrict_signup.html&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;extra&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+</code></pre>
       
     
       
@@ -82,19 +108,19 @@
       
     
       
-        <p>当请求是 GET 时，它会要求用户输入注册邀请码进行验证；但如果收到的是 POST 请求，则会将其转发给 django_authopenid 的注册视图进行处理。</p>
+        <p>如果请求是 GET，则强制用户输入注册码进行验证；但如果是 POST 请求，则将其转发给 django_authopenid 的注册视图处理。</p>
       
     
       
-        <p>restrict_signup 视图存在几个小问题：</p>
+        <p>restrict_signup 视图存在几个小缺陷：</p>
       
     
       
-        <div class="list-content">它统计的是展示空白注册表单的次数，而不是实际创建的用户数量；此外，它可以通过直接发送 POST 请求而非 GET 请求来绕过。</div>
+        <div class="list-content">它统计的是展示空白注册表单的次数，而不是实际创建的用户数。它也可以通过直接发送 POST 请求而不是 GET 请求来绕过。</div>
       
     
       
-        <p>对我来说，即使少放进去几个人，或者有少数人绕过系统偷偷进来，我也不太担心，所以这个方案对我而言已经足够了。</p>
+        <p>对我来说，如果少放进来几个人，或者有少数人绕过系统偷偷进来，我并不太担心，所以这对我而言仍然是一个足够有效的解决方案。</p>
       
     
       
@@ -118,11 +144,11 @@
       
     
       
-        <p>我相信如果能将这个模式抽象出来（并稍作扩展）成为一个可插拔的应用会很有用，但这需要更多思考如何组织结构。我的想法是：</p>
+        <p>我相信如果能将这个模式抽象出来（并稍作扩展）成为一个可插拔的应用，会很有用，但这需要更多思考如何构建它。我的想法是：</p>
       
     
       
-        <div class="list-content">支持任意注册邀请码，并可选择设置使用次数限制；支持限制每个时间段的注册数量（比如每天 100 个等）；在 settings.py 中增加一个参数，指定当用户提交正确的注册码后应该使用哪个注册表单视图。对，就是这些。</div>
+        <div class="list-content">支持任意注册码，可选择性地设置使用次数限制。支持按时间周期限制注册数量（比如每天 100 个等）。在 settings.py 中增加一个参数，指定当用户提供正确注册码时使用的注册表单视图。嗯……基本上就是这些。</div>
       
     
   </div>

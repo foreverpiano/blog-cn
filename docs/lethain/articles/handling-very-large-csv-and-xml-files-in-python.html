@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Python 处理大型 CSV 和 XML 文件 · Will Larson 文集</title>
+  <title>Python 处理超大 CSV 和 XML 文件 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>Python 处理大型 CSV 和 XML 文件</h1>
+    <h1>Python 处理超大 CSV 和 XML 文件</h1>
     <div class="meta">
       2009-01-22 · 
       <a href="https://lethain.com/handling-very-large-csv-and-xml-files-in-python/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,17 +29,17 @@
   <div class="article-content">
     
       
-        <p>和大多数人一样，我从未意识到自己会需要处理大型文件。
-我知道会有一些包含数兆字节数据的文件，但从未料到我会恳求 Perl 处理数百兆字节的 XML，更没想到这周我竟然要让 Python 把 6.4 GB 的 CSV 转换成 6.5 GB 的 XML。</p>
+        <p>和大多数人一样，我从未想过自己会需要处理超大文件。
+我知道会有一些几兆字节的数据文件，但从未预料到我会求着 Perl 处理几百兆的 XML，更没想到这周我会让 Python 把 6.4 GB 的 CSV 转换成 6.5 GB 的 XML。</p>
       
     
       
-        <p>几次内存溢出的经历会教会你，处理大型文件的核心技巧其实很简单：使用把所有内容当作流来处理的代码。
-对于输入，从磁盘分块读取；对于输出，频繁地写入磁盘，让系统内存保持轻负载继续运行。</p>
+        <p>几次内存溢出的经历会教会你，处理大文件的核心技巧其实很简单：使用把一切当作流来处理的代码。
+对于输入，从磁盘分块读取；对于输出，频繁写入磁盘，让系统内存保持轻松。</p>
       
     
       
-        <p>当你亲自读写文件时，这一点相对容易正确实现……</p>
+        <p>当你亲自读写文件时，正确实现这一点其实更容易……</p>
       
     
       
@@ -52,7 +52,7 @@ fout.write(&#x27;,&#x27;.join(line.split(&#x27; &#x27;)))
       
     
       
-        <p>……而比错误实现要容易得多……</p>
+        <p>……比错误实现要容易得多……</p>
       
     
       
@@ -74,7 +74,7 @@ fout.write(data2)
       
     
       
-        <p>Python 拥有一个优秀的 csv 库，开箱即用就能处理大型文件。算是吧。</p>
+        <p>Python 有一个非常优秀的 csv 模块，开箱即用就能处理大文件。算是吧。</p>
       
     
       
@@ -90,15 +90,15 @@ _csv.Error: field larger than field limit (131072)
       
     
       
-        <p>盯着模块文档看了半天，我没找到任何有用的内容。于是我打开了 csv.py 文件，证实了错误信息中 _csv 的暗示：该模块的大部分代码（尤其是输入解析部分）是用 C 而非 Python 实现的。</p>
+        <p>盯着模块文档看了半天，我没找到有用的信息。于是我打开 csv.py 文件确认了错误信息中 _csv 所暗示的内容：该模块的大部分代码（尤其是输入解析部分）是用 C 而非 Python 实现的。</p>
       
     
       
-        <p>盯着那个错误看了一会儿，我开始幻想如何用 StringIO 做一个流预处理器，但很快意识到，为了实现这个，我得自己重新写一个 csv 版本。</p>
+        <p>盯着那个错误看了一会儿，我开始幻想如何用 StringIO 做一个流预处理器，但很快意识到，要做到这一点，我几乎得自己重写一个 csv 版本。</p>
       
     
       
-        <p>于是我又回去翻博客，其中一篇终于给了我一直在找的那粒魔法信息：csv.field_size_limit。</p>
+        <p>于是继续翻博客，其中一篇终于提供了我苦苦寻找的关键信息：csv.field_size_limit。</p>
       
     
       
@@ -113,11 +113,11 @@ _csv.Error: field larger than field limit (131072)
       
     
       
-        <p>没错。就这么简单。之后这个家伙就正常工作了。</p>
+        <p>没错，就是这么简单。设置之后，这家伙就正常工作了。</p>
       
     
       
-        <p>好吧，几乎是这样。我确实在处理到 1.5 GB 处遇到了一个 NULL 字节的问题。因为流处理代码使用的是基于 C 的 IO，NULL 字节会导致数据读取突然中断且无法恢复。为了解决这个问题，我们需要对流进行预处理。你可以在 Python 中通过封装文件对象用自定义类来清理每一行后再返回，但我为了简便选择了命令行工具。</p>
+        <p>嗯，差不多吧。我确实在处理到 1.5 GB 处遇到了一个 NULL 字节的问题。因为底层的流式代码使用的是基于 C 的 IO，NULL 字节会导致数据读取突然中断且无法恢复。要解决这个问题，我们需要对流进行预处理。你可以在 Python 中通过封装文件对象、用自定义类在返回每一行前清理内容来实现，但我为了简单起见，直接用了几个命令行工具。</p>
       
     
       
@@ -126,20 +126,42 @@ _csv.Error: field larger than field limit (131072)
       
     
       
-        <p>之后，那个 6.4 GB 的 CSV 文件就没有任何问题地处理完成了。</p>
+        <p>处理完这个问题后，6.4 GB 的 CSV 文件就顺利无误地处理完了。</p>
       
     
       
-        <h3>在 Python 中创建大型 XML 文件</h3>
+        <h3>在 Python 中生成大型 XML 文件</h3>
         
       
     
       
-        <p>这一步——把 CSV 的每一行转换成 XML 元素——进行得相当顺利，这要归功于 xml.sax.saxutils.XMLGenerator 类。创建元素的 API 算不上简洁，但它——不像许多更具创造性的方案——行为可预期，并且有一个杀手级特性：它能正确地将输出写入流。</p>
+        <p>这部分工作——把 CSV 的每一行转换成 XML 元素——进行得相当顺利，这要感谢 xml.sax.saxutils.XMLGenerator 类。创建元素的 API 算不上简洁，但它——和许多更花哨的方案不同——行为可预测，而且有一个杀手级特性：能正确地将输出写入流。</p>
       
     
       
-        <p>正如我之前提到的，创建元素的机制比较啰嗦，所以我写了几个包装函数来简化（注意我把输出发到标准输出，这样我就可以直接 print 字符串到正在生成的文件中，例如创建 XML 文件的版本声明）。</p>
+        <p>正如我提到的，创建元素的代码比较繁琐，所以我写了几个包装函数来简化（注意我把输出发送到标准输出，这样我就可以直接打印字符串到正在生成的文件中，例如创建 XML 文件的版本声明）。</p>
+      
+    
+      
+        <pre><code>import sys
+from xml.sax.saxutils import XMLGenerator
+from xml.sax.xmlreader import AttributesNSImpl
+g = XMLGenerator(sys.stdout, &#x27;utf-8&#x27;)
+def start_tag(name, attr={}, body=None, namespace=None):
+attr_vals = {}
+attr_keys = {}
+for key, val in attr.iteritems():
+key_tuple = (namespace, key)
+attr_vals[key_tuple] = val
+attr_keys[key_tuple] = key
+&lt;span class=&quot;n&quot;&gt;attr2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AttributesNSImpl&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attr_vals&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attr_keys&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;g&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;startElementNS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;namespace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attr2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;body&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;g&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;characters&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;body&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+def end_tag(name, namespace=None):
+g.endElementNS((namespace, name), name)def tag(name, attr={}, body=None, namespace=None):
+start_tag(name, attr, body, namespace)
+end_tag(name, namespace)</code></pre>
       
     
       
@@ -151,7 +173,7 @@ _csv.Error: field larger than field limit (131072)
       
     
       
-        <p>从这里开始，使用方式是这样的：</p>
+        <p>使用方式如下：</p>
       
     
       
@@ -168,7 +190,7 @@ g.endDocument()
       
     
       
-        <p>我在数据中遇到的唯一问题是有些换页符（^L 即 12 即 x0c）到处飘，它们会干扰 XML 编码器，但你可以在很多地方把它们去掉，例如重写主循环：</p>
+        <p>我实际遇到的唯一问题（在我的数据中）是一些四处游荡的换页符（^L 即 12 即 0x0c），它们会干扰 XML 编码器。你可以在很多地方把它们过滤掉，比如改写主循环：</p>
       
     
       
@@ -179,7 +201,7 @@ g.endDocument()
       
     
       
-        <p>真的，XMLGenerator 就这么顺利地工作了，即使在处理相当大的文件时也是如此。</p>
+        <p>真的，XMLGenerator 就这么正常工作了，即使面对相当大的文件也一样。</p>
       
     
       
@@ -188,23 +210,22 @@ g.endDocument()
       
     
       
-        <p>虽然我的脚本生成的 XML 元素种类与上面的例子有所不同，但复杂程度差不多，性能也相当合理。将 6.4 GB 的 CSV 处理成 6.5 GB 的 XML 花了 19 到 24 分钟，这意味着它每秒大约能读-处理-写 5 兆字节的数据。</p>
+        <p>虽然我的脚本生成的 XML 元素种类和上面的例子不同，但复杂度差不多，性能也相当不错。将 6.4 GB 的 CSV 处理成 6.5 GB 的 XML 花了 19 到 24 分钟，也就是大约每秒能读-处理-写 5 兆字节左右。</p>
       
     
       
-        <p>从原始速度来看，这算不上特别惊人，但用 Perl 的 XML::Twig 做类似操作（实际上是 XML 到 XML 而非 CSV 到 XML）时，处理一个约 100 兆字节的文件需要 8 分钟，所以我对 Python 标准库的质量及其处理大型文件的能力还是相当满意的。</p>
+        <p>从原始速度来看，这不算特别惊人，但用 Perl 的 XML::Twig 做类似操作（实际上是 XML 到 XML 而不是 CSV 到 XML）时，处理一个约 100 兆的文件就花了 8 分钟，所以我对 Python 标准库的质量以及它处理大文件的能力还是相当满意的。</p>
       
     
       
-        <p>标准库的广度和深度真的让 Python 成为编写这类一次性简单脚本的乐事。
-要是它有 Perl 那样更易用的正则表达式语法就好了……</p>
+        <p>标准库的广度和深度真的让 Python 成为编写这类一次性简单脚本的乐趣之选。
+要是它能有 Perl 那种更易用的正则表达式语法就好了……</p>
       
     
       
-        <div class="list-content">这就是数据的奇特本质，它与媒体文件不同：数据文件在拥有足够强大的系统时，可以变得无限大。而媒体文件虽然可以非常庞大（一部高质量电影可能有几个 GB），但始终有可预测的上限。如果你正在处理大型文件，那很可能是在处理一家公司过去十年的日志，或者他们整个 MySQL 数据库的转储。↩我真的很想喜欢新的 Python 文档。
-我是说，它看起来确实好多了，但我认为它实际上让我更难找到想要的东西。
-我觉得他们遇到了和 Django 文档一样的问题：越是定制化文档，使用文档的学习曲线就越陡峭。我认为最主要的问题还是文档的不完整性让我头疼。他们肯定覆盖了所有重要和常用的组件（还附有有用的概述和示例），但新文档往往连不那么重要的方法和对象都不提及。
-目前，我只好频繁地使用 dir 命令来探索了。↩</div>
+        <div class="list-content">这就是数据的奇特之处，也正是它与媒体的不同：数据文件——借助足够强大的系统——可以变得无限大。而媒体文件虽然可以非常庞大（一部高质量电影可能有几个 GB），但总有可预期的上限。如果你正在处理大文件，那你很可能面对的是公司过去十年的日志，或者他们整个 MySQL 数据库的转储。↩我真的很想喜欢新的 Python 文档。
+我是说，它的外观确实好看多了，但我认为它实际上让我更难找到想要的东西。
+我觉得他们遇到了和 Django 文档同样的问题：对文档自定义得越多，使用这份文档的学习曲线就越陡。我认为最主要的问题还是文档的不完整性让我头疼。他们肯定覆盖了所有重要和常用的组件（还附带了有用的概述和示例），但新文档往往连不太重要的方法和对象都不提及。目前，我不得不频繁地使用 dir 命令。↩</div>
       
     
   </div>

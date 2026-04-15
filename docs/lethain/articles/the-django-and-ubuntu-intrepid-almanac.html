@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Django 与 Ubuntu Intrepid 指南 · Will Larson 文集</title>
+  <title>Django 与 Ubuntu Intrepid 实用指南 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>Django 与 Ubuntu Intrepid 指南</h1>
+    <h1>Django 与 Ubuntu Intrepid 实用指南</h1>
     <div class="meta">
       2009-02-13 · 
       <a href="https://lethain.com/the-django-and-ubuntu-intrepid-almanac/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,23 +29,23 @@
   <div class="article-content">
     
       
-        <p>距离我第一次尝试搭建一个健康的 Django 部署环境已经过去一年多了（服务器对应 Ubuntu 版本的软件源停止维护，粗暴地提醒了我）。这段时间我学到了很多，也把最初的配置撑到了极限，但终究还是到了需要重新部署的时候——采用更合理的配置和更灵活的目录结构。</p>
+        <p>距离我第一次尝试搭建一个健康的 Django 部署环境已经过去一年多了（Ubuntu 仓库因为服务器版本停止支持而粗暴地提醒了我）。在这段时间里，我学到了许多，也把最初的配置拉伸到了极限，但最终还是需要一次全新的部署——采用更好的配置和更灵活的文件夹结构。</p>
       
     
       
-        <p>和上一次服务器搭建指南相比，有些东西保持不变：依然使用 Ubuntu、Memcached、Postgres，并且继续让 Nginx 作为 Apache2 前面的反向代理。同时也有不少变化：用 mod_wsgi 代替 mod_python，用 cmemcache 代替 python-memcached，采用更加清晰的目录布局，并引入 virtualenv，以便轻松托管多个项目和域名（包括一些只提供静态文件或 PHP 脚本的站点）。</p>
+        <p>与我上次的服务器搭建指南相比，有几样东西保持不变：依然使用 Ubuntu、Memcached、Postgres，并且依然用 Nginx 作为 Apache2 前面的反向代理。同时也有不少变化：改用 mod_wsgi 而不是 mod_python，用 cmemcache 取代 python-memcached，采用更合理的文件夹布局，并引入 virtualenv，以便轻松托管多个项目和域名（包括一些只提供静态文件或 PHP 脚本的站点）。</p>
       
     
       
-        <p>这不仅仅是一次更新，我还加入了一些支线任务，比如把服务器当作远程 Git 仓库通过 SSH 使用，以及安装可插拔的 Django 库。最后，延续我之前教程的风格，我尽量把从一台裸的 Ubuntu Intrepid 服务器开始，到最终变成一台功能完善、支持多站点的 Django 服务器所需的所有操作步骤都列了出来。</p>
+        <p>这不仅仅是一次更新，我还加入了一些支线任务，比如把服务器当作通过 SSH 访问的远程 Git 仓库，以及安装可插拔的 Django 库。最后，秉承我之前教程的一贯作风，我力求把从一台裸的 Ubuntu Intrepid 服务器开始，把每一步必须敲下的命令都写出来，最终变成一台功能完备、深受 Django 喜爱的多站点服务器。</p>
       
     
       
-        <p>如果你在操作中遇到任何问题，或者有改进建议，请告诉我！</p>
+        <p>如果你在操作中遇到任何问题，或者有改进建议，请务必告诉我！</p>
       
     
       
-        <h2>搭建你的服务器</h2>
+        <h2>配置你的服务器</h2>
         
       
     
@@ -468,6 +468,25 @@ ImportError: No module named django
       
     
       
+        <pre><code>server {
+    listen   255.255.255.255:80;
+    server_name www.substanceis.com substanceis.com;
+&lt;span class=&quot;kn&quot;&gt;access_log&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/home/django/domains/substanceis.com/log/access.log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;error_log&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/home/django/domains/substanceis.com/log/error.log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;kn&quot;&gt;location&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kn&quot;&gt;proxy_pass&lt;/span&gt;    &lt;span class=&quot;s&quot;&gt;http://127.0.0.1:80/&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kn&quot;&gt;include&lt;/span&gt;       &lt;span class=&quot;s&quot;&gt;/etc/nginx/proxy.conf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;kn&quot;&gt;location&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/media/&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;kn&quot;&gt;root&lt;/span&gt;   &lt;span class=&quot;s&quot;&gt;/home/django/domains/substanceis.com/public/&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;kn&quot;&gt;expires&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;1d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+}</code></pre>
+      
+    
+      
         <pre><code>&lt;span class=&quot;kn&quot;&gt;access_log&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/home/django/domains/substanceis.com/log/access.log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
 &lt;span class=&quot;kn&quot;&gt;error_log&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/home/django/domains/substanceis.com/log/error.log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
 
@@ -610,6 +629,25 @@ application = django.core.handlers.wsgi.WSGIHandler()
       
     
       
+        <pre><code>&lt;VirtualHost 127.0.0.1:80&gt;
+    ServerName www.substanceis.com
+    ServerAlias substanceis.com
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;Directory&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/home/django/domains/substanceis.com/hello/&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;Order&lt;/span&gt; deny,allow
+    &lt;span class=&quot;nb&quot;&gt;Allow&lt;/span&gt; from &lt;span class=&quot;k&quot;&gt;all&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/Directory&amp;gt;&lt;/span&gt;
+
+&lt;span class=&quot;nb&quot;&gt;LogLevel&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;warn&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;ErrorLog&lt;/span&gt;  &lt;span class=&quot;sx&quot;&gt;/home/django/domains/substanceis.com/log/apache_error.log&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;CustomLog&lt;/span&gt; &lt;span class=&quot;sx&quot;&gt;/home/django/domains/substanceis.com/log/apache_access.log&lt;/span&gt; combined
+
+&lt;span class=&quot;nb&quot;&gt;WSGIDaemonProcess&lt;/span&gt; substanceis.com &lt;span class=&quot;k&quot;&gt;user&lt;/span&gt;=www-data &lt;span class=&quot;k&quot;&gt;group&lt;/span&gt;=www-data threads=25
+&lt;span class=&quot;nb&quot;&gt;WSGIProcessGroup&lt;/span&gt; substanceis.com
+&lt;span class=&quot;nb&quot;&gt;WSGIScriptAlias&lt;/span&gt; / &lt;span class=&quot;sx&quot;&gt;/home/django/domains/substanceis.com/hello/hello.wsgi&lt;/span&gt;
+&lt;/VirtualHost&gt;</code></pre>
+      
+    
+      
         <pre><code>&lt;span class=&quot;nt&quot;&gt;&amp;lt;Directory&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/home/django/domains/substanceis.com/hello/&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&lt;/span&gt;
     &lt;span class=&quot;nb&quot;&gt;Order&lt;/span&gt; deny,allow
     &lt;span class=&quot;nb&quot;&gt;Allow&lt;/span&gt; from &lt;span class=&quot;k&quot;&gt;all&lt;/span&gt;
@@ -636,7 +674,7 @@ application = django.core.handlers.wsgi.WSGIHandler()
       
     
       
-        <div class="list-content">想办法获得一台 Ubuntu Intrepid 的服务器或 VPS。（比如登录 SliceHost 控制台，申请一个运行 Ubuntu Intrepid 8.10 的新 Slice。）记下 root 密码和服务器的 IP 地址。用 SSH 登录服务器。更新 apt-get 的软件源。确保系统里有一个你喜欢的编辑器。Vim 已经预装，但我更喜欢 Emacs……创建你需要的非 root 账户，并为 Django 单独创建一个账户。除非你特别喜欢 sh，否则把默认 shell 改成更友好的。（这些改动要下次登录时才会生效。）给你的账户（而不是 Django 账户）授予 root 权限。然后用方向键找到类似下面这一行：把你的用户名替换进去：再打开一个终端（在我们继续配置 SSH 的过程中，先保持第一个终端的登录状态，以防出现严重问题），用新创建的非 root 账户 SSH 登录。确认可以正常登录后退出回到自己的机器。现在开始设置免密码登录。回到你自己的机器，现在退出并重新 SSH 登录，应该不需要输入密码就能直接进去了。现在我们要稍微限制一下 SSH。进行如下修改：并在文件末尾添加这些内容：保存文件，然后重启 ssh 服务。退出 VPS，再次尝试登录。如果成功，再次打开 /etc/ssh/sshd_config，在文件末尾追加这一行：再次重启 ssh 服务。最后，禁用 root 账户的密码登录。现在你的 VPS 只能通过已授权的账户、从持有对应 SSH 密钥的机器访问。接下来开始安装一些通用库。现在来配置 Postgres，首先需要安装一些依赖库。不是打字错误，我确实需要把上面的命令执行两次才能成功安装。接下来我们要配置 postgres 用户。（请确保上面例子中使用了真实的密码，而不是字面上的 &#x27;password&#x27;。）我们还需要修改 Postgres 的配置文件。移动到文件底部，把所有以 host 开头的行都注释掉（在行首加上 #）。（这样可以防止外部直接访问数据库。）修改后应该类似这样：注意我们把第二行的 ident sameuser 改成了 password！然后重启 Postgres 让它重新加载配置。到此为止，Postgres 就配置并运行起来了。现在该配置 memcached 了。这分为两步：先启动 memcached（非常简单），然后编译安装 cmemcache（稍复杂一些）。这条命令让 memcached 在标准端口上运行，使用标准的 www-data 用户（Ubuntu 默认用户），分配 32MB 内存。根据你预计要在 memcached 中存储的数据量以及 VPS 的规格，你可能需要分配更多内存。接下来安装 cmemcache。首先获取 libmemcache，然后实际编译 cmemcache。我们稍后在设置 virtualenv 时会真正安装这个库。如果你无法成功安装 cmemcache，可以参考这些说明。或者，如果你想使用纯 Python 的 python-memcached（速度稍慢，但不需要编译 C 模块），可以按以下方式安装。优先选择 cmemcache 纯粹是出于速度考虑。但 python-memcached 也完全可用，如果要在使用 python-memcached 和完全不使用 memcached 之间二选一，前者显然是更好的选择。接下来配置 Nginx，它是一个轻量级服务器，我们用它来提供静态内容，并把动态请求代理给 Apache2。我们可以快速验证它是否安装成功。应该返回：现在我们来稍微修改一下 nginx.conf（基于这里的建议）。目前我们只需要做两个小改动：首先把第 2 行改成使用 4 个 worker 进程，然后把第 18 行取消注释。这部分内容之后不需要再修改了，因为最后一行包含了 include /etc/nginx/sites-enabled/*，这让我们可以把每个站点的配置单独放在自己的文件里，大大减少了 nginx.conf 的混乱。我们还需要创建一个 proxy.conf 文件，这是 Nginx 保持主配置文件干净的常用做法。内容如下：最后，停止并启动 Nginx（我不知道当前版本的 Nginx 是否依然如此，但历史经验告诉我，直接 reload 或 restart 常常无法让它正确加载配置文件）。现在开始配置 Apache2。首先安装必要的库。因为我们已经让 Nginx 绑定了 80 端口，它会报一点小抱怨。不过不用担心，我们马上就处理好。首先要把 Apache 配置为监听内部地址 127.0.0.1:80，而不是直接监听 80 端口。然后修改下面这些行：我们还要对 apache2.conf 做一点修改：找到 KeepAlive（大约在第 77 行），按如下修改：这么做是因为 Nginx 目前还不支持 KeepAlive 选项。现在我们再次尝试启动 Apache。它可能还会继续抱怨。不过再一次，不用担心，这只是过程中的一个小插曲。最后终于可以安装 Django 了。切换到我们之前创建的 /home/django 目录，开始创建一些文件夹。然后调整一下权限。接着获取 Django 的源代码。通常这个时候我们会把这些包软链接到 /usr/lib/python2.5/site-packages，但这次我们要走一条稍微不同的路，使用 virtualenv 把每个项目都封装起来。我们稍后会处理 virtualenv 的设置，因为它是按项目进行的。最后一个通用准备步骤是移除 Apache 和 Nginx 的默认站点。在正确配置好 Nginx/Apache 的站点文件后（我们很快就会讲到），你不太会意外看到默认页面，但当直接通过 IP 地址访问时，它们往往还是会出现。虽然这种情况不算特别常见，但依然是不太理想的。你需要重启服务器才能让改动生效。现在我们要真正开始创建一个 Django 项目。后续你可以用同样的流程再搭建任意数量的 Django 项目。首先为每个域名创建对应的文件夹。（我将用 substanceis.com 这个域名作为例子，它曾经托管过一个早已被遗忘的老项目。）有些人还喜欢创建 private 和 backup 目录。你可以根据需要加入自己的特殊设置。public 目录用于存放由 Nginx 直接提供的公开可访问文件。log 目录用于存放该域名的 Apache 和 Nginx 日志。我们把项目目录放在 substanceis.com 文件夹内。（mod_wsgi 的配置文件也放在项目目录里。）现在需要为这个项目创建一个虚拟环境。如果你还没尝试过 virtualenv，它能让你轻松地把项目沙箱化，让每个项目可以使用不同版本的库（比如一个项目用 Django 0.97pre，另一个用 Django 1.1；一个项目用 Pygments 0.6，另一个用 1.1，等等）。这让它成为在一台服务器上开发或托管多个应用不可或缺的工具。请注意我们之前已经从 SVN 把 Django 下载到了 /home/django/libs/django 目录。你还需要安装 psycopg2（Python 的 Postgres 接口）。对于那些没有 easy_install 或 setup.py 的包，可以把它们软链接到虚拟环境的 site-packages 目录：安装完成后，就可以测试一下了。然后尝试导入它。而如果你用普通的 python 解释器：则会得到完全不同的结果：虚拟环境设置完成后，从 django 用户退出即可。接下来我们要为该域名创建一个 Nginx 虚拟主机。如果你想去掉域名前面的 www，应该用下面这个 server 块作为文件开头：记得把 255.255.255.255 改成你 VPS/服务器的实际 IP 地址。不管怎样，文件剩下的部分应该遵循以下格式：同样要把 255.255.255.255 改成你 VPS/服务器的实际 IP 地址。注意，如果你的静态资源经常变化，那么最好去掉 expires 1d 这行。它会添加一个头信息，告诉浏览器该内容在接下来一天内不会变化，这意味着浏览器在这段时间内不会重新请求它。这对用户来说能加快页面加载，对你来说能降低服务器压力。如果你既想享受 future expires 的好处，又有频繁更新的静态资源，标准的解决办法是在文件名中加入版本号（me.1.png、me.2.png 等）。django-compress 为 JavaScript 和 CSS 文件的自动版本管理提供了一定支持，非常推荐使用。接下来通过软链接让 Nginx 知道这个站点已启用。最后在 Nginx 加载这个虚拟主机前需要先 stop 再 start。至此 Nginx 的配置就完成了。现在快速创建一个默认的 Django 项目。把 Django admin 的媒体文件链接到 public/media/ 目录。然后把 hello/settings.py 中的 ADMIN_MEDIA_PREFIX 设置改成这样：接下来为这个项目创建一个 Postgres 数据库。然后更新 settings.py 文件，填入正确的配置。把 DATABASE_* 字段改成下面这样：最后尝试同步数据库，验证配置是否正确。如果你正确输入了用户名、数据库名和密码，应该会看到熟悉的提示。下一步是把 memcached 设置为项目的缓存后端。并添加以下设置：你需要根据具体项目决定 CACHE_MIDDLEWARE_SECONDS 和 CACHE_MIDDLEWARE_ANONYMOUS_ONLY 的合适值。这里有更多相关信息。CACHE_MIDDLEWARE_KEY_PREFIX 的值在所有使用同一个 memcached 的项目中必须保持唯一。经过漫长的旅程，我们终于来到最后一步：配置 mod_wsgi 和 Apache 来服务我们的项目。在 hello.wsgi 中加入以下代码：接下来为我们的域名创建一个虚拟主机。添加以下 VirtualHost 定义。最后启用 substanceis.com 并重启 Apache2 让它加载新站点。你可以重复这些步骤来托管任意数量的项目。</div>
+        <div class="list-content">想办法获得一台 Ubuntu Intrepid 的服务器或 VPS（比如登录 SliceHost 控制台，申请一台运行 Ubuntu Intrepid 8.10 的 Slice）。记下 root 密码和服务器的 IP 地址。通过 SSH 登录服务器。更新 apt-get 软件源。确保系统上有一个你喜欢的编辑器。Vim 已经预装，但我更喜欢 Emacs……创建你需要的非 root 账户，其中一个用于运行 Django。除非你特别喜欢 sh，否则把默认 shell 改成更人性化的。（这些修改要下次登录时才会生效。）给你的账户（但不要给 django 账户）授予 root 权限。然后用方向键找到类似下面这一行：把你的用户名替换上去：打开另一个终端（在我们继续配置 SSH 的过程中，让第一个终端保持登录状态，以防出现严重问题），用新创建的非 root 用户 SSH 登录。确认可以正常登录后退出回到自己的电脑。现在该设置免密码登录了。回到你的本地电脑，现在退出并重新 SSH 登录，应该已经不需要输入密码了。现在该稍微收紧一下 SSH 配置了。做如下修改：并在文件末尾添加以下内容：保存文件，然后重启 ssh 服务。退出 VPS，再次尝试登录。如果成功，再次打开 /etc/ssh/sshd_config，在文件末尾追加这一行：再次重启 ssh 服务。最后，禁用 root 账户的密码登录。现在你的 VPS 只能通过已授权的账户和正确的 SSH 密钥从特定机器访问了。现在开始安装一些通用库。现在该配置 Postgres 了，首先需要安装一些依赖库。上面这条命令我确实需要执行两次才能成功安装，并不是打字错误。接下来需要配置 postgres 用户。（请确保使用的是真实密码，而不是上面示例里的“password”。）我们还需要修改 Postgres 的配置文件。移动到文件底部，把所有以 host 开头的行都注释掉（在行首加 #）。（这样可以防止外部直接访问数据库。）修改后应该类似这样：注意我们把第二行的 ident sameuser 改成了 password！然后重启 Postgres 让它重新加载配置。到此为止，Postgres 就已经配置好并正常运行了。现在该设置 memcached 了。这分为两步：第一步启动 memcached，非常简单；第二步编译 cmemcache，稍微麻烦一点。这条命令会让 memcached 在标准端口运行，使用标准的 www-data 用户（Ubuntu 默认用户），分配 32MB 内存。根据你预期要在 memcached 里存储的数据量以及 VPS 的内存大小，你可能需要调高这个值。接下来我们要安装 cmemcache。首先获取 libmemcache，然后实际编译 cmemcache。稍后在我们设置 virtualenv 的时候还会需要真正安装这个库。如果你无法成功安装 cmemcache，可以参考这些说明。或者，如果你想使用纯 Python 的 python-memcached（速度稍慢，但无需编译 C 模块），也可以这样做。我更推荐 cmemcache 主要是因为速度。但 python-memcached 也完全够用，如果你只能在“使用 python-memcached”和“不使用任何 memcached 缓存”之间二选一，那么选择前者毫无疑问是更好的。现在该安装 Nginx 了，它是一个轻量级服务器，我们用它来提供静态内容，并把动态请求反向代理给 Apache2。我们可以快速验证它是否安装成功。应该会返回：现在我们要稍微修改一下 nginx.conf 文件（基于这里的建议）。目前我们只需要做两个小改动，首先把第 2 行改成使用 4 个 worker 进程，然后把第 18 行取消注释。我们之后不用再修改这个文件了，因为最后一行 include /etc/nginx/sites-enabled/*；使得我们可以把每个站点的配置放在独立的文件里，大大减少了 nginx.conf 的杂乱。我们还需要创建一个 proxy.conf 文件，这是 Nginx 保持主配置文件干净的常见做法。内容如下：最后，停止并启动 Nginx（我不知道当前版本的 Nginx 是否还是这样，但历史上我从未成功通过 reload 或 restart 让它重新加载配置）。现在该配置 Apache2 了。首先安装必要的库。因为我们已经让 Nginx 绑定了 80 端口，所以它会报一点小错。不过不用担心，我们很快就能搞定。首先要把 Apache 配置成监听内部地址 127.0.0.1:80 而不是直接监听 80 端口。然后修改下面这些行：我们还要对 apache2.conf 做一点修改：找到 KeepAlive（大约在 77 行附近），把它的值改成：我们这样做是因为 Nginx 目前还不支持 KeepAlive 选项。现在我们再尝试启动 Apache。可能会再次报错。不过再一次，不用担心，这只是过程中的一个小插曲。最后我们终于可以获取 Django 了。切换到之前创建的 /home/django 目录，是时候创建一些文件夹了。然后做一些权限调整。接着获取 Django 的源代码。通常这时我们会把包软链接到 /usr/lib/python2.5/site-packages，但我们打算换一种更优雅的方式——使用 virtualenv 把每个项目都封装起来。我们稍后会在每个项目的基础上再设置 virtualenv。最后一步通用准备工作是移除 Apache 和 Nginx 的默认站点。在正确配置了 Nginx/Apache 的站点文件后（我们很快就会讲到），你很少会意外看到默认页面，但当直接通过 IP 地址访问时还是可能会显示。虽说这种情况并不常见，但还是去掉比较好。你需要重启服务器才能让改动生效。现在我们要真正开始创建一个 Django 项目了。之后你可以用同样流程搭建任意数量的 Django 项目。首先为每个域名创建对应的文件夹。（我用 substanceis.com 这个域名来举例，它曾经托管过一个早已被遗忘的老项目。）有些人还喜欢创建 private 和 backup 目录。你可以根据需要加入自己的特殊设置。public 目录用于存放由 Nginx 直接提供的公开可访问文件。log 目录用于存放该域名的 Apache 和 Nginx 日志。我们把项目目录放在 substanceis.com 文件夹内。（mod_wsgi 配置文件也放在项目目录里。）现在需要为这个项目创建一个虚拟环境。如果你还没接触过 virtualenv，它能让你轻松地把项目沙箱化，让每个项目可以使用不同版本的库（比如一个项目用 Django 0.97pre，另一个用 1.1；一个用 Pygments 0.6，另一个用 1.1，等等）。这让它成为在一台服务器上开发或托管多个应用时不可或缺的工具。注意我们之前已经把 Django 从 SVN 下载到了 /home/django/libs/django 目录。你还需要安装 psycopg2（Python 的 Postgres 接口）。对于没有 easy_install 或 setup.py 的包，你可以把它们软链接到虚拟环境的 site-packages 目录：安装完成后，就可以测试一下了。然后尝试导入它。而如果你用普通的 python 命令：得到的结果则完全不同：virtualenv 设置完成后，退出 django 用户。接下来我们要为该域名创建一个 Nginx 虚拟主机。如果你想去掉域名中的 www，应该用下面这个 server 块作为文件开头：你需要把 255.255.255.255 改成你 VPS/服务器的实际 IP 地址。不管怎样，文件其余部分应该遵循以下格式：同样要把 255.255.255.255 改成实际 IP。如果你的静态资源经常变化，建议去掉 expires 1d 这行。它会添加一个头，告诉浏览器该内容在接下来一天内不会变化，浏览器就不会在这段时间内重新请求。这能让用户页面加载更快，也能降低你的服务器压力。如果你既想要 expires 的好处，又有频繁更新的静态资源，标准做法是给资源文件加上版本号（me.1.png、me.2.png 等）。django-compress 对此提供了一定支持，能自动为 JavaScript 和 CSS 文件加上版本（强烈推荐）。接下来通过软链接把站点从 sites-available 启用到 sites-enabled，让 Nginx 知道这个站点已启用。最后你需要停止并启动 Nginx，Nginx 才会识别这个新的虚拟主机。到此 Nginx 的配置就完成了。现在快速创建一个默认的 Django 项目。把 Django admin 媒体文件链接到 public/media/ 目录。然后把 hello/settings.py 中的 ADMIN_MEDIA_PREFIX 设置修改为如下：接下来为这个项目创建一个 Postgres 数据库。然后更新 settings.py 文件，填入正确的配置。把 DATABASE_* 字段修改成这样：最后尝试同步数据库，验证配置是否正确。如果你正确输入了用户名、数据库名和密码，应该会看到熟悉的提示。下一步是为项目配置 memcached 作为缓存后端。并添加以下设置：你需要根据具体项目决定 CACHE_MIDDLEWARE_SECONDS 和 CACHE_MIDDLEWARE_ANONYMOUS_ONLY 的合适值。更多信息可以参考这里。CACHE_MIDDLEWARE_KEY_PREFIX 的值在所有使用同一 memcached 的项目中必须唯一。经过漫长的旅程，我们终于来到最后一步：配置 mod_wsgi 和 Apache 来提供我们的项目。在 hello.wsgi 中加入以下代码：接下来为域名创建一个 Apache 虚拟主机。添加这个 VirtualHost 定义。最后启用 substanceis.com 并重启 Apache2 让它加载新站点。你可以重复这些步骤来托管任意数量的项目。</div>
       
     
       
@@ -645,7 +683,7 @@ application = django.core.handlers.wsgi.WSGIHandler()
       
     
       
-        <p>此时你的 mod_wsgi 服务器已经配置好并可以正常工作了，下面是一些建议，你可能会想在刚搭建好的服务器上做这些事情。</p>
+        <p>此时你的 mod_wsgi 服务器已经配置完成且可以正常工作了，但这里还有一些建议，你也许想在刚搭建好的服务器上尝试一下。</p>
       
     
       
@@ -669,6 +707,21 @@ sudo mkdir -p /home/django/domains/default/{public,logs}
     
       
         <pre><code>sudo emacs /etc/nginx/sites-available/default
+</code></pre>
+      
+    
+      
+        <pre><code>server {
+    &lt;span class=&quot;kn&quot;&gt;listen&lt;/span&gt;   &lt;span class=&quot;mi&quot;&gt;80&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kn&quot;&gt;server_name&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;255&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;.255.255.255&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;kn&quot;&gt;access_log&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/home/django/domains/default/log/access.log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kn&quot;&gt;error_log&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/home/django/domains/default/log/error.log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;kn&quot;&gt;location&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+             &lt;span class=&quot;kn&quot;&gt;root&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/home/django/domains/default/public&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+             &lt;span class=&quot;kn&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;index.html&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
 </code></pre>
       
     
@@ -787,20 +840,20 @@ sudo apache2ctl graceful
       
     
       
-        <div class="list-content">目前如果你直接访问 VPS 的 IP 地址，会发现什么内容都没有。对大多数人来说这可能是正确的行为，但你可能希望当用户通过 IP 地址访问时能看到一个静态页面（此外，你也可以用类似方法为某些域名只提供静态内容，而不是一个完整的 Django 项目）。首先创建几个文件夹然后创建一个 index 页面，内容如下：接下来配置 Nginx 站点，使用以下设置（记得把 255.255.255.255 改成你 VPS 的 IP 地址）：然后软链接到 sites-enabled 目录。最后 stop-start nginx 即可。现在如果你在浏览器中访问 VPS 的 IP 地址，就会看到你的静态站点。（注意浏览器通常会对同一个域名限制并发 HTTP 连接数，因此如果你想加速重度页面加载，可以用这个方法为 Django 站点建立一个专门的静态媒体子域名——比如 media.example.com——从那里提供静态资源，而不是和主站使用同一个域名。）最有用的包之一是 PIL，它支持多种图像处理技术，也被一些 Django 应用所使用。它用 easy_install 安装时似乎存在问题，但实际安装起来依然很简单。现在 substanceis.com 的虚拟环境就可以使用 Image 模块了：你做的 Django 开发越多，就会创建越多可复用的应用，或者复用别人开发的应用，因此熟悉这个流程非常有价值。接下来我们花点时间安装几个 Django 社区开发的常用可复用应用。使用 virtualenv 的一个缺点是你需要为每个虚拟环境分别安装这些可插拔应用。当然，这也意味着你可以把生产环境固定在某个特定版本的可插拔应用上，而另一个环境则可以大胆地尝试新版本。需要注意的是，使用 setup.py 或 easy_install 配合 virtualenv 安装的好处在于，你会得到一份“冻结”的代码副本，即使后续更新了源代码，这些环境也不会运行不同版本的代码。另一方面，如果你正在积极开发代码，那么最好把代码软链接到环境的 site-packages 目录，这样修改后就不需要重新部署。两种方式各有用途，只要合理使用即可。首先安装之前提到过的 django-compress，它可以帮助自动合并和压缩 JavaScript 和 CSS 文件。现在确认它是否可用。在 Python 中尝试只要没有报错，就说明安装成功了。接下来安装 django-faq，这是一个可插拔的应用，可以在网站上创建 FAQ（通过 Django admin 管理）。只是为了好玩，我们这次用软链接的方式（对活跃开发更方便），而不是用 setup.py。最后安装 django-mailer，它为 Django 提供了更强大的邮件发送框架。等等，推荐我自己的项目可以吗？好吧。你可以考虑看看 django-monetize，它能根据页面的上下文动态展示不同类型的广告（以及捐赠请求等）。除了这些可插拔应用，还有一些项目已经发展成类似于构建在 Django 之上的微框架。它们提供了大量功能，但往往安装方式不太标准。其中两个比较受欢迎的是社交框架 Pinax（安装方式）和网店平台 Satchmo（安装方式）。我还喜欢把 VPS 当作 Git 仓库使用——多亏了 DVCS 的各种优点——这其实出奇地简单。然后退出 VPS 回到你自己的机器。在本地机器上，你可以通过 SSH 克隆这个仓库。注意使用 --bare 参数意味着仓库的所有文件都会保存在 .git 目录里，因此你无法直接在托管的仓库中操作文件。如果你想在本地机器上直接操作该 Git 仓库中的文件，应该从 origin 仓库执行 git clone，然后像平常一样 push 和 pull。（如果你想用 Git 作为推送 Django 项目代码的机制，可能需要了解一下 Fabric 之类的工具。）虽然听起来不如成为 Djangonaut 那么酷，但很多情况下你可能还是希望 Apache 也能运行一些 PHP 脚本。只需把 .php 文件放在由 Apache（而不是 Nginx）服务的目录下，它们就会被执行。你可能会希望把我们在这个教程中整理的 Django 配置和静态 Nginx 配置结合起来使用。</div>
+        <div class="list-content">目前如果你直接访问 VPS 的 IP 地址，会发现它什么也不提供。对大多数人来说这可能是正确的行为，但你也许希望当用户通过 IP 访问时能返回一个静态页面（此外，你也可以用类似方法为某些域名只提供静态内容，而不是完整的 Django 项目）。首先创建一些文件夹，然后创建一个 index 页面，内容为以下 HTML。现在用下面的配置来设置 Nginx 站点（记得把 255.255.255.255 换成你 VPS 的 IP）：然后把它软链接到 sites-enabled 目录。最后停止并重启 nginx。现在当你在浏览器中访问 VPS 的 IP 地址时，就会看到你的静态站点了。（注意浏览器通常会限制对同一域名的并发 HTTP 连接数，所以如果你有比较重的页面，可以通过这些步骤为 Django 站点建立一个专门的静态子域名——比如 media.example.com——来提供静态资源，从而加快页面加载速度。）最有用的软件包之一是 PIL，它支持大量图像处理技术，也被一些 Django 应用所使用。它用 easy_install 安装时似乎存在问题，但手动安装依然很简单。现在 substanceis.com 的虚拟环境就可以使用 Image 模块了：你做的 Django 开发越多，就会创建越多可复用的应用，也会复用其他人开发的库，因此熟悉这个流程非常重要。让我们花点时间安装几个 Django 社区开发的常用可复用应用。使用 virtualenv 的一个缺点是，你需要为每个虚拟环境分别安装这些可插拔应用。当然，这也意味着你可以把生产环境锁定在某个特定版本的可插拔应用上，而另一个环境则可以大胆尝试最新版本。值得注意的是，使用 setup.py 或 easy_install 配合 virtualenv 安装的好处在于，你会得到一份冻结的代码副本，即使之后更新了源代码，这些环境也不会运行不同版本的代码。另一方面，如果你正在积极开发代码，那么最好把代码软链接到环境的 site-packages 目录，这样修改后就不需要重新部署了。两种方式各有用途，只要合理使用即可。首先安装之前提到过的 django-compress，它可以帮助自动合并和压缩 JavaScript 和 CSS 文件。现在确认它是否可用。在 Python 中尝试：只要没有报错，就说明安装成功了。接下来安装 django-faq，这是一个可以在网站上创建 FAQ 的可插拔应用（可通过 Django admin 管理）。为了好玩，我们这次用软链接的方式安装（对活跃开发更方便），而不是用 setup.py。最后安装 django-mailer，它为 Django 提供了更强大的邮件发送框架。等等，推荐我自己的项目合适吗？好吧。你可以考虑看一看 django-monetize，它支持根据页面上下文动态提供不同类型的广告（以及捐赠请求等）。除了这些可插拔应用，还有一些项目已经发展成构建在 Django 之上的小型框架。它们提供了大量功能，但往往安装方式不太标准。其中比较受欢迎的两个是社交框架 Pinax（安装方法）和网店平台 Satchmo（安装方法）。我还喜欢把 VPS 当作 Git 仓库来使用——得益于 DVCS 的各种优点——这其实出奇地简单。然后退出 VPS 回到你的本地机器。在本地可以用 SSH 克隆该仓库。注意使用 --bare 参数意味着仓库的所有文件都会放在 .git 目录里，因此你无法直接在托管的仓库里操作文件。如果你想在本地直接操作该 Git 仓库的文件，应该从 origin 仓库 clone，然后像平时一样 push 和 pull。（如果你想用 Git 作为部署 Django 项目的机制，建议阅读关于 Fabric 的资料。）虽然没有成为 Djangonaut 那么光鲜，但在某些情况下你可能还是希望 Apache 也能运行一些 PHP 脚本。那就只需把 .php 文件放在由 Apache（而不是 Nginx）服务的目录下，它们就会被执行。你可能会希望把本文中我们逐步搭建的 Django 配置和静态 Nginx 配置组合使用。</div>
       
     
       
-        <h3>参考资料</h3>
+        <h3>参考资源</h3>
         
       
     
       
-        <p>本文大量参考了我去年写的 nginx+apache+mod_python+django 和 lighttpd+apache+mod_python+django 两篇文章，同时也吸收了许多新的资源。</p>
+        <p>这篇文章大量参考了我去年写的 nginx+apache+mod_python+django 和 lighttpd+apache+mod_python+django 两篇文章，同时也充分利用了新的资源。</p>
       
     
       
-        <div class="list-content">Google Code 上的 mod_wsgi 页面是一个很好的起点。mod_wsgi 与 Django 集成的页面也值得一看。在 Ubuntu 上设置 Nginx 虚拟主机。完整的 Nginx 配置文件示例。使用 mod_wsgi 部署 Django。让 Nginx 服务 IP 地址的配置。结合 mod_wsgi 使用 virtualenv。</div>
+        <div class="list-content">Google Code 上的 mod_wsgi 页面是一个很好的起点。mod_wsgi 与 Django 集成的页面也值得一看。在 Ubuntu 上设置 Nginx 虚拟主机。完整的 Nginx 配置文件示例。用 mod_wsgi 运行 Django。让 Nginx 响应 IP 地址。用 virtualenv 配合 mod_wsgi。</div>
       
     
       
@@ -813,7 +866,7 @@ sudo apache2ctl graceful
       
     
       
-        <p>Tom Schreiber 提到 virtualenv 是在开发多个项目且需要不同库版本时非常棒的工具，在他的推荐下我更新了教程，加入了 virtualenv 的使用。谢谢 Tom！</p>
+        <p>Tom Schreiber 提到 virtualenv 是在开发多个项目且需要不同版本库时非常棒的工具，在他的推荐下我更新了这篇指南加入了 virtualenv。感谢 Tom！</p>
       
     
       
@@ -822,11 +875,11 @@ sudo apache2ctl graceful
       
     
       
-        <p>一位热心的 Reddit 用户指出了一些改进方法。特别是用 chsh 来修改 shell（而不是手动编辑 /etc/passwd 文件），让 Apache 只监听 127.0.0.1:80 而不是绑定到 *:8080（后者会让它对外可访问），以及让 Nginx 监听外部 IP:80 而不是 *:80。</p>
+        <p>一位热心的 Redditor 提出了一些改进建议。特别是用 chsh 来修改 shell（而不是手动编辑 /etc/passwd 文件），让 Apache 只监听 127.0.0.1:80 而不是绑定到 *:8080（后者会对外暴露），以及让 Nginx 监听外部 IP:80 而不是 *:80。</p>
       
     
       
-        <div class="list-content">嘿，孩子们，你们知道 Nginx 的发音是“engine x”吗？我之前还真不知道。之前有个同事告诉过我它的发音，但没有看到“engine x”这个写法，我一直没记住。现在我终于明白了。终于。↩</div>
+        <div class="list-content">朋友们，你们知道 Nginx 的正确发音是“engine x”吗？我以前真的不知道。其实之前有同事告诉过我怎么读，但没有看到“engine x”这个写法我一直没记住。现在我终于明白了。终于。↩</div>
       
     
   </div>

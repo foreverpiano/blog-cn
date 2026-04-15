@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>从 Python 中的 XML 去除非法字符 · Will Larson 文集</title>
+  <title>用 Python 去除 XML 中的非法字符 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>从 Python 中的 XML 去除非法字符</h1>
+    <h1>用 Python 去除 XML 中的非法字符</h1>
     <div class="meta">
       2009-01-25 · 
       <a href="https://lethain.com/stripping-illegal-characters-from-xml-in-python/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,15 +29,15 @@
   <div class="article-content">
     
       
-        <p>上周我用 Python 做了大量的 XML 生成工作，却找不到一个不需要安装额外包、就能从文件中去除非法 XML 实体的 Python 脚本（在没有 root 权限的机器上，安装额外包会很麻烦）。</p>
+        <p>上周我用 Python 做了大量的 XML 生成工作，却一直找不到一个不需要安装额外包、就能去除文件中非法 XML 实体的 Python 脚本（在没有 root 权限的机器上安装包非常麻烦）。</p>
       
     
       
-        <p>这个脚本是一个简单的命令行工具，它接受一个文件作为输入，去除 XML 中非法的 ASCII 字符（以及你额外指定的任何字符），并将处理后的结果输出到标准输出。</p>
+        <p>这个脚本是一个简单的命令行工具，接受一个文件作为输入，去除其中 XML 不允许的 ASCII 字符（也可以指定其他要去除的字符），并将处理后的结果输出到标准输出。</p>
       
     
       
-        <p>使用方法如下（你可以通过标准输入提供内容，或者直接指定一个文件）：</p>
+        <p>使用方法如下（可以通过标准输入或指定文件的方式提供输入）：</p>
       
     
       
@@ -60,7 +60,7 @@ Stripped 72 characters from 1032 lines.
       
     
       
-        <p>如果你想额外指定要删除的字符，可以在命令行中使用 -c 参数。</p>
+        <p>如果你想额外指定要去除的字符，可以在命令行使用 -c 参数。</p>
       
     
       
@@ -70,7 +70,7 @@ Stripped 72 characters from 1032 lines.
       
     
       
-        <p>该脚本对输入和输出都采用流式处理，因此即使处理超大文件也能正常工作（曾在超过 6GB、包含 4200 多万行的文本文件上测试通过）。目前的速度对于大多数场景来说已经“足够快”。下面是在一个 101MB 的文件中，从 867072 行里去除 60552 个字符的示例：</p>
+        <p>该脚本对输入和输出都采用流式处理，因此能成功处理非常大的文件（曾在超过 6GB、包含 4200 多万行的文本文件上测试过）。按目前的样子，它对大多数使用场景来说已经“足够快”了。下面是在一个 101MB 的文件中，从 867072 行里去除 60552 个字符的耗时：</p>
       
     
       
@@ -82,7 +82,53 @@ sys	 0m1.407s
       
     
       
-        <p>如果需要更高的性能，还可以进行一些优化，但目前已有三分之二的时间都花在了系统 IO 上，所以性能提升的空间已经不大。</p>
+        <pre><code>time ./strip_xml_entities.py &lt; data.txt &gt; clean.txt 2&gt; log.txt
+real 0m19.242s
+user 0m6.991s
+sys	 0m1.407s
+</code></pre>
+      
+    
+      
+        <p>如果有人需要更高的性能，虽然还有一些优化的空间，但目前已经有三分之二的时间花在了系统 IO 上，所以性能提升的空间可能不会太大。</p>
+      
+    
+      
+        <pre><code>#!/usr/bin/env python
+import sys, re, codecs
+from optparse import OptionParser
+# coarse hack for coercing input to utf-8
+reload(sys)
+sys.setdefaultencoding(&#x27;utf_8&#x27;)
+def strip_chars(f,extra=u&#x27;&#x27;):
+remove_re = re.compile(u&#x27;[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F%s]&#x27;
+% extra)
+i = 1
+stripped = 0
+for line in f:
+new_line, count = remove_re.subn(&#x27;&#x27;, line)
+if count &gt; 0:
+plur = ((count &gt; 1) and u&#x27;s&#x27;) or u&#x27;&#x27;
+sys.stderr.write(&#x27;Line %d, removed %s character%s.\n&#x27;
+% (i, count, plur))
+sys.stdout.write(new_line)
+stripped = stripped + count
+i = i + 1
+sys.stderr.write(&#x27;Stripped %d characters from %d lines.\n&#x27;
+% (stripped, i))
+def main():
+p = OptionParser(&quot;usage: strip_xml_entities.py file/to/parse.xml&quot;)
+p.add_option(&#x27;-c&#x27;,&#x27;–chars&#x27;,dest=&#x27;chars&#x27;,
+help=&quot;additional CHARS to strip&quot;,
+metavar=&quot;CHARS&quot;)
+(options, args) = p.parse_args()
+extra = options.chars or u&#x27;&#x27;
+&lt;span class=&quot;c&quot;&gt;# if positional arg, use that file, otherwise stdin&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;fin&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;r&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;strip_chars&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;extra&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;fin&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;close&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+if name == &#x27;main&#x27;:
+sys.exit(main())</code></pre>
       
     
       
@@ -94,7 +140,7 @@ sys	 0m1.407s
       
     
       
-        <p>如果有任何问题或疑问，欢迎告诉我。</p>
+        <p>如果有任何问题或疑问，欢迎随时告诉我。</p>
       
     
   </div>
