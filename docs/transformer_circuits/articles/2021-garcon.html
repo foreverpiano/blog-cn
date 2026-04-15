@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Garcon · Transformer Circuits Thread</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Transformer Circuits Thread</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>Garcon</h1>
+    <div class="meta">
+      December 2021 · 
+      <a href="https://transformer-circuits.pub/2021/garcon/index.html" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>你也可以观看一个涵盖类似内容的视频。</p>
+      
+    
+      
+        <p>本文介绍的是 Anthropic 为推动可解释性研究而构建的核心基础设施之一：一个我们称为 Garçon 的工具。</p>
+      
+    
+      
+        <h3>问题背景</h3>
+        
+      
+    
+      
+        <p>除了其他研究项目外，Anthropic 还在从事可解释性研究——试图理解语言模型在运行时内部到底发生了什么。我们采取了多种方法，但投入大量精力在“Circuits”风格的机制可解释性上，力图深入挖掘模型所执行计算的实际机制。</p>
+      
+    
+      
+        <p>这类工作需要以广泛而灵活的方式“探查”模型。我们希望检查模型任意层中的单个激活值；进行修改或消融（ablate）个别组件的实验；以及访问和操作模型的“内部结构”，而不仅仅是它的输入和输出。</p>
+      
+    
+      
+        <p>我们还希望将这项工作扩展到 Anthropic 所使用的最大规模模型上。现代 Transformer 模型可能非常庞大，而大型模型的规模之大，使得它们无法在一张 GPU 上，甚至无法在一台配备多张 GPU 的单台机器上高效运行。</p>
+      
+    
+      
+        <p>对于小型模型，可解释性工作通常使用 Colab 或 Jupyter Notebook（或类似工具），借助 PyTorch hooks 等功能来获取中间激活值。然而，当模型规模超出单个节点时，这种工作流就没有明显的迁移方式。Garçon 正是为了解决这个问题而设计的，它能让 Anthropic 可能训练的任意模型都能进行可解释性研究。正如我后面会谈到的，它带来的好处已经超出了最初的目标。</p>
+      
+    
+      
+        <h3>Garçon 的核心接口</h3>
+        
+      
+    
+      
+        <p>使用 Garçon 时，通常需要启动一个新的服务器。启动服务器只需提供服务器名称和模型在分布式存储中的路径即可，其他细节如模型配置和 GPU 数量都会自动检测：</p>
+      
+    
+      
+        <p>服务器启动后，你可以连接到它，无论是从交互式 Notebook，还是从用于自动化分析的脚本：</p>
+      
+    
+      
+        <p>（我们约定使用“r”前缀表示通过 Garçon 运行的“远程”模型）。</p>
+      
+    
+      
+        <p>服务器也可以直接从 Notebook 中启动，接口类似：</p>
+      
+    
+      
+        <p>以这种方式启动的服务器会根据模型路径自动命名，这意味着在 Notebook 中重新运行该单元格时，能检测到服务器已在运行并自动重连到现有服务器。此外，它们被设置为在 1 小时无活动后自动关闭，因此研究人员无需过于担心实验后的清理工作。</p>
+      
+    
+      
+        <p>一旦你有一个连接到模型的 Garçon 客户端，最基本的操作是运行一次前向传播，默认会返回每个 token 的 logits：</p>
+      
+    
+      
+        <p>然而，Garçon 的真正威力在于它的“hooks”接口，该接口允许在前向传播过程中访问和修改内部状态。Garçon 模型会暴露一系列“探测点”（probe points，具体集合可能因模型架构和规模而异），每个探测点代表模型内部一个命名位置，在那里可以访问或修改张量。你可以向任意探测点附加一个“探针”（probe），然后带着这些探针运行前向传播（或反向传播，以用户提供的损失函数计算梯度）。</p>
+      
+    
+      
+        <p>探针的基本接口是提供一个“探针函数”。探针函数接受两个参数：一个“保存上下文”（save context），用于保存激活值或其他数据供后续使用；以及该模型特定位置所代表的张量。探针函数可以返回一个更新后的张量（它将替换计算中的原张量），也可以返回 None 以使用原始值（这个约定借鉴自 PyTorch hooks）。</p>
+      
+    
+      
+        <p>因此，我们常用的两种最简单模式分别是读取激活值：</p>
+      
+    
+      
+        <p>def save_tensor(save_ctx, tensor):</p>
+      
+    
+      
+        <p>save_ctx.tensor = tensor</p>
+      
+    
+      
+        <p>point_name = &#x27;layers.4.mlp.post_activation&#x27;</p>
+      
+    
+      
+        <p>rmodel.forward(</p>
+      
+    
+      
+        <p>tokens,</p>
+      
+    
+      
+        <p>probes=[rmodel.probe_points[point_name].probe(save_tensor)]</p>
+      
+    
+      
+        <p>或者通过将某个组件置零来对其进行消融（实际中，我们也可能将其设置为合适的平均激活值或其他实验设置）：</p>
+      
+    
+      
+        <p>def ablate_neuron(layer, mlp_idx):</p>
+      
+    
+      
+        <p>def hook(_, tensor):</p>
+      
+    
+      
+        <p>tensor[:, :, unit] = 0</p>
+      
+    
+      
+        <p>return tensor</p>
+      
+    
+      
+        <p>point_name = f&#x27;layers.{layer}.mlp.pre_activation&#x27;</p>
+      
+    
+      
+        <p>return rmodel.probe_points[point_name].probe(hook)</p>
+      
+    
+      
+        <p>rmodel.forward(tokens, probes=[ablate_neuron(4, 123))</p>
+      
+    
+      
+        <p>从这个例子可以看出，我们能够动态创建新的 hook 函数并将其发送到服务器。我们使用 cloudpickle 模块来支持向服务器发送任意 Python 代码对象。</p>
+      
+    
+      
+        <p>save_ctx 对象全部由 Garçon 服务器保存（每个服务器连接独立，因此多个用户可以共享一个服务器），读取结果可通过 rmodel.recordings() 获取，它会返回一个以探测点名称为索引的字典。在内部，Garçon 会处理不同探测点可能位于不同节点的情况，并自动执行相应的 scatter/gather 操作，对用户透明地传输输入和数据。</p>
+      
+    
+      
+        <h3>“探针”接口的设计动机</h3>
+        
+      
+    
+      
+        <p>Garçon 的“探针”接口虽然灵活，但使用起来有些繁琐；它会给服务器引入状态，而且访问激活值需要一些仪式——你需要创建一个探针、运行前向传播，然后再单独获取激活值。很自然会有人问，为什么我们不选择更简单的方式（例如，事后直接访问任意激活值）。</p>
+      
+    
+      
+        <p>探针接口被设计为一个“基础”接口，能够以合理的效率支持我们所有的用例。具体来说，我们的设计基于以下目标：</p>
+      
+    
+      
+        <h4>仅在请求时捕获数据</h4>
+        
+      
+    
+      
+        <p>有人可能会想直接捕获所有中间值，以便后续检查。但对于大型模型，这会产生海量数据，因此只保存被请求的激活值非常重要。</p>
+      
+    
+      
+        <h4>支持在服务器端进行归约（reduction）</h4>
+        
+      
+    
+      
+        <p>有时我们并不需要完整的张量，而只需要它的某种投影——可能是只取某个 token 位置的值，或者只取 L2 范数之类的统计量。通过允许在服务器上进行任意计算，我们可以在服务端完成这种汇总。这带来两个好处：</p>
+      
+    
+      
+        <div class="list-content">减少带宽需求，向客户端发送更少的数据；同时让我们能够利用模型在多张 GPU 上并行运行的优势，因为不同 GPU 可以并发计算各自的激活值。</div>
+      
+    
+      
+        <h4>支持在服务器端进行有状态的计算</h4>
+        
+      
+    
+      
+        <p>我们有时需要向模型输入海量样本，并计算所有样本上激活值的聚合统计。一个典型的例子是，我们会为模型中的 MLP 神经元收集“数据集样本”；我们希望向模型输入大量（可能数百万）来自训练语料的样本，并计算哪些 token 会让每个神经元产生最大激活。</p>
+      
+    
+      
+        <p>通过使用持久化的 save_ctx 对象，我们可以编写一个 hook，在每个 MLP 层本地维护一个保存“前 10 个最大激活”的小型数据结构，并在尽可能快地运行样本的过程中增量更新它。如果每次都要把完整激活值返回给用户，这类计算的速度会慢几个数量级。</p>
+      
+    
+      
+        <h3>Garçon 封装器</h3>
+        
+      
+    
+      
+        <p>在实际使用中，某个具体实验可能并不需要完整的“探针”功能集。我们还提供了一个名为 easy_garcon 的封装器，它提供了一个更简单但功能较弱的接口，用于对单个上下文通过模型时的激活值进行富表达式的分析。对于许多实验来说，这个接口已经足够。</p>
+      
+    
+      
+        <p>随着我们对自身需求和常见模式的了解加深，我们计划在核心探针这个“汇编语言”接口之上构建更多的抽象层。</p>
+      
+    
+      
+        <h3>参数访问</h3>
+        
+      
+    
+      
+        <p>Garçon 服务器还通过与探测点类似的命名方式暴露模型的参数：</p>
+      
+    
+      
+        <p>对于权重，也可以直接从静态存储中下载，但通过研究人员已在使用的同一接口来访问会更加方便。</p>
+      
+    
+      
+        <h3>实现说明</h3>
+        
+      
+    
+      
+        <p>Garçon 的实现相对直截了当，大约包含 1000 行代码（但 heavily 依赖我们现有的分布式和机器学习基础设施）。</p>
+      
+    
+      
+        <p>服务器的运行方式是为每张 GPU 启动一个进程；这些进程基本保持同步，使用我们标准的集体通信机制进行通信。其中一个指定的进程（“rank 0”）负责监听 socket 上的传入请求并处理 RPC 协议。随后它会将请求广播给所有 rank；每个 rank 同步执行每个请求，必要时会执行 gather 操作将数据发回 rank 0。</p>
+      
+    
+      
+        <p>如前所述，我们使用 cloudpickle 作为序列化工具，在服务器和客户端之间以及服务器作业的不同 rank 之间传输任意数据结构（包括 Python 代码对象）。</p>
+      
+    
+      
+        <h4>性能表现</h4>
+        
+      
+    
+      
+        <p>Garçon 在设计上优先考虑灵活性而非极致性能，但我们仍努力保持合理的效率；我们相信性能本身也是一项特性，而且有些实验类别正是靠规模和效率才得以实现。特别地，虽然我们使用 pickle 来编码普通的 Python 数据，但对于大型张量对象，我们会尽量采用更直接和高效的方式传输。在一个实验中处理数十 GB 的数据并不罕见，在这个规模下，性能上不能有丝毫马虎。</p>
+      
+    
+      
+        <h3>采用情况</h3>
+        
+      
+    
+      
+        <p>我们发现 Garçon 对研究帮助极大。现在我们几乎所有的可解释性工作都在使用它，其他团队也将其用于对模型的临时探索。即使对于那些能装进单个 Notebook 的模型，我们也能从 Garçon 带来的一致性接口以及性能优势中获益。将一个中等规模的模型加载到 GPU 上仍然需要一定时间，而有了 Garçon，我们可以保持长期运行的服务器来托管常用模型，这大大降低了新实验的“首次绘图时间”（time to first plot）。这个指标在 Julia 语言社区被广泛提及，我也是在那里了解到它的。在深度学习领域，这个指标常常被忽视，因为训练大模型本身就要花很长时间，但我们发现它是为可解释性工具链思考时非常有价值的视角。</p>
+      
+    
+      
+        <h3>结语</h3>
+        
+      
+    
+      
+        <p>我们在这里介绍了 Garçon 的基本设计和动机，希望对其他有兴趣在自己模型上开展可解释性研究的研究机构有所帮助。</p>
+      
+    
+      
+        <p>虽然本文重点介绍了 Garçon 中具体实现的接口和方法，但我们认为最有价值的贡献并不在于这些具体细节，而在于它所体现的理念，以及它如何改变了我们的可解释性团队与模型、与组织内其他团队的交互方式。特别地，我们认为以下关键特性非常宝贵：</p>
+      
+    
+      
+        <div class="list-content">Anthropic 训练的任何模型（无论规模大小或架构细节如何）都能立即供从事可解释性研究的人员（以及其他人）使用。设置新模型进行实验不会增加任何额外摩擦，也无需与训练模型的研究人员进行交接。可解释性研究人员得以将 Notebook 式工作的灵活性和开放性，与我们集群的规模和性能结合起来。即使对于那些确实能装进单张 GPU 的模型，Garçon 的工作流也带来了显著优势。例如，研究人员可以在一个 Notebook 中同时处理多个不同模型，或者将模型分布到多张 GPU 上以获得更高的吞吐量。能够打开一个新 Notebook 立即连接到已有服务器，开始提出研究问题，而无需等待权重下载或模型初始化，这一点也非常有价值。</div>
+      
+    
+      
+        <p>如果你在某个机器学习实验室工作，并且对构建类似系统感兴趣，欢迎给我们留言！我们的实现与自身模型代码和基础设施的特定细节紧密相关，但如果有所帮助，我们非常乐意交流并分享我们的经验。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://transformer-circuits.pub" target="_blank" rel="noopener">transformer-circuits.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'transformer_circuits_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

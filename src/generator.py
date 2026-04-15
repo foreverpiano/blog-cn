@@ -25,7 +25,8 @@ def build_slug_set(articles: list[dict]) -> set[str]:
     return {a["slug"] for a in articles}
 
 
-def render_segment_html(text: str, footnote_ids: set[str], valid_slugs: set[str], title_map: dict[str, str]) -> str:
+def render_segment_html(text: str, footnote_ids: set[str], valid_slugs: set[str],
+                        title_map: dict[str, str], math_registry: dict | None = None) -> str:
     rendered = escape(text)
 
     def replace_fnref(m):
@@ -58,8 +59,21 @@ def render_segment_html(text: str, footnote_ids: set[str], valid_slugs: set[str]
             return m.group(0)
         rendered = re.sub(r'\[(\d+)\]', replace_bare_ref, rendered)
 
+    # Render math placeholders
+    if math_registry:
+        def replace_math(m):
+            idx = m.group(1)
+            entry = math_registry.get(idx, {})
+            tex = entry.get("tex", m.group(0))
+            if entry.get("display"):
+                return f'<span class="math-display" data-math="{escape(tex)}">{escape(tex)}</span>'
+            return f'<span class="math-inline" data-math="{escape(tex)}">{escape(tex)}</span>'
+        rendered = re.sub(r'\{\{MATH:(\d+)\}\}', replace_math, rendered)
+
+    # Cleanup remaining raw placeholders
     rendered = re.sub(r'\{\{LINK:[^}]*\}\}', '', rendered)
     rendered = re.sub(r'\{\{FNREF:\d+\}\}', '', rendered)
+    rendered = re.sub(r'\{\{MATH:\d+\}\}', '', rendered)
 
     return rendered
 
@@ -68,19 +82,47 @@ def prepare_article(article: dict, valid_slugs: set[str], title_map: dict[str, s
     footnote_ids = {fn["id"] for fn in article.get("footnotes", [])}
     title_map_with_slug = dict(title_map)
     title_map_with_slug["_cross_page_notes"] = article.get("cross_page_notes")
+    math_registry = article.get("math_registry", {})
 
     for seg in article.get("segments", []):
-        # Code segments: render as-is (no placeholder processing)
-        if seg.get("type") == "code":
+        seg_type = seg.get("type", "")
+
+        # Untranslatable segments: render as-is
+        if seg_type == "code":
             seg["rendered_html"] = escape(seg.get("text_zh") or seg.get("text", ""))
             continue
-        # Figure segments: render caption text, preserve image_src/alt_text/caption
-        if seg.get("type") == "figure":
-            caption = seg.get("caption") or seg.get("text_zh") or seg.get("text", "")
-            seg["rendered_html"] = escape(caption) if caption else ""
+        if seg_type == "bibtex":
+            seg["rendered_html"] = escape(seg.get("text", ""))
             continue
+        if seg_type == "math_block":
+            tex = seg.get("text_zh") or seg.get("text", "")
+            seg["rendered_html"] = f'<span class="math-display" data-math="{escape(tex)}">{escape(tex)}</span>'
+            continue
+        if seg_type == "table":
+            table_html = seg.get("raw_html", escape(seg.get("text", "")))
+            # Render math placeholders inside tables
+            if math_registry and "{{MATH:" in table_html:
+                def _replace_table_math(m):
+                    idx = m.group(1)
+                    entry = math_registry.get(idx, {})
+                    tex = entry.get("tex", m.group(0))
+                    cls = "math-display" if entry.get("display") else "math-inline"
+                    return f'<span class="{cls}" data-math="{escape(tex)}">{escape(tex)}</span>'
+                table_html = re.sub(r'\{\{MATH:(\d+)\}\}', _replace_table_math, table_html)
+            seg["rendered_html"] = table_html
+            continue
+        if seg_type == "figure":
+            caption = seg.get("caption") or seg.get("text_zh") or seg.get("text", "")
+            if caption and math_registry and "{{MATH:" in caption:
+                seg["rendered_html"] = render_segment_html(
+                    caption, set(), set(), {}, math_registry)
+            else:
+                seg["rendered_html"] = escape(caption) if caption else ""
+            continue
+
         text = seg.get("text_zh") or seg.get("text", "")
-        seg["rendered_html"] = render_segment_html(text, footnote_ids, valid_slugs, title_map_with_slug)
+        seg["rendered_html"] = render_segment_html(
+            text, footnote_ids, valid_slugs, title_map_with_slug, math_registry)
 
     rendered_fnref_ids = set()
     for seg in article.get("segments", []):
@@ -304,6 +346,12 @@ body {
 .article-content figure { margin: 2em 0; text-align: center; }
 .article-content figure img { max-width: 100%; height: auto; border-radius: 4px; }
 .article-content figcaption { margin-top: 8px; font-size: 0.85rem; color: var(--text-secondary); }
+.math-block { margin: 1.5em 0; text-align: center; overflow-x: auto; }
+.math-inline { display: inline; }
+.bibtex { font-size: 0.85rem; background: #f5f5f0; }
+.table-container { overflow-x: auto; margin: 1.5em 0; }
+.table-container table { border-collapse: collapse; width: 100%; }
+.table-container th, .table-container td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
 
 .footnotes { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 0.9rem; color: var(--text-secondary); }
 .footnotes h2 { font-size: 1rem; margin-bottom: 16px; }

@@ -18,7 +18,7 @@ SYSTEM_PROMPT = """你是一位专业的中英文翻译专家。你的任务是�
 - 保持原文的语气和风格特点
 - 专有名词首次出现时保留英文
 - 不要翻译 URL、代码片段、锚点 ID、脚注引用编号
-- 保留所有 {{FNREF:N}} 和 {{LINK:slug:text}} 占位符，不要翻译或删除它们
+- 保留所有 {{FNREF:N}}、{{LINK:slug:text}} 和 {{MATH:N}} 占位符，不要翻译或删除它们
 - 输入格式：每段用 <<<PARA_N>>> 标记开头，你必须保留这些标记并在对应位置输出翻译
 - 只输出中文翻译，不输出其他任何内容"""
 
@@ -40,8 +40,8 @@ async def translate_one(
     if parsed.get("title"):
         parts.append(f"<<<TITLE>>> {parsed['title']}")
     for i, seg in enumerate(segments):
-        # Skip code segments — don't translate
-        if seg.get("type") == "code":
+        # Skip untranslatable segments
+        if seg.get("type") in ("code", "math_block", "bibtex", "table"):
             continue
         parts.append(f"<<<PARA_{i}>>> {seg['text']}")
     for i, fn in enumerate(footnotes):
@@ -97,8 +97,8 @@ async def translate_one(
         new_seg = seg.copy()
         new_seg["text_original"] = seg["text"]
 
-        # Code segments: keep original text, no translation
-        if seg.get("type") == "code":
+        # Untranslatable segments: keep original text
+        if seg.get("type") in ("code", "math_block", "bibtex", "table"):
             new_seg["text_zh"] = seg["text"]
             translated_segments.append(new_seg)
             continue
@@ -131,6 +131,20 @@ async def translate_one(
                 text_zh += ph
         for ph, cnt in tgt_lk_counts.items():
             surplus = cnt - src_lk_counts.get(ph, 0)
+            for _ in range(surplus):
+                text_zh = text_zh.replace(ph, '', 1)
+
+        # Math placeholder repair
+        src_maths = re.findall(r'\{\{MATH:\d+\}\}', seg["text"])
+        tgt_maths = re.findall(r'\{\{MATH:\d+\}\}', text_zh)
+        src_m_counts = Counter(src_maths)
+        tgt_m_counts = Counter(tgt_maths)
+        for ph, cnt in src_m_counts.items():
+            deficit = cnt - tgt_m_counts.get(ph, 0)
+            for _ in range(deficit):
+                text_zh += ph
+        for ph, cnt in tgt_m_counts.items():
+            surplus = cnt - src_m_counts.get(ph, 0)
             for _ in range(surplus):
                 text_zh = text_zh.replace(ph, '', 1)
 
