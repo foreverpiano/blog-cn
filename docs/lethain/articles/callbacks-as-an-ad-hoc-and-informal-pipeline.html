@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>回调是一种非正式的流水线 · Will Larson 文集</title>
+  <title>回调函数是一种非正式的流水线 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>回调是一种非正式的流水线</h1>
+    <h1>回调函数是一种非正式的流水线</h1>
     <div class="meta">
       2010-03-07 · 
       <a href="https://lethain.com/callbacks-as-an-ad-hoc-and-informal-pipeline/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,11 +29,11 @@
   <div class="article-content">
     
       
-        <p>过去八个月左右，我在工作中一直负责工作流软件的开发。最简单的工作流例子就是流水线：接收一个任务，执行它，把输出作为下一个任务的输入继续执行，然后继续传递……如此反复。昨晚我尝试重构一个 Node.js 项目不断演化出的复杂逻辑，终于意识到编写工作流和串联一长串回调之间存在非常强的相似性。</p>
+        <p>过去八个月左右，我在工作中一直开发流程软件。最简单的流程示例就是流水线：接收一个任务，执行它，将输出作为下一个任务的输入，继续执行，然后一直传递下去。昨晚我尝试重构一个 Node.js 项目不断演化的复杂性时，突然意识到编写流程与串联长长的回调链之间有着极强的相似性。</p>
       
     
       
-        <p>在工作中，我一直使用 [Erlang gen_fsm](gen_fsm) 来引导工作在流水线中流动（同时在每一步处理失败恢复），但在这个 Node.js 的场景中，我希望使用更轻量级的方案，因为它需要为我正在开发的 Web 应用中的每个视图至少建模一个流程。例如，下面是我尝试为「创建新项目」建模的早期流程之一（其中一些细节与使用 Redis 作为后端、redis-node-client 作为接口有关，但这本质上是一个基于回调的流水线所面临的通用问题）：</p>
+        <p>在工作中，我一直使用 [Erlang gen_fsm] 来引导任务通过流水线（同时在每一步进行失败恢复），但对于这个 Node.js 的场景，我更希望使用更轻量级的方式，因为它需要为我正在开发的 Web 应用中的每个视图至少建模一个流程。例如，下面是我试图为“创建新项目”建模的早期流程之一（其中一些细节与使用 Redis 作为后端以及 redis-node-client 作为接口有关，但这本质上是一个基于回调的流水线通用问题）：</p>
       
     
       
@@ -44,7 +44,7 @@ add the new key to a list of projects which is stored in a second key
       
     
       
-        <p>如果上面的流程执行成功，我们希望以「显示成功」流程结束：</p>
+        <p>如果上面的流程执行成功，我们希望以“显示成功”的流程结束：</p>
       
     
       
@@ -55,7 +55,7 @@ send back to user
       
     
       
-        <p>如果上面的流程在任何一步失败，我们希望以「显示失败」流程结束：</p>
+        <p>如果上面的流程在任何一步失败，我们希望以“显示失败”的流程结束：</p>
       
     
       
@@ -66,19 +66,41 @@ send back to user
       
     
       
-        <p>所以问题在于，如何让组合这些不同流程变得简单？通过约定一个工作流片段的标准接口，这实际上非常简单。所有片段都是具有以下结构的函数：</p>
+        <p>那么问题来了，如何才能轻松地组合这些不同的流程呢？通过约定一个标准的工作流片段接口，这实际上非常简单。所有片段都是具有以下结构的函数：</p>
       
     
       
-        <p>第一个参数始终是工作流中剩余的片段，ctx 是一个字典，它会被传入整个工作流并对所有片段可用（它可以在流水线中被修改），此外每个片段可以向下一个片段传递任意数量的额外参数（后续片段可以自由使用或忽略这些额外参数）。</p>
+        <pre><code>var a_segment = function(workflow_funs, ctx, param1, param2) {
+    workflow.run(workflow_funs, ctx, [1, 2, 3, 4]);
+}
+</code></pre>
       
     
       
-        <p>下面是三个更贴近实际的工作流片段，首先是一个从 Redis 计数器中获取下一个唯一标识符的例子。</p>
+        <p>第一个参数始终是工作流中剩余的片段，ctx 是一个字典，会被传递给整个工作流，并且所有片段都可以访问它（它可以在流水线中被修改）；此外，每个片段可以向下一个片段传递任意数量的额外参数（后续片段可以自由使用或忽略这些额外参数）。</p>
       
     
       
-        <p>这个工作流理念依赖于每个片段在完成工作后调用 workflow.run。这很有用，因为你可以编写工作流的同时一次只需要关心一个回调（把嵌套的回调在脑子里理清楚非常困难，尤其是需要修改它们的时候）。</p>
+        <p>下面是三个更接近实际的工作流片段，首先是一个从 Redis 计数器中获取下一个唯一标识符的例子。</p>
+      
+    
+      
+        <pre><code>var redis = require(&quot;../redis-node-client/redisclient&quot;),
+    client = new redis.Client(),
+    workflow = require(&quot;./workflow&quot;);
+var function unique_id = function(funs, ctx, key) {
+client.connect(function() {
+client.incr(key, function(err, value) {
+ctx[key] = value;
+workflow.run(funs, ctx, [err, value]);
+});
+});
+}
+</code></pre>
+      
+    
+      
+        <p>这个工作流概念依赖于每个片段在完成工作后调用 workflow.run。这很有用，因为你一次只需要关注一个回调就能编写工作流（把嵌套的回调在脑子里理清楚非常困难，尤其是在后续需要修改它们的时候）。</p>
       
     
       
@@ -86,27 +108,79 @@ send back to user
       
     
       
+        <pre><code>var workflow = require(&quot;./workflow&quot;),
+    Mu = require(&#x27;../Mu/lib/mu&#x27;);
+Mu.templateRoot = &#x27;./templates&#x27;;
+var render_template = function(funs, ctx) {
+Mu.render(ctx.template, ctx, {}, function(err, output) {
+if (err) {
+throw err;
+} else {
+var buffer = &#x27;&#x27;;
+output.addListener(&#x27;data&#x27;, function (c) {buffer += c; })
+.addListener(&#x27;end&#x27;, function () {
+workflow.run(funs, ctx, [buffer]);
+})}})};
+</code></pre>
+      
+    
+      
         <p>最后，我们来写一个向 HTTP 客户端发送响应的工作流片段。</p>
       
     
       
-        <p>现在让我们创建一个 HTTP 服务器，对请求的响应是：创建一个新的唯一键，渲染一个模板，然后将其返回给用户。</p>
+        <pre><code>var http_response = function(funs, ctx, body) {
+    if (ctx.headers === undefined) ctx.headers = {};
+    if (ctx.headers[&#x27;Content-Type&#x27;] === undefined) ctx.headers[&#x27;Content-Type&#x27;] = &quot;text/html&quot;;
+    if (ctx.status_code === undefined) ctx.status_code = 200;
+    ctx.res.writeHead(ctx.status_code, ctx.headers);
+    ctx.res.write(body);
+    ctx.res.close();
+    workflow.run(funs, ctx);
+}
+</code></pre>
       
     
       
-        <p>注意，[&quot;unique_project&quot;] 是传递给 unique_id 函数来填充其 key 参数的值，随后这个结果被存入 ctx 字典中，键名为 unique_project。http_response 会渲染传入其 body 参数的值，而这个值是由 render_template 传递进来的。</p>
+        <p>现在我们创建一个 HTTP 服务器，它在收到请求时会创建一个新的唯一键，渲染一个模板，然后将其返回给用户。</p>
       
     
       
-        <p>支持这种“有点好用”的机制的那个毫不神奇的函数只有短短四行代码（真正的魔法只是决定一个足够好的约定并坚持遵守它，元编程什么的就算了）。</p>
+        <pre><code>var http = require(&quot;http&quot;),
+    workflow = require(&quot;./workflow&quot;);
+// note that this requires a mustache template at ./templates/create_project
+// which should be something like &quot;project is { {name}}, unique is { {unique_project}}&quot;
+http.createServer(function(req, res) {
+req.addListener(&#x27;end&#x27;, function() {
+var ctx = { req:req, res:res, name:&quot;my project&quot;, template:&quot;create_project&quot;};
+workflow.run([unique_id, render_template, http_response], ctx, [&quot;unique_project&quot;]);
+})});
+</code></pre>
       
     
       
-        <p>我仍在继续探索这个想法以及其他几个想法，同时尝试开发一个相对复杂的 Node.js 应用。我觉得这里面有些有价值的东西，尽管这个第一版实现还非常粗糙。</p>
+        <p>注意，[&quot;unique_project&quot;] 是传递给 unique_id 函数用于填充其 key 参数的值，随后这个结果会被存入 ctx 字典中，键名为 unique_project。http_response 渲染的是传入其 body 参数的值，而这个值由 render_template 传递而来。</p>
       
     
       
-        <p>作为结束语，完全可以用一个更复杂的有限状态机来解决这个问题（比如我上面简要提到的 Erlang gen_fsm 实现），但那样做无疑会更复杂，而且通常也没有必要。尤其是合理利用 JavaScript 的异常机制，就可以在需要的时候实现类似 FSM 的复杂行为，而在简单场景中又不必承担 FSM 带来的复杂性。</p>
+        <p>支持这种良好设计的那个毫不神奇的函数只有短短四行代码（真正的魔法只是决定一个合适的约定并坚持遵守它，元编程什么的就不提了）。</p>
+      
+    
+      
+        <pre><code>// workflow.js
+exports.run = function(funs, ctx, params) {
+    if (funs &amp;&amp; funs[0]) 
+        funs[0].apply(this, [funs.slice(1), ctx].concat(params));
+}
+</code></pre>
+      
+    
+      
+        <p>我还在一边尝试编写一个相对复杂的 Node.js 应用，一边继续探索这个想法以及其他几个想法。我觉得这里面有些东西值得挖掘，虽然这个初版实现还非常粗糙。</p>
+      
+    
+      
+        <p>最后需要说明的是，完全可以采用更复杂的有限状态机（比如我之前简单提到的 Erlang gen_fsm 实现）来解决这个问题，但那样做会复杂得多，而且通常没有必要。尤其是善用 JavaScript 的异常机制，就可以在需要的时候实现类似 FSM 的复杂行为，而在简单场景中又不必承担 FSM 带来的复杂度。</p>
       
     
   </div>

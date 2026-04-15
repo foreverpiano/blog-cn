@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nagios 监控 Erlang · Will Larson 文集</title>
+  <title>Nagios Erlang 监控方案 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>Nagios 监控 Erlang</h1>
+    <h1>Nagios Erlang 监控方案</h1>
     <div class="meta">
       2009-12-30 · 
       <a href="https://lethain.com/nagios-monitoring-for-erlang/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,27 +29,31 @@
   <div class="article-content">
     
       
-        <p>工作中的一大乐趣就是能和 Erlang 打交道。如果采用率不断提升，Erlang 在分布式计算和可靠性方面能带来诸多优势。但短期来看，Erlang 不可避免的弱点在于它既不是 PHP 也不是 Java。此外，Erlang 应用可能依赖 Mnesia 而非 MySQL 或 PostgreSQL，最终导致公司现有的基础设施（运维、监控、操作手册等）通常无法直接有效支持 Erlang，而需要进行一些改造。</p>
+        <p>工作中让我最享受的事情之一就是能和 Erlang 打交道。如果采用率不断提高，Erlang 在分布式计算和可靠性方面能带来诸多优势，但在短期内，Erlang 不可避免的弱点是它既不是 PHP 也不是 Java。此外，Erlang 应用可能依赖 Mnesia 而非 MySQL 或 PostgreSQL，最终导致公司现有的基础设施（运维、监控、操作手册等）通常无法直接有效支持 Erlang，需要进行一定的修改。</p>
       
     
       
-        <p>为了解决其中一个方面的问题，我最近几天花了些时间，为 Erlang 的进程组、节点和应用编写了 Nagios 监控脚本。这个项目暂时命名为 nagios_erlang，不过我得承认这个名字在吸引力上确实有些不足。</p>
+        <p>为了解决其中一个方面的问题，我最近几天花了些时间，为 Erlang 的进程组、节点和应用编写了适用于 Nagios 的监控脚本。这个项目暂定名为 nagios_erlang，不过我得承认这个名字的吸引力确实有限。</p>
       
     
       
-        <p>更详细的使用说明请参考 nagios_erlang 的 README 文件，总体来说它提供了以下功能：</p>
+        <p>更详细的使用说明请参考 nagios_erlang 的 README 文件，总体而言，它提供了以下功能：</p>
       
     
       
-        <div class="list-content">检查主机能否 ping 通另一个节点；检查特定应用是否在另一个节点上运行；检查某个进程组中的进程数量是否满足告警和严重阈值（例如大于 5 个进程正常，小于 5 个告警，小于 3 个严重等）。</div>
+        <div class="list-content">检查主机能否 ping 通另一个节点、检查指定应用是否在另一个节点上运行、检查某个进程组中的进程数量是否满足告警和危急阈值（例如超过 5 个进程正常，少于 5 个告警，少于 3 个危急等等）。</div>
       
     
       
-        <p>目前这些都是主动检查，不过要扩展脚本支持被动检查应该也比较直接。（在 nagios_erlang.erl 中增加一个输出 NCSA 格式的包装器，检测 --passive 参数，将输出写入临时文件，然后通过管道传给 NCSA 的 send_message，大致就是这样的思路。）</p>
+        <p>目前这些都是主动检查，但将其扩展为同时支持被动检查应该并不复杂（在 nagios_erlang.erl 中增加一个输出 NCSA 格式的包装函数，检测 --passive 参数，将输出写入临时文件，然后通过 NCSA 的 send_message 发送出去，大致就是这样的思路）。</p>
       
     
       
-        <p>完整源代码已在 Github 上开放。</p>
+        <p>完整的源代码已在 Github 上开源。</p>
+      
+    
+      
+        <div class="list-content">比较尴尬的是，它是通过尝试启动应用并检查是否已启动来实现的。我暂时没想到更优雅的办法，或许只是我没注意到 application 模块中已经存在合适的函数。</div>
       
     
   </div>

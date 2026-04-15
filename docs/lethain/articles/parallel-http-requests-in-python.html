@@ -29,35 +29,72 @@
   <div class="article-content">
     
       
-        <p>上周我正在为一位客户做性能优化工作，我们取得的最大改进之一就是让 HTTP 请求并行执行。如果你的服务器在渲染页面之前需要调用两到三个 API（这是 Mashup 开发者的梦魇），那么顺序请求会严重拖累性能。在那位客户的项目中，解决方案必须用 PHP 实现，但今晚我决定为 Python 写一个类似的方案（可能也有人提出过这个想法）。</p>
+        <p>上周我正在为一位客户做性能优化，
+我们取得的最大改进之一就是将 HTTP 请求改为并行执行。
+如果你的服务器在渲染页面前需要调用两到三个 API（这是 Mashup 开发者的噩梦），
+那么顺序请求就会严重拖累性能。当时为客户提供的方案必须用 PHP，
+但今晚我决定为 Python 也写一个类似的实现（或许已经有人这么做过了）。</p>
       
     
       
-        <p>利用 threading 和 urllib 模块，这个任务实现起来相当简单。我的（非常基础的）策略是为每个请求创建一个线程，不断轮询这些线程直到它们全部完成，然后将接收到的数据以列表形式返回，列表中的每个元素都是 (url, data) 的二元组。我的另一个需求是希望能为所有线程设置一个统一的超时时间（同样是为了保持响应迅速）。</p>
+        <p>使用 threading 和 urllib 模块，实现起来相当简单直接。
+我（非常基础）的策略是为每个请求创建一个线程，不断轮询这些线程直到它们全部完成，
+最后将收到的数据以列表形式返回，每个元素是一个 (url, data) 二元组。
+我还希望能设置一个应用于所有线程的超时时间（同样是为了保持响应迅速）。</p>
       
     
       
-        <p>最终我的代码如下（假设它保存在一个名为 multi_get.py 的文件中，后续示例都基于此）：</p>
+        <p>最终的代码大致如下（假设它保存在名为 multi_get.py 的文件中）：</p>
       
     
       
-        <p>使用方法如下：</p>
+        <pre><code>&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;urlopen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;response&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+</code></pre>
       
     
       
-        <p>我将它与下面这个简单的顺序实现进行了对比测试，</p>
+        <p>使用方式如下：</p>
       
     
       
-        <p>结果正如预期。在我的网络环境下，MSN 需要 1.14 秒才能加载完成，而 Yahoo 和 Google 大约在 0.1 到 0.2 秒之间（谁知道呢，也许它们因为 User-Agent 拒绝了请求并返回了错误页面）。第一个并行执行的脚本，其总耗时只比最慢的单个请求慢十到二十毫秒，而顺序执行的脚本则要长得多（基本上是所有响应时间之和）。</p>
+        <pre><code>from multi_get import multi_get
+sites = [&#x27;http://msn.com/&#x27;,&#x27;http://yahoo.com/&#x27;,&#x27;http://google.com/&#x27;]
+requests = multi_get(sites,timeout=1.5)
+for url, data in requests:
+    print &quot;received this data %s from this url %s&quot; % (url,data)
+</code></pre>
       
     
       
-        <p>当你构建下一个 Django 或 TurboGears Mashup 时——甚至计划下一次注定失败的 Google 网页抓取冒险——不妨试试并行请求，看看它能带来多大的帮助。</p>
+        <p>我将它与下面这个简单的顺序实现做了对比测试，</p>
       
     
       
-        <p>（你也可以使用 asyncore 模块来解决这个问题，但它给我抛出了一些奇怪的错误，所以我选择了基于线程的方案。鉴于线程方案表现优秀，我决定就保持原样；使用 asyncore 应该也能实现类似功能，但你需要编写更多胶水代码来处理 HTTP 相关部分，尤其是当你想支持比 GET 请求更复杂的操作时。）</p>
+        <pre><code>from urllib import urlopen
+import time
+results = []
+sites = (&#x27;http://msn.com/&#x27;,&#x27;http://yahoo.com/&#x27;,&#x27;http://google.com/&#x27;)
+for site in sites:
+start = time.time()
+req = urlopen(site)
+results.append((site, req.read()))
+end = time.time()
+print &quot;took %s seconds&quot; % (end-start)
+</code></pre>
+      
+    
+      
+        <p>结果不出所料。在我的网络环境下，MSN 需要 1.14 秒才能加载完成，而 Yahoo 和 Google 的加载时间在 0.1 到 0.2 秒之间（谁知道呢，也许它们因为 User-Agent 而返回了错误页面）。第一个并行执行的脚本，其总耗时只比最慢的那个请求慢十到二十毫秒，而顺序执行的脚本耗时要长得多（基本是所有响应时间之和）。</p>
+      
+    
+      
+        <p>当你在开发下一个 Django 或 TurboGears Mashup 时——甚至计划下一次注定要失败的 Google 页面抓取尝试——不妨试试并行请求，看看它能带来多大的帮助。</p>
+      
+    
+      
+        <p>（你也可以使用 asyncore 模块来解决这个问题，但它在我这里抛出了一些奇怪的错误，所以我选择了线程方案。鉴于线程方案表现非常出色，我就保持原状了；使用 asyncore 实现起来应该差不多，但你需要编写更多的胶水代码来处理 HTTP 细节，尤其是当你想支持比 GET 更复杂的请求时。）</p>
       
     
   </div>

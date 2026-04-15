@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>表里不一的 Django 第三部分：Newforms · Will Larson 文集</title>
+  <title>双面 Django 第三部分：Newforms · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>表里不一的 Django 第三部分：Newforms</h1>
+    <h1>双面 Django 第三部分：Newforms</h1>
     <div class="meta">
       2007-12-04 · 
       <a href="https://lethain.com/two-faced-django-part-3-newforms/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,35 +29,53 @@
   <div class="article-content">
     
       
-        <p>好了，现在我们开始本教程的第三部分。你应该已经[从第二部分读过来了][parttwo]。如果你不想再回头看前面的内容，也可以[下载我们当前的项目代码][polling2]，这是教程第一和第二部分完成后的状态。</p>
+        <p>好了，现在我们开始本教程的第三部分。你应该已经[从第二部分过来][parttwo]。如果你不想自己完成前面的内容，可以[下载我们当前的项目代码][polling2]，这是教程第一和第二部分所构建的版本。</p>
       
     
       
-        <p>本部分我们会为核心应用增加一些功能，但内容相对前两部分会简短一些（当然也比后面四部分要短得多）。好啦，让我们进入正题。</p>
+        <p>本部分我们会为核心应用增加一些内容，但相比前两部分（以及接下来的四个部分）而言，这部分内容会相对简短。好了，让我们开始吧。</p>
       
     
       
-        <h2>使用 newforms 向用户询问问题</h2>
+        <h2>使用 newforms 向用户提问</h2>
+        
       
     
       
-        <p>在我们的 Polling 项目中，我们要允许用户创建新的投票，并且需要一种简单的方式来询问用户想要创建的投票内容。使用 Django.newforms 模块是一个简便的方法。</p>
+        <p>在我们的 Polling 项目中，我们要允许用户创建新的投票，并且需要一种简单的方式来询问用户想要创建的投票内容。使用 Django.newforms 模块是一个简单的方法。</p>
       
     
       
-        <p>首先进入 Polling 项目目录，我们将创建一个新文件 core/forms.py，用来存放我们的表单。</p>
+        <p>首先，进入 Polling 项目目录，我们将创建一个新文件 core/forms.py，用于存放我们的表单。</p>
       
     
       
-        <p>现在我们来添加所需的 import：</p>
+        <pre><code>emacs core/forms.py
+</code></pre>
       
     
       
-        <p>接下来我们创建一个简单的表单，它只包含一个字段——要询问的问题。代码大致如下：</p>
+        <p>现在让我们为这个文件添加导入语句：</p>
       
     
       
-        <p>好吧，这确实是个非常简单的例子（抱歉！），但我们希望它能做得更多：我们想要验证问题是否唯一，如果不唯一就添加错误信息。我们可以通过在 PollForm 类中添加一个 clean_question 方法来实现。多亏了一些元编程的魔法，Django 会自动寻找这个方法名，并调用它对 question 字段进行额外的验证。</p>
+        <pre><code>from django import newforms as forms
+from polling.core.models import Poll
+</code></pre>
+      
+    
+      
+        <p>接下来我们来创建一个简单的表单，它只包含一个字段，即要询问的问题。代码如下：</p>
+      
+    
+      
+        <pre><code>class PollForm(forms.Form):
+    question = forms.CharField(max_length=200)
+</code></pre>
+      
+    
+      
+        <p>好吧，这确实是一个非常简单的例子（抱歉！），但我们希望它能做得更多：我们想要验证问题是否唯一，如果不唯一则添加错误信息。我们通过在 PollForm 类中添加一个 clean_question 方法来实现这一点。得益于一些元编程的魔法，Django 会自动查找这个方法名，并在验证 question 字段时调用它进行额外的校验。</p>
       
     
       
@@ -65,7 +83,22 @@
       
     
       
-        <p>表单的编写基本就是这些了。但在继续之前，我们还需要编写一些测试。让我们打开 core/tests.py 文件，在 import 部分添加下面这行：</p>
+        <pre><code>def clean_question(self):
+    question = self.cleaned_data[&#x27;question&#x27;]
+    count = Poll.objects.filter(question=question).count()
+    if count != 0:
+        raise forms.ValidationError(&#x27;The question &quot;%s&quot; is already in use.&#x27; % question)
+    return question
+</code></pre>
+      
+    
+      
+        <p>编写表单的部分就这么多。但在我们继续之前，还需要编写一些测试。让我们打开 core/tests.py 文件，在导入部分添加下面这行：</p>
+      
+    
+      
+        <pre><code>from polling.core.forms import PollForm
+</code></pre>
       
     
       
@@ -73,31 +106,77 @@
       
     
       
-        <p>确保它能正常工作……</p>
+        <pre><code>class CoreFormTest(unittest.TestCase):
+    &quot;Test the forms contained in the &#x27;core&#x27; app.&quot;
+    def test_PollForm(self):
+        pass
+</code></pre>
       
     
       
-        <p>看起来没问题，接下来我们来完善 *test_PollForm* 这个测试用例。</p>
+        <p>确保一切正常……</p>
       
     
       
-        <p>和之前的测试一样，我们先做一些基本的健全性检查，确保我们理解自己在做什么，并且 Django 没有突然出问题。确认一切正常后，我们开始测试表单在预期情况下是否有效或无效，以及是否能正确报告我们期望的错误信息。</p>
+        <pre><code>python manage.py test
+</code></pre>
       
     
       
-        <p>现在让我们运行这些测试……</p>
+        <p>测试通过了，现在我们来完善 *test_PollForm* 这个单元测试。</p>
       
     
       
-        <p>看起来一切依然顺利。非常好。</p>
+        <pre><code>def test_PollForm(self):
+    f = PollForm()
+    self.assertEquals(False, f.is_valid())
+    data = {}
+    f = PollForm(data)
+    self.assertEquals(False, f.is_valid())
+    self.assertEquals([u&#x27;This field is required.&#x27;], f.errors[&#x27;question&#x27;])
+    data = {&quot;question&quot;:&quot;Is this valid?&quot;}
+    f = PollForm(data)
+    self.assertEquals(True, f.is_valid())
+    self.assertEquals(&quot;Is this valid?&quot;, f.cleaned_data[&#x27;question&#x27;])
+    u = User(name=&quot;Will L&quot;)
+    u.save()
+    p = Poll(question=&quot;Is it real?&quot;, creator=u)
+    p.save()
+    data = {&quot;question&quot;:&quot;Is it real?&quot;}
+    f = PollForm(data)
+    # should be false because Poll with this question already
+    # exists in our database
+    self.assertEquals(False, f.is_valid())
+    self.assertEquals([u&#x27;The question &quot;Is it real?&quot; is already in use.&#x27;], f.errors[&#x27;question&#x27;])
+    p.delete()
+    u.delete()
+</code></pre>
+      
+    
+      
+        <p>和之前的测试一样，我们先进行一些基本的健全性检查，以确保我们理解自己在做什么，并且 Django 没有出什么问题。确认这一点后，我们开始测试表单在预期情况下是否有效或无效，以及是否能正确报告我们期望的错误信息。</p>
+      
+    
+      
+        <p>现在运行这些测试……</p>
+      
+    
+      
+        <pre><code>python manage.py test
+</code></pre>
+      
+    
+      
+        <p>看起来一切依然正常。非常好。</p>
       
     
       
         <h2>下一步</h2>
+        
       
     
       
-        <p>现在表单已经准备好了，我们可以开始构建 web 和 fb 应用中的实际功能了。[当前项目代码的压缩包可以在这里下载][polling3]，准备好了就继续进入第四部分吧。</p>
+        <p>现在我们已经完成了这个表单，接下来可以开始构建 web 和 fb 应用中的实际内容了。[当前项目代码的压缩包可以在这里下载][polling3]，准备好了就继续进入第四部分吧。</p>
       
     
   </div>

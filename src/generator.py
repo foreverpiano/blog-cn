@@ -74,6 +74,11 @@ def prepare_article(article: dict, valid_slugs: set[str], title_map: dict[str, s
         if seg.get("type") == "code":
             seg["rendered_html"] = escape(seg.get("text_zh") or seg.get("text", ""))
             continue
+        # Figure segments: render caption text, preserve image_src/alt_text/caption
+        if seg.get("type") == "figure":
+            caption = seg.get("caption") or seg.get("text_zh") or seg.get("text", "")
+            seg["rendered_html"] = escape(caption) if caption else ""
+            continue
         text = seg.get("text_zh") or seg.get("text", "")
         seg["rendered_html"] = render_segment_html(text, footnote_ids, valid_slugs, title_map_with_slug)
 
@@ -160,6 +165,16 @@ def generate_site(paths, adapter):
     css_dir = paths.DIST_DIR / "static" / "css"
     css_dir.mkdir(parents=True, exist_ok=True)
     (css_dir / "style.css").write_text(generate_css(), encoding="utf-8")
+
+    # Copy images if they exist (for sites with downloaded images)
+    img_src = paths.RAW_DIR / "images"
+    if img_src.exists():
+        img_dst = paths.DIST_DIR / "images"
+        if img_dst.exists():
+            shutil.rmtree(img_dst)
+        shutil.copytree(img_src, img_dst)
+        img_count = sum(1 for _ in img_dst.rglob("*") if _.is_file())
+        print(f"  - {img_count} images copied")
 
     total_cross_links = 0
     total_visible_fnrefs = 0
@@ -286,6 +301,9 @@ body {
 .article-content code { font-family: "SF Mono", "Fira Code", Menlo, monospace; font-size: 0.9em; }
 .article-content ul, .article-content ol { margin: 1em 0; padding-left: 2em; }
 .article-content li { margin-bottom: 0.5em; }
+.article-content figure { margin: 2em 0; text-align: center; }
+.article-content figure img { max-width: 100%; height: auto; border-radius: 4px; }
+.article-content figcaption { margin-top: 8px; font-size: 0.85rem; color: var(--text-secondary); }
 
 .footnotes { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 0.9rem; color: var(--text-secondary); }
 .footnotes h2 { font-size: 1rem; margin-bottom: 16px; }

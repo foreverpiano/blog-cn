@@ -29,51 +29,68 @@
   <div class="article-content">
     
       
-        <p>在对 BeepBeep 极简介绍的基础上，在《BeepBeep 入门》系列的这第二篇文章中，我们将一起看看如何在 BeepBeep 中使用 Ajax。</p>
+        <p>在对 BeepBeep 极为基础的介绍之上，本系列《BeepBeep 入门》的第二篇文章将带大家了解如何在 BeepBeep 中使用 Ajax。</p>
       
     
       
-        <p>和大多数简单的 Ajax 示例一样，这个例子可能有点刻意人为，但仍然足以说明核心概念。我不会试图说服读者这个例子多么缺乏创意——我们只是让 BeepBeep 应用程序返回当前时间，然后将它显示给用户。</p>
+        <p>和大多数简单的 Ajax 示例一样，本例也会有些刻意为之，但依然能够很好地演示这个概念。我不会试图说服读者这个例子有多么平淡无奇——我们只是简单地轮询 BeepBeep 应用获取当前时间，然后将其显示给用户。</p>
       
     
       
-        <h2>BeepBeep 项目设置</h2>
+        <h2>BeepBeep 环境搭建</h2>
+        
       
     
       
-        <p>（如果你尚未安装 BeepBeep，请先参考前一篇《BeepBeep 入门教程》再继续。）</p>
+        <p>（如果你尚未安装 BeepBeep，请先参考前一篇《BeepBeep 入门教程》再继续阅读。）</p>
       
     
       
-        <div class="list-content">使用 BeepBeep 命令创建一个新项目。cd ~/git/beepbeep/
+        <pre><code>cd ~/git/beepbeep/
 script/new_beep.erl BB_Time ../BB_Time
-然后进入项目目录。cd ~/git/BB_Time/bb_time</div>
+</code></pre>
       
     
       
-        <p>至此，项目已经初始化完毕，可以开始添加我们的特别功能了。</p>
+        <pre><code>cd ~/git/BB_Time/bb_time
+</code></pre>
       
     
       
-        <h2>BeepBeep 后端逻辑</h2>
+        <div class="list-content">使用 BeepBeep 命令创建一个新项目，然后进入该项目目录。</div>
       
     
       
-        <p>接下来，我们需要配置应用程序的 BeepBeep 部分（与 JavaScript 部分相对，后者我们最后再来配置）。</p>
+        <p>至此，项目已经初始化完成，准备好加入我们的“特制酱料”了。</p>
       
     
       
-        <div class="list-content">首先需要创建两个控制器：一个用于显示初始页面；另一个用于被轮询以获取当前时间。打开 src/home_controller.erl 文件，将现有的 handle_request 处理函数（index 和 show 两个）替换为以下代码：handle_request(&quot;index&quot;,[]) -&gt;
+        <h2>BeepBeep 逻辑实现</h2>
+        
+      
+    
+      
+        <p>接下来，我们需要配置应用的 BeepBeep 部分（与 JavaScript 部分相对，后者我们最后再配置）。</p>
+      
+    
+      
+        <pre><code>handle_request(&quot;index&quot;,[]) -&gt;
     {_A,B,_C} = erlang:now(),
     {render,&quot;home/index.html&quot;,[{time, B}]};
 handle_request(&quot;time&quot;,[]) -&gt;
 {A,B,C} = erlang:now(),
 {render,&quot;home/ajax.html&quot;,[{time, B}]}.
-这两个处理函数看起来几乎完全一样，只是渲染不同的视图，这很合理，因为从服务器的角度来看，Ajax 请求与普通的 HTTP 请求并无区别。
-此外，将现有的 before_filter 实现替换为：before_filter() -&gt;
+</code></pre>
+      
+    
+      
+        <pre><code>before_filter() -&gt;
     ok.
-然后保存并关闭 home_controller.erl。
-接下来编辑基础视图，打开 views/base.html 并将其内容修改为：&lt;!DOCTYPE html PUBLIC &quot;-//W3C//DTD XHTML 1.0 Transitional//EN&quot;
+</code></pre>
+      
+    
+      
+        <pre><code>&lt;!DOCTYPE html PUBLIC &quot;-//W3C//DTD XHTML 1.0 Transitional//EN&quot;
        &quot;http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd&quot;&gt;
 &lt;html xmlns=&quot;http://www.w3.org/1999/xhtml&quot; xml:lang=&quot;en&quot; lang=&quot;en&quot;&gt;
 &lt;head&gt;
@@ -89,32 +106,51 @@ handle_request(&quot;time&quot;,[]) -&gt;
     {% block content %}{% endblock %}
   &lt;/body&gt;
 &lt;/html&gt;
-主要改动是增加了对尚不存在的 js/time.js 文件的 JavaScript 引用（我们稍后会创建它），以及引入了 Google 托管的 jQuery 库。
-第三步，创建视图模板 views/home/ajax.html，内容如下：&lt;p&gt; Time is { { time }}&lt;/p&gt;
-注意这里不要以 {% extends &quot;../base.html&quot; %} 块开头，因为我们会将这个 HTML 片段注入到已有的 HTML 页面中。
-接下来编辑 views/home/index.html 模板，使其内容变为：{% extends &quot;../base.html&quot; %}
+</code></pre>
+      
+    
+      
+        <pre><code>&lt;p&gt; Time is { { time }}&lt;/p&gt;
+</code></pre>
+      
+    
+      
+        <pre><code>{% extends &quot;../base.html&quot; %}
 {% block content %}
     &lt;div id=&quot;time&quot;&gt;
       {% include &quot;ajax.html&quot; %}
     &lt;/div&gt;
 {% endblock %}
-如果你不熟悉 Django，可能没有见过 include 标签。它会把另一个文件的内容插入到当前文件中，并使用当前模板的上下文来渲染被插入的模板。
-这也暴露了 ErlyDTL 的一个尴尬之处：它不理解路径是相对于 views/ 目录的，而是要求路径相对于当前模板。也就是说，home/index.html 必须写出相对于自身的 ../base.html 路径，而 index.html 中的 include 标签也必须引用 ajax.html，而不是 home/ajax.html。这与我们预期的 Django 行为有所不同，请务必注意。
-最后，让我们验证这个小应用是否能正常工作。make
+</code></pre>
+      
+    
+      
+        <pre><code>make
 ./start-server.sh
-然后访问 http://localhost:8000/ 和 http://localhost:8000/ajax 页面，确认它们正确渲染了相应的内容。</div>
+</code></pre>
       
     
       
-        <p>做到这一步，我们距离完成这个简单的 Ajax 应用已经很近了，只差 Ajax 部分的代码。</p>
+        <div class="list-content">首先需要创建两个控制器：一个用于显示初始页面，另一个用于被轮询获取当前时间。打开 src/home_controller.erl 文件，将现有的 handle_request 处理函数（index 和 show 两个动作）替换为以下代码：这两个处理函数看起来几乎完全一样，只是渲染不同的视图，这很合理，因为从服务器角度来看，Ajax 请求与普通的 HTTP 请求并没有区别。同时，将现有的 before_filter 实现替换为：然后保存并关闭 home_controller.erl。接下来编辑基础视图，打开 views/base.html 并将其修改为：主要改动是增加了对尚不存在的 js/time.js 文件的 JavaScript 引入（我们稍后会创建它），以及引入 Google 托管的 jQuery 库。第三步，创建视图模板 views/home/ajax.html，内容如下：注意这里没有使用 {% extends &quot;../base.html&quot; %} 块，因为我们会将这个 HTML 片段注入到已有的 HTML 页面中。接着修改 views/home/index.html 模板，使其看起来像这样：如果你不熟悉 Django，可能没有见过 include 标签，它的作用是将另一个文件的内容注入到当前文件中，并使用当前模板的上下文来渲染被注入的模板。需要注意的是，这也揭示了 ErlyDTL 的一个尴尬之处：它不认为路径是相对于 views/ 文件夹的，而是要求路径相对于当前模板。也就是说，home/index.html 必须写出相对于 ../base.html 的路径，而 index.html 中的 include 标签也必须引用 ajax.html，而不是 home/ajax.html。这与预期的 Django 行为略有不同，请务必注意。最后，让我们验证这个小程序是否能正常工作。然后访问 http://localhost:8000/ 和 http://localhost:8000/ajax 页面，确认它们是否正确渲染。</div>
       
     
       
-        <h2>JavaScript 逻辑</h2>
+        <p>至此，我们离完成这个简单的 Ajax 应用只差最后一步——Ajax 交互逻辑。</p>
       
     
       
-        <p>我们已经在 base.html 中引入了 jQuery，接下来只需要创建并完善 js/time.js 文件。</p>
+        <h2>JavaScript 逻辑实现</h2>
+        
+      
+    
+      
+        <p>我们已经在 base.html 中引入了 jQuery，现在只需创建并完善 js/time.js 文件即可。</p>
+      
+    
+      
+        <pre><code>mkdir www/js
+emacs www/js/time.js
+</code></pre>
       
     
       
@@ -122,15 +158,27 @@ handle_request(&quot;time&quot;,[]) -&gt;
       
     
       
-        <p>最后，刷新 http://localhost:8000/ 页面，你就会看到又一个“严重违反 Ajax 精神”的例子在你眼前上演——而它的动力正是来自 BeepBeep！</p>
+        <pre><code>var update = function() {
+    $(&quot;#time&quot;).load(&quot;/home/time&quot;);
+}
+setInterval(update, 1000);
+</code></pre>
       
     
       
-        <p>（你可以从 BeeBeep 示例仓库中的 BB_Time 项目获取本教程的完整代码。）</p>
+        <p>最后，刷新 http://localhost:8000/ 页面，你就会看到又一个“ egregious”的 Ajax 应用在你眼前运行，而它的动力正是来自 BeepBeep！</p>
       
     
       
-        <p>在本教程的下一部分，我们将介绍如何将 BeepBeep 与持久化数据存储结合使用，从而组合出提供真实服务所需的最基本组件，而不是一个玩具应用。</p>
+        <p>（本教程的完整代码可在 BeeBeep Examples 仓库中的 BB_Time 项目中获取。）</p>
+      
+    
+      
+        <p>在本教程的下一部分，我们将介绍如何将 BeepBeep 与持久化数据存储结合使用，从而组合出提供真实服务所需的最基本组件，而不再只是一个玩具。</p>
+      
+    
+      
+        <div class="list-content">当然，整个功能只用客户端 JavaScript 实现会简单得多，但是……我只是在演示一个概念。↩</div>
       
     
   </div>

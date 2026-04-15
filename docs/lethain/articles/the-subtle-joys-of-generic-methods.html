@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>泛型方法的低调乐趣 · Will Larson 文集</title>
+  <title>泛型方法的微妙乐趣 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>泛型方法的低调乐趣</h1>
+    <h1>泛型方法的微妙乐趣</h1>
     <div class="meta">
       2008-12-11 · 
       <a href="https://lethain.com/the-subtle-joys-of-generic-methods/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,67 +29,141 @@
   <div class="article-content">
     
       
-        <p>一提到 Ruby，你第一个想到的是什么？哦，是 Rails？嗯……那你觉得 Ruby 最突出的特性是什么？Monkey patching？没错，我也是这么想的。程序员对 monkey patching 的看法远比青春期少女对闪粉的看法还要强烈且激烈。在运行时全局修改类的功能？嗯，这听起来的确很危险。</p>
+        <p>一提到 Ruby，你第一个联想到的是什么？哦，是 Rails 吗？嗯。那你觉得 Ruby 最突出的特性是什么？猴子补丁（Monkey patching）？没错，我也是这么想的。程序员对猴子补丁的看法比青春期少女对闪粉的看法还要强烈且激烈。在运行时全局修改类的功能？嗯，是的，这听起来确实很危险。</p>
       
     
       
-        <p>稍微发挥一点想象力，你就能脑补出一个末日场景：两个库为了把某段功能换成各自偏好的版本而持续相互角力，每次发布新版本时，库的维护者都要修改代码，让自己的库重新排到最前面。</p>
+        <p>稍微发挥一点想象力，你就能脑补出一个世界末日般的场景：两个库为了把某个功能替换成各自偏好的版本而不断相互角力，每次发布新版本时，库的维护者都要修改代码，把自己的库重新推到调用堆的顶部。</p>
       
     
       
-        <p>然而，monkey patching 确实解决了一个重要问题：能够在运行时动态地为类增加功能。在 Python 这边，我们并没有一个特别好的解决方案，而且我们基本上已经接受了这个现状——宁可没有动物园，也不要让狮子偶尔逃出来咬小孩子。</p>
+        <p>然而，猴子补丁确实解决了一个重要问题：可以在运行时动态地为类添加功能。而在 Python 这边，我们并没有一个特别好的解决方案，而且我们似乎已经接受了这个现实：宁可没有动物园，也不要让狮子偶尔跑出来咬小孩子。</p>
       
     
       
-        <p>不过，这个问题其实有一个很棒的解决方案。它既允许动态地为类——甚至是多个类——添加功能，同时又尊重命名空间，不会破坏别人代码中的合理假设（最重要的是“一个函数不会在毫无征兆的情况下突然改变行为”这一假设，这对于编写哪怕只是中等确定性的代码来说都至关重要）：</p>
+        <p>不过，这个问题其实有一个很棒的解决方案。它允许动态地为类——不仅仅是一个类，而是多个类——添加功能，同时尊重命名空间，也不会破坏别人代码中的合理假设（最主要的假设是：一个函数不会在没有预警的情况下突然开始表现出完全不同的行为，这对于编写哪怕只是中等确定性的代码来说都非常重要）：</p>
       
     
       
-        <p>和许多悄然渗入现代编程语言的伟大想法一样，这个想法也来自 Lisp——更准确地说是 Common Lisp——但它至今还没有在主流语言中重新出现。这个解决方案就是泛型函数（也叫多重方法），就像 CLOS 中的那样。让我们通过几个例子，看看如果 Python 拥有基于泛型函数的面向对象会是什么样子。</p>
+        <p>和许多逐渐渗入现代编程语言的伟大想法一样，这个想法也来自 Lisp——更准确地说是 Common Lisp——但它至今还没有在主流语言中重新出现。这个解决方案就是泛型函数（也称为多重分发方法，multi-methods），就像 CLOS 中的那样。让我们来看几个例子，假如 Python 拥有基于泛型函数的面向对象机制会是什么样子。</p>
       
     
       
-        <p>关键区别在于某些参数会用类进行类型标注。凡是没有显式标注类型的参数都可以是任意类型，因此我们混合使用了强类型和鸭子类型（有点像 Objective-C）。</p>
+        <pre><code>class Person(object):
+    name = None
+    title = None
+def greet(Person p):
+print &quot;Hello %s %s&quot; % (p.name, p.title)
+</code></pre>
       
     
       
-        <p>第一个优势是我们可以从任意模块为一个类添加功能，而不只是在它的类定义里。比如，如果上面的代码位于一个叫 PersonModule 的模块，那么我们可以在另一个模块中这样写：</p>
+        <p>关键的区别在于，某些参数是用类来标注类型的。我们假设任何没有显式标注类型的参数都可以是任意类型，因此这里混合使用了强类型和鸭子类型（类似于 Objective-C）。</p>
       
     
       
-        <p>这样我们就能为其他模块中声明的对象添加方法。但如果我们想在自己的模块里覆盖某个对象的默认行为呢？小菜一碟。</p>
+        <p>第一个优势是我们可以从任意模块为一个类添加功能，而不仅仅是在它的类声明里完成。例如，如果上面的代码位于一个名为 PersonModule 的模块中，那么我们可以在另一个模块里这样写：</p>
       
     
       
-        <p>这挺酷的，对吧？当然，我是凭空想象的，甚至无法向你证明我说的这些确实可行，但这就是 CLOS 中面向对象的工作方式。它已经有了一个真实可用的先例。</p>
+        <pre><code>from PersonModule import Person, greet
+def farewell(Person p):
+print &quot;Goodbye %s %s&quot; % (p.name, p.title)
+def greet_goodbye(Person p):
+print greet(p) + &quot;, &quot; farewell(p)
+p = Person()
+p.name = &#x27;Will&#x27;
+p.title = &#x27;Mr.&#x27;
+greet(p)    # print &quot;Hello Mr. Will&quot;
+farewell(p) # print &quot;Goodbye Mr. Will&quot;
+</code></pre>
       
     
       
-        <p>而且真的很棒。</p>
+        <p>这样我们就能给在其他模块中声明的对象添加方法，但如果我们想在自己的模块中覆盖某个对象的默认行为呢？非常简单。</p>
       
     
       
-        <p>泛型函数带来的乐趣远不止于此，它还能给我们一些类似 Erlang 或 Scala 中类型匹配的感觉。来看看下面这段代码：</p>
+        <pre><code>from PersonModule import Person, greet_goodbye
+def farewell(Person p):
+return &quot;k thnx bai %s&quot; % p.name
+p = Person()
+greet_goodbye(p) # prints &quot;Hello Mr. Will, k thnx bai Will&quot;
+</code></pre>
       
     
       
-        <p>对于用过“真正”模式匹配的人来说，这看起来会是一种非常笨拙的语法。但幸运的是，泛型方法并不只是提供模式匹配——伴随着更重的语法而来的是更强大的能力：</p>
+        <p>这听起来挺酷的，对吧？当然，我这完全是凭空想象，甚至无法向你证明我所建议的东西是否可行，但这就是 CLOS 中面向对象的工作方式。它有一个现实可行的先例。</p>
       
     
       
-        <div class="list-content">不仅能对类型进行匹配，还能使用类来进行模式匹配（也可以说，类是可用于匹配的有效类型）。这包括通过在越来越具体的类上特化方法来实现多态（Programmer 而不是 Person，PerlProgrammer 而不是 Programmer）。能够覆盖特定模式的处理，而无需重写其他所有模式。</div>
+        <p>而且它非常棒。</p>
       
     
       
-        <p>尽管如此，它并不一定能提供模式匹配的全部功能，因为你无法自定义尝试匹配的顺序（它总是按照从具体到一般的可预测且一致的顺序进行，而模式匹配允许你按照自己心意定义任意顺序）2。</p>
+        <p>泛型函数带来的乐趣远不止于此，它还能给我们提供一些类似于 Erlang 或 Scala 中类型匹配的功能。来看看下面这段代码：</p>
       
     
       
-        <p>另外，根据实现的不同，它可能也不支持对值（而不仅仅是类型）进行特化，但给语法加上值特化的支持其实相当直观：</p>
+        <pre><code>class Person:
+    name = None
+class Dog:
+name = None
+def speak(a):
+&#x27;If none of the more specific patterns match, falls back here.&#x27;
+print &quot;This is a %s&quot; % a
+def speak(Person p):
+print &quot;My name is %s&quot; % p
+def speak(Dog d):
+print &quot;Woof&quot;
+def walk(Person p, Dog d):
+print &quot;%s takes %s for a walk&quot; % (p,d)
+def walk(Dog d, Person p):
+print &quot;%s cannot walk %s&quot; % (d,p)
+def walk(Person p, Person p):
+print &quot;Um. That&#x27;s weird.&quot;
+a = Person()
+a.name = &quot;Will&quot;
+b = Dog()
+b.name = &quot;Leo&quot;
+c = Person()
+c.name = &quot;Jim&quot;
+walk(a,b) # &quot;Will takes Leo for a walk&quot;
+walk(b,a) # &quot;Leo cannot walk Will&quot;
+walk(a,c) # &quot;Um. That&#x27;s weird.&quot;
+</code></pre>
       
     
       
-        <p>这将打开一些非常有趣的大门，是我很想走进去的大门。（实际上，这些大门似乎已经被讨论过了，也被打开了。现在我只需要开始往前走就行。呃，而且我希望语法是原生的。也许需要某种预编译器。）</p>
+        <p>对于那些用过“真正的”模式匹配的人来说，这看起来会是一种非常笨拙的语法，但幸运的是，泛型方法并不仅仅提供模式匹配，伴随着更重的语法而来的是更强大的能力：</p>
+      
+    
+      
+        <div class="list-content">它不仅能基于类型进行匹配，还能使用类来进行模式匹配。（也可以说，类是一种有效的匹配类型。）这包括通过在越来越具体的类上特化方法来实现多态（Programmer 而不是 Person，PerlProgrammer 而不是 Programmer）。能够覆盖特定模式的处理，而无需重写其他模式的代码。</div>
+      
+    
+      
+        <p>话虽如此，它并不一定能提供模式匹配的全部功能，因为你无法自定义它尝试匹配模式的顺序（它总是以可预测且一致的顺序从更具体到更一般的匹配，而模式匹配允许你按照自己心意定义任意顺序）。</p>
+      
+    
+      
+        <p>此外，根据具体实现的不同，它可能也不支持基于值（而不仅仅是类型）进行特化，不过给语法加上值特化的功能应该是相当直观的：</p>
+      
+    
+      
+        <pre><code>def add(a,b):
+    return a + b
+def add(a, 0):
+return a
+</code></pre>
+      
+    
+      
+        <p>这将打开一些非常有趣的大门。我很想走进去的大门。（实际上，这些大门似乎已经被讨论过，也被打开过了。现在我只需要开始往前走就行。呃，而且我希望语法是原生的。也许需要某种预处理器。）</p>
+      
+    
+      
+        <div class="list-content">这听起来很蠢，对吧？确实很蠢，悲剧的是类似的事情在杀毒软件和工具栏的世界里一直都在发生。↩根据具体的实现方式（基本上是在“显式导入所有你要使用的多重方法”和“加载模块时隐式导入以减少输入”之间如何权衡），是有可能创建一个可预测的多重继承系统的，只是代价是需要写非常非常多的 import。↩</div>
       
     
   </div>

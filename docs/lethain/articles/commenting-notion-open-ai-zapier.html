@@ -29,27 +29,42 @@
   <div class="article-content">
     
       
-        <p>我在工作中的一个支线任务是建立一个简单的反馈循环，让我们能够创建知识库来对 Notion 文档进行评论。我很好奇是否能按照以下要求把这些部分连接起来：</p>
+        <p>我在工作中的一项副任务是建立一个简单的反馈循环，让我们能够创建知识库来对 Notion 文档进行评论。我很好奇是否能按照以下要求把这些东西连接起来：</p>
       
     
       
-        <div class="list-content">无需托管自定义代码；Prompt 可在 Notion 内编辑，而无需了解 Zapier；整体实现要相对快速。</div>
+        <div class="list-content">无需托管自定义代码；Prompt 可以在 Notion 内编辑，而不需要了解 Zapier；整个过程应该相当快速。</div>
       
     
       
-        <p>最终我成功让它运转起来了。下面先快速总结它的工作原理，然后谈谈我不喜欢这种方案的原因，最后再详细说明实现细节。</p>
+        <p>最终，我成功让它运行起来了。下面快速总结它的工作原理、为什么我不太喜欢这种方式，以及一些更详细的实现说明。</p>
       
     
       
-        <h2>整体方案</h2>
+        <h2>总体方案</h2>
+        
       
     
       
-        <p>创建一个 Notion 数据库来存放 Prompt。</p>
+        <p>创建一个存储 Prompt 的 Notion 数据库。</p>
       
     
       
-        <p>专门创建一个用于对 RFC 提供反馈的 Prompt。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/notion-prompts.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>创建一个专门用于对 RFC 提供反馈的 Prompt。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/notion-rfc-prompt.png" alt="">
+          
+        </figure>
       
     
       
@@ -57,43 +72,80 @@
       
     
       
-        <p>在这个 RFC 数据库中添加一个自动化，调用 Zapier 的 Webhook。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/notion-rfcs.png" alt="">
+          
+        </figure>
       
     
       
-        <p>Zapier Webhook 会执行一系列操作，最终使用 RFC Prompt 对具体文档生成反馈，并以顶级评论的形式添加到 RFC 中。</p>
+        <p>在这个数据库中添加一个自动化，调用 Zapier Webhook。</p>
       
     
       
-        <p>整体来看，这个方案运行得还算不错。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/notion-rfcs-automation.png" alt="">
+          
+        </figure>
       
     
       
-        <h2>这个方案的挑战</h2>
+        <p>Zapier Webhook 会执行一系列操作，最终使用该 RFC 的 Prompt 对具体 RFC 进行反馈，并以顶级评论的形式添加到 RFC 中。</p>
       
     
       
-        <p>这个方案最大的优点是它确实能工作，而且效果相当好。然而，当我们深入实现细节时，你会发现用 Zapier 做以下事情都异常困难：</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/notion-rfc-comment.png" alt="">
+          
+        </figure>
       
     
       
-        <div class="list-content">处理 Notion 中的富文本，因为需要操作 blocks 数据结构；支持循环的 API 调用，例如轻松地在特定块上留下多条评论而非仅在顶部留一条评论；Notion 每个 block 最多只允许 2000 个字符，而将其拆分成多个 block 的操作又比较不自然。如果是在真正的 Python 环境中，使用 md2notion 这类工具就能非常轻松地在 Markdown 和 Notion 格式之间转换。</div>
+        <p>整体来说，这个方案运行得相当不错。</p>
       
     
       
-        <p>总的来说，我只推荐把这个方案当作初步验证。它绝对不是这类功能的长期合适解决方案。</p>
+        <h2>这种方案的挑战</h2>
+        
+      
+    
+      
+        <p>这个方案最大的优点是它确实能工作，而且效果还不错。然而，当我们深入实现细节时，你会发现使用 Zapier 有很多事情做起来格外别扭：</p>
+      
+    
+      
+        <div class="list-content">处理 Notion 中的富文本，因为需要操作 blocks 数据结构；支持循环式的 API 操作，例如轻松地在特定 block 上留下多条评论，而不是只能加一条顶级评论；Notion 每个 block 最多只允许 2000 个字符，而将其拆分成多个 block 的操作又比较不自然。如果是在真正的 Python 环境中，使用 md2notion 之类的库就能非常简单地在 Markdown 和 Notion 格式之间转换。</div>
+      
+    
+      
+        <p>总的来说，我只推荐把这个方案当作初步验证。它绝对不是这类功能的长期理想解决方案。</p>
       
     
       
         <h2>Zapier 实现细节</h2>
+        
       
     
       
-        <p>我已经介绍过集成的 Notion 端，下面来详细看看 Zapier 的部分。整体一共有八个步骤。</p>
+        <p>我已经介绍了集成中 Notion 这一侧的内容，下面我们来深入看看 Zapier 的部分。整体上它包含八个步骤。</p>
       
     
       
-        <p>我跳过了第一个步骤，它只是一个默认的 Webhook 接收器。第二步是获取一个静态定义的、包含 Prompt 的 Notion 页面。（在后续步骤中我直接使用了 Notion API，如果重做我会从头就用 API，不过当时那样也能工作。API 的优势是返回真正的 JSON 对象，而这个方法没有，可能是因为我没有设置 content-type header 之类的原因。）</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/zapier-flow.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>我跳过了第一个步骤，它只是一个默认的 Webhook 接收器。第二步是获取一个静态定义的、包含 Prompt 的 Notion 页面。（在后续步骤中我直接使用了 Notion API，如果重做的话我会在这一步也直接用 API，不过当时这样也行得通。API 的优势在于它返回的是真正的 JSON 对象，而这里不是，可能是因为我没有设置 content-type header 之类的原因。）</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/zapier-2a.png" alt="">
+          
+        </figure>
       
     
       
@@ -101,23 +153,65 @@
       
     
       
-        <p>可能因为没有设置 content-type，我拿到的应该是表单格式的数据，所以我用正则表达式把它提取了出来。虽然有点粗糙，但它确实管用，就这样吧。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/zapier-2b.png" alt="">
+          
+        </figure>
       
     
       
-        <p>接下来使用 Notion API 请求工具获取更新后的 RFC（区别于之前已经获取的 Prompt）。</p>
+        <p>可能是因为没有设置 content-type，我觉得这里收到的是表单格式的数据，所以我就用正则表达式把数据提取了出来。虽然有点粗糙，但它管用，所以就这样了。</p>
       
     
       
-        <p>API 请求返回的是真正的 JSON 对象，可以直接导航而无需写正则表达式，这一点很不错。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/zapier-3.png" alt="">
+          
+        </figure>
       
     
       
-        <p>然后我们把 Prompt 作为 system instructions，把 RFC 作为 user message，一起发送给 OpenAI。</p>
+        <p>这里使用 Notion API 请求工具来获取更新的 RFC（区别于之前已经获取的 Prompt）。</p>
       
     
       
-        <p>接着把 OpenAI 的返回结果传给 json.dumps 进行编码，以便后续用于 API 调用。这主要是为了把 \n 转成真正的换行符。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/zapier-4.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>API 请求返回的是 JSON 对象，可以直接导航而无需写正则表达式，这点很不错。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/zapier-5.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>接着我们把 Prompt 作为 system instructions，把 RFC 作为用户消息一起发送给 OpenAI。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/zapier-6.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>然后把 OpenAI 的返回结果传给 json.dumps 进行编码，以便后续用于 API 调用。这主要是为了把 \n 转换成真正的换行符。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/zapier-7.png" alt="">
+          
+        </figure>
       
     
       
@@ -125,7 +219,14 @@
       
     
       
-        <p>总之，这套方案不算优雅。我认为直接用 Python 来实现所有逻辑会好得多，但作为一个可行的概念验证，它还是能用的。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/zapier-8.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>总之，这个方案不算优雅，我认为直接用 Python 来实现所有这些会好得多，但作为一个可行的概念验证，它还是可以的。</p>
       
     
   </div>

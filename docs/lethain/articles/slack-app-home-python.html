@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>在 Python 中为 Slack 应用添加 App Home · Will Larson 文集</title>
+  <title>在 Python Slack 应用中添加 App Home · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>在 Python 中为 Slack 应用添加 App Home</h1>
+    <h1>在 Python Slack 应用中添加 App Home</h1>
     <div class="meta">
       2019-11-08 · 
       <a href="https://lethain.com/slack-app-home-python/" target="_blank" rel="noopener">阅读原文</a>
@@ -33,15 +33,15 @@
       
     
       
-        <p>App Home 界面允许工作区中的每位用户拥有一个由应用驱动的个性化视图，应用可以在其中分享任何想展示的数据或交互元素（按钮等）。想让用户配置应用设置？可以实现！想让用户查看最近的活动？可以实现！想让用户了解所有进行中项目的当前状态？也可以实现！</p>
+        <p>App Home 界面允许工作空间中的每位用户拥有一个由应用驱动的个性化视图，应用可以在其中展示任何想要分享的数据或交互元素（按钮等）。想让用户配置应用设置吗？可以实现！想让用户查看最近的活动吗？可以实现！想让用户了解所有进行中项目的当前状态吗？也可以实现！</p>
       
     
       
-        <p>该功能目前处于 Beta 阶段。在开始研究这个 API 之前，我其实并不知道它的存在，尽管我一直希望有这样的功能。对我来说，App Home 的概念特别有吸引力，因为它是一个绝佳的机制，既可以（a）为用户汇总信息，又可以（b）提升应用功能的发现性。</p>
+        <p>该功能目前处于 Beta 阶段。在我开始研究这个 API 之前，其实并没有意识到它的存在，尽管我一直希望有这样的功能。对我来说，App Home 的概念特别有吸引力，因为它是一个极好的机制，既可以（a）为用户汇总信息，又可以（b）提升应用功能的发现性。</p>
       
     
       
-        <p>它也代表着从聊天机器人和 Slash Command 驱动的交互，向更丰富、更接近 Web 风格的体验迈出了有意义的一步。好了，接下来我们进入具体的集成环节。</p>
+        <p>它也代表着从聊天机器人和 Slash Command 驱动的交互，向更丰富、更接近 Web 的体验迈出的重要一步。好了，让我们开始集成吧。</p>
       
     
       
@@ -49,39 +49,70 @@
       
     
       
-        <h2>Slack 应用 Python 系列</h2>
+        <h4>Slack 应用 Python 系列</h4>
+        
       
     
       
-        <div class="list-content"><a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a><a href="slack-app-home-python.html">在 Python 中为 Slack 应用添加 App Home</a><a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a><a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a><a href="slack-distribution.html">发布你的 Slack 应用</a></div>
+        <div class="list-content"><a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a><a href="slack-app-home-python.html">在 Python Slack 应用中添加 App Home</a><a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a><a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a><a href="slack-distribution.html">部署你的 Slack 应用。</a></div>
       
     
       
-        <h2>启用 App Home</h2>
+        <h2>注册 App Home</h2>
+        
       
     
       
-        <p>第一步是在应用仪表盘中为 App Home 功能进行注册。</p>
+        <p>第一步是在应用仪表盘中注册 App Home 功能。</p>
       
     
       
-        <p>由于该功能仍处于 Beta 阶段，系统会显示免责声明，提醒你它可能发生变化。你必须接受它。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-app-home.png" alt="Sign up for App Home">
+          
+        </figure>
       
     
       
-        <p>App Home 需要一个 Bot User，但我们不会用它来实现任何聊天机器人功能，也不会让用户向机器人发送消息（他们将继续使用 /reflect 和 /recall 这两个 Slash Command），因此可以直接禁用“Messages Tab”，以免造成混淆。</p>
+        <p>由于该功能仍处于 Beta 阶段，系统会显示免责声明，提醒你它可能会有变动。你必须接受它。</p>
       
     
       
-        <p>现在我们已经设置好了 App Home，接下来该如何真正渲染它呢？</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-home-warning.png" alt="Beta disclaimer when signing up for App Home">
+          
+        </figure>
+      
+    
+      
+        <p>App Home 需要一个 Bot User，但我们不会用它来实现任何聊天机器人功能，也不会让用户给机器人发消息（他们将继续使用 /reflect 和 /recall Slash Command），因此可以直接禁用“Messages Tab”，避免造成混淆。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-no-bot-msgs.png" alt="Disabling Messages Tab in Slack App Home">
+          
+        </figure>
+      
+    
+      
+        <p>现在我们已经设置好了 App Home，接下来如何实际渲染它呢？</p>
       
     
       
         <h2>注册 app_home_opened 事件</h2>
+        
       
     
       
-        <p>我们需要从 Events API 注册 app_home_opened 事件。这意味着我们必须先集成 Event APIs，才能继续后续工作。</p>
+        <p>我们需要从 Events API 注册 app_home_opened 事件。这意味着我们必须先与 Event API 集成才能继续后续步骤。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-enable-events.png" alt="Enable Events screen in Slack">
+          
+        </figure>
       
     
       
@@ -89,7 +120,14 @@
       
     
       
-        <p>启用 Events API 后，下一步是设置 Request URL。这又需要先为 url_verification 事件创建一个处理器。当我们添加 URL 后，Slack 会发送一条以 application/json 编码的消息（与 Slash Command 使用的 application/x-www-form-urlencoded 不同）。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-request-url.png" alt="Add Request URL for Events API screen in Slack">
+          
+        </figure>
+      
+    
+      
+        <p>启用 Events API 后，下一步是设置 Request URL。这需要先为 url_verification 事件创建一个处理器。当我们添加 URL 时，Slack 会发送一个以 application/json 编码的消息（与 Slash Command 使用的 application/x-www-form-urlencoded 不同）。</p>
       
     
       
@@ -101,7 +139,7 @@
       
     
       
-        <p>这条消息中包含一个 challenge 键值对，我们需要将其值原样返回在一个 JSON 消息中。</p>
+        <p>该消息中包含一个 challenge 键值对，我们需要将其值原样返回在一个 JSON 消息中。</p>
       
     
       
@@ -111,7 +149,7 @@
       
     
       
-        <p>为了启动集成，我们现在切换到 lethain/reflect-slack-app 代码仓库，从 commit 3aa6 开始，打开 reflect/main.py 文件，新增一个函数：</p>
+        <p>为了启动集成，现在我们切换到 lethain/reflect-slack-app 仓库，从 commit 3aa6 开始，打开 reflect/main.py 文件，添加一个新函数：</p>
       
     
       
@@ -125,7 +163,7 @@
       
     
       
-        <p>注意我们使用了 <a href="python-hmac-sha256.html">Python 和 Flask 中的 HMAC SHA256 签名</a> 来验证请求的真实性。验证请求签名是来自 Slack 的“现代”验证方式。还有一种较旧的方法是使用 url_verification 事件发送的 token 参数。如果使用那种已被废弃的方式，你需要捕获提供的 token（上面例子中的随机 token），并验证后续所有请求都带有该 token。由于我们使用的是请求签名验证，因此可以安全地忽略这个 token。</p>
+        <p>注意我们使用了 <a href="python-hmac-sha256.html">Python 和 Flask 中的 HMAC SHA256 签名</a> 来验证请求的真实性。验证请求签名是来自 Slack 的“现代”验证方式。还有一种较旧的方法是使用 url_verification 发送的 token 参数。使用那种已被废弃的方法，你需要捕获提供的 token（上面示例中的随机 token），并验证后续所有请求都包含该 token。由于我们正在使用请求签名验证，因此可以安全地忽略 token。</p>
       
     
       
@@ -158,11 +196,25 @@ Deploying function (may take a while - up to 2 minutes)...
       
     
       
-        <p>当你粘贴 URL 后，Slack 会自动进行验证，如果成功，会在上方显示“Verified”；如果失败，则会在下方显示非常有帮助的调试信息，包括你的端点返回的意外响应。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-register-event-url.png" alt="Register request url for Slack Event Subscription">
+          
+        </figure>
+      
+    
+      
+        <p>当你粘贴 URL 后，Slack 会自动验证它，要么在上方显示“Verified”，要么在下方展示一些非常有帮助的调试信息，包括你的端点返回的意外响应。</p>
       
     
       
         <p>URL 验证通过后，打开“Subscribe to bot events”，订阅 app_home_opened 事件。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-register-app-home.png" alt="Register for app_home_opened bot event">
+          
+        </figure>
       
     
       
@@ -171,26 +223,56 @@ Deploying function (may take a while - up to 2 minutes)...
     
       
         <h2>重新安装应用</h2>
+        
       
     
       
-        <p>现在我们已经启用了 App Home 和 Event Subscriptions，需要重新安装应用以申请这些额外的权限。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-needs-reinstall.png" alt="Prompt to reinstall for new permissions">
+          
+        </figure>
       
     
       
-        <p>这时神奇的事情发生了：如果你回到已安装该应用的工作区，搜索应用名称，就会发现应用的 App Home 已经可用了。</p>
+        <p>现在我们已经启用了 App Home 和事件订阅，需要重新安装应用以申请这些额外的权限。</p>
       
     
       
-        <p>点击它，让我们开始吧。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-reinstall.png" alt="Reinstall with new permissions">
+          
+        </figure>
+      
+    
+      
+        <p>这时神奇的事情发生了：如果你回到已安装该应用的 workspace 并搜索应用名称，就会发现应用的 App Home 已经可用。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-search-home.png" alt="Search result for Slack application home">
+          
+        </figure>
+      
+    
+      
+        <p>点击它，我们就可以开始了。</p>
       
     
       
         <h2>从 Events API 路由事件</h2>
+        
       
     
       
-        <p>第一次加载 App Home 时界面有点简陋，只显示一个“正在开发中”的画面。我们最终会修复这个问题，但这需要几个步骤。</p>
+        <p>第一次加载 App Home 时会有些简陋，显示一个“正在开发中”的画面。我们最终会修复它，但这需要几个步骤。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-home-wip.png" alt="Search result for Slack application home">
+          
+        </figure>
       
     
       
@@ -209,7 +291,7 @@ Deploying function (may take a while - up to 2 minutes)...
       
     
       
-        <p>了解格式后，我们可以对 event_post 进行一些重构，将不同消息类型和事件类型的处理拆分开来。</p>
+        <p>了解格式后，我们可以稍微重构 event_post，将不同消息类型和事件类型的处理拆分开来。</p>
       
     
       
@@ -243,7 +325,7 @@ def app_home_opened_event(request, parsed):
       
     
       
-        <p>如果我们部署这个更新版本，然后从 App Home 切换出去再切回来，日志中就会包含一条完整的 app_home_opened 事件消息：</p>
+        <p>如果我们部署这个更新版本，然后从 App Home 标签页切走再切回来，日志中就会包含完整的 app_home_opened 事件消息：</p>
       
     
       
@@ -264,15 +346,16 @@ def app_home_opened_event(request, parsed):
       
     
       
-        <p>现在你可能会想，我们只要更新 app_home_opened_event 函数，返回一些 Block Kit 元素就能渲染了，但事情没那么简单。我们的处理器需要调用 Slack Web API 中的 views.publish 方法。</p>
+        <p>现在，你可能会想我们只需更新 app_home_opened_event 函数返回一些 Block Kit 元素就能渲染，但事情并没有这么简单。我们的处理器需要调用 Slack Web API 中的 views.publish 方法。</p>
       
     
       
         <h2>调用 Web API</h2>
+        
       
     
       
-        <p>Slack 的 Web API 是一个相当典型的 HTTP API。在我们的场景中，需要向 views.publish 发送 POST 请求，地址为：</p>
+        <p>Slack 的 Web API 是一个相当典型的 HTTP API。在我们的场景中，需要向以下地址发送 POST 请求来调用 views.publish：</p>
       
     
       
@@ -303,11 +386,11 @@ def app_home_opened_event(request, parsed):
       
     
       
-        <p>其中的每个 block 都符合我们之前  时使用的格式。<a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a></p>
+        <p>其中的每个 block 都符合我们之前 <a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a> 时使用的格式。</p>
       
     
       
-        <p>我们还需要在 HTTP 请求头中带上机器人的 token，你可以在应用仪表盘的“OAuth &amp; Permissions” 标签页中找到它：</p>
+        <p>我们还需要在 HTTP Header 中附带机器人的 token，你可以在应用仪表盘的 OAuth &amp; Permissions 标签页中找到它：</p>
       
     
       
@@ -316,7 +399,7 @@ def app_home_opened_event(request, parsed):
       
     
       
-        <p>我们首先扩展 reflect/env.yaml 文件，把这个 token 加进去：</p>
+        <p>我们首先扩展 reflect/env.yaml 来包含这个 token：</p>
       
     
       
@@ -326,7 +409,7 @@ SLACK_BOT_TOKEN: your-bot-token
       
     
       
-        <p>我们将使用 Python 的 requests 库向 Slack 的 API 发送请求。第一步是向仓库中添加 requests/requirements.txt 文件，让 Cloud Functions 知道我们的依赖：</p>
+        <p>我们将使用 Python 的 requests 库向 Slack 的 API 发送请求。第一步是在仓库中添加 requests/requirements.txt，让 Cloud Functions 能识别我们的依赖：</p>
       
     
       
@@ -335,7 +418,7 @@ SLACK_BOT_TOKEN: your-bot-token
       
     
       
-        <p>我们还希望在本地虚拟环境中安装它，以便进行任何本地验证（上次我们已经创建了虚拟环境）：</p>
+        <p>我们还想在本地安装它，以便在之前创建的虚拟环境中进行任何本地验证：</p>
       
     
       
@@ -345,7 +428,7 @@ pip install requests==2.20.0
       
     
       
-        <p>然后我们可以在 reflect/main.py 中编写一个工具函数来执行请求：</p>
+        <p>然后我们可以在 reflect/main.py 中编写一个工具函数来发起请求：</p>
       
     
       
@@ -366,11 +449,12 @@ def slack_api(endpoint, msg):
       
     
       
-        <p>slack_api 函数中有几个细节值得一提。首先，我们设置了 Authorization 请求头来验证身份，如果没有正确设置，请求会失败。其次，如果不指定字符集，Slack API 会发出警告，因此我们确保 Content-Type 中包含字符集。</p>
+        <p>slack_api 函数中有几点值得一提。首先，我们设置了 Authorization 请求头来验证身份，如果没有正确设置，请求会失败。其次，如果不指定字符集，Slack API 会发出警告，因此我们确保 Content-Type 中包含字符集。</p>
       
     
       
         <h2>渲染我们的 App Home</h2>
+        
       
     
       
@@ -383,7 +467,7 @@ slack_api(&quot;views.publish&quot;, msg)</code></pre>
       
     
       
-        <p>终于，当我们收到 app_home_opened 事件时可以做一些有意义的事情了——让它渲染的内容和 /reflect Slash Command 返回的内容基本一致：</p>
+        <p>终于，当收到 app_home_opened 事件时，我们可以做一些有意义的事情，让它渲染的内容与通过 /reflect Slash Command 返回的内容大致相同：</p>
       
     
       
@@ -413,7 +497,14 @@ slack_api(&quot;views.publish&quot;, msg)</code></pre>
       
     
       
-        <p>如果我们部署更新后的代码，然后刷新 App Home 标签页，就会发生很棒的事情……</p>
+        <p>如果我们部署更新后的代码，然后刷新 App Home 标签页，就会看到非常棒的效果……</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-home-working.png" alt="Working App Home for Reflect demo app">
+          
+        </figure>
       
     
       
@@ -421,35 +512,37 @@ slack_api(&quot;views.publish&quot;, msg)</code></pre>
       
     
       
-        <h2>让 App Home 真正有用起来</h2>
+        <h2>让 App Home 变得更有用</h2>
+        
       
     
       
-        <p>我们目前实现的功能还比较基础，但你可以想象这个概念能被扩展到什么程度。它可以用来配置 /recall 默认返回多少天的结果，可以用来创建一个“导出到邮件”的组件，可以显示过去三个月你记录的任务数量等等。</p>
+        <p>我们目前实现的功能还比较基础，但你可以想象在这个概念上走得更远。它可以用来配置 /recall 默认返回多少天的结果，可以用来创建一个导出到邮件的小工具，可以显示过去三个月你记录的任务数量，等等。</p>
       
     
       
-        <p>你甚至可以想象它注入一张个性化图片，里面是按标签统计的项目直方图之类的。虽然我不确定加载用户特定生成的图片的授权机制该怎么处理，而且查看 image block 的规范后，我怀疑目前还没有支持。</p>
+        <p>你甚至可以想象它注入一张个性化图片，展示按标签统计的项目直方图之类的。不过我不太确定加载用户特定生成图片的授权机制会如何，而且查看 image block 的规范后，我怀疑目前还没有支持。</p>
       
     
       
-        <p>在玩具应用 Reflect 的背景下，我认为最重要的功能应该是展示最近添加的任务摘要，以及如何使用各种 Slash Command 的示例，以帮助用户更好地发现功能。</p>
+        <p>在玩具应用 Reflect 的背景下，我认为最重要的功能是展示最近添加的任务摘要，并给出如何使用各种 Slash Command 的示例，以帮助提升功能的可发现性。</p>
       
     
       
-        <h2>下一步</h2>
+        <h2>后续</h2>
+        
       
     
       
-        <p>从  继承下来的目标是：（1）搭建好 App Home；（2）允许用户通过 reacji 添加成就；（3）集成一个真正的数据库；（4）发布到应用目录。<a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a></p>
+        <p>从 <a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a> 延续下来的目标是：（1）搭建 App Home，（2）允许用户通过 reacji 添加成就，（3）集成真正的数据库，以及（4）发布到应用目录。</p>
       
     
       
-        <p>当我们到达 lethain/reflect-slack-app 的 commit 4120 时，我们已经有了一个简单但可用的 App Home，这让我们从清单上又划掉了一项。我们也已经集成了 Events API，因此我认为 reacji 集成应该会相当直接，而这正是我们接下来要做的。</p>
+        <p>当我们到达 lethain/reflect-slack-app 的 commit 4120 时，我们已经有了一个简单但可用的 App Home，这让我们从清单上又划掉了一项。我们还集成了 Events API，因此我认为 reacji 集成应该会相当直接，那就是我们下一步要做的内容。</p>
       
     
       
-        <p>系列文章后续见 <a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a></p>
+        <p>系列文章将继续在 <a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a> 中展开</p>
       
     
   </div>

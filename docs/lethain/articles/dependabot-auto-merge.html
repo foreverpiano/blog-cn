@@ -29,21 +29,15 @@
   <div class="article-content">
     
       
-        <p>软件开发中一个反复出现的主题就是修复安全问题。
-目前大多数代码托管服务都提供了相当不错的漏洞报告功能，但很多组织仍然难以及时应用这些修复。
-上周我们在讨论如何降低这个流程的负担时，我突然想到：能不能直接自动合并 GitHub Dependabot 提交的拉取请求呢？</p>
+        <p>软件开发中一个反复出现的主题就是修复安全问题。目前大多数代码仓库托管服务都具备相当不错的问题报告功能，但许多组织仍然难以及时应用这些修复。上周我们讨论如何降低这个流程的负担时，我突然想到：能不能直接自动合并 GitHub Dependabot 提交的拉取请求呢？</p>
       
     
       
-        <p>结果证明，[答案是可以]，而且效果还不错。
-你可以控制想要自动合并的更新类型（补丁更新、小版本更新、大版本更新等），它也会尊重你设置的自动化检查。
-如果你有完善的 CI/CD 流程，会强制运行代码 lint、类型检查和测试，那么这个方案会工作得特别好。
-如果你还没有，那么这将是一个非常有效的机制——虽然可能会让你经历一番折腾，但最终能帮你建立起良好的代码 lint、类型检查和测试体系。</p>
+        <p>结果证明，答案是肯定的，而且效果非常好。你可以自主控制要自动合并的更新类型（补丁更新、小版本更新、大版本更新等），它也会尊重你设置的自动化检查。如果你有完善的 CI/CD 流程，会运行强制性的代码 lint、类型检查和测试，那么这个方案特别合适。如果你还没有，那么通过这个机制，你可能会在经历一番折腾之后，最终建立起良好的 lint、类型检查和测试体系。</p>
       
     
       
-        <p>过去几天，我已经在公司大约十几个仓库里启用了这套机制。
-下面以我的博客仓库为例，介绍具体的配置方法。</p>
+        <p>最近几天，我已经在工作中的十几个代码仓库里启用了这套机制。下面以我的博客仓库为例，展示如何搭建同样的流程。</p>
       
     
       
@@ -51,22 +45,73 @@
       
     
       
-        <p>然后进入仓库设置页面（类似 https://github.com/lethain/irrational_hugo/settings），开启仓库的自动合并功能。
-这个功能仍然会严格遵守所有必需的分支规则，例如必须通过测试、需要审批等。</p>
+        <pre><code># Automatically approve and merge Dependabot PRs for minor and patch updates
+name: Dependabot auto-merge
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login == &#x27;dependabot[bot]&#x27; &amp;&amp; github.repository == &#x27;lethain/irrational_hugo&#x27;
+    steps:
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: &quot;${{ secrets.GITHUB_TOKEN }}&quot;
+      - name: Approve Dependabot PR
+        run: gh pr review --approve &quot;$PR_URL&quot;
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Enable auto-merge for Dependabot PRs
+        if: steps.metadata.outputs.update-type == &#x27;version-update:semver-patch&#x27; || steps.metadata.outputs.update-type == &#x27;version-update:semver-minor&#x27;
+        run: gh pr merge --auto --squash &quot;$PR_URL&quot;
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+</code></pre>
       
     
       
-        <p>接着，确保你为仓库中的代码 lint、类型检查和测试配置了合适的 status check。</p>
+        <p>接着进入仓库设置页面（例如 https://github.com/lethain/irrational_hugo/settings），开启仓库的自动合并功能。这仍然会遵守所有必需的分支保护规则，比如必须通过测试、必须获得批准等。</p>
       
     
       
-        <p>然后启用 Dependabot（路径类似 https://github.com/lethain/irrational_hugo/settings/security_analysis）。
-即使使用默认设置也完全够用。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/dep-automerge.png" alt="">
+          
+        </figure>
       
     
       
-        <p>至此就全部完成了。今后 Dependabot 提交的 PR 将会自动合并。
-这里面当然存在一些细节问题——我已经遇到过一次因为缺少测试而被自动合并的 issue——但我认为这反而是一种宝贵的推动力，能促使我们提升测试质量，而不是放弃或退缩这个方案。</p>
+        <p>然后确保你为仓库中的 lint、类型检查和测试配置了合适的 status check。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/dep-status-checks.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>接下来启用 Dependabot（类似 https://github.com/lethain/irrational_hugo/settings/security_analysis）。即使使用默认配置也没问题。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/dep-enable-prs.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>至此就全部完成了。以后 Dependabot 提交的 PR 将会自动合并。当然这里面存在很多细节——我已经遇到过一次因为缺少测试而被自动合并的问题——但我认为这反而是对提升测试质量的有益推动，而不是放弃或退回这个方案的理由。</p>
       
     
   </div>

@@ -13,7 +13,7 @@ OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 PROMPT_VERSION = "v1"
 STYLE_CONFIG = "natural_fluent_chinese"
-SEGMENT_SCHEMA_VERSION = "v1"
+SEGMENT_SCHEMA_VERSION = "v2"
 
 
 def get_site_paths(site_name: str) -> SimpleNamespace:

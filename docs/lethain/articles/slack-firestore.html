@@ -29,35 +29,37 @@
   <div class="article-content">
     
       
-        <p>接上篇 <a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a>，现在是时候真正存储和读取真实数据，而不是继续依赖模拟数据了。我们将使用 Google Cloud Firestore，它是 GCP 提供的一项 NoSQL 数据库服务。</p>
+        <p>接上篇 <a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a>，现在是时候真正存储和获取真实数据，而不再依赖模拟数据了。我们将使用 Google Cloud Firestore，它是 GCP 提供的 NoSQL 数据库。</p>
       
     
       
-        <p>本文结束时，我们的 /reflect 命令和 :ididit: 表情回应将能正确记录，每次调用 /recall 以及访问 App Home 视图也将返回真实的业务数据。</p>
+        <p>到本文结束时，我们的 /reflect 命令和 :ididit: 表情反应都将正确记录，每次调用 /recall 或访问 App Home 视图也都会返回真实数据。</p>
       
     
       
-        <p>本文从 commit 08eb 开始，到 commit 4584 结束。</p>
+        <p>本文从 commit 08eb 开始，到 commit 4584 结束</p>
       
     
       
-        <h2>Slack 应用 Python 系列</h2>
+        <h4>Slack 应用 Python 系列</h4>
+        
       
     
       
-        <div class="list-content"><a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a><a href="slack-app-home-python.html">在 Python 中为 Slack 应用添加 App Home</a><a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a><a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a><a href="slack-distribution.html">发布你的 Slack 应用</a></div>
+        <div class="list-content"><a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a><a href="slack-app-home-python.html">在 Python Slack 应用中添加 App Home</a><a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a><a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a><a href="slack-distribution.html">部署你的 Slack 应用。</a></div>
       
     
       
         <h2>拆分文件</h2>
+        
       
     
       
-        <p>在接入 Cloud Firestore 之前，我对代码仓库进行了一次比较彻底的清理，为后续修改做好准备。</p>
+        <p>在开始集成 Cloud Firestore 之前，我对代码仓库进行了大量清理，为后续修改做准备。</p>
       
     
       
-        <p>我将 reflect/main.py 拆分成多个更小、更专注的文件。将工具方法移至 reflect/utils.py，Slack API 相关集成移至 reflect/api.py，处理事件的端点移至 reflect/events.py，处理 Slash 命令的逻辑移至 reflect/commands.py。</p>
+        <p>我将 reflect/main.py 拆分成多个更小、更专注的文件。我把工具方法移到 reflect/utils.py，将 Slack API 集成代码移到 reflect/api.py。处理事件的端点移至 reflect/events.py，处理 Slash Command 的部分则移到 reflect/commands.py。</p>
       
     
       
@@ -68,19 +70,20 @@ from utils import block, verify
       
     
       
-        <p>最后，我还将存储和读取 reflections 的功能移到了 storage.py 中，这也是本文大部分实现工作将要展开的地方。</p>
+        <p>最后，我还将存储和获取反思的功能移到了 storage.py，本文中大部分实现工作都将在这个文件中完成。</p>
       
     
       
         <h2>使用单个函数进行分发</h2>
+        
       
     
       
-        <p>添加存储功能需要修改 event_post、reflect_post 和 recall_post 三个函数。在当前结构下，这意味着每次修改后都要重新部署这三个函数，感觉过于繁琐。</p>
+        <p>添加存储功能需要修改 event_post、reflect_post 和 recall_post。在当前结构下，这意味着每次修改后都要部署这三个函数，感觉有些过于繁琐。</p>
       
     
       
-        <p>为了避免这种情况，我改用一个统一的入口函数 dispatch，并通过声明路由的方式来确定每个请求应该由哪个处理函数来响应。</p>
+        <p>为了避免这种情况，我改用一个名为 dispatch 的单一入口点，并通过声明路由来确定每个请求对应的处理函数。</p>
       
     
       
@@ -111,7 +114,7 @@ from utils import block, verify
       
     
       
-        <p>这样我们就可以在全局变量 ROUTES 中定义各种路由。</p>
+        <p>这样我们就可以在 ROUTES 这个全局变量中定义各种路由。</p>
       
     
       
@@ -125,11 +128,11 @@ from utils import block, verify
       
     
       
-        <p>如果以后想添加更多路由，只需增加一条路由和对应的处理函数即可，不需要再去 Slack 应用后台操作、创建新函数之类的。</p>
+        <p>如果以后想添加更多路由，只需新增一条路由和对应的处理函数，无需去 Slack App 管理后台折腾，也不用新建函数之类的。</p>
       
     
       
-        <p>不过我们仍然需要为 dispatch 创建一个 Cloud Function，请使用 gcloud CLI 来创建它。</p>
+        <p>但我们确实需要为 dispatch 创建一个 Cloud Function，请使用 gcloud CLI 完成创建。</p>
       
     
       
@@ -150,19 +153,20 @@ from utils import block, verify
       
     
       
-        <p>接着我把 /reflect 和 /recall 两个 Slash Command 的请求地址都更新为新的路由地址，同时还进入 Event Subscriptions 页面更新了 Request URL。</p>
+        <p>接着我更新了 /reflect 和 /recall 两个 Slash Command，让它们指向新的 URL，同时也切换到 Event Subscriptions 页面更新了 Request URL。</p>
       
     
       
-        <p>清理工作完成后，现在我们可以开始做我们此行的目的：添加存储功能。</p>
+        <p>清理工作完成后，现在我们可以开始做我们来这里的目的：添加存储功能。</p>
       
     
       
         <h2>准备 Firestore 数据库</h2>
+        
       
     
       
-        <p>由于我们已经在 Google Cloud 技术栈中比较深入，所以后端将采用 Google Firestore，主要参考 Firestore 的服务器端快速入门文档。</p>
+        <p>由于我们在这个项目中已经深度使用 Google Cloud 的技术栈，我们将采用 Google Firestore 作为后端，主要参考 Firestore 的服务器端快速入门指南。</p>
       
     
       
@@ -170,23 +174,38 @@ from utils import block, verify
       
     
       
-        <p>请选择 Native Mode（较新版本）。旧版本的 Datastore 模式正逐步被弃用，且功能较少。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-new-firestore.png" alt="Picking between Native Mode and Datastore Mode for new Firestore database.">
+          
+        </figure>
       
     
       
-        <p>接下来需要选择数据库所在地区，以及选择单区域还是多区域数据库。推荐使用多区域数据库，不过请务必阅读定价页面进行确认。两者的免费额度相同，多区域的价格略低于两倍，但依然非常便宜。</p>
+        <p>请选择 Native Mode，这是较新的版本。旧版的 Datastore Mode 正在被弃用，且功能较少。</p>
       
     
       
-        <p>此时 Firestore 数据库开始创建，大约需要几分钟时间。</p>
+        <p>接下来需要选择数据库所在的区域，以及希望使用单区域还是多区域数据库。你应该选择多区域数据库，不过请阅读定价页面进行确认。两者的免费额度相同，多区域的价格略低于单区域的两倍，但依然很便宜。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-firestore-loc.png" alt="Selecting multi-region cluster for new Firestore database">
+          
+        </figure>
+      
+    
+      
+        <p>此时 Firestore 将开始置备，这个过程需要几分钟时间。</p>
       
     
       
         <h2>身份验证凭证</h2>
+        
       
     
       
-        <p>接下来我们需要创建访问 Firestore 的身份验证凭证。首先确认一下你项目的 project id。</p>
+        <p>接下来我们需要创建身份验证凭证，以便向 Firestore 发送请求。首先确认一下你项目的 project id。</p>
       
     
       
@@ -195,7 +214,7 @@ from utils import block, verify
       
     
       
-        <p>然后创建一个服务账号。</p>
+        <p>然后创建一个 service account。</p>
       
     
       
@@ -207,7 +226,7 @@ gcloud projects add-iam-policy-binding reflectslackapp \
       
     
       
-        <p>接着生成密钥，这会在 reflect/ 目录下生成一个名为 gcp_creds.json 的 JSON 凭证文件。</p>
+        <p>接着生成密钥。这会在 reflect/ 目录下生成一个名为 gcp_creds.json 的 JSON 文件，其中包含你的凭证。</p>
       
     
       
@@ -218,7 +237,7 @@ gcp_creds.json \
       
     
       
-        <p>如果你在其他目录下执行了命令，请将 gcp_creds.json 移动到 reflect/ 目录中。</p>
+        <p>如果你在其他目录运行了命令，请将 gcp_creds.json 移动到 reflect/ 目录下。</p>
       
     
       
@@ -234,11 +253,12 @@ GOOGLE_APPLICATION_CREDENTIALS: gcp_creds.json
       
     
       
-        <p>至此，凭证配置就完成了。</p>
+        <p>至此，你的凭证就准备好了。</p>
       
     
       
         <h2>添加 Python 依赖</h2>
+        
       
     
       
@@ -262,27 +282,29 @@ pip install google-cloud-firestore==1.6.0
       
     
       
-        <p>现在我们可以开始与 Firestore 进行集成。</p>
+        <p>现在我们可以开始集成 Firestore 了。</p>
       
     
       
         <h2>在 Firestore 中建模数据</h2>
+        
       
     
       
-        <p>在开始集成之前，先简单介绍一下 Firestore 的数据模型。从宏观上看，Firestore 的 collection 类似于 SQL 的表，document 则类似于 SQL 中的一行。每份 document 包含一系列键值对，支持字符串、时间戳、数字等类型。</p>
+        <p>在开始集成之前，先简单介绍一下 Firestore 的数据模型。从宏观上看，Firestore 的 collection 类似于 SQL 的表，而 document 则类似于 SQL 的行。每份 document 包含一系列键值对，这些值可以是字符串、时间戳、数字等。</p>
       
     
       
-        <p>不过，这些 document 的能力远超传统数据库中的一行，它们可以包含子 collection 和嵌套对象。我们的数据模型将是一个 users 的 collection，每个用户拥有一个 tasks 子 collection，每次调用 /reflect 都会创建一个新的 task。</p>
+        <p>然而，这些 document 的能力远超普通的行记录，它们可以包含子 collection 和嵌套对象。我们的数据模型将是一个 users 的 collection，每个用户有一个 tasks 的子 collection，而每次调用 /reflect 都会创建一个新的 task。</p>
       
     
       
         <h2>读写 Firestore</h2>
+        
       
     
       
-        <p>下面我们使用 Python 的 google.cloud.firestore 库，逐步演示可能用到的各种操作，首先是从创建文档开始。注意：创建文档时会隐式创建其所在的 collection，无需显式创建。</p>
+        <p>让我们通过 Python 的 google.cloud.firestore 库来看看如何执行各种我们可能需要的操作，首先是从创建文档开始。注意，创建文档时会隐式创建所在的 collection，无需显式创建。</p>
       
     
       
@@ -297,7 +319,7 @@ update_time {
       
     
       
-        <p>你也可以不指定文档 ID 来创建文档。</p>
+        <p>你也可以不指定文档 ID 直接创建文档。</p>
       
     
       
@@ -319,7 +341,7 @@ update_time {
       
     
       
-        <p>获取 collection 中的所有文档。</p>
+        <p>获取 collection 中的所有对象。</p>
       
     
       
@@ -331,7 +353,7 @@ update_time {
       
     
       
-        <p>接下来尝试获取某个用户的子 collection，例如获取用户 lethain 创建的所有 tasks。</p>
+        <p>接下来我们尝试获取子 collection，例如获取用户 lethain 创建的所有任务。</p>
       
     
       
@@ -349,7 +371,7 @@ update_time { seconds: 1573350807 nanos: 355376000 }
       
     
       
-        <p>如何筛选获取部分文档呢？</p>
+        <p>那如何过滤获取部分文档呢？</p>
       
     
       
@@ -364,7 +386,7 @@ update_time { seconds: 1573350807 nanos: 355376000 }
       
     
       
-        <p>我们可以在 where 子句中使用 &gt;=、&lt;= 等其他运算符。在实际实现中，我们会使用 where 子句按时间戳过滤，默认只返回最近一周的任务，并根据用户提供的参数动态调整。</p>
+        <p>我们可以在 where 子句中使用其他运算符，例如 &gt;=、&lt;= 等。在实际实现中，我们会使用 where 子句按时间戳过滤，默认只获取最近一周的任务，并根据用户提供的参数动态调整。</p>
       
     
       
@@ -382,7 +404,7 @@ update_time { seconds: 1573350807 nanos: 355376000 }
       
     
       
-        <p>删除操作和你预期的一致。</p>
+        <p>删除对象的使用方式和你预想的差不多。</p>
       
     
       
@@ -392,19 +414,20 @@ nanos: 188116000</code></pre>
       
     
       
-        <p>删除 collection 中的所有文档会同时删除该 collection。但有个奇怪的注意事项：删除文档并不会删除它的子 collection，因此很容易导致数据残留。</p>
+        <p>删除 collection 中的所有对象会同时删除该 collection，但有一个奇怪的注意事项：删除一个文档并不会删除它的子 collection，因此很容易导致数据残留。</p>
       
     
       
-        <p>好了，我们已经有了足够多的示例，现在可以真正实现任务的存储和读取功能，并替换掉那些长期存在的桩代码。</p>
+        <p>好了，我们已经有了足够多的示例，现在可以真正实现任务的存储和获取功能，替换那些存在已久的桩代码了。</p>
       
     
       
-        <h2>实现 reflect 功能</h2>
+        <h2>实现 reflect</h2>
+        
       
     
       
-        <p>目前当用户使用 /reflect 记录任务时，我们只是把数据打印到日志中，并没有真正保存。</p>
+        <p>目前当用户通过 /reflect 记录任务时，我们只是把数据打印到日志中，并没有真正保存。</p>
       
     
       
@@ -413,7 +436,7 @@ nanos: 188116000</code></pre>
       
     
       
-        <p>现在我们可以替换它为实际可用的代码。首先在 reflect/storage.py 中增加一个工具函数，用于获取指定用户的 tasks collection。</p>
+        <p>现在我们可以把它替换成真正能工作的代码。首先在 reflect/storage.py 中添加一个工具函数，用于获取指定用户的 tasks collection。</p>
       
     
       
@@ -440,7 +463,7 @@ nanos: 188116000</code></pre>
       
     
       
-        <p>部署更新后的版本，瞧，你的数据已经真正被存储起来了。在 Slack 中添加一个新任务试试。</p>
+        <p>部署更新后的版本，瞧，你的数据真的被存储起来了。在 Slack 中添加一个新任务试试。</p>
       
     
       
@@ -453,15 +476,23 @@ nanos: 188116000</code></pre>
       
     
       
-        <p>这真是太棒了！仅仅几行代码，我们的 Slack 应用就开始做真正有意义的事情了。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-firestore-explorer.png" alt="Show added task within Firestore explorer">
+          
+        </figure>
       
     
       
-        <h2>实现 recall 功能</h2>
+        <p>这太棒了！只用了短短几行代码，我们的 Slack 应用就开始做一些真正有用的事情了。</p>
       
     
       
-        <p>继续在 reflect/storage.py 中，我们使用同样的 tasks 函数获取用户的任务集合，然后将相关的 task 文档流式读取出来。</p>
+        <h2>实现 recall</h2>
+        
+      
+    
+      
+        <p>继续在 reflect/storage.py 中，我们使用相同的 tasks 函数获取用户的任务 collection，然后流式读取相关的任务文档。</p>
       
     
       
@@ -472,7 +503,7 @@ nanos: 188116000</code></pre>
       
     
       
-        <p>我们当然可以进一步完善 /recall 文档中暗示的查询语言支持，但我认为目前的实现已经足以展示整个框架，可以在此基础上继续迭代成更完整的功能。</p>
+        <p>我们当然可以进一步完善，以完整支持 /recall 文档中暗示的查询语言，但我认为目前的实现已经足以展示基本框架，可以在此基础上继续迭代。</p>
       
     
       
@@ -480,43 +511,66 @@ nanos: 188116000</code></pre>
       
     
       
-        <p>那表情回应（reacji）呢？也能正常工作吗？</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-recall-firestore.png" alt="Show retrieved tasks from Firestore">
+          
+        </figure>
       
     
       
-        <p>可以正常工作。最后我们再检查一下 App Home 页面，确认它是否也能正常显示。</p>
+        <p>那表情反应呢？那些也能正常工作吗？</p>
       
     
       
-        <p>看起来我们的应用已经真正开始运转了。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-reacji-firestore.png" alt="Show reacji retrieved tasks from Firestore">
+          
+        </figure>
+      
+    
+      
+        <p>是的，它也能工作。最后我们再检查一下 App Home，验证它是否也正常。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-app-home-firestore.png" alt="Show retrieved tasks from Firestore in App Home">
+          
+        </figure>
+      
+    
+      
+        <p>看来我们的应用真正跑起来了。</p>
       
     
       
         <h2>对 Cloud Firestore 的看法</h2>
+        
       
     
       
-        <p>这是我第一次使用 Cloud Firestore，用完之后相当兴奋。诚然，它的查询模式相对受限，但在经历过早期版本的 Cassandra 之后，我已经非常适应在严格约束下进行数据建模。</p>
+        <p>这是我第一次使用 Cloud Firestore，用完之后我非常兴奋。诚然，它的查询模式相对受限，但在使用过早期版本的 Cassandra 之后，我对在严格约束下建模数据已经相当习惯。</p>
       
     
       
-        <p>总的来说，它启动快、响应迅速、表达能力足够，对这种小型工作负载来说也非常便宜。有很多值得喜欢的地方。</p>
+        <p>总体来说，它启动快、响应迅速、表达能力足够，对于这类小型工作负载来说也非常便宜。有很多值得喜欢的地方。</p>
       
     
       
-        <p>我觉得 Firestore 的文档组织得有些零散。我要找的内容通常都能找到，但位置往往不是我预期的，还碰到过至少一个文档页面跳转到 404 的情况，有点意外。</p>
+        <p>我确实觉得 Firestore 的文档有些分散。我要找的内容通常都能找到，但位置往往和我预想的不太一样，而且我还遇到过至少一个指向 404 的文档页面，这有点让人意外。</p>
       
     
       
         <h2>下一篇</h2>
+        
       
     
       
-        <p>我们已经走了很远。只剩最后一篇文章，将重点介绍如何让这个应用可以被其他人安装和使用！</p>
+        <p>我们已经走了很远。还剩最后一篇文章，将重点介绍如何让这个应用可以发布，以便其他人能够安装使用！</p>
       
     
       
-        <p>继续阅读 <a href="slack-distribution.html">发布你的 Slack 应用</a></p>
+        <p>继续阅读 <a href="slack-distribution.html">部署你的 Slack 应用。</a></p>
       
     
   </div>

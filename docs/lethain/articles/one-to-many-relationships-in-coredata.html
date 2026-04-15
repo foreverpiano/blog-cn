@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>在 CoreData 中建立一对多关系 · Will Larson 文集</title>
+  <title>在 Core Data 中建立一对多关系 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>在 CoreData 中建立一对多关系</h1>
+    <h1>在 Core Data 中建立一对多关系</h1>
     <div class="meta">
       2008-02-24 · 
       <a href="https://lethain.com/one-to-many-relationships-in-coredata/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,11 +29,11 @@
   <div class="article-content">
     
       
-        <p>最近我开始使用 CoreData，并且越来越喜欢它。配合 Cocoa Bindings 使用时，它简直是一个极其强大的工具。但我在查找示例和文档来弄清楚如何管理实体间关系的过程中，确实遇到了一些令人沮丧的困难。我最终还是搞明白了，但整个过程（对 Cocoa 新手来说）足够让人困惑，因此有必要提供一个比当前文档更清晰明确的示例。下面这个例子展示了如何在已有的实体上添加一个具有一对多关系的实体新实例。</p>
+        <p>最近我一直在使用 Core Data，并且越来越喜欢它。它与 Cocoa Bindings 结合使用时，简直是一个极其强大的工具。但在查找示例和文档来弄清楚如何管理实体之间的关系时，我确实遇到了一点挫折。我最终还是搞明白了，但这个过程（对 Cocoa 新手来说）足够令人困惑，因此值得提供一个比当前文档中更清晰明确的例子。下面是一个在已存在实体的一对多关系中添加新实体实例的示例。</p>
       
     
       
-        <p>本示例所使用的 Core Data 模型中包含两个实体：curriculum 和 lessonPlan。实际上它们还包含一些其他信息，但关键在于 curriculum 与 lessonPlan 之间存在一对多的关系。（这个应用的名称是 StrictlyEducation，我知道这个名字可能不算特别有创意。）</p>
+        <p>本例所使用的 Core Data 模型中包含两个实体：curriculum 和 lessonPlan。实际上它们还包含一些其他信息，但关键之处在于 curriculum 与 lessonPlan 之间是一对多关系。（这个应用的名称是 StrictlyEducation，我知道这个名字可能不算特别有创意。）</p>
       
     
       
@@ -41,23 +41,58 @@
       
     
       
-        <p>下面则是 addLessonPlan:sender 方法的实现，我正是在这个方法中创建新的 lessonPlan 条目，并将其关联到 curriculum 与 lessonPlans 之间的一对多关系中。</p>
+        <pre><code>#import &lt;Cocoa/Cocoa.h&gt;
+@interface StrictlyEducation_AppDelegate : NSObject
+{
+IBOutlet NSWindow window;
+IBOutlet NSArrayController curriculums;
+IBOutlet NSArrayController lessonPlans;
+NSPersistentStoreCoordinator persistentStoreCoordinator;
+NSManagedObjectModel managedObjectModel;
+NSManagedObjectContext managedObjectContext;
+}
+- (NSPersistentStoreCoordinator )persistentStoreCoordinator;
+- (NSManagedObjectModel )managedObjectModel;
+- (NSManagedObjectContext *)managedObjectContext;
+- (IBAction)saveAction:sender;
+- (IBAction)addLessonPlan:sender;
+@end
+</code></pre>
       
     
       
-        <div class="list-content">首先，你需要获取 NSManagedObjectContext，AppDelegate 很乐意通过 managedObjectContext 方法来帮你完成这件事。接下来，你向主要的 NSArrayController 查询它当前选中的对象（使用 selectedObjects 方法），在本例中表格被设置为始终只允许单选，因此我们知道返回的 NSArray 中只会有一个对象。然后，我们使用稍显冗长的 insertNewObjectForEntityName:inManagedObjectContext: 方法来创建一个新的 lessonPlan 实例。第四步，我们将这个新的 lessonPlan 添加到 selected（它是一个 curriculum）的 lessonPlans 关系中。最后，我们通知 context 保存这些新的更改，并释放现在不再需要的 lessonPlan 和 lessonPlansSet 变量。</div>
+        <p>下面是 addLessonPlan:sender 方法的实现，我正是在这个方法中创建新的 lessonPlan 记录，并将其关联到 curriculum 与 lessonPlans 之间的一对多关系中。</p>
       
     
       
-        <p>我不会说它很简单，但有了可供参考的例子之后，确实是可以轻松完成的。</p>
+        <pre><code>- (IBAction)addLessonPlan:(id)sender {
+    NSManagedObjectContext *context = [self managedObjectContext];
+    NSArray * selectedArray = [curriculums selectedObjects];
+    NSManagedObject * selected = [selectedArray objectAtIndex:0];
+    id lessonPlan = [NSEntityDescription insertNewObjectForEntityForName:@&quot;LessonPlan&quot; inManagedObjectContext:context];
+    NSMutableSet * lessonPlansSet = [selected mutableSetValueForKey:@&quot;lessonPlans&quot;];
+    [lessonPlansSet addObject:lessonPlan];
+    [lessonPlanSet setValue:lessonPlansSet forKey:@&quot;lessonPlans&quot;];
+    [context processPendingChanges];
+}
+</code></pre>
       
     
       
-        <h2>其他 Cocoa CoreData 资源</h2>
+        <div class="list-content">首先，你需要获取 NSManagedObjectContext，幸运的是 AppDelegate 可以通过调用 managedObjectContext 方法很方便地提供它。接下来，你询问主要的 NSArrayController 当前选中的对象（使用 selectedObjects 方法），在本例中表格被设置为始终只允许单选，因此我们知道返回的 NSArray 中只会包含一个对象。然后我们使用稍显冗长的 insertNewObjectForEntityName:inManagedObjectContext: 方法创建一个新的 lessonPlan 实例。第四步，我们将这个新的 lessonPlan 添加到 selected（它是一个 curriculum）对象的 lessonPlans 关系中。最后，我们让上下文保存这些新改动，并释放不再需要的 lessonPlan 和 lessonPlansSet 变量。</div>
       
     
       
-        <div class="list-content">CocoaDevCentral 有一篇非常棒的关于构建 Core Data 应用的教程。CocoaDevCentral 还有一篇不错的 Core Data 类概述。Apple 提供了一份还算不错但有时模糊得令人抓狂的 Core Data 入门文档。不过我发现的最好资源或许是 Apple 的 CoreRecipes 示例应用。</div>
+        <p>我不会说它很简单，但有了具体的例子之后，确实是可以轻松实现的。</p>
+      
+    
+      
+        <h3>其他 Cocoa Core Data 资源</h3>
+        
+      
+    
+      
+        <div class="list-content">CocoaDevCentral 上有一篇关于构建 Core Data 应用的优秀教程。CocoaDevCentral 还有一篇不错的 Core Data 类概述。Apple 提供了一份还算可以的 Core Data 入门文档，只是有些地方模糊得令人沮丧。不过我发现的最好资源或许是 Apple 的 CoreRecipes 示例应用。</div>
       
     
   </div>

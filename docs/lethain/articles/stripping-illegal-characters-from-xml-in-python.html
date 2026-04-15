@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>在 Python 中去除 XML 中的非法字符 · Will Larson 文集</title>
+  <title>从 Python 中的 XML 去除非法字符 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>在 Python 中去除 XML 中的非法字符</h1>
+    <h1>从 Python 中的 XML 去除非法字符</h1>
     <div class="meta">
       2009-01-25 · 
       <a href="https://lethain.com/stripping-illegal-characters-from-xml-in-python/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,23 +29,48 @@
   <div class="article-content">
     
       
-        <p>上周我用 Python 做了大量的 XML 生成工作，却一直找不到一个纯 Python 脚本，能够在不安装额外包的情况下从文件中去除非法 XML 实体（在没有 root 权限的机器上，安装额外包会很麻烦）。</p>
+        <p>上周我用 Python 做了大量的 XML 生成工作，却找不到一个不需要安装额外包、就能从文件中去除非法 XML 实体的 Python 脚本（在没有 root 权限的机器上，安装额外包会很麻烦）。</p>
       
     
       
-        <p>这个脚本是一个简单的命令行工具，它接受一个文件作为输入，去除 XML 中不合法的 ASCII 实体（以及你指定的其他任何字符），并将处理后的结果输出到标准输出。</p>
+        <p>这个脚本是一个简单的命令行工具，它接受一个文件作为输入，去除 XML 中非法的 ASCII 字符（以及你额外指定的任何字符），并将处理后的结果输出到标准输出。</p>
       
     
       
-        <p>使用方法如下（你可以通过标准输入提供内容，也可以直接指定文件）：</p>
+        <p>使用方法如下（你可以通过标准输入提供内容，或者直接指定一个文件）：</p>
       
     
       
-        <p>如果你想额外指定需要移除的字符，可以在命令行中使用 -c 参数。</p>
+        <pre><code>chmod +x ./strip_xml_entities.py
+./strip_xml_entities.py some_file.txt &gt; cleaned.txt
+Line 22, removed 1 character.
+Line 27, removed 1 character.
+Line 46, removed 1 character.
+...
+Line 962, removed 1 character.
+Line 996, removed 1 character.
+Line 1005, removed 1 character.
+Line 1010, removed 1 character.
+Line 1020, removed 1 character.
+Line 1027, removed 1 character.
+Line 1031, removed 1 character.
+Stripped 72 characters from 1032 lines.
+./strip_xml_entities.py &lt; some_file.txt &gt; cleaned.txt 2&gt; log.txt
+</code></pre>
       
     
       
-        <p>该脚本对输入和输出都采用流式处理，因此即使处理极大文件也能顺利完成（曾在超过 6GB、包含 4200 多万行的文本文件上测试过）。目前的速度对于大多数场景来说已经“足够快”了。下面是在一个 101MB 的文件中，从 867072 行里去除 60552 个字符的实际表现：</p>
+        <p>如果你想额外指定要删除的字符，可以在命令行中使用 -c 参数。</p>
+      
+    
+      
+        <pre><code>./strip_xml_entities.py -c &#x27;abc&#x27; a.txt &gt; a2.txt 2&gt; log.txt
+./strip_xml_entities.py -c &#x27;\x6e\xa9&#x27; b.txt &gt; b2.txt 2&gt; log.txt
+</code></pre>
+      
+    
+      
+        <p>该脚本对输入和输出都采用流式处理，因此即使处理超大文件也能正常工作（曾在超过 6GB、包含 4200 多万行的文本文件上测试通过）。目前的速度对于大多数场景来说已经“足够快”。下面是在一个 101MB 的文件中，从 867072 行里去除 60552 个字符的示例：</p>
       
     
       
@@ -57,7 +82,15 @@ sys	 0m1.407s
       
     
       
-        <p>如果需要更高的性能，还有一些优化的空间，但目前已有三分之二的时间都花在系统 IO 上，所以性能提升的空间已经不大了。</p>
+        <p>如果需要更高的性能，还可以进行一些优化，但目前已有三分之二的时间都花在了系统 IO 上，所以性能提升的空间已经不大。</p>
+      
+    
+      
+        <pre><code>&lt;span class=&quot;c&quot;&gt;# if positional arg, use that file, otherwise stdin&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;fin&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;r&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stdin&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;strip_chars&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;extra&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;fin&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;close&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+</code></pre>
       
     
       

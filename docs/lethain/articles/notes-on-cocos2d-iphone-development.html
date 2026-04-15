@@ -29,23 +29,24 @@
   <div class="article-content">
     
       
-        <p>最近我一直在使用 Cocos2d iPhone 库进行 iPhone 游戏开发，这是一个非常棒的开发库。尽管网上可供参考的源码并不多，但我还是整理了一些代码片段和使用心得。</p>
+        <p>最近我一直在使用 Cocos2d iPhone 库来开发 iPhone 游戏，这是一个非常棒的开发库。虽然网上可参考的源码并不是很多，所以我整理了一些代码片段和使用心得。</p>
       
     
       
-        <h2>Cocos2d iPhone 概述</h2>
+        <h3>Cocos2d iPhone 概述</h3>
+        
       
     
       
-        <p>Cocos2d iPhone 是 Ricardo Quesada 将 Cocos2d 库移植到 Objective-C 的版本。原始版本实际上是一个 Python 库，非常优秀。ObjC 移植版无法在 REPL 中运行，因此在“强烈优秀”程度上稍逊一筹，但它依然是解决 iPhone 游戏开发难题的良药。</p>
+        <p>Cocos2d iPhone 是 Ricardo Quesada 将 Cocos2d 库移植到 Objective-C 的版本。原始版本是一个 Python 库，非常出色。ObjC 版本无法在 REPL 中运行，所以没那么极致地惊艳，但它仍然是解决 iPhone 游戏开发难题的良药。</p>
       
     
       
-        <p>在开发我的第一款游戏 Processed Tower Defense 时，我在这个项目中学到了大量知识。我对它进行了几次重构，采用了更好的设计，到后期我感觉自己终于开始打开了游戏编程那扇通往神奇而罕见领域的大门。因此，当我开始在 iPhone 上开发游戏时，第一步就是将我整体的设计从 JavaScript 移植到 ObjC。虽然两者之间存在一些……不匹配的地方，但总体进展还算顺利。直到我们遇到了 OpenGL，那感觉就像徒步时碰到一群臭鼬堵住了小径。你当然可以硬着头皮走过去，但，真的非得这么做吗？</p>
+        <p>在开发我的第一个游戏 Processed Tower Defense 时，我在这个项目中学到了大量知识。我重写了几次，采用了更好的设计，到后期我感觉自己终于开始打开游戏编程知识中那些神奇而稀有的领域之门。因此，当我开始在 iPhone 上开发游戏时，第一步就是将我整体的设计从 JavaScript 移植到 ObjC。虽然两者之间存在一些……不匹配的地方，但整体进展还算顺利。直到我们遇到了 OpenGL，那感觉就像远足时遇到一群臭鼬堵住了小径。你当然可以硬着头皮走过去，但……真的非得这样吗？</p>
       
     
       
-        <p>iPhone 上关于 OpenGL 的文档并不丰富，这开始阻碍项目进展。我猜现在的文档对那些已经精通 OpenGL 的人来说足够了，这或许才是他们预期的受众，但我却被彻底难住了。这是个不小的问题。幸运的是，睿智的 Luke Hatcher 建议我们放弃我自己搭建的那个临时框架，转而使用 Cocos2d iPhone。于是乎，开箱即用，Cocos2d 就已经把我辛苦积累的游戏知识（以及更多）巧妙地集成到了一个连贯的框架中。</p>
+        <p>iPhone 上 OpenGL 的文档并不丰富，这开始严重阻碍开发进度。我想目前的文档对于已经熟练掌握 OpenGL 的人来说应该足够了——这或许就是他们的目标读者——但它让我完全不知所措，这成了一个大问题。幸运的是，聪明的 Luke Hatcher 建议我们把项目从我自己开发的临时框架迁移到 Cocos2d iPhone。果然，开箱即用，Cocos2d 已经把我辛苦积累的游戏知识（以及更多）巧妙地整合进了一个完整的框架中。</p>
       
     
       
@@ -53,55 +54,59 @@
       
     
       
-        <h2>关键类</h2>
+        <h3>核心类</h3>
+        
       
     
       
-        <div class="list-content">CocosNode 是你将要使用的最重要的类。
-如果一个对象需要 a) 移动、b) 显示 或 c) 发生变化，
-那么你应该用 CocosNode 来表示它。CocosNode 最有用的方法包括：
-// 创建
+        <pre><code>// creation
 +(id)node;
-// 添加子节点
+// adding children nodes
 -(id)add: (CocosNode)node;
 -(id)add: (CocosNode)node z:(int)z;
 -(id)add: (CocosNode)node z:(int)z name:(NSString)name;
-// 获取子节点
+// retrieving children nodes
 -(CocosNode)get: (NSString )name;
-// 移除子节点
+// removing children nodes
 -(void)remove: (CocosNode)node;
 -(void)removeByName: (NSString)name;
-// 调度周期性更新
+// scheduling periodic updates
 -(void)schedule: (SEL)s interval:(ccTime)i;
-// 执行动作（移动、动画等）
+// assigning actions (movement, animation, etc)
 -(Action)do: (Action)action;
 -(void)stopAction: (Action*)action;
 -(void)stopAllActions;
-使用示例大致如下：
-// 创建
+</code></pre>
+      
+    
+      
+        <pre><code>// creating
 CocosNode * parentNode = [CocosNode node];
 CocosNode * childNode = [CocosNode node];
 CocosNode * childNode2 = [CocosNode node];
-// 连接
+// connecting
 [parentNode add:childNode z:0 name:@&quot;childOne&quot;];
 [parentNode add:childNode2];
-// 访问
+// accessing
 [parentNode get:@&quot;childOne&quot;];
-// 使用动作
+// using actions
 [parentNode do:[ScaleTo actionWithDuration:.1 scale:1.5]];
 cpVect point = cpv(50,100);
 [parentNode do:[MoveTo actionWithDuration:0.5 position:point]];
-// 断开连接
+// disconnecting
 [parentNode removeByName:@&quot;childOne&quot;];
 [parentNode remove:childNode2];
-利用 CocosNode 最常见的方式是继承它，添加自定义的 init 方法，并调度一个函数定期执行。一个简单的示例如下：
-#import &quot;CocosNode.h&quot;
+</code></pre>
+      
+    
+      
+        <pre><code>#import &quot;CocosNode.h&quot;
 @interface LogNode : CocosNode {}
 -(void)tick: (ccTime)dt;
 @end
 @implementation LogNode
 -(id)init {
-self = [super init];
+self = super[init];
 if (self) {
 [self schedule:@selector(tick:) interval:100];
 }
@@ -111,56 +116,63 @@ return self;
 NSLog(@&quot;%@&quot;, self);
 }
 @end
-Sprite 是 CocosNode 的子类，它让图形显示变得非常简单。用法如下：
-NSString * img = @&quot;spaceship.png&quot;;
+</code></pre>
+      
+    
+      
+        <pre><code>NSString * img = @&quot;spaceship.png&quot;;
 Sprite * sp = [Sprite spriteFromFile:img];
 sp.position = cpv(100,24);
 [someNode add:sp];
-你会大量使用 Sprite。根据我的经验，更简单的方式是继承 CocosNode 并将 Sprite 添加到其中，而不是直接继承 Sprite。这样做还有一个好处，就是你可以将多个图像组合到一个节点下，通过变换父节点来统一变换它们。
-Action 是施加在 CocosNode 上的变换。有多种动作，分为两组：IntervalAction（间隔动作）和 InstantAction（瞬时动作）。顾名思义，IntervalAction 在一段时间内发生（当然你可以把时间设为 0 秒让它立即发生），而 InstantAction 则是立即执行。
-一些常用的动作包括：
-ToggleVisibility 让 CocosNode 显示或隐藏。
-RotateBy 旋转 CocosNode 一定角度。
-MoveTo 将 CocosNode 移动到指定位置。
-ScaleTo 按比例缩放 CocosNode。
-FadeTo 设置 CocosNode 的透明度。
-使用方式如下（部分动作的构造器参数略有不同，请查阅文档）：
-[parentNode do:[ScaleTo actionWithDuration:.1 scale:1.5]];
+</code></pre>
+      
+    
+      
+        <pre><code>[parentNode do:[ScaleTo actionWithDuration:.1 scale:1.5]];
 [parentNode do:[MoveTo actionWithDuration:0.5 position:cpv(50,100)]];
-Director 负责管理当前可见的内容、正在运行的场景、游戏时间是否推进等。
-常用方法有：
-// 它是单例
-Director * d = [Director sharedDirector];
-// 管理游戏
+</code></pre>
+      
+    
+      
+        <pre><code>// it&#x27;s a singleton
+Direction * d = [Director sharedDirector];
+// Managing game
 [d pause];
 [d resume];
 [d end];
-// 管理场景
-Scene * s = [Scene node];
-[d runScene:s]; // 开始场景中的时间流逝
-[d popScene];
+// Managing Scenes
+Screne * s = [Scene node];
+[d runScene:s]; // start time lapse in scene
+[d popScene:s];
 [d pushScene:s];
-[d replaceScene:s]; // 性能推荐用法
-Layer 是容纳一个或多个 CocosNode 的容器。
-作为 CocosNode 的子类，它用于将应用的不同部分分组。例如，你会有一个主菜单 Layer、游戏 Layer（至少一个，根据游戏复杂度可能会有多个）、暂停菜单 Layer 等等。
-用法与 CocosNode 相同，只是初始化时使用 [Layer node] 而不是 [CocosNode node]。
-这也是一个你会经常继承的类。
-Scene 是包含一个或多个 CocosNode 的集合，通常会包含若干 Layer。它们被传递给 Director 来决定当前游戏中可见和发生的内容。
-Scene * myScene = [Scene node];
+[d replaceScene:s]; // recommended for performance
+</code></pre>
+      
+    
+      
+        <pre><code>Scene * myScene = [Scene node];
 Sprite * bg = [Sprite spriteFromFile:@&quot;background.png&quot;];
 bg.position = cpv(200, 600);
 [myScene add:bg z:0];
 Layer * myLayer = [MyCustomLayer node];
 [myScene add:myLayer z:0];
 [[Director sharedDirector] runScene:myScene];
-Label 用于渲染文字，它让这个过程比 iPhone 上其他文字渲染方案简单得多。
-Label * name = [Label labelWithString:@&quot;Name&quot; dimensions:CGSizeMake(90,64) alignment:UITextAlignmentCenter fontName:@&quot;Helvetica&quot; fontSize:10];
-name.position = cpv(100,200);
-[someNode add:name];</div>
+</code></pre>
       
     
       
-        <p>Cocos2d 中当然还有其他许多类，但上面这些大概是你创造有趣作品时需要交互的全部了。</p>
+        <pre><code>Label * name = [Label labelWithString:@&quot;Name&quot; dimensions:CGSizeMake(90,64) alignment:UITextAlignmentCenter fontName:@&quot;Helvetica&quot; fontSize:10];
+name.position = cpv(100,200);
+[someNode add:name];
+</code></pre>
+      
+    
+      
+        <div class="list-content">CocosNode 是你将要使用的最重要的类。如果一个对象需要 a) 移动、b) 显示 或 c) 发生变化，那么你应该使用 CocosNode 来表示它。CocosNode 最有用的方法有：常见的用法示例如下：利用 CocosNode 最常见的方式是继承它，添加自定义的 init 方法，并调度一个需要周期性调用的函数。一个简单的示例如下：Sprite 是 CocosNode 的子类，它让显示图像变得非常简单。用法非常直观：你会大量使用它们。根据我的经验，更简单的方法是继承 CocosNode，然后将 Sprite 添加进去，而不是直接继承 Sprite。这样做还有一个好处，就是可以把多个图像组合到一个节点中，并通过变换父节点来统一变换它们。Action 是应用于 CocosNode 的变换操作。Action 分为两类：IntervalAction（间隔动作）和 InstantAction（瞬时动作）。顾名思义，IntervalAction 在一段时间内发生（当然你可以把时间设为 0 秒，让它瞬间完成），而 InstantAction 则是立即执行的。一些常用的动作包括：ToggleVisibility 让 CocosNode 显示或隐藏。RotateBy 让 CocosNode 旋转一定角度。MoveTo 将 CocosNode 移动到指定位置。ScaleTo 按比例缩放 CocosNode。FadeTo 设置 CocosNode 的透明度。它们的使用方式如下（有些构造器的参数略有不同，请务必查阅文档）：Director 负责管理当前可见的内容、当前运行的场景、游戏时间是否在推进等。常用方法有：Layer 是容纳一个或多个 CocosNode 的容器。作为 CocosNode 的子类，它们用于将应用程序的不同部分分组。例如，你会有一个主菜单层、游戏层（至少一个，根据游戏复杂度可能会有多个）、暂停菜单层等等。用法与 CocosNode 相同，只是初始化时使用 [Layer node] 而不是 [CocosNode node]。这是另一个你可能会经常继承的类。Scene 是由一个或多个 CocosNode 组成的集合，通常包含多个 Layer。它们被传递给 Director，用于决定当前游戏中可见和发生的内容。Label 用于渲染文字，它让 iPhone 上的文字渲染过程比其他替代方案简单得多。</div>
+      
+    
+      
+        <p>Cocos2d 中当然还有其他许多类，但要做出有趣的东西，你可能只需要和上面这些类打交道就够了。</p>
       
     
       
@@ -168,23 +180,60 @@ name.position = cpv(100,200);
       
     
       
-        <h2>片段 1：创建一个菜单</h2>
+        <h3>片段 1：创建菜单</h3>
+        
       
     
       
-        <h2>片段 2：指挥 Director</h2>
+        <pre><code>[MenuItemFont setFontName:@&quot;Helvetica&quot;];
+[MenuItemFont setFontSize:12];
+MenuItem item1 = [MenuItemFont itemFromString: @&quot;Up&quot; target:self selector:@selector(up)];
+MenuItem item2 = [MenuItemFont itemFromString: @&quot;Down&quot; target:self selector:@selector(down)] : nil;
+Menu *menu = [Menu menuWithItems:item1, item2, nil];
+[menu setPosition:cpv(200,200)];
+[someLayer add:menu];
+</code></pre>
       
     
       
-        <p>你的应用委托需要承担一些职责，来告知 Director 特殊事件的发生。具体来说，它需要知道何时开始、暂停、恢复和退出。</p>
+        <h3>片段 2：指挥 Director</h3>
+        
       
     
       
-        <p>最简单的实现这四个通知的方式大致如下（代码应放在你的应用委托中）：</p>
+        <p>你的应用程序委托需要承担一些职责，来通知 Director 一些特殊事件。具体来说，它需要知道什么时候开始、暂停、恢复和退出。</p>
       
     
       
-        <h2>片段 3：在 CocosNode 上检测点击</h2>
+        <p>最简单的发送这四个通知的方式如下（代码应放在你的 app delegate 中）：</p>
+      
+    
+      
+        <pre><code>- (void) applicationDidFinishLaunching:(UIApplication*)application {
+    // Game began...
+    [[Director sharedDirector] setLandscape: YES]; // optional
+    [[Director sharedDirector] setDisplayFPS:YES]; // optional
+    Scene *menu = [MyCustomMenuClass node];
+    [[Director sharedDirector] runScene:menu];
+}
+-(void) applicationWillResignActive:(UIApplication *)application {
+// Incoming phone call…
+[[Director sharedDirector] pause];
+}
+-(void) applicationDidBecomeActive:(UIApplication *)application {
+// Phone call rejected…
+[[Director sharedDirector] resume];
+}
+-(void) applicationWillTerminate: (UIApplication*) application {
+// Application is ending…
+[[Director sharedDirector] release];
+}
+</code></pre>
+      
+    
+      
+        <h3>片段 3：在 Cocos Node 上检测点击</h3>
+        
       
     
       
@@ -192,15 +241,18 @@ name.position = cpv(100,200);
       
     
       
-        <div class="list-content">为所有需要响应点击的对象重写标准的 UIEvent touches 方法。
-- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event;
+        <pre><code>- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event;
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event;
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event;
-或者只为一个对象（通常是 Layer 的子类）重写 touches 方法，让它作为所包含所有对象的 UI 管理器。</div>
+</code></pre>
       
     
       
-        <p>第一种方法更简单，但灵活性较差（难以管理事件传递和其他自定义逻辑）。而第二种方法工作量更大，也不太适合以代码片段的形式展示。</p>
+        <div class="list-content">为所有需要响应点击的对象重写标准的 UIEvent touches 方法。为一个对象（通常是 Layer 的子类）重写标准的 UIEvent touches 方法，让它作为所包含所有对象的 UI 管理器。</div>
+      
+    
+      
+        <p>第一种方法更简单，但灵活性较低（更难管理事件传递和其他自定义逻辑）。而第二种方法工作量更大，也不太适合放在代码片段这种格式中。</p>
       
     
       
@@ -208,7 +260,26 @@ name.position = cpv(100,200);
       
     
       
-        <p>目前这些就是我的指导性笔记了。我会尽快写一篇更全面的文章。</p>
+        <pre><code>- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    UITouch *touch = [touches anyObject];
+    CGPoint location = [touch locationInView: [touch view]];
+    // do stuff
+}
+- (void)touchesMoved:(NSSet )touches withEvent:(UIEvent )event {
+UITouch *touch = [touches anyObject];
+CGPoint location = [touch locationInView: [touch view]];
+// do stuff
+}
+- (void)touchesEnded:(NSSet )touches withEvent:(UIEvent )event {
+UITouch *touch = [touches anyObject];
+CGPoint location = [touch locationInView: [touch view]];
+// do stuff
+}
+</code></pre>
+      
+    
+      
+        <p>好了，这些就是我目前整理的使用指南。我会尽快写一篇更全面的文章。</p>
       
     
   </div>

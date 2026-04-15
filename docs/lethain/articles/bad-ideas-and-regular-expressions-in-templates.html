@@ -29,43 +29,62 @@
   <div class="article-content">
     
       
-        <p>在我的一份（或多份）工作中，我经常要做大量的快速原型设计和功能模拟，有时就会用非常粗糙的方案来解决复杂的问题。不过，有些粗糙的方案尽管带着一丝糟糕的味道，却意外地挺有意思。</p>
+        <p>在我的一份工作中，我经常要做大量快速原型和功能演示，有时就会用非常粗糙的办法去解决复杂的问题。不过有些粗糙的方案虽然带着点糟糕的味道，却意外地挺巧妙。</p>
       
     
       
-        <p>这个故事说的就是其中一次。</p>
+        <p>这个故事就是关于其中一次的经历。</p>
       
     
       
-        <h2>场景</h2>
+        <h3>场景</h3>
+        
       
     
       
-        <p>我当时在给一个客户的客户做一个系统原型。这个原型使用了一个较差的数据源，来模拟新系统基于优质数据源应该产生的效果，让这个较差的数据源看起来就像是使用了那个尚未存在的高级系统得到的结果。听懂了吗？刚才那句话可能故意写得有点绕，所以我再解释一次。这个原型系统涉及三个数据源：</p>
+        <p>我在为客户的客户做一个系统原型。这个原型使用一个较差的数据源，来模拟未来使用更优数据源后新系统应有的效果，让这个较差的数据源表现得像是用那个尚不存在的改进系统所产生的结果。听懂了吗？刚才那句话可能故意说得有点绕，所以我再解释一遍。这个原型系统涉及三种数据源：</p>
       
     
       
-        <div class="list-content">生产环境中正在使用的数据源。一个计划中但尚未存在、预期会比现有数据源更好的数据源。一个比现有生产数据源更差的数据源，我需要用它来创建一个功能性模拟，让它看起来像是来自那个高级且尚未存在的数据源。</div>
+        <div class="list-content">生产环境中正在使用的现有数据源；计划中但尚未存在、预计会比现有数据源更好的数据源；比现有生产数据源更差的一个数据源，我需要用它来做出一个功能性 mock，让它看起来就像是那个更优且尚不存在的数据源产生的效果。</div>
       
     
       
-        <p>这就是经典的挑战：用更少的资源做更多的事，但这里可能还带点小扭曲——让它看起来像是用更少的资源做了更多的事。简单来说，我需要在内容上展示一些特殊的元数据，但实际上我并没有那些需要展示的特殊元数据。</p>
+        <p>这就是经典的“用更少的资源做更多的事”，但这里还带点小扭曲：要让它看起来像是用更少的资源做了更多的事。简单来说，我需要在内容上展示一些特殊的元数据，可我手里其实并没有这些特殊的元数据。</p>
       
     
       
-        <h2>解决方案</h2>
+        <figure>
+          <img src="https://lethain.com/static/blog/a_road_in_kamioka.jpg" alt="A picture of a road in Kamioka-cho, Hida-shi, Gifu-ken, Japan.">
+          
+        </figure>
       
     
       
-        <p>在盯着那一堆可怜的卡片看了半天后，我意识到，我需要的那些元数据其实可以从数据关联的 URL 结构中提取出来。比如，如果一条数据的 URL 是 http://example.com/ab/video/etc/etc/，那它就是视频内容；而 http://blogs.example.com/etc/ 这样的则是博客内容。再加上另外六七种 URL 结构，我就有了足够的元数据，能把我手里贫瘠的数据“打磨”成可用的样子。</p>
+        <h3>解决方案</h3>
+        
       
     
       
-        <p>即使有了这个发现，我仍然需要进行一些相当复杂的匹配，并且要根据匹配结果用不同的方式展示数据。当时我脑子不太清醒，所以没有选择在视图里做好匹配，给每条结果额外加一个值，让模板知道该用哪种方式来渲染每条数据。</p>
+        <p>在盯着那一摞惨兮兮的卡片看了半天后，我意识到，我需要的那些元数据其实可以从数据关联的 URL 结构中提取出来。比如说，URL 是 http://example.com/ab/video/etc/etc/ 的数据就属于视频内容，而 http://blogs.example.com/etc/ 下的则是博客内容。再加上另外半打 URL 结构，我就有了足够的元数据，能把我贫瘠的数据打磨成可用的样子。</p>
       
     
       
-        <p>相反，我写了一个模板标签，来根据给定的正则表达式是否成功匹配来执行 if-else 逻辑。</p>
+        <p>即便有了这个发现，我仍然需要进行一些相当复杂的匹配，并且要根据匹配结果用不同的方式来展示数据。那时候我脑子不是很清醒，所以没有选择在视图里做匹配，然后给每条结果加一个额外字段，告诉模板应该用哪种方式来渲染每一条数据。</p>
+      
+    
+      
+        <p>相反，我写了一个模板标签，可以根据传入的正则表达式是否匹配成功来执行 if-else 逻辑。</p>
+      
+    
+      
+        <pre><code>&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;render&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;resolve&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;re&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;search&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;regex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nodelist_true&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;render&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nodelist_false&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;render&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+</code></pre>
       
     
       
@@ -73,11 +92,34 @@
       
     
       
-        <p>这个方案有很多理由让人讨厌：正则表达式无法预编译和复用，你在模板里做了太多本该在视图里进行的计算。不过话说回来，我当时正在那个项目里疯狂地写各种奇奇怪怪的模板标签和过滤器。</p>
+        <pre><code>{% ifmatches object.url &quot;/video/\w+/&quot; %}
+&lt;p class=&quot;video&quot;&gt;{ { object.title }}&lt;/p&gt;
+{% else %}
+&lt;p class=&quot;story&quot;&gt;{ { object.title }}&lt;/p&gt;
+{% endifmatches %}
+</code></pre>
       
     
       
-        <p>有时候，当你在临时代码里救火的时候，就会做出一些糟糕的决定，但这正是快速原型开发的全部乐趣所在：不管用什么办法，尽快把事情做出来。之后再回头审视自己的代码，下定决心再也不犯同样的错误。</p>
+        <p>这个方案有很多很多理由让人讨厌：正则表达式无法预编译复用，你把太多计算逻辑放在了模板里而不是视图里。不过话说回来，那段时间我正沉迷于写各种奇奇怪怪的模板标签和过滤器：</p>
+      
+    
+      
+        <pre><code>@register.filter
+def kilobytes(value):
+    return int(value) / 1000
+@register.filter
+def truncate_char(value, arg):
+length = len(value)
+arg = int(arg)
+if length &gt; arg:
+return u&quot;%s…&quot; % stripped[:arg-3]
+return value
+</code></pre>
+      
+    
+      
+        <p>有时候在用一次性的代码救火时，你会做出糟糕的决定，但这就是快速原型开发的全部乐趣所在：用任何可能的手段，尽快把事情做出来。之后再回头审视代码，告诉自己以后再也不犯同样的错误。</p>
       
     
       

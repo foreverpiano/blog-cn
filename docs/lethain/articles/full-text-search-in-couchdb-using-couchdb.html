@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>在 CouchDB 中实现全文搜索……用 CouchDB 自己搞定 · Will Larson 文集</title>
+  <title>在 CouchDB 中实现全文搜索……就用 CouchDB · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>在 CouchDB 中实现全文搜索……用 CouchDB 自己搞定</h1>
+    <h1>在 CouchDB 中实现全文搜索……就用 CouchDB</h1>
     <div class="meta">
       2008-12-08 · 
       <a href="https://lethain.com/full-text-search-in-couchdb-using-couchdb/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,39 +29,52 @@
   <div class="article-content">
     
       
-        <p>我正在做一个项目，希望能在 CouchDB 上使用全文搜索。今天花了太多时间研究可行的方案。在比较实用的选项中，有 CouchDB-Lucene 和 CouchDB-Solr 项目，但我非常坚持想在不依赖任何外部项目的情况下实现全文搜索。</p>
+        <p>我正在做一个项目，希望能在 CouchDB 上使用全文搜索。今天花了太多时间去研究可行的方案。在比较实用的方案中，有 CouchDB-Lucene 和 CouchDB-Solr 项目，但我还是决心不借助任何外部项目，尝试让全文搜索在 CouchDB 自身上跑起来。</p>
       
     
       
-        <p>结果还真让我搞出来了。</p>
+        <p>结果还真让我做到了。</p>
       
     
       
-        <h2>方法一：单词限制。</h2>
+        <h3>方法一：单词限制法。</h3>
+        
       
     
       
-        <p>如果把这个叫“全文搜索”，我大概会被人扔石头，但它确实能让你检索出包含某个特定单词的所有文档。（不过如果数据库比较大，第一次构建索引会花很长时间。我那台可怜的 Macbook 为 6 万个文档（总共 230 万个单词）建立索引花了大约 40 分钟。不过索引建成之后，检索速度倒是很快——可惜检索结果没什么用。）</p>
+        <p>如果把这个叫“全文搜索”，我大概会被公众扔石头，但它确实能让你查出所有包含某个特定单词的文档。（不过如果数据库较大，第一次构建索引会非常耗时。我那可怜的 Macbook 为 6 万篇文档——总共 230 万个单词——建立索引花了大约 40 分钟。不过索引建成之后，查询速度倒是很快，只是结果没什么用。）</p>
       
     
       
-        <p>举个例子，假设你想创建一个名为 word 的视图，用于在文档的 title 或 desc 属性中查找单词。下面这个视图函数就能实现：</p>
+        <p>举个例子，假设你想要创建一个名为 word 的视图，用来在文档的 title 或 desc 属性中查找单词。下面这个视图函数就能实现：</p>
       
     
       
-        <p>然后你就可以通过这个 URL 检索所有包含单词 “hello” 的文档：http://localhost:5984/mydb/_view/search/word?key=&quot;hello&quot;。进一步来说，你可以向 http://localhost:5984/mydb/_view/search/word 发送一个包含多个 key 的 POST 请求，但这执行的是 OR 操作而不是 AND 操作，因此无法有效匹配同时包含一组单词的文档。</p>
+        <pre><code>function(doc) {
+  var txt = doc.title + doc.desc;
+  var words = txt.replace(/[!.,;]+/g,&quot;&quot;).toLowerCase().split(&quot; &quot;);
+  for (var word in words) {
+    emit(words[word], doc._id);
+  }
+}
+</code></pre>
       
     
       
-        <p>（如果你认真想这么做，应该先对单词进行更好的清洗，并且把单词列表转成集合。）</p>
+        <p>之后你就可以通过这个 URL 查出所有包含 hello 的文档：http://localhost:5984/mydb/_view/search/word?key=&quot;hello&quot;。更进一步，你可以向 http://localhost:5984/mydb/_view/search/word 发送一个包含多个 key 的 POST 请求，但它执行的是 OR 操作而非 AND 操作，因此无法有效地查找同时包含一组单词的文档。</p>
       
     
       
-        <h2>方法二：虽然很恐怖，但确实能用——在“能用”的某种意义上。</h2>
+        <p>（如果你认真想这么做，应该先更好地清理单词，并把单词列表转成单词集合。）</p>
       
     
       
-        <p>CouchDB 视图的 key 不必只是字符串，它可以是任何合法的 JSON 值。因此，你可以这样来思考搜索需求（为了可读性这里没有做 URI 编码）：</p>
+        <h3>方法二：极其丑陋，但管用。在“某种意义”上管用。</h3>
+        
+      
+    
+      
+        <p>CouchDB 视图的 key 不一定只能是字符串，它可以是任意合法的 JSON 值。因此，你可以这样思考搜索查询（为了可读性这里没有做 URI 编码）：</p>
       
     
       
@@ -79,11 +92,11 @@
       
     
       
-        <p>也就是说，你可以用 JavaScript 数组而不是字符串来作为 key。因此，如果我们能为每个文档生成包含所有可能单词组合的数组作为索引，就能实现全文搜索了。</p>
+        <p>也就是说，你可以把 key 指定为一个 JavaScript 数组，而不是一个 JavaScript 字符串。所以，如果我们能为每个文档生成一个索引，里面包含该文档所有可能的单词组合数组，那么我们就能实现全文搜索了。</p>
       
     
       
-        <p>等等，你为什么要把浏览器关掉？别啊，坚持一下，很快的。查找速度会非常快。至于空间和时间复杂度都特别恐怖，谁在乎呢？这反正只是一次性成本——虽然是个巨大的一次性成本——但它还是挺新奇的。如果你只需要索引很少的文本（比如只有标题，或者标题加标签），这个方法说不定真的能用。</p>
+        <p>等等，你为什么要关浏览器？别啊，坚持一下。真的很快，查询速度会非常快。至于空间和时间复杂度的记号（Big O）极其糟糕又如何？这只是一次性成本——一个极其巨大的一次性成本，没错——但它还是挺新颖的。而且如果你只需要索引很少的文本（比如只有标题，或者标题加标签），这个方法其实是可行的。</p>
       
     
       
@@ -91,11 +104,41 @@
       
     
       
-        <p>先说明一下，没错，这玩意儿真的能跑。我测试过了，它确实有效。但要补充一句：如果 txt 的值超过四五个单词，map 函数有时会触发 5 秒的超时限制。（我尝试把源码里 5 秒改成 50 秒重新编译，但不知道为什么改动没有生效。而且上面的代码理论上不应该花五秒，它虽然效率很低，但也不该那么慢。我觉得换用 Python 或 Common Lisp 的 view server 也许能缓解这个问题，晚点我可能会试试。）</p>
+        <pre><code>function(doc) {
+  // permutation func by Jonas Raoni Soares Silva
+  var permute = function( v, m ){
+    for( var j, l = v.length, i = ( 1 &lt;&lt; l ) - 1, r = new Array( i ); i; )
+      for( r[--i] = [], j = l; j; i + 1 &amp; 1 &lt;&lt; --j &amp;&amp; ( r[i].push( m ? j : v[j] ) ) );
+    return r;
+  };
+  var txt = doc.title;
+  txt.replace(/[!.,;]+/g, &quot;&quot;);
+  var raw_words = txt.split(&quot; &quot;);
+  var words = {};
+  for (var i in raw_words) {
+    var word = raw_words[i];
+    if (word == &quot;&quot;) continue;
+    if (!words[word]) { words[word] = 1; }
+    else { words[word]++; }
+  }
+  var word_set = [];
+  for (var word in words) {
+    word_set.push(word);
+  }
+  var permutations = permute(word_set,0);
+  for (var i in permutations) {
+    emit(permutations[i],doc._id);
+  }
+}
+</code></pre>
       
     
       
-        <p>如果你想要所有只包含 “NFL” 这个词的文档排列，可以访问这个 URI：</p>
+        <p>先声明一下，是的，这玩意儿真的能跑。我测试过，它确实有效。但要补充一句 caveat：如果 txt 的值超过四五个单词，map 函数有时会触发 5 秒的超时限制。（我尝试把源码里的超时从 5 秒改到 50 秒重新编译，但不知为何改动没有生效。而且上面这段代码按理不应该花五秒，它本质上虽然低效，但也不该慢成那样。我觉得换用 Python 或 Common Lisp 的 view server 也许能缓解这个问题，晚点我可能会试试。）</p>
+      
+    
+      
+        <p>如果你想查出所有包含且仅包含 NFL 的排列组合的文档，可以访问这个 URI：</p>
       
     
       
@@ -104,7 +147,7 @@
       
     
       
-        <p>如果你想要所有包含 “NFL” 的文档排列，也可以这样做：</p>
+        <p>如果你想查出所有包含 NFL 的排列组合的文档，也可以这样写：</p>
       
     
       
@@ -114,7 +157,7 @@
       
     
       
-        <p>最后简单提一句，你可以把这个技术稍作调整，用来获取带有任意标签组合的博客文章。这是一种关系型数据库很难高效建立索引的复杂查询，但用上面的方法，CouchDB 却能轻松搞定。因此，虽然建立“全排列索引”这个例子听起来很荒唐，但我认为这种技术在某些场景下还是能真正发挥作用的。</p>
+        <p>最后简单提一句，你还可以把这个技巧稍作修改，用来查询包含任意组合标签的所有博客文章。这是一种关系型数据库很难高效建立索引的复杂查询，但用上面这种技巧，CouchDB 却能轻松应对。所以，虽然创建“全排列索引”这个例子听起来相当荒谬，但我认为这个思路在某些场景下确实能派上用场。</p>
       
     
   </div>

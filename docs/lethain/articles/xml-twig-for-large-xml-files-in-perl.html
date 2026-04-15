@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>使用 XML::Twig 处理大型 XML 文件（Perl） · Will Larson 文集</title>
+  <title>使用 XML::Twig 处理 Perl 中的大型 XML 文件 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>使用 XML::Twig 处理大型 XML 文件（Perl）</h1>
+    <h1>使用 XML::Twig 处理 Perl 中的大型 XML 文件</h1>
     <div class="meta">
       2008-11-20 · 
       <a href="https://lethain.com/xml-twig-for-large-xml-files-in-perl/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,63 +29,144 @@
   <div class="article-content">
     
       
-        <p>上周我还在用 XML::Simple 做一些简单的 XML 处理任务。这周我需要做同样的事情，但文件大小从 11KB 变成了 80 多 MB，我遇到了之前从未处理过的一类问题：真正的大文件。</p>
+        <p>上周我还在用 XML::Simple 处理一些简单的 XML 操作任务。这周我需要做同样的事情，但文件大小从 11k 涨到了 80 多兆，我遇到了之前从未处理过的一类问题：真正的大型文件。</p>
       
     
       
-        <p>你可能会觉得，一个自称专业的开发者应该早就经历过这种痛苦，但我没有。这其实是一组很有趣的问题，因为它会让你开始认真思考时间和空间的约束。出于好奇，我首先尝试直接运行之前写的 XML::Simple 脚本。结果就是等待很长时间、消耗大量内存，然后放弃。问题在于 XML::Simple 既不使用 SAX，也不使用 DOM 来处理 XML 文件，而是采用用户友好的“转换为原生数据结构”的方式。虽然在可行的情况下这是我最喜欢的方式，但在面对需要读-改-写的 20 万+ 元素时，就如同开着 Barbie 电动玩具车去参加拆车大赛一样不自量力。</p>
+        <p>你可能会想，一个自称专业开发者的人应该早就经历过这种痛苦，但我没有。这其实是一组挺有意思的问题，因为它会让你开始认真思考时间和空间的限制。出于好奇，我首先尝试直接运行之前写的 XML::Simple 脚本，结果就是长时间等待、占用大量内存，然后放弃。问题在于 XML::Simple 既不使用 SAX 也不使用 DOM 来处理 XML 文件，而是采用友好但低效的“转换为原生数据结构”的方式。虽然在可行的情况下这是我最喜欢的方式，但在面对需要读-改-写的 20 万+ 元素时，用它就好比开着 Barbie 玩具车去参加拆车大赛。</p>
       
     
       
-        <p>于是我把库从 XML::Simple 换成了 XML::Twig，这次切换非常愉快。处理这个 80MB 文件不再需要“很长时间”，而是大约五分钟就能读入并写出（如果进行大量处理的话还会再多花几分钟）；七分钟比“永远完成不了”要好太多了。内存消耗也相当合理，处理 80MB 文件时一开始大约占用 10MB，随着脚本运行时间延长会慢慢增加到 20MB 左右，CPU 使用率则稳定在一个核心的接近 100%。</p>
+        <p>于是我把库从 XML::Simple 换成了 XML::Twig，过渡过程非常愉快。原来读取 80 兆文件要花很长时间，现在读取并写出整个文件大约只需五分钟（如果要做大量处理的话再多加几分钟）；七分钟比“永远完成不了”可要好太多了。内存占用也相当合理，处理这个 80 兆文件时，初始内存大约 10 兆，随着脚本运行时间延长会逐渐增加到 20 兆左右，而 CPU 使用率则稳定在单核接近 100%。</p>
       
     
       
-        <h2>使用 XML::Twig 选择性地遍历树形结构</h2>
+        <h3>使用 XML::Twig 选择性地遍历树</h3>
+        
       
     
       
-        <p>假设你有一个包含多种不同元素类型的 XML 文件，但你只对 server 和 proxy 类型的元素感兴趣。</p>
+        <p>假设你有一个包含多种不同元素类型的 XML 文件，但你只关心读取其中类型为 server 和 proxy 的元素。</p>
       
     
       
-        <p>进一步地，你希望打印出每个 server 和 proxy 的 ip 地址，文件的结构大致如下：</p>
+        <p>进一步说，你希望打印每个 server 和 proxy 的 ip 地址，文件结构大致如下：</p>
       
     
       
-        <p>接下来我们只需要把这些代码组合起来：</p>
+        <pre><code>&lt;machines&gt;
+    &lt;server&gt;
+        &lt;ip&gt;127.0.0.1&lt;/ip&gt;
+        &lt;name&gt;WeirdNamingSchemeA&lt;/name&gt;
+    &lt;/server&gt;
+    &lt;proxy&gt;
+        &lt;ip&gt;127.0.0.2&lt;/ip&gt;
+        &lt;etc&gt;abc&lt;/etc&gt;
+    &lt;/proxy&gt;
+&lt;/machines&gt;
+</code></pre>
       
     
       
-        <p>TwigRoots 参数允许你选择要处理的元素，而 TwigHandlers 则让你决定如何处理它们。</p>
+        <p>接下来我们只需要把这些代码串起来：</p>
       
     
       
-        <h2>使用 XML::Twig 修改元素</h2>
+        <pre><code>use XML::Twig;
+sub print_ip {
+my ($twig, $ele) = @_;
+my $ip = $ele-&gt;first_child(&#x27;ip&#x27;)-&gt;text;
+print &quot;ip: $ip\n&quot;;
+}
+my $roots = { server =&gt; 1, proxy =&gt; 1 };
+my $handlers = { &#x27;machines/server&#x27; =&gt; &amp;amp;print_ip,
+&#x27;machines/proxy&#x27;  =&gt; &amp;amp;print_ip };
+my $twig = new XML::Twig(TwigRoots =&gt; $roots,
+TwigHandlers =&gt; $handlers);
+my $twig-&gt;parsefile(&#x27;file.xml&#x27;);
+</code></pre>
       
     
       
-        <p>虽然你可能需要在文档中稍微翻找一下，但通过处理器函数，你几乎可以实现任何你能想到的操作。</p>
+        <p>TwigRoots 参数让你选择要处理哪些元素，而 TwigHandlers 则让你决定如何处理它们。</p>
       
     
       
-        <p>在这个代码片段中，我们会删除一些子节点，然后插入新的节点。这里我们只写处理器函数，周围的代码与上面的例子相同（只需在 $handlers 中把 print_ip 替换为 tweak_server 即可）。</p>
+        <h3>使用 XML::Twig 修改元素</h3>
+        
       
     
       
-        <p>它不像直接使用原生数据结构那样直观，但非常实用而且速度很快。</p>
+        <p>虽然你可能需要在文档里稍微翻找一下，但使用 handler 函数基本上可以实现你能想到的任何操作。</p>
       
     
       
-        <h2>使用 XML::Twig 写入元素</h2>
+        <p>在这个代码片段中，我们会删除一些子节点，然后插入新的节点。这里只写 handler 函数，周围的代码与上面的例子相同（只需把 $handlers 中的 print_ip 换成 tweak_server 即可）。</p>
       
     
       
-        <p>这道大餐的最后一道食材就是将修改后的文件写回磁盘。</p>
+        <pre><code>sub tweak_server {
+  my ($twig, $server) = @_;
+  $ip = $server-&gt;first_child(&#x27;ip&#x27;);
+  $server-&gt;cut_children;           # remove all children
+  $server-&gt;del_atts;               # remove all attributes
+  $server-&gt;set_atts({ ip =&gt; $ip}); # adds attributes
+# one way to add new nodes…
+$server-&gt;insert_new_elt(&#x27;first_child&#x27;, # position to insert
+&#x27;processed_by&#x27;, # name of new element
+{ name =&gt; &quot;an attribute&quot;}, # attributes
+&quot;value&quot;); # inner text
+# another way to add new nodes
+$ele = new XML::Twig::Elt(&#x27;a_sub_element&#x27;);
+$ele-&gt;paste(&#x27;first_child&#x27;, $server);
+# print modified node to standard out,
+# and remove $server from memory
+$twig-&gt;flush;
+}
+</code></pre>
       
     
       
-        <p>有了这些例子，你也可以开始编写 Perl 脚本，在七分钟内处理 80MB 的文件。如果这都不能帮你升职，我真不知道什么能行了。</p>
+        <p>虽然不像直接使用原生数据结构那么直观，但它实用且速度很快。</p>
+      
+    
+      
+        <h3>使用 XML::Twig 写入元素</h3>
+        
+      
+    
+      
+        <p>这道大餐的最后一道配料就是把修改后的文件写回磁盘。</p>
+      
+    
+      
+        <pre><code>use XML::Twig;
+my $in = &#x27;in.xml&#x27;;
+my $out = &#x27;out.xml&#x27;;
+open FILE, &#x27;&gt;&#x27;, $out or die &quot;failed to open $out&quot;;
+sub handle_node {
+my ($twig, $ele) = @_;
+my $ip = $ele-&gt;first_child(&#x27;ip&#x27;)-&gt;text;
+$ele-&gt;cut_children;
+$ele-&gt;set_atts({ ip =&gt; $ip });
+$twig-&gt;flush(*FILE);
+}
+my $roots = { server =&gt; 1, proxy =&gt; 1 };
+my $handlers = { &#x27;machines/server&#x27; =&gt; &amp;amp;handle_node,
+&#x27;machines/proxy&#x27;  =&gt; &amp;amp;handle_node };
+my $twig = new XML::Twig(TwigRoots =&gt; $roots,
+TwigHandlers =&gt; $handlers);
+my $twig-&gt;parsefile($in);
+close FILE;
+</code></pre>
+      
+    
+      
+        <p>有了这些例子，你也可以开始编写能在七分钟内处理 80 兆文件的 Perl 脚本了。如果这都不能让你升职，我真不知道什么能。</p>
+      
+    
+      
+        <div class="list-content">我也觉得大多数开发者都忽略了这个问题。就连 Emacs 处理大型 XML 文件都会卡顿，尤其是文件没有换行的时候。我认为传统的逐行读取和文件范式可能需要被“分块 + 流式处理”的方式取代。不过，要让它同样易于使用似乎几乎不可能。↩我觉得把脚本的三个部分并行化是可行的：一个线程负责读数据，一个线程负责处理数据，一个线程负责写数据。既然整个过程是 CPU 密集型的，而且假设我的代码没有严重缺陷，最简单的解决办法可能是换成 C 或 Java。但谁想那么做呢？↩</div>
       
     
   </div>

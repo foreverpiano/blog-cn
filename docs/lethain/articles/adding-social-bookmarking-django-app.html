@@ -29,19 +29,20 @@
   <div class="article-content">
     
       
-        <p>当你搭建一个网站后，很可能会希望添加一些链接，让读者能够方便地将你的内容提交到社交书签和新闻聚合服务中。幸运的是，为你的 Django 应用添加这个功能非常简单。</p>
+        <p>当你开发网站时，迟早会希望创建一些链接，让读者能够轻松地将你的内容提交到社交书签和新闻聚合服务中。幸运的是，为 Django 应用添加这个功能非常简单。</p>
       
     
       
-        <h2>创建模板</h2>
+        <h3>创建模板</h3>
+        
       
     
       
-        <p>模板是这个功能中最复杂的部分，但依然非常简单（这应该是个好兆头）。在模板中，我假设你使用的是通用视图（generic views），因此内容对象会命名为 &#x27;object&#x27;。如果你使用的是自定义视图，那么存放内容的变量名可能会有所不同。另外请注意，你的对象需要有一个 get_absolute_url 方法。</p>
+        <p>模板是这个功能中最复杂的部分，但依然非常简单（这应该是个好兆头）。在模板中，我假设你使用的是通用视图（generic views），因此内容对象会被命名为 &#x27;object&#x27;。如果你使用的是自定义视图，可能用来存放内容的变量名称会有所不同。另外，请确保你的对象有一个 get_absolute_url 方法。</p>
       
     
       
-        <p>模板还需要能够访问当前的 Site 对象，不过我们稍后会介绍如何将 Site 传递给模板。</p>
+        <p>模板还需要能够访问当前 Site 对象，我们稍后会处理如何将 Site 传递给模板。</p>
       
     
       
@@ -49,35 +50,78 @@
       
     
       
-        <p>你会注意到我们对所有构建的字符串都使用了 urlencode 过滤器，这一点非常重要，因为这些字符串将作为参数传递给社交网站的公共 API 地址。</p>
+        <pre><code>{% with object.get_absolute_url|urlencode as obj_url %}
+{% with object.title|urlencode as obj_title %}
+{% with site.domain|urlencode as obj_domain %}
+&lt;span&gt;&lt;strong&gt; Social Links: &lt;/strong&gt;&lt;/span&gt;
+&lt;span class=&quot;social&quot;&gt;&lt;a href=&quot;http://reddit.com/submit?url=http://{ { obj_domain }}{ { obj_url }}&amp;title={ { obj_title }}&quot;&gt; Reddit &lt;/a&gt;&lt;/span&gt;
+&lt;span class=&quot;social&quot;&gt;&lt;a href=&quot;http://del.icio.us/post?url={ { obj_domain }}{ { obj_url }}&amp;title={ { obj_title }}&quot;&gt; Del.icio.us &lt;/a&gt;&lt;/span&gt;
+&lt;span class=&quot;social&quot;&gt;&lt;a href=&quot;http://www.stumbleupon.com/submit?url={ { obj_domain }}{ { obj_url }}&amp;title={ { obj_title }}&quot;&gt; StumbleUpon &lt;/a&gt;&lt;/span&gt;
+&lt;span class=&quot;social&quot;&gt;&lt;a href=&quot;http://digg.com/submit?phase=2&amp;url={ { obj_domain }}{ { obj_url }}&amp;title={ { obj_title }}&quot;&gt; Digg &lt;/a&gt;&lt;/span&gt;
+{% endwith %}
+{% endwith %}
+{% endwith %}
+</code></pre>
       
     
       
-        <p>你需要将上面的模板片段引入到要提交到社交网站的页面模板中。我通常使用 include 标签来实现：</p>
+        <p>你会注意到我们对所有构建的字符串都使用了 urlencode 过滤器，这一点非常重要，因为这些字符串将作为参数传递给社交网站的公共 API URL。</p>
       
     
       
-        <p>这会直接把社交书签代码注入到模板中（比手动复制粘贴到多个模板中要方便得多）。</p>
+        <p>你需要将上面的模板片段包含在用于提交到社交网站的模板中。我通常使用 include 标签来引入它：</p>
       
     
       
-        <h2>模板上下文</h2>
+        <pre><code>{% include &quot;myapp/social_submit.html&quot; %}
+</code></pre>
       
     
       
-        <p>如前所述，我们还需要能访问 Site 实例。之所以需要 Site，是因为我们没有其他办法获取内容的完整 URL。我们使用 get_absolute_url 方法获取除域名之外的部分，但仍然需要 somehow 获得域名（这意味着你的 Site 中设置的域名必须是完整的域名，例如 www.lethain.com）。</p>
+        <p>这会直接把社交书签代码注入到模板中（比手动复制粘贴到多个模板要方便得多）。</p>
       
     
       
-        <p>编写上下文处理器同样很简单。首先，在你的应用文件夹中创建一个新文件（我把它命名为 context.py），然后加入以下代码：</p>
+        <h3>模板上下文</h3>
+        
       
     
       
-        <p>接着在你的 settings.py 文件中添加以下配置：</p>
+        <p>如前所述，我们还需要访问 Site 实例。因为我们没有其他方式来获取内容的完整 URL。我们使用 get_absolute_url 方法获取除域名之外的部分，但仍然需要 somehow 获取域名（这意味着你的 Site 中的域名需要是完整的域名，例如 www.lethain.com）。</p>
       
     
       
-        <p>全部就是这些。如果有任何疑问，欢迎随时提问。</p>
+        <p>编写上下文处理器也很简单。首先，在你的应用文件夹中创建一个新文件（我把它命名为 context.py），并添加以下内容：</p>
+      
+    
+      
+        <pre><code>from django.contrib.sites.models import Site
+from django.conf import settings
+def site_context(request):
+site = Site.objects.get(pk=settings.SITE_ID)
+return {
+&#x27;site&#x27; : site,
+}
+</code></pre>
+      
+    
+      
+        <p>然后在 settings.py 文件中添加以下配置：</p>
+      
+    
+      
+        <pre><code>TEMPLATE_CONTEXT_PROCESSORS = (
+    &quot;django.core.context_processors.auth&quot;,
+    &quot;django.core.context_processors.debug&quot;,
+    &quot;django.core.context_processors.i18n&quot;,
+    &quot;django.core.context_processors.media&quot;,
+    &quot;yourproject.yourapp.context.site_context&quot;,
+    )
+</code></pre>
+      
+    
+      
+        <p>这样就完成了。如果你有任何问题，欢迎随时提问。</p>
       
     
   </div>

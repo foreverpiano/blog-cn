@@ -29,11 +29,11 @@
   <div class="article-content">
     
       
-        <p>我一直在慢慢增加与 Cocos2d iPhone 相关的文章，在这篇文章中，我想展示一些真正可用的代码，来解决 iPhone 游戏开发者普遍面临的一个问题：如何创建一个新手指南，帮助新用户学会玩我的游戏？</p>
+        <p>我一直在慢慢丰富与 Cocos2d iPhone 相关的文章，在这篇文章中，我想展示一些真正实用的代码，来解决 iPhone 游戏开发者普遍面临的一个问题：如何制作一个新手教学指南，帮助新用户学会玩我的游戏？</p>
       
     
       
-        <p>下面的代码实现了一个简单的幻灯片播放器，它可以循环显示任意数量的图片和文本标签，播放完毕后会将自身从场景栈中弹出。在此过程中，我们将完整演示如何在 Cocos2d 中处理触摸检测，同时也能体会到 Cocos2d iPhone 开发是多么快捷和令人愉悦。</p>
+        <p>下面的代码实现了一个简单的幻灯片播放器，它可以循环显示任意数量的图片和文本标签，播放结束后会将自身从场景栈中弹出。在此过程中，我们还将完整演示如何在 Cocos2d 中处理触摸检测，并体会到 Cocos2d iPhone 开发是多么快捷和令人愉快。</p>
       
     
       
@@ -41,11 +41,40 @@
       
     
       
-        <p>目前还存在一些限制（所有标签和图片必须位于同一位置，且所有标签必须具有相同的高度和宽度），但针对这些方面进行改进应该不会太难。除此之外，它应该是一个相当可复用且灵活的工具，用于展示最简单的幻灯片。</p>
+        <pre><code>// Initialize scene and slide show layer.
+Scene * s = [Scene node];
+SlideShowLayer * ssl = [SlideShowLayer node];
+// Set positions for the background and labels.
+// Generally you&#x27;ll be using full screen backgrounds
+// (screenshots), and positioning them at the center.
+[ssl setBackgroundXPosition:100];
+[ssl setBackgroundYPosition:100];
+[ssl setDescriptionXPosition: 200];
+[ssl setDescriptionYPosition: 200];
+[ssl setDescriptionWidth:100];
+[ssl setDescriptionHeight:300];
+[ssl setFontName:@&quot;Helvetica&quot;];      // optional
+[ssl setFontSize:24];                // optional
+// Add slides in order they appear.
+[ssl addSlideWithBackground:@&quot;pic1.png&quot; andDescription:@&quot;Yada yada one.&quot;];
+[ssl addSlideWithBackground:@&quot;pic2.png&quot; andDescription:@&quot;Yada yada two.&quot;];
+[ssl addSlideWithBackground:@&quot;pic3.png&quot; andDescription:@&quot;Yada yada 3.&quot;];
+[ssl addSlideWithBackground:@&quot;pic4.png&quot; andDescription:@&quot;Yada yada 4.&quot;];
+[ssl addSlideWithBackground:@&quot;pic5.png&quot; andDescription:@&quot;Yada yada 5.&quot;];
+[ssl addSlideWithBackground:@&quot;pic6.png&quot; andDescription:@&quot;Yada yada six.&quot;];
+// Start and display the slide show.
+[ssl displayFirstSlide];
+[scene add:ssl];
+[[Director sharedDirector] pushScene:scene];
+</code></pre>
       
     
       
-        <p>我将以大块的形式完整贴出代码（SlideShowLayer.h 一块，SlideShowLayer.m 一块），方便大家复制粘贴。注释将以内联的 Objective-C 注释形式直接写在代码中。</p>
+        <p>目前还有一些限制（所有标签和图片必须位于同一位置，且所有标签必须具有相同的宽高），但在此基础上进行改进应该并不困难。除此之外，它已经是一个相当可复用且灵活的工具，足以用来展示最简单的幻灯片。</p>
+      
+    
+      
+        <p>我将把完整代码分成两大块（SlideShowLayer.h 一块，SlideShowLayer.m 一块）贴出，以便大家直接复制粘贴。注释会以内联的 Objective-C 注释形式写在代码中。</p>
       
     
       
@@ -53,11 +82,95 @@
       
     
       
+        <pre><code>/* 
+ *  SlideShowLayer by Will Larson and Luke Hatcher. 10/29/2008.
+ *  Released under MIT License.
+ *  Please check out from repository for full license detail.
+ *
+ *  Nothing too exiting happening here.
+ *  Apologies that it is not in Obj2.0
+ *  syntax, but I&#x27;m still ambivalent about
+ *  the ambiguousness of properties. 
+ */
+#import &lt;UIKit/UIKit.h&gt;
+#import &quot;CocosNode.h&quot;
+#import &quot;Layer.h&quot;
+#import &quot;Label.h&quot;
+#import &quot;Sprite.h&quot;
+@interface SlideShowLayer : Layer {
+int slidePosition;
+int backgroundXPosition;
+int backgroundYPosition;
+int descriptionXPosition;
+int descriptionYPosition;
+int descriptionHeight;
+int descriptionWidth;
+int fontSize;
+NSString  fontName;
+NSMutableArray  backgrounds;
+NSMutableArray  descriptions;
+Sprite  background;
+CocosNode * description;
+}
+/
+ *  This is the only method for adding slides to the slide show.
+ /
+-(void)addSlideWithBackground: (NSString )imageString
+andDescription: (NSString )descString;
+/*
+ *  Methods for advancing, retreating, and starting the slideshow.
+ *  There currently isn&#x27;t a UI mechanism for retreating to already
+ *  seen slides, but you could rig something up if you tried hard 
+ *  enough. ;)
+ */
+-(void)displayFirstSlide;
+-(void)displayNextSlide;
+-(void)displayPreviousSlide;
+-(void)displaySlide: (int)slideNumber;
+-(BOOL)hasPreviousSlide;
+-(BOOL)hasNextSlide;
+/
+ *  Mutators and Accessors
+ /
+-(NSMutableArray )backgrounds;
+-(NSMutableArray )descriptions;
+-(Sprite )background;
+-(void)setBackground: (Sprite )aSprite;
+-(CocosNode )description;
+-(void)setDescription: (CocosNode )aCocosNode;
+-(NSString )fontName;
+-(void)setFontName: (NSString )aFontName;
+-(int)fontSize;
+-(void)setFontSize: (int)anInt;
+-(int)slidePosition;
+-(void)setSlidePosition: (int)anInt;
+-(int)backgroundXPosition;
+-(void)setBackgroundXPosition: (int)anInt;
+-(int)backgroundYPosition;
+-(void)setBackgroundYPosition: (int)anInt;
+-(int)descriptionXPosition;
+-(void)setDescriptionXPosition: (int)anInt;
+-(int)descriptionYPosition;
+-(void)setDescriptionYPosition: (int)anInt;
+-(int)descriptionWidth;
+-(void)setDescriptionWidth: (int)anInt;
+-(int)descriptionHeight;
+-(void)setDescriptionHeight: (int)anInt;
+@end
+</code></pre>
+      
+    
+      
         <p>接下来是 SlideShowLayer.m。</p>
       
     
       
-        <p>希望这能成为一个良好的起点，你可以基于它继续开发并应用到自己的项目中。我很快会清理这些代码并放入代码仓库，之后会在这里贴出链接。</p>
+        <pre><code>&lt;span class=&quot;c&quot;&gt;/*&lt;/span&gt;
+</code></pre>
+      
+    
+      
+        <p>希望这能成为一个良好的起点，你可以基于它继续开发并应用到自己的项目中。我近期会清理这些代码并将其放入代码仓库，之后会在这里贴出链接。</p>
       
     
       

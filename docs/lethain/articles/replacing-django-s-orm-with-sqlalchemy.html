@@ -29,129 +29,145 @@
   <div class="article-content">
     
       
-        <p>在 Django 松耦合的第一个示例中，我们介绍了如何用 Jinja2 替换模板系统。本文中，我们将探讨如何用 SQLAlchemy 替换 Django 默认的 ORM。这是一次相当大的跨越，在深入之前，我们先来看看切换到 SQLAlchemy 会对我们的应用产生什么影响。</p>
+        <p>在 Django 松耦合的第一个示例中，我们介绍了如何用 Jinja2 替换模板系统。本文我们将探讨如何用 SQLAlchemy 替换 Django 默认的 ORM。这是一个相当大的跨越，在深入之前，让我们先看看切换到 SQLAlchemy 会对我们的应用产生怎样的影响。</p>
       
     
       
-        <p>在本系列的引言中，我曾说过 Django 的实现遵循了松耦合哲学。但当我们考虑从 Django ORM 切换到 SQLAlchemy 所带来的变化时，可能需要对这句话多加几分考量。首先，我们将无法再使用 Django 的 models.py 文件来描述模型，而是要使用 SQLAlchemy 的 ORM 来定义表和字段（两者看起来相当相似）。</p>
+        <p>在本系列的引言中，我提到 Django 的实现遵循了松耦合哲学，但在考虑从 Django ORM 切换到 SQLAlchemy 所带来的变化时，我们可能需要对这句话打上几粒盐。首先，我们将无法再使用 Django 的 models.py 文件来描述模型。取而代之的是，我们将使用 SQLAlchemy 的 ORM 来定义表和字段（看起来会非常相似）。</p>
       
     
       
-        <p>随之而来的是，我们无法再用简单的 python manage.py syncdb 来为项目创建数据表，也无法使用 python manage.py loaddata 或 python manage.py dumpdata 来生成 fixture，作为初始数据或 Django 测试框架的脚手架。如果我们严格只使用 SQLAlchemy，甚至连 Django Admin、sessions middleware、authentication middleware 等贡献的资源都无法使用。</p>
+        <p>随之而来的是，我们无法再通过简单的 python manage.py syncdb 来为项目创建表。我们也无法使用 python manage.py loaddata 或 python manage.py dumpdata 来生成初始数据或为 Django 测试框架提供脚手架。如果我们严格坚持只使用 SQLAlchemy，甚至无法使用 Django Admin、sessions middleware 或 authentication middleware 等贡献的资源。</p>
       
     
       
-        <p>这里想传达的信息是：虽然 Django 是松耦合的，但“松耦合”并不意味着解耦没有代价。更改某些系统（如模板渲染）带来的影响很小，但其他系统——比如 Django ORM——远非即插即用。这无法避免，因为完美的解耦会给开发者个人增加额外负担，也会让 Django 项目启动变得更慢、更复杂。刚开始使用 Django 时，很难判断哪些子系统解耦的代价较高，因此强烈建议从默认的 Django 技术栈开始，随着经验积累再负责任地进行调整。</p>
+        <p>这里要传递的信息是：虽然 Django 是松耦合的，但“松耦合”并不意味着解耦没有代价。更改某些系统（如模板渲染）后果很小，但其他系统——比如 Django ORM——远非即插即用。这一点不可避免，因为完美的解耦会给开发者个人增加更多负担，也会让 Django 项目启动变得更慢、更复杂。当你刚开始使用 Django 时，很难判断哪些子系统解耦代价高昂，这就是为什么强烈建议从默认的 Django 技术栈开始使用，随着经验积累再负责任地进行必要调整。</p>
       
     
       
-        <p>（免责声明：将 Django ORM 和 SQLAlchemy 一起使用是可行的。这意味着你仍然可以利用 Django 的 sessions middleware（以及大多数其他功能），同时在应用的某些部分使用 SQLAlchemy。本教程不会构建这样一个“弗兰肯斯坦怪物”，因为它只关注探索松耦合这一方面，但要实现也并非特别困难。不过在某些方面会显得有点别扭。）</p>
+        <p>（免责声明：将 Django ORM 和 SQLAlchemy 一起使用是可行的。这意味着你仍然可以利用 Django 的 sessions middleware（以及大多数其他功能），同时在应用的某些部分使用 SQLAlchemy。本教程不会构建这个“弗兰肯斯坦”，因为它只专注于探索松耦合这一方面，但要实现也并非特别困难。当然，在某些方面可能会显得有些别扭。）</p>
       
     
       
-        <p>现在，让我们开始点石成金吧。</p>
+        <p>现在让我们开始点石成金吧。1</p>
       
     
       
-        <h2>在 Django 中使用 SQLAlchemy</h2>
+        <h3>在 Django 中使用 SQLAlchemy</h3>
+        
       
     
       
-        <div class="list-content">首先我们需要安装 SQLAlchemy。最简单的方法是使用 easy_install：
-easy_install SQLAlchemy
-你也可以从他们的下载页面获取 0.5 版本。本教程使用的是 0.5beta2，只要不使用 0.4 版本，代码应该都能正常运行。如果你选择手动下载文件，则需要执行以下安装步骤：
-tar zxvf SQLAlchemy-0.5.0beta2.tar.gz
+        <pre><code>easy_install SQLAlchemy
+</code></pre>
+      
+    
+      
+        <pre><code>tar zxvf SQLAlchemy-0.5.0beta2.tar.gz
 cd SQLAlchemy-0.5.0beta2
 python setup.py install
-如果你使用的是 Python 2.5 之前的版本，还需要同时安装 pysqlite 和 SQLite。
-
-现在让我们确认安装是否成功：
-&gt;&gt;&gt; import sqlalchemy
+</code></pre>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; import sqlalchemy
 &gt;&gt;&gt; sqlalchemy.__version__
 &#x27;0.5.0beta2&#x27;
-如果 SQLAlchemy 无法正确导入，或者版本不是 0.5 的某个衍生版本，那么你需要重新检查前面的步骤。
-
-创建一个 Django 项目和应用：
-django_admin.py startproject loose_coupling
+</code></pre>
+      
+    
+      
+        <pre><code>django_admin.py startproject loose_coupling
 cd loose_coupling
 python manage.py startapp with_sqlalchemy
-创建几个模板目录：
-mkdir templates
+</code></pre>
+      
+    
+      
+        <pre><code>mkdir templates
 cd with_sqlalchemy
 mkdir templates templates/with_sqlalchemy
-接下来我们需要对 settings.py 文件做一些简单修改。我们将修改 INSTALLED_APPS、TEMPLATE_DIRS 和 MIDDLEWARE_CLASSES：
-MIDDLEWARE_CLASSES = (&#x27;django.middleware.common.CommonMiddleware&#x27;,)
+</code></pre>
+      
+    
+      
+        <pre><code>MIDDLEWARE_CLASSES = (&#x27;django.middleware.common.CommonMiddleware&#x27;,)
 INSTALLED_APPS = (&#x27;loose_coupling.with_sqlalchemy&#x27;,)
 import os
 ROOT_PATH = os.path.dirname(__file__)
 TEMPLATE_DIRS = (os.path.join(ROOT_PATH,&#x27;templates&#x27;),)
-由于我们不使用 Django ORM，因此不会用到任何依赖数据库的中间件或应用。
-
-现在我们来编辑 loose_coupling/urls.py 文件：
-from django.conf.urls.defaults import *
+</code></pre>
+      
+    
+      
+        <pre><code>from django.conf.urls.defaults import *
 urlpatterns = patterns(
 &#x27;loose_coupling&#x27;,
 (r&#x27;^$&#x27;, &#x27;with_sqlalchemy.views.index&#x27;),
 )
-通常我们会把 with_sqlalchemy 应用的 urls.py 文件 include 到项目 urls.py 中，但这里我们尽量保持简单。
+</code></pre>
+      
+    
+      
+        <pre><code>&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;extension&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;
+    &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;extension&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;extension&lt;/span&gt;
 
-接下来我们将使用 SQLAlchemy ORM 创建一个简单的表来做实验。因为 models.py 文件已经存在，我们就把表的定义写进去。请打开 with_sqlalchemy/models.py：
-from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-Base = declarative_base()
-class Language(Base):
-    __tablename__ = &#x27;languages&#x27;
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    extension = Column(String)
-
-    def __init__(self, name, extension):
-        self.name = name
-        self.extension = extension
-
-    def __repr__(self):
-        return u&quot;Language(%s, %s)&quot; % (self.name, self.extension)
-我们可以看出，SQLAlchemy 定义模型的方式与 Django 非常相似。这里我们不深入讨论，但 SQLAlchemy 也可以做得更加底层，先定义数据库表，再将其映射到 Python 类。你甚至可以完全跳过 ORM，直接使用他们提供的 SQL 构造接口。
-
-现在我们来编写 views.py 文件。首先是文件开头的导入部分：
-from django.shortcuts import render_to_response
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;__repr__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;u&amp;quot;Language(&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;, &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;)&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;extension&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+</code></pre>
+      
+    
+      
+        <pre><code>from django.shortcuts import render_to_response
 import sqlalchemy, sqlalchemy.orm
 from models import Base, Language
-然后我们需要配置 SQLAlchemy，让 Language 类可以使用：
-engine = sqlalchemy.create_engine(&#x27;sqlite:///loose.sqlite&#x27;)
+</code></pre>
+      
+    
+      
+        <pre><code>engine = sqlalchemy.create_engine(&#x27;sqlite:///loose.sqlite&#x27;)
 Session = sqlalchemy.orm.sessionmaker(bind=engine)
 session = Session()
 Base.metadata.create_all(engine)
-sqlite:///loose.sqlite 这条指令会在相对路径 loose.sqlite 处创建一个 SQLite 数据库，也就是 with_sqlalchemy 目录内。SQLAlchemy 同样可以轻松指定绝对路径，或在内存中创建数据库。如果我们想让它更像 Django 的风格，可以在 settings.py 中指定 DATABASE_NAME，然后像下面这样加载：
-from django.conf import settings
+</code></pre>
+      
+    
+      
+        <pre><code>from django.conf import settings
 engine = sqlalchemy.create_engine(settings.DATABASE_ENGINE)
-另外，Base.metadata.create_all(engine) 实际上只需要在 SQLAlchemy 第一次创建表时执行一次（多次执行也不会有问题），但这需要创建一个类似 python manage.py syncdb 的脚本，会让示例变得更复杂，所以我们暂时跳过这一步。
-
-接下来，我们创建两个非常简单的工具函数，用于填充数据：
-def is_empty():
+</code></pre>
+      
+    
+      
+        <pre><code>def is_empty():
     return len(session.query(Language).all()) &lt;= 0
-
 def populate():
-    new_langs = [Language(&#x27;Python&#x27;,&#x27;py&#x27;),Language(&#x27;Ruby&#x27;, &#x27;rb&#x27;),
-                 Language(&#x27;Common Lisp&#x27;, &#x27;lisp&#x27;),Language(&#x27;Objective-C&#x27;, &#x27;m&#x27;)]
-    session.add_all(new_langs)
-    session.commit()
-这些简单的函数将用来向数据库填充一些数据。同时也提供了一个最小的示例，展示了 SQLAlchemy 的查询和对象创建语法，它们与 Django ORM 非常相似。
-
-最后，我们需要编写 index 函数：
-def index(request):
+new_langs = [Language(&#x27;Python&#x27;,&#x27;py&#x27;),Language(&#x27;Ruby&#x27;, &#x27;rb&#x27;),
+Language(&#x27;Common Lisp&#x27;, &#x27;lisp&#x27;),Language(&#x27;Objective-C&#x27;, &#x27;m&#x27;)]
+session.add_all(new_langs)
+session.commit()
+</code></pre>
+      
+    
+      
+        <pre><code>def index(request):
     if is_empty():
         populate()
     langs = session.query(Language).all()
     return render_to_response(&#x27;with_sqlalchemy/index.html&#x27;,{&#x27;langs&#x27;:langs})
-在一个设计更好的应用中，我们不需要每次调用 index 视图都检查是否已创建测试数据，那样视图会变成这样：
-def index(request):
+</code></pre>
+      
+    
+      
+        <pre><code>def index(request):
     langs = session.query(Language).all()
     return render_to_response(&#x27;with_sqlalchemy/index.html&#x27;,{&#x27;langs&#x27;:langs})
-这看起来几乎和使用 Django ORM 时的写法一模一样（只是获取数据时的语法略有不同）。
-
-现在我们需要创建正在渲染的 with_sqlalchemy/index.html 模板。首先创建一个基础模板，放在 loose_coupling/templates 目录下，命名为 base.html，内容如下：
-&lt;html&gt;
+</code></pre>
+      
+    
+      
+        <pre><code>&lt;html&gt;
   &lt;head&gt;
     &lt;title&gt; Loosely Coupled Django &lt;/title&gt;
   &lt;/head&gt;
@@ -160,19 +176,26 @@ def index(request):
   {% endblock %}
   &lt;/body&gt;
 &lt;/html&gt;
-接下来创建 index.html 模板。打开 with_sqlalchemy/templates/with_sqlalchemy/index.html，填写以下内容：
-{% extends &#x27;base.html&#x27; %}
+</code></pre>
+      
+    
+      
+        <pre><code>{% extends &#x27;base.html&#x27; %}
 {% block content %}
 {% for lang in langs %}
-  &lt;p&gt;{{ lang }}&lt;/p&gt;
+  &lt;p&gt;{ { lang }}&lt;/p&gt;
 {% endfor %}
 {% endblock %}
-关于这些模板，最重要的一点是：我们传递给它们的是由 SQLAlchemy ORM 生成的实例，但模板看起来和使用 Django ORM 时完全一样。模板语言并不关心底层是 Django ORM 还是其他，它可以处理普通的 Django Model 实例，也可以处理普通的 Python 字典。
-
-现在一切都准备好了，只等我们测试：
-python manage.py runserver
-然后在浏览器中访问 http://127.0.0.1:8000/。
-你会看到四个编程语言及其扩展名的简单展示。</div>
+</code></pre>
+      
+    
+      
+        <pre><code>python manage.py runserver
+</code></pre>
+      
+    
+      
+        <div class="list-content">首先我们需要下载 SQLAlchemy。最简单的方法是使用 easy_install。当然你也可以从他们的下载页面获取 0.5 版本。本教程使用的是 0.5beta2，只要不使用 0.4 版本，应该都能正常工作。如果你选择手动下载文件，之后需要进行安装：如果你使用的是 Python 2.5 之前的版本，还需要安装 pysqlite 和 SQLite。现在让我们确认安装是否成功。如果 SQLAlchemy 无法正确导入，或者版本不是 0.5 的衍生版本，那么你需要重新执行第一和第二步。创建一个 Django 项目和应用。创建几个模板目录。接下来我们需要在 settings.py 文件中做一些简单的修改。我们将修改 INSTALLED_APPS、TEMPLATE_DIRS 和 MIDDLEWARE_CLASSES。由于我们不再使用 Django ORM，因此不会使用任何依赖数据库的 middleware 或 app。现在我们来编辑 loosely_coupled/urls.py 文件。通常我们会从 with_sqlalchemy app 中 include 一个 urls.py 文件到项目的 urls.py 中，但这里我们尽量保持简单。现在我们要使用 SQLAlchemy ORM 创建一个简单的表来玩玩。因为 models.py 文件已经存在，我们就把表的定义扔进 models.py 里，打开 with_sqlalchemy/models.py 吧。我们可以看到 SQLAlchemy 定义模型的方式与 Django 非常相似。这里我们不会深入讨论，但 SQLAlchemy 也可以更加底层地定义数据库表，然后将其映射到 Python 类上。你甚至可以完全跳过 ORM，直接使用他们提供的构造 SQL 的接口。现在我们来编写 views.py 文件。首先，在文件开头引入一些必要的模块。然后我们需要设置 SQLAlchemy，让 Language 类可用。sqlite:///loose.sqlite 指令会在相对路径 loose.sqlite（即 with_sqlalchemy 目录内）创建一个 SQLite 数据库。SQLAlchemy 同样可以轻松指定绝对路径，或在内存中创建数据库。如果我们想让它更像 Django 的风格，可以在 settings.py 中指定 DATABASE_NAME 设置，然后像这样加载：另外，Base.metadata.create_all(engine) 实际上只需要在 SQLAlchemy 首次创建表时执行一次（多次执行也不会有问题），但这需要创建一个类似 python manage.py syncdb 的脚本，会让示例变得更复杂，所以我们暂时跳过。接下来，我们创建两个非常简单的工具函数，用于填充数据：这些简单的函数将用来为数据库填充一些数据。它也提供了一个最小的示例，展示了 SQLAlchemy 的查询和对象创建语法，这些语法与 Django ORM 非常相似。最后，我们需要编写 index 函数。在设计更好的应用中，我们不需要每次调用 index 视图时都确保创建测试数据，那样视图会是这样的：这看起来几乎和使用 Django ORM 编写时一模一样（只是获取数据的语法略有不同）。现在我们需要创建 with_sqlalchemy/index.html 模板。首先我们创建一个基础模板，位于 loose_coupling/templates 目录下，命名为 base.html。它看起来像这样：接下来我们创建 index.html 模板。打开 with_sqlalchemy/templates/with_sqlalchemy/index.html 并填写以下内容：关于这些模板最重要的一点是，我们传递给它们的是由 SQLAlchemy ORM 生成的实例，但用法看起来和使用 Django ORM 时完全相同：模板语言并不关心 Django ORM 的具体细节，它可以处理从普通 Django Model 实例到普通 Python 字典的任何东西。现在一切都完成了，就等我们测试了。然后访问 http://127.0.0.1:8000/。你会看到四个编程语言及其扩展名的简单展示。</div>
       
     
       
@@ -180,19 +203,23 @@ python manage.py runserver
       
     
       
-        <p>现在，这个示例的实用性显然不如之前使用 Jinja2 的那个，但它仍然展示了关于 Django 的两个重要观点。首先，Django 是用 Python 编写的，所以你在 Django 中可以做任何在 Django 之外能做的事情。其次，Django 是松耦合的，但有时候这种松耦合是有代价的，解耦某些子系统——尤其是 ORM——并不轻松。</p>
+        <p>现在，这个示例的实际价值不如之前使用 Jinja2 的那个那么一目了然，但它仍然展示了关于 Django 的两个重要观点。首先，Django 是基于 Python 的，所以你在 Django 中可以做任何在 Django 之外能做的事情。其次，Django 是松耦合的，但有时松耦合也是有代价的，解耦某些子系统——尤其是 ORM——并不轻松。</p>
       
     
       
-        <p>作为最后一点，我想为本篇对 SQLAlchemy 所做的“贬低”道歉。SQLAlchemy 是一个功能极其丰富且非常灵活的系统，而这里的用法让它看起来像是 Django ORM 的镜像。事实远非如此。SQLAlchemy 可以像 Django ORM 那样进行抽象，但它能让你更轻松地深入底层，同时还暴露了更多高级功能，比如连接池。</p>
+        <p>作为最后一点，我想为本篇文章对 SQLAlchemy 所做的“亏待”道歉。SQLAlchemy 是一个功能极其丰富且非常灵活的系统，而这里的用法让它看起来像是 Django ORM 的镜像。事实远非如此。SQLAlchemy 可以像 Django ORM 那样进行抽象，但它能让你更容易地进行底层操作，同时还暴露了更多高级功能，比如连接池。</p>
       
     
       
-        <p>好了，最后的最后一点：我认为这个教程已经说得很清楚了，但我不会推荐在没有极其充分理由的情况下从 Django ORM 中解耦。它是 Django 所有子部件中耦合度最高的，替换它绝非易事。</p>
+        <p>好吧，最后的最后一点：我认为这个教程已经不言自明，但我不会推荐在没有极其充分理由的情况下从 Django ORM 中解耦。它是 Django 所有子部件中最紧耦合的一个，替换起来绝非易事。</p>
       
     
       
-        <p>对于那些因为我没有展示同时使用 Django ORM 和 SQLAlchemy ORM 而觉得我对 Django 不公平的读者，请放心，本系列的下一个示例将会探讨类似的内容（不过会是一个稍微更现实的场景）。</p>
+        <p>对于那些因为我没有同时使用 Django ORM 和 SQLAlchemy ORM 而觉得我对 Django 不公平的人，请放心，本系列的下一个示例将讨论类似的内容（但会设定一个稍微更现实的场景）。</p>
+      
+    
+      
+        <div class="list-content">我觉得我有义务至少讲一个烂俗的炼金术相关笑话或双关语。算是完成任务了。↩</div>
       
     
   </div>

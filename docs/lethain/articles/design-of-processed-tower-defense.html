@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>已处理塔防游戏的设计 · Will Larson 文集</title>
+  <title>已处理的塔防游戏设计 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>已处理塔防游戏的设计</h1>
+    <h1>已处理的塔防游戏设计</h1>
     <div class="meta">
       2008-05-18 · 
       <a href="https://lethain.com/design-of-processed-tower-defense/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,95 +29,218 @@
   <div class="article-content">
     
       
-        <p>过去四天，我一直在使用 Processing.js 开发一款塔防风格的游戏，今天在前往名古屋的火车上，我投入了最后一个小时来完善它。目前它已经是一款功能完整的游戏，虽然还算不上特别有趣。本文将简要介绍项目的当前状态，然后讨论其中一些比较有趣的实现细节。</p>
+        <p>过去四天，我一直在使用 Processing.js 开发一款塔防风格的游戏，今天在坐火车前往名古屋的途中，我投入了最后一个小时来完善它。目前它已经是一款功能完备的游戏，虽然还不算特别有趣。本文将简要介绍项目的当前状态，然后讨论一些比较有趣的实现细节。</p>
       
     
       
         <h2>当前状态</h2>
+        
       
     
       
-        <p>目前游戏中只有两种防御塔和一种敌方单位（creep）。此外还有一种可由玩家手动瞄准的导弹攻击，实现类似的用户主动攻击类型也相当容易。游戏包含一个敌方波次控制器，它会定期生成敌方波次，而每个波次又会定期生成敌方单位。每升一级，每个敌方单位提供的金币会线性增加，而敌方单位的生命值则呈指数增长。</p>
+        <p>目前游戏中只有两种塔和一种敌人。有一个可由玩家手动瞄准的导弹攻击，实现类似的其他玩家主动攻击类型也相当容易。还有一个敌人波次控制器，它会定期生成敌人波，而每波又会定期生成敌人。每升一级，每个敌人提供的金币会线性增加，而敌人的生命值则会呈指数增长。</p>
       
     
       
-        <p>包括空行和注释在内，整个项目总共不到 800 行 JavaScript 代码——正如我下面将要分析的，这是一个相当灵活的架构。目前最重要的未实现功能是防御塔的升级和配置系统。由于点击防御塔已经可以显示其作用范围，实现该功能只需要编写一些升级路径，以及为玩家提供某种用户界面即可。</p>
+        <p>整个项目包括空行和注释在内，总共不到 800 行 JavaScript 代码——正如我下面将要分析的，这是一个相当灵活的架构。目前最重要的未实现功能是升级和配置塔的方式。由于点击塔已经可以显示其作用范围，接下来只需要编写一些升级路径，并实现某种用户交互界面即可。</p>
       
     
       
-        <p>好了，让我们来稍微拆解一下代码。</p>
+        <p>接下来，让我们稍微拆解一下代码。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/ptd-design.jpg" alt="Processed Tower Defense gameplay shot.">
+          
+        </figure>
       
     
       
         <h2>主要游戏设置与循环</h2>
+        
       
     
       
-        <p>游戏的初始化设置和主循环出乎意料地简洁。负责所有游戏逻辑的 draw 循环只有短短五行代码。</p>
+        <p>设置和游戏循环看似非常简单。负责所有游戏逻辑的 draw 循环只有短短五行。</p>
       
     
       
-        <p>当然，我们真正想知道的是“update_groups 函数到底在干什么？”答案是：几乎一切。除了管理用户界面状态（比如“玩家是否正在放置防御塔？”“他们是否正在瞄准导弹？”等问题）之外，所有逻辑都由这个 update_groups 函数处理，而它的实现其实相当简单。</p>
+        <pre><code>var start_tower_defense = function() {
+  setup = function() {
+    set_canvas(&quot;tower_defense&quot;);
+    reset_game();
+    size(SET.width, SET.height);
+    frameRate(SET.framerate);
+    mouseMoved(on_mouse_moved);
+    mousePressed(on_mouse_press);
+  }
+  draw = function() {
+    if (SET.state != SET.game_over_state &amp;&amp; SET.state != SET.pause_state) {
+      background(SET.bg_color);
+      update_groups(SET.rendering_groups);
+    }
+  }
+  setup();
+}
+</code></pre>
       
     
       
-        <p>update_groups 接受一个参数，即一个由“对象数组”组成的数组。这些对象需要满足一个简单的协议，该协议包含三个方法：</p>
+        <p>当然，我们真正想知道的是“update_groups 到底在做什么？”答案是：几乎一切。除了管理用户界面状态（例如“玩家是否正在放置塔？”“是否正在瞄准导弹？”等等）之外，所有逻辑都由这个 update_groups 函数处理，而它的实现其实相当简洁。</p>
       
     
       
-        <div class="list-content">update 用于更新对象的各种数值，is_dead 用于判断对象是否已经不再需要，draw 则说明如何渲染该对象。</div>
+        <p>update_groups 接受一个参数，即一个由对象数组组成的数组，这些对象需要遵循一个简单的协议。该协议包含三个方法：</p>
       
     
       
-        <p>这个数组的遍历是逆序进行的，因为内部数组的索引代表其渲染深度。因此，深度为 12 的对象应该在深度为 7 的对象之前渲染。在同一深度的数组内，对象则按标准顺序渲染（即 0、1、2 …… n-1、n）。</p>
+        <div class="list-content">update 用于更新任何数值，is_dead 用于移除不再需要的对象，draw 则说明如何渲染该对象。</div>
       
     
       
-        <p>程序首先对所有对象调用 update 方法，然后使用 is_dead 过滤掉不再需要的对象，最后通过 draw 方法将对象渲染出来供玩家观看。这个简单的模式似乎适用于任何涉及大量（某种程度上）并发过程的场景。</p>
+        <p>这个数组的遍历是逆序进行的，因为内部数组的索引代表其渲染深度。因此，深度为十二的对象应该在深度为七的对象之前渲染。在同一深度的数组内，对象按常规顺序渲染（即 0、1、2……n-1、n）。</p>
       
     
       
-        <p>事实上，只要理解了这个简单的函数，你就基本掌握了游戏的实现原理。下面我们来看一个实现这个简单接口的简短示例。</p>
+        <pre><code>var update_groups = function(groups) {
+  var obj_update = function(x) { 
+    if (x != undefined) x.update();
+  };
+  var obj_is_alive = function(x) {
+    if ( x == undefined || x.is_dead()) return false;
+    return true; 
+  };
+  var obj_draw = function(x) { x.draw(); };
+  for (var i=groups.length-1;i&gt;=0;i--) {
+    var group = groups[i];
+    if (group != undefined) {
+      group.forEach(obj_update);
+      var alive = group.filter(obj_is_alive);
+      alive.forEach(obj_draw);
+      groups[i] = alive;
+    }
+  }
+}
+</code></pre>
       
     
       
-        <p>游戏将当前时间存储在一个全局变量中，以便在一次 update_groups 执行过程中，所有事件都使用相同的时间戳。 处理这一逻辑的函数定义如下：</p>
+        <p>首先对所有对象调用 update，然后使用 is_dead 过滤掉不再需要的对象，最后通过 draw 将对象渲染出来供玩家观看。这个简单的模式似乎适用于任何涉及大量（某种程度上）并发过程的场景。</p>
       
     
       
-        <p>其中可能不太明显的是，assign_to_depth 函数用于将对象放入对应的渲染分组，而 SET.system_render_level 是所有渲染组中最低的（意味着它最先被处理）。这是一个相当简单的模式，在代码中很常见。</p>
+        <p>实际上，理解这个简单的函数几乎就能掌握游戏的大部分实现原理。下面我们来看一个快速实现这个简单接口的例子。</p>
       
     
       
-        <p>作为这个方法的最后一个例子，我们来看看游戏的网格（grid）是如何实现的。</p>
+        <p>游戏将当前时间存储在一个全局变量中，这样在一次 update_groups 执行过程中，所有事件都使用相同的时间值。 处理这个逻辑的函数定义如下：</p>
       
     
       
-        <p>同样，这里实现了上述三个方法的接口，然后将对象放入一个渲染分组，就这么简单。</p>
+        <pre><code>var SettingUpdater = function() {
+  var su = new Object();
+  su.is_dead = function() { return false; };
+  su.draw = function() {};
+  su.update = function() { SET.now = millis(); }
+  assign_to_depth(su, SET.system_render_level);
+  return su;
+};
+var setup = function() {
+  // ...
+  SettingUpdater(); // initialize SU
+  // ...
+}
+</code></pre>
       
     
       
-        <h2>用户界面</h2>
+        <p>其中可能不太清楚的一点是，assign_to_depth 函数用于将对象放入一个渲染组，而 SET.system_render_level 是所有渲染组中层级最低的（意味着它最先被处理）。这是一个相当简单的模式，在代码中很常见。</p>
       
     
       
-        <p>除了用于更新和渲染的三个方法接口外，代码的其他部分都围绕用户界面的三个函数接口展开。这三个函数（根据需要其中零个或多个可以未定义）分别是：</p>
+        <p>作为这种方法的最后一个例子，让我们来看看游戏的网格是如何实现的。</p>
       
     
       
-        <div class="list-content">state_legal 用于判断当前鼠标位置是否可以执行所选操作；state_action 是当鼠标点击且操作合法时要调用的函数；state_draw 则负责绘制鼠标移动时所需的任何界面反馈（例如放置防御塔时鼠标周围的范围圈，或瞄准导弹时的指示）。</div>
+        <pre><code>var Grid = function() {
+  var grid = new Object();
+  grid.update = function() {};
+  grid.is_dead = function() { return false; };
+  grid.draw = function() {
+    stroke(SET.grid_color);
+    var p = SET.pixels_per_square;
+    var w = SET.width;
+    var h = SET.height;
+    for (i = 0; i&lt;w; i+=p) {
+      line(i, 0, i, h);
+    }
+    for (i = 0; i&lt;h; i+=p) {
+      line(0,i,w,i);
+    }
+  };
+  assign_to_depth(grid, SET.grid_render_level);
+  return grid;
+};
+</code></pre>
       
     
       
-        <p>我们先来看看使用这个接口的代码，以了解它具体在做什么，然后再看看实现这个接口的代码。</p>
+        <p>同样，这里实现了这个简单的三个方法接口，然后将对象放入渲染组，全部工作就完成了。</p>
       
     
       
-        <p>这个接口的实现位于 on_mouse_moved 和 on_mouse_press 两个方法中，它们分别在鼠标移动和鼠标按下时被调用。两者的代码如下：</p>
+        <h3>用户界面</h3>
+        
       
     
       
-        <p>基本上，游戏要么处于正常状态，要么处于某种特殊状态。如果处于特殊状态，则由上述三个函数的接口来控制用户界面。如果处于正常状态，则可以通过 HTML 中定义的按钮将其切换到特殊状态，或者点击防御塔也可以切换到另一种状态（理论上任何点击或鼠标按下事件都可以切换状态，只要添加相应的监听代码即可）。</p>
+        <p>除了用于更新和渲染的三个方法接口外，其余代码都围绕用户界面的三个函数接口展开。这次三个函数（根据需要，其中零个或多个可以未定义）分别是：</p>
+      
+    
+      
+        <div class="list-content">state_legal 是一个函数，用于判断当前鼠标位置是否可以执行选定的操作。state_action 是在鼠标点击且操作合法时调用的函数。state_draw 则负责绘制鼠标移动时需要的任何界面反馈（例如放置塔或瞄准导弹时鼠标周围的范围提示）。</div>
+      
+    
+      
+        <p>我们先来看看使用这个接口的代码，以了解它具体在做什么，然后再看看实现这个接口的具体代码。</p>
+      
+    
+      
+        <p>这个接口的实现位于两个方法中：on_mouse_moved 和 on_mouse_press，分别在鼠标移动和鼠标按下时被调用。两者放在一起是这样的：</p>
+      
+    
+      
+        <pre><code>var on_mouse_moved = function() {
+  var pos = mouse_pos();
+  if (SET.state != SET.normal_state &amp;&amp; SET.state_legal) {
+    if (SET.state_legal(pos.x,pos.y) == true)
+      SET.bg_color = SET.bg_colors.positive;
+    else SET.bg_color = SET.bg_colors.negative;
+    }
+  else {
+    SET.bg_color = SET.bg_colors.neutral;
+  }
+  if (SET.state_draw) SET.state_draw(pos.x,pos.y);
+};
+var on_mouse_press = function() {
+var pos = mouse_pos();
+if (SET.state == SET.normal_state) {
+var gpos = pixel_to_grid(pos.x,pos.y);
+var tower = get_tower_at(gpos.gx,gpos.gy);
+if (tower != false) select_tower(tower);
+}
+else {
+if (SET.state_legal &amp;&amp; SET.state_legal(pos.x,pos.y) == true)
+SET.state_action(pos.x,pos.y);
+set_state_normal();
+}
+};
+</code></pre>
+      
+    
+      
+        <p>基本上，游戏要么处于正常状态，要么处于某种特殊状态。如果处于特殊状态，则由那三个函数的接口来控制用户界面。如果处于正常状态，则可以通过 HTML 中定义的按钮将其切换到特殊状态，或者点击塔也可以切换到另一个状态（理论上任何点击或鼠标按下都可以切换状态，只要添加相应的监听代码即可）。</p>
       
     
       
@@ -125,23 +248,56 @@
       
     
       
-        <p>该状态通过点击 HTML 中标注为“Build Missile Tower”的按钮激活。在这个界面状态下，除了当前网格方格内已有方块或防御塔的位置外，其他任何位置都是合法的。state_draw 方法会绘制一个小圆圈，让玩家知道自己当前指向的位置；而 state_action 方法则会在选定的方格内创建一个防御塔，并扣除玩家的金币。</p>
+        <pre><code>var build_missile_tower = function() {
+  var cost = 100;
+  if (SET.gold &gt;= cost) {
+    SET.state = SET.placing_tower_state;
+    SET.state_legal = function(x,y) {
+      var gpos = pixel_to_grid(x,y);
+      return can_build_here(gpos.gx,gpos.gy);
+    };
+    SET.state_draw = function(x,y) {
+      var gpos = pixel_to_grid(x,y);
+      var mid = center_of_square(gpos);
+      var radius = SET.pixels_per_square;
+      SET.rendering_groups[SET.killzone_render_level] = [];
+      BuildRadius(mid.x,mid.y,radius);
+    }
+    build_tower_mode();
+    SET.state_action = function(x,y) {
+      var gpos = pixel_to_grid(x,y);
+      MissileTower(gpos.gx,gpos.gy);
+      SET.gold -= cost;
+      set_state_normal();
+    }
+  }
+};
+</code></pre>
       
     
       
-        <p>所有其他的用户界面模式都是以相同的方式实现的。</p>
+        <p>这个状态通过点击 HTML 中标记为“Build Missile Tower”的按钮来激活。对于这个界面状态，只要当前格子上没有方块或塔，任何位置都是合法的。state_draw 方法会绘制一个小圆圈，让玩家知道自己当前指向的位置，而 state_action 方法则会在选定的格子上创建一座塔，并扣除玩家的金币。</p>
       
     
       
-        <h2>总结</h2>
+        <p>所有其他用户界面模式都是以相同的方式实现的。</p>
       
     
       
-        <p>这两种设计模式被用于实现整个《Processed Tower Defense》，事实证明它们在保持游戏简单易懂且易于扩展方面非常有效。在某些地方，我对渲染循环的使用接近于 hack，如果能更明确一些，代码的可读性会更好（例如，我假设防御塔渲染层只包含防御塔，敌方单位渲染层只包含敌方单位，这是个合理的假设，但最好能更明确地说明）。</p>
+        <h3>总结</h3>
+        
       
     
       
-        <p>基本上就是这些了，希望这篇文章能给对游戏开发感兴趣的朋友们带来一些启发。</p>
+        <p>这两种模式被用来实现整个 Processed Tower Defense，并证明在保持游戏易于理解和扩展方面非常有用。在某些地方，我对渲染循环的使用接近于 hack，如果能更加明确一些，将有助于提高代码可读性（例如，我假设塔的渲染层只会包含塔，敌人的渲染层只会包含敌人，这是一个合理的假设，但最好能更明确地说明）。</p>
+      
+    
+      
+        <p>其实就是这些，希望这篇文章能给对游戏开发感兴趣的朋友带来一些启发。</p>
+      
+    
+      
+        <div class="list-content">用户界面要么是两侧的 HTML 元素，要么我考虑让升级选项在当前选中塔周围的格子上弹出来，这样视觉上会非常酷。这是我为了让游戏在不同帧率下保持一致表现，并确保即使开始卡顿也能保持正常所做的一部分努力。要完全实现帧率无关，所有绘制函数都需要重写，但这并不难。非绘制逻辑已经做到帧率无关了（生成波次、生成敌人、发射武器等）。完成帧率无关会很有趣（也能让不同浏览器间的游戏体验更一致）。游戏真的很耗时间，因为总有可以改进的地方，能让体验更有趣或性能更好。</div>
       
     
   </div>

@@ -29,7 +29,7 @@
   <div class="article-content">
     
       
-        <p>这篇文章延续了<a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a>系列，在<a href="slack-app-home-python.html">在 Python 中为 Slack 应用添加 App Home</a>之后继续撰写。Slack 中许多微妙而自然产生的沟通模式，都是通过给消息添加表情符号（emoji）来实现的。我觉得在当前正在开发的这个应用中利用这种趣味性，会是一件很有意思的事。</p>
+        <p>本文延续，接续在之后。Slack 中很多微妙而自然产生的沟通模式，都是通过给消息添加表情符号（emoji）来实现的。我觉得在我们正在构建的这个应用中，利用这种趣味性会很有意思。<a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a><a href="slack-app-home-python.html">在 Python Slack 应用中添加 App Home</a></p>
       
     
       
@@ -37,23 +37,32 @@
       
     
       
-        <h2>Slack app in Python 系列</h2>
+        <h4>用 Python 开发 Slack 应用系列</h4>
+        
       
     
       
-        <div class="list-content"><a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a><a href="slack-app-home-python.html">在 Python 中为 Slack 应用添加 App Home</a><a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a><a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a><a href="slack-distribution.html">发布你的 Slack 应用</a></div>
+        <div class="list-content"><a href="creating-slack-app-python.html">在 GCP 上用 Python 创建 Slack 应用</a><a href="slack-app-home-python.html">在 Python Slack 应用中添加 App Home</a><a href="slack-reacji-events.html">让 Slack 应用响应表情回应（reacji）。</a><a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a><a href="slack-distribution.html">部署你的 Slack 应用。</a></div>
       
     
       
-        <h2>表情回应（Reacji）和自定义表情</h2>
+        <h2>Reacji 和自定义表情</h2>
+        
       
     
       
-        <p>Slack 的表情回应（emoji reactions 或称 reacji）是大家在频道中与消息互动的常用方式。</p>
+        <p>Slack 的表情回应（emoji reactions），也叫 reacji，是大家在频道中与消息互动的常见方式。</p>
       
     
       
-        <p>在我们正在开发的应用中，我考虑加入 :ididit: 和 :udidit: 两个表情符号。大家可以用它们把自己的成就加入到成就清单，也可以用它们把别人的成就加到对方的清单里。我注意到有些人不喜欢或不重视记录自己的成就，这个设计或许能以一种有趣的方式，让团队和社区来帮助他们完成记录。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-reacji-exp.png" alt="Example of using Slack reaction emoji aka reacji">
+          
+        </figure>
+      
+    
+      
+        <p>在我们正在开发的应用中，我考虑加入 :ididit: 和 :udidit: 这两个表情符号。这样大家就可以用它们把自己的完成事项加入成就清单，也可以用它们把别人的成就加到对应人的清单里。我注意到有些人不喜欢或不愿意记录自己的成就，这个设计可以让团队和社区以一种轻松有趣的方式来帮助他们。</p>
       
     
       
@@ -61,27 +70,56 @@
       
     
       
-        <p>进入后点击“Add custom emoji”，然后想办法创建一张图片。我当时用 Omnigraffle 是因为它正好开着，不过你大概会用其他工具。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-customize-slack.png" alt="Go to Customize Slack in top-left nav menu">
+          
+        </figure>
       
     
       
-        <p>上传你的图片，将其命名为 :udidit: 并点击保存。然后再为 :ididit: 表情重复相同的操作。</p>
+        <p>接着点击“Add custom emoji”，然后想办法创建一张图片。我当时用的是 Omnigraffle，因为它正好开着，不过你大概会用别的工具。</p>
       
     
       
-        <p>现在我们有了自定义表情，接下来需要弄清楚如何在它们被使用时收到通知。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-add-emoji.png" alt="Add udidit emoji to Slack">
+          
+        </figure>
+      
+    
+      
+        <p>上传你的图片，将其命名为 :udidit:，然后点击保存。之后再用同样的方法添加 :ididit: 表情。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-added-emoji.png" alt="Show both ididit and udidit emoji in Slack">
+          
+        </figure>
+      
+    
+      
+        <p>现在我们有了自定义表情，接下来需要想办法在有人使用它们时收到通知。</p>
       
     
       
         <h2>订阅 reaction_added 事件</h2>
+        
       
     
       
-        <p>每当有人添加表情符号时，如果您已订阅，就会向 Events API 触发一个对应的 reaction_added 事件。</p>
+        <p>每当有人添加表情时，如果你的应用订阅了对应事件，Events API 就会触发一个 reaction_added 事件。</p>
       
     
       
-        <p>要订阅，请前往应用仪表盘的“Event Subscriptions”页面，展开“Subscribe to workspace events”，然后选择 reaction_added。</p>
+        <p>要订阅的话，请前往应用仪表盘的“Event Subscriptions”页面，展开“Subscribe to workspace events”，然后选择 reaction_added。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-sub-reaction-added.png" alt="Adding reaction_added event to Event Subscriptions">
+          
+        </figure>
       
     
       
@@ -90,10 +128,11 @@
     
       
         <h2>处理 reaction_added 事件</h2>
+        
       
     
       
-        <p>现在我们已经能收到这些事件，需要扩展 event_callback_event 来处理 reaction_added 事件，而不是让它报错。</p>
+        <p>现在我们已经能收到这些事件，需要扩展 event_callback_event 函数，让它能够处理 reaction_added 事件，而不是直接报错。</p>
       
     
       
@@ -119,7 +158,7 @@
       
     
       
-        <p>我给一条消息加了 :relaxed: 表情，处理程序输出了 Slack 发送的以下内容。</p>
+        <p>我给一条消息加了 :relaxed: 表情，处理函数输出了 Slack 发送的以下内容。</p>
       
     
       
@@ -147,7 +186,7 @@
       
     
       
-        <p>我们首先要做的是筛选出我们关心的表情回应。我们只对之前添加的两个表情（:ididit: 和 :udidit:）做出反应，并且只处理针对消息（message）的回应，忽略文件等其他类型。</p>
+        <p>我们首先要做的是筛选出我们关心的反应。我们只对之前添加的两个表情 :ididit: 和 :udidit: 做出响应，并且只处理针对消息（message）的反应，忽略文件等其他类型。</p>
       
     
       
@@ -162,11 +201,12 @@
       
     
       
-        <p>筛选出合适的消息后，我们仍然不清楚消息的具体内容：你或者对方到底完成了什么？要解决这个问题，我们需要调用 conversations.history 接口，具体方法可参考“Retrieving messages”文档。</p>
+        <p>过滤出合适的消息后，我们仍然无法确定消息的具体内容：你或者对方到底完成了什么？要解决这个问题，我们需要调用 conversations.history 接口，具体方法可参考“Retrieving messages”文档。</p>
       
     
       
         <h2>添加 channels:history 权限</h2>
+        
       
     
       
@@ -174,7 +214,14 @@
       
     
       
-        <p>之后，重新安装你的应用以申请新增的 OAuth 权限。我们目前一直使用的是 bot token 而非 OAuth token，因此还需要把 OAuth token 添加到 env.yaml 文件中。你的 OAuth token 可以在应用管理后台的“OAuth &amp; Permissions”页面中找到，字段名为“OAuth Access Token”。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2019/reflect-add-oauth-scope.png" alt="Request channels:history scope for OAuth tokens">
+          
+        </figure>
+      
+    
+      
+        <p>完成后，重新安装你的应用以申请新增的 OAuth 权限。我们之前一直使用的是 bot token，而不是 OAuth token，因此还需要把 OAuth token 加入到 env.yaml 文件中。你的 OAuth token 可以在应用管理页面的“OAuth &amp; Permissions”中找到，字段名为 OAuth Access Token。</p>
       
     
       
@@ -185,19 +232,20 @@ SLACK_OAUTH_TOKEN: your-oauth-token
       
     
       
-        <p>配置完成后，我们就可以使用新的权限了。</p>
+        <p>配置好之后，我们就可以使用这个新权限了。</p>
       
     
       
         <h2>调用 channels.history</h2>
+        
       
     
       
-        <p>我们之前实现了一个 slack_api 工具函数来简化 Slack API 调用，但这次无法轻易复用它。原因有两个：首先，conversations.history 需要 application/x-www-form-urlencoded 格式的请求，而其他接口接受的是 application/json；其次，这个接口要求使用 GET 而不是 POST（虽然用 requests.request 函数传入 HTTP 方法字符串就能解决）。</p>
+        <p>之前我们实现了一个 slack_api 工具函数来简化 Slack API 调用，但这次无法直接复用它，原因有两个。首先，conversations.history 要求使用 application/x-www-form-urlencoded 格式，而其他接口接受 application/json；其次，这个接口需要使用 GET 方法而不是 POST，不过这一点可以通过把 requests 的方法名作为字符串传入来轻松解决。</p>
       
     
       
-        <p>为了快速绕过这些限制，我们将编写一个 get_message 函数直接调用 API，而不是基于 slack_api 来实现，虽然这有点不太理想。</p>
+        <p>为了快速绕过这些限制，我们将编写一个 get_message 函数直接调用 API，而不是在 slack_api 的基础上扩展，尽管这有点令人遗憾。</p>
       
     
       
@@ -216,7 +264,7 @@ SLACK_OAUTH_TOKEN: your-oauth-token
       
     
       
-        <p>接着我们更新 reaction_added_event，让它使用这个新函数。</p>
+        <p>然后我们更新 reaction_added_event，让它使用这个新函数。</p>
       
     
       
@@ -235,7 +283,7 @@ SLACK_OAUTH_TOKEN: your-oauth-token
       
     
       
-        <p>部署 event_post 函数后，给某条消息加上 :ididit:，我们就能看到 conversations.history 返回的数据格式了。</p>
+        <p>部署 event_post 函数后，给一条消息加上 :ididit:，我们就可以看到 conversations.history 的返回格式了。</p>
       
     
       
@@ -263,15 +311,16 @@ SLACK_OAUTH_TOKEN: your-oauth-token
       
     
       
-        <p>我们真正关心的是 messages/0/user 和 messages/0/text 这两个字段，之后可以根据是 :ididit: 还是 :udidit:，把这条消息加入到发言者或添加表情者的成就清单中。</p>
+        <p>我们真正关心的是 messages/0/user 和 messages/0/text，根据使用的是 :ididit: 还是 :udidit:，我们可以把这条消息分别加入说话者或被标记者的成就列表。</p>
       
     
       
-        <h2>整合起来</h2>
+        <h2>整合到一起</h2>
+        
       
     
       
-        <p>比较明显的是，我们目前还没有数据库来存储这些数据，这个问题将在下一篇文章中解决。目前我们先定义一个存储数据的接口，也就是 reflect 函数。</p>
+        <p>比较明显的是，我们目前还没有数据库来存储这些数据，这部分将留到下一篇中解决。现在我们先定义一个存储数据的接口，也就是 reflect 函数。</p>
       
     
       
@@ -280,7 +329,7 @@ SLACK_OAUTH_TOKEN: your-oauth-token
       
     
       
-        <p>然后更新 reaction_added_event，让它调用这个函数。</p>
+        <p>接着更新 reaction_added_event，让它调用这个函数。</p>
       
     
       
@@ -304,51 +353,54 @@ SLACK_OAUTH_TOKEN: your-oauth-token
       
     
       
-        <p>再次部署后，我们就成功接入了 reacji 功能！</p>
+        <p>再次部署后，我们就成功集成了 reacji！</p>
       
     
       
-        <h2>Reacji 作为交互界面</h2>
+        <h2>把 reacji 当作界面</h2>
+        
       
     
       
-        <p>刚开始使用 Slack 时，我以为 reacji 只是个小把戏，但后来当我看到大家自然而然地用 :plus: 表情对消息进行投票时，我突然开了窍。没有人要求他们投票，这种行为却自然而然地出现了。正是这种自然的自由，加上严格的约束（它们只是带计数的微小图片），催生出了大量新颖的使用模式。</p>
+        <p>刚开始使用 Slack 时，我以为 reacji 只是个小花招，后来当我看到大家自然而然地用 :plus: 表情对消息进行投票时，才恍然大悟。没有人要求他们投票，却自然而然地发生了。这种自然的自由，配合严格的约束（它们只是带计数的小图片），催生出了许多新颖的使用模式。</p>
       
     
       
-        <p>并非每个 Slack 应用都必须接入 reacji，但我见过很多富有创意的集成，它们先承认用户已有的行为模式，再通过自动化动作来增强这些模式。</p>
+        <p>没有哪个 Slack 应用必须集成 reacji，但我见过很多富有创意的集成，它们理解用户已有的行为模式，并通过自动化操作来增强这些模式。</p>
       
     
       
-        <p>reacji 作为用户界面的另一个巨大优势是，它比 Slash Commands 更容易被发现，后者通常对其他用户是隐藏的。有机增长和采用率是应用成功的基础，而 reacji 正是一种强大的实现机制。</p>
+        <p>reacji 作为用户界面的另一个优势是，它比 Slash Command 更容易被发现，后者通常对其他用户是隐藏的。有机增长和采用率是一款成功应用的基础，而 reacji 正是实现这一目标的强大机制。</p>
       
     
       
         <h2>集成中的摩擦</h2>
+        
       
     
       
-        <p>我得承认，这次让 reacji 正常工作花费的时间比我预想的要长。我开始写这篇文章时，本以为大部分准备工作已经完成，只需要引入一个新事件就行了。</p>
+        <p>我必须承认，自己对让 reacji 正常工作花了多长时间感到有些惊讶。因为我开始写这篇文章时以为大部分必要工作已经完成，只需引入一个新事件即可。</p>
       
     
       
-        <p>结果我需要增加一种新的 API 调用方式，因为 conversations.history 不支持 JSON 格式；同时还需要申请一个新的 API token，因为之前一直用的是 bot token 而不是 user token。单独来看，每个 Slack API 都设计得非常优秀，但组合在一起使用时，就会显现出一定的摩擦。</p>
+        <p>结果我需要增加一种新的 API 集成方式，因为 conversations.history 不支持 JSON 格式；同时还需要一个新的 API token，因为之前我一直使用 bot token 而不是 user token。单独来看，Slack 的每个 API 都设计得非常优秀，但放在一起使用时就会显现出一定程度的摩擦。</p>
       
     
       
-        <p>这是大型、复杂 API 普遍面临的问题。我目前正在阅读《Building Evolutionary Architectures》，它对我在<a href="reclaim-unreasonable-software.html">收回不合理的软件</a>中讨论的思想进行了更好、更系统的阐述。API 的退化是可以预防的，但需要非常刻意地使用我文中称为“asserted properties”，而在 Ford/Parsons/Kua 的书中称为“fitness functions”的机制。</p>
+        <p>这是所有庞大而复杂 API 都面临的共同挑战。我目前正在阅读《Building Evolutionary Architectures》，它对我之前在<a href="reclaim-unreasonable-software.html">收回不合理的软件</a>一文中讨论的想法进行了更好、更系统的阐述。API 的退化是可以预防的，但需要非常刻意地使用我文中所说的“asserted properties”，或者 Ford/Parsons/Kua 所说的“fitness functions”。</p>
       
     
       
-        <h2>后续</h2>
+        <h2>接下来</h2>
+        
       
     
       
-        <p>现在我们已经到了 commit 08eb，还剩下两个目标：集成数据库，以及将应用发布到应用目录中。我接下来会先处理数据库部分，因为只包含假数据的应用很难发布，之后再完成发布步骤。</p>
+        <p>我们目前已推进到 commit 08eb，还剩下两个目标：集成数据库，以及将应用发布到应用目录。我接下来会先处理数据库部分，因为只用模拟数据很难正式发布应用，之后再完成发布步骤。</p>
       
     
       
-        <p>系列文章后续见<a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a></p>
+        <p>系列文章将继续刊载于<a href="slack-firestore.html">使用 Cloud Firestore 为 Slack 应用提供动力</a></p>
       
     
   </div>

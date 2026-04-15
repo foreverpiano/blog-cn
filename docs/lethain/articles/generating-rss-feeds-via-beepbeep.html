@@ -29,19 +29,54 @@
   <div class="article-content">
     
       
-        <p>使用 BeepBeep 这样轻量级微框架的乐趣之一在于，你只需花几天时间深入研究代码，就能对整个项目有相当扎实的掌握。但它的不足之处在于，许多在 Django 等成熟框架中开箱即用的组件，你往往需要自己重新实现。今天要说的例子就是生成 RSS feed。</p>
+        <p>使用 BeepBeep 这样轻量级微框架的乐趣之一在于，你只需花几天时间深入研究代码，就能对整个项目有相当扎实的理解。它的不足之处在于，许多在 Django 等成熟框架中开箱即用的组件，你往往需要自己重新实现。今天要说的例子就是生成 RSS Feed。</p>
       
     
       
-        <p>幸运的是，RSS feed 其实相当简单。它本质上就是遵循以下格式的 XML 文档：</p>
+        <p>幸运的是，RSS Feed 其实相当简单。它们本质上就是符合以下格式的 XML 文档：</p>
       
     
       
-        <p>我编写了一个 BeepBeep 控制器模板（完整代码可点击这里查看 BeepBeep 生成 RSS feed 的实现），它正是这么做的。这里我不会重复贴出具体实现，但会简单介绍一下它的用法。生成 RSS feed 的核心在于下面这个 handle_request/2 函数的实现：</p>
+        <pre><code>&lt;rss version=&quot;2.0&quot;&gt;
+  &lt;channel&gt;
+    &lt;title&gt;Test 1&lt;/title&gt;
+    &lt;link&gt;http://example.com/&lt;/link&gt;
+    &lt;description&gt;a channel&lt;/description&gt;
+    &lt;language&gt;en-us&lt;/language&gt;
+    &lt;lastBuildDate&gt;Sun, 20 Sep 2009 22:00:34 GMT&lt;/lastBuildDate&gt;
+      &lt;item&gt;
+        &lt;title&gt;Item 1&lt;/title&gt;
+        &lt;link&gt;http://example.com/&lt;/link&gt;
+        &lt;description&gt;an item&lt;/description&gt;
+        &lt;pubDate&gt;Sun, 20 Sep 2009 22:00:34 GMT&lt;/pubDate&gt;
+        &lt;guid&gt;1&lt;/guid&gt;
+      &lt;/item&gt;
+      &lt;item&gt;
+        &lt;title&gt;Item 2&lt;/title&gt;
+        &lt;link&gt;http://example.com/&lt;/link&gt;
+        &lt;description&gt;an item&lt;/description&gt;
+        &lt;pubDate&gt;Sun, 20 Sep 2009 22:00:34 GMT&lt;/pubDate&gt;
+        &lt;guid&gt;2&lt;/guid&gt;
+      &lt;/item&gt;
+  &lt;/channel&gt;
+&lt;/rss&gt;
+</code></pre>
       
     
       
-        <p>其中 Channels 是一个由二元组组成的列表，每个二元组的第一个元素是一个属性列表，用于描述 channel，第二个元素则是一个属性列表的集合，用于描述该 channel 中的各个 item。更复杂的使用示例如下：</p>
+        <p>我编写了一个 BeepBeep 控制器模板（完整代码可点击此处查看：在 BeepBeep 中生成 RSS Feed），它正是这样实现的。这里我不会重复贴出具体实现，但会简单介绍一下用法。生成 RSS Feed 的核心在于以下 handle_request/2 函数的实现：</p>
+      
+    
+      
+        <pre><code>handle_request(&quot;index&quot;,[]) -&gt;
+    Channels = [{[{title, &quot;Test 1&quot;}], 
+        [[{title, &quot;Item 1&quot;}], [{title, &quot;Item 2&quot;}]]}],
+    {text, rss(Channels), &quot;application/rss+xml&quot;}.
+</code></pre>
+      
+    
+      
+        <p>其中 Channels 是一个由二元组组成的列表，每个二元组的第一个元素是一个属性列表，用于描述频道（channel）；第二个元素是一个属性列表的列表，用于描述该频道下的条目（items）。一个更复杂的使用示例如下：</p>
       
     
       
@@ -50,11 +85,48 @@
       
     
       
-        <p>正如上面的例子所示，使用方式很简单——虽然略显啰嗦——但应该足以完成任务。在某些方面，我觉得它比 Django 的 syndication 框架更加灵活和直观，当然这也情有可原，因为后者的功能要丰富得多。我承认这并不是一个完全公平的比较。</p>
+        <pre><code>entries() -&gt;
+    Entry = [{title, &quot;RSS and BeepBeep&quot;},
+                   {link, &quot;http://lethain.com/entry/...&quot;},
+                   {description, &quot;An entry on...&quot;},
+                   {pub_date, &quot;Sun, 20 Sep 2009 25:00:00 GMT&quot;},
+                   {guid, &quot;http://lethain.com/entry/rss-and-beepbeep/&quot;}],
+   [Entry].
+entry_channel() -&gt;
+   Channel = [{title, &quot;Entries&quot;}, {link, &quot;http://lethain.com/rss/all/&quot;}, {description, &quot;Entries are fun!&quot;}],
+    % Also supports {language, &quot;en-us&quot;}
+   {Channel, entries()}.
+tags() -&gt;
+Tag = [{title, &quot;Erlang&quot;},
+{link, &quot;http://lethain.com/tags/erlang/&quot;},
+{description, &quot;Entries on Erlang&quot;},
+{pub_date, &quot;Sun, 20 Sep 2009 25:00:00 GMT&quot;},
+{guid, &quot;http://lethain.com/tags/erlang/&quot;}],
+[Tag].
+tag_channel() -&gt;
+Channel = [{title, &quot;Tags&quot;}, {link, &quot;http://lethain.com/rss/tags/&quot;}, {description, &quot;Tags are useful?&quot;}],
+{Channel, tags()}.
+%% Served at /rss/, assuming controller is named rss_controller.erl
+handle_request(&quot;index&quot;,[]) -&gt;
+{text, rss([tag_channel(), entry_channel()]), &quot;application/rss+xml&quot;};
+%% Served at /rss/channel/tag/ and /rss/channel/entry/,
+%% assuming the controller is named rss_controller.erl
+handle_request(&quot;channel&quot;,[Channel]) -&gt;
+case Channel of
+&quot;tag&quot; -&gt;
+{text, rss([tag_channel()]), &quot;application/rss+xml&quot;};
+&quot;entry&quot; -&gt;
+{text, rss([entry_channel()]), &quot;application/rss+xml&quot;}
+end.
+</code></pre>
       
     
       
-        <p>如何为 BeepBeep 开发可重用的库，这也是我最近一直在思考的一个普遍话题。目前我的做法是，在合理范围内保持后端无关性，否则就统一使用 CouchDB 作为持久化方案。随着我继续将 BeepBeep 作为开发 Web 应用的基础平台，我可能会进一步完善这个方法（比如引入存储抽象层？）。</p>
+        <p>正如上面的例子所示，使用方法很简单——虽然稍微有些啰嗦——但足以完成任务。在某些方面，我觉得它比 Django 的 syndication 框架更加灵活和直观，当然这也可以理解，因为后者的功能要丰富得多。我也承认这并不是一个公平的比较。</p>
+      
+    
+      
+        <p>如何为 BeepBeep 开发可重用的库，这也是我最近一直在思考的一个通用话题。目前我的做法是，在合理范围内保持后端无关性，否则就统一使用 CouchDB 作为持久化方案。随着我继续将 BeepBeep 作为开发 Web 应用的基础平台，我可能会进一步完善这种方式（比如引入存储抽象层？）。</p>
       
     
   </div>

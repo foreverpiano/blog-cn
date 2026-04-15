@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>用基于文件的互斥锁防止 Cron 任务“癌变” · Will Larson 文集</title>
+  <title>用文件互斥锁防止 Cron 任务“癌症” · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>用基于文件的互斥锁防止 Cron 任务“癌变”</h1>
+    <h1>用文件互斥锁防止 Cron 任务“癌症”</h1>
     <div class="meta">
       2008-12-03 · 
       <a href="https://lethain.com/prevent-cron-cancer-with-a-file-based-mutex/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,43 +29,81 @@
   <div class="article-content">
     
       
-        <p>最近在工作中，我需要编写一个脚本，它会遍历目录中所有匹配特定正则表达式的文件，对这些文件执行一些操作，然后将其删除。我不希望脚本一直运行着，于是决定通过 cron 任务让它每分钟执行一次（如果没有需要处理的文件，脚本会立刻退出）。</p>
+        <p>最近在工作中，我需要编写一个脚本，它会遍历目录中匹配某个正则表达式的文件，对这些文件执行一些操作，然后将其删除。我不希望这个脚本一直运行着，于是决定通过 cron 任务让它每分钟执行一次（如果没有需要处理的文件，脚本会立刻退出）。</p>
       
     
       
-        <p>但我的计划有个小问题：脚本有可能运行超过一分钟，如果同时有两个实例在运行，那可就麻烦了。在思考了几分钟后，我找到了一个简单且有效的解决方案——使用文件作为互斥锁（mutex）。</p>
+        <p>但我的计划有个小问题：脚本的执行时间有可能超过一分钟，如果同时有两个实例在运行，那将会是一件很糟糕的事情。思考了几分钟后，我找到了一个简单且足够有效的解决方案——使用文件作为互斥锁（mutex）。</p>
       
     
       
-        <h2>原理</h2>
+        <h2>基本原理</h2>
+        
       
     
       
-        <p>这个机制的运作方式非常简单：</p>
+        <p>这个系统的运作逻辑非常简单：</p>
       
     
       
-        <div class="list-content">脚本启动时，首先检查是否存在一个名为 my_script.lock 的文件。如果文件不存在，则创建它，并将当前 Unix 时间戳作为其唯一内容写入文件。如果文件存在，且文件中记录的时间戳是在最近一小时之内，则终止脚本。（如果没有在上面那一步终止）则继续执行脚本逻辑。脚本执行完毕后，删除 my_script.lock 文件。</div>
+        <div class="list-content">脚本启动时，首先检查是否存在一个名为 my_script.lock 的文件。如果该文件不存在，则创建它，并将当前时间戳（自 epoch 以来的秒数）作为其唯一内容写入。如果文件存在，且其中记录的时间戳是在最近一小时之内，则终止脚本执行。（如果没有在上面第三步中止）则继续执行脚本逻辑。脚本完成后，删除 my_script.lock 文件。</div>
       
     
       
-        <p>最初我并没有在文件中写入时间戳，但加上时间戳后，即使脚本因崩溃而长时间没有释放锁，也能让锁自动过期，而无需手动删除锁文件。</p>
+        <p>最初我并没有在文件中写入时间戳，后来加上时间戳后，就可以让锁在被锁定过长时间（暗示脚本可能已经崩溃）时自动过期，而无需手动删除锁文件。</p>
       
     
       
         <h2>Perl 实现</h2>
+        
       
     
       
-        <p>在 Perl 中实现这个基于文件的互斥锁既快速又简单。除非你是个糟糕的 Perl 程序员，否则只需要花一点时间把必要的文档拼凑起来就行了。</p>
+        <p>在 Perl 中实现这个基于文件的互斥锁既快速又轻松。除非你是个可怜的 Perl 码农，否则可能得花不少时间把所有需要的文档拼凑起来。</p>
       
     
       
-        <p>我确实花了不少时间才把它拼凑出来。</p>
+        <p>我确实花了不少时间才把它拼出来。</p>
       
     
       
-        <p>是的，我到现在还是不太懂 Perl 风格的布尔值写法。也许哪位热心的 Perl 高手能告诉我更 idiomatic 的写法，我会非常感激的。</p>
+        <pre><code>my $lock_file = &#x27;/tmp/my_script.lock&#x27;;
+my $expire_lock_after = 60 * 30;
+sub is_locked {
+# -e is a function that checks for file existence
+if (-e $lock_file) {
+# this line declares there is no line delimiter
+local $/=undef;
+open LOCK, &quot;&lt;$lock_file&quot; or warn &quot;Couldn&#x27;t open $lock_file&quot;;
+my $ts = &lt;LOCK&gt;;
+close LOCK;
+if ( $ts &gt; time() - $expire_lock_after ) {
+return 1;
+}
+}
+return undef;
+}
+sub lock {
+open LOCK, &quot;&gt;$lock_file&quot; or warn &quot;Couldn&#x27;t open $lock_file&quot;;
+print LOCK time();
+close LOCK;
+}
+sub unlock {
+unlink($lock_file);
+}
+if (is_locked) die &quot;$lock_file is locked&quot;;
+lock();
+print &#x27;do whatever&#x27;;
+unlock();
+</code></pre>
+      
+    
+      
+        <p>是的，我到现在还是没搞懂 Perl 风格的布尔值写法。希望哪位好心的陌生人能告诉我上面代码更地道的写法。如果有人能澄清，我将不胜感激。1</p>
+      
+    
+      
+        <div class="list-content">作为蹩脚的自我辩护，我确实去搜索过 Perl 布尔值的相关解释，但大部分答案似乎都是“Perl 里的布尔值就是未定义和其他一切”。难道答案就只有这么深刻吗？↩</div>
       
     
   </div>

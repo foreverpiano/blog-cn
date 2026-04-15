@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>推动 Imprint 的 AI 采用 · Will Larson 文集</title>
+  <title>在 Imprint 推动 AI 采用 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>推动 Imprint 的 AI 采用</h1>
+    <h1>在 Imprint 推动 AI 采用</h1>
     <div class="meta">
       2025-12-07 · 
       <a href="https://lethain.com/company-ai-adoption/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,177 +29,208 @@
   <div class="article-content">
     
       
-        <p>过去 18 个月左右，我一直在推动公司内部“AI”采用工作，准确来说是 LLM 工具和 Agent 的采用。
-我认为，这件事至少是当下每一位工程领导者都应该当作支线任务去解决的问题。
-鉴于有这么多人在各自公司里攻克这一难题，我想把自己的“工作笔记”整理出来，分享我学到的东西。</p>
+        <p>过去 18 个月左右，我一直在公司内部推动“AI”采用——更准确地说，是 LLM 工具和 Agent 的采用。这是我认为当下每位工程领导者至少应该当作支线任务去解决的问题。鉴于有这么多人在各自公司里研究这个问题，我想把自己的“工作笔记”整理出来，分享一下学到的东西。</p>
       
     
       
-        <p>这篇文章并非在告诉你应该怎么做，而只是复盘我目前为止处理这个问题的方法，以及在持续迭代中获得的经验。我希望这里的思考对你有帮助，至少能印证你在推行过程中遇到的一些情况。文章越往后越具体，最后会谈到一些类似“廉价松节油”的细节话题，比如让 Agent 可靠地将人类可读的 Slack 实体文本转换成正确的 mrkdwn 格式及其背后的实体。</p>
+        <p>这不是一份“你应该怎么做”的建议，而只是我迄今为止处理这个问题的方式，以及通过持续迭代所获得的经验总结。我希望这里的思考对你有帮助，或者至少能印证你在推广过程中遇到的一些感受。文章越往后越具体，最后会谈到一些近乎“廉价松节油”级别的话题，比如让 Agent 可靠地将人类可读的 Slack 实体文本表示，转换成正确底层实体的 mrkdwn 格式。</p>
       
     
       
-        <p>我正在招聘：
-如果你有兴趣和我一起在 Imprint 推动内部 Agent 和 AI 采用，我们正在招聘创始 Senior Software Engineer, AI。
-理想候选人是一位产品工程师，曾花时间试验过 Agent，并希望在接下来一两年深入这个领域。</p>
+        <p>我正在招人：
+如果你有兴趣和我一起在 Imprint 推动内部 Agent 和 AI 采用，我们正在招聘创始 Senior Software Engineer, AI。理想候选人是一位产品工程师，曾花时间尝试过 Agent，并且愿意在接下来一两年深入钻研这个领域。</p>
       
     
       
-        <h2>前置准备：建立直觉</h2>
+        <h2>前期准备：建立直觉</h2>
+        
       
     
       
-        <p>作为技术人员，我认为我们对团队的基本责任之一，就是花时间亲自使用新工具，从而建立对其工作原理和局限性的直觉。
-AI 采用也不例外。</p>
+        <p>作为技术人员，我认为我们对团队的基本责任之一，就是花时间亲自使用新工具，从而建立对它们能做什么、不能做什么的直觉。AI 采用也不例外。</p>
       
     
       
-        <p>为此，我先做了一些阅读，特别是 Chip Huyen 的《AI Engineering》，然后投入到几个有边界的小项目中：用 Claude 代码构建了 <a href="our-own-agents-our-own-tools.html">我们自己的智能体，以及它们自己的工具。</a>，创建了一个 <a href="library-mcp.html">library-mcp：使用 Markdown 知识库</a>，以及 。<a href="notion-agent.html">一个利用 Notion 文档作为提示词来评论其他 Notion 文档的 Agent。</a></p>
+        <p>为此，我先读了一些书，尤其是 Chip Huyen 的《AI Engineering》，然后投入到几个有边界的小项目中：用 Claude 代码构建了<a href="our-own-agents-our-own-tools.html">我们自己的智能体及其专属工具</a>，创建了一个，以及。<a href="library-mcp.html">library-mcp：使用 Markdown 知识库</a><a href="notion-agent.html">一个利用 Notion 文档作为 Prompt 来评论其他 Notion 文档的 Agent。</a></p>
       
     
       
-        <p>每个项目耗时两到十小时，却带来了极大的启发。尤其是工具调用，在我自己实现一个简单的工具调用 Agent 之前，它看起来像魔法；实现之后，它就变成了我能够理性分析和理解的普通机制。</p>
+        <p>每个项目耗时两到十小时，却带来了极大的启发。特别是工具调用，在我自己实现一个简单的工具调用 Agent 之前，它看起来像魔法；实现之后，它就变成了我能理性分析和理解的普通机制。</p>
       
     
       
         <h2>我们的 AI 采用策略</h2>
+        
       
     
       
-        <p>Imprint 在优化 AI 采用上的总体方法是 ：确定几个目标，选择一个初始方案，然后在细节上快速迭代，直到方案真正有效。在这个注重表面形象的时代，高级领导者亲自深入细节是我们为数不多的防御手段之一。<a href="testing-strategy-iterative-refinement.html">策略测试：避免瀑布式策略陷阱，通过迭代优化。</a></p>
+        <p>Imprint 在优化 AI 采用方面的总体方法是：确定几个目标，选定初始方法，然后在细节上快速迭代，直到方法真正有效。在这个看重表面形象的时代，高级领导者沉浸到细节中是我们为数不多的防御手段之一。<a href="testing-strategy-iterative-refinement.html">策略测试：通过迭代优化避免瀑布式策略陷阱</a></p>
       
     
       
-        <p>加入公司不久，我就和管理团队一起起草了上述 AI 采用策略。经过适度讨论，我们最终确定的核心原则是：</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/ai-strategy.png" alt="First draft of Imprint’s strategy for AI adoption">
+          
+        </figure>
       
     
       
-        <div class="list-content">通过消除采用障碍来铺平采用道路，尤其是那些需要明确申请工具访问权限之类的麻烦。我们对 AI 采用有强烈的内部和行业热情，应该信任自己的团队。如果他们没有采用工具，我们的主要精力应该放在让使用变得更简单，而不是花时间质疑或否定他们的采用努力。采用机会无处不在，而非局限于工程、客服等特定部门。要成为一家能广泛从 AI 中获益的公司，我们需要在所有团队中解决采用问题。我并非认为所有团队都要用同一套方法，但每个团队都需要有一个适用的方法。高级领导者要身先士卒，确保我们做的事情真正有用，而不是陷入对指标的盲目追求。</div>
+        <p>入职后不久，我就与高管团队合作起草了上述 AI 采用策略。经过适度讨论，我们最终确定的支柱是：</p>
       
     
       
-        <p>从这些原则以及我之前的评论可以看出，我对 AI 采用最大的担忧是，人们可能只关注制造“已经在采用 AI”的表象，而不是真正创造额外的生产力。表象是任何工作的核心组成部分，但几乎所有有意义的工作都发生在表象与现实的交汇处，而这些原则正是为了支持这一点。</p>
+        <div class="list-content">通过消除采用障碍来铺平采用道路，尤其是那些需要明确申请工具权限之类的麻烦。无论公司内部还是行业整体，对 AI 采用都有很高的热情，我们应该相信自己的团队。如果他们没有采用工具，我们应该主要专注于让使用变得更容易，而不是花时间质疑或否定他们的采用努力。采用机会无处不在，而非局限于工程、客服或其他特定部门。要成为一家能广泛从 AI 中获益的公司，我们需要在所有团队中解决采用问题。我不是说每个团队都要用完全相同的方法，但我们需要为每个团队找到适用的方法。由高层领导从前线带头，确保我们做的事情真正有用，而不是陷入我们正在衡量的指标里。</div>
       
     
       
-        <p>顺便一提，按照《Crafting Engineering Strategy》中  的框架，这其实只是  部分。此外，我们还用  来迭代我们的方法，定义了一组具体的初始行动来将其落地（这些内容太过具体，不适合对外分享），并进行了简短的 ，以确保我没有过度依赖在 Carta 的过往经验。<a href="components-of-eng-strategy.html">构建工程策略的步骤</a><a href="policy-for-strategy.html">制定策略的政策。</a><a href="testing-strategy-iterative-refinement.html">策略测试：避免瀑布式策略陷阱，通过迭代优化。</a><a href="exploring-for-strategy.html">探索策略。</a></p>
+        <p>从这些原则以及我之前的评论可以看出，我对 AI 采用最大的担忧是：人们可能只注重制造“在采用 AI”的表象，而不是真正创造额外的生产力。表象是任何工作的核心部分，但几乎所有有价值的工作都发生在表象与现实的交汇处，而这些支柱正是为了支持这一点。</p>
       
     
       
-        <h2>记录 tips &amp; tricks</h2>
+        <p>顺便一提，按照《Crafting Engineering Strategy》中的框架，这其实只是。此外，我们还用来持续优化方法，定义了一组具体的初始行动来落地执行（这些内容太具体，这里不便对外分享），并做了一些简短的，以确保我没有过度依赖在 Carta 的过往经验。<a href="components-of-eng-strategy.html">构建工程策略的步骤</a><a href="policy-for-strategy.html">制定策略的政策。</a><a href="testing-strategy-iterative-refinement.html">策略测试：通过迭代优化避免瀑布式策略陷阱</a><a href="exploring-for-strategy.html">探索策略空间</a></p>
       
     
       
-        <p>我推动采用的第一步，是把公司内部尽可能多的 tips 和 tricks 例子收集到一个统一的 Notion 数据库中。我对收录的标准采取了非常宽泛的态度，相信展示大量来自不同职能的使用工具的例子，既实用又鼓舞人心。</p>
+        <h2>记录tips &amp; tricks</h2>
+        
       
     
       
-        <p>我持续在扩展这个数据库，来自公司各部门的贡献不断增加，它已经成为人类和机器人 alike 都乐于参考的资源，用于获取如何用 AI 工具解决问题的建议。</p>
+        <p>我推动采用的第一步，是把公司内部尽可能多的 tips 和 tricks 例子收集到一个统一的 Notion 数据库中。我对收录标准的定义非常宽泛，相信展示各种使用工具的例子——尤其是来自不同职能的例子——既实用又能带来启发。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/ai-tips.png" alt="The image is a table listing AI tips and trainings with columns for the name of the tip and the relevant team. It includes topics like using Claude Code, adding Slack bots, and employing ChatGPT for marketing.">
+          
+        </figure>
+      
+    
+      
+        <p>我一直在扩展这个数据库，来自公司各部门的贡献越来越多，它已经成为人类和机器人 alike 都喜欢参考的资源，用来为如何用 AI 工具解决问题提供建议。</p>
       
     
       
         <h2>集中管理我们的 Prompt</h2>
+        
       
     
       
-        <p>我对我们方法的 core belief 之一是，让公司内部的 Prompt 可被发现具有极高价值。
-可发现性解决了四个不同的问题：</p>
+        <p>我对我们方法的核心信念之一是：在公司内部让 Prompt 可被发现具有极高价值。可发现性解决了四个不同问题：</p>
       
     
       
-        <div class="list-content">让大家看到 Prompt 能做什么（从而启发别人在类似场景中使用）。例如，我们的 Agent 可以 在 Notion 文档创建时自动评论、在 Slack 频道中有效回复、为 Jira ticket 做 triage 等。展示什么是好的 Prompt（让其他人能改进自己的 Prompt）。例如，可以把复杂的配置从难以阅读和准确修改的列表形式，改成表格形式。作为可复制片段的仓库，能在不同 Prompt 间复用。例如，你可以复制我们现有的“Jira issue triaging prompt”来开始为新的 Jira 项目做 triage。Prompt 是团队或职能的共同财产，而不是某个人不可更改的私有产物。例如，我们 Helpdesk 团队的任何人都可以改进回应 Helpdesk 请求的 Prompt，而不需要只有一个人有权限，也不需要必须熟悉 Git 或 GitHub（尽管我预计随着时间推移，我们会对最重要的内部 Agent 的编辑权限施加更多限制）。识别重复出现的 Prompt 子组件，这些往往暗示存在缺失或难以使用的工具。例如，我们早期版本的 Prompt 在如何指定 Slack 用户和频道上存在大量困惑，我自己已经习惯了 workaround，但其他人并不适应。</div>
+        <div class="list-content">让人看到 Prompt 能做什么（从而启发别人在类似场景中使用）。例如，我们的 Agent 可以 在 Notion 文档创建时自动评论、在 Slack 频道中有效回复、为 Jira ticket 做 triage 等。展示好的 Prompt 长什么样（让别人可以改进自己的 Prompt）。例如，可以把复杂的配置从难以阅读和准确修改的列表形式，改成表格形式。作为可复制片段的仓库，方便在不同 Prompt 之间复用。例如，你可以复制我们现有的“Jira issue triaging prompt”来开始为新的 Jira 项目做 triage。Prompt 是团队或职能的共同财产，而不是某一个人的不可修改的专属构造。例如，我们 Helpdesk 团队的任何人都可以改进用于回复 Helpdesk 请求的 Prompt，而不只是拥有权限的那一个人；它也不需要依赖熟悉 Git 或 GitHub 的能力（尽管我预计随着时间推移，我们会对编辑最重要的内部 Agent 增加更多限制）。识别重复出现的 Prompt 子组件，这可能暗示存在缺失或难以使用的工具。例如，我们早期版本的 Prompt 中有大量关于如何指定 Slack 用户和频道的困惑，我自己已经习惯了绕过去，但其他人并不适应。</div>
       
     
       
-        <p>我的核心做法是：所有 Agent 的 Prompt 都存储在一个统一的 Notion 数据库中，公司每个人都可以阅读。大多数 Prompt 每个人都可以编辑，但部分有编辑限制。</p>
+        <p>我的核心做法是：把每个 Agent 的 Prompt 都存放在一个公司全体可读的 Notion 数据库中。大多数 Prompt 每个人都可以编辑，但部分会设置编辑权限。</p>
       
     
       
-        <p>下面是一个我们用来将客服 incoming Jira issues 路由到正确工程团队的 Prompt 示例。</p>
+        <p>下面是我们用来将客服 incoming Jira issues 路由到正确工程团队的 Prompt 示例。</p>
       
     
       
-        <p>下面是第二个例子，这次是回应我们 Infrastructure Engineering 团队请求频道的 Prompt。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/ai-routing-prompt.png" alt="The image provides instructions for triaging Jira tickets, detailing steps for retrieving comments, updating labels, and determining responsible teams. It includes guidelines for using Slack for communication and references, and lists teams with their on-call aliases and areas of responsibility.">
+          
+        </figure>
       
     
       
-        <p>几乎所有 Prompt 最后都会要求在生成的消息中包含指向该 Prompt 的链接。这样可以方便地从一个平庸的回复追溯到驱动它的 Prompt，从而进行修复。</p>
+        <p>下面是第二个例子，这次是用于响应我们 Infrastructure Engineering 团队请求频道的 Prompt。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/ai-infra-prompt.png" alt="The image contains detailed instructions for service desk agents on handling Slack messages related to access requests for tools such as AWS, VPN, NPM, and more. It provides step-by-step guidelines for different scenarios, including retrieving user IDs, handling specific requests, and directing users to appropriate resources or teams.">
+          
+        </figure>
+      
+    
+      
+        <p>几乎所有 Prompt 最后都会要求在生成的回复中包含指向该 Prompt 的链接。这样可以方便地从一个平庸的回复追溯到驱动它的 Prompt，从而进行改进。</p>
       
     
       
         <h2>采用标准平台</h2>
+        
       
     
       
-        <p>除了收集 tips 和 Prompt，AI 采用的下一个明显步骤是确定公司在内部使用的标准 AI 平台，比如 ChatGPT、Claude、Gemini 等。</p>
+        <p>除了收集 tips 和 Prompt，下一个推动 AI 采用的明显步骤是确定公司在内部使用的标准 AI 平台，例如 ChatGPT、Claude、Gemini 等。</p>
       
     
       
-        <p>我们选择了 OpenAI 供所有人使用。除了统一平台，我们还确保账户开通在第一天就实现自动化。对任何在 IT 或相邻领域工作过的人来说，这一点都不令人意外：很多革命性的通用 AI 采用……其实主要就是账户开通和访问控制。这些小细节如果不深入处理，很容易把整个大计划搞砸。</p>
+        <p>我们选择了 OpenAI 供全公司使用。除了统一平台，我们还确保账户开通是自动化的，从第一天起就已就位。任何在 IT 或 IT 相关领域工作过的人都不会意外：很多革命性的通用 AI 采用……其实主要就是账户开通和访问控制。这些小细节如果不深入处理，很容易让整个大计划脱轨。</p>
       
     
       
-        <p>在工程团队，我们还同时提供 Cursor 和 Claude。不过，我们绝大部分 Claude 用量都通过 AWS Bedrock 实现，我们用它来驱动 Claude Code……而且我们用 Claude Code 的频率相当高。</p>
+        <p>在工程团队，我们还同时提供了 Cursor 和 Claude。不过，我们绝大部分 Claude 用量都是通过 AWS Bedrock 完成的，我们用它来驱动 Claude Code……而且我们用 Claude Code 的频率相当高。</p>
       
     
       
         <h2>其他 AI 工具</h2>
+        
       
     
       
-        <p>虽然行业普遍在推动采用更多 AI 工具，但我发现很大一部分“AI 工具”其实只是 SaaS 厂商在营销文案里塞了 AI 两个字。我们继续在采用厂商工具，但内部也在帮助团队判断哪些“AI 工具”是真正有意义的。</p>
+        <p>虽然行业普遍在推动采用更多 AI 工具，但我发现很大一部分“AI 工具”其实只是 SaaS 厂商在营销文案里塞了 AI 两个字。我们继续在采用厂商工具，但也在内部帮助团队评估哪些“AI 工具”是真正有意义的。</p>
       
     
       
-        <p>我们在聊天和 IVR 工具的 AI 集成上投入了相当多精力，但那是完全另一篇文章的话题。</p>
+        <p>我们在聊天和 IVR 工具的 AI 集成上花了不少深入功夫，但那是另一篇文章的内容了。</p>
       
     
       
         <h2>指标</h2>
+        
       
     
       
-        <p>衡量 AI 采用情况和所有衡量话题一样，充满陷阱。
-总的来说，我发现衡量工具采用对找出正确的问题非常有用。你为什么还没用 Cursor？或者 Claude Code？或者别的什么？这些都是值得深挖的有趣问题。我至少每月看一次使用数据，特别关注两个问题：</p>
+        <p>衡量 AI 采用情况和所有衡量话题一样，充满陷阱。总体而言，我发现衡量工具采用情况对提出正确的问题非常有帮助。你为什么还没用 Cursor？或者 Claude Code？或者其他工具？这些都是值得深挖的有趣问题。我至少每月看一次使用数据，特别关注两个问题：</p>
       
     
       
-        <div class="list-content">对于重度采用者，他们真正在用这些工具做什么？他们为什么觉得有用？对于低度或未采用者，他们为什么不用这些工具？我们怎样才能帮助他们解决这个问题？</div>
+        <div class="list-content">对于深度采用者，他们实际在用这些工具做什么？为什么他们觉得有用？对于低采用者或未采用者，他们为什么不用这些工具？我们怎样才能帮助他们解决这个问题？</div>
       
     
       
-        <p>我核心的信念是，没有采用工具的人是理性的非采用者，花时间理解他们（看似）的抵触，比自上而下的强令更有效。我认为这往往是一个教育差距，相对容易弥合。可以想象，未来某个时候我会遇到收益递减点，即缺乏进展是因为有人在拒绝 AI 工具——或者因为 AI 工具本身没有真正价值——但目前我还没有遇到那个点。</p>
+        <p>在核心层面，我相信没有采用工具的人是理性的非采用者，花时间去理解他们（表面上的）抗拒，比自上而下的强制命令更有用。我认为这往往是一个教育差距，很容易通过教育来弥合。可以想象，未来某个时候我会遇到收益递减点——要么是因为不进步的人在坚决拒绝 AI 工具，要么是因为 AI 工具本身并不真正有用——但目前我还没遇到那个点。</p>
       
     
       
         <h2>构建内部 Agent</h2>
+        
       
     
       
-        <p>接下来几节是关于构建内部 Agent 的。
-核心实现是一个无状态的 Lambda 函数，它处理各种各样的 HTTP 请求，类似 Zapier。
-目前用 Python 实现，大约 3000 行代码，其中很大一部分用来处理 Slack 消息格式化之类的奇怪需求。</p>
+        <p>接下来的几节是关于构建内部 Agent 的。核心实现是一个无状态的 Lambda，它可以处理各种各样的 HTTP 请求，类似 Zapier。目前用 Python 实现，大约 3000 行代码，其中很大一部分用于处理 Slack 消息格式化之类的奇怪细节。</p>
       
     
       
-        <p>顺便说一句，我最初尝试过 ，但我发现 Zapier 无法提供我认为有效完成这件事所需的精度。我也认为 Zapier 对非工程受众来说不够友好。<a href="commenting-notion-open-ai-zapier.html">通过 OpenAI 和 Zapier 在 Notion 文档中添加评论</a></p>
+        <p>声明一下，我最初确实尝试过，但我发现 Zapier 无法提供我认为有效完成这件事所需的精度。我也认为 Zapier 对非工程背景的用户不够友好。<a href="commenting-notion-open-ai-zapier.html">通过 OpenAI 和 Zapier 在 Notion 文档中添加评论</a></p>
       
     
       
-        <h2>什么推动了采用（尤其是 Agent）</h2>
+        <h3>什么在推动采用（尤其是 Agent）</h3>
+        
       
     
       
-        <p>作为一个长期在平台工程领域工作的人，我仍然愿意相信你可以构建一个平台，然后用户就会来。
-确实，如果问题对他们足够痛，我认为一小部分早期采用者会来的，就像  那样。<a href="uber-service-migration-strategy.html">2014 年左右 Uber 的服务迁移策略。</a></p>
+        <p>作为曾在平台工程领域工作很久的人，我仍然希望你能构建一个平台，然后用户就会来。确实，如果问题对他们足够痛苦，那么少数早期采用者是会来的，就像那样。<a href="uber-service-migration-strategy.html">2014 年左右 Uber 的服务迁移策略。</a></p>
       
     
       
-        <p>然而，我们发现真正能驱动采用的做法基本上和这个相反。真正有效的是平台工程和传统产品工程的结合：</p>
+        <p>然而，我们发现真正有效的推动采用的方式，基本上与此相反。真正奏效的是平台工程与传统产品工程的结合：</p>
       
     
       
-        <div class="list-content">（产品工程）找到一个充满挑战或潜力巨大的工作流（产品工程）与领域专家紧密合作，把第一个版本做可用（平台工程）确保这个可用的方案能被使用它的团队扩展（两者共同）以采用情况作为问题-解决方案匹配度的指标，否则就调整</div>
+        <div class="list-content">（产品工程）找到一个具有很多挑战或潜在影响的工作流
+（产品工程）与领域专家紧密合作，让第一个版本跑起来
+（平台工程）确保这个可用的解决方案能被使用它的团队进行扩展
+（两者共同）以采用情况作为问题-解决方案匹配度的指标，否则就调整</div>
       
     
       
@@ -207,40 +238,51 @@ AI 采用也不例外。</p>
       
     
       
-        <div class="list-content">编写软件时使用有效的 AGENTS.md 文件来指导测试、类型检查和 linting
+        <div class="list-content">用有效的 AGENTS.md 文件指导测试、类型检查和 linting 来编写软件
 通过聊天和 IVR 处理初始客户问题
-路由聊天机器人，将问题引导到解决问题、提供答案，或通知正确负责人
-Incoming ticket 的 issue triaging：打标签并分配给合适团队
-对常规合规和法律问题提供实时的初步反馈（例如那些频繁出现且变化不大的问题）
+路由聊天机器人，将问题引导至解决问题、提供答案，或通知正确的负责人
+对 incoming ticket 进行 issue triaging：打标签并分配给合适的团队
+对常规合规和法务问题提供实时的初始反馈（例如那些频繁出现且变化不大的问题）
 拉取 Git commits、Slack 消息等各种资源后，自动撰写每周优先事项更新</div>
       
     
       
-        <p>所有这些取得成效的项目，其公式都与“建一个平台，他们自然会来”完全相反。它需要有构建 AI Agent 经验和使用 AI 工具经验的人深度参与合作。在重要或接近生产的工作流中，有效采用 AI 的学习曲线仍然相当陡峭。</p>
+        <p>所有这些取得成效的项目，其公式都与“建好平台，他们就会来”完全相反。它需要有构建 AI Agent 经验和使用 AI 工具经验的人深度参与才能取得进展。在重要或接近生产环境的工作流中，有效采用 AI 的学习曲线仍然相当陡峭。</p>
       
     
       
-        <h2>配置 Agent</h2>
+        <h3>配置 Agent</h3>
+        
       
     
       
-        <p>使用强大工具的 Agent 代表了一个复杂的配置问题。
-首先，暴露太多工具——尤其是 Prompt 作者自己都没有很好理解的工具——会让创建可靠工作流变得非常困难。例如，我们有一个 exit_early 命令允许提前终止 Agent，这在很多情况下非常有效，但也很容易把 bot 搞坏。类似地，我们有一个 slack_chat 命令允许跨频道发消息，这能支持多种有用工作流（比如把一个频道的问题 warm-handoff 到更合适的频道），但也可能造成 spam。
-其次，工具越强大，就越可能引入复杂的安全场景。</p>
+        <p>使用强大工具的 Agent 代表了一个复杂的配置问题。首先，暴露太多工具——尤其是 Prompt 作者自己都没完全掌握的工具——会让创建可靠工作流变得非常困难。例如，我们有一个 exit_early 命令允许提前终止 Agent，这在很多情况下非常有效，但也很容易把你的 bot 搞坏。同样，我们有一个 slack_chat 命令允许跨频道发消息，这能支持很多有用的工作流（比如把一个频道的问题 warm-handoff 到更合适的频道），但也可能造成骚扰。其次，工具越强大，就越可能引入复杂的安全场景。</p>
       
     
       
-        <p>为了同时解决这两个问题，我们目前把配置存储在一个经过代码审查的 Git 仓库中。
-下面是一个 JIRA 项目的配置示例。</p>
+        <p>为了同时解决这两个问题，我们目前把配置存放在一个经过代码审查的 Git 仓库中。下面是一个 Jira 项目的配置示例。</p>
       
     
       
-        <p>下面是另一个指定 Slack 响应 bot 的示例。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/ai-jira-config.png" alt="This image shows a configuration script for a Jira setup with specified project keys, a prompt ID, a list of allowed tools such as “notion_search” and “slack_chat,” and a model set to “gpt-4.1”. The configuration also has a setting “respond_to_issue” set to False.">
+          
+        </figure>
       
     
       
-        <p>与 JSON 文件相比，我们可以对配置进行静态类型检查，而且以后也容易扩展。例如，我们可能想扩展 slack_chat 来限制某个 bot 只能往特定频道发消息，这很容易实现。
-目前大多数 Agent 唯一不在 Git 版本控制下的是 Prompt 本身，它们由 Notion 负责版本管理。不过，对于敏感场景，我们可以很容易要求特定 Agent 使用 Git 仓库中托管的 Prompt。</p>
+        <p>下面是另一个用于配置 Slack 响应机器人的例子。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/ai-slack-config.png" alt="This image shows a code snippet configuring a channel in Slack for “eng-new-hires,” with specified Slack channel IDs, a Notion prompt ID, and a list of allowed tools like “notion_search” and “jira_search_jql.” The model specified is “gpt-4.1.”">
+          
+        </figure>
+      
+    
+      
+        <p>与 JSON 文件相比，我们可以对配置进行静态类型检查，而且未来很容易扩展。例如，我们可能想扩展 slack_chat 来限制某个 bot 能往哪些频道发消息，这会很容易实现。目前大多数 Agent 中，唯一不在 Git 版本控制之下的是 Prompt 本身，它们由 Notion 负责版本管理。不过，对于敏感场景，我们可以轻松要求特定 Agent 必须使用 Git 仓库中托管的 Prompt。</p>
       
     
       
@@ -248,26 +290,24 @@ Incoming ticket 的 issue triaging：打标签并分配给合适团队
       
     
       
-        <h2>解析外键</h2>
+        <h3>解析外键</h3>
+        
       
     
       
-        <p>说起来有点好笑，但实际中严重影响轻松编写有效 Prompt 的一件事，是如何方便地写出类似 @Will Larson 这样的文本，然后把它正确转换成 &lt;@U12345&gt; 或者对应 Slack 用户、频道、用户组的正确标识符。Jira 组、Notion 页面和数据库等也存在同样的问题。</p>
+        <p>说起来有点好笑，但实际中严重干扰我们轻松编写有效 Prompt 的一件事，是如何方便地写出类似 @Will Larson 这样的文本，然后让它被正确转换成 &lt;@U12345&gt; 或者对应用户、频道、用户组的 Slack identifier。Jira group、Notion 页面和数据库等也存在同样的问题。</p>
       
     
       
-        <p>这是一个很好的例子，说明集中管理 Prompt 为什么有用。我自己已经习惯手动拉取唯一标识符，但很明显大多数其他人并不适应。
-最终我们开发了三个 Slack 解析工具：slack_lookup，接受一个引用列表进行查找；slack_lookup_prefix，查找所有以给定前缀开头的 Slack 实体（例如找出所有以 @oncall- 开头的频道或组，而不需要在 Prompt 里硬编码列表）；以及 slack_search_name，用字符串距离来寻找可能的匹配（同样对处理拼写错误很有用）。</p>
+        <p>这是一个很好地体现了集中管理 Prompt 价值的例子。我自己已经习惯了手动拉取这些唯一标识符，但很明显大多数其他人并不适应。这最终演变成了三个 Slack 解析工具：slack_lookup（接受一个引用列表进行查找）、slack_lookup_prefix（查找以某个前缀开头的所有 Slack 实体，例如找出所有以 @oncall- 开头的频道或组，而不需要在 Prompt 里硬编码列表），以及 slack_search_name（使用字符串距离来寻找可能的匹配，同样对处理拼写错误很有用）。</p>
       
     
       
-        <p>如果这听起来令人困惑，很大程度上是因为 Slack 没有暴露适合这种查找的相关 API。Slack 的 API 希望用 ID 来获取用户、组和频道，因此你必须自己维护这些条目的缓存才能进行查找。查找过程本身，尤其是针对用户，也很麻烦。Slack 用户至少有三种可能的引用方式：user.profile.display_name、user.name 和 user.real_name，但对任何一个用户来说都只有部分是设置好的。
-据我所知，正确的逻辑是：先尝试匹配 user.profile.display_name，如果存在就用它；然后是 user.name，最后是 user.real_name。如果你只是取第一个匹配其中之一的用户，在某些场景下会选错人。</p>
+        <p>如果这听起来令人困惑，很大程度上是因为 Slack 没有为这类查找暴露合适的 API。Slack 的 API 希望你用 ID 来获取用户、组和频道，因此你必须维护自己的一份这些实体的缓存来进行查找。而查找本身，尤其是用户查找，也很 messy。Slack 用户至少有三种可能的引用方式：user.profile.display_name、user.name 和 user.real_name，但对任意给定用户来说，只有其中一部分是设置了的。我目前能想到的正确逻辑是：先尝试匹配 user.profile.display_name，如果存在就使用它；然后是 user.name，最后是 user.real_name。如果你只是取第一个匹配其中任意一个的用户，在某些场景下你会选到错误的用户。</p>
       
     
       
-        <p>除了为 LLM 提供解析名称的工具外，我还为每个响应增加了一个最终的强制检查，确保返回的引用都指向真实存在的条目。如果不是，我会把无效的那些注入到上下文窗口中，并用仅包含实体解析工具的 Agent 再跑一轮。
-这听起来很荒谬，但只有做到这一步，事情才真正开始稳定工作。</p>
+        <p>除了给 LLM 提供解析名称的工具外，我还为每个响应加入了一个最终的强制检查，确保返回的引用指向真实存在的实体。如果不是，我就把哪些是无效的注入到上下文窗口中，并使用仅包含实体解析工具的额外 Agent 循环再跑一次。这听起来很荒谬，但只有到这一步之后，事情才真正开始稳定工作。</p>
       
     
       
@@ -276,60 +316,62 @@ Incoming ticket 的 issue triaging：打标签并分配给合适团队
     
       
         <h2>格式化</h2>
+        
       
     
       
-        <p>与外键解析类似，Slack 的 mrkdwn 版 Markdown 和 JIRA 的 Atlassian Document Format 也存在类似问题：它们都非常严格。</p>
+        <p>与外键解析类似，Slack 的 mrkdwn 版 Markdown 和 JIRA 的 Atlassian Document Format 也存在同样的问题：两者都非常严格。</p>
       
     
       
-        <p>调用这些 API 的工具现在都有严格的格式化指令。这些指令以前分散在各个 Prompt 里，但后来它们开始出现在每个 Prompt 中，我就知道必须把它们纳入 Agent 框架本身，而不是强迫每个 Prompt 作者都理解这个问题。</p>
+        <p>调用这些 API 的工具现在都有关于格式化的严格指示。这些指示曾经分散在各个 Prompt 里，但后来它们开始在每个 Prompt 里反复出现，我就知道必须把它们纳入 Agent 框架本身，而不是强迫每一位 Prompt 作者都去理解这个问题。</p>
       
     
       
-        <p>我猜测我需要增加一个类似实体解析的验证步骤，在此之前，我仍会遇到少量虽然不频繁但很烦人的渲染问题。
-老实说，我个人并不介意渲染问题，但这会给其他使用 Agent 的人带来很多不确定性，因此我认为解决问题是必要的。</p>
+        <p>我猜测我需要增加一个类似实体解析的验证步骤，在此之前，我会继续遇到少量但非常烦人的渲染问题。老实说，我个人并不介意这些渲染问题，但这会给其他使用 Agent 的人带来很多不确定性，因此我认为解决它们是必须的。</p>
       
     
       
-        <h2>日志和调试</h2>
+        <h3>日志和调试</h3>
+        
       
     
       
-        <p>目前，所有日志（尤其是工具使用日志）会被发送到两个地方。首先是 Datadog，用于完整的日志可见性。其次，或许对非工程师更有用的是，它们会被发送到一个 Slack 频道 #ai-logs，让大家看到使用了哪些工具以及对应的（可能被截断的）参数。</p>
+        <p>目前，所有日志——尤其是工具使用日志——会被发送到两个地方。首先是 Datadog，用于完整的日志可见性。其次，或许对非工程师更有用的是，它们会被发送到一个 Slack 频道 #ai-logs，这个频道能让人清楚看到使用了哪些工具以及对应的（可能被截断的）参数。</p>
       
     
       
-        <p>长期来看，我设想会通过一个专用的内部 Web UX 来展现，但总体上我发现那些 actively 开发 Agent 的人相当愿意忍受一点粗糙。而那些不直接开发 Agent 的人其实并不关心，他们只希望每次都完美工作，也不会花时间去看日志。</p>
+        <p>从长期来看，我设想会通过一个专用的内部 Web UX 来暴露这些信息。但总体而言，我发现那些正在积极开发 Agent 的人相当愿意忍受一点粗糙。而那些不直接开发 Agent 的人并不关心日志，他们只希望它每次都能完美工作，也不会花时间去看日志。</p>
       
     
       
-        <h2>目前最大的差距：访问用户范围 MCP 服务器的通用平台</h2>
+        <h2>目前最大的差距：通用的用户域 MCP Server 访问平台</h2>
+        
       
     
       
-        <p>我目前看到的最大的内部机会，是如何让非工程师获得类似于本地运行 Claude Code 并接入他们所有喜欢的 MCP 服务器的体验。
-我一直希望 ChatGPT 或 Claude.ai 能提供这个功能，但它们还没有真正做到。Claude Desktop 比较接近，但配置起来有些 messy，我们需要一个能让公司每个人都容易自定义并每天使用的工具。</p>
+        <p>我目前看到的最大的内部机会，是如何让非工程师也能获得类似于本地运行 Claude Code 并接入他们所有喜欢的 MCP Server 的体验。我一直希望 ChatGPT 或 Claude.ai 能提供这个功能，但它们还没有完全做到。Claude Desktop 比较接近，但配置起来还是有点 messy，我们需要的是一个能让公司每个人都容易自定义并每天使用的工具。</p>
       
     
       
-        <p>我还在寻找合适的工具。如果你有任何好的建议，我们能比较确信它在两年后还会存在，并且不需要把大量内部数据发送给一个非常早期的公司，我很乐意听听！</p>
+        <p>我还在寻找合适的工具。如果有人有任何好的建议，既能让我们比较放心它在两年后还会存在，又不需要把大量内部数据发送给一个非常早期的公司，我很乐意听听！</p>
       
     
       
         <h2>下一步是什么？</h2>
+        
       
     
       
-        <p>写一个好的结论通常应该以一个有力的轶事开头，以新的方式照亮你的核心论点。我不确定自己能否达到这个标准，但对我来说最重要的四个想法是：</p>
+        <p>写一个好的结论通常应该以一个有力的轶事开头，用新的角度照亮你的核心论点。我不确定自己能不能达到这个标准，但对我来说最重要的四个想法是：</p>
       
     
       
-        <div class="list-content">我们仍处于 AI 采用的非常早期阶段，因此把重点放在学习速度上，比其他任何事情都更有价值。如果你想领导内部 AI 计划，你必须亲自使用这些工具，而且不只是用 ChatGPT，而是只用 LLM API 去构建你自己的工具调用 Agent。我的经验是，真正的问题上的真实 AI 采用，是领域上下文、AI 工具领域经验和传统 IT 问题的复杂混合。我对任何不同时锚定这三者的内部 AI 采用计划都深表怀疑。这也是早期公司的优势，因为你经常能在一个人身上，或者最多两个人身上，同时找到这三方面的能力。在大公司里，你需要三个不同的组织一起做这件事，这客观上非常困难。我认为模型选择很重要，但在任何给定时刻，你只需要 2-3 个模型，而且会有人直接告诉你当下那 2-3 个模型是什么。例如，GPT-4.1 在快速遵循规则方面就特别出色，它是大多数对延迟敏感的 Agent 的绝佳选择。</div>
+        <div class="list-content">我们仍处于 AI 采用的非常早期阶段，因此专注于学习速度比其他任何事情都更有价值。如果你想领导内部 AI 计划，你必须亲自使用这些工具，而且不只是用 ChatGPT，而是仅用 LLM API 去构建你自己的工具调用 Agent。根据我的经验，在真实问题上的真实 AI 采用，是领域上下文、AI 工具使用经验和传统 IT 问题的复杂混合。我对任何不同时 anchor 在这三者的内部 AI 采用计划都深表怀疑。这是早期公司的优势，因为你常常能在一个人身上（或至多两个人之间）找到这三者的结合。而在更大公司里，你需要三个不同的组织一起做这件事，这客观上非常困难。我认为模型选择很重要，但在任何给定时刻，你只需要 2-3 个模型，而且会有人直接告诉你当前那 2-3 个模型是什么。例如，GPT-4.1 就特别擅长快速遵循规则。它是大多数对延迟敏感的 Agent 的绝佳选择。</div>
       
     
       
-        <p>我很好奇其他人都在发现什么！</p>
+        <p>我很好奇其他人有哪些发现！</p>
       
     
   </div>

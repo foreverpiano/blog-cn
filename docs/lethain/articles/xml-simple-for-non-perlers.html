@@ -29,7 +29,7 @@
   <div class="article-content">
     
       
-        <p>最近我一直在使用 Perl 处理 XML，老实说——这也是为什么 Perl 没有出现在我简历上的原因。不过，在上手 XML::Simple 之后，我对用 Perl 写出来的代码以及整个 Perl 工作流都非常满意（遇到问题，从 CPAN 下载解决方案，写点胶水代码，重复这个过程）。因此，我写了这篇针对非 Perl 高手的 XML::Simple 使用教程。</p>
+        <p>最近我一直在同时使用 Perl 和 XML——这么说吧——这就是为什么我的简历上没有写 Perl。不过，在上手 XML::Simple 之后，我对用 Perl 写出来的代码以及整个 Perl 工作流程都非常满意（遇到问题，从 CPAN 下载解决方案，粘合一下，继续下一个问题）。因此我写了这篇针对非 Perl 老手的使用 XML::Simple 教程。</p>
       
     
       
@@ -37,19 +37,26 @@
       
     
       
-        <p>稍作感慨：为什么 Ruby Gems 和 CPAN 用起来都比 easy_install（Python 的方案）舒服得多？我觉得 Perl 和 Ruby 是仅有的两个真正喜欢自己模块仓库系统的社区，而且这两个系统非常相似，但我不太确定它们与 easy_install 到底有什么特别的不同。</p>
+        <pre><code>perl -MCPAN -e shell
+install XML::Simple
+exit
+</code></pre>
       
     
       
-        <p>是因为 easy_install 出现得比较晚吗？（我甚至不确定这个说法是否正确，但感觉 Python 社区从来没有完全接受它，或者接受得相当勉强。）我觉得即使是 Common Lisp 社区在统一到 ASDF:INSTALL 上也比 Python 更成功，而 Common Lisp 在标准化几乎任何事情上都困难重重（没有标准实现带来的必然结果）。</p>
+        <p>好，先说点题外话：为什么 Ruby Gems 和 CPAN 用起来都比 easy_install（Python 的方案）舒服得多？我觉得 Perl 和 Ruby 是仅有的两个真正喜欢自己模块仓库系统的社区，而且这两个系统极其相似，但我不太确定它们和 easy_install 具体有什么不同。</p>
       
     
       
-        <p>难道就因为那个 :: 吗？如果我们把 easy_install 写成 import datetime::datetime，大家会不会就喜欢它了？也许这都只是我个人的想法。</p>
+        <p>难道就因为 easy_install 出现得比较晚？（我甚至不确定时间线是否如此，但社区确实感觉从来没有完全接受它，或者接受得有些勉强。）我觉得连 Common Lisp 社区在统一到 ASDF:INSTALL 上都比 Python 成功得多，而 Common Lisp 在标准化任何事情上都困难重重（没有标准实现带来的必然结果）。</p>
       
     
       
-        <p>XML::Simple 的基本功能就是用一个非常简单的 API 把 XML 转换成 Perl 数据结构，同时也能把 Perl 数据结构转换成 XML。使用 XML::Simple 最难的部分，是要对向量（vector）和哈希（hash）数据结构的引用解引用（dereferencing）有一定的理解。</p>
+        <p>难道只是因为那个 :: 符号？如果我们写成 import datetime::datetime，大家会不会就喜欢 easy_install 了？也许这都只是我自己的臆想。</p>
+      
+    
+      
+        <p>XML::Simple 的主要作用是以非常简单的 API 把 XML 转换成 Perl 数据结构，同时也能把 Perl 数据结构转换成 XML。使用 XML::Simple 最难的部分，是要对向量（vector）和哈希（hash）数据结构的引用解引用（dereferencing）有一定的理解。</p>
       
     
       
@@ -57,19 +64,53 @@
       
     
       
-        <p>接下来创建一个数据结构并将其保存到磁盘。</p>
+        <pre><code>use XML::Simple;
+use Data::Dumper;
+my $xml = new XML::Simple;
+my $in = $xml-&gt;XMLin(&#x27;my_file.xml&#x27;);
+print Dumper($in);
+</code></pre>
       
     
       
-        <p>要生成你想要的输出，基本上只需要知道以下三条规则：</p>
+        <p>现在我们创建一个数据结构并保存到磁盘。</p>
       
     
       
-        <div class="list-content">哈希中的标量会被当作属性。除非它的键是 content，这种情况下它会成为元素的主要内容。列表中的标量和哈希会被表示为元素。</div>
+        <pre><code>use XML::Simple;
+my $xml = new XML::Simple;
+my $out = {
+   &#x27;an-attribute&#x27; =&gt; &#x27;an attribute value&#x27;,
+   &#x27;another-attribute&#x27; =&gt; &#x27;yada yada&#x27;,
+   &#x27;types&#x27; =&gt; [&quot;a&quot;,&quot;b&quot;,&quot;c&quot;],
+   &#x27;people&#x27; =&gt; [{&#x27;name&#x27;=&gt;&#x27;will&#x27;,&#x27;content&#x27;=&gt;&#x27;etc&#x27;},]
+};
+my $dec = &#x27;&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;&#x27;;
+print $xml-&gt;XMLout($out, XMLDecl =&gt; $dec, RootName =&gt; &#x27;random&#x27;);
+</code></pre>
       
     
       
-        <p>尽管如此解释，理解起来可能还是有点困惑。直接看上面脚本输出的 XML 可能会更容易一些：</p>
+        <p>要生成你想要的输出，基本上只需要知道下面三条规则：</p>
+      
+    
+      
+        <div class="list-content">哈希中的标量会被当作属性。除非它的键是 content，这种情况下它就是元素的主要内容。列表中的标量和哈希会被表示为子元素。</div>
+      
+    
+      
+        <p>虽然这样解释了，可能还是有点让人困惑。直接看上面脚本生成的 XML 输出会更容易理解：</p>
+      
+    
+      
+        <pre><code>&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
+&lt;random an-attribute=&quot;an attribute value&quot; another-attribute=&quot;yada yada&quot;&gt;
+  &lt;people name=&quot;will&quot;&gt;etc&lt;/people&gt;
+  &lt;types&gt;a&lt;/types&gt;
+  &lt;types&gt;b&lt;/types&gt;
+  &lt;types&gt;c&lt;/types&gt;
+&lt;/random&gt;
+</code></pre>
       
     
       
@@ -77,19 +118,71 @@
       
     
       
-        <p>根据这个结构，我们可以这样编写脚本。</p>
+        <pre><code>$VAR1 = {
+          &#x27;version&#x27; =&gt; &#x27;2.0&#x27;,
+          &#x27;channel&#x27; =&gt; {
+                       &#x27;link&#x27; =&gt; &#x27;http://lethain.com/&#x27;,
+                       &#x27;lastBuildDate&#x27; =&gt; &#x27;Thu, 06 Nov 2008 10:48:35 -0600&#x27;,
+                       &#x27;language&#x27; =&gt; &#x27;en-us&#x27;,
+                       &#x27;item&#x27; =&gt; [
+                                 {
+                                   &#x27;link&#x27; =&gt; &#x27;http://lethain.com/entry/2008/nov/06/you-only-learn-the-first-time/&#x27;,
+                                   &#x27;guid&#x27; =&gt; &#x27;http://lethain.com/entry/2008/nov/06/you-only-learn-the-first-time/&#x27;,
+                                   &#x27;title&#x27; =&gt; &#x27;You Only Learn the First Time&#x27;,
+                                   &#x27;pubDate&#x27; =&gt; &#x27;Thu, 06 Nov 2008 10:48:35 -0600&#x27;,
+                                   &#x27;description&#x27; =&gt; &#x27;full article&#x27;
+                                 }
+                                 ]
+                        }
+         }
+</code></pre>
       
     
       
-        <p>运行该脚本后（截断的）输出如下：</p>
+        <p>根据上面的结构，我们可以这样写脚本。</p>
       
     
       
-        <p>我仍然非常初级，也清楚自己写的是类似“Python 风格的 Perl”，但我依然觉得 Perl 在完成这些常规任务时简洁得令人印象深刻，而且 CPAN 能如此迅速地帮助我们把几个库串起来，相当轻松地完成典型任务。</p>
+        <pre><code>use LWP::Simple;
+use XML::Simple;
+use Data::Dumper;
+my $xml = new XML::Simple;
+my $uri = &#x27;http://lethain.com/feeds/all/&#x27;;
+my $rss_xml = $xml-&gt;XMLin(get($uri));
+my @articles = ();
+foreach my $article (@{$rss_xml-&gt;{channel}-&gt;{item}}) {
+my $a = {&#x27;title&#x27; =&gt; $article-&gt;{title},
+&#x27;date&#x27; =&gt; $article-&gt;{pubDate},
+&#x27;link&#x27; =&gt; $article-&gt;{link}};
+push(@articles, $a);
+}
+my $out = $xml-&gt;XMLout({&#x27;article&#x27;=&gt;&lt;/span&gt;@articles}, RootName =&gt; &#x27;articles&#x27;);
+print $out;
+</code></pre>
       
     
       
-        <p>到目前为止，我在 Perl 学习之旅中唯一的抱怨是，很少有教程能很好地解释引用解引用的语法，也许是因为它确实足够复杂，值得单独写几篇教程。遗憾的是 Perl 没有 Python 和 Ruby 对年轻程序员那么大的吸引力，但它其实是个很有趣的工具。（虽然我也不打算用它来写超出简单脚本和服务之外的东西。）</p>
+        <p>运行该脚本后（截取后的）输出如下：</p>
+      
+    
+      
+        <pre><code>&lt;articles&gt;
+  &lt;article date=&quot;Thu, 06 Nov 2008 10:48:35 -0600&quot; link=&quot;http://lethain.com/entry/2008/nov/06/you-only-learn-the-first-time/&quot; title=&quot;You Only Learn the First Time&quot; /&gt;
+  &lt;article date=&quot;Wed, 05 Nov 2008 08:00:00 -0600&quot; link=&quot;http://lethain.com/entry/2008/nov/05/bad-ideas-and-regular-expressions-in-templates/&quot; title=&quot;Bad Ideas and Regular Expressions in Templates&quot; /&gt;
+  &lt;article date=&quot;Tue, 04 Nov 2008 10:38:10 -0600&quot; link=&quot;http://lethain.com/entry/2008/nov/04/deploying-django-with-fabric/&quot; title=&quot;Deploying Django with Fabric&quot; /&gt;
+  &lt;article date=&quot;Mon, 03 Nov 2008 12:51:00 -0600&quot; link=&quot;http://lethain.com/entry/2008/nov/03/development-to-deployment-in-django/&quot; title=&quot;Development to Deployment in Django&quot; /&gt;
+  &lt;article date=&quot;Wed, 29 Oct 2008 10:11:54 -0600&quot; link=&quot;http://lethain.com/entry/2008/oct/29/creating-slideshows-with-cocos2d-iphone/&quot; title=&quot;Creating Slideshows with Cocos2d iPhone&quot; /&gt;
+  &lt;article date=&quot;Mon, 27 Oct 2008 10:45:00 -0600&quot; link=&quot;http://lethain.com/entry/2008/oct/27/customize-site-style-by-user-with-django-userskins/&quot; title=&quot;Customize site style by user with django-userskins&quot; /&gt;
+&lt;/articles&gt;
+</code></pre>
+      
+    
+      
+        <p>我自己还是个新手，也清楚我写的其实更像是“Perl 里的 Python”，但我依然觉得 Perl 在完成这些常规任务时极其简洁，而且 CPAN 能如此迅速地帮我们把几个库串起来，相当轻松地完成典型任务，这点非常了不起。</p>
+      
+    
+      
+        <p>到目前为止，我学习 Perl 的过程中唯一的抱怨是，很少有教程能很好地解释引用解引用的语法，或许是因为它确实足够复杂，值得单独写几篇教程。遗憾的是 Perl 对年轻程序员来说不像 Python 和 Ruby 那么有吸引力，但它其实是个很有趣的工具。（虽然我也不打算用它来写超出简单脚本和服务之外的东西。）</p>
       
     
   </div>

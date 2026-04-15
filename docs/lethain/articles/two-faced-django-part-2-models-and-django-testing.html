@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>双面 Django 第二部分：模型与 Django 测试 · Will Larson 文集</title>
+  <title>两面派 Django 第二部分：模型与 Django 测试 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>双面 Django 第二部分：模型与 Django 测试</h1>
+    <h1>两面派 Django 第二部分：模型与 Django 测试</h1>
     <div class="meta">
       2007-12-04 · 
       <a href="https://lethain.com/two-faced-django-part-2-models-and-django-testing/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,91 +29,184 @@
   <div class="article-content">
     
       
-        <p>在本教程的[第一部分][partone]中，我们已经搭好了[文件和文件夹结构][polling1]。现在我们要开始构建项目的核心功能和数据。让项目能快速开发、易于测试的关键之一，就是所有的核心功能只实现一次，即使它会被 Facebook 应用和 Web 应用以不同方式使用。在最理想的情况下（也就是我们正在努力实现的目标），我们在 fb 和 web 应用中编写的所有代码，都只是对 core 应用中核心功能的一层简单接口。</p>
+        <p>在本教程的[第一部分][partone]中，我们已经完成了[文件和文件夹的配置][polling1]。现在我们要开始构建项目的核心功能和数据模型。让项目开发快速且易于测试的关键之一，就是让所有功能只实现一次，即使它会被 Facebook 应用和 Web 应用以不同方式使用。在最理想的情况下——也就是我们正在追求的目标——我们在 fb 和 web 应用中编写的所有代码，都只是对 core 应用中核心功能的一层简单接口。</p>
       
     
       
-        <p>好，上一段抛出了很多看似奇怪的概念，现在我们来看看到底是什么意思。</p>
+        <p>好了，上一段抛出了不少看起来有点傻的概念，现在让我们来看看我具体在说什么。</p>
       
     
       
         <h2>将功能映射到模型上</h2>
+        
       
     
       
-        <p>接下来我们要开始编写模型，但首先需要明确这个程序具体要做什么。我说过它是一个投票程序，那么一个简单的投票应用应该具备什么功能呢？</p>
+        <p>我们打算开始编写模型，但首先需要明确程序实际要实现什么功能。我说过它是一个投票程序，那么一个简单的投票应用应该做什么呢？</p>
       
     
       
-        <div class="list-content">创建投票。对投票进行投票。对参与投票的用户进行管理。如果创建者想要，允许删除投票。</div>
+        <div class="list-content">创建投票。参与投票。为投票的用户建立记录。如果创建者想要，允许删除投票。</div>
       
     
       
-        <p>听起来挺简单。我们来创建一些能够支撑这些功能的模型：</p>
+        <p>听起来够简单了。让我们来创建一些能够处理这些功能的模型：</p>
       
     
       
-        <p>看看我们的 Poll 类，可以发现我们会记录问题、创建该 Poll 的 User，以及它收到的赞成票和反对票数量。</p>
+        <pre><code>from django.db import models
+from django.contrib.auth.models import User as DjangoUser
+class Poll(models.Model):
+question = models.CharField(unique=True, max_length=200)
+creator = models.ForeignKey(&#x27;User&#x27;)
+up_votes = models.IntegerField()
+down_votes = models.IntegerField()
+class User(models.Model):
+user = models.ForeignKey(DjangoUser, blank=True, null=True)
+facebook_id = models.IntegerField(blank=True, null=True)
+name = models.CharField(max_length=200)
+</code></pre>
       
     
       
-        <p>User 类稍微复杂一些，因为我们希望应用不关心当前使用的是哪种界面（本项目中的 web 或 fb 应用）。因此我们有两种方式来标识一个 User：要么通过他们的 Facebook User ID，要么通过 django.contrib.auth.models.User 的实例。</p>
+        <p>查看我们的 Poll 类可以发现，我们将记录问题（question）、创建该 Poll 的 User，以及它收到的赞成票（up_vote）和反对票（down_vote）数量。</p>
       
     
       
-        <h2>提问时间：我们真的需要区分 Facebook 用户和 Web 应用用户吗？</h2>
+        <p>User 类稍微复杂一些，因为我们希望应用不感知当前使用的是哪种界面（项目中的 web 还是 fb 应用）。因此我们有两种识别用户的方式：要么通过他们的 Facebook User ID，要么通过 django.contrib.auth.models.User 的实例。</p>
       
     
       
-        <p>是的，很遗憾，我们必须区分。当我们与 Facebook 用户交互时，实际上是通过一个中间人（Facebook）来进行沟通，没有直接连接，因此无法通过 cookie 来识别用户，在处理 Facebook 用户时也无法利用 Django 的 session 或认证框架。</p>
+        <h4>提问时间：我们真的需要区分 Facebook 用户和 Web 应用用户吗？</h4>
+        
       
     
       
-        <h2>提问时间结束</h2>
+        <p>是的，很遗憾，我们必须区分。当我们与 Facebook 用户交互时，实际上是通过一个中间人（Facebook）进行交流，我们没有直接连接，因此无法使用 cookie 来识别用户，在处理 Facebook 用户时也无法利用 Django 的 sessions 或 auth 框架。</p>
       
     
       
-        <p>好的，我们有了模型，现在来进一步完善它们：让它们能在 Django admin 中管理，并添加 __unicode__ 方法，以便 Django 知道如何展示它们。（再加上一些注释，因为我们是专业人士，对吧？）最终结果如下：</p>
+        <h4>提问时间结束</h4>
+        
       
     
       
-        <p>这就是我们的模型。干得漂亮。（注意：本教程中完成的所有代码可以从[这个 zip 文件][polling2]中下载。）</p>
+        <p>好了，我们有了模型，现在让我们进一步完善它们：将其注册到 Django admin，并添加 __unicode__ 方法让 Django 知道如何表示它们。（再加上一些注释，因为我们是专业人士，对吧？）这样我们就得到了：</p>
+      
+    
+      
+        <pre><code>from django.db import models
+from django.contrib.auth.models import User as DjangoUser
+class Poll(models.Model):
+&quot;&quot;&quot;
+    Model used for tracking polls and responses to the poll.
+    &quot;&quot;&quot;
+question = models.CharField(unique=True, max_length=200)
+creator = models.ForeignKey(&#x27;User&#x27;)
+up_votes = models.IntegerField()
+down_votes = models.IntegerField()
+class Admin:
+pass
+def unicode(self):
+return &quot;%s asked by %s&quot; % (self.question, self.creator)
+class User(models.Model):
+&quot;&quot;&quot;
+    Model used for associating Facebook User IDs or
+    django.contrib.auth.models.User instances with
+    actions performed on our system.
+    Only one of &#x27;user&#x27; and &#x27;facebook_id&#x27; should have a
+    non-null value. Facebook users will not have an
+    associated User, and regular web users will not
+    have a &#x27;facebook_id&#x27;.
+    &quot;&quot;&quot;
+user = models.ForeignKey(DjangoUser, blank=True, null=True)
+facebook_id = models.IntegerField(blank=True, null=True)
+name = models.CharField(max_length=200)
+class Admin:
+pass
+def unicode(self):
+return self.name
+</code></pre>
+      
+    
+      
+        <p>这就是我们的模型。大家干得漂亮。（请注意，本教程的所有代码可以从[这个 zip 文件][polling2]中下载。）</p>
       
     
       
         <h2>确保一切都能正常工作</h2>
+        
       
     
       
-        <p>到了这里，很多教程或者很多读者可能会一头扎进越来越复杂的细节中。但我们不会，亲爱的读者，我们不会。我们要停下来好好看看 Django 的测试框架，并“善加利用”它来……</p>
+        <p>到了这个阶段，比较一般的教程或者读者可能会开始奔向越来越复杂的远方。但我们不会，亲爱的读者，我们不会。我们要停下来，好好看看 Django 的测试框架，并“利用”它来……</p>
       
     
       
-        <p>我在说什么鬼话啊。我们就是要写一些测试。</p>
+        <p>我到底在说什么。咱们要写一些测试。</p>
       
     
       
-        <p>在 Django 测试框架中，与特定应用相关的测试放在该应用的文件夹内，文件名为 tests.py。我们现在就来创建它（从 polling 项目文件夹开始）：</p>
+        <p>在 Django 测试框架中，与特定应用相关的测试放在该应用的文件夹中，文件名为 tests.py。让我们来创建它（从我们的 polling 项目文件夹开始）：</p>
       
     
       
-        <p>现在我们给 tests.py 文件加入一些基础脚手架代码：</p>
+        <pre><code>emacs core/tests.py
+</code></pre>
       
     
       
-        <p>setUp 方法会在 TestCase 中的每个测试方法运行前被调用。因此在每个单元测试（比如上面脚手架中的 test_function）执行之前，setUp 函数都会先运行。同理，每个单元测试结束后，tearDown 也会被调用。</p>
+        <p>现在我们在 tests.py 中加入一些基本框架：</p>
       
     
       
-        <p>tearDown 方法看起来可能有点多余。为什么我们要这么较真地在每个测试后删除数据库中的所有模型呢？虽然 Django 测试会创建一个专用的测试数据库，但这个数据库是在每次运行测试框架时创建的，而不是在每个单独的单元测试后重新创建。因此我们可能会遇到不确定测试数据库中模型数量和类型的情况。这对测试来说并不理想，所以我更倾向于在每个单元测试后清除测试数据库中之前的所有模型。由于我们使用的是 SQLite，这其实是一个非常快的操作，因为测试数据库是在内存中创建的，读写速度极快（当然持久性也几乎为零）。</p>
+        <pre><code>from django.utils import simplejson
+from polling.core.models import Poll, User
+MODELS = [Poll, User]
+class CoreModelTest(unittest.TestCase):
+&quot;Test the models contained in the &#x27;core&#x27; app.&quot;
+def setUp(self):
+&#x27;Populate test database with model instances.&#x27;
+self.client = Client()
+def tearDown(self):
+&#x27;Depopulate created model instances from test database.&#x27;
+for model in MODELS:
+for obj in model.objects.all():
+obj.delete()
+def test_something(self):
+&quot;This is a test for something.&quot;
+self.assertEquals(True, 1)
+</code></pre>
       
     
       
-        <p>现在我们来运行这个脚手架。</p>
+        <p>setUp 方法会在 TestCase 中的每个测试方法运行前被调用。因此在每个单元测试（如上面框架中的 test_function）之前，setUp 函数都会执行。同样，在每个单元测试之后，tearDown 也会被调用。</p>
       
     
       
-        <p>它会执行我们的测试。就是这么简单。输出内容的底部应该看起来像这样：</p>
+        <p>tearDown 方法看起来可能有点多余。为什么我们要这么执着地在每次测试后删除数据库中的所有模型？这是因为虽然 Django 测试会创建一个测试数据库，但它是在每次运行测试框架时创建的，而不是在每个单独的单元测试后重新创建。因此我们可能会遇到不确定测试数据库中模型数量和类型的情况。这对测试非常不利，所以我更喜欢在每个单元测试后清除测试数据库中的所有旧模型。由于我们使用的是 SQLite，这实际上是一个非常快的操作，因为测试数据库是在内存中创建的，访问速度极快（当然持久化能力也几乎为零）。</p>
+      
+    
+      
+        <p>现在让我们运行这个测试框架。</p>
+      
+    
+      
+        <pre><code>python manage.py test
+</code></pre>
+      
+    
+      
+        <p>它会运行我们的测试。就这么简单。输出文本的底部应该看起来像这样：</p>
+      
+    
+      
+        <pre><code>...
+----------------------------------------------------------------------
+Ran 3 tests in 0.027s
+OK
+Destroying test database…
+</code></pre>
       
     
       
@@ -121,15 +214,46 @@
       
     
       
+        <pre><code>        self.assertEquals(True, 1)
+</code></pre>
+      
+    
+      
+        <pre><code>        self.assertEquals(True, 0)
+</code></pre>
+      
+    
+      
         <p>现在再次运行测试</p>
       
     
       
-        <p>这次的输出变成了这样：</p>
+        <pre><code>python manage.py test
+</code></pre>
       
     
       
-        <p>好了。现在我们已经搭好了测试脚手架，接下来写一个更好的 setUp 方法，真正往测试数据库里填充一些数据。</p>
+        <p>这次我们的输出变成了这样：</p>
+      
+    
+      
+        <pre><code>..F
+======================================================================
+FAIL: This is a test for something.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File &quot;/Users/will/django/polling/../polling/core/tests.py&quot;, line 28, in test_something
+    self.assertEquals(True, 0)
+AssertionError: True != 0
+
+Ran 3 tests in 0.027s
+FAILED (failures=1)
+Destroying test database…
+</code></pre>
+      
+    
+      
+        <p>好的。现在我们已经搭好了测试框架，接下来写一个更好的 setUp 方法，让它真正往测试数据库中填充一些数据。</p>
       
     
       
@@ -137,23 +261,50 @@
       
     
       
-        <p>现在运行测试，确保 setUp 函数能正常工作。</p>
+        <pre><code>def setUp(self):
+    &#x27;Populate test database with model instances.&#x27;
+    self.client = Client()
+    wl = User(name=&quot;Will Larson&quot;)
+    wl.save()
+    jb = User(name=&quot;Jack Bauer&quot;)
+    jb.save()
+    bc = User(name=&quot;Bill Clinton&quot;)
+    bc.save()
+    Poll.objects.create(question=&quot;Did you vote for me?&quot;, creator=bc)
+    Poll.objects.create(question=&quot;Am I human?&quot;, creator=jb)
+    Poll.objects.create(question=&quot;Are you still reading?&quot;, creator=wl)
+</code></pre>
       
     
       
-        <p>好吧，结果不太理想。它应该抛出类似下面的错误：</p>
+        <p>现在让我们运行测试，确保 setUp 函数能正常工作。</p>
       
     
       
-        <p>糟糕。我们需要在 Poll 模型的 *up_vote 和 down_vote* 字段设置初始值！编写测试的一大好处就是，它会迫使我们尽早搞清楚自己在做什么。这是一件好事。</p>
+        <pre><code>python manage.py test
+</code></pre>
+      
+    
+      
+        <p>好吧，结果并不如人意。它应该抛出类似这样的错误：</p>
+      
+    
+      
+        <pre><code>IntegrityError: core_poll.up_votes may not be NULL
+</code></pre>
+      
+    
+      
+        <p>哎呀。我们需要在 Poll 模型的 *up_vote 和 down_vote* 字段中初始化一个值！写测试的好处之一就是它会迫使我们搞清楚自己在做什么，而且越早越好。这是一件好事。</p>
       
     
       
         <h2>快速修复 Poll 模型</h2>
+        
       
     
       
-        <p>为了给 Poll 中的两个字段设置初始值，我们要重写 save 方法。这是一个很实用的技巧，因为它允许你在创建对象时动态决定数值，也可以对传入的值进行清洗。（值得一提的是，在这个特定场景下，使用字段的 default 参数更合适，比如“up_vote = IntegerField(default=0)”，但那样我们就错过了观察重写 save 这个常用技巧的机会。）</p>
+        <p>为了给 Poll 中的两个字段初始化值，我们要重写 save 方法。这是一个很实用的技巧，因为它允许你在创建对象时动态确定数值，也可以对传入的值进行清理。（值得指出的是，在这个特定场景下，更合适的方式是给字段使用 default 参数，比如 “up_vote = IntegerField(default=0)”，但那样我们就错过了观察重写 save 这个常用技巧的机会。）</p>
       
     
       
@@ -161,7 +312,18 @@
       
     
       
-        <p>读完这段代码可以发现，如果我们在创建 Poll 实例时没有指定 *up_vote 或 down_vote* 字段的值，save 方法会在调用默认的模型 save 方法（model 是 Poll 的父类）之前为我们设置它们。</p>
+        <pre><code>def save(self):
+    &quot;&quot;&quot;Overriding save() to innitialize values for up_votes and down_votes.&quot;&quot;&quot;
+    if not self.up_votes:
+        self.up_votes = 0
+    if not self.down_votes:
+        self.down_votes = 0
+    return super(Poll, self).save()
+</code></pre>
+      
+    
+      
+        <p>阅读这段代码，如果我们在创建 Poll 实例时没有指定 *up_vote 或 down_vote* 字段的值，那么 save 方法会在调用默认的模型保存方法（model 是 Poll 的父类）之前帮我们设置它们。</p>
       
     
       
@@ -169,27 +331,64 @@
       
     
       
-        <p>一切又正常了。</p>
+        <pre><code>python manage.py test
+</code></pre>
       
     
       
-        <h2>继续代码-测试循环</h2>
+        <p>然后，一切又正常工作了。</p>
       
     
       
-        <p>好了，本教程第二部分还剩下两个简短的“实现-测试”循环。我保证你很快就能休息。</p>
+        <h2>继续代码-测试的循环</h2>
+        
       
     
       
-        <p>首先我想为 Poll 添加两个便捷方法，用于给投票加赞或踩，同时再加一个计算当前总得分的函数。代码如下：</p>
+        <p>好了，在本教程的第二部分，我们还剩下两个简短的“实现-测试”循环。我保证很快就可以休息了。</p>
       
     
       
-        <p>现在我们来写一些测试，确保它们能正常工作。重新打开 polling/core/tests.py：</p>
+        <p>首先我想为 Poll 添加几个好用的方法，用于给投票加赞成票或反对票，同时还有一个计算当前总得分的函数。它们看起来会是这样的：</p>
       
     
       
-        <p>这应该是 CoreModelTest 类的一个方法。我们获取一个已经在 *setUp 方法中创建好的 poll*，然后获取它初始的 up_votes 和 down_votes 值。接着做一些合理性检查，然后调用 up、down 和 score 方法，并验证它们返回的值是否符合预期。</p>
+        <pre><code>def score(self):
+    return self.up_votes - self.down_votes
+def up(self):
+self.up_votes = self.up_votes + 1
+self.save()
+def down(self):
+self.down_votes = self.down_votes + 1
+self.save()
+</code></pre>
+      
+    
+      
+        <p>现在让我们写一些测试来确保它们能正常工作。重新打开 polling/core/tests.py：</p>
+      
+    
+      
+        <pre><code>    def test_poll(self):
+        &quot;This is a test for something.&quot;
+        poll = Poll.objects.get(pk=1)
+        up = poll.up_votes
+        down = poll.down_votes
+        self.assertEquals(up, poll.up_votes)
+        self.assertEquals(down, poll.up_votes)
+        self.assertEquals(up-down, poll.score())
+        poll.up()
+        up = up + 1
+        self.assertEquals(up, poll.up_votes)
+        poll.down()
+        down = down + 1
+        self.assertEquals(down, poll.down_votes)
+        self.assertEquals(up-down, poll.score())
+</code></pre>
+      
+    
+      
+        <p>这应该是 CoreModelTest 类的一个方法。我们获取一个已经在 *setUp 方法中创建的 poll*，然后获取它初始的 up_votes 和 down_votes 值。接着进行一些合理性检查，然后调用 up、down 和 score 方法，并验证它们是否返回了我们期望的值。</p>
       
     
       
@@ -197,19 +396,42 @@
       
     
       
-        <p>全部通过。非常好。</p>
+        <pre><code>python manage.py test
+</code></pre>
+      
+    
+      
+        <p>它们都通过了。非常好。</p>
       
     
       
         <h2>最后一个快速循环</h2>
+        
       
     
       
-        <p>好的，现在我们想给 User 类添加一点功能，以便更容易创建 Poll 实例。我们要增加一个 create_poll 方法，它会创建一个新的 Poll 实例，并且该 Poll 的创建者就是调用此方法的 User 实例。代码如下：</p>
+        <p>好的，现在我们想给 User 类添加一点功能，以方便创建 Poll 实例。我们要创建一个 create_poll 方法，它会创建一个新的 Poll 实例，且该实例的创建者就是调用此方法的 User 实例。它看起来会是这样：</p>
       
     
       
-        <p>再写一个测试来确保它能正常工作：</p>
+        <pre><code>def create_poll(self, question):
+    p = Poll(creator=self, question=question)
+    p.save()
+    return p
+</code></pre>
+      
+    
+      
+        <p>以及一个确保它能正常工作的测试：</p>
+      
+    
+      
+        <pre><code>def test_user(self):
+    &quot;This is a test for the polling.core.model.User model.&quot;
+    user = User.objects.get(pk=1)
+    p = user.create_poll(&quot;Is this actually working?&quot;)
+    self.assertEquals(user, p.creator)
+</code></pre>
       
     
       
@@ -217,19 +439,25 @@
       
     
       
-        <p>测试全部通过。哈利路亚。</p>
+        <pre><code>python manage.py test
+</code></pre>
+      
+    
+      
+        <p>所有测试都通过了。哈利路亚。</p>
       
     
       
         <h2>又一个激动人心的结束。</h2>
+        
       
     
       
-        <p>好了。我们已经完成了应用的模型创建，也为应用引入了测试，这样我们就有了一定程度的保证，证明我们做的事情是有意义的。你可以从[这里][polling2]下载本教程完成后的项目快照。</p>
+        <p>好了。我们已经完成了应用的模型创建，也为应用引入了测试，因此我们有一定程度的证据表明我们做的事情是有意义的。你可以从[这里][polling2]下载本教程完成后的项目快照。</p>
       
     
       
-        <p>当你准备好继续时，第三部分已经在等着你了。</p>
+        <p>当你准备好继续时，第三部分已经等着你了。</p>
       
     
   </div>

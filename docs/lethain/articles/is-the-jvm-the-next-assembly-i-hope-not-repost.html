@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JVM 是“下一代的汇编语言”吗？我希望不是。（转载） · Will Larson 文集</title>
+  <title>JVM 是“下一代汇编”吗？我希望不是。（转载） · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>JVM 是“下一代的汇编语言”吗？我希望不是。（转载）</h1>
+    <h1>JVM 是“下一代汇编”吗？我希望不是。（转载）</h1>
     <div class="meta">
       2007-06-04 · 
       <a href="https://lethain.com/is-the-jvm-the-next-assembly-i-hope-not-repost/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,67 +29,104 @@
   <div class="article-content">
     
       
-        <p>本文移植自原《Irrational Exuberance》博客，写于2007年中期：距今已近两年。</p>
+        <p>这是一篇从原 Irrational Exuberance 博客移植的文章，写于 2007 年中期：距今已近两年。</p>
       
     
       
-        <p>原文标题是“Is Java the &#x27;next assembly&#x27;?”。一两年前有人指出，用 JVM 比 Java 更准确。亡羊补牢，为时未晚，对吧？</p>
+        <p>本文最初的标题是“Is Java the &#x27;next assembly&#x27;?”。大约一两年前，有人指出用 JVM 比 Java 更合适。迟到总比不到好，对吧？</p>
       
     
       
-        <p>最近我研究了不少构建在 JVM 之上的语言，并思考它们吸引人的地方。本来打算写一篇文章，分析这些语言与 Java 互操作时所需的代码，但写完后发现文章质量很差，于是放弃了。取而代之的是，我开始思考这些语言所面临的困难、它们给我们程序员带来的价值，以及它们将如何融入编程语言的发展周期。</p>
+        <p>最近我研究了一些构建在 JVM 之上的编程语言，并思考它们吸引人的地方。本来打算写一篇文章，分析在这些语言和 Java 之间进行互操作所需的代码，但写完后我发现那是一篇糟糕的文章，于是放弃了。取而代之的是，我开始思考这些语言所面临的困难、它们给我们程序员带来的影响，以及它们将如何融入编程语言的发展周期。</p>
       
     
       
         <h2>基于 JVM 的语言的优势</h2>
+        
       
     
       
-        <h2>可以直接使用 Java 类库</h2>
+        <h3>可以直接使用 Java 库</h3>
+        
       
     
       
-        <h2>随着 JVM 改进，性能可“免费”提升</h2>
+        <h3>随着 JVM 改进而“免费”获得速度提升</h3>
+        
       
     
       
-        <h2>JVM 的劣势</h2>
+        <h2>JVM 的缺点</h2>
+        
       
     
       
-        <h2>某些语言与 Java 混用效果很差</h2>
+        <h3>某些语言与 Java 融合得很差</h3>
+        
       
     
       
-        <h2>SISC Scheme</h2>
+        <h4>SISC Scheme</h4>
+        
       
     
       
-        <h2>Jython</h2>
+        <pre><code>(import s2j)
+(import oo)
+(import generic-procedures)
+(define-java-class jstring |java.lang.String|)
+(define-generic-java-methods length to-class hash-code)
+(define str (java-new jstring))
+(length str)    ; ==&gt; 0
+(hash-code str) ; ==&gt; 0
+</code></pre>
       
     
       
-        <p>Jython 的代码和我们在 CPython 中预期的大致相同，只是操作从其他地方导入的一些对象。相当简洁，也容易理解：很直观。而 SISC Scheme 的代码几乎让我大脑宕机。它强行把 Scheme 扭曲成一种过程式语言，我觉得完全不直观，用起来也十分困难（我多次无法成功用初始值对其进行初始化）。举这两个例子的目的是想说明：每种语言在设计时都带有特定的技术和范式，如果一门语言和 Java 的设计范式不同，那么两者大概率会成为奇怪的组合。此外，那些在面向对象概念和实现上差异很大的语言，在兼容性上也会吃亏（比如原型、泛型等等）。</p>
+        <h4>Jython</h4>
+        
       
     
       
-        <h2>Java 技术本身排除了某些功能</h2>
+        <pre><code>import javas = java.lang.String(&quot;yes&quot;)
+print s # ==&gt; yes
+s.length() # ==&gt; 3
+s.length # ==&gt; its a method
+sb = java.lang.StringBuffer()
+print sb # ==&gt; outputs a blank line, as sb is empty
+sb.append(s) # ==&gt; yes
+sb.append(&quot;no&quot;) # ==&gt; yesno
+sb.append(java.lang.String(&quot;maybe&quot;)) # ==&gt; yesnomaybe
+</code></pre>
       
     
       
-        <h2>执行速度通常更差（但并非总是如此）</h2>
+        <p>Jython 的代码与我们在 CPython 中预期的大致相同，只是操作一些从其他地方导入的对象。相当干净，也很容易理解：很直观。而 SISC Scheme 的代码几乎让我大脑当机。它强行把 Scheme 变成一种过程式语言，我觉得完全不直观，用起来也相当困难（我多次没能成功给它初始化一个值）。举这两个例子的目的是想说明：每种语言在设计时都带有特定的技术和范式，而那些与 Java 设计范式不同的语言，很可能会成为奇怪的搭档。此外，那些对象模型和实现方式与 Java 差异很大的语言，在兼容性上也会吃亏（比如原型、泛型等等）。</p>
       
     
       
-        <h2>应用程序分发变得更加复杂</h2>
+        <h3>某些功能被 Java 技术所限制</h3>
+        
       
     
       
-        <h2>不可避免的怪异特性</h2>
+        <h3>执行速度通常更差（但并非总是如此）</h3>
+        
       
     
       
-        <h2>JVM 语言带来的后果</h2>
+        <h3>应用程序分发变得更加复杂</h3>
+        
+      
+    
+      
+        <h3>不可避免的怪癖</h3>
+        
+      
+    
+      
+        <h2>JVM 语言的影响</h2>
+        
       
     
   </div>

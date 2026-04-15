@@ -29,39 +29,42 @@
   <div class="article-content">
     
       
-        <p>最近我决定要给 LifeFlow 添加嵌套评论功能。这主要是因为现有的评论系统给读者带来的折磨已经超出了我良心的承受范围。我希望引入嵌套评论能稍微弥补我对亲爱的读者们造成的这种罪过——大概只是我自我安慰的谎言罢了。</p>
+        <p>最近我决定要给 LifeFlow 添加嵌套评论功能。这主要是因为现有的评论系统给读者带来的折磨已经超出了我良心的承受范围。我希望通过引入嵌套评论，能稍微弥补我给亲爱的读者们造成的这份痛苦——大概也只是我自欺欺人的谎言罢了。</p>
       
     
       
-        <p>不管怎样，我希望实现一个可靠的评论嵌套系统。我心里有两个设计目标：</p>
+        <p>不管怎样，我希望实现一个健壮的嵌套评论系统。我心里有两个设计目标：</p>
       
     
       
-        <div class="list-content">尽量少在数据库中存储额外数据；保持合理的计算复杂度（应该能够轻松处理每篇文章约 500 条评论）。</div>
+        <div class="list-content">尽量减少数据库中需要额外存储的数据；保持计算复杂度在合理范围内（应该能够轻松处理每篇文章约 500 条评论）。</div>
       
     
       
-        <p>我考虑了几种不同的实现方式。其中一种我没有采用的方案是在数据库中直接存储层级数据。我不喜欢把完整路径都存进数据库的想法。而且那种方法似乎会让重新组织评论变得相当复杂（我承认需要任意调整评论顺序的情况并不多，除非你实现了投票系统或基于质量的评论置顶功能）。</p>
+        <p>我考虑了几种不同的实现方式。其中一种我没有考虑的方式，是在数据库中直接存储层级数据。我不喜欢把完整路径存进数据库的做法。而且他们的方法似乎会让调整评论顺序变得相当复杂（我承认需要任意调整评论顺序的场景并不多，除非你实现了投票系统或者基于价值的评论置顶功能）。</p>
       
     
       
-        <h2>我需要存储哪些数据？</h2>
+        <h3>我需要存储哪些数据？</h3>
+        
       
     
       
-        <p>我最终决定额外存储的唯一数据就是父评论的 ID。（另一个必要数据是评论所属的文章，不过我本来就在存储了。）</p>
+        <p>我最终决定只额外存储一条数据——父评论的 ID。（另一条必要数据是评论所属的文章，这个我本来就在存了。）</p>
       
     
       
-        <h2>面临的挑战</h2>
+        <h3>面临的挑战</h3>
+        
       
     
       
-        <p>由于我没有在数据库中存储路径，而只是记录每个节点的父节点，我真正的挑战是如何用这个并不完美的数据来重建评论的层级结构。</p>
+        <p>由于我没有在数据库中存储路径，而只是存储每个节点的父节点，真正的挑战在于如何利用这个不算完美的字段，重建出完整的评论层级结构。</p>
       
     
       
-        <h2>一个简单但不完美的方法</h2>
+        <h3>一个简单但并不完美的方法</h3>
+        
       
     
       
@@ -69,51 +72,99 @@
       
     
       
-        <p>我先用一个哈希表（hashmap）构建评论的结构（用 None 作为 key 来表示没有父评论的顶级评论），然后基于这个哈希表递归地生成包含层级结构的列表。</p>
+        <pre><code>def organize_comments(self):
+    def build_relations(dict, comment=None):
+        if comment is None: id = None
+        else: id = comment.id
+        try:
+            children = dict[id]
+            return [comment, [build_relations(dict, x) for x in children]]
+        except:
+            return comment
+    dict = {None:[]}
+    all = Comment.objects.select_related().filter(entry=self)
+    for comment in all:
+        if comment.parent: id = comment.parent.id
+        else: id = None
+        try:
+            dict[id].append(comment)
+        except KeyError:
+            dict[id] = [comment]
+    relations = build_relations(dict)
+    if len(relations) == 1: return None
+    else: return relations[1]
+</code></pre>
       
     
       
-        <p>这个方案能比较高效地完成，主要是因为 select_related() 方法（在 Django SVN 版本中可用，0.96 或更早版本不支持）会批量获取关联对象。因此尽管我们做了很多操作，但实际上只会向数据库发起一次查询。</p>
+        <p>基本思路是先用一个哈希表（hashmap）构建评论的层级结构（用 key 为 None 表示没有父评论的顶级评论），然后利用这个哈希表递归地生成包含层级关系的列表。</p>
       
     
       
-        <p>它甚至还是尾递归的——如果 Python 真的关心尾递归优化的话，这会很有意义。以后我可能得把递归改成某种循环形式。</p>
+        <p>这个方案能比较高效地完成，关键在于 select_related() 方法（Django SVN 版中的功能，0.96 及更早版本不支持）可以批量获取关联对象。因此尽管我们做了不少操作，但实际上只会对数据库发起一次查询。</p>
       
     
       
-        <p>现在 LifeFlow 已经在模型层面支持了嵌套评论。接下来我还得修改模板和视图，把这个新功能呈现给用户。</p>
+        <p>它甚至还是尾递归的——如果 Python 真的在意尾递归优化的话，这会很有意义。以后我得把它改成某种循环形式。</p>
       
     
       
-        <h2>2008 年 1 月 6 日更新</h2>
+        <p>现在，LifeFlow 至少在模型层已经支持了嵌套评论。接下来我还得重构模板和视图，才能把这个新功能展现给用户。</p>
       
     
       
-        <p>嵌套评论现在已经完成了 90%。除了可视化的层级引导之外，其他功能都已实现。这部分需要一些自定义模板标签。你可以在 LifeFlow 的 models.py 文件里看到目前有些笨拙的实现，它位于 Entry 模型的 organize_comments 方法中。</p>
+        <h3>2008年1月6日更新</h3>
+        
       
     
       
-        <h2>2008 年 1 月 7 日更新</h2>
+        <p>嵌套评论现在已经完成了 90%。除了视觉上的层级引导之外，其他功能都已实现。那部分需要一些自定义模板标签。你可以在 LifeFlow 的 models.py 文件里看到目前较为简陋的实现，它位于 Entry 模型的 organize_comments 方法中。</p>
       
     
       
-        <p>现在可视化部分也已经实现了。总体来说运行得相当不错。我最后写了一个简短的自定义标签，用来限制评论的嵌套深度。</p>
+        <h3>2008年1月7日更新</h3>
+        
       
     
       
-        <p>我把它设置为最大深度为 5。超过 5 层的评论都会显示在第 5 层的缩进位置。这样做让评论的外观实现简单了许多（不需要动态计算缩进），我觉得是个不错的折衷。它还能防止评论一路跑到页面右边际的“日落”里去——同样是个胜利。</p>
+        <p>现在视觉效果也已经实现了。总体来说运行得还不错。我还写了一个简单的自定义模板标签，用来限制评论的嵌套深度。</p>
       
     
       
-        <p>你可以查看 CSS 或模板文件来了解更完整的实现细节（模型代码仍然在这里）。模板的缩进对齐还不够完美，不过话说回来，那个模板是我自己重做的 LifeFlow 模板版本，我也没指望别人会大量使用……这只是个借口罢了。</p>
+        <pre><code>from django import template
+register = template.Library()
+def boundary(value, arg):
+&quot;&quot;&quot;Defines a boundary for an integer. If the value of the integer
+    is higher than the boundary, then the boundary is returned instead.
+    Example:  { { comment.depth|:&quot;4&quot; }} will return 4 if the value of
+    comment.depth is 4 or higher, but will return 1, 2 or 3 if the
+    value of comment.depth is 1, 2 or 3 respectively.
+    &quot;&quot;&quot;
+value = int(value)
+boundary = int(arg)
+if value &gt; boundary:
+return boundary
+else:
+return value
+register.filter(&#x27;boundary&#x27;, boundary)
+</code></pre>
       
     
       
-        <h2>即将进行的修改</h2>
+        <p>我用它把评论深度限制在 5 层。更深的评论将统一显示在第 5 层的缩进位置。这样做能显著简化视觉样式的实现（不需要动态计算），我觉得是个不错的折中方案。同时也避免了评论一直向右边距“日落”而去，这也是个优点。</p>
       
     
       
-        <p>我还需要调整评论功能，让它能友好地兼容 Internet Explorer（主要是提交部分）。另外，我正在考虑在有新评论时立即让已缓存的博客文章失效，因为用户要等几分钟才能看到自己的评论，这体验相当令人沮丧。</p>
+        <p>你可以查看对应的 CSS 或模板文件来了解更完整的实现细节（模型代码仍然在这里）。模板的缩进对齐还需要再调得更一致一些，不过那个模板是我自己重做的 LifeFlow 模板版本，我也不指望它会被其他人大量使用……这只是个借口罢了。</p>
+      
+    
+      
+        <h3>后续计划</h3>
+        
+      
+    
+      
+        <p>我还需要对评论提交部分进行调整，让它能在 Internet Explorer 中正常工作。另外，我正在考虑当有新评论加入时，立即使缓存的博客文章失效。因为现在用户提交评论后要过几分钟才能看到，体验相当糟糕。</p>
       
     
   </div>

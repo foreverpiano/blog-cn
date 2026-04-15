@@ -29,15 +29,29 @@
   <div class="article-content">
     
       
-        <p>我已经在工作中每天使用 Erlang 近一年了，当初开始学习 Clojure 时，最先关注的就是 Clojure 的 agent。当时我还挺困惑的。1</p>
+        <p>我已经在工作中每天使用 Erlang 近一年了，当初第一次接触 Clojure 时，最先去了解的特性之一就是 Clojure agents。当时我相当困惑。1</p>
       
     
       
-        <p>Erlang 中的 actor 概念是一个拥有邮箱的进程，它逐个取出并处理消息。actor 进程包含了所有消息处理的逻辑，其行为可以是将消息存入内部队列，也可以是完全忽略该消息。</p>
+        <p>Erlang 中的 actor 概念是一个带有邮箱的进程，它逐个取出并处理消息。actor 进程包含了处理消息的所有逻辑，其行为可以是从把消息存入内部队列，到完全忽略该消息。</p>
       
     
       
-        <p>而 Clojure 的 agent 则反转了消息处理逻辑的所有权：向 agent 提交的是函数，这些函数会被存入邮箱并按顺序执行。</p>
+        <pre><code>-module(agent).
+-export([add/1, test/0]).
+add(N) -&gt;
+receive
+{add, M} -&gt; add(N+M);
+_ -&gt; add(N)
+end.
+test() -&gt;
+Adder = spawn(agent, add, [0]),
+Adder ! {add, 10}.
+</code></pre>
+      
+    
+      
+        <p>而 Clojure 的 agent 则反转了消息处理逻辑的归属权：向 agent 提交的是函数，这些函数会被放入邮箱并按顺序执行。</p>
       
     
       
@@ -45,47 +59,99 @@
       
     
       
-        <p>使用 Clojure agent 更像是操作一个数据结构，而不是与某个服务进行交互。2 这很有道理，因为 Clojure agent 是一种机制，用于对特定数据结构实例按顺序执行操作。在分布式计算中，一个简洁且易于理解的顺序修改机制其实非常有用。3</p>
+        <pre><code>(def x (agent 0))
+(defn increment [c n] (+ c n))
+(send x increment 5)  ; @x -&gt; 5
+(send x increment 10) ; @x -&gt; 15
+</code></pre>
       
     
       
-        <p>现在我们来看几个相对简单的 Clojure agent 使用示例。</p>
+        <p>使用 Clojure agent 更像是对一个数据结构进行操作，而不是与某个服务进行交互。2 这很合理，因为 Clojure agent 是一种机制，用于对某个特定数据结构实例按顺序执行操作。在分布式计算领域，拥有简洁且易于理解的顺序修改机制极其有用。3</p>
       
     
       
-        <h2>顺序写入文件</h2>
+        <p>现在让我们来看几个相对直接的 Clojure agent 使用示例。</p>
       
     
       
-        <p>许多 Java 类并未设计成线程安全的，但借助 agent 就可以在多线程环境中安全地使用它们。</p>
+        <h3>对文件进行顺序写入</h3>
+        
       
     
       
-        <p>这个示例会向一个共享的日志文件写入内容，许多 actor 在互不感知对方的情况下记录自己的进度，并且不假设 java.io.BufferedWriter 类是线程安全的。</p>
+        <p>许多 Java 类并未被设计为线程安全的，但通过 agent 可以让这类类在多线程环境中安全使用。</p>
       
     
       
-        <p>注意 write 函数的最终返回值是 BufferedWriter 的引用。这一点很重要，因为 agent 的值会被设置为通过 send 发送的函数的返回值。因此，如果 write 定义成下面这样：</p>
+        <p>这个示例向一个共享的日志文件写入内容，许多 actor 在相互不知道对方存在的情况下记录自己的进度，并且不假设 java.io.BufferedWriter 类是线程安全的。</p>
       
     
       
-        <p>那么只有第一次写入能正常工作，之后 agent 的值就会变成 nil，后续对 log 的调用就会尝试在 nil 上调用 .write，从而抛出错误。</p>
+        <pre><code>(ns logger (:import (java.io BufferedWriter FileWriter)))
+(let [wtr (agent (BufferedWriter. (FileWriter. &quot;agent.log&quot;)))]
+(defn log [msg]
+(letfn [(write [out msg]
+(.write out msg)
+out)]
+(send wtr write msg)))
+(defn close []
+(send wtr #(.close %))))
+(log &quot;test\n&quot;)
+(log &quot;another line\n&quot;)
+(close)
+</code></pre>
       
     
       
-        <p>（关于在 Clojure 中写入文件的更深入讨论。）</p>
+        <p>注意 write 函数最终返回的是 BufferedWriter 的引用。这一点很重要，因为 agent 的值会被设置为通过 send 发送的函数的返回值。因此，如果 write 被定义为</p>
       
     
       
-        <h2>并行 HTTP 请求</h2>
+        <pre><code>(defn write [out msg] (.write out msg))
+</code></pre>
       
     
       
-        <p>虽然前面我说 agent 主要是用来对操作进行排序，但这种异步的顺序执行机制，使得当有多个 agent 都排有待处理消息时，就能够利用多核资源（单个 agent 的任务无法拆分到多个核心上执行）。</p>
+        <p>那么只有第一次写入能正常工作，之后 agent 的值会变成 nil，后续对 log 的调用将尝试在 nil 上调用 .write，从而抛出错误。</p>
       
     
       
-        <p>注意这里使用了 send-off 而不是 send；send-off 适用于会阻塞在 IO 上的函数，而 send 则适用于会占用 CPU 的函数。</p>
+        <p>（关于在 Clojure 中写文件的更深入讨论。）</p>
+      
+    
+      
+        <h3>并行 HTTP 请求</h3>
+        
+      
+    
+      
+        <p>虽然上面我把 agent 描述为专门用于对操作进行排序，但这种异步顺序执行机制使得当有多个 agent 排有待处理消息时，可以利用多核优势（单个 agent 的任务无法跨多个核心拆分）。</p>
+      
+    
+      
+        <pre><code>(ns parallel-fetch
+  (:import (java.io InputStream InputStreamReader BufferedReader)
+           (java.net URL HttpURLConnection)))
+(defn get-url [url]
+(let [conn (.openConnection (URL. url))]
+(.setRequestMethod conn &quot;GET&quot;)
+(.connect conn)
+(with-open [stream (BufferedReader.
+(InputStreamReader. (.getInputStream conn)))]
+(.toString (reduce #(.append %1 %2)
+(StringBuffer.) (line-seq stream))))))
+(defn get-urls [urls]
+(let [agents (doall (map #(agent %) urls))]
+(doseq [agent agents] (send-off agent get-url))
+(apply await-for 5000 agents)
+(doall (map #(deref %) agents))))
+(prn (get-urls &#x27;(&quot;http://lethain.com&quot; &quot;http://willarson.com&quot;)))
+</code></pre>
+      
+    
+      
+        <p>注意这里使用的是 send-off 而不是 send；send-off 适用于会阻塞在 IO 上的函数，而 send 适用于会阻塞在 CPU 上的函数。</p>
       
     
       
@@ -97,23 +163,53 @@
       
     
       
-        <h2>将 Agent 作为消息中继</h2>
+        <h3>将 Agent 用作消息中继</h3>
+        
       
     
       
-        <p>在最后一个示例中，我们将消息通过 N 个 agent 组成的链进行中继。同时我们还会使用链外的一个 agent 来记录整个链的执行进度。这种日志记录方式让我们只需持有链中第一个 agent 的引用，就能查看整个中继过程的进度，这在分布式系统中是一种相当常见的模式（尽管通常你会使用更接近 RabbitMQ 而非单进程的工具）。</p>
+        <p>在最后一个示例中，我们通过由 N 个 agent 组成的链来中继消息。我们还会使用链外的一个 agent 来记录链中的处理进度。这种日志记录技术允许我们在只持有链中第一个 agent 引用的情况下检查中继进度，这在分布式系统中是一种相当常见的模式（尽管通常你会使用更接近 RabbitMQ 而不是单个进程的工具）。</p>
       
     
       
-        <p>这个示例最有意思的地方大概是使用 agent 向其他 agent 发送 agent，从而形成一个完全异步的编程模型。</p>
+        <pre><code>(ns agents-queue)
+(def logger (agent (list)))
+(defn log [msg]
+(send logger #(cons %2 %1) msg))
+(defn create-relay [n]
+(letfn [(next-agent [previous _] (agent previous))]
+(reduce next-agent nil (range 0 n))))
+(defn relay [relay msg]
+(letfn [(relay-msg [next-actor hop msg]
+(cond (nil? next-actor)  (log &quot;finished relay&quot;)
+:else (do (log (list hop msg))
+(send next-actor relay-msg (+ hop 1) msg))))]
+(send relay relay-msg 0 msg)))
+(relay (create-relay 10) &quot;hello&quot;)
+(. java.lang.Thread sleep 5000)
+(prn @logger)
+; output from running script is:
+;  (&quot;finished relay&quot; (8 &quot;hello&quot;) (7 &quot;hello&quot;) 
+;  (6 &quot;hello&quot;) (5 &quot;hello&quot;) (4 &quot;hello&quot;)
+;  (3 &quot;hello&quot;) (2 &quot;hello&quot;) (1 &quot;hello&quot;)
+;  (0 &quot;hello&quot;))
+</code></pre>
       
     
       
-        <p>此外，虽然这个例子本身相当复杂，但消息中继实际上是一个工作管道的最简版本，其中每个 agent 都会对传入的消息进行一些处理，然后再将其传递给下一个环节。</p>
+        <p>这个示例最有趣的地方可能是使用 agent 向其他 agent 发送 agent，从而形成一个完全异步的编程模型。</p>
       
     
       
-        <p>暂时就到这里。希望这些示例能为使用 Clojure agent 提供一个不错的起点。如果你在使用过程中遇到任何问题，欢迎告诉我。</p>
+        <p>此外，虽然这个例子本身相当复杂，但消息中继实际上是工作流水线的最简单版本，其中每个 agent 对传入的消息进行某种处理后再将其传递到下游。</p>
+      
+    
+      
+        <p>目前就先到这里。希望这些示例能为使用 Clojure agents 提供一个起点。如果你在使用过程中遇到任何问题，欢迎告诉我。</p>
+      
+    
+      
+        <div class="list-content">然而，我不想让人误以为仅仅拥有 agents 或 actors 就能让一门语言变得类似 Erlang——事实并非如此。或者说也许有相似之处，但程度不会超过“不优化尾递归就让 Clojure 变得像 C 语言”。Erlang 是一门优秀的语言，但 Scala 和 Clojure 同样也很优秀。关键区别在于 Erlang 的 OTP 平台，它 heavily 依赖于 Erlang VM 的一些特性，因此很难在库层面轻松重新实现等效功能。尽管如此，你仍然可以从 Erlang OTP 平台汲取大量优秀的思想，并将其应用到 Scala 或 Clojure 中。↩这也意味着某些概念，例如 Erlang actor 能够忽略消息的能力，在这里不再适用。↩Erlang actor 也可以用来对数据进行顺序操作，但由于 actor 可以融入逻辑，它能够做的事情要多得多：它可以隐藏实现细节、验证传入数据、拒绝来自未授权进程的请求等等。↩</div>
       
     
   </div>

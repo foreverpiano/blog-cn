@@ -29,51 +29,102 @@
   <div class="article-content">
     
       
-        <p>几个月前，我和优秀的 J.D. Hollis 合作一个项目，最终编写了一个简单的 Python 脚本，用于解析导出的 Google Analytics 数据。虽然那个项目遇到了一些障碍，但这个脚本本身相当实用，于是我决定以 MIT 许可协议将其开源发布。</p>
+        <p>几个月前，我和优秀的 J.D. Hollis 合作一个项目，当时写了一个简单的 Python 脚本，用于解析导出的 Google Analytics 数据。虽然那个项目遇到了一些阻碍，但这个脚本本身还是很有用的，于是我决定以 MIT 许可将其开源发布。</p>
       
     
       
-        <p>你可以从它的 GitHub 仓库下载 gareports_reader.py，或者直接下载整个项目文件夹的 zip 压缩包。</p>
+        <p>你可以从它的 GitHub 仓库下载 gareports_reader.py，也可以直接下载整个项目文件夹的 zip 压缩包。</p>
       
     
       
-        <h2>缘由</h2>
+        <h3>理由</h3>
+        
       
     
       
-        <p>有时候你需要创建 Google Analytics 网页界面没有提供的自定义可视化图表，或者运行自定义的计算。你当然可以通过下载 CSV 格式的数据来实现，但导出的 CSV 数据集内容比较匮乏。另一方面，XML 数据集信息极其丰富，但要弄清楚如何正确解析 XML 并提取数据却相当困难。</p>
+        <p>有时候你想创建自定义的可视化图表，或运行 Google Analytics 网页界面所没有的自定义计算。你确实可以通过下载 CSV 格式的数据来实现，但导出的 CSV 数据集内容相当有限。另一方面，XML 数据集信息非常丰富，但要弄清楚如何正确解析 XML 并提取数据却并不容易。</p>
       
     
       
-        <p>gareports_reader.py 负责处理解析和提取工作，让你能够用简单的 Python 数据结构（列表、datetime 和字典）来操作这些数据。</p>
+        <p>gareports_reader.py 负责处理解析和提取工作，让你可以用简单的 Python 数据结构（列表、日期时间和字典）来操作这些数据。</p>
       
     
       
-        <h2>使用方法</h2>
+        <h3>使用方法</h3>
+        
       
     
       
-        <p>首先登录 Google Analytics，然后选择你想要下载的数据时间范围。</p>
+        <p>首先登录 Google Analytics，然后选择你要下载的数据时间范围。</p>
       
     
       
-        <p>接着点击导出，并选择 XML 文件格式。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/GADatePicker.jpg" alt="Selecting a range of dates in Google Analytics.">
+          
+        </figure>
       
     
       
-        <p>现在进入一个同时包含 gareports_reader.py 和你导出的数据文件的文件夹。</p>
+        <p>接着选择导出，并选用 XML 文件格式。</p>
       
     
       
-        <p>我通常会把 XML 文件重命名为更容易输入的名称。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/GAFileExporter.jpg" alt="Exporting data from Google Analytics.">
+          
+        </figure>
       
     
       
-        <p>然后启动 Python 解释器（它应该能在 2.4 上运行，但我记不太清了，可以确定的是它肯定能在 2.5 上运行）。</p>
+        <p>然后进入一个同时包含 gareports_reader.py 和你导出的数据文件的文件夹。</p>
       
     
       
-        <p>上面可以看到一些基本用法，但真正有价值的内容都在 dates 这个字段里。dates 是一个按时间顺序排序的列表，其中每个元素都是一个二元组（一个 datetime 对象和一个字典），结构如下：</p>
+        <pre><code>wills-macbook:gareports_reader will$ ls
+Analytics_www.lethain.com_20080811-20080910_(DashboardReport).xml
+LICENSE
+gareports_reader.py
+</code></pre>
+      
+    
+      
+        <p>我通常会把 XML 文件重命名为更容易输入的名字。</p>
+      
+    
+      
+        <pre><code>mv Analytics_www.lethain.com_20080811-20080910_(DashboardReport).xml lethain.xml
+</code></pre>
+      
+    
+      
+        <p>接着启动 Python 解释器（应该能在 2.4 上运行，但记不太清了，可以肯定的是它能在 2.5 上正常运行）。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; from gareports_reader import GoogleAnalyticsReportParser
+&gt;&gt;&gt; fin = open(&#x27;lethain.xml&#x27;,&#x27;r&#x27;)
+&gt;&gt;&gt; data = GoogleAnalyticsReportParser(fin.read())
+&gt;&gt;&gt; fin.close()
+&gt;&gt;&gt; dir(data)
+[&#x27;__class__&#x27;, &#x27;__delattr__&#x27;, &#x27;__dict__&#x27;, &#x27;__doc__&#x27;, &#x27;__getattribute__&#x27;, &#x27;__hash__&#x27;, &#x27;__init__&#x27;, &#x27;__module__&#x27;, &#x27;__new__&#x27;, &#x27;__reduce__&#x27;, &#x27;__reduce_ex__&#x27;, &#x27;__repr__&#x27;, &#x27;__setattr__&#x27;, &#x27;__str__&#x27;, &#x27;__weakref__&#x27;, &#x27;contents&#x27;, &#x27;dates&#x27;, &#x27;domain&#x27;, &#x27;end&#x27;, &#x27;et&#x27;, &#x27;known_report_types&#x27;, &#x27;pageviews&#x27;, &#x27;parse_dashboard&#x27;, &#x27;start&#x27;, &#x27;type&#x27;]
+&gt;&gt;&gt; data.domain
+&#x27;www.lethain.com&#x27;
+&gt;&gt;&gt; data.start
+datetime.datetime(2008, 8, 11, 0, 0)
+&gt;&gt;&gt; data.end
+datetime.datetime(2008, 9, 10, 0, 0)
+</code></pre>
+      
+    
+      
+        <p>上面可以看到一些基本功能，但真正有价值的内容都在 dates 这个字段里。dates 是一个按时间顺序排列的列表，每个元素都是一个二元组（一个 datetime 对象和一个字典），形式如下：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; data.dates[0]
+(datetime.datetime(2008, 8, 11, 0, 0), {&#x27;Search&#x27;: &#x27;237.0&#x27;, &#x27;Unique&#x27;: &#x27;963.0&#x27;, &#x27;Pageviews&#x27;: &#x27;1100.0&#x27;, &#x27;NewVisits&#x27;: &#x27;0.7579365079365079&#x27;, &#x27;AvgPageviews&#x27;: &#x27;1.4550264550264551&#x27;, &#x27;Direct&#x27;: &#x27;93.0&#x27;, &#x27;Visits&#x27;: &#x27;756.0&#x27;, &#x27;Visitors&#x27;: &#x27;690.0&#x27;, &#x27;BounceRate&#x27;: &#x27;0.8293650793650794&#x27;, &#x27;NewVisitors&#x27;: &#x27;0.7579365079365079&#x27;, &#x27;Referral&#x27;: &#x27;426.0&#x27;, &#x27;TimeOnSite&#x27;: &#x27;86.744708994709&#x27;})
+</code></pre>
       
     
       
@@ -81,27 +132,43 @@
       
     
       
-        <p>你也可以计算平均页面浏览量……</p>
+        <pre><code>&gt;&gt;&gt; pageviews = [ x[1][&#x27;Pageviews&#x27;] for x in data.dates ]
+&gt;&gt;&gt; reduce(lambda a,b: float(a) + float(b), pageviews)
+38557.0
+</code></pre>
       
     
       
-        <p>注意所有数值都是以字符串形式存储的，因此在使用前需要先将其转换为浮点数。</p>
+        <p>你还可以计算平均页面浏览量……</p>
       
     
       
-        <p>总之，gareports_reader.py 让 Google Analytics 的数据变得非常易于访问，你可以创建自己感兴趣的图表并运行相应的计算。</p>
+        <pre><code>&gt;&gt;&gt; total = reduce(lambda a,b: float(a) + float(b), pageviews) 
+&gt;&gt;&gt; qty = len(pageviews)
+&gt;&gt;&gt; total / qty
+1285.2333333333333
+</code></pre>
       
     
       
-        <h2>局限性</h2>
+        <p>请注意，所有数值都是以字符串形式存储的，所以在使用前需要先转换成浮点数。</p>
       
     
       
-        <p>目前它仅支持 Dashboard 报告（即首页显示的报告）。扩展它以支持其他报告其实相当简单，但由于首页已经提供了极其丰富的数据集（每天的 search、unique、pageviews、newvisits、avgpageviews、direct、visists、visitors、boundrate、newvisitors、referral 和 timeonsite 等数值），对我当时的需求来说已经足够了。</p>
+        <p>总之，gareports_reader.py 让 Google Analytics 的数据变得非常易于访问，你可以据此创建自己感兴趣的图表并进行各种计算。</p>
       
     
       
-        <p>希望对你有帮助，如果有任何问题欢迎告诉我。</p>
+        <h3>限制</h3>
+        
+      
+    
+      
+        <p>目前它只支持 Dashboard 报告（即首页显示的那个报告）。要扩展它支持其他报告其实相当简单，但由于首页已经提供了非常丰富的数据集（每天的 search、unique、pageviews、newvisits、avgpageviews、direct、visists、visitors、boundrate、newvisitors、referral 和 timeonsite 等数值），对我当时的需求来说已经足够了。</p>
+      
+    
+      
+        <p>希望对你有帮助，如果有任何问题，欢迎随时告诉我。</p>
       
     
   </div>

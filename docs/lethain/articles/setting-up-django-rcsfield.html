@@ -29,88 +29,163 @@
   <div class="article-content">
     
       
-        <p>在继续开发我的一个项目时，我逐渐意识到需要对部分数据进行版本管理。在思考各种可能性一段时间后，我想起了几周前 Kevin 发的一条推文，说 django-rcsfield 就能实现这个功能。（我没找到那条具体的推文，抱歉。）</p>
+        <p>在我继续开发自己的项目时，我逐渐意识到需要对所处理的部分数据进行版本控制。在考虑各种方案一段时间后，我想起了几周前 Kevin 发的一条关于 django-rcsfield 正好支持此功能的推文。（我没找到那条具体的推文，抱歉。）</p>
       
     
       
-        <p>于是，我便踏上了一小段旅程，尝试正确安装并运行 django-rcsfield。虽然项目的 wiki 上有快速入门指南，但对我来说还不够清晰，所以我把整个过程的笔记分享出来。</p>
+        <p>于是我开始了一段小小的探索之旅，来安装并正确运行 django-rcsfield。项目 wiki 上有一个快速入门指南，但对我来说还不够清晰，所以我把整个过程的笔记分享出来。</p>
       
     
       
-        <h2>设置 django-rcsfield</h2>
+        <h3>设置 django-rcsfield</h3>
+        
       
     
       
-        <div class="list-content">首先你需要通过 SVN 获取代码：svn checkout http://django-rcsfield.googlecode.com/svn/trunk/ django-rcsfield
-然后需要在 site-packages 目录下建立符号链接。ln -s `pwd`/django-rcsfield/rcsfield/ /Library/Python/2.5/site-packages/rcsfield
-（我觉得 Leopard 最让我喜欢的一点就是 site-packages 目录终于放在了一个容易记住的位置。以前要把包加到 site-packages 里，就像复活节早上找彩蛋一样麻烦。）
-我使用了基于 git-python 的后端，这需要先安装 Git 和 git-python。sudo port install git
+        <pre><code>svn checkout http://django-rcsfield.googlecode.com/svn/trunk/ django-rcsfield
+</code></pre>
+      
+    
+      
+        <pre><code>ln -s `pwd`/django-rcsfield/rcsfield/ /Library/Python/2.5/site-packages/rcsfield
+</code></pre>
+      
+    
+      
+        <pre><code>sudo port install git
 git clone git://gitorious.org/git-python/mainline.git
 mv mainline git-python
 sudo python setup.py install
-django-rcsfield 项目还支持 Bazaar 和 Subversion 后端。看代码的话，支持 Mercurial 大概只需要 1 到 3 小时的 hack 时间，具体取决于会出多少奇怪的问题。（主要花时间是因为命令行使用 Mercurial 的文档似乎不多，尽管我相信其源码本身文档写得很好。）
-现在打开项目的 settings.py 文件，添加以下内容：RCS_BACKEND = &#x27;gitcore&#x27; # 后端模块名称
+</code></pre>
+      
+    
+      
+        <pre><code>RCS_BACKEND = &#x27;gitcore&#x27; # name of backend module
 GIT_REPO_PATH = os.path.join(ROOT_PATH,&#x27;git&#x27;)
-注意 RCS_BACKEND 的值是你想要使用的后端模块名称。因为一开始不太清楚应该填什么，我最初写的是 &#x27;git&#x27;，结果导致了一场令人困惑的调试过程——我一直在 rcsfield.backends.gitcore 里找错误，而实际上加载的根本不是那个文件，而是真正的 git-python 模块（git）。两者都有 .commit 属性，这让我更加混乱。
-（当然，如果我一开始就仔细阅读错误信息，就能立刻明白问题出在哪里，哎。）
-如果你想使用 Bazaar 后端，应该这样写：RCS_BACKEND = &#x27;bzr&#x27;
+</code></pre>
+      
+    
+      
+        <pre><code>RCS_BACKEND = &#x27;bzr&#x27;
 BZR_WC_PATH = &#x27;some/path/here&#x27;
-如果想使用 Subversion 后端：RCS_BACKEND = &#x27;svn&#x27;
+</code></pre>
+      
+    
+      
+        <pre><code>RCS_BACKEND = &#x27;svn&#x27;
 SVN_WC_PATH = &#x27;some/path/here&#x27;
-不过要注意，你不需要自己手动初始化仓库，至少 Git 后端是这样（我猜其他后端也是）。
-接下来你需要修改模型，加入 RcsTextField。（注意快速入门指南里对这部分配置有一个很棒的代码片段。）大致如下：from rcsfield.fields import RcsTextField
+</code></pre>
+      
+    
+      
+        <pre><code>from rcsfield.fields import RcsTextField
 from rcsfield.manager import RevisionManager
 class Note(models.Model):
-title = models.CharField(max_length=200)
+title = models.Charfield(max_length=200)
 date = models.DateTimeField()
 slug = models.SlugField(max_length=200, unique=True)
 text = RcsTextField()
 objects = RevisionManager()
-任何不使用 RcsTextField 能做的事，用 RcsTextField 也都能做。它真正做到了无缝嵌入。
-如果你已经有自定义的 manager，可以给 RevisionManager 换个名字：objects = MyCustomManager()
+</code></pre>
+      
+    
+      
+        <pre><code>objects = MyCustomManager()
 revisioned_objects = RevisionManager()
-然后记得使用对应的那个 manager 即可。
-我不能严格地说这时候必须重置 app，但如果不重置我没成功过。幸运的是，你可以先导出已有数据，重置后再导入，reset 过程不会造成太大问题。
-明确地说：我把一个模型从 TextField 改成 RcsTextField，导出了数据，重置了 app，然后成功把数据导回，没有修改导出的 JSON 文件。这意味着把 TextField 换成 RcsTextField 是相当无痛的（这也合理，因为在数据库表里它们都以相同方式存储，RcsField 的魔法发生在数据库之外）。
-另外，即使你没有添加新的数据库结构，也需要运行 syncdb。python manage.py dumpdata myapp &gt; tmp.json
+</code></pre>
+      
+    
+      
+        <pre><code>python manage.py dumpdata myapp &gt; tmp.json
 python manage.py reset myapp
-python manage.py syncdb
+python manage.py sycndb
 python manage.py loaddata tmp.json
-这时候一切应该都能正常工作了——除非你在用 OSX。在 OSX 上，Git 无法正确找到它创建的文件，无法将其添加到仓库。我通过修改 rcsfield/gitcore.py 的第 71 行解决了这个问题。
-我把第 71 行从：repo.git.add(key)
-改成了：repo.git.add(os.path.join(self.repo_path, key))
-我一开始想提交一个 patch，但发现原始代码在 Ubuntu 上运行正常，所以我怀疑这个问题应该在 git-python 或 git 本身中修复。当然，也有可能这只是因为 Port 和 Aptitude 安装的 git 版本不同导致的。
-总之，确实存在一些奇怪的问题，但要彻底弄清楚是什么、何时、何地、谁、为什么，以及最重要的是如何正确修复它，还需要一些调查。
-现在，当你编辑 rcsfield 字段时，就应该能在 GIT_REPO_PATH 指定的 Git 仓库中看到相应的变更。成功的感觉真好。（除非你遇到了其他问题而感到恼火，那我的成功对你来说就是苦的了。我发誓。）</div>
+</code></pre>
       
     
       
-        <h2>性能思考</h2>
+        <pre><code>repo.git.add(key)
+</code></pre>
       
     
       
-        <p>我目前的感觉是，这里的性能比理想情况略差。对 rcs 后端的提交是通过 post-save 信号触发的，所以当我们考虑下面这样的请求时：</p>
+        <pre><code>repo.git.add(os.path.join(self.repo_path, key))
+</code></pre>
       
     
       
-        <p>我们不仅要把对象保存到数据库，post_save 钩子也会被触发，而且是在 HttpResponse 发送之前完成的。因为数据库仍然保存着字段的当前版本，所以实际上不需要等仓库更新完成后再把响应返回给用户（我承认某些应用场景可能不是这样，但我认为绝大多数情况下都是如此）。</p>
+        <div class="list-content">首先你需要通过 SVN 获取代码：  
+然后需要在你的 site-packages 目录中创建符号链接。（我觉得 Leopard 最棒的一点就是 site-packages 目录终于放在了一个容易记住的位置。以前要把包加到 site-packages 目录里，感觉就像复活节早上找彩蛋一样。）  
+
+我使用了基于 git-python 的后端，这需要你已经安装了 Git 和 git-python。  
+django-rcsfield 项目还支持 Bazaar 和 Subversion 后端。从代码来看，为 Mercurial 添加支持大概需要 1-3 小时的 hacking，具体取决于会出多少莫名其妙的问题。（主要花时间是因为命令行使用 Mercurial 的文档似乎不多，虽然我相信其源码本身文档写得很好。）
+
+现在打开你项目的 settings.py 文件，添加以下内容：  
+请注意 RCS_BACKEND 的值是你想使用的后端所在模块的名称。因为一开始不太清楚应该填什么，我最初写的是 &#x27;git&#x27;，结果导致了一段让人困惑的调试过程——我一直在 rcsfield.backends.gitcore 里找错误，而实际上根本没有加载那个文件。它加载的是真正的 git-python 模块（git），两者都有 .commit 属性，这让我更加混乱了。  
+（当然，如果我一开始就仔细读错误信息，就马上能发现问题所在，哎呀。）
+
+如果你想使用 Bazaar 后端，应该这样写：  
+如果想使用 Subversion 后端：  
+不过要注意，你不需要自己手动初始化仓库，至少 Git 后端是这样（我猜其他后端也是）。
+
+接下来你需要修改你的模型，加入 RcsTextField。（注意快速入门指南在这个配置部分提供了一段很棒的代码示例。）大概像这样：  
+任何不使用 RcsTextField 能做的事，使用 RcsTextField 也都能做。它真的可以很干净地插入进去。  
+如果你已经有一个自定义的 manager，可以给 RevisionManager 换个名字，然后记得使用对应的那个就行。
+
+我不能严格地说这时候必须重置你的 app，但我试了其他办法都没成功。幸运的是，你可以先把现有数据 dump 出来，之后再重新加载，重置操作不会造成太大问题。  
+说清楚一点：我把一个模型从 TextField 改成 RcsTextField，dump 出数据，重置了 app，然后成功地把数据加载回去，期间没有修改 dump 文件。这说明把 TextField 替换成 RcsTextField 是相当无痛的（这也合理，因为在数据库表里两者存储方式相同，RcsField 的魔法发生在数据库之外）。
+
+另外，即使你没有真正往数据库里添加新的结构，也还是需要运行 syncdb。  
+至此一切都应该能正常工作了——除非你在用 OSX。在 OSX 上，Git 无法正确找到它创建的文件，导致无法将其加入仓库。我的解决办法是修改 rcsfield/gitcore.py 的第 71 行。
+
+我把第 71 行从：  
+改成了：  
+我一开始想提交一个 patch，但后来发现原始代码在 Ubuntu 上运行是正常的。我怀疑这个问题应该在 git-python 或 Git 本身中修复。当然，也有可能这只是因为我通过 Port 和 Aptitude 安装了不同版本的 Git 导致的。
+
+所以这里有些奇怪的问题，但要彻底搞清楚是什么、何时、何地、谁、为什么，以及最重要的是该如何正确修复，还需要一番调查。
+
+现在当你编辑 rcsfield 字段时，应该能看到你在 GIT_REPO_PATH 中指定的 Git 仓库里出现了变更。成功的感觉真甜。（除非你遇到了其他问题而感到恼火，那我的成功就变苦了，我发誓。）</div>
       
     
       
-        <p>这意味着保存带有 rcsfield 的对象要比保存不带它的对象慢很多。这是否是个问题很大程度上取决于你的用户界面和整体应用设计，但值得记住这一点。</p>
+        <h3>性能思考</h3>
+        
       
     
       
-        <p>对我来说，如果重新设计 UI 还不能足够缓解这种迟钝感，我对如何修改当前方案来获得更快的响应有两个想法：</p>
+        <p>我目前的感受是，这里的性能比理想情况稍微差一些。对 rcs 后端的提交是通过 post-save 信号触发的，因此当我们考虑下面这样的请求时：</p>
       
     
       
-        <div class="list-content">把保存到仓库的操作放到独立的线程中。线程很邪恶，诸如此类，但这似乎是一个适合把 commit 扔到线程里的场景，能显著提升响应速度。（这是那种“有点 hack 但可能很棒”的方案。）
-把 commit 加入任务队列，由另一个服务来处理这些任务。（这是“我们是可扩展性工程师，耶”的方案。）</div>
+        <pre><code># super sloppy code alert, trying to 
+# focus on the issue at hand...
+def update_obj(request):
+    obj = Obj.objects.get(slug=request.POST&#x27;slug&#x27;])
+    obj.text = request.POST[&#x27;text&#x27;]
+    obj.save()
+    return HttpResponse(&quot;Updated %s successfully.&quot; % obj.title)
+</code></pre>
       
     
       
-        <p>总之，django-rcsfield 是一个很棒的小项目，我强烈推荐大家试玩一下，看看自己的项目是否能从中受益。</p>
+        <p>我们不仅要把对象保存到数据库，post_save 钩子也会被触发，而且是在 HttpResponse 发送之前完成的。因为数据库仍然保存着字段的当前版本，所以实际上并不需要在响应返回给用户之前完成仓库的更新。（我承认某些应用场景可能不是这样，但我认为对绝大多数情况而言是成立的。）</p>
+      
+    
+      
+        <p>这意味着保存一个带有 rcsfield 的对象要比保存不带该字段的对象明显更慢。这是否构成问题，很大程度上取决于你的用户界面和整体应用设计，但值得牢记。</p>
+      
+    
+      
+        <p>对我来说，如果重新设计 UI 还是不能足够缓解这种迟钝感，我对如何改进当前方案以获得更快的响应有两个想法：</p>
+      
+    
+      
+        <div class="list-content">把保存到仓库的操作放到独立的线程中。线程很邪恶，blah blah blah，但这似乎是一个适合把 commit 操作扔到线程里以显著提升响应速度的场景。（这是那种“有点 hack 但可能很棒”的方案。）  
+把 commit 任务加入任务队列，由另一个服务来处理。（这是“我们是可扩展性工程师，哇哦”的方案。）</div>
+      
+    
+      
+        <p>总之，django-rcsfield 是一个很不错的小项目，我强烈推荐你稍微玩一玩，看看自己有没有哪些项目能从中受益。</p>
       
     
   </div>

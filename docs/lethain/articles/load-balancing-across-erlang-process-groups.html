@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Erlang 进程组间的负载均衡 · Will Larson 文集</title>
+  <title>在 Erlang 进程组间进行负载均衡 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>Erlang 进程组间的负载均衡</h1>
+    <h1>在 Erlang 进程组间进行负载均衡</h1>
     <div class="meta">
       2009-09-12 · 
       <a href="https://lethain.com/load-balancing-across-erlang-process-groups/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,11 +29,21 @@
   <div class="article-content">
     
       
-        <p>在我们正在开发的应用中，数据会依次经过一系列步骤，每个步骤对数据进行转换。这是一个 Erlang 系统，每个步骤对应一个进程组，组内有一个或多个进程（每个进程都是 gen_server）。任意一个进程组的成员都能处理任意文件，所以抽象来看，其处理逻辑大致如下：</p>
+        <p>在我们正在开发的应用程序中，数据会依次经过一系列步骤，每个步骤中都会对数据进行转换。这是一个 Erlang 系统，每个步骤都有一个进程组，其中包含一个或多个进程（每个进程都是 gen_server）。给定进程组中的任意成员都可以处理任意文件，因此抽象来看，其逻辑大致如下：</p>
       
     
       
-        <p>这种设计形成了一个非常灵活的数据处理流水线。但当我们从实现功能转向进行负载测试时，开始发现进程组内的工作分配并不均匀。在负载足够高的情况下，组内某个 pid 可能会累积 20 个任务，而另一个 pid 的队列却为空。</p>
+        <pre><code>Data = &lt;&lt;&quot;data&quot;&gt;&gt;,
+Steps = [stage_1_group, stage_2_group, stage_3_group],
+lists:foldr(fun(Group, Data) -&gt;
+    Pid = pg2:get_closest_pid(Group),
+    gen_server:call(Pid, {process, Data})
+  end, Data, Steps).
+</code></pre>
+      
+    
+      
+        <p>这形成了一个非常灵活的数据处理流水线，但当我们从实现功能转向进行负载测试时，开始注意到进程组内的工作分布不均的情况。在足够高的负载下，组内某个 pid 可能会积累二十个作业的队列，而另一个 pid 的队列却为空。</p>
       
     
       
@@ -45,19 +55,33 @@
       
     
       
-        <p>我们临时讨论了如何解决这个问题，并想出了一个（在我看来）相当新颖的方案。我们所有的 gen_server 调用都是同步的，这意味着进程的消息队列长度就等于分配给它的未处理任务数量。</p>
+        <p>我们临时讨论了如何解决这个问题，并想出了一个（在我看来）相当新颖的方案。我们所有的 gen_server 调用都是同步的，这意味着进程的消息队列长度就等同于分配给它的未处理作业数量。</p>
       
     
       
-        <p>因此，我们可以简单地遍历整个进程组，选择消息队列最短的那个进程。这样，我们可以把 get_closest_pid/1 替换成 get_best_pid/1。（抱歉这个名字起得不太好。我另一个备选是 get_unencumbered_pid/1，但可能又显得有点长。）</p>
+        <p>因此，我们可以简单地遍历进程组，然后选择队列最短的那个进程。我们可以编写一个 get_best_pid/1 来替代 get_closest_pid/1。（抱歉这个名字很糟糕。我另一个备选是 get_unencumbered_pid/1，但可能又有点太长了。）</p>
       
     
       
-        <p>把前面例子中的 pg2:get_closest_pid/1 替换为 get_best_pid/1 后，现在就可以在所有进程组之间实现负载均衡了。这原本是一个可能比较棘手的问题，但 Erlang 让解决方案变得相当简洁。</p>
+        <pre><code>get_best_pid(Group) -&gt;
+  Members = pg2:get_members(Group),
+  Members1 = lists:map(fun(Pid) -&gt;
+      [{message_queue_len, Messages}] = erlang:process_info(Pid, [message_queue_len]),
+      {Pid, Messages}
+    end, Members),
+  case lists:keysort(2, Members1) of
+    [{Pid, _} | _] -&gt; Pid;
+    [] -&gt; {error, empty_process_group}
+  end.
+</code></pre>
       
     
       
-        <p>额外的好处是，一位备受尊敬的同事指出，可以使用 erlang:get_process_info 返回的 stack_size 值作为队列长度相同时的决胜依据。理由是，一个正在处理数据的进程可能暂时没有额外的消息排队，因此无法区分一个空闲进程和一个正在工作的进程。</p>
+        <p>将前面的例子中的 pg2:get_closest_pid/1 替换为 get_best_pid/1 后，现在就能在所有进程组之间进行负载均衡了。这本来是一个可能比较棘手的问题，但 Erlang 让解决方案变得相当简洁。</p>
+      
+    
+      
+        <p>作为一个额外的好处，一位备受尊敬的同事指出，可以使用 erlang:process_info 返回的 stack_size 值作为队列作业数相同的进程组之间的决胜因子。其理由是，正在处理数据的进程不一定会有额外的消息排队，因此无法区分一个空闲进程和一个正在处理数据的进程。</p>
       
     
   </div>

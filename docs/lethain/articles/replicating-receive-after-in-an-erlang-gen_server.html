@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>在 Erlang gen_server 中实现 receive ... after 功能 · Will Larson 文集</title>
+  <title>在 Erlang gen_server 中实现 receive-after 功能 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>在 Erlang gen_server 中实现 receive ... after 功能</h1>
+    <h1>在 Erlang gen_server 中实现 receive-after 功能</h1>
     <div class="meta">
       2009-12-13 · 
       <a href="https://lethain.com/replicating-receive-after-in-an-erlang-gen_server/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,7 +29,7 @@
   <div class="article-content">
     
       
-        <p>Erlang 中使用消息传递依赖于 receive 结构，它会将用户指定的模式与进程的邮箱进行匹配，并执行对应的匹配分支。receive 可以通过 after 结构进行扩展，当在指定时间内没有收到任何消息时，就会执行相应的代码。</p>
+        <p>Erlang 中使用消息传递依赖于 receive 结构，它会将用户指定的模式与进程的邮箱进行匹配，并执行相应的匹配分支。receive 可以配合 after 结构使用，如果在指定时间内没有收到任何消息，就会执行 after 后面的代码。</p>
       
     
       
@@ -37,7 +37,23 @@
       
     
       
-        <p>然而，在实际生产环境的 Erlang 代码中，直接使用消息传递的情况并不常见。更常见的做法是使用 gen_server。在我将一段基于普通进程的代码移植到 gen_server 的过程中，遇到了困难，因为我不知道如何在 gen_server 中实现 after 的功能。</p>
+        <pre><code>store(Store) -&gt;
+    receive 
+	add -&gt;
+            io:format(&quot;started!&quot;),
+            store(Store + 1);
+	stop -&gt;
+	    Store
+    after
+	1000 -&gt;
+            io:format(&quot;Store is ~p&quot;,[Store]),
+            store(Store)
+    end.
+</code></pre>
+      
+    
+      
+        <p>然而，在实际生产环境的 Erlang 代码中，直接使用消息传递的情况并不多见。更常见的是使用 gen_server。在将一些代码从普通进程移植到 gen_server 的过程中，我遇到了困难，因为我不知道如何在 gen_server 中实现 after 的功能。</p>
       
     
       
@@ -45,11 +61,25 @@
       
     
       
-        <p>比想象的要简单。</p>
+        <pre><code>% 0 is the initial State value
+% 1000 is the timeout value
+init([]) -&gt; {ok, 0, 1000}.
+handle_cast(add, _Sender, State) -&gt;
+{noreply, State+1, 1000};
+handle_cast(stop, _Sender, State) -&gt;
+{stop, stopped, stopped, State}.
+handle_info(timeout, State) -&gt;
+io:format(&quot;Store is ~p&quot;, [State]),
+{noreply, State}.
+</code></pre>
       
     
       
-        <p>（我最初的实现有些天真。仅仅在 init/1 中返回 timeout 是不够的，必须在每一个 call 和 cast 的回调中都返回 timeout。）</p>
+        <p>比预想的要简单。</p>
+      
+    
+      
+        <p>（我最初的实现有些天真。仅仅在 init/1 中返回 timeout 是不够的，必须在每一个 handle_call 和 handle_cast 中都返回 timeout。）</p>
       
     
   </div>

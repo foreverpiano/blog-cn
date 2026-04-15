@@ -106,23 +106,32 @@ async def translate_one(
         match = re.search(pattern, translated_text, re.DOTALL)
         text_zh = match.group(1).strip() if match else seg["text"]
 
-        # Post-translation repair: restore lost placeholders
+        # Post-translation repair: count-based placeholder restoration
+        from collections import Counter
         src_fnrefs = re.findall(r'\{\{FNREF:\d+\}\}', seg["text"])
-        for ph in src_fnrefs:
-            if ph not in text_zh:
+        tgt_fnrefs = re.findall(r'\{\{FNREF:\d+\}\}', text_zh)
+        src_fn_counts = Counter(src_fnrefs)
+        tgt_fn_counts = Counter(tgt_fnrefs)
+        for ph, cnt in src_fn_counts.items():
+            deficit = cnt - tgt_fn_counts.get(ph, 0)
+            for _ in range(deficit):
                 text_zh += ph
+        for ph, cnt in tgt_fn_counts.items():
+            surplus = cnt - src_fn_counts.get(ph, 0)
+            for _ in range(surplus):
+                text_zh = text_zh.replace(ph, '', 1)
 
         src_links = re.findall(r'\{\{LINK:[^}]+\}\}', seg["text"])
-        for ph in src_links:
-            if ph not in text_zh:
+        tgt_links = re.findall(r'\{\{LINK:[^}]+\}\}', text_zh)
+        src_lk_counts = Counter(src_links)
+        tgt_lk_counts = Counter(tgt_links)
+        for ph, cnt in src_lk_counts.items():
+            deficit = cnt - tgt_lk_counts.get(ph, 0)
+            for _ in range(deficit):
                 text_zh += ph
-
-        # Remove amplified placeholders
-        for ph in re.findall(r'\{\{LINK:[^}]+\}\}', text_zh):
-            if ph not in src_links:
-                text_zh = text_zh.replace(ph, '', 1)
-        for ph in re.findall(r'\{\{FNREF:\d+\}\}', text_zh):
-            if ph not in src_fnrefs:
+        for ph, cnt in tgt_lk_counts.items():
+            surplus = cnt - src_lk_counts.get(ph, 0)
+            for _ in range(surplus):
                 text_zh = text_zh.replace(ph, '', 1)
 
         new_seg["text_zh"] = text_zh

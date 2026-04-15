@@ -29,19 +29,37 @@
   <div class="article-content">
     
       
-        <p>刚开始学习 Clojure 时，我花了不少功夫才搞清楚如何读取文件，而要弄明白如何写入文件，则需要更多的探索。下面总结了几种在 Clojure 中写入文件的方法，首先使用 clojure.contrib.duck-streams，然后直接借助 java.io.BufferedWriter。</p>
+        <p>刚开始学习 Clojure 时，我花了不少功夫才搞清楚如何从文件中读取数据，而理解如何写入文件则需要更多的探索。下面给出了一些在 Clojure 中写入文件的实用方法，首先使用 clojure.contrib.duck-streams，然后介绍如何直接使用 java.io.BufferedWriter。</p>
       
     
       
-        <h2>clojure.contrib.duck-streams/spit</h2>
+        <h3>clojure.contrib.duck-streams/spit</h3>
+        
       
     
       
-        <p>duck-streams.spit 可以看作是 Clojure 核心函数 slurp 的对应写入版本。对于简单操作和小文件来说，spit 很可能是你最好的选择。</p>
+        <p>duck-streams.spit 可以看作是 Clojure 核心函数 slurp 的对应写入版本。
+对于简单操作和小文件来说，spit 可能是最好的选择。</p>
       
     
       
-        <p>这段代码会创建一个 output.txt 文件，内容为“test”。此外还有 append-spit 变体，可以将字符串追加到文件末尾。</p>
+        <pre><code>user&gt; (require &#x27;clojure.contrib.duck-streams)
+nil                          
+user&gt; (clojure.contrib.duck-streams/spit &quot;output.txt&quot; &quot;test&quot;)
+nil
+</code></pre>
+      
+    
+      
+        <p>这段代码会创建一个 output.txt 文件，其内容为“test”。此外还有 append-spit 变体，可以将字符串追加到文件末尾。</p>
+      
+    
+      
+        <pre><code>user&gt; (require &#x27;clojure.contrib.duck-streams)
+nil                          
+user&gt; (clojure.contrib.duck-streams/append-spit &quot;output.txt&quot; &quot;test&quot;)
+nil
+</code></pre>
       
     
       
@@ -49,27 +67,48 @@
       
     
       
-        <h2>clojure.contrib.duck-streams/write-lines</h2>
+        <h3>clojure.contrib.duck-streams/write-lines</h3>
+        
       
     
       
-        <p>对于向文件流式写入，duck-streams 再次提供了最简单的方法——write-lines。</p>
+        <p>如果要以流式方式写入文件，duck-streams 再次提供了最简单的方法 —— write-lines。</p>
       
     
       
-        <p>遗憾的是，并非所有人都会立即安装 clojure-contrib，因此我们来看看不依赖 duck-streams 如何写入文件。</p>
+        <pre><code>user&gt; (require &#x27;clojure.contrib.duck-streams)
+nil   
+user&gt; (clojure.contrib.duck-streams/write-lines &quot;output.txt&quot; 
+                                                (list 1 2 3 4))
+nil
+</code></pre>
       
     
       
-        <h2>java.io.BufferedWriter</h2>
+        <p>遗憾的是，并不是所有人都会立刻安装 clojure-contrib，因此我们来看看如何在不使用 duck-streams 的情况下写入文件。</p>
       
     
       
-        <p>当 Clojure 核心和贡献库无法满足需求时（或者我们不想安装贡献库），下一步就该转向 Java 的方式：在本例中就是 java.io.BufferedWriter。</p>
+        <h3>java.io.BufferedWriter</h3>
+        
       
     
       
-        <p>最简单的情况下，java.io.BufferedWriter 可以帮助我们实现与 duck-streams.spit 相同的功能。</p>
+        <p>当 Clojure 核心和贡献库无法满足需求时（或者我们不想安装贡献库），下一步就该转向 Java 的解决方案了：在本例中就是使用 java.io.BufferedWriter。</p>
+      
+    
+      
+        <p>最简单的情况下，java.io.BufferedWriter 可以帮我们实现与 duck-streams.spit 相同的功能。</p>
+      
+    
+      
+        <pre><code>(ns tokenize
+  (:import (java.io BufferedWriter FileWriter)))
+(defn spit2 [file-name data]
+(with-open [wtr (BufferedWriter. (FileWriter.	file-name))]
+(.write wtr	data)))
+(spit2 &quot;output.txt&quot; &quot;this is some data…\n&quot;)
+</code></pre>
       
     
       
@@ -77,7 +116,17 @@
       
     
       
-        <p>以上四种方法（duck-streams.spit、duck-streams.write-lines、spit2 或 write-lines2）应该足以满足你大部分文件写入需求。接下来需要考虑的场景是：一个系统从文件中惰性读取数据，执行某些操作后，再将结果惰性写入另一个文件。希望这一部分的内容一两天内就能完成。</p>
+        <pre><code>(ns tokenize
+  (:import (java.io BufferedWriter FileWriter)))
+(defn write-lines2 [file-name lines]
+(with-open [wtr (BufferedWriter. (FileWriter. file-name))]
+(doseq [line lines] (.write	wtr line))))
+(write-lines2 &quot;output2.txt&quot; (list &quot;a\n&quot; &quot;b&quot; &quot;c&quot; &quot;d\n&quot; &quot;e\n&quot;))
+</code></pre>
+      
+    
+      
+        <p>上面四种方法（duck-streams.spit、duck-streams.write-lines、spit2 或 write-lines2）应该能够满足你大部分的文件写入需求。接下来值得考虑的场景是：一个系统从文件中惰性读取数据，执行某些处理后，再惰性地将结果写入文件。希望这一部分的内容一两天内就能准备好。</p>
       
     
   </div>

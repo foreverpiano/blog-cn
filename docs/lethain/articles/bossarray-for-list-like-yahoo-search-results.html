@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BossArray：像列表一样处理 Yahoo 搜索结果 · Will Larson 文集</title>
+  <title>BossArray：像列表一样使用 Yahoo 搜索结果 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>BossArray：像列表一样处理 Yahoo 搜索结果</h1>
+    <h1>BossArray：像列表一样使用 Yahoo 搜索结果</h1>
     <div class="meta">
       2008-07-28 · 
       <a href="https://lethain.com/bossarray-for-list-like-yahoo-search-results/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,30 +29,71 @@
   <div class="article-content">
     
       
-        <p>已经很久没有做一些纯粹为了自己兴趣的小型趣味项目了。这个想法我在脑子里盘算了几个星期，终于抽出几块时间把它实现了出来。我很高兴地宣布 boss_array.py 诞生了，它是对 Yahoo BOSS Mashup Framework 的一个友好封装，让搜索结果可以像普通 Python 列表一样使用。我们先来看一个例子。</p>
+        <p>已经很久没有为了自娱自乐而开发一些有趣的小项目了。这个想法我已经琢磨了好几周，终于抽出一段完整的时间把它完成了。我很高兴地宣布 boss_array.py 的发布，它是对 Yahoo BOSS Mashup Framework 的一个友好封装，可以让搜索结果像普通 Python 列表一样被操作。先来看一个例子吧。</p>
       
     
       
-        <p>这里有几个很方便的功能：</p>
+        <pre><code>&gt;&gt;&gt; from boss_array import BossArray
+x&gt;&gt;&gt; x = BossArray(&quot;Tokyo cheap hotel&quot;)
+&gt;&gt;&gt; x[0]
+{u&#x27;dispurl&#x27;: u&#x27;&lt;b&gt;directrooms.com&lt;/b&gt;/japan/&lt;b&gt;hotels&lt;/b&gt;/&lt;wbr&gt;&lt;b&gt;tokyo&lt;/b&gt;-&lt;b&gt;hotels&lt;/b&gt;/price1.htm&#x27;, u&#x27;title&#x27;: u&#x27;&lt;b&gt;Tokyo&lt;/b&gt; &lt;b&gt;Hotels&lt;/b&gt; in Japan - DirectRooms&#x27;, u&#x27;url&#x27;: u&#x27;http://directrooms.com/japan/hotels/tokyo-hotels/price1.htm&#x27;, u&#x27;abstract&#x27;: u&#x27;&lt;b&gt;Tokyo&lt;/b&gt; discount &lt;b&gt;hotel&lt;/b&gt; reservations from DirectRooms. Save &lt;b&gt;...&lt;/b&gt; The &lt;b&gt;hotel&lt;/b&gt; is located on the eastern side of &lt;b&gt;Tokyo&lt;/b&gt;, Nihonbashi area, &lt;b&gt;...&lt;/b&gt; 5 &amp;gt;all &lt;b&gt;Tokyo&lt;/b&gt; &lt;b&gt;hotels&lt;/b&gt; on 1 &lt;b&gt;...&lt;/b&gt;&#x27;, u&#x27;clickurl&#x27;: u&#x27;http://directrooms.com/japan/hotels/tokyo-hotels/price1.htm&#x27;, u&#x27;date&#x27;: u&#x27;2008/05/03&#x27;, u&#x27;size&#x27;: u&#x27;53291&#x27;}
+&gt;&gt;&gt; len(x)
+298267
+&gt;&gt;&gt; x[0:10]
+u&quot;All ten results would display, removed for readability.&quot;
+&gt;&gt;&gt; x[20:60]
+u&quot;Results 20-60 would display...&quot;
+&gt;&gt;&gt; x[0:200]
+u&quot;Results 0-200 would display...&quot;
+</code></pre>
       
     
       
-        <div class="list-content">创建 BossArray 时只需指定一次查询条件，之后它就会记住你的搜索关键词；可以通过 len() 函数轻松获取搜索结果总数；允许一次性获取超过 50 条结果（搜索 API 单次查询最多返回 50 条，但 BossArray 会自动把大请求拆分成多个查询，目前是顺序执行，所以如果一次性获取非常多的结果可能会稍慢）；所有搜索结果都会被 BossArray 缓存。这意味着如果你先获取 x[0:20]，再获取 x[5] 时就不会再发起 HTTP 请求。如果你尝试获取 x[5:15]，同样会使用缓存的结果。这种机制在更复杂的情况下也能很好地工作，例如：&gt;&gt;&gt; _ = x[0:50]
+        <p>这里有几点很方便的设计：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; _ = x[0:50]
 &gt;&gt;&gt; _ = x[100:150]
 &gt;&gt;&gt; _ = x[0:200]
-BossArray 会智能地处理这种情况：在最后一次 x[0:200] 的查询中，它会复用已缓存的 0-50 和 100-150 的结果，只需要额外发起两次查询来填充 50-100 和 150-200 的缺失部分。</div>
+</code></pre>
       
     
       
-        <h2>使用方法</h2>
+        <div class="list-content">你只需在创建 BossArray 时指定一次查询条件，之后它就会记住你的搜索关键词；可以通过 len() 函数非常方便地获取搜索结果总数；允许一次性获取超过 50 条结果（搜索 API 单次查询最多返回 50 条，但 BossArray 会自动将大范围请求拆分成多个查询，目前是按顺序执行，所以如果一次性获取非常大量的结果可能会稍慢）；所有的搜索结果都会被 BossArray 缓存，也就是说如果你先取了 x[0:20]，再去取 x[5] 时就不会再发起 HTTP 请求。如果你尝试获取 x[5:15]，同样会使用缓存的结果。这种机制在更复杂的情况下也能很好地工作，比如下面这个例子：BossArray 足够智能，能够正确处理这种情况。在最后一次查找 x[0:200] 时，它会使用已缓存的 0-50 和 100-150 部分的结果，并额外发起两次查询来填充 50-100 和 150-200 之间的缺失部分。</div>
       
     
       
-        <p>你已经在上面的例子中见过基本用法，这里再补充几个例子。首先我们把第 15 条搜索结果在浏览器中打开。</p>
+        <h3>使用方法</h3>
+        
       
     
       
-        <p>接下来，我们来看看如何显示前 100 条搜索结果的所有 URL。</p>
+        <p>上面的例子已经展示了基本用法，下面再补充几个例子。首先，我们把第十五条搜索结果在浏览器中打开。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; from boss_array import BossArray
+&gt;&gt;&gt; x = BossArray(&quot;Python&quot;)
+&gt;&gt;&gt; import webbrowser
+&gt;&gt;&gt; webbrowser.open(x[10][&#x27;url&#x27;])
+</code></pre>
+      
+    
+      
+        <p>接下来，我们来显示前 100 条搜索结果的所有 URL。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; from boss_array import BossArray
+&gt;&gt;&gt; x = BossArray(&quot;Restaurants near Suitengumae Station&quot;)
+&gt;&gt;&gt; urls = [ a[&#x27;url&#x27;] for a in x[:100] ]
+&gt;&gt;&gt; for url in urls:
+&gt;&gt;&gt;    print url
+u&quot;url 1&quot;
+u&quot;url 2&quot;
+u&quot;...&quot;
+</code></pre>
       
     
       
@@ -60,15 +101,17 @@ BossArray 会智能地处理这种情况：在最后一次 x[0:200] 的查询中
       
     
       
-        <h2>安装配置</h2>
+        <h3>安装说明</h3>
+        
       
     
       
-        <p>配置 BossArray 和配置 Yahoo BOSS Mashup Framework 一样简单，只需按照 Yahoo BOSS Mashup Framework 的说明，在包含 config.json 文件的目录中启动 Python 即可。</p>
+        <p>设置 BossArray 和设置 Yahoo BOSS Mashup Framework 一样简单，只需按照 Yahoo BOSS Mashup Framework 的安装说明，在包含 config.json 文件的目录中启动 Python 即可。</p>
       
     
       
-        <h2>代码仓库与下载</h2>
+        <h3>代码仓库与下载</h3>
+        
       
     
       

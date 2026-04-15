@@ -29,19 +29,32 @@
   <div class="article-content">
     
       
-        <p>今天早些时候，我需要在 Erlang 中实现字符串拼接，找了半天 lists 模块里的 join 函数后，才发现根本没有这个函数。于是问题就来了：该如何实现 join 呢？</p>
+        <p>今天早些时候，我发现自己需要在 Erlang 中实现字符串拼接功能。在 lists 模块中寻找 join 函数几分钟后，我意识到那里并没有现成的实现。这就引出了一个问题：应该如何实现 join？</p>
       
     
       
-        <p>实现 join 最简单的方法是使用 reduce/fold。Erlang 在 lists:foldl 和 lists:foldr 中提供了这两个函数，分别从左和从右进行折叠。我选择从左折叠，因此用于折叠的函数长这样：</p>
+        <p>实现 join 最简单的方式是使用 reduce/fold 操作。Erlang 在 lists:foldl 和 lists:foldr 中提供了这些功能，分别向左和向右折叠。我选择从左边开始折叠，因此用于折叠的函数长这样：</p>
       
     
       
-        <p>然后我们把它应用到一个列表上。</p>
+        <pre><code>% Char is assumed to exist.
+JoinFunction = fun(Element, Acc) -&gt; lists:append([Acc, Char, Element]) end.
+</code></pre>
       
     
       
-        <p>现在基本能用了，但还存在一个小问题：结果前面会多出一个分隔符（比如用 &quot;, &quot; 拼接 [&quot;one&quot;, &quot;two&quot;, &quot;three&quot;] 会得到 &quot;, one, two, three&quot;）。幸运的是，我们处理的是链表，去掉前面的多余部分是一个 O(c) 的操作（其中 c 是分隔符列表的长度）。</p>
+        <p>然后我们将其应用到一个列表上。</p>
+      
+    
+      
+        <pre><code>% List is assumed to exist.
+InitialAcc = &quot;&quot;,
+Results = lists:foldl(JoinFunction, InitialAcc, List).
+</code></pre>
+      
+    
+      
+        <p>现在基本能用了，但还存在一个小问题：结果开头会多出一个连接符（例如用 &quot;, &quot; 连接 [&quot;one&quot;, &quot;two&quot;, &quot;three&quot;] 会得到 &quot;, one, two, three&quot;）。幸运的是，我们处理的是链表，所以去掉开头多余的部分是一个 O(c) 的操作（其中 c 是连接符列表的长度）。</p>
       
     
       
@@ -49,27 +62,69 @@
       
     
       
-        <p>我对这个方案还算满意，但还是觉得值得再写一个不使用 fold 的版本。</p>
+        <pre><code>simple_join(_, []) -&gt;
+    &quot;&quot;;
+simple_join(Char, List) -&gt;
+    P = fun(Elem, AccIn) -&gt; lists:append([AccIn, Char, Elem]) end,
+    lists:nthtail(length(Char), lists:foldl(P, &quot;&quot;, List)).
+</code></pre>
       
     
       
-        <p>这个方案需要处理三种情况。</p>
+        <p>我对这个方案还算满意，但觉得值得再实现一个不使用 fold 的版本。</p>
       
     
       
-        <div class="list-content">是第一个元素吗？如果是，则递归调用，累积结果设为 list[0]，待处理列表设为 list[1:]。没有剩余元素了吗？如果是，则直接返回累积的结果。否则，对 list[1:] 递归调用，并将分隔符和 list[0] 追加到累积结果中。</div>
+        <figure>
+          <img src="https://lethain.com/static/blog/erlang_join_creek.jpg" alt="A creek in a concrete gutter.">
+          
+        </figure>
       
     
       
-        <p>虽然按代码行数来看并不特别简洁，但我个人觉得这个 Erlang 实现相当优雅。</p>
+        <p>这个解决方案需要处理三种情况。</p>
       
     
       
-        <p>我最喜欢的部分是所有的逻辑都通过函数定义的模式匹配来处理，而不是使用显式的 case 或 if/else 结构。至于可读性，我觉得可以和 Scheme 中一个大致等价的函数对比一下。</p>
+        <div class="list-content">是第一个元素吗？如果是，则用 list[0] 作为累积结果递归，剩余待处理列表为 list[1:]。没有剩余元素了吗？如果是，则返回累积的结果。其他情况：对 list[1:] 进行递归调用，并将连接符和 list[0] 追加到累积结果中。</div>
       
     
       
-        <p>对比两者，我认为 Erlang 实现的一个缺点是，大多数程序员（包括我自己）对 if-else 范式比对模式匹配更熟悉。不过我还是觉得 Erlang 的方案更简洁，也更容易理解。总的来说，在我对 Erlang 及其概念有了一些了解之后，我现在更喜欢 Erlang 的这个方案。</p>
+        <p>虽然按代码行数来衡量并不特别简洁，但我发现这个 Erlang 方案相当令人满意。</p>
+      
+    
+      
+        <pre><code>simple_join(Char, List) -&gt;
+    simple_join(Char, List, []).
+simple_join(_, [], Acc) -&gt;
+    Acc;
+simple_join(Char, [First|Rest], []) -&gt;
+    simple_join(Char, Rest, First);
+simple_join(Char, [First|Rest], Acc) -&gt;
+    simple_join(Char, Rest, lists:append([Acc, Char, First])).
+</code></pre>
+      
+    
+      
+        <p>我最喜欢的部分是所有的逻辑都通过函数定义的模式匹配来处理，而不是使用显式的 case 或 if/else 结构。就可读性而言，我觉得值得与 Scheme 中一个大致等价的函数进行比较。</p>
+      
+    
+      
+        <pre><code>(define (simple-join char list)
+  (define (sj char list acc)
+    (cond ((null? acc) (sj char (cdr list) (car list)))
+	  ((null? (cdr list)) acc)
+	  (else (sj char (cdr list) (append acc char (car list))))))
+  (sj char list (list)))
+</code></pre>
+      
+    
+      
+        <p>对比两者，我认为 Erlang 实现显得有些吃亏，因为大多数程序员（包括我自己）对 if-else 范式比对模式匹配更加熟悉。然而，我觉得 Erlang 的方案更简洁，也更容易理解。总的来说，在对 Erlang 及其概念有了一定了解之后，我现在更喜欢 Erlang 的解决方案。</p>
+      
+    
+      
+        <div class="list-content">它几乎做了完全相同的事情，但这么做的价值值得商榷。Erlang 中的字符串就是列表，而 Scheme 中的字符串则不是（在 Common Lisp 中字符串被实现为向量，我猜 Scheme 也是如此，但不确定）。就目前而言，Scheme 版本只是简单地连接列表，而不是字符串。↩</div>
       
     
   </div>

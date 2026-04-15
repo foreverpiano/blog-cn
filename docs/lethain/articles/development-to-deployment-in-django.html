@@ -29,43 +29,63 @@
   <div class="article-content">
     
       
-        <p>我在 Django 开发中做过的最有价值的事情之一，就是建立一套稳定一致的开发到部署流程。下面我将快速介绍一些让我工作更轻松的做法，同时也很想听听大家都在使用哪些技巧。</p>
+        <p>我在 Django 开发过程中做过的最有价值的事情之一，就是建立了一套稳定一致的开发到部署流水线。下面我快速介绍一些让我工作更轻松的做法，同时也很想听听大家都在使用哪些技巧。</p>
       
     
       
-        <h2>local_settings.py 进阶用法</h2>
+        <h3>local_settings.py 进阶用法</h3>
+        
       
     
       
-        <p>在 Django 部署中，最有效的技巧之一是在 settings.py 文件的末尾加上以下四行代码：</p>
+        <p>使用 Django 进行部署时，最好用的技巧之一是在 settings.py 文件末尾加上下面四行代码：</p>
       
     
       
-        <p>这样就可以用 local_settings.py 的内容来覆盖 settings.py 中的配置。对于一个公开共享的项目，你只能做到提供一个 local_settings.py 模板让用户自行定制。但如果你控制着生产环境和开发环境（比如私有项目），就可以把这个方法发挥得更深入。</p>
+        <pre><code>try:
+    from local_settings import *
+except ImportError:
+    pass
+</code></pre>
       
     
       
-        <p>我会创建一个 production_settings.py 文件存放生产服务器的配置，再创建一个 devel_settings.py 用于本地开发。两者都纳入版本控制，然后在本地代码库中创建一个 local_settings.py，内容如下：</p>
+        <p>这样你就可以用 local_settings.py 的内容来覆盖 settings.py 中的设置。对于一个公开、可分享的项目，你最多只能做到提供一个 local_settings.py 模板供用户自行修改。但如果你控制着生产环境和开发环境（比如私有项目），就可以把这个技巧用得更深入。</p>
       
     
       
-        <p>而在生产环境的代码库中，local_settings.py 则是这样的：</p>
+        <p>我会创建一个 production_settings.py 文件存放生产服务器的配置，再创建一个 devel_settings.py 用于本地开发。两者都纳入版本控制，然后在本地代码仓库中创建一个 local_settings.py，内容如下：</p>
       
     
       
-        <p>最后，确保 local_settings.py 被版本控制系统忽略。</p>
+        <pre><code>from devel_settings import *
+</code></pre>
       
     
       
-        <p>我喜欢这种设置，因为它（和标准的 local_settings.py 技巧一样）能方便地修改共享配置。此外，这个方法还无需 SSH 到生产服务器就能修改生产配置，而且比在仓库中同时维护 production 和 development 分支要简单得多（后者需要进行大量无意义的合并）。</p>
+        <p>而生产环境的 local_settings.py 则是这样的：</p>
       
     
       
-        <h2>devel_settings.py 和 production_settings.py</h2>
+        <pre><code>from production_settings import *
+</code></pre>
       
     
       
-        <p>我的 devel_settings.py 文件几乎在所有项目中都长得一模一样。你的配置可能会有所不同，但我发现，维护一个标准化的项目模板（而不是每次都用 django-admin startproject 创建新项目）能节省不少思考的时间。</p>
+        <p>最后，确保 local_settings.py 不被版本控制系统跟踪。</p>
+      
+    
+      
+        <p>我喜欢这种设置，因为它（和标准的 local_settings.py 技巧一样）能方便地修改共享配置。此外，它还让我无需 SSH 到生产服务器就能调整生产环境的设置，而且比在仓库中维护 production 和 development 两个分支（需要大量无意义的合并操作）要简单得多。</p>
+      
+    
+      
+        <h3>devel_settings.py 和 production_settings.py 的内容</h3>
+        
+      
+    
+      
+        <p>我的 devel_settings.py 文件几乎每次都长得一模一样，和具体项目无关。你的可能会有所不同，但我发现保持一个标准化的项目模板（而不是每次都用 django-admin startproject 创建新项目）能节省不少思考的时间。</p>
       
     
       
@@ -73,75 +93,144 @@
       
     
       
-        <p>production_settings.py 的内容则会有更多变化，因为它取决于 Postgres 和 Memcached 的具体设置，但整体看起来大致如下：</p>
+        <pre><code># Settings for devel server
+import os
+ROOT_PATH = os.path.dirname(__file__)
+DEBUG = True
+TEMPLATE_DEBUG = DEBUG
+COMPRESS = False # django-compress setting
+CACHE_BACKEND=&quot;locmem:///&quot;
+DATABASE_ENGINE = &#x27;sqlite3&#x27;
+DATABASE_NAME = os.path.join(ROOT_PATH, &#x27;devel.sqlite&#x27;)
+DATABASE_USER = &#x27;&#x27;
+DATABASE_PASSWORD = &#x27;&#x27;
+DATABASE_HOST = &#x27;&#x27;
+DATABASE_PORT = &#x27;&#x27;
+MEDIA_ROOT = os.path.join(ROOT_PATH, &#x27;media&#x27;)
+MEDIA_URL = &#x27;http://127.0.0.1:8000/media/&#x27;
+ADMIN_MEDIA_PREFIX = &#x27;/media/admin/&#x27;
+</code></pre>
       
     
       
-        <p>你的生产配置很可能和这个差别很大。</p>
+        <p>production_settings.py 的内容则根据 Postgres 和 Memcached 的配置有所不同，但大体结构类似下面这样：</p>
       
     
       
-        <h2>三个仓库的故事</h2>
+        <pre><code># Django settings for codernode.com project
+COMPRESS = True # django-compress setting
+COMPRESS_VERSION = True # django-compress setting
+DEBUG = True
+TEMPLATE_DEBUG = DEBUG
+ADMINS = ((&#x27;Mr Admin&#x27;,&#x27;admin@example.com&#x27;),)
+MANAGERS = ADMINS
+CACHE_BACKEND=&quot;memcached://127.0.0.1:11211&quot;
+EMAIL_SUBJECT_PREFIX = &quot;[My Project]&quot;
+SERVER_EMAIL = &quot;django@example.com&quot;
+DEFAULT_FROM_EMAIL = &#x27;info@example.com&#x27;
+DATABASE_ENGINE = &#x27;postgresql_psycopg2&#x27;
+DATABASE_NAME = &#x27;some_database&#x27;
+DATABASE_USER = &#x27;some_user&#x27;
+DATABASE_PASSWORD = &#x27;some_password&#x27;
+DATABASE_HOST = &#x27;&#x27;
+DATABASE_PORT = &#x27;&#x27;
+TIME_ZONE = &#x27;America/Chicago&#x27;
+LANGUAGE_CODE = &#x27;en-us&#x27;
+SITE_ID = 1
+USE_I18N = True
+MEDIA_ROOT = &#x27;/path/to/media/root/&#x27;
+MEDIA_URL = &#x27;http://example.com/media/&#x27;
+ADMIN_MEDIA_PREFIX = &#x27;/media/admin/&#x27;
+TEMPLATE_DIRS = ()
+</code></pre>
       
     
       
-        <p>我整个开发-部署流程的基础是三个代码仓库（使用分布式版本控制会更简单一些，不过用 Subversion 或 CVS 也能实现类似效果）。</p>
+        <p>你的配置很可能会有很大差异。</p>
       
     
       
-        <div class="list-content">一个托管在非本地也非生产环境的主仓库。我用自己的 Slicehost 服务器来托管所有私有 git 仓库（它有每日和每周备份，如果出问题我也能自己修复），你也可以使用付费的 GitHub 账号或其他类似服务。每个开发者本地都有一个仓库，定期推送到主仓库。每台生产服务器上都有一个生产仓库。</div>
+        <figure>
+          <img src="https://lethain.com/static/blog/muddy_tiles.jpg" alt="A picture of muddy tiles with a thin layer of water on top.">
+          
+        </figure>
       
     
       
-        <p>开发者主要在本地机器上工作，将代码推送到主仓库的对应分支上。他们也会偶尔从主仓库拉取更新，以保持仓库同步。</p>
+        <h3>三个代码仓库的故事</h3>
+        
       
     
       
-        <p>生产仓库通过以下方式保持更新：</p>
+        <p>我整个开发-部署流水线的核心是三个代码仓库（使用分布式版本控制会更简单，但用 Subversion 或 CVS 也能实现类似效果）。</p>
       
     
       
-        <div class="list-content">使用 Fabric 远程命令生产服务器拉取最新代码。这适用于大中小型部署，始终都是最佳选择，不需要再考虑其他方案。通过 SSH 登录生产服务器手动拉取更新，或者写一个批处理脚本来完成。这种方式对于单机部署已经足够，但如果环境更复杂，就应该采用专门的部署方案。设置 cron 任务定期自动拉取。这是最简单、最偷懒的做法，但在大多数情况下并不推荐。</div>
+        <div class="list-content">一个托管在非本地、非生产环境的主仓库。我用自己托管博客的 Slicehost 服务器来存放所有私有 Git 仓库（它有每日和每周备份，如果出问题我也能自己修复）。你也可以使用付费的 GitHub 账号或其他类似服务。
+每个开发者本地都有一个仓库，定期推送到主仓库。
+每台生产服务器上都有一个生产仓库。</div>
       
     
       
-        <p>使用这套流程后，从开发环境推送一个改动到生产环境只需要两个步骤：</p>
+        <p>开发者主要在本地机器上工作，并将代码推送到主仓库的对应分支。他们也会偶尔从主仓库拉取代码，以保持仓库同步。</p>
       
     
       
-        <p>我强烈建议再添加一个 fab revert hash-to-revert-to 命令，以便在部署出现问题时能够快速回滚。</p>
+        <p>生产仓库的更新方式有以下几种：</p>
       
     
       
-        <h2>生产服务器设置</h2>
+        <div class="list-content">使用 Fabric 远程命令生产服务器拉取最新代码。这是大型、中型和小型部署的最佳选择。也就是说，这永远都是最好的方案，其他的不用再看了。
+SSH 登录到生产服务器，手动拉取更新。或者写一个批处理脚本来完成。这种方式对于单机部署已经足够，但如果规模更大，就应该使用专业的部署方案。
+设置定时任务（cronjob）定期拉取更新。这是最简单、最偷懒的方式，但在大多数情况下并不推荐。</div>
       
     
       
-        <p>我会把目录结构保持得非常简单且统一。所有生产服务器上都有一个名为 django 的用户，其密码已被禁用且没有 SSH 权限。开发者在生产机器上有账号，他们属于 django 用户组，因此可以修改 django 用户的所有文件（把 SSH 配置成免密登录能省掉你好几天的麻烦）。</p>
+        <p>使用这套方案，从开发环境推送改动到生产环境只需要两个步骤：</p>
       
     
       
-        <p>我会根据版本控制系统将第三方库按文件夹组织，通常会有 git 和 svn 文件夹，根据实际情况也可能出现 hg 或 bzr 文件夹。（好吧，我承认我几乎没用过 bzr 文件夹，只是想说得更全面一些。）然后我把它们全部软链接到 /usr/python2.?/site-packages/ 目录下（最近几年我一直在用 Python 2.5，不过未来一两年如果 2.6 有显著性能提升，我可能会升级）。</p>
+        <pre><code>git push
+fab deploy
+</code></pre>
       
     
       
-        <p>我更喜欢直接链接到仓库的检出目录（而不是用 setup.py 安装），这样以后如果需要更新库，在所有生产服务器上操作会更方便。</p>
+        <p>我强烈建议再加一个 fab revert hash-to-revert-to 命令，以便在部署不顺利时能快速回滚。</p>
       
     
       
-        <p>对于静态资源，我会把项目或应用仓库中需要的文件夹软链接到 /var/www/example.com/media/，然后让 Nginx 负责提供服务。（我依然很满意 Nginx + Apache2 + mod_python 的组合，尽管它已经不太被最潮的开发者们青睐，他们现在都转投 WSGI 了。）</p>
+        <h3>生产服务器的设置</h3>
+        
       
     
       
-        <h2>测试……</h2>
+        <p>我会保持目录结构非常简洁且统一。所有生产服务器上都有一个名为 django 的用户，其密码已被禁用且没有 SSH 权限。开发者在生产机器上有账号，他们属于 django 用户组，因此可以修改 django 用户的所有文件（把 SSH 配置成免密登录能省掉你好几天的时间）。</p>
       
     
       
-        <p>你可以在测试集成上做很多有创意的事情（比如只有所有测试通过才允许部署脚本推送到生产环境，或者在主仓库的 post-commit hook 中运行测试，并在测试失败时邮件通知开发者等等）。但我目前仍然是手动运行测试。这大概会是我接下来要改进的下一个环节。</p>
+        <p>我会根据版本控制系统的不同把各种库分别放在不同文件夹里，所以通常会有 git 文件夹和 svn 文件夹，根据使用的库可能还会有 hg 或 bzr 文件夹。（好吧，我承认我几乎没用过 bzr 文件夹，只是想显得更全面。）然后我把它们全部软链接到 /usr/python2.?/site-packages/ 目录下（最近我一直主要使用 Python 2.5，不过如果 2.6 有显著的性能提升，我可能一两年内会升级）。</p>
       
     
       
-        <p>你有没有使用这里没有提到的其他技巧？或者拥有更好的整体设计方案？我很想知道大家是如何解决这个普遍存在的问题的。</p>
+        <p>我更喜欢直接链接到代码仓库的签出目录（而不是用 setup.py 安装），这样以后如果需要更新库，可以更方便地在所有生产服务器上统一操作。</p>
+      
+    
+      
+        <p>对于静态媒体文件，我会把项目或应用仓库中对应的文件夹软链接到 /var/www/example.com/media/，然后让 Nginx 负责提供服务。（我依然很满意自己的 Nginx/Apache2/mod_python 组合，即使它已经不再被最潮的开发者们所青睐，大家都转向 WSGI 了。）</p>
+      
+    
+      
+        <h3>测试……</h3>
+        
+      
+    
+      
+        <p>你可以在测试集成上做很多有创意的事情（比如只有所有测试通过时部署脚本才会推送到生产环境，或者在主仓库的 post-commit hook 中运行完整测试，如果失败就邮件通知开发者等等），但我目前还是手动运行测试。这大概会是我接下来要改进的地方。</p>
+      
+    
+      
+        <p>你有没有使用这里没有提到的其他技巧？或者拥有更好的整体设计方案？我很想看看大家是如何解决这个普遍性问题的。</p>
       
     
   </div>

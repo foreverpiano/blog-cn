@@ -29,15 +29,15 @@
   <div class="article-content">
     
       
-        <p>很长一段时间以来，我一直想开发一个可插拔的 Django 应用，用于查询 Yahoo! BOSS。虽然实现本身相当简单，但这个应用需要加入一些特别的“调味料”来让它更具吸引力。我希望你会觉得它的味道还不错。</p>
+        <p>很长一段时间以来，我一直想开发一个可插拔的 Django 应用，用于查询 Yahoo! BOSS。虽然实现本身非常简单，但这个应用需要加入一些特别的“调味料”来提升其吸引力。希望你会觉得它的味道还不错。</p>
       
     
       
-        <p>这就是 django-springsteen。（名称的致敬完全来自 Justin Lilly。）</p>
+        <p>这就是 django-springsteen。（名字的功劳完全归于 Justin Lilly。）</p>
       
     
       
-        <p>springsteen 为 Yahoo! BOSS 提供了一个简单的封装，但更进一步，它提供了一个构建分布式搜索网络的简易框架。如果你梦想着一个每家博客网络都可以被搜索、每个细分领域都有自己的垂直搜索的世界，那么 springsteen 就是为你准备的。</p>
+        <p>springsteen 为 Yahoo! BOSS 提供了一个简单的封装，但它更进一步，提供了一个构建分布式搜索网络的简易框架。如果你梦想每个博客网络都能被搜索，每个细分领域都能拥有自己的垂直搜索，那么 springsteen 正是为你准备的。</p>
       
     
       
@@ -45,7 +45,8 @@
       
     
       
-        <h2>查询 BOSS 获取网页搜索结果</h2>
+        <h3>查询 BOSS 的网页搜索结果</h3>
+        
       
     
       
@@ -53,23 +54,35 @@
       
     
       
-        <p>然后访问 http://yourproject.com/search/web/（或者 /search/images/ 或 /search/news/），你立刻就会看到一个搜索页面等待着你。</p>
+        <pre><code>from django.conf.urls.defaults import *
+from springsteen.views import web, images, news
+urlpatterns = patterns(&#x27;&#x27;,
+(r&#x27;^search/web/$&#x27;, web),
+(r&#x27;^search/images/$&#x27;, images),
+(r&#x27;^search/news/$&#x27;, news),
+)
+</code></pre>
       
     
       
-        <p>网页搜索结果（以及所有已实现的服务）的缓存使用你在 settings.py 中指定的缓存后端。缓存 Yahoo! BOSS 带来的速度提升可能并不明显，但对于更特别的服务（以及高频搜索）来说，缓存会成为一项更重要的特性。</p>
+        <p>然后访问 http://yourproject.com/search/web/（或者 /search/images/、/search/news/），你就会立刻得到一个可用的搜索页面。</p>
       
     
       
-        <p>要改善外观，可以重写 springsteen/base.html 或 springsteen/results.html 模板。（你也可以重写 *_result.html 模板来自定义不同类型的结果。）</p>
+        <p>网页搜索结果（以及所有已实现的服务）的结果会使用你在 settings.py 中指定的缓存后端进行缓存。缓存 Yahoo! BOSS 带来的速度提升可能不算显著，但对于更特别的服务（以及频繁的搜索），缓存会成为一项更重要的特性。</p>
       
     
       
-        <h2>带站点限定的 BOSS 搜索结果</h2>
+        <p>要清理外观，可以重写 springsteen/base.html 或 springsteen/results.html 模板。（你也可以重写 *_result.html 模板来自定义不同类型的搜索结果。）</p>
       
     
       
-        <p>如果你只想获取单个站点的网页搜索结果（穷人版的站内搜索），可以继承 springsteen.services.Web 类（你也可以通过分别继承 springsteen.services.News 和 springsteen.services.Images 类来限制新闻或图片搜索）。</p>
+        <h3>带站点限制的 BOSS 搜索结果</h3>
+        
+      
+    
+      
+        <p>如果你只想获取单个站点的网页搜索结果（穷人的站内搜索），可以继承 springsteen.services.Web 类（你也可以通过分别继承 springsteen.services.News 和 springsteen.services.Images 类来限制新闻或图片搜索）。</p>
       
     
       
@@ -77,7 +90,16 @@
       
     
       
-        <p>你还可以添加其他参数，这些参数在 Yahoo! BOSS 的文档中都有定义。</p>
+        <pre><code>from springsteen.services import Web
+class DjangoProjectSearch(Web):
+def init(self, query, params={}):
+super(Web, self).init(query, params)
+self.params[&#x27;sites&#x27;]=&#x27;djangoproject.com&#x27;
+</code></pre>
+      
+    
+      
+        <p>你还可以添加其他参数，这些参数在 Yahoo! BOSS 文档中有定义。</p>
       
     
       
@@ -85,35 +107,58 @@
       
     
       
-        <h2>并行查询多个服务</h2>
+        <pre><code>from springsteen.views import search
+from my_searches import DjangoProjectSearch
+def dp_search(request, timeout=2000, max_count=5, 
+services=(DjangoProjectSearch,), extra_params={}):
+return search(request, timeout, max_count, services, extra_params)
+</code></pre>
       
     
       
-        <p>作为 Web 开发者，我经常犯的一个错误是按顺序发起 HTTP 请求，而这些请求本来可以并发执行。springsteen 的目标是聚合多个搜索服务，因此它必须能够并行请求和处理它们。</p>
+        <h3>并行查询多个服务</h3>
+        
       
     
       
-        <p>要执行并发请求，只需指定多个服务即可。（请注意下面在 settings 中定义的值并非标准配置，但如果你喜欢这种组织全局变量的方式，可以把它们放到自己的 settings.py 中。）</p>
+        <p>作为 Web 开发者，我经常犯的一个错误是按顺序发起 HTTP 请求，而这些请求其实可以并发执行。springsteen 的目标是聚合多个搜索服务，因此它需要能够并行请求和处理它们。</p>
       
     
       
-        <p>默认情况下，来自各个服务的结果会依次堆叠显示。例如，上面 my_search 的结果会先显示所有图片结果，然后才开始显示网页结果。</p>
+        <p>要执行并发请求，只需指定多个服务即可。（注意下面在 settings 中定义的值不是标准配置，但如果你喜欢这样组织全局变量，可以把它们放到你的 settings.py 中。）</p>
       
     
       
-        <p>结果排序是搜索中最困难的部分，springsteen 不会替你解决这个问题。它只会给你提供可以自行调整的控制杆。对于大多数中小规模的应用场景，你完全可以针对正在查询的服务编写相当简洁的排序逻辑，其效果往往会优于 springsteen 可能提供的任何通用算法。</p>
+        <pre><code>from django.conf import settings
+from springsteen.services import Web, Images
+from springsteen.views import search
+def my_search(request):
+timeout = settings.SPRINGSTEEN_TIMEOUT
+max_count = setttings.SPRINGSTEEN_MAX_COUNT
+services = (Web, Images)
+return search(request, timeout, max_count, services)
+</code></pre>
       
     
       
-        <h2>通过 Springsteen 服务暴露搜索结果</h2>
+        <p>默认情况下，来自不同服务的结果会依次堆叠显示。例如，上面 my_search 的结果会先显示所有图片结果，然后再开始显示网页结果。</p>
       
     
       
-        <p>因为 springsteen 的核心就是聚合各种搜索服务，所以它会逐步扩展以支持新的数据格式。不过有时候你只是想把新的数据暴露给 springsteen，并且还没有确定具体格式。</p>
+        <p>结果排序是搜索中最困难的部分，springsteen 不会替你解决这个问题。它会给你提供控制手段，让你自己来实现。对于大多数中小规模的应用场景，你完全可以针对自己查询的服务编写简洁的排序逻辑，其效果往往会优于 springsteen 可能提供的任何通用算法。</p>
       
     
       
-        <p>在这种情况下，你可以使用 Springsteen Service。名字很酷，但实现其实非常简单。假设你能以某种方式获取到 CSV 格式的搜索结果（这不现实，只是举个例子）。</p>
+        <h3>通过 Springsteen 服务暴露搜索结果</h3>
+        
+      
+    
+      
+        <p>因为 springsteen 的核心在于聚合搜索服务，它会逐步扩展以支持新的数据格式。但有时候你只是想把新数据暴露给 springsteen，而还没有决定采用什么格式。</p>
+      
+    
+      
+        <p>在这种情况下，你可以使用 Springsteen Service。撇开这个酷炫的名字不谈，它们的用法非常简单。想象一下，你能以 CSV 格式获取搜索结果（这不现实，只是举个例子）。</p>
       
     
       
@@ -128,19 +173,45 @@ efg, http://yadayad/efg/, some text here as well
       
     
       
-        <p>并且你有一个 csv_search 函数可以返回相关行。你可以按如下方式通过 Springsteen Service 将其暴露出来。</p>
+        <p>并且你有一个 csv_search 函数可以返回相关行。你可以按如下方式通过 Springsteen Service 将其暴露出去。</p>
       
     
       
-        <p>目前 Springsteen Service 仅认可 title、url 和 text 这三个字段。随着需求增加，标准可能会被进一步完善以支持更多元数据。</p>
+        <pre><code>from csv import DictReader
+from fake_web_service import csv_search
+from django.utils import simplejson
+from springsteen.views import service
+def retrieve_csv_results(query, start, count):
+csv_results, total_results = csv_search(query, start, count)
+results = []
+for line in DictReader(csv_results):
+result = {
+&#x27;title&#x27;: line[&#x27;title&#x27;],
+&#x27;url&#x27;: line[&#x27;url&#x27;],
+&#x27;text&#x27;: line[&#x27;text&#x27;],
+}
+results.append(result)
+data = {
+&#x27;total_results&#x27;: total_results,
+&#x27;results&#x27;: results,
+}
+return simplejson.dumps(data)
+def my_service(request):
+return service(request, retrieve_func=retrieve_csv_results)
+</code></pre>
       
     
       
-        <p>除了上面假设的 csv_search，你还可以用这种方式封装 Solango 或 Django-Sphinx 的结果，或者路由到你生态系统中非 Django 的 API 或服务。</p>
+        <p>目前 Springsteen Service 仅承认 title、url 和 text 这三个字段。随着需求增加，标准可能会被进一步完善，以支持更多元数据。</p>
       
     
       
-        <h2>搜索 API 的中继器与转换器</h2>
+        <p>你可以用这种方式来封装 Solango 或 Django-Sphinx 的结果，也可以用来对接你生态系统中非 Django 的 API 或服务，而不只是上面假设的 csv_search。</p>
+      
+    
+      
+        <h3>搜索 API 的中继与转换器</h3>
+        
       
     
       
@@ -148,7 +219,16 @@ efg, http://yadayad/efg/, some text here as well
       
     
       
-        <p>首先我们需要继承 Web 类来获取我们站点的结果。</p>
+        <p>首先我们需要继承 Web 类来获取本站点的搜索结果。</p>
+      
+    
+      
+        <pre><code>from springsteen.services import Web
+class MySiteService(Web):
+def init(self, query, params={}):
+super(Web, self).init(query, params)
+self.params[&#x27;sites&#x27;]=&#x27;lethain.com&#x27;
+</code></pre>
       
     
       
@@ -156,63 +236,109 @@ efg, http://yadayad/efg/, some text here as well
       
     
       
-        <p>现在 Yahoo! BOSS 的结果就被转换成了 Springsteen Service 格式，可以被外部的 springsteen 搜索可靠地查询了。</p>
+        <pre><code>from django.http import HttpResponse
+from springsteen.views import service
+from django.utils import simplejson
+from somewhere import MySiteService
+def retrieve_func(query, start, count):
+params = {&#x27;start&#x27;:start, &#x27;count&#x27;:count}
+mss = MySiteService(query, params)
+mss.run()
+results = mss.results()
+json = simplejson.dumps(results)
+return HttpResponse(json, mimetype=&quot;application/json&quot;)
+</code></pre>
       
     
       
-        <h2>从 Springsteen Service 获取结果</h2>
+        <p>现在 Yahoo! BOSS 的结果被转换成了 Springsteen Service 格式，可以被外部的 springsteen 搜索稳定地查询了。</p>
       
     
       
-        <p>从 Springsteen Service 获取结果非常简单，和获取 Yahoo! BOSS 结果类似。</p>
+        <h3>从 Springsteen Service 获取结果</h3>
+        
       
     
       
-        <p>springsteen 已经知道如何展示来自 Springsteen Service 的结果，因此集成过程相当简洁。</p>
+        <p>从 Springsteen Service 获取结果非常简单，和获取 Yahoo! BOSS 结果差不多。</p>
       
     
       
-        <h2>访问自定义服务</h2>
+        <pre><code>from springsteen.services import SpringsteenService, Web
+from springsteen.views import search
+class MyService(SpringsteenService):
+_uri = &quot;http://example.com/search/cvs/&quot;
+def my_search(request, timeout=2500, max_count=20):
+services = (MyService, Web)
+return search(request, timeout, max_count, services)
+</code></pre>
       
     
       
-        <p>如果能让合作伙伴以你希望的格式（在本例中是 SpringsteenService）暴露服务，那自然是最简单的。但有时候你必须自己动手去解析数据。</p>
+        <p>springsteen 已经知道如何显示来自 Springsteen Service 的结果，因此集成过程相当简洁。</p>
       
     
       
-        <p>在 springsteen.services 中，SpringsteenService 和 BossSearch 类都提供了与不同数据格式对接的示例。</p>
+        <h3>访问自定义服务</h3>
+        
       
     
       
-        <p>关键是要编写一个 run 方法，用于获取结果并将其转换为 Python 的字典列表。如果你想使用现有的模板片段（web、news、image 或 springsteen results）来渲染它们，则应该在每个结果字典的 source 键中添加对应的值。</p>
+        <p>如果能让合作伙伴以你期望的格式（在本例中是 SpringsteenService）暴露服务，那当然是最简单的。但有时候你必须自己动手去解析数据。</p>
       
     
       
-        <p>如果你觉得跟随现有代码有困难，请告诉我，我很乐意提供一个关于如何继承 Service 和 CachableService 的完整指导。</p>
+        <p>在 springsteen.services 中，SpringsteenService 和 BossSearch 类都提供了与不同数据格式打交道的示例。</p>
       
     
       
-        <h2>springsteen 的未来</h2>
+        <p>关键在于编写一个 run 方法，该方法负责获取结果并将其转换为 Python 的字典列表。如果你想使用现有的模板片段（web、news、image 或 springsteen results）来渲染它们，就应该为每个结果字典的 source 键添加对应的值。</p>
       
     
       
-        <p>目前 springsteen 的核心部分已接近完成，我只需要稍作重构，以便能够方便地插入自定义排序逻辑。除此之外，还有无数的服务等待 springsteen 去学习如何查询和展示。</p>
+        <pre><code>def run(self):
+    stuff, total_results = get_results(self.query, self.params)
+    results = simplejson.loads(stuff)
+    for result in results:
+        result[&#x27;source&#x27;] = &#x27;web&#x27;
+    self._results = results
+    self.total_results = total_results
+</code></pre>
       
     
       
-        <p>目前已经有一个可工作的示例，既展示了如何通过 Springsteen Service 暴露数据，也展示了如何查询和聚合结果，希望在本周一之前能整理得足够清晰并发布出来。</p>
+        <p>如果你觉得跟随现有代码比较困难，请告诉我，我很乐意提供一个关于如何继承 Service 和 CachableService 的完整逐步说明。</p>
       
     
       
-        <p>我希望 springsteen 以及它所代表的“由小玩家构建的分布式搜索”愿景能让你感到兴奋。我自己就对这样的前景充满热情——创建有针对性且相关的搜索框，其动力不是来自数据中心里成千上万的普通服务器，而是来自我的 VPS，以及你的。</p>
+        <h3>springsteen 的未来</h3>
+        
       
     
       
-        <h2>下载</h2>
+        <p>目前 springsteen 的核心部分已经接近完成，我只需要稍作重构，以便插入自定义的排序逻辑。除此之外，还有无数的服务等待 springsteen 去学习如何查询和展示。</p>
+      
+    
+      
+        <p>目前已经有一个可运行的示例，既展示了如何通过 Springsteen Service 暴露数据，也展示了如何查询和聚合结果，希望在本周一之前能整理得足够清晰并发布出来。</p>
+      
+    
+      
+        <p>我希望 springsteen 以及它所代表的“由小玩家共同构建的分布式搜索”愿景能让你感到兴奋。我自己就对这样的前景非常激动——能够创建针对性强、相关性高的搜索框，它们不是依靠数据中心里成千上万台服务器，而是依靠我的 VPS，还有你的。</p>
+      
+    
+      
+        <h3>下载</h3>
+        
       
     
       
         <p>django-springsteen 可在 GitHub 上获取。</p>
+      
+    
+      
+        <pre><code>git clone git@github.com:lethain/django-springsteen.git
+</code></pre>
       
     
       

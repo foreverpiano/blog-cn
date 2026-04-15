@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>从垃圾评论中吸取的教训 · Will Larson 文集</title>
+  <title>从垃圾信息中吸取的教训 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>从垃圾评论中吸取的教训</h1>
+    <h1>从垃圾信息中吸取的教训</h1>
     <div class="meta">
       2008-01-22 · 
       <a href="https://lethain.com/lessons-caught-spam/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,59 +29,112 @@
   <div class="article-content">
     
       
-        <p>据我所知，LifeFlow 至今还没有任何垃圾评论成功突破其防护机制1。其核心防护手段是一个反向验证码（reverse-captcha），相关高质量讨论已经很多，我就不再赘述了。这里我们只来看看从捕获到的垃圾评论中获得的一些意想不到的启发和失败案例。</p>
+        <p>据我所知，LifeFlow 至今还没有任何评论垃圾信息成功突破其防护机制1。其防护的核心是一个反向验证码（reverse-captcha），关于这方面的优质讨论已经很多，我就不在此赘述了。让我们把注意力放在从捕获的垃圾信息中意外获得的一些智慧和失败教训上。</p>
       
     
       
-        <h2>垃圾发送者会使用 Unicode？</h2>
+        <h3>垃圾发送者会使用 Unicode？</h3>
+        
       
     
       
-        <p>这是一份较早的错误报告，当时 LifeFlow 所使用的 Markdown 实现还没有支持 Unicode。</p>
+        <p>这是一份旧的错误报告，那时我还没有将 LifeFlow 使用的 Markdown 实现更新为支持 Unicode。</p>
       
     
       
-        <p>触发错误的留言只是一大堆链接，根本不需要 Unicode。但显然脚本编写者没有想到，会有如此简陋的评论系统，连插入几个 Unicode 字符都会崩溃。</p>
+        <pre><code>Traceback (most recent call last):
+  File &quot;/usr/lib/python2.5/site-packages/django/core/handlers/base.py&quot;, line 81, in get_response
+    response = callback(request, *callback_args, **callback_kwargs)
+  File &quot;/usr/lib/python2.5/site-packages/lifeflow/views.py&quot;, line 56, in comments
+    form.is_valid()
+  File &quot;/usr/lib/python2.5/site-packages/django/newforms/forms.py&quot;, line 95, in is_valid
+    return self.is_bound and not bool(self.errors)
+  File &quot;/usr/lib/python2.5/site-packages/django/newforms/forms.py&quot;, line 86, in _get_errors
+    self.full_clean()
+  File &quot;/usr/lib/python2.5/site-packages/django/newforms/forms.py&quot;, line 188, in full_clean
+    value = getattr(self, &#x27;clean_%s&#x27; % name)()
+  File &quot;/usr/lib/python2.5/site-packages/lifeflow/forms.py&quot;, line 45, in clean_body
+    self.cleaned_data[&#x27;rendered&#x27;] = unicode(markdownpp.markdown(escaped))
+  File &quot;/usr/lib/python2.5/site-packages/lifeflow/markdownpp.py&quot;, line 1472, in markdown
+    return str(Markdown(text))
+UnicodeEncodeError: &#x27;ascii&#x27; codec can&#x27;t encode character u&#x27;\ufffd&#x27; in position 1517: ordinal not in range(128)
+</code></pre>
       
     
       
-        <h2>糟糕的实现</h2>
+        <p>触发这个错误的消息只是一大串链接，本来完全不需要 Unicode，但显然脚本编写者没有想到，会有如此简陋的评论系统，连插入几个 Unicode 字符都会出错。</p>
       
     
       
-        <p>下面是另一条由垃圾评论触发的有趣错误信息：</p>
+        <h3>糟糕的实现</h3>
+        
       
     
       
-        <p>LifeFlow 的评论系统希望输入的是 Markdown 格式的文本，而当面对极其恶劣的输入——比如几百个垃圾链接组成的列表——渲染过程就会彻底崩溃。令人惊讶的是，垃圾评论的内容如此糟糕，以至于它直接把 Markdown 库推到了最大递归深度，导致程序崩溃。一个正常用户没有任何理由把系统推到这种极限，因此它的限制反而意外地变成了保护机制。</p>
+        <p>这是评论系统中另一条由垃圾信息触发的绝妙错误信息：</p>
       
     
       
-        <h2>非人类的行为</h2>
+        <pre><code>  File &quot;/usr/lib/python2.5/site-packages/lifeflow/markdownpp.py&quot;, line 477, in handleMatch
+    return doc.createTextNode(place_holder)
+  File &quot;/usr/lib/python2.5/site-packages/lifeflow/markdownpp.py&quot;, line 117, in createTextNode
+    return TextNode(text)
+  File &quot;/usr/lib/python2.5/site-packages/lifeflow/markdownpp.py&quot;, line 182, in __init__
+    self.attrRegExp = re.compile(r&#x27;\{@([^\}]*)=([^\}]*)}&#x27;) # {@id=123}
+  File &quot;re.py&quot;, line 180, in compile
+    return _compile(pattern, flags)
+RuntimeError: maximum recursion depth exceeded
+</code></pre>
       
     
       
-        <p>如果你不通过正常途径（点击真实文章中的链接），而是直接导航到评论创建页面，会发生以下情况：</p>
+        <p>LifeFlow 的评论系统期望接收 Markdown 格式的文本，而当输入极其糟糕时——比如几百个垃圾链接的列表——渲染过程就会彻底崩溃。令人惊讶的是，垃圾评论竟然糟糕到能把 Markdown 库直接逼到最大递归深度而崩溃。这是一个有趣的点：正常用户根本没有理由把系统推到这个极限，因此它的局限性反而成了意料之外的好处。</p>
       
     
       
-        <p>这意味着你必须像人类用户一样，完整地走完整个流程：阅读文章、点击回复链接，并在合理时间内填写内容，否则系统将缺少必要的信息来处理这条评论。</p>
+        <h3>不像人类</h3>
+        
       
     
       
-        <p>当然，你可以把这个流程做得更智能，尝试猜测用户正在查看哪篇文章，或者让用户手动选择要评论的条目。但人类用户并不会遇到这种情况。这又是一个“更糟即更好”的例子，尽管含义与通常所说的不太一样。</p>
+        <p>如果你不通过正常途径（即点击真实文章中的链接）而是直接导航到评论创建页面，会发生以下情况：</p>
       
     
       
-        <h2>撰写真实的故事</h2>
+        <pre><code>Traceback (most recent call last):
+  File &quot;/usr/lib/python2.5/site-packages/django/core/handlers/base.py&quot;, line 81, in get_response
+    response = callback(request, *callback_args, **callback_kwargs)
+  File &quot;/usr/lib/python2.5/site-packages/lifeflow/views.py&quot;, line 43, in comments
+    id = int(request.POST[&#x27;entry_id&#x27;])
+  File &quot;/usr/lib/python2.5/site-packages/django/utils/datastructures.py&quot;, line 189, in __getitem__
+    raise MultiValueDictKeyError, &quot;Key %r not found in %r&quot; % (key, self)
+MultiValueDictKeyError: &quot;Key &#x27;entry_id&#x27; not found in &lt;QueryDict: {}&gt;&quot;
+</code></pre>
       
     
       
-        <p>最后，我认为从中得到的宝贵教训是：我们应该把时间花在撰写真实用户真正想做的事情的故事上。有时候我们会花费大量精力去处理假设的极端情况，这些情况给程序增加了许多复杂性，也消耗了大量时间，却并没有真正提升系统对真实用户的体验。</p>
+        <p>这意味着你必须像人类一样，按相同的流程操作：阅读文章、点击回复链接，并在合理时间内填写完成，否则系统将缺少必要的信息来处理评论。</p>
       
     
       
-        <p>这里的垃圾评论算是一个比较特殊的例子，因为一个更好的实现所带来的负面后果，通常不会像这个案例中那么明显2。但它仍然很好地说明了：如果我们去实现那些对合法用户无关紧要的故事，可能会产生意想不到的后果。</p>
+        <p>当然，你可以把这个流程做得更智能，尝试预测用户正在查看哪篇文章，或者让他们选择要评论的条目，但那不是人类用户会遇到的真实情况。这又是一个“更糟即更好”的例子，尽管和这个词通常的含义不太一样。</p>
+      
+    
+      
+        <h3>撰写真实的故事</h3>
+        
+      
+    
+      
+        <p>最终我认为这里最有价值的教训是，我们需要把时间集中在撰写真实用户真正想做的事情的故事上。有时我们会在假设的边缘情况上花费大量时间，这些情况虽然给程序增加了很多复杂性，也消耗了大量精力，但实际上并没有提升系统对真实用户的体验质量。</p>
+      
+    
+      
+        <p>这里的垃圾信息算是一个不太寻常的例子，因为更好的实现所带来的负面后果通常不会像这个案例中那样清晰2，但它确实说明了一个有趣的现象：如果我们去实现那些对合法用户无关紧要的故事，可能会产生意想不到的后果。</p>
+      
+    
+      
+        <div class="list-content">另一方面，它也妨碍了一些善意使用 Internet Explorer 6 的真实评论者。目前它已经能很好地支持 Camino、Safari、Firefox 和 Internet Explorer 7，也有可能支持 IE6，但我还没有机会测试。↩诚然，即使在这里，这些教训也并不那么清晰，因为自从评论实现的质量提升之后，垃圾信息的数量并没有增加。真正发生的情况是，之前存在一个非正式的垃圾干扰层（也就是糟糕的实现），它与正确工作的垃圾防护层（反向验证码）形成了冗余。↩</div>
       
     
   </div>

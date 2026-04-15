@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>为更愉快的 Ajax 自定义 Django Views · Will Larson 文集</title>
+  <title>为更愉快的 Ajax 编写自定义 Django Views · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>为更愉快的 Ajax 自定义 Django Views</h1>
+    <h1>为更愉快的 Ajax 编写自定义 Django Views</h1>
     <div class="meta">
       2008-09-24 · 
       <a href="https://lethain.com/custom-django-views-for-happier-ajax/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,27 +29,49 @@
   <div class="article-content">
     
       
-        <p>这篇文章接续《Intro to Unintrusive JavaScript with Django》的内容。在第一部分中，我们坚持不编写自定义视图来处理应用的 Ajax 部分，这导致了大量丑陋的代码和别扭的功能。</p>
+        <p>本文接续《Intro to Unintrusive JavaScript with Django》的内容。在第一部分中，我们坚持不编写自定义视图来处理应用的 Ajax 部分，这导致了大量丑陋的代码和别扭的功能实现。</p>
       
     
       
-        <p>在这第二部分，我们将跨出这一步，编写两个自定义视图来处理 Ajax，从而开启一个简单得多的 JavaScript 世界，减少约 90% 的糟糕体验。</p>
+        <p>在这个第二部分，我们将迈出这一步，编写两个自定义视图来处理 Ajax，从而开启一个简单得多的 JavaScript 世界，减少约 90% 的糟糕代码。</p>
       
     
       
-        <h2>更新 notes/urls.py</h2>
+        <h3>更新 notes/urls.py</h3>
+        
       
     
       
-        <p>首先我们要更新 notes/urls.py 文件，加入两个新的 URL。更新完成后，文件内容应该如下所示：</p>
+        <p>首先我们需要更新 notes/urls.py 文件，加入两个新的 URL。更新完成后，文件内容应该如下所示：</p>
       
     
       
-        <p>我们在这里所做的只是添加了 ^ajax_create/$ 和 ^note/(?P&lt;slug&gt;[-\w]+)/ajax_update/$ 这两个 URL 模式。</p>
+        <pre><code>from django.conf.urls.defaults import *
+from models import Note
+notes = Note.objects.all()
+urlpatterns = patterns(
+&#x27;&#x27;,
+(r&#x27;^$&#x27;,
+&#x27;django.views.generic.list_detail.object_list&#x27;,
+dict(queryset=notes)),
+(r&#x27;^note/(?P&lt;slug&gt;[-\w]+)/$&#x27;,
+&#x27;django.views.generic.list_detail.object_detail&#x27;,
+dict(queryset=notes, slug_field=&#x27;slug&#x27;)),
+(r&#x27;^create/$&#x27;,&#x27;notes.views.create_note&#x27;),
+(r&#x27;^ajax_create/$&#x27;,&#x27;notes.views.ajax_create_note&#x27;),
+(r&#x27;^note/(?P&lt;slug&gt;[-\w]+)/update/$&#x27;,&#x27;notes.views.update_note&#x27;),
+(r&#x27;^note/(?P&lt;slug&gt;[-\w]+)/ajax_update/$&#x27;,&#x27;notes.views.ajax_update_note&#x27;),
+)
+</code></pre>
       
     
       
-        <h2>编写 ajax_create_note 视图</h2>
+        <p>我们所做的只是添加了 ^ajax_create/$ 和 ^note/(?P&lt;slug&gt;[-\w]+)/ajax_update/$ 这两个 URL 模式。</p>
+      
+    
+      
+        <h3>编写 ajax_create_note 视图</h3>
+        
       
     
       
@@ -61,15 +83,48 @@
       
     
       
-        <p>最大的区别在于，我们会将响应序列化为 JSON 返回，这也是所有 JavaScript 生命体推荐的“饮食”。</p>
+        <p>最大的区别在于，我们将以 JSON 格式序列化返回响应，这是所有 JavaScript 生命体都推荐的“饮食”。</p>
       
     
       
-        <p>首先在 notes/views.py 文件顶部添加以下导入：</p>
+        <p>首先在 notes/views.py 文件顶部添加以下导入语句：</p>
       
     
       
-        <p>然后再添加以下函数：</p>
+        <pre><code>from django.utils import simplejson
+from django.http import HttpResponse
+</code></pre>
+      
+    
+      
+        <p>然后添加以下函数：</p>
+      
+    
+      
+        <pre><code>def ajax_create_note(request):
+    success = False
+    to_return = {&#x27;msg&#x27;:u&#x27;No POST data sent.&#x27; }
+    if request.method == &quot;POST&quot;:
+        post = request.POST.copy()
+        if post.has_key(&#x27;slug&#x27;) and post.has_key(&#x27;title&#x27;):
+            slug = post[&#x27;slug&#x27;]
+            if Note.objects.filter(slug=slug).count() &gt; 0:
+                to_return[&#x27;msg&#x27;] = u&quot;Slug &#x27;%s&#x27; already in use.&quot; % slug
+            else:
+                title = post[&#x27;title&#x27;]
+                new_note = Note.objects.create(title=title,slug=slug)
+                to_return[&#x27;title&#x27;] = title
+                to_return[&#x27;slug&#x27;] = slug
+                to_return[&#x27;url&#x27;] = new_note.get_absolute_url()
+                success = True
+        else:
+            to_return[&#x27;msg&#x27;] = u&quot;Requires both &#x27;slug&#x27; and &#x27;title&#x27;!&quot;
+    serialized = simplejson.dumps(to_return)
+    if success == True:
+        return HttpResponse(serialized, mimetype=&quot;application/json&quot;)
+    else:
+        return HttpResponseServerError(serialized, mimetype=&quot;application/json&quot;)
+</code></pre>
       
     
       
@@ -77,7 +132,7 @@
       
     
       
-        <p>如果我们足够勤奋，可以对这两个方法进行大量重构，但本教程中我们会保持它们原样。</p>
+        <p>如果我们足够勤奋，可以对这两个方法进行大幅重构，但本教程中我们还是保持它们原样。</p>
       
     
       
@@ -85,7 +140,8 @@
       
     
       
-        <h2>更新 notes/note_list.html 模板</h2>
+        <h3>更新 notes/note_list.html 模板</h3>
+        
       
     
       
@@ -93,15 +149,25 @@
       
     
       
-        <p>把这一行从：</p>
+        <p>将下面这行代码：</p>
       
     
       
-        <p>改为：</p>
+        <pre><code>var args = { type:&quot;POST&quot;, url:&quot;/create/&quot;, data:data, complete:done };
+</code></pre>
       
     
       
-        <p>之后，我们在这里唯一需要做的改动就是去掉 done 函数里那些正则表达式的乱七八糟代码，换成简单愉快的写法（当然，也引入了一个安全漏洞，咳咳）。</p>
+        <p>修改为：</p>
+      
+    
+      
+        <pre><code>var args = { type:&quot;POST&quot;, url:&quot;/ajax_create/&quot;, data:data, complete:done };
+</code></pre>
+      
+    
+      
+        <p>之后，我们唯一需要做的改动就是去掉 done 函数里那些正则表达式的垃圾代码，换成简单愉快的写法（当然也引入了一个安全漏洞，咳咳）。</p>
       
     
       
@@ -109,15 +175,30 @@
       
     
       
-        <p>我们首先通过 eval 函数将传入的 JSON 转换为 JavaScript 数据结构。这是最简单地将 JSON 转换为可用形式的方法。</p>
+        <pre><code>var done = function(res, status) {
+  var txt = res.responseText;
+  var data = eval(&#x27;(&#x27;+txt+&#x27;)&#x27;);
+  if (status == &quot;success&quot;) {
+    var newLi = $(&#x27;&lt;li&gt;&lt;a href=&quot;&#x27;+data.url+&#x27;&quot;&gt;&#x27;+data.title+&#x27;&lt;/a&gt;&lt;/li&gt;&#x27;);
+    $(&quot;#notes&quot;).prepend(newLi);
+    $(&quot;#title&quot;).val(&quot;&quot;);
+    $(&quot;#slug&quot;).val(&quot;&quot;);
+  }
+  else display_error(data.msg, $(&quot;.new&quot;));
+}
+</code></pre>
       
     
       
-        <p>这种做法并不安全，因为你实际上是在执行接收到的 JSON，如果其中包含任何恶意指令，你也会一并执行它们。</p>
+        <p>我们首先通过 eval 函数将收到的 JSON 转换为 JavaScript 数据结构。这是将 JSON 转换为可用形式的最简单方法。</p>
       
     
       
-        <p>目前我们先略过这个问题，你可以查看这篇文章中标题为“JSON Via Parse”的部分，了解如何做得更安全。</p>
+        <p>这种做法并不安全，因为你实际上是在执行收到的 JSON，如果其中包含任何恶意指令，你也会一并执行它们。</p>
+      
+    
+      
+        <p>目前我们先略过这个问题，你可以参考这篇文章中标题为“JSON Via Parse”的部分，了解如何做得更安全。</p>
       
     
       
@@ -125,31 +206,68 @@
       
     
       
-        <p>它的工作方式和之前一样，但不再依赖那些随意拼凑的正则表达式来剥离必要的内容。</p>
+        <p>它的运行方式和之前完全一样，但不再依赖那些随意拼凑的正则表达式来剥离必要内容。</p>
       
     
       
-        <h2>编写 ajax_update_note 视图</h2>
+        <h3>编写 ajax_update_note 视图</h3>
+        
       
     
       
-        <p>接下来我们要在 notes/views.py 文件中创建 ajax_update_note 视图。同样，Ajax 和非 Ajax 的更新视图之间会有很多重叠代码，最大的区别仍然只是对输出进行序列化。</p>
+        <p>接下来我们将在 notes/views.py 文件中创建 ajax_update_note 视图。同样，Ajax 和非 Ajax 更新视图之间会有很多重叠代码，最大的区别仍然只是对输出进行序列化。</p>
       
     
       
-        <p>打开 notes/views.py。</p>
+        <p>打开 notes/views.py 文件。</p>
       
     
       
-        <p>通读一遍，确保你对里面的内容感到熟悉，然后我们再次进入 JavaScript 的领域。</p>
+        <pre><code>def ajax_update_note(request, slug):
+    success = False
+    to_return = { &#x27;msg&#x27;: u&quot;No POST data recieved.&quot; }
+    if request.method == &quot;POST&quot;:
+        post = request.POST.copy()
+        note = Note.objects.get(slug=slug)
+        to_return[&#x27;msg&#x27;] = &quot;Updated successfully.&quot;
+        success = True
+        if post.has_key(&#x27;slug&#x27;):
+            slug_str = post[&#x27;slug&#x27;]
+            if note.slug != slug_str:
+                if Note.objects.filter(slug=slug_str).count() &gt; 0:
+                    to_return[&#x27;msg&#x27;] = u&quot;Slug &#x27;%s&#x27; already taken.&quot; % slug_str
+                    to_return[&#x27;slug&#x27;] = note.slug
+                    success = False
+                else:
+                    note.slug = slug_str
+                    to_return[&#x27;url&#x27;] = note.get_absolute_url()
+        if post.has_key(&#x27;title&#x27;):
+            note.title = post[&#x27;title&#x27;]
+        if post.has_key(&#x27;text&#x27;):
+            note.text = post[&#x27;text&#x27;]
+        note.save()
+    print success
+    print to_return
+    print request.method
+    serialized = simplejson.dumps(to_return)
+    if success == True:
+        return HttpResponse(serialized, mimetype=&quot;application/json&quot;)
+    else:
+        return HttpResponseServerError(serialized, mimetype=&quot;application/json&quot;)
+</code></pre>
       
     
       
-        <h2>更新 notes/note_detail.html 模板</h2>
+        <p>通读一遍，确保你对所有内容都感到熟悉，然后我们再次进入 JavaScript 的领域。</p>
       
     
       
-        <p>打开 notes/note_detail.html。</p>
+        <h3>更新 notes/note_detail.html 模板</h3>
+        
+      
+    
+      
+        <p>打开 notes/note_detail.html 文件。</p>
       
     
       
@@ -157,11 +275,16 @@
       
     
       
-        <p>我们只修改了要提交的 URL。不过现在我们要多做一些改变。我们第一次实现中最大的问题之一是它会发送不必要的更新。</p>
+        <pre><code>var args = { type:&quot;POST&quot;, url:&quot;ajax_update/&quot;, data:data, complete:done };
+</code></pre>
       
     
       
-        <p>之前我们很难改进它，因为缺乏一些关键信息，但现在不同了。ajax_update_note 视图会返回我们所需的所有信息，让我们可以维护一个简单的数据历史记录，仅在真正发生变化时才提交更新。</p>
+        <p>我们只是修改了要提交的 URL。然而现在我们要进行更多改动。我们第一次实现中最大的问题之一是它会发送不必要的更新。</p>
+      
+    
+      
+        <p>之前我们很难改进它，因为缺少一些关键信息，但现在不同了。ajax_update_note 视图返回了我们需要的所有信息，让我们可以维护一份简单的数据历史，仅在实际发生变化时才提交更新。</p>
       
     
       
@@ -169,15 +292,34 @@
       
     
       
-        <p>我们从历史记录开始。删除 initialTitleChange 和 initialSlugChange 的值，用以下代码替换：</p>
+        <p>我们从历史记录开始。删除 initialTitleChange 和 initialSlugChange 的初始值，并替换为以下代码：</p>
       
     
       
-        <p>接下来我们需要更新 title_to_span 和 slug_to_span 函数，在发送更新前先与历史记录中保存的值进行比较。</p>
+        <pre><code>var history = { title: $(&quot;#title&quot;).val(), slug: $(&quot;#slug&quot;).val() };
+</code></pre>
       
     
       
-        <p>修改位于第 3 到 5 行。在发送更新之前，我们会检查它是否与当前值不同。如果确实要发送更新，则更新历史记录中保存的当前值。</p>
+        <p>接下来我们需要更新 title_to_span 和 slug_to_span 函数，让它们在发送更新前先检查历史记录中存储的值。</p>
+      
+    
+      
+        <pre><code>var title_to_span = function() {
+  var title = $(&quot;#title&quot;);
+  if (title.val() != history[&#x27;title&#x27;]) {
+    perform_update(&quot;title&quot;, title.val());
+    history[&#x27;title&#x27;] = title.val()
+  }
+  var span = $(&#x27;&lt;span id=&quot;title&quot;&gt;&lt;em&gt;&#x27;+title.val()+&#x27;&lt;/em&gt;&lt;/span&gt;&#x27;);
+  span.hover(title_to_input,function() {});
+  title.replaceWith(span);
+}
+</code></pre>
+      
+    
+      
+        <p>修改在第 3 到 5 行。在发送更新前，我们检查它是否与当前值不同。如果确实发送了更新，则更新历史记录中存储的当前值。</p>
       
     
       
@@ -185,7 +327,21 @@
       
     
       
-        <p>我们也可以对文本输入框做同样的事情，但暂时先跳过。</p>
+        <pre><code>var slug_to_span = function() {
+  var slug = $(&quot;#slug&quot;);
+  if (slug.val() != history[&#x27;slug&#x27;]) {
+    perform_update(&quot;slug&quot;, slug.val());
+    history[&#x27;slug&#x27;] = slug.val();
+  }
+  var span = $(&#x27;&lt;span id=&quot;slug&quot;&gt;&lt;em&gt;&#x27;+slug.val()+&#x27;&lt;/em&gt;&lt;/span&gt;&#x27;);
+  span.hover(slug_to_input,function() {});
+  slug.replaceWith(span);
+}
+</code></pre>
+      
+    
+      
+        <p>我们也可以对文本框做同样的处理，但暂时先跳过。</p>
       
     
       
@@ -193,19 +349,41 @@
       
     
       
+        <pre><code>var done = function(res, status) {
+  var txt = res.responseText;
+  var data = eval(&#x27;(&#x27;+txt+&#x27;)&#x27;);
+  if (status == &quot;success&quot;) {
+    display_success(&quot;Updated successfully.&quot;, $(&quot;.text&quot;));
+    if (data.url) {
+      window.location = data.url
+    }
+  }
+  else {
+    display_error(data.msg, $(&quot;.text&quot;));
+    if (data.slug) {
+      history[&#x27;slug&#x27;] = data.slug;
+      $(&quot;#slug&quot;).text(data.slug);
+    }
+  }
+}
+</code></pre>
+      
+    
+      
         <p>我们首先将返回的 JSON 解析为 JavaScript 数据结构。然后是显示成功和错误消息的标准逻辑，以及处理 slug 字段更新的一些自定义逻辑。</p>
       
     
       
-        <p>具体来说，如果我们成功更新了 slug，就会使用 JavaScript 重定向到笔记所在的新 URL；如果更新 slug 失败，则将 slug 字段（以及 history.slug）的值回滚到它实际的当前值（而不是我们试图修改成的值）。</p>
+        <p>具体来说，如果我们成功更新了 slug，则使用 JavaScript 重定向到笔记存在的新 URL；如果更新 slug 失败，则将 slug 字段（以及 history.slug）中的值回滚到它实际的当前值（而不是我们试图修改成的值）。</p>
       
     
       
-        <p>通过这些修改，note_detail.html 模板中的 Ajax 从一个负担沉重、糟糕透顶的混乱代码，进化成了比原来非 Ajax 版本更快、更愉悦的用户体验。</p>
+        <p>通过这些修改，note_detail.html 模板中的 Ajax 从一个繁重而糟糕的混乱代码，演变为比原始非 Ajax 版本提供更快、更愉悦用户体验的实现。</p>
       
     
       
-        <h2>下载</h2>
+        <h3>下载</h3>
+        
       
     
       
@@ -213,11 +391,12 @@
       
     
       
-        <h2>继续前进</h2>
+        <h3>继续前进</h3>
+        
       
     
       
-        <p>通过编写这两个额外的视图，我们能够真正简化 JavaScript，并提升应用的可用性。虽然很遗憾我们无法仅使用一个视图就获得同样的好处，但使用强大的 Ajax 也伴随着重大的责任。</p>
+        <p>通过编写这两个额外的视图，我们能够真正简化 JavaScript，并提升了应用的用户体验。虽然很遗憾我们无法仅用一个视图就获得同样的好处，但优秀的 Ajax 伴随着重大的责任。</p>
       
     
       
@@ -226,6 +405,10 @@
     
       
         <p>在下一部分，我们将探讨如何为 Ajax 应用重新审视认证机制。</p>
+      
+    
+      
+        <div class="list-content">因为我刚和坐在旁边的人讨论过这个问题，所以我要顺便简单提一下英语中“a”和“an”的正确用法。你在以元音音素开头的单词前使用“an”，而不是必须以元音字母开头。这就是为什么人们在写关于 Cocoa 的文章时会说 an NSString 或 an NSMutableDictionary。另一方面，像 usable 这样的单词虽然以元音字母开头，但发音却是辅音。↩</div>
       
     
   </div>

@@ -29,43 +29,152 @@
   <div class="article-content">
     
       
-        <p>这是一篇从最初的《Irrational Exuberance》博客移植过来的文章，写于2007年中期：距今已近两年。</p>
+        <p>这是从最初的《Irrational Exuberance》移植过来的文章，写于2007年年中：距今已近两年。</p>
       
     
       
-        <p>在这个时代学习编程，几乎就是彻底接受面向对象思想的灌输（除非你是从 PERL、Scheme 或 Haskell 开始学的，但我们这里说的是普通人）。我在大学里学到的第一个——也是唯一一个——编程范式就是 OO，很容易理解为什么——如果你只能把一种范式教好，那肯定会教 OO。它擅长为大型项目创建所需的抽象层，同时也便于将代码分割成模块，让相对独立的团队能够分别实现（前提是他们都遵守协商好的 API……哈哈……我真该去当诗人）。如果我们观察 OO 的流行趋势，那么没有哪门语言比 Java 更彻底地顺着这股浪潮前进。诚然，Java 是 C++、垃圾回收、面向对象和平庸这四者的奇妙结合体，但近年来几乎没有哪门语言不是对面向对象充满迷恋的。Python 几乎是完全面向对象的（深入底层后会有一些奇怪的实现细节），Ruby 是完全面向对象的，Smalltalk（OO 之父）启发了 Objective C……你很难找到任何用于开发大型项目的语言没有选择 OO 作为其主要范式。&lt;!--more--&gt;</p>
+        <p>在这个时代学习编程，基本上就是彻底接受面向对象思想的灌输（除非你是从 PERL、Scheme 或 Haskell 开始的，但我们这里讨论的是普通人）。我在大学里学到的第一个——也是唯一一个——编程范式就是 OO，很容易理解为什么——如果你只能投入资源把一种范式教好——那肯定会教 OO。它擅长创建大型项目所需的多层抽象，也便于将代码分割成不同部分，让相对独立的团队可以分别实现（只要他们遵守事先约定的 API……哈哈……我当初应该去当诗人）。如果我们观察 OO 的潮流，有一种语言比其他任何语言都更猛烈地乘着这波浪潮前进：Java。诚然，Java 是 C++、垃圾回收、面向对象和平庸这四者四重奏的产物，但近年来几乎没有哪门语言不是对面向对象充满热忱的。Python 几乎完全是面向对象的（深入底层会遇到一些奇怪的实现细节），Ruby 是彻底面向对象的，Smalltalk（OO 之父）启发了 Objective C……很难找到任何用于开发大型项目的语言没有把 OO 作为首选范式。&lt;!--more--&gt;</p>
       
     
       
-        <h2>面向对象非常直观</h2>
+        <h3>面向对象符合直觉</h3>
+        
       
     
       
-        <h2>或许有点过于直观？</h2>
+        <h3>或许有点太过直觉了？</h3>
+        
       
     
       
-        <h2>更具体一点</h2>
+        <h3>说得更具体些</h3>
+        
       
     
       
-        <h2>背景说明</h2>
+        <h3>背景说明</h3>
+        
       
     
       
-        <h2>谁来负责什么？</h2>
+        <h3>谁来做什么？</h3>
+        
       
     
       
-        <p>然而，当我坐下来考虑要用那种方式再实现几百个方法时，我意识到这是一种极其复杂的方法。当然，它完全符合直觉，但它将会像第五次重读《基地序曲》一样乏味无趣。更糟糕的是，未来修改起来会非常痛苦，因为行为和行为所操作的数据是分开存储的。大约就在这个时候，那篇关于反对象的文章浮现在我脑海中，我决定尝试另一种实现方式。我决定让那些操作物品的方法由物品自己来承载：我要把所有复杂性都移到物品内部，看看这样效果如何。下面是我采用这种方法后的实现：</p>
+        <pre><code>class Player
+  attr :name, :objects
+  def initialize(name)
+    @name = name
+    @objects = []
+    @body = {&quot;wielded&quot; =&amp;gt; nil, &quot;torso&quot; =&amp;gt; nil}
+  end
+  def get(item)
+    @objects &lt;&lt; item
+  end
+  def wield(item)
+    if @objects.index(item) and item.can?(&quot;wield&quot;)
+      @body[&quot;wielded&quot;] = item
+    else      raise &quot;Cannot wield #item}&quot;
+    end
+  end
+  def wear(item)
+    if @objects.index(item) and item.can?(&quot;wear&quot;)
+      wear_location = item.attributes[&quot;wear location&quot;]
+      @body[wear_location] = item
+    else
+      raise &quot;Cannot wear #{item}&quot;
+    end
+  end
+end
+class Item
+attr_reader :name, :attributes
+def initialize(name)
+@name = name
+@attributes = {&quot;wear&quot; =&amp;gt; true}
+end
+def can?(action)
+@attributes[action]
+end
+end
+class Weapon &lt; Item
+def initialize(name)
+super(name)
+@attributes[&quot;wield&quot;] = true
+end
+end
+class Armor &lt; Item
+def initialize(name)
+super(name)
+@attributes[&quot;wear&quot;] = true
+end
+end
+class ChestArmor &lt; Armor
+def initialize(name)
+super(name)
+@attributes[&quot;wear location&quot;] = &quot;chest&quot;
+end
+end
+class LegArmor &lt; Armor
+def initialize(name)
+super(name)
+@attributes[&quot;wear location&quot;] = &quot;leg&quot;
+end
+end
+</code></pre>
       
     
       
-        <p>与之前的实现相比，这种方式带来了诸多好处：我们现在把“某物品是否可穿戴/持握/拾取”以及“如何穿戴/持握/拾取”的逻辑放在了同一个地方。这意味着修改时只需要查看一处代码，而不是之前实现所需的两处。它还让我们能够利用多态（ChestArmor 和 LegArmor 对同名方法的响应各不相同）。此外，默认的物品初始化代码对所有子类都适用，因为关于对象的所有其他数据都被保存在其方法内部（非常有 Lisp 的感觉）。不需要再串起一堆 super 调用，这在我看来是一项令人愉快的改进（随机问题：你觉得如果类继承层次足够深，会不会导致 Ruby 栈溢出？我认为会的）。我对第二个设计有些顾虑，它似乎过于依赖 Player 类的具体实现；我内心那个 Java 程序员很想构建一个丰富的 API 来完全封装实现细节。而我稍微更理智的那一面则认为保持现状更简洁。如果有必要，我可以通过在 @body 这个 hashmap 之上构建一个类似 hashmap 的 API 来改变实现方式。虽然我不是那种把代码行数当作质量标准的人，但第二个版本只有 41 行，而第一个版本有 68 行（不过我显然也属于那种既想吃蛋糕又想拥有它的人）。除了更短之外，它还让我觉得更简单、更易于理解（没有流程控制，也不需要显式抛出任何异常，我们只需利用 Ruby 的反射能力去询问 item.respond_to?(&quot;wield&quot;)，如果物品没有对应玩家指令的方法，就返回一个简单的错误消息给玩家）。</p>
+        <p>然而，当我坐下来考虑要用这种方式再实现几百个方法时，我意识到这是一种过于复杂的方法。当然，它完全符合直觉，但其乐趣程度大概和第五次重读《基地序曲》差不多。更糟糕的是，今后修改会非常痛苦，因为行为和行为所作用的数据被分开存放了。大约就在这个时候，那篇关于反对象的文章浮现在我脑海中，我决定尝试一种不同的实现方式。我决定把作用于物品的方法放在物品自己内部：我要看看如果把所有复杂性都移到物品内部，情况会如何。下面是我用这种方法实现的代码：</p>
       
     
       
-        <h2>结束思考 |  takeaways</h2>
+        <pre><code>class Player
+  attr :name, :inventory, :body
+  def initialize(name)
+    @name = name
+    @inventory = []
+    @body = {
+      &quot;wielded&quot; =&gt; nil, 
+      &quot;torso&quot; =&gt; nil,
+      &quot;legs&quot; =&gt;; nil
+     }
+  end
+end
+class Item
+attr_reader :name
+def initialize(name)
+@name = name
+end
+def get(actor)
+actor.inventory &lt; self
+end
+end
+class Weapon &lt; Item
+def wield(actor)
+actor.body[&quot;wielded&quot;] = self
+end
+end
+class ChestArmor &lt; Item
+def wear(actor)
+actor.body[&quot;torso&quot;] = self
+end
+end
+class LegArmor &lt; Item
+def wear(actor)
+actor.body[&quot;legs&quot;] = self
+end
+end
+</code></pre>
+      
+    
+      
+        <p>与之前的实现相比，这一版有若干好处：我们现在把某件物品是否可穿戴/可装备/可拾取，以及如何穿戴/装备/拾取的逻辑都放在同一个地方。这意味着修改时只需查看一处代码，而不必像之前那样查看两处。它还让我们能够利用多态（ChestArmor 和 LegArmor 对同名方法的响应各不相同）。此外，默认的物品初始化对所有子类都足够了，因为关于对象的其他所有数据都保存在其方法之中（很 Lispy 的感觉）。不用再串起一堆 super 调用，在我看来已是愉快的改进（随机问题：你觉得如果类层次足够深，会不会撑爆 Ruby 的调用栈？我想是会的）。我对第二种设计有一些顾虑，它似乎过于依赖 Player 类的具体实现；我内心的 Java 程序员很想构建一个庞大的 API 来彻底封装实现细节。而我稍稍更理智的那一半则认为保持现状更简洁。如果有必要，我可以通过在要替换 @body 哈希的任何数据结构之上创建一个类似哈希映射的 API 来修改实现。虽然我不是那种把代码行数当作质量标准的人，但第二版只有 41 行，而第一版有 68 行（不过我显然也是那种既要吃蛋糕又要留着蛋糕的人）。除了更短以外，它给我的感觉也更简单、更易于理解（没有流程控制，也不需要显式抛出任何异常，我们只需利用 Ruby 的反射能力去询问 item.respond_to?(“wield”)，如果物品没有对应玩家指令的方法，就返回一条简单的错误信息给玩家）。</p>
+      
+    
+      
+        <h3>结束思考 与 takeaways</h3>
+        
       
     
   </div>

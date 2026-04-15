@@ -29,31 +29,38 @@
   <div class="article-content">
     
       
-        <p>最近在开发一个 Cocoa 程序时，我遇到了一个相当常见的问题：我在使用 CoreData 进行数据持久化和管理，但同时还需要存储文件。这就引出了一个问题：如何使用 CoreData 高效地存储文件？（包含我们将要开发的源代码的 zip 压缩包可在此处获取。）</p>
+        <p>最近在开发一个 Cocoa 程序时，我遇到了一个相当常见的问题：我使用 CoreData 进行数据持久化和管理，但同时也需要存储文件。这引发了一个问题：如何使用 CoreData 高效地存储文件？（包含我们将要开发的源代码的 zip 包可在此处获取。）</p>
       
     
       
-        <p>我最初的想法是用 NSFileWrapper 打开文件，将其内容提取为 NSData，保存文件名作为 NSString，图标作为 NSImage，然后把它们全部作为二进制字段存入 CoreData 存储中。然而，有几个理由表明直接将文件存储在 CoreData 中是一个糟糕的选择。</p>
+        <p>我最初的想法是用 NSFileWrapper 打开文件，将其内容提取为 NSData，将文件名保存为 NSString，将图标保存为 NSImage，然后将它们全部作为二进制字段推入 CoreData 存储中。然而，有几个理由说明直接将文件存储在 CoreData 中是一个糟糕的选择。</p>
       
     
       
-        <div class="list-content">首先，你的存储文件整体大小可能是 50k，或者在大规模数据集中可能是 500k，但想想在其中存储单个图像的影响。你的 50k 文件可能会变成 450k，500k 的文件可能会变成 1.1 兆字节。再想想添加五十个文件后，你的存储文件就会变成 25（或 100）兆字节，而其中 99% 都是来自文件的臃肿数据。这是 CoreData 需要解析的大量无关字节。其次，根据你选择的数据存储类型，你可能会将整个存储文件加载到内存中，而你肯定不希望每次运行程序时都把应用程序知道的所有文件都一股脑塞进内存。想象一下 iTunes 每次启动时都试图把你 30GB 的音乐库全部加载到内存中，那可能会有些小问题。第三，这是个糟糕的方案，因为你将重复实现大量 NSFileWrapper 的功能，但实现的考虑却远不如原生方案周全。</div>
+        <div class="list-content">首先，你的存储总体大小可能是 50k，或者在大型数据集中可能是 500k，但想想在其中存储单个图像的影响。你的 50k 文件可能变成 450k。你的 500k 文件可能变成 1.1 兆字节。现在考虑添加五十个文件，你的存储现在是一个 25（或 100）兆字节的文件，但其中 99% 都是来自文件的庞大内容。那是 CoreData 需要解析的大量无关字节。其次，根据你选择的数据存储方式，你可能会将整个存储文件加载到内存中，而你真的不想每次运行应用程序时都把已知的所有文件毫不客气地扔进内存。想象一下 iTunes 每次启动时都试图把你 30GB 的音乐库塞进内存。那可能会有点问题。第三，这是一个糟糕的解决方案，因为你将重复实现大量 NSFileWrapper 的功能，但实现方式却不够周全。</div>
       
     
       
-        <p>所以我们回到起点。我知道我其实并不需要把整个文件都存进 CoreData，我真正需要的只是存储一个包含文件路径的 NSString，这样第一个方案中的所有问题就都烟消云散了。</p>
+        <p>所以我们回到起点。我知道我并不真的需要将整个文件存储在数据仓库中，我真正需要的只是存储一个包含文件路径的 NSString，突然之间，第一个方案的问题就烟消云散了。</p>
       
     
       
-        <p>想象一下，程序启动后你想要向用户展示文件。你会获取一个包含 NSManagedObject 的 NSArray，每个对象都包含一个关键属性：@&quot;path&quot;。然后你需要对这个 NSManagedObject 数组进行映射转换，将其变成一个包含 NSFileWrapper 实例的 NSArray。</p>
+        <p>那么，想象一下加载你的程序并希望向用户显示文件。你会获取一个包含 NSManagedObject 的 NSArray，每个对象都包含一个关键键值：@&quot;path&quot;。然后你必须对这个 NSManagedObject 数组进行映射转换，将其转换为包含 NSFileWrapper 实例的 NSArray。</p>
       
     
       
-        <p>在 Objective-C 中，代码大概会是这样的：</p>
+        <p>在 Objective-C 中，代码大致如下：</p>
       
     
       
-        <p>把这段代码改写成 Python 中稍微更函数式的实现，我们会发现正在做的事情其实非常简单：</p>
+        <pre><code>NSString *aFilePath = [someFiles objectAtIndex:0];
+NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+[workspace openFile:aFilePath];
+</code></pre>
+      
+    
+      
+        <p>将这段代码转换成 Python 中稍微更函数式的实现，我们可以看到我们所做的事情其实非常简单：</p>
       
     
       
@@ -69,47 +76,50 @@
       
     
       
-        <p>总的来说，进行这种转换相当容易。但是，当我们开始为程序添加更多功能时，事情就会变得复杂一些。每当我们添加一个新文件时，就必须同时更新 CoreData 存储和维护当前 fileWrappers 列表。维护两个数组并不是特别困难，但确实会引入很多出错的可能性。</p>
+        <p>总的来说，进行这种转换相当简单。但是，当我们开始为程序添加功能时，事情就会变得更加复杂。每次添加一个新文件，我们都必须同时将该文件的信息添加到 CoreData 存储中，以及添加到跟踪当前 fileWrappers 的列表中。维护两个数组虽然不是特别困难，但确实会引入很多出错的机会。</p>
       
     
       
-        <p>幸运的是，通过一些工作，我们可以将两个数组合并为一个，同时保留所有功能，甚至还能实现 NSFileWrapper 的惰性实例化。</p>
+        <p>幸运的是，通过一点工作，我们可以将两个数组合并为一个，同时保留所有功能，而且我们还能实现 NSFileWrapper 的惰性实例化。</p>
       
     
       
-        <h2>实现思路</h2>
+        <h3>我们将如何实现</h3>
+        
       
     
       
-        <p>在编写代码之前，让我们花点时间来梳理一下解决方案的工作原理。</p>
+        <p>在实现代码之前，让我们花点时间概述一下我们的解决方案将如何工作。</p>
       
     
       
-        <div class="list-content">首先，我们将 NSManagedObject 子类化为 LEManagedFile。它将包含一个额外字段，用于保存 NSFileWrapper。然后我们将为 LEManagedFile 添加几个方法，这些方法对应 NSFileWrapper 提供的部分功能。我们特别关注用于访问 NSFileWrapper 的图标、文件名和数据的方法。接下来，我们创建一个名为 &quot;OurFile&quot; 的 CoreData 模型，它只包含一个属性：名为 &quot;path&quot; 的 NSString。最后，我们告诉 CoreData “OurFile” 模型不是普通的 NSManagedObject，而是 LEManagedFile。</div>
+        <div class="list-content">首先，我们将 NSManagedObject 子类化为 LEManagedFile。它将包含一个额外的字段，用于存放 NSFileWrapper。然后我们将为 LEManagedFile 添加一些消息，这些消息对应于 NSFileWrapper 所提供功能的一个子集。我们特别感兴趣的是用于访问 NSFileWrapper 的图标、文件名和数据的消息。接下来，我们将创建一个名为 &quot;OurFile&quot; 的 CoreData 模型，它只有一个属性，即名为 &quot;path&quot; 的 NSString。最后，我们告诉 CoreData “OurFile” 模型不仅仅是一个 NSManagedObject，实际上它是一个 LEManagedFile。</div>
       
     
       
-        <p>就是这样。如果你已经用 Cocoa 玩耍了几个月，这应该足以让你踏上通往可行解决方案的道路。不过，我们接下来会更深入地探讨这些步骤，所以欢迎继续阅读。</p>
+        <p>这就是全部内容。如果你已经用 Cocoa 玩了几个月，这应该足以让你踏上通往可行解决方案的轨道。不过，我们接下来将对这些步骤进行更深入的探讨，所以欢迎你继续阅读。</p>
       
     
       
-        <h2>设置项目</h2>
+        <h3>设置我们的项目</h3>
+        
       
     
       
-        <p>首先打开 Xcode，然后在“文件”菜单中新建一个项目（Command-Shift-N）。在“应用程序”分类下找到“Core Data Application”，选中它并点击下一步。我把我的项目命名为 CocoaFilesInCoreData，并保存在 ~/Programming/ObjC/CocoaFilesInCoreData 目录下，不过保存在哪里、叫什么名字其实并不重要。</p>
+        <p>首先，打开 XCode。然后前往“文件”菜单，新建一个项目（Apple-Shift-N）。在“应用程序”标题下找到 Core Data Application。选择它，然后点击下一步。我把我的项目命名为 CocoaFilesInCoreData，并存储在 ~/Programming/ObjC/CocoaFilesInCoreData，但存储位置和名称其实并不重要。</p>
       
     
       
-        <p>接下来我们要为 LEManagedFile 创建文件。前往“文件”菜单选择“新建文件”（Command-N）。将其命名为“LEManagedFile”，然后点击完成。</p>
+        <p>接下来我们要为 LEManagedFile 创建文件。前往“文件”菜单并选择新建文件（Apple-N）。将其命名为“LEManagedFile”，然后点击完成。</p>
       
     
       
-        <h2>子类化 NSManagedObject</h2>
+        <h3>子类化 NSManagedObject</h3>
+        
       
     
       
-        <p>现在在 Xcode 中打开 LEManagedFile.h，让我们开始工作。首先要把继承的父类从 NSObject 改为 NSManagedObject。</p>
+        <p>现在在 XCode 中打开 LEManagedFile.h，让我们开始工作。首先我们需要将其改为继承 NSManagedObject 而不是 NSObject。</p>
       
     
       
@@ -117,7 +127,7 @@
       
     
       
-        <p>接下来我们要为 LEManagedFile 添加一个数据成员：NSFileWrapper。</p>
+        <p>接下来我们想为 LEManagedFile 添加一个数据成员，即 NSFileWrapper。</p>
       
     
       
@@ -125,7 +135,7 @@
       
     
       
-        <p>然后我们需要声明将要使用的方法：</p>
+        <p>然后我们需要声明将要使用的消息：</p>
       
     
       
@@ -133,7 +143,7 @@
       
     
       
-        <p>这样我们最终的 LEManagedFile.h 文件看起来就是这样的：</p>
+        <p>综上，我们的 LEManagedFile.h 文件最终会是这个样子：</p>
       
     
       
@@ -145,11 +155,12 @@
       
     
       
-        <h2>实现 LEManagedFile</h2>
+        <h3>实现 LEManagedFile</h3>
+        
       
     
       
-        <p>我们知道需要实现 LEManagedFile.h 中声明的方法，但还有其他几个必须处理的消息。这些额外的方法有：</p>
+        <p>我们知道必须实现 LEManagedFile.h 中声明的消息，但还有一些其他消息我们必须处理。这些额外的消息是：</p>
       
     
       
@@ -157,11 +168,11 @@
       
     
       
-        <p>dealloc 是 Objective-C 编程的基础（告诉内存管理如何回收对象），我们还会重写 valueForKey，以便为 LEManagedFile 中 NSManagedObject 和 NSFileWrapper 的功能提供统一的交互方式。</p>
+        <p>dealloc 是编写 Objective-C 代码的标配（告诉内存管理如何回收对象），我们将重写 valueForKey，以便在 LEManagedFile 中以统一的方式与 NSManagedObject 和 NSFileWrapper 的功能进行交互。</p>
       
     
       
-        <p>总的来说，LEManagedFile.m 的空实现框架如下：</p>
+        <p>总的来说，LEManagedFile.m 的桩版本看起来会是这样的：</p>
       
     
       
@@ -169,7 +180,7 @@
       
     
       
-        <p>我们要实现的第一个方法是 fileWrapper。</p>
+        <p>我们要实现的第一个消息的响应是 fileWrapper。</p>
       
     
       
@@ -177,7 +188,7 @@
       
     
       
-        <p>这是一个相当简单的惰性初始化访问器。接下来让我们实现 icon 和 filename。</p>
+        <p>这是一个相当简单的惰性初始化访问器。接下来，让我们实现 icon 和 filename。</p>
       
     
       
@@ -185,7 +196,7 @@
       
     
       
-        <p>借助 fileWrapper 访问器，这两个方法也很简单。不过 path 和 setPath 这对访问器/设置器就稍微复杂一些，我们接下来仔细看看。</p>
+        <p>利用 fileWrapper 访问器，这些实现也很简单。不过 path 和 setPath 这对访问器/修改器要复杂一些，所以我们接下来分析它们。</p>
       
     
       
@@ -193,11 +204,11 @@
       
     
       
-        <p>我们依赖 CoreData 来存储和维护 path 值，因此不能简单地写一个标准的访问器就完事，而是要围绕 LEManagedFile 所继承的 NSManagedObject 功能写一个包装器。</p>
+        <p>我们依赖 CoreData 来存储和维护 path 值，所以不能简单地写一个标准的访问器就完事，而是要围绕 LEManagedFile 所继承的 NSManagedObject 功能写一个包装器。</p>
       
     
       
-        <p>设置器的工作方式类似：</p>
+        <p>修改器的工作方式类似：</p>
       
     
       
@@ -205,11 +216,11 @@
       
     
       
-        <p>setPath 同样是对 NSManagedObject 功能的包装，但它还需要使现有的 fileWrapper 失效。通常最好通过访问器来访问值，但这里我们不能使用 fileWrapper 访问器，因为该访问器会在值尚未初始化时对其进行初始化。这样的话，如果 fileWrapper 之前没有初始化，我们就会先初始化它然后立即释放它。</p>
+        <p>setPath 同样是围绕 NSManagedObject 功能的包装器，但它还需要使 fileWrapper 失效（如果它存在的话）。通常最好通过访问器来访问值，但在这里我们不能使用 fileWrapper 访问器，因为该访问器会在 fileWrapper 尚未初始化时对其进行初始化。因此，如果 fileWrapper 之前没有初始化，我们就会为了释放它而先初始化它。</p>
       
     
       
-        <p>现在稍作休息，先实现 dealloc，再来处理 initFromPath:withContext 和 valueForKey。</p>
+        <p>现在稍微休息一下，实现 dealloc 之后再来处理 initFromPath:withContext 和 valueForKey。</p>
       
     
       
@@ -217,7 +228,7 @@
       
     
       
-        <p>然后我们来看看 valueForKey：</p>
+        <p>然后，让我们来看看 valueForKey：</p>
       
     
       
@@ -225,11 +236,11 @@
       
     
       
-        <p>valueForKey 的作用是拦截所有发给它的消息，检查它们是否是 icon 或 filename，如果是就转给前面我们写好的访问器（这些访问器会查询 fileWrapper），否则就直接传递给 NSManagedObject 实现的 valueForKey。这就是那个小技巧，它让我们既能保持 KVO 兼容性（从而让 Cocoa 绑定继续工作），又能维持 LEManagedFile 实际存储在 CoreData 中的假象。</p>
+        <p>valueForKey 的作用是拦截所有对 valueForKey 的传入消息，检查它们是否是 icon 或 filename，如果是，则将它们导向我们已经实现的访问器（这些访问器会查询 fileWrapper），否则就直接传递给 NSManagedObject 实现的 valueForKey。这就是那个小技巧，它让我们既能保持 KVO 兼容性（从而保持 Cocoa 绑定正常工作），又能维持 LEManagedFile 实际上是存储在 CoreData 中的假象。</p>
       
     
       
-        <p>我们要做的最后一件事是实现 initFromPath:withContext。第一步是到 LEManagedFile.m 文件顶部导入项目中的应用委托：</p>
+        <p>我们需要做的最后一件事是实现 initFromPath:withContext。第一步是前往 LEManagedFile.m 文件顶部，导入我们项目的 application delegate：</p>
       
     
       
@@ -237,7 +248,7 @@
       
     
       
-        <p>现在来考虑 initFromPath:withContext 需要做什么。首先，它会把指定路径的文件复制到应用程序支持文件夹中（本例中我们不处理文件冲突，但你应该处理，可以参考 NSFileManager），然后需要在应用的 CoreData 上下文中创建一个 “OurFile” 模型的实例。</p>
+        <p>现在考虑一下 initFromPath:withContext 需要做什么。首先，它会将指定路径的文件复制到应用程序支持文件夹中（本例中我们不处理文件冲突，但你应该处理，查看 NSFileManager），然后它需要在应用程序的 CoreData 上下文中创建一个 “OurFile” 模型的实例。</p>
       
     
       
@@ -245,11 +256,11 @@
       
     
       
-        <p>请注意 initFromPath:withContext 没有向 aContext 发送 processPendingChanges 消息，这个新的 LEManagedFile 要等到该消息被发送后才会被保存。</p>
+        <p>请注意，initFromPath:withContext 并没有向 aContext 发送 processPendingChanges 消息，这个新的 LEManagedFile 直到该消息发生时才会被保存。</p>
       
     
       
-        <p>好了，我们终于完成了 LEManagedFile.m 的实现，它最终应该是这样的：</p>
+        <p>无论如何，我们终于完成了 LEManagedFile.m 的实现，它应该看起来像这样：</p>
       
     
       
@@ -257,39 +268,66 @@
       
     
       
-        <p>现在是时候设置 CoreData 来利用我们刚刚编写好的代码了。</p>
+        <p>现在是时候继续设置 CoreData 以利用我们刚刚编写好的代码了。</p>
       
     
       
-        <h2>创建 “OurFile” CoreData 模型</h2>
+        <h3>创建 “OurFile” CoreData 模型</h3>
+        
       
     
       
-        <p>在项目窗口中，双击 CocoaFilesInCoreData_DataModel.xcdatamodel 文件。你会看到熟悉的 Core Data 模型编辑界面。添加一个新实体，将其命名为 “OurFile”。</p>
+        <p>在项目窗口中，双击 CocoaFilesInCoreData_DataModel.xcdatamodel 文件。你会看到熟悉的 CoreData 模型编辑界面。添加一个新实体，并将其命名为 “OurFile”。</p>
       
     
       
-        <p>把它的类从 NSManagedObject 改为 LEManagedFile。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/cocoa_files_1.png" alt="Image of the entity in CoreData management GUI.">
+          
+        </figure>
       
     
       
-        <p>然后添加一个名为 “path” 的属性，类型为字符串。</p>
+        <p>不要让它的类是 NSManagedObject，而是将其设置为 LEManagedFile。</p>
       
     
       
-        <p>就是这样。我们已经把 LEManagedFile 类和 CoreData 中的 “OurFile” 模型关联起来了，现在它可以让我们在 CoreData 中模拟存储文件，而实际上只需要保存文件的路径。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/cocoa_files_2.png" alt="Image of changing the class in CoreData management GUI.">
+          
+        </figure>
       
     
       
-        <h2>结束思考</h2>
+        <p>并添加一个名为 “path” 的属性，用于存储字符串。</p>
       
     
       
-        <p>你可以在这里下载这个项目的 zip 压缩包。我已经在 MainMenu.nib 中设置好了 Cocoa 绑定，作为如何使用这种方式实现程序的明显提示，但你还需要用 Interface Builder 为 OurFileController 类创建文件，并至少实现 addFile: 方法，示例才能正常运行。本质上 addFile: 方法需要做的是使用 NSOpenPanel 配合 initFromPath:withContext 方法。你可以从应用委托获取上下文，方式是 [[[NSApplication sharedApplication] delegate] managedObjectContext]。（或者你可以直接写 [[NSApp delegate] managedObjectContext]，后者显然更简洁。）</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/cocoa_files_3.png" alt="Image of an added attribute in CoreData management GUI.">
+          
+        </figure>
       
     
       
-        <p>总而言之，我认为这是一个相当优雅的解决方案，解决了如何使用 CoreData 存储文件的问题。虽然实现起来需要一些时间，但它既高效又灵活。我很好奇是否有人有更简洁的方法来实现同样的效果？一如既往，如果代码有任何问题，请告诉我，我会尽力提供帮助。</p>
+        <p>这就是全部内容。我们已经将 LEManagedFile 类与 CoreData 中的 “OurFile” 模型连接起来，现在它让我们能够模拟在 CoreData 中存储文件，而实际上只需要存储文件的路径。</p>
+      
+    
+      
+        <h3>结束思考</h3>
+        
+      
+    
+      
+        <p>你可以在这里获取该项目的压缩副本。我在 MainMenu.nib 中设置了 Cocoa 绑定，作为如何使用这种方法实现程序的一个相当大的提示，但你需要使用 Interface Builder 为 OurFileController 类创建文件，并至少实现 addFile: 方法，示例才能正常工作。本质上，addFile: 方法需要做的是使用 NSOpenPanel 配合 initFromPath:withContext 方法。你可以从应用程序 delegate 获取上下文，通过 [[[NSApplication sharedApplication] delegate] managedObjectContext]。（或者你可以直接使用 [[NSApp delegate] managedObjectContext]，这显然更简洁一些。）</p>
+      
+    
+      
+        <p>总的来说，我认为这是一个相当令人满意的解决方案，解决了如何使用 CoreData 存储文件的问题。它需要花一些时间来实现，但既高效又灵活。我很好奇是否有人有更简洁的方法来实现这个结果？一如既往，如果代码有任何问题，请告诉我，我会尽力帮忙。</p>
+      
+    
+      
+        <div class="list-content">这意味着特定路径/文件的 NSFileWrapper 只有在需要时才会被实例化，而不是提前。这是在最小化内存使用和整体效率方面的一项重要技术。</div>
       
     
   </div>

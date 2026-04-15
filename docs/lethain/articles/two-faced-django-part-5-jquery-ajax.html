@@ -29,23 +29,35 @@
   <div class="article-content">
     
       
-        <p>最近我们已经花了很多时间在一起，你可能在想，我是不是打算在还没讲任何 Ajax 之前就放弃这个系列了。这个担心非常合理。不过请放心，本篇教程将介绍如何使用 JQuery 在我们的 Web 应用中实现 Ajax 投票。如果你没有跟上之前的文章，请下载我们项目当前进度的快照。</p>
+        <p>最近我们花了很多时间在一起，你可能在想，我是不是打算在完全没有涉及 Ajax 的情况下就结束这个系列。这是一个非常合理的担忧。不过请放心，本教程的这一部分将介绍如何使用 JQuery 在我们的 Web 应用中实现 Ajax 投票。如果你没有跟上前面的文章，请下载我们项目当前进度的快照。</p>
       
     
       
         <h2>为 Web 应用添加 JQuery</h2>
+        
       
     
       
-        <p>我们首先要做的是下载 JQuery。我建议获取未压缩版本，因为当你不需要阅读被压缩过的 Javascript 时，调试工作会愉快得多……</p>
+        <p>我们需要做的第一件事是下载 JQuery。我建议下载未压缩版本，因为当你不需要阅读被压缩混淆过的 Javascript 时，调试会变得愉快得多……</p>
       
     
       
-        <p>那是什么意思？我完全不知道。但如果你想了解，可以不使用上面链接的未压缩版本，而是获取经过 gzip 压缩和 minified 的库版本。</p>
+        <pre><code>var x = m45(k32, a32);
+n41(x);
+</code></pre>
       
     
       
-        <p>下载完库文件后，你需要把它放到 polling/media/web/ 文件夹中。为了简单起见，我们将把它重命名为“jquery.js”。</p>
+        <p>那是什么意思？我完全不清楚。但如果你想知道，可以下载上面链接的压缩版库，而不是未压缩版本。</p>
+      
+    
+      
+        <p>下载完库之后，你需要把它移动到 polling/media/web/ 文件夹中。为了简单起见，我们将把它重命名为“jquery.js”。</p>
+      
+    
+      
+        <pre><code>mv jquery-1.2.1.js jquery.js
+</code></pre>
       
     
       
@@ -53,27 +65,59 @@
       
     
       
-        <p>现在我们要把模板顶部从</p>
+        <pre><code>emacs templates/web/base.html
+</code></pre>
       
     
       
-        <p>待办事项上划掉了一项。还有几项要继续。</p>
+        <p>现在我们要把模板顶部的代码从</p>
+      
+    
+      
+        <pre><code>&lt;html&gt; &lt;head&gt;
+&lt;title&gt;{% block title %}A Generic Title{% endblock %}&lt;/title&gt;
+&lt;/head&gt;
+</code></pre>
+      
+    
+      
+        <pre><code>&lt;html&gt; &lt;head&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;/media/web/jquery.js&quot;&gt;&lt;/script&gt;
+&lt;title&gt;{% block title %}A Generic Title{% endblock %}&lt;/title&gt;
+&lt;/head&gt;
+</code></pre>
+      
+    
+      
+        <p>完成了一项待办任务。还有几项要继续。</p>
       
     
       
         <h2>为 Ajax 添加 URL</h2>
+        
       
     
       
-        <p>现在打开 Web 应用的 urls.py 文件。它位于 polling/web/urls.py。</p>
+        <p>继续打开 Web 应用的 urls.py。它位于 polling/web/urls.py。</p>
       
     
       
-        <p>在设计 URL 时，你可能会想要这样的形式：</p>
+        <pre><code>emacs web/urls.py
+</code></pre>
       
     
       
-        <p>这样你就可以向 /poll/4/vote/up/ 发送 Ajax（虽然我其实只是指异步）请求来给投票 4 投赞成票，向 /poll/13/vote/down/ 发送 Ajax 请求来给投票 13 投反对票。这是一种完全合理的设计方式。</p>
+        <p>在设计 URL 时，你可能会考虑使用类似这样的形式：</p>
+      
+    
+      
+        <pre><code>(r&#x27;^poll/(?P&lt;id&gt;\d+)/vote/up/$&#x27;, &#x27;polling.web.views.vote_up&#x27;),
+(r&#x27;^poll/(?P&lt;id&gt;\d+)/vote/down/$&#x27;, &#x27;polling.web.views.down_down&#x27;),
+</code></pre>
+      
+    
+      
+        <p>这样你就可以向 /poll/4/vote/up/ 发送 Ajax（虽然我其实只是指异步）请求来为投票 4 投赞成票，向 /poll/13/vote/down/ 发送 Ajax 请求来为投票 13 投反对票。这是一种完全合理的方式来组织你的 URL。</p>
       
     
       
@@ -81,23 +125,44 @@
       
     
       
-        <p>我们不会过多依赖请求的 URL，而是更多依靠随请求一起传递的 GET 参数。为什么这样更好？虽然它让我们只需写一个视图而不是两个（尽管那个视图会比两个视图更复杂一些），但真正的好处其实有点刻意：它给了我们一个展示用 Django 模板重写 Javascript 代码片段的机会。</p>
+        <pre><code>(r&#x27;^vote/$&#x27;, &#x27;polling.web.views.vote&#x27;),
+</code></pre>
       
     
       
-        <p>你的 web/urls.py 现在应该看起来像这样：</p>
+        <p>我们不再那么依赖所请求的 URL，而是更多地依赖随请求一起传递的 GET 参数。为什么这样更好？嗯，它确实能让我们只写一个视图而不是两个（尽管那个视图会比两个视图更复杂一些），但真正的优势有点刻意：它给了我们一个机会来展示如何用 Django 模板重写 Javascript 代码片段。</p>
       
     
       
-        <p>接下来我们需要在 web/views.py 文件中编写那个讨厌的 vote 视图。</p>
+        <p>你的 web/urls.py 现在应该像这样：</p>
+      
+    
+      
+        <pre><code>from django.conf.urls.defaults import *
+from polling.core.models import *
+polls = Poll.objects.all()
+urlpatterns = patterns(&#x27;&#x27;,
+    (r&#x27;^$&#x27;, &#x27;django.views.generic.list_detail.object_list&#x27;, 
+     dict(template_name=&#x27;web/poll_list.html&#x27;, queryset=polls)),
+    (r&#x27;^poll/(?P&lt;object_id&gt;\d+)/$&#x27;, &#x27;django.views.generic.list_detail.object_detail&#x27;,
+     dict(template_name=&#x27;web/poll_detail.html&#x27;, queryset=polls)),
+    (r&#x27;^create/$&#x27;, &#x27;polling.web.views.create&#x27;),
+    (r&#x27;^vote/$&#x27;, &#x27;polling.web.views.vote&#x27;)
+)
+</code></pre>
+      
+    
+      
+        <p>现在我们需要在 web/views.py 文件中编写那个讨厌的 vote 视图。</p>
       
     
       
         <h2>编写 vote 视图</h2>
+        
       
     
       
-        <p>前面我提到过，我们将通过 GET 请求发送数据来与 vote 视图通信。首先需要确定的是，我们期望接收哪些数据，以及如何命名它们？</p>
+        <p>刚才我提到，我们将通过 GET 请求发送数据来与 vote 视图通信。我们首先需要确定的是，我们期望接收哪些数据，以及如何标记它们？</p>
       
     
       
@@ -105,55 +170,99 @@
       
     
       
-        <div class="list-content">要投票的 poll 的主键，以及是投赞成票还是反对票。</div>
+        <div class="list-content">要投票的 poll 的主键，以及它应该是赞成票还是反对票。</div>
       
     
       
-        <p>因为我脑子比较简单，我们将把这些需求转换成两个键：&#x27;pk&#x27; 和 &#x27;vote&#x27;，期望 &#x27;pk&#x27; 是一个代表 poll 主键的整数，并且 &#x27;vote&#x27; 的值要么是 &#x27;up&#x27; 要么是 &#x27;down&#x27;。</p>
+        <p>因为我脑子比较简单，我们将把这些需求转换成两个键：&#x27;pk&#x27; 和 &#x27;vote&#x27;，我们期望 &#x27;pk&#x27; 是一个代表 poll 主键的整数，并且 &#x27;vote&#x27; 的值应该是 &#x27;up&#x27; 或 &#x27;down&#x27;。</p>
       
     
       
-        <p>经过这番十分民主的设计讨论后，我们可以开始编写视图了。首先打开 web/views.py 文件。</p>
+        <p>经过这个高度民主的设计讨论后，我们准备开始编写视图。首先打开 web/views.py 文件。</p>
       
     
       
-        <p>首先我们需要导入 simplejson：</p>
+        <pre><code>emacs web/views.py
+</code></pre>
       
     
       
-        <p>并把导入 HttpResponseRedirect 的那一行从</p>
+        <p>我们需要做的第一件事是导入 simplejson：</p>
       
     
       
-        <p>现在我们需要编写 vote 视图。在看代码之前，先来规划一下它应该如何工作：</p>
+        <pre><code>from django.utils import simplejson
+</code></pre>
       
     
       
-        <div class="list-content">检查请求是否为 GET 类型。如果不是，则失败。如果是 GET 类型，则检查是否包含 &#x27;pk&#x27; 和 &#x27;vote&#x27; 参数。如果有一个或两个参数不存在，则失败。如果两者都存在，则获取对应的 poll，并根据 &#x27;vote&#x27; 的值进行赞成或反对投票。</div>
+        <p>并且把导入 HttpResponseRedirect 的那一行从</p>
       
     
       
-        <p>好了，现在来看看用 Python 怎么实现。</p>
+        <pre><code>from django.http import HttpResponseRedirect
+</code></pre>
       
     
       
-        <p>你首先会注意到，我们在函数第一行给 result 设置了一个默认值。这不是必需的，但它意味着我们只需要在一个地方设置它，同时也意味着函数只有一个出口（这样更容易理解函数的逻辑，如果出问题也更容易调试）。</p>
+        <pre><code>from django.http import HttpResponse, HttpResponseRedirect
+</code></pre>
       
     
       
-        <p>接下来你会注意到（因为……它是第二行）的是：</p>
+        <p>现在我们需要编写 vote 视图。在看代码之前，我们先规划一下它应该如何工作：</p>
       
     
       
-        <p>这是 Django 推荐的判断当前请求类型的方式。另一种常见的使用场景是处理 POST 请求（我们在上一个教程部分编写创建新 poll 的视图时其实已经这么做了）。</p>
+        <div class="list-content">检查请求是否是 GET 类型。如果不是 GET 类型，则失败。如果是 GET 类型，则检查是否存在 &#x27;pk&#x27; 和 &#x27;vote&#x27; 参数。如果其中一个或两个参数不存在，则失败。如果两者都存在，则获取对应的 poll，并根据 &#x27;vote&#x27; 的值进行赞成或反对投票。</div>
       
     
       
-        <p>注意我们使用 *has_key()* 方法来检查 QuerySet（一个类似于 Python 字典但比它稍微快一点的 Django 类）中是否包含我们关心的两个键 &#x27;pk&#x27; 和 &#x27;vote&#x27;。最后要提的两点是，我们这里到处都使用了 unicode 字符串，这是因为 Django 现在内部使用 unicode 字符串，所以所有你要与之比较的内容都会是 unicode。由于你的应用将来很可能会遇到非 ASCII 数据，所以统一使用 unicode 是很有意义的。</p>
+        <p>好的，现在来看看用 Python 怎么写。</p>
       
     
       
-        <p>最后一部分是关于 simplejson 的。Simplejson 是一个将基本 Python 数据结构序列化为 JSON 的库，因此它是最容易与 Javascript 通信的方式。simplejson.dumps() 函数接受一个基本的 Python 数据结构，并返回一个代表它的 JSON 字符串。</p>
+        <pre><code>def vote(request):
+    results = {&#x27;success&#x27;:False}
+    if request.method == u&#x27;GET&#x27;:
+        GET = request.GET
+        if GET.has_key(u&#x27;pk&#x27;) and GET.has_key(u&#x27;vote&#x27;):
+            pk = int(GET[u&#x27;pk&#x27;])
+            vote = GET[u&#x27;vote&#x27;]
+            poll = Poll.objects.get(pk=pk)
+            if vote == u&quot;up&quot;:
+                poll.up()
+            elif vote == u&quot;down&quot;:
+                poll.down()
+            results = {&#x27;success&#x27;:True}
+    json = simplejson.dumps(results)
+    return HttpResponse(json, mimetype=&#x27;application/json&#x27;)
+</code></pre>
+      
+    
+      
+        <p>你首先会注意到，我们在函数的第一行给 result 设置了一个默认值。这不是必须的，但它意味着我们只需要在一个地方设置它，而且函数只有一个出口（这使得跟踪函数逻辑更容易，如果出问题也更容易调试）。</p>
+      
+    
+      
+        <p>接下来你会注意到的（因为……它是第二行）是：</p>
+      
+    
+      
+        <pre><code>if request.method == u&#x27;GET&#x27;:
+</code></pre>
+      
+    
+      
+        <p>这是 Django 推荐的判断当前请求类型的方式。另一个常见的使用场景是处理 POST 请求（我们在上一个教程部分编写创建新 poll 的视图时就这么做过）。</p>
+      
+    
+      
+        <p>注意我们使用 *has_key()* 方法来检查 QuerySet（一个类似于 Python 字典但比它略快的 Django 类）中是否包含我们关心的两个键 &#x27;pk&#x27; 和 &#x27;vote&#x27;。最后要提的两点是，我们在这里到处使用 unicode 字符串，这是因为 Django 现在在内部使用 unicode 字符串，所以所有你要比较的内容都会是 unicode。由于你的应用将来很可能遇到非 ASCII 数据，所以统一使用 unicode 是明智的。</p>
+      
+    
+      
+        <p>最后一部分是关于 simplejson 的。Simplejson 是一个将基本 Python 数据结构序列化为 JSON 的库，因此它是最容易与 Javascript 通信的方式。simplejson.dumps() 函数接受一个基本的 Python 数据结构，并返回一个表示它的 JSON 字符串。</p>
       
     
       
@@ -162,30 +271,77 @@
     
       
         <h2>使用 JQuery 实现投票</h2>
+        
       
     
       
-        <p>现在我们只需要用 JQuery 写几行 Javascript，就能避免大部分麻烦。打开 polling/templates/web/poll_detail.html。</p>
+        <p>现在我们只需要用 JQuery 写几行 Javascript 来避免大多数麻烦。继续打开 polling/templates/web/poll_detail.html。</p>
       
     
       
-        <p>现在我们直接在模板中嵌入几行 Javascript（我把它放在 id 为 &#x27;upvote&#x27; 和 &#x27;downvote&#x27; 的 span 所在的段落正上方）。</p>
+        <pre><code>emacs templates/web/poll_detail.html
+</code></pre>
       
     
       
-        <p>vote() 函数用于进行赞成或反对投票，注意我们如何创建一个包含 &#x27;pk&#x27; 和 &#x27;vote&#x27; 值的 hashmap（类似于 Python 字典）。这些就是随我们的 GET 请求一起传递给 &#x27;/vote/&#x27; URL 上 Django 服务器的参数。其中最有趣的部分是 {{ object.pk }} 这段代码。这里我们使用 Django 模板语言来动态修改 Javascript。是个很方便的技巧。</p>
+        <p>现在我们直接内联几行 Javascript（我把它放在 id 为 &#x27;upvote&#x27; 和 &#x27;downvote&#x27; 的 span 所在的段落正上方）。</p>
       
     
       
-        <p>其他有趣的地方（不分先后）：</p>
+        <pre><code>&lt;script&gt;
+function vote(kind) {
+  $.getJSON(&quot;/vote/&quot;, { pk:{ { object.pk }}, vote: kind }, function(json){
+    alert(&quot;Was successful?: &quot; + json[&#x27;success&#x27;]);
+  });
+}
+function addClickHandlers() {
+  $(&quot;#upvote&quot;).click( function() { vote(&quot;up&quot;) });
+  $(&quot;#downvote&quot;).click( function() { vote(&quot;down&quot;) });
+}
+$(document).ready(addClickHandlers);
+&lt;/script&gt;
+</code></pre>
       
     
       
-        <div class="list-content">$(&quot;#upvote&quot;) 是 JQuery 选中 id 为 &#x27;upvote&#x27; 元素的方式；$(document).ready(callThisFunc); 是 JQuery 用于在网页中 DOM 元素创建完成后加载 Javascript 的技巧（通俗地说，就是在 HTML 元素真正存在可以被修改时调用 Javascript）。$(&quot;someelement&quot;).click(callThisFunc); 没有使用标准的 Javascript ele.onclick = someFunc，JQuery 将函数作为参数传递给 click 函数。这是 JQuery 理念的延续——函数应该总是返回有用的值，因此你可以将调用链起来。</div>
+        <p>vote() 函数用于进行赞成或反对投票，注意我们如何创建一个包含 &#x27;pk&#x27; 和 &#x27;vote&#x27; 值的哈希表（类似于 Python 字典）。这些就是随我们的 GET 请求一起传递给位于 &#x27;/vote/&#x27; URL 的 Django 服务器的参数。其中最有趣的部分是 {{ object.pk }} 这段代码。我们在这里使用 Django 模板语言实时修改 Javascript。这是一个很方便的技巧。</p>
       
     
       
-        <p>好了。所以，我们的 templates/web/poll_detail.html 整体看起来应该像这样：</p>
+        <p>其他有趣的地方不分先后：</p>
+      
+    
+      
+        <div class="list-content">$(&quot;#upvote&quot;) 是 JQuery 选择 id 为 &#x27;upvote&#x27; 元素的方式；$(document).ready(callThisFunc); 是 JQuery 用于在网页中的 DOM 元素创建完成后加载 Javascript 的技巧（用大白话说，就是在 HTML 元素实际存在可以被修改时调用 Javascript）。$(&quot;someelement&quot;).click(callThisFunc); 替代了标准的 Javascript ele.onclick = someFunc，JQuery 将一个函数作为参数传递给 click 函数。这是 JQuery 理念的延续——函数应该始终返回有用的值，因此你可以将调用链式地写在一起。</div>
+      
+    
+      
+        <p>好了。所以，我们的 templates/web/poll_detail.html 整体应该看起来像这样：</p>
+      
+    
+      
+        <pre><code>{% extends &quot;web/base.html&quot; %}
+{% block title %} Poll: { { object.question }} {% endblock %}
+{% block body %}
+&lt;div id=&quot;poll&quot;&gt;
+  &lt;p&gt;We have a question for you. { { object.question }}
+  &lt;p&gt; So far we have { { object.up_votes }} upvotes and { { object.down_votes }} downvotes, for an overall vote of { { object.score }}! &lt;/p&gt;
+  &lt;script&gt;
+  function vote(kind) {
+    $.getJSON(&quot;/vote/&quot;, { pk:{ { object.pk }}, vote: kind }, function(json){
+      alert(&quot;Was successful?: &quot; + json[&#x27;success&#x27;]);
+    });
+  }
+  function addClickHandlers() {
+    $(&quot;#upvote&quot;).click( function() { vote(&quot;up&quot;) });
+    $(&quot;#downvote&quot;).click( function() { vote(&quot;down&quot;) });
+ }
+ $(document).ready(addClickHandlers);
+  &lt;/script&gt;
+  &lt;p&gt; Do you &lt;span id=&quot;upvote&quot;&gt;agree&lt;/span&gt; or &lt;span id=&quot;downvote&quot;&gt;disagree&lt;/span&gt;? &lt;/p&gt;
+&lt;/div&gt;
+{% endblock %}
+</code></pre>
       
     
       
@@ -194,30 +350,36 @@
     
       
         <h2>验证我们的进度</h2>
+        
       
     
       
-        <p>首先，启动开发服务器：</p>
+        <p>首先，我们启动开发服务器：</p>
       
     
       
-        <p>然后导航到投票列表（如果你还没有创建任何投票，请先到这里创建一个）。点击任意一个投票，你应该会被带到该投票的详情页。</p>
+        <pre><code>python manage.py runserver
+</code></pre>
       
     
       
-        <p>现在点击屏幕底部标有“agree”或“disagree”的文字。它应该会弹出一个 Javascript 警告框，显示类似“Was successful?: True”的内容。如果你看一下上面的 Javascript 代码，可以注意到 JQuery 正在反序列化返回的 JSON 对象，我们正在检查其中的 &#x27;success&#x27; 键（这是我们在 polling/web/views.py 的 vote 视图中返回的）。</p>
+        <p>然后导航到投票列表（除非你还没创建任何 poll，那么先去这里创建一个）。点击任意一个 poll，你应该会被带到该 poll 的详情页。</p>
       
     
       
-        <p>在这个页面上分数不会实时更新，你需要返回到投票列表页面才能看到更新后的分数。（如果有人在弄清楚如何动态更新页面时遇到困难，我可以再写一篇教程来介绍，但那至少需要一个真正的请求 :) 我们当前代码的快照可以在这里下载。</p>
+        <p>现在点击屏幕底部标有“agree”或“disagree”的文字。它应该会弹出一个 Javascript 警告，显示类似“Was successful?: True”的内容。如果你看一下上面的 Javascript 代码，可以注意到 JQuery 正在反序列化返回的 JSON 对象，我们正在检查其中的 &#x27;success&#x27; 键（这是我们在 polling/web/views.py 的 vote 视图中返回的）。</p>
       
     
       
-        <p>至此，我们的 Web 应用部分就完成了。呼。我们现在只需要开始编写 PyFacebook 应用了，那将是本教程的第六部分。</p>
+        <p>分数在这个页面不会实时更新，你需要返回到投票列表才能看到更新后的分数。（如果有人在弄清楚如何动态更新页面时遇到困难，我可以再写一篇教程来介绍，但那至少需要一个真正的请求 :) 我们当前代码的快照可以在这里下载。</p>
       
     
       
-        <p>顺便说一句，为 web/views.py 中的 create 视图编写测试是个非常好的主意。我把它留给读者作为练习，但希望我也能回来 walkthrough 一下。</p>
+        <p>就这样，我们的 Web 应用部分完成了。呼。现在我们只需要开始编写 PyFacebook 应用了，那将是教程的第六部分。</p>
+      
+    
+      
+        <p>顺便说一句，为 web/views.py 中的 create 视图编写测试是个非常好的主意。我把它留给读者作为练习，但希望我以后也能回来一步步讲解它。</p>
       
     
   </div>

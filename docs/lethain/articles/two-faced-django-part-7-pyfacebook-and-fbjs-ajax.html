@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>双面 Django 第 7 部分：PyFacebook 与 FBJS Ajax · Will Larson 文集</title>
+  <title>两面 Django 第 7 部分：PyFacebook 和 FBJS Ajax · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>双面 Django 第 7 部分：PyFacebook 与 FBJS Ajax</h1>
+    <h1>两面 Django 第 7 部分：PyFacebook 和 FBJS Ajax</h1>
     <div class="meta">
       2007-12-17 · 
       <a href="https://lethain.com/two-faced-django-part-7-pyfacebook-and-fbjs-ajax/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,39 +29,92 @@
   <div class="article-content">
     
       
-        <div class="list-content">你可以在此查看本项目的在线版本，包括网页和 Facebook 界面。现在的在线版本也已经加入了我们将在本节实现的酷炫 Ajax 投票功能。</div>
+        <div class="list-content">你可以在此处找到该项目的在线版本详情，包括网页和 Facebook 两种界面。现在的在线版本也已加入我们将在本节实现的酷炫 Ajax 投票功能。</div>
       
     
       
-        <p>现在我们已经完成了 Facebook 应用的大部分内容，只需为它添加一点 Ajax 功能就可以正式发布了。如果你没有跟上之前的教程，可以下载[我们目前开发的代码快照][polling6]。</p>
+        <p>现在我们已经完成了 Facebook 应用的大部分功能，只需为它添加一点 Ajax 功能就可以发布了。如果你之前没有跟进，可以下载[我们已开发代码的快照][polling6]。</p>
       
     
       
-        <p>通常在这个阶段我们会开始启动 urls -&gt; views -&gt; templates 的开发流程，但实际上我们在网页应用中已经实现了这些 urls 和 views。让两个应用相互依赖显得有些不够优雅，更干净的做法是创建一个第三应用来存放所有通用或共享的组件（我喜欢把这个第三方应用叫做 api）。</p>
+        <p>通常在这个阶段我们会开始 urls → views → templates 的开发流程，但实际上我们在网页应用中已经实现了相关的 urls 和 views。让两个应用相互依赖显得有点不优雅，更干净的做法是创建一个第三方应用来存放所有通用或共享的组件（我喜欢把这个第三方应用叫做 api）。</p>
       
     
       
-        <h2>回忆一下</h2>
+        <h2>唤醒记忆</h2>
+        
       
     
       
-        <p>让我们快速浏览一下正在复用的 urls 和 views。首先看一下我们从网页应用中复用的 URL。</p>
+        <p>让我们快速看一下正在复用的 urls 和 views。首先来看从网页应用中复用的 URL。</p>
       
     
       
-        <p>再回顾一下 polling.web.views.vote 这个视图的样子：</p>
+        <pre><code>urlpatterns = patterns(&#x27;&#x27;,
+    (r&#x27;^vote/$&#x27;, &#x27;polling.web.views.vote&#x27;)
+)
+</code></pre>
       
     
       
-        <p>所以，我们基本上是想向 &quot;www.ourserver.com/vote/&quot; 发送一个 GET 请求，并附带 pk 和 vote 两个参数。其中 vote 参数的值应该是 up 或 down。</p>
+        <p>再回忆一下 polling.web.views.vote 这个视图的样子：</p>
       
     
       
-        <p>但这里有个小问题。FaceBook Javascript（下面会详细介绍）不支持发送 GET 请求。因此我们必须改用 POST 请求，而我们的 vote() 函数目前无法处理 POST 请求。所以我们需要对 polling/web/views.py 做一些小的修改。</p>
+        <pre><code>def vote(request):
+    results = {&#x27;success&#x27;:False}
+    if request.method == u&#x27;GET&#x27;:
+        GET = request.GET
+        if GET.has_key(u&#x27;pk&#x27;) and GET.has_key(u&#x27;vote&#x27;):
+            pk = int(GET[u&#x27;pk&#x27;])
+            vote = GET[u&#x27;vote&#x27;]
+            poll = Poll.objects.get(pk=pk)
+            if vote == u&quot;up&quot;:
+                poll.up()
+            elif vote == u&quot;down&quot;:
+                poll.down()
+            results = {&#x27;success&#x27;:True}
+    json = simplejson.dumps(results)
+    return HttpResponse(json, mimetype=&#x27;application/json&#x27;)
+</code></pre>
       
     
       
-        <p>将 vote() 修改成下面这样：</p>
+        <p>所以，我们基本上是想向“www.ourserver.com/vote/”发送一个 GET 请求，并附带 pk 和 vote 两个参数。其中 vote 参数的值应该是 up 或 down。</p>
+      
+    
+      
+        <p>但这里有个小问题。FaceBook Javascript（稍后会详细介绍）不支持发送 GET 请求。因此我们必须改用 POST 请求，而我们的 vote() 函数目前无法处理 POST 请求。所以，我们需要对 polling/web/views.py 做一些小改动。</p>
+      
+    
+      
+        <pre><code>emacs polling/web/views.py
+</code></pre>
+      
+    
+      
+        <p>并把 vote() 修改成下面这样：</p>
+      
+    
+      
+        <pre><code>def vote(request):
+    results = {&#x27;success&#x27;:False}
+    if request.method == u&#x27;GET&#x27;:
+        data = request.GET
+    elif request.method == u&#x27;POST&#x27;:
+        data = request.POST
+    if data.has_key(u&#x27;pk&#x27;) and data.has_key(u&#x27;vote&#x27;):
+        pk = int(data[u&#x27;pk&#x27;])
+        vote = data[u&#x27;vote&#x27;]
+        poll = Poll.objects.get(pk=pk)
+        if vote == u&quot;up&quot;:
+            poll.up()
+        elif vote == u&quot;down&quot;:
+            poll.down()
+        results = {&#x27;success&#x27;:True}
+    json = simplejson.dumps(results)
+    return HttpResponse(json, mimetype=&#x27;application/json&#x27;)
+</code></pre>
       
     
       
@@ -69,7 +122,24 @@
       
     
       
-        <p>request 的 REQUEST 属性会先查找 POST 属性，再查找 GET 属性。因此它正是我们当前场景下想要的东西。不过，使用 REQUEST 还是有些不被推荐（它不够显式）。在某个时候，选择哪种方式会变成一个哲学问题，需要每个人自己做出回答。</p>
+        <pre><code>def vote(request):
+    results = {&#x27;success&#x27;:False}
+    if request.REQUEST.has_key(u&#x27;pk&#x27;) and request.REQUEST.has_key(u&#x27;vote&#x27;):
+        pk = int(request.REQUEST[u&#x27;pk&#x27;])
+        vote = request.REQUEST[u&#x27;vote&#x27;]
+        poll = Poll.objects.get(pk=pk)
+        if vote == u&quot;up&quot;:
+            poll.up()
+        elif vote == u&quot;down&quot;:
+            poll.down()
+        results = {&#x27;success&#x27;:True}
+    json = simplejson.dumps(results)
+    return HttpResponse(json, mimetype=&#x27;application/json&#x27;)
+</code></pre>
+      
+    
+      
+        <p>request 的 REQUEST 属性会先查找 POST 属性，再查找 GET 属性。因此它正是我们当前场景下想要的。不过，使用 REQUEST 还是有些不被推荐（它不够显式）。在某些时候，选择哪一种就成了一个每个人都需要自己回答的哲学问题。</p>
       
     
       
@@ -78,6 +148,7 @@
     
       
         <h2>FaceBook JavaScript</h2>
+        
       
     
       
@@ -85,83 +156,173 @@
       
     
       
-        <p>FBJS 本质上是在安全沙箱中运行的 Javascript。大部分情况下它和标准 Javascript 的行为一致，但有些功能就是无法使用。另一个区别是 FBJS 通过其命名空间内的一些对象实例来暴露功能。我们将会用到其中两个暴露的对象。</p>
+        <p>FBJS 本质上是在一个安全沙箱中运行的 JavaScript。大部分情况下它的行为与标准 JavaScript 相同，但有些功能就是无法使用。另一个区别是 FBJS 通过其命名空间内已有的对象实例来暴露某些功能。我们将会使用其中两个暴露的对象。</p>
       
     
       
-        <p>第一个是 Dialog 对象。它是 Facebook 风格的、用于向用户索取简单交互的方式。我们将用它来完成和之前 JQuery 示例中 alert() 相同的功能（即通知用户操作成功）。</p>
+        <p>第一个是 Dialog 对象。它是 Facebook 风格的、用于向用户发起简单交互的方式。我们将用它来完成和 JQuery 示例中 alert() 一样的功能（即通知用户操作成功）。</p>
       
     
       
-        <p>创建对话框的 FBJS 代码如下：</p>
+        <p>用于创建对话框的 FBJS 代码如下：</p>
       
     
       
-        <p>除了 Dialog 对象，我们还会用到另一个 FBJS 对象 —— Ajax 对象。开发者 Wiki 将其描述为“一个非常强大的 AJAX 对象”，那就让我们来看看这些强大的功能都有什么用吧。</p>
+        <pre><code>var successful = &quot;True&quot;;
+var d = new Dialog(Dialog.DIALOG_POP);
+d.showMessage(&quot;Ajax&quot;, &quot;The operation was &quot; + successful);
+</code></pre>
       
     
       
-        <p>事实证明，这个 Ajax 对象和你在 JQuery、Prototype 或 MochiKit 中使用的简化版 Ajax 功能非常相似。</p>
+        <p>除了 Dialog 对象，我们还会使用另一个 FBJS 对象——Ajax 对象。开发者维基将其描述为“一个非常强大的 AJAX 对象”，那就让我们来看看它的强大之处吧。</p>
       
     
       
-        <p>发送一个简单的 POST 请求是这样的：</p>
+        <p>事实证明，Ajax 对象与你从 JQuery、Prototype 或 MochiKit 获得的简化版 Ajax 功能非常相似。</p>
       
     
       
-        <p>和我们期望的一样简洁。现在让我们把 FBJS 运用到实际项目中。</p>
+        <p>发送一个简单的 POST 请求如下所示：</p>
+      
+    
+      
+        <pre><code>var a = new Ajax();
+// Can also be Ajax.RAW or Ajax.FBML
+a.responseType = Ajax.JSON;
+// If you want to require login
+a.requireLogin = true;
+var p = { &quot;one&quot;:10, &quot;name&quot;:&quot;Jack&quot; };
+a.post(&#x27;http://www.abc.com/d/&#x27;, p);
+</code></pre>
+      
+    
+      
+        <p>简单到不能再简单了。现在让我们把 FBJS 投入使用。</p>
       
     
       
         <h2>编辑 detail.fbml 模板</h2>
+        
       
     
       
-        <p>我们将要编辑 polling/templates/fb/detail.fbml 模板。让我们快速打开它：</p>
+        <p>我们即将编辑 polling/templates/fb/detail.fbml 模板。让我们快速打开它：</p>
       
     
       
-        <p>一开始（还没有加入任何 Ajax 功能时），它的内容是这样的：</p>
+        <pre><code>emacs polling/templates/fb/detail.fbml
+</code></pre>
       
     
       
-        <p>现在我们先来写一个 Javascript 函数，根据传入的参数为对象投赞成或反对票：</p>
+        <p>一开始（在我们添加任何 Ajax 功能之前），它的样子是这样的：</p>
       
     
       
-        <p>好了，现在我们只需要修改模板，让它使用我们刚刚写好的 vote() 函数。在 detail.fbml 模板中，我们将重写 id 为 poll 的 html div。修改后的代码如下：</p>
+        <pre><code>{% load facebook %}
+&lt;fb:dashboard&gt;
+	&lt;fb:create-button href=&quot;{% fburl &#x27;/create/&#x27; %}&quot;&gt;Create a new poll&lt;/fb:create-button&gt;
+&lt;/fb:dashboard&gt;
+&lt;fb:tabs&gt;
+  &lt;fb:tab-item href=&quot;{% fburl &#x27;/&#x27; %}&quot; title=&#x27;All Polls&#x27;/&gt;
+&lt;/fb:tabs&gt;
+&lt;div class=&quot;poll&quot;&gt;
+  &lt;p&gt; Score for &quot;{ { poll.question }}&quot; is { { poll.score }}!&lt;/p&gt;
+  &lt;p&gt;Do you &lt;span id=&quot;up&quot;&gt;agree&lt;/span&gt; or &lt;span id=&quot;down&quot;&gt;disagree&lt;/span&gt;?&lt;/p&gt;
+&lt;/div&gt;
+</code></pre>
       
     
       
-        <p>注意我们仍然可以使用“用 Django 模板定制 Javascript”这个方便的小技巧。</p>
+        <p>现在我们先来编写一个 JavaScript 函数，根据传入的参数为对象投赞成或反对票：</p>
       
     
       
-        <p>好的。我们现在的功能已经可以工作了，但还有一个小问题：测试起来比较麻烦（你必须手动刷新当前页面）。所以作为小小的改进，让我们使用 Dialog 对象来告知用户投票是否成功。</p>
+        <pre><code>function vote(pk, voteUp) {
+  if (voteUp == true)
+    typ = &quot;up&quot;;
+  else
+    typ = &quot;down&quot;;
+  var ajax = new Ajax();
+  ajax.responseType = Ajax.JSON;
+  ajax.requireLogin = true;
+  var params = { &quot;pk&quot;:pk, &quot;vote&quot;:typ };
+  ajax.post(&#x27;http://krit.willarson.com/vote/&#x27;, params);
+}
+</code></pre>
       
     
       
-        <p>我们来稍微修改一下 vote() 函数。现在它看起来是这样的：</p>
+        <p>好了，现在我们只需要修改模板，让它使用我们刚刚编写的 vote() 函数。在 detail.fbml 模板中，我们将重写 id 为 poll 的 html div。修改之后它将变成：</p>
       
     
       
-        <p>我们给 ajax 的 ondone 字段赋了一个匿名函数。任何被赋给该字段的方法都会接收一个参数：Ajax 请求返回的内容。该内容格式取决于你创建 Ajax 对象时指定的格式（raw、json 或 fbml）。</p>
+        <pre><code>&lt;div class=&quot;poll&quot;&gt;
+  &lt;p&gt; Score for &quot;{ { poll.question }}&quot; is { { poll.score }}!&lt;/p&gt;
+  &lt;p&gt;
+    Do you
+    &lt;a href=&quot;#&quot; onclick=&quot;vote({ { poll.pk }}, true)&quot;&gt;agree&lt;/a&gt;
+    or
+    &lt;a href=&quot;#&quot; onclick=&quot;vote({ { poll.pk }}, false)&quot;&gt;disagree&lt;/a&gt;?
+  &lt;/p&gt;
+&lt;/div&gt;
+</code></pre>
       
     
       
-        <p>完成这些修改后，我们 Facebook 应用的 Ajax 功能也全部实现了。</p>
+        <p>注意我们仍然可以使用“通过 Django 模板定制 JavaScript”这个方便技巧。</p>
+      
+    
+      
+        <p>很好。现在的代码可以工作了，但还有一个小问题：验证它是否工作起来比较麻烦（必须手动刷新当前页面）。所以作为小小的改进，让我们使用 Dialog 对象来通知用户投票是否成功。</p>
+      
+    
+      
+        <p>让我们稍微修改一下 vote() 函数，现在它看起来是这样的：</p>
+      
+    
+      
+        <pre><code>function vote(pk, voteUp) {
+  if (voteUp == true)
+    typ = &quot;up&quot;;
+  else
+    typ = &quot;down&quot;;
+  var ajax = new Ajax();
+  ajax.ondone = function(data) {
+    var d = new Dialog(Dialog.DIALOG_POP);
+    if (data.success == true)
+      msg = &quot;Your vote was successful!&quot;;
+    else
+      msg = &quot;Your vote failed. :(&quot;;
+    d.showMessage(&quot;Voting Result&quot;, msg);
+  }
+  ajax.responseType = Ajax.JSON;
+  var params = { &quot;pk&quot;:pk, &quot;vote&quot;:typ };
+  ajax.post(&#x27;http://krit.willarson.com/vote/&#x27;, params);
+}
+</code></pre>
+      
+    
+      
+        <p>我们给 ajax 的 ondone 字段赋了一个匿名函数。任何赋给该字段的方法都会接收一个参数：Ajax 请求返回的内容。该内容格式是在创建 Ajax 对象时指定的（可以是 raw、json 或 fbml）。</p>
+      
+    
+      
+        <p>经过这些修改，我们的 Facebook 应用的 Ajax 功能也完成了。</p>
       
     
       
         <h2>接下来呢？</h2>
+        
       
     
       
-        <p>经过这七篇教程，你已经学习了很多内容：Django 测试框架、PyFacebook、FBJS 以及其他知识。现在是时候退后一步，开始修改我们一直在玩的这些组件，看看能否将自己的想法施加到代码上，把它带到更新（也更有趣）的方向上去。如果出现任何问题，你随时可以下载[我们刚刚完成的代码快照][polling7]。</p>
+        <p>经过这七篇教程，你已经学习了许多内容：Django 测试框架、PyFacebook、FBJS 等等。现在是时候退一步，开始修改我们一直在玩的这些组件，看看能否按照自己的想法把代码带到更新（也更有趣）的方向上去。如果出现任何问题，你随时可以下载[我们刚刚完成的代码快照][polling7]。</p>
       
     
       
-        <p>至此本系列教程已经结束，但后续的第二个系列正在筹备中。新系列会有些不同，因为它将着眼于提升我们已构建代码的质量，而不仅仅是增加粗糙的功能。</p>
+        <p>至此本系列教程已经完结，但第二系列教程正在筹备中，它将从这里继续。第二系列会有所不同，因为它将重点放在提升我们已构建代码的质量上，而不仅仅是增加粗糙的功能。</p>
       
     
   </div>

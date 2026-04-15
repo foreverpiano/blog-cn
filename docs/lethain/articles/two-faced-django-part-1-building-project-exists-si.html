@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>双面 Django（上）：构建一个同时存在于 Facebook 和 Web 的项目 · Will Larson 文集</title>
+  <title>双面 Django（上）：构建一个同时存在于 Facebook 和网页上的项目 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>双面 Django（上）：构建一个同时存在于 Facebook 和 Web 的项目</h1>
+    <h1>双面 Django（上）：构建一个同时存在于 Facebook 和网页上的项目</h1>
     <div class="meta">
       2007-12-04 · 
       <a href="https://lethain.com/two-faced-django-part-1-building-project-exists-si/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,115 +29,177 @@
   <div class="article-content">
     
       
-        <div class="list-content">你可以在这里找到该项目的在线演示版本，包括 Web 和 Facebook 两种界面。</div>
+        <div class="list-content">你可以在这里找到该项目的在线演示版本，包括网页界面和 Facebook 界面。</div>
       
     
       
-        <p>最近我花了很多时间研究 Django 和 PyFacebook。虽然网上有一个还算不错的 PyFacebook 入门教程，但从邮件列表里的一些评论来看，大家似乎更需要一篇更全面、循序渐进的实战指南。</p>
+        <p>最近我花了大量时间研究 Django 和 PyFacebook。虽然网上有一个还算不错的 PyFacebook 入门教程，但从邮件列表的一些评论来看，大家似乎更需要一篇更全面的实战指南。</p>
       
     
       
-        <p>本系列文章将以 Django 官方教程那种清晰的步步为营风格，带你一步步构建一个 Django 应用，让它既能作为普通的 Web 应用运行，又能作为 Facebook 应用运行。Web 和 Facebook 两个界面将共享同一个数据库、使用相同的模型，因此使用其中一种界面的用户也能与另一种界面进行交互。</p>
+        <p>本系列文章将以 Django 官方教程那样清晰、循序渐进的风格，带你一步步构建一个 Django 应用，让它同时作为普通的网页应用和 Facebook 应用存在。网页版和 Facebook 版将使用相同的数据库和相同的模型，因此使用其中一个界面的用户可以和另一个界面的用户进行互动。</p>
       
     
       
-        <p>此外，本着资本主义的创业精神，我们打算抢占 Django 官方教程的地盘，打造一个更大更好的玩具级投票应用。此刻，硅谷的风险投资家们正因为这些投票应用可能给他们的钱包带来的冲击而瑟瑟发抖——或者类似这样的梗。</p>
+        <p>同时，本着资本主义和创业精神，我们打算“入侵” Django 官方教程的地盘，打造一个更强大、更好的玩具投票应用。此时此刻，硅谷的风险投资家们正因为这些投票应用而为他们的钱包瑟瑟发抖——大概是这么个意思。</p>
       
     
       
-        <p>接下来，让我们看看在接下来一到三个小时内我们将完成什么：</p>
+        <p>接下来，让我们看看在接下来一到三个小时内我们将完成哪些内容：</p>
       
     
       
-        <div class="list-content">构建 Web 应用和 Facebook 应用将共享的模型。使用 generic views 尽可能少写代码。使用 HTML 和 FBML（Facebook Markup Language）两种模板来渲染内容。使用 Facebook 的 JavaScript 和 jQuery 库实现 Ajax。使用 Django 测试框架在 Web 开发中实践测试驱动开发（TDD）。使用 newforms 来验证和表示数据。</div>
+        <div class="list-content">构建可在网页应用和 Facebook 应用之间共享的模型；使用通用视图（generic views）来尽可能少写代码；使用 HTML 和 FBML（Facebook Markup Language）来渲染内容；同时使用 Facebook 的 Javascript 和 JQuery 库实现 Ajax；使用 Django 的测试框架在 Web 开发中实践测试驱动开发（TDD）；使用 newforms 来验证和表示数据。</div>
       
     
       
-        <p>本系列遗憾地不会覆盖以下内容：</p>
+        <p>本系列不幸无法覆盖以下内容：</p>
       
     
       
-        <div class="list-content">如何把命令行指令改成适用于 Windows 的版本（我手头没有 Windows 机器可供测试）。如何在服务器上配置 mod_python 或其他部署方式。</div>
+        <div class="list-content">如何将命令行指令适配到 Windows 系统（我没有 Windows 环境可以测试）；在服务器上设置 mod_python 或其他部署方式。</div>
       
     
       
-        <p>本教程内容跨度较大，但不用担心，它并不要求你有太多先备知识。只要你有终端、Python 和 Subversion，我们就能一起完成这个旅程。</p>
+        <p>本教程将涉及很多内容，但不用担心，它并不要求你有太多先备知识。只要你有一个终端、安装了 Python 和 Subversion，我们就能一起完成这个过程。</p>
       
     
       
-        <p>现在，我们开始吧。</p>
+        <p>现在，让我们开始吧。</p>
       
     
       
         <h2>安装 Django</h2>
+        
       
     
       
-        <p>我们要做的第一件事就是安装 Django。本教程使用的是 Django 的 SVN 版本，写作时的版本号为 6794。让我们先获取一份代码。先进入你希望存放这个库的目录。</p>
+        <p>我们要做的第一件事是安装 Django。我们将使用 Django 的 SVN 版本，撰写本文时是 6794 版。所以先来获取一份拷贝。首先，进入你希望存放该库的目录。</p>
       
     
       
-        <p>我个人通常放在类似“/Users/will/django/”这样的目录下。但这完全是个人的风格选择。选一个目录，进入其中，然后输入：</p>
+        <p>我个人通常放在类似“/Users/will/django/”这样的目录下。但这完全是个人的风格选择。选好一个目录，进入其中，然后输入：</p>
       
     
       
-        <p>这会把 Django trunk 的最新版本检出到名为“django-trunk”的文件夹中。</p>
+        <pre><code>svn co http://code.djangoproject.com/svn/django/trunk/ django-trunk
+</code></pre>
       
     
       
-        <p>现在我们需要告诉 Python Django 在哪里。首先我们要知道 Python 的 site-packages 目录在哪里，输入：</p>
+        <p>这会将 Django 主干（trunk）的最新版本签出到一个名为“django-trunk”的文件夹中。</p>
       
     
       
-        <p>你的库路径可能略有不同，没关系。现在来教 Python 如何找到 Django。</p>
+        <p>现在我们需要告诉 Python Django 在哪里。要做到这一点……我们得先知道 Python 在哪里。所以先来看看：</p>
       
     
       
-        <p>这会在你的 site-packages 文件夹中创建一个符号链接，让 Python 认为你已经把包安装在那里了。</p>
+        <pre><code>python -c &quot;from distutils.sysconfig import get_python_lib; print get_python_lib()&quot;
+/Library/Frameworks/Python.framework/Versions/2.4/lib/python2.4/site-packages
+</code></pre>
       
     
       
-        <p>让我们验证一下是否成功。启动 Python：</p>
+        <p>你机器上的库位置可能略有不同，没关系。现在让我们教 Python 如何找到 Django。</p>
       
     
       
-        <p>（-v 参数会让 Python 输出非常详细的信息，用来实际写代码时会比较烦，但现在只是检查 import 是否成功，所以还好。）现在尝试导入 Django：</p>
+        <pre><code>ln -s `pwd`/django-trunk/django /Library/Frameworks/Python.framework/Versions/2.5/lib/python2.4/site-packages/django
+</code></pre>
       
     
       
-        <p>如果设置不正确，你会看到：</p>
+        <p>这会在你的 site-packages 文件夹中创建一个符号链接，这样 Python 就能像一开始就安装了这个包一样使用它。</p>
       
     
       
-        <p>如果出现这种情况，请重新阅读上面的步骤，找出哪里出了问题，然后再尝试一遍。</p>
+        <p>让我们确认一下是否成功了。启动 Python……</p>
+      
+    
+      
+        <pre><code>python -v
+</code></pre>
+      
+    
+      
+        <p>（-v 参数会让 Python 输出非常详细的信息，这在实际使用解释器时有点烦人，但现在我们只是检查 import 是否成功，所以问题不大。）现在尝试导入 Django。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; import django
+import django # directory django
+# django/__init__.pyc matches django/__init__.py
+import django # precompiled from django/__init__.pyc
+</code></pre>
+      
+    
+      
+        <p>如果配置不正确，你会看到如下错误：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; import django
+Traceback (most recent call last):
+  File &quot;&lt;stdin&gt;&quot;, line 1, in ?
+ImportError: No module named django
+</code></pre>
+      
+    
+      
+        <p>如果出现这种情况，请重新阅读上面的步骤，找出哪里出了问题，然后再试一次。</p>
       
     
       
         <h2>安装 PyFacebook</h2>
+        
       
     
       
-        <p>现在我们用同样的步骤来安装 PyFacebook。</p>
+        <p>现在我们要用同样的步骤来安装 PyFacebook。</p>
       
     
       
-        <div class="list-content">从 SVN 检出 PyFacebook：svn checkout http://pyfacebook.googlecode.com/svn/trunk/ pyfacebook
-找到你的 site-packages 目录：python -c &quot;from distutils.sysconfig import get_python_lib; print get_python_lib()&quot;
+        <pre><code>svn checkout http://pyfacebook.googlecode.com/svn/trunk/ pyfacebook
+</code></pre>
+      
+    
+      
+        <pre><code>python -c &quot;from distutils.sysconfig import get_python_lib; print get_python_lib()&quot;
 /Library/Frameworks/Python.framework/Versions/2.4/lib/python2.4/site-packages
-将检出的库符号链接到 site-packages：ln -s `pwd`/pyfacebook /Library/Frameworks/Python.framework/Versions/2.5/lib/python2.4/site-packages/pyfacebook
-确认是否成功：python</div>
+</code></pre>
       
     
       
-        <p>然后输入：</p>
+        <pre><code>ln -s `pwd`/django-trunk/django /Library/Frameworks/Python.framework/Versions/2.5/lib/python2.4/site-packages/django
+</code></pre>
       
     
       
-        <p>只要没有抛出 ImportError，就说明你已经正确配置好了。</p>
+        <pre><code>python
+</code></pre>
       
     
       
-        <h2>设置项目文件夹</h2>
+        <div class="list-content">从 SVN 签出 PyFacebook：找到你的 site-packages 文件夹：将签出的库符号链接到 site-packages 文件夹。确认安装成功。</div>
+      
+    
+      
+        <p>然后……</p>
+      
+    
+      
+        <pre><code>import facebook
+</code></pre>
+      
+    
+      
+        <p>只要没有抛出 ImportError，就说明你已经正确配置好了一切。</p>
+      
+    
+      
+        <h2>设置我们的项目文件夹</h2>
+        
       
     
       
@@ -145,7 +207,12 @@
       
     
       
-        <p>（如果 django-admin.py 不在你的 PATH 中，你就需要用相对或绝对路径来调用它。它位于“django-trunk/django/bin/django-admin.py”，记得换成你实际检出 django-trunk 的位置。）</p>
+        <pre><code>django-admin.py startproject polling
+</code></pre>
+      
+    
+      
+        <p>（如果 django-admin.py 不在你的 PATH 中，你就需要用相对路径或绝对路径来调用它。它位于“django-trunk/django/bin/django-admin.py”，但你得记得自己把 django-trunk 签出到了哪里。）</p>
       
     
       
@@ -153,31 +220,44 @@
       
     
       
-        <p>项目诞生了。接下来我们要创建三个应用，每个应用负责项目中不同的一部分。</p>
+        <pre><code>cd polling
+</code></pre>
       
     
       
-        <p>这三个应用分别是：</p>
+        <p>我们的项目就这样诞生了。现在我们要创建三个应用，每个应用负责项目中不同的部分。</p>
       
     
       
-        <div class="list-content">core：存放我们的模型，以及不特定于 Web 或 Facebook 的公共代码。web：存放所有与 Web 界面相关的代码和资源。fb：存放所有与 Facebook 应用相关的代码和资源。</div>
+        <p>我们的三个应用分别是：</p>
       
     
       
-        <p>现在我们来创建这些应用。</p>
+        <div class="list-content">core：存放我们的模型，以及所有不特定于网页或 Facebook 的代码。web：存放所有特定于网页应用（web app）的代码和资源。fb：存放所有特定于 Facebook 应用（Facebook app）的代码和资源。</div>
       
     
       
-        <p>PyFacebook 提供了一些专门用于创建 Facebook 相关 Django 应用的辅助功能，但并不是特别好用，所以我们还是自己来设置。</p>
+        <p>现在让我们创建这些应用。</p>
+      
+    
+      
+        <pre><code>python manage.py startapp core
+python manage.py startapp web
+python manage.py startapp fb
+</code></pre>
+      
+    
+      
+        <p>PyFacebook 提供了一些用于设置 Facebook 专用 Django 应用的工具，但不是特别好用，所以我们还是自己来搭建。</p>
       
     
       
         <h2>设置我们的 fb 应用</h2>
+        
       
     
       
-        <p>首先请[下载这个文件][middleware_replacement]并放到 polling/fb 目录下。关于它的说明可以点这里看，它本质上是我为了避免使用 PyFacebook middleware 而编写的一组简单函数。把它保存为 helpers.py，最终路径应该是</p>
+        <p>首先请[下载这个文件][middleware_replacement]并放到 polling/fb 目录下。这里有更详细的解释，它本质上是我编写的一组简单函数，用来避免使用 PyFacebook 的中间件。把它保存为 helpers.py，所以最终它应该位于</p>
       
     
       
@@ -186,87 +266,152 @@
       
     
       
-        <p>好了。现在打开并编辑 fb 目录下的 views.py 文件。</p>
+        <p>好了。现在我们打开并编辑 fb 目录下的 views.py 文件。</p>
       
     
       
-        <p>（老实说，用别的编辑器也没问题。虽然我个人不会公开推荐。）</p>
+        <pre><code>emacs polling/fb/helpers.py
+</code></pre>
       
     
       
-        <p>把下面这些 import 语句都加进去：</p>
+        <p>（坦白说：用别的编辑器其实也没问题。虽然我不能正式推荐。）</p>
       
     
       
-        <p>保存文件，暂时先把它放一边。</p>
+        <p>你需要把下面这些 import 语句都加进去：</p>
       
     
       
-        <h2>在 polling/urls.py 中引入我们的新应用</h2>
+        <pre><code>from django.http import HttpResponse, HttpResponseRedirect
+from django.views.generic.simple import direct_to_template
+from django.shortcuts import get_object_or_404
+from django.utils import simplejson
+from polling.fb.helpers import *
+from polling.core.models import *
+</code></pre>
       
     
       
-        <p>幸运的是，在 polling/urls.py 中引入新应用非常简单。首先打开它：</p>
+        <p>保存文件，暂时先把它放在一边。</p>
       
     
       
-        <p>修改后的内容如下：</p>
+        <h2>在 polling/urls.py 中引入我们新建的应用</h2>
+        
       
     
       
-        <p>保存，我们暂时不用再碰 urls.py 了。</p>
+        <p>幸运的是，在 polling/urls.py 中引入新应用非常简单。首先打开它……</p>
       
     
       
-        <h2>创建模板文件夹</h2>
+        <pre><code>emacs polling/urls.py
+</code></pre>
       
     
       
-        <p>进入 polling 文件夹，我们要创建一个存放所有模板的地方。</p>
+        <p>然后修改成下面这样：</p>
       
     
       
-        <p>记住这些文件夹的路径应该是 polling/templates、polling/templates/fb 和 polling/templates/web。稍后我们在编辑 settings.py 时会告诉 Django 到哪里去找这些文件夹。</p>
+        <pre><code>from django.conf.urls.defaults import *
+urlpatterns = patterns(&#x27;&#x27;,
+    (r&#x27;^admin/&#x27;, include(&#x27;django.contrib.admin.urls&#x27;)),
+    (r&#x27;^facebook/&#x27;, include(&#x27;polling.fb.urls&#x27;)),
+    (r&#x27;^&#x27;, include(&#x27;polling.web.urls&#x27;)),
+)
+</code></pre>
       
     
       
-        <h2>枯燥小课堂：settings.py</h2>
+        <p>保存后，我们暂时不用再碰 urls.py 了。</p>
       
     
       
-        <p>好吧，这个标题可能有点夸张，这确实不是我最喜欢的项目初始化环节。幸运的是，它也不会花太长时间。我保证和你一样尽快熬过去。</p>
+        <h2>为模板创建一个文件夹……</h2>
+        
       
     
       
-        <p>在 settings.py 中我们需要处理两部分内容：通用的 Django 配置，以及 PyFacebook 所需的设置。由于 PyFacebook 的设置比较简单，我们就先从它开始。</p>
+        <p>进入 pollings 文件夹，现在我们要创建一个地方来存放所有即将创建的模板。</p>
       
     
       
-        <p>你需要把下面这些全局变量（随便粘贴到文件里的任何位置都行）添加到 polling/settings.py 中。*请注意前几个值需要换成你在 Facebook Developer 应用中获取的真实值。*</p>
+        <pre><code>mkdir templates
+mkdir templates/fb
+mkdir templates/web
+</code></pre>
       
     
       
-        <p>没太多需要解释的，不过 callback path 设置为“/facebook/”，是因为我们在 polling/urls.py 中把 fb 应用包含在了这个路径下。</p>
+        <p>记住这些文件夹应该位于 polling/templates、polling/templates/fb 和 polling/templates/web。稍后我们在编辑 settings.py 文件时会告诉 Django 到哪里去找它们。</p>
       
     
       
-        <p>现在来配置 settings.py 的其余部分。</p>
+        <h2>一点枯燥的内容：settings.py</h2>
+        
       
     
       
-        <p>我们将使用 SQLite 作为数据库（因为目前只是开发，不是生产环境）：</p>
+        <p>好吧，这个标题可能有点夸张，这其实不是我设置 Django 项目时最喜欢的部分。幸运的是，它也不会花太长时间。我保证会和你一样坚持到底。</p>
       
     
       
-        <p>你需要把数据库名称改成你系统上的真实路径，最好放在我们当前正在开发的 polling 文件夹内。</p>
+        <p>在 settings.py 中我们需要处理两组内容：通用的 Django 设置，以及为 PyFacebook 准备的配置项。配置 PyFacebook 相对简单，我们就从它开始。</p>
       
     
       
-        <p>稍后我们会设置开发用的媒体服务器，并使用 /media/ 前缀，所以这里不要产生冲突。</p>
+        <p>你需要将以下全局变量（随便贴在文件里的任何位置都可以，不用太讲究）添加到你的 polling/settings.py 文件中。*请注意，你需要把前面的值改成真实值，这些值可以通过 Facebook 的 Developer 应用获取。*</p>
       
     
       
-        <p>和往常一样，你需要修改路径，使其指向你文件系统中 polling 文件夹的实际位置。</p>
+        <pre><code>FACEBOOK_API_KEY = &#x27;11111111111111111111111111111111111&#x27;
+FACEBOOK_SECRET_KEY = &#x27;11111111111111111111111111111111111&#x27;
+FACEBOOK_APP_NAME = &quot;application_name&quot;
+FACEBOOK_INTERNAL = True
+FACEBOOK_CALLBACK_PATH = &quot;/facebook/&quot;
+</code></pre>
+      
+    
+      
+        <p>没什么太多可解释的，但 callback path 设置为“/facebook/”，是因为我们在 polling/urls.py 中把 fb 应用包含在了这个路径下。</p>
+      
+    
+      
+        <p>现在让我们继续配置 settings.py 文件的其他部分。</p>
+      
+    
+      
+        <p>我们将使用 SQLite 作为数据库（我们现在是在开发环境，不是生产环境）：</p>
+      
+    
+      
+        <pre><code>DATABASE_ENGINE = &#x27;sqlite3&#x27; 
+DATABASE_NAME = &#x27;/Users/will/django/polling/poll.db&#x27;
+</code></pre>
+      
+    
+      
+        <p>你需要把数据库名称改成你系统上的真实路径，最好放在我们正在工作的 polling 文件夹内。</p>
+      
+    
+      
+        <pre><code>ADMIN_MEDIA_PREFIX = &#x27;/admin_media/&#x27;
+</code></pre>
+      
+    
+      
+        <p>我们稍后会设置开发用的媒体服务器，并使用 /media/ 前缀，所以不希望有冲突。</p>
+      
+    
+      
+        <pre><code>TEMPLATE_DIRS = (&#x27;/Users/will/django/polling/templates/&#x27;)
+</code></pre>
+      
+    
+      
+        <p>像往常一样，你需要修改路径，使其指向你文件系统中 polling 文件夹的实际位置。</p>
       
     
       
@@ -274,7 +419,21 @@
       
     
       
-        <p>由于所有模型实际上都放在 polling.core 中，我们其实不需要把 polling.web 和 polling.fb 也加入 INSTALLED_APPS，但为了保持一致性，还是把它们加上比较好（而且如果以后往其中一个应用里添加了模型却忘记加 INSTALLED_APPS，可能会非常困惑为什么没生效）。</p>
+        <pre><code>INSTALLED_APPS = (
+    &#x27;django.contrib.auth&#x27;,
+    &#x27;django.contrib.contenttypes&#x27;,
+    &#x27;django.contrib.sessions&#x27;,
+    &#x27;django.contrib.sites&#x27;,
+    &#x27;django.contrib.admin&#x27;,
+    &#x27;polling.core&#x27;,
+    &#x27;polling.web&#x27;,
+    &#x27;polling.fb&#x27;,
+)
+</code></pre>
+      
+    
+      
+        <p>由于我们所有的模型实际上都放在 polling.core 中，所以其实不需要把 polling.web 和 polling.fb 也加入 INSTALLED_APPS，但为了保持一致性，我们还是加上比较好（而且如果我们不加，以后在一个应用里添加了模型却发现没被检测到，可能会非常困惑）。</p>
       
     
       
@@ -282,11 +441,12 @@
       
     
       
-        <h2>使用 Django 开发服务器提供静态资源</h2>
+        <h2>使用 Django 开发服务器提供媒体文件</h2>
+        
       
     
       
-        <p>正如我之前提到的，我们现在搭建的是开发环境，而不是生产环境。我们会用开发服务器来提供媒体文件，纯粹是因为它非常方便：这绝不是一个适合真实世界静态文件服务的方案。</p>
+        <p>再次强调，正如我之前提到的，我们正在搭建的是开发环境，而不是生产环境。我们会用开发服务器来提供媒体文件，仅仅是因为它非常方便：这绝不是一个适用于真实世界静态文件服务的合适方案。</p>
       
     
       
@@ -298,23 +458,42 @@
       
     
       
-        <p>然后我们短暂地打开 polling/urls.py，修改成下面这样：</p>
+        <pre><code>mkdir media
+mkdir media/web
+mkdir media/fb
+</code></pre>
       
     
       
-        <p>和之前一样，/Users/will/django/polling/media/ 这个路径需要改成你自己 polling 文件夹的实际位置。</p>
+        <p>然后我们需要短暂地打开 polling/urls.py 并修改成下面这样：</p>
       
     
       
-        <h2>设置工作……完成</h2>
+        <pre><code>from django.conf.urls.defaults import *
+urlpatterns = patterns(&#x27;&#x27;,
+(r&#x27;^media/(?P&lt;path&gt;.*)$&#x27;, &#x27;django.views.static.serve&#x27;, {&#x27;document_root&#x27;: &#x27;/Users/will/django/polling/media/&#x27;}),
+(r&#x27;^admin/&#x27;, include(&#x27;django.contrib.admin.urls&#x27;)),
+(r&#x27;^facebook/&#x27;, include(&#x27;polling.fb.urls&#x27;)),
+(r&#x27;^&#x27;, include(&#x27;polling.web.urls&#x27;)),
+)
+</code></pre>
       
     
       
-        <p>如果你不想自己一步步改，可以[在这里下载我已经配置好的压缩包][polling1]。你仍然需要修改 polling/settings.py 和 polling/urls.py，把路径改成你自己系统上的正确位置。</p>
+        <p>像往常一样，/Users/will/django/polling/media/ 这个路径需要修改成你自己 polling 文件夹的实际位置。</p>
       
     
       
-        <p>经过这一小步修改，我们终于把所有环境都搭建好了。休息一下，喝口茶，准备好后回来进入第二部分，我们将开始构建模型。</p>
+        <h2>设置工作……完成了</h2>
+        
+      
+    
+      
+        <p>如果你不想自己一步步做所有修改，[这里有一个我配置好的压缩包][polling1]。你仍然需要编辑 polling/settings.py 和 polling/urls.py，把路径改成你系统上的正确位置。</p>
+      
+    
+      
+        <p>做了这个小修改之后，我们终于完成了所有的设置工作。休息一下，喝杯茶，等你准备好了再回来继续第二部分，我们将开始构建模型。</p>
       
     
   </div>

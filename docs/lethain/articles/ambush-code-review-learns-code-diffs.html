@@ -29,55 +29,97 @@
   <div class="article-content">
     
       
-        <p>今天我花了几个小时重构了 Ambush Code Review，它已经变得比最初的实现好得多。主要有两个重要改进：</p>
+        <p>今天我花了几个小时重新设计了 Ambush Code Review，它变得比最初的版本好多了。主要有两个重要改进：</p>
       
     
       
-        <div class="list-content">使用起来更方便了。它现在能做一些真正有趣的事情。</div>
+        <div class="list-content">使用起来更方便了。它真正能做一些有趣的事情。</div>
       
     
       
-        <p>以前，对代码片段发表回复的操作相当别扭。我自己当然知道怎么用，但不确定其他人是否清楚，而且那本来就是一个不太理想的折中方案。现在，只需点击两下按钮，就能用你的修改更新已发布的片段。但真正有趣的新功能是：它现在可以生成同一片段不同版本之间的差异（diff），并将它们显示在当前版本的下方。</p>
+        <p>以前，对代码片段发表回复的操作相当别扭。我自己当然知道怎么用，但不确定别人是否清楚，而且那本来就是一个不太理想的折中方案。现在，只需点击两次按钮，就能用你的修改更新已发布的片段。但真正有趣的新功能是：它现在可以生成同一片段不同版本之间的差异（diff），并将这些差异显示在当前版本的下方。</p>
       
     
       
-        <p>你可以去看截图对应的那个代码片段，我觉得这是一个相当吸引人的特性。因为 ACR 的核心目标就是让大家更容易对代码片段提出改进建议（比如，当有人把代码片段贴到 IRC 聊天室求助时，如果能直接向他们展示如何修复，岂不是很棒？）。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/acr_diffs.jpg" alt="A screenshot of the new Ambush Code Review website.">
+          
+        </figure>
       
     
       
-        <p>现在它已经从一个粗糙的“me too”服务向前迈了一步，变得稍微有趣了一些，我很乐意听到大家的反馈。</p>
+        <p>你可以去看看这张截图对应的代码片段，我觉得这个功能相当有吸引力。因为 ACR 的核心目标就是让大家更容易对代码片段提出改进建议（比如，当有人在 IRC 聊天室里贴出代码求助时，如果能直接给他们展示应该怎么修改，岂不是很好？）。</p>
       
     
       
-        <h2>实现代码差异功能</h2>
+        <p>现在它已经从一个粗糙的“me too”服务，变成稍微有点意思的东西了，我很乐意听到大家的反馈。</p>
       
     
       
-        <p>接下来简单聊聊不同版本间差异的实现过程。事情并没有完全按预期发展——在我以为会很困难的地方反而很简单，而我以为很简单的地方却比较麻烦。活到老，学到老。</p>
+        <h3>实现代码差异功能</h3>
+        
       
     
       
-        <p>真正简单的部分其实是生成差异片段本身。difflib 模块作为 Python 标准库的一部分，把这个任务变得无比轻松。相关代码大致如下（欢迎来这里改进这段代码，我目前对如何正确处理 unified_diff 函数返回的生成器还有点困惑……）：</p>
+        <p>下面简单聊聊不同版本间差异的实现过程。事情并没有完全按照预期发展——我以为难的地方其实很简单，而以为简单的地方却比较麻烦。活到老，学到老。</p>
       
     
       
-        <p>也就是说，我几乎什么都没做，只是简单地调用了模块提供的一个函数。但之后的事情就变得有点棘手了。</p>
+        <p>真正简单的部分其实是生成差异本身。Python 标准库中的 difflib 模块把这个任务变得非常轻松。相关代码大致如下（欢迎大家前往改进这段代码，我目前还不太清楚怎么优雅地处理 unified_diff 返回的生成器……）：</p>
       
     
       
-        <p>问题始于 BigTable 中用来描述字段的 db.ListProperty 属性，它需要一个类型参数。当然，没问题。它要求类型必须是特定列表中的一个。好吧，有一大堆可选类型，也没问题。它还要求列表中的所有条目必须是同一类型。嗯，我只想存 diff，所以类型肯定一致，也没问题。然后它在你设置了 db.Text 属性类型后却无视了它，并抱怨说 unicode 类型不能在数据库中存储超过 500 字节的内容。这就成了问题。</p>
+        <pre><code>from difflib import unified_diff
+def set_content(self, new_content):
+    &#x27;Handles all details of updating snippet content.&#x27;
+    # if this is not a new Snippet
+    if self.rendered != None:
+        result = unified_diff(self.content.splitlines(1),
+                                     new_content.splitlines(1))
+        try:
+            txt = reduce(lambda a,b: u&quot;%s%s&quot; % (a,b), result)
+            self.add_diff(txt)
+        except TypeError:
+            pass
+    self.content = new_content
+    lexer = get_lexer_by_name(find_lexer(self.highlighter))
+    self.rendered = highlight(self.content,lexer,HtmlFormatter(linenos=&#x27;table&#x27;))
+</code></pre>
       
     
       
-        <p>于是我用一些老派 ingenuity 和新派对后果的漠不关心，临时拼凑出了自己的列表方案——使用 simplejson 进行序列化和反序列化。</p>
+        <p>也就是说，我几乎什么都没做，只是简单调用了一个库函数而已。但后续的事情就变得有点麻烦了。</p>
       
     
       
-        <p>我不会说这是一个绝妙或甚至是好的方案，但它是一个足够好的方案，而这似乎正是 Web 应用最终都会回归的本质。数据库访问次数被降到了最低，而 CPU 在 Web 开发中几乎从来都不是瓶颈。你可能会问我为什么选择 simplejson 而不是 pickle，答案其实很简单：simplejson 用起来非常方便，省去了我必须用 StringIO 来模拟文件让 pickle 进行序列化和反序列化的麻烦。</p>
+        <p>问题始于 BigTable 中用来描述字段的 db.ListProperty，它需要一个类型参数。当然，没问题。它要求类型必须是特定列表中的一个。好吧，选择有很多，没问题。它还要求列表中的所有元素必须是同一类型。嗯，我只存 diff，所以类型肯定一致，没问题。然后它在你设置 db.Text 属性类型时直接无视，却抱怨说 unicode 类型不能在数据库中存储超过 500 字节的内容。这就成了问题。</p>
       
     
       
-        <p>希望这个代码解析还算有点意思，如果有任何问题，欢迎告诉我。</p>
+        <p>最后，我用一些老派 ingenuity 和新派对后果的“无知”，拼凑出了自己的列表方案。方法是……用 simplejson 进行序列化和反序列化。</p>
+      
+    
+      
+        <pre><code>from django.utils import simplejson
+def add_diff(self, diff):
+    if self.diffs == None:
+        diffs = []
+    else:
+        diffs = simplejson.loads(self.diffs)
+    diffs.insert(0, diff)
+    self.diffs = simplejson.dumps(diffs)
+def get_diffs(self):
+&#x27;Unserializes and returns the contents of self.diffs&#x27;
+return simplejson.loads(self.diffs)
+</code></pre>
+      
+    
+      
+        <p>我不会说这是一个绝妙或优秀的方案，但它是一个足够好的方案，而这似乎正是 Web 应用最终都会走向的状态。对数据库的访问被最小化，而 CPU 几乎从来不是 Web 开发的瓶颈。你可能会问为什么我选择 simplejson 而不是 pickle，答案其实很简单：simplejson 用起来非常方便，省去了我必须用 StringIO 来模拟文件让 pickle 进行序列化和反序列化的麻烦。</p>
+      
+    
+      
+        <p>希望这个代码实现解析还算有点意思，如果有任何问题，欢迎告诉我。</p>
       
     
   </div>

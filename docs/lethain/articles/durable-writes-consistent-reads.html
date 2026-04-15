@@ -33,19 +33,28 @@
       
     
       
-        <h2>W、R 和 N</h2>
+        <h3>W、R 和 N</h3>
+        
       
     
       
-        <p>在我们最初的实现中，收到更新请求后会立即通知客户端操作成功，并没有确认更新是否真正写入了远程节点。</p>
+        <p>在最初的实现中，我们一收到更新就立即通知客户端成功，并没有确认更新是否真的已经写入了远程节点。</p>
       
     
       
-        <p>这种方式虽然实现简单，但并不可靠，因为它假设写入一定成功。可能是其他进程已经宕机，但我们仍然会忠实地告知客户端他们的修改已被成功记录。</p>
+        <pre><code>lists:foreach(fun(Pid) -&gt;
+        Pid ! {self(), update, Key, Value}
+    end, pg2:get_members(kvs)),
+Sender ! {self(), received, {set, Key, Value}},
+</code></pre>
       
     
       
-        <p>为了解决这个缺陷，我们将把读写操作改为“一阶段提交”（one-phase commit），而不是目前这种“零阶段提交”（zero phase commit，又称盲目发射）。在收到客户端的写请求后，接收节点会等待参与写入的节点返回成功确认，然后再响应客户端。</p>
+        <p>这种方式实现简单，但并不可靠，因为它假设写入总是成功的。可能是其他进程已经宕机了，但我们仍然会诚实地告诉客户端他们的修改已被成功记录。</p>
+      
+    
+      
+        <p>为了解决这个缺陷，我们将把读写操作改成“一阶段提交”（one-phase commit），而不是现在这种零阶段提交（也就是盲目发射）²。接收到客户端的写请求后，接收节点会等待写操作节点返回成功确认，然后再响应客户端。</p>
       
     
       
@@ -53,43 +62,44 @@
       
     
       
-        <div class="list-content">既然我们需要在告知客户端写入成功前进行等待，那么到底应该等待多少个节点呢？同样地，当读取数据时，我们应该查询多少个节点后再将结果返回给客户端？</div>
+        <div class="list-content">既然我们需要在告知客户端写入成功之前等待，那么到底应该等待多少个节点呢？同样地，当我们读取值时，在返回给客户端之前应该查询多少个节点？</div>
       
     
       
-        <p>Dynamo 并没有给出固定答案，而是将这两个值（以及第三个值——数据复制的节点数）设计成可配置的，从而使每个 Dynamo 集群都能根据使用者的需求进行高度定制。</p>
+        <p>Dynamo 没有给出固定的答案，而是将这两个值（以及第三个值——数据复制的节点数）设为可配置参数，从而让每个 Dynamo 集群都能根据使用者的需求进行高度定制。</p>
       
     
       
-        <p>这几个可配置的值分别是：</p>
+        <p>这些可配置参数分别是：</p>
       
     
       
-        <div class="list-content">N 表示每份数据要复制到的节点数量（在我们当前的实现中，N 等于系统中的节点总数）。W 表示在通知用户写入成功前，必须完成写入的节点数（我们的实现目前是 W := N，某种程度上是这样）。R 表示读取一个 key 时需要咨询的节点数（当前实现中 R := 1）。</div>
+        <div class="list-content">N 是每份数据被复制到的节点数量（在我们当前的实现中，N 等于系统中的节点总数）。W 是数据被写入多少个节点后才通知用户成功的阈值（我们的实现目前是 W := N，某种程度上如此³）。R 是读取一个键时需要咨询的节点数量（当前实现中 R := 1）。</div>
       
     
       
-        <p>将这些值以不同方式组合，可以产生性质截然不同的数据存储系统。采用 W := N、R := 1 的系统会在通知用户成功前向所有节点写入数据，这是一个写入可用性较低的系统——单个节点宕机就会阻止后续写入。但由于它能保证更新被写入所有节点，所以只需从单个节点读取就能拿到最新值，因此读取可用性非常高。</p>
+        <p>将这些值以不同方式组合，可以创造出特性差异极大的数据存储系统。一个 W := N、R := 1 的系统会在通知用户成功前把每个节点都写一遍，这是一个写入可用性较低的系统——单个节点宕机就会阻塞后续所有写入。但由于它保证更新被写到了所有节点，只需从单个节点读取就能拿到最新值，因此读操作的可用性非常高。</p>
       
     
       
-        <p>另一个极端是 W := 1、R := N 的系统，它的写入可用性很高，但读取可用性很低。如果绝不能拒绝写入请求，那么这种低效的读取可能是可以接受的。</p>
+        <p>在另一个极端，W := 1、R := N 的系统写入可用性很高，但读取可用性很低。如果绝对不能拒绝任何写入，那么这种低效的读取可能是可以接受的。</p>
       
     
       
-        <p>对大多数用户来说，W 和 R 的取值会介于 1 和 N 之间。根据 Dynamo 论文，Amazon 发现对大多数应用而言，N := 3、W := 2、R := 2 是一个性能和可靠性之间较为合理的折衷。</p>
+        <p>对大多数用户来说，W 和 R 的取值会在 1 到 N 之间。根据 Dynamo 论文，Amazon 发现对大多数应用而言，N := 3、W := 2、R := 2 是在性能和可靠性之间取得合理平衡的选择。</p>
       
     
       
-        <p>现在让我们来看看如何扩展键值存储，使其能够支持可配置的 W 和 R 值（N 的处理我们稍后再说）。</p>
+        <p>现在让我们看看如何扩展我们的键值存储，使其能够遵循可配置的 W 和 R 值（N 要稍后才能处理）。</p>
       
     
       
-        <h2>记录（Record）、配置与 kvs.hrl</h2>
+        <h3>Records、配置与 kvs.hrl</h3>
+        
       
     
       
-        <p>在上一篇中我提到过，-define 通常放在单独的 .hrl 文件中，现在我们开始使用它。本次我们将把它命名为 kvs.hrl。</p>
+        <p>在上一篇中我提到过，-define 通常放在单独的 .hrl 扩展名文件中，现在是我们开始使用它的时候了。我们将把它命名为 kvs.hrl。</p>
       
     
       
@@ -97,19 +107,43 @@
       
     
       
-        <p>但更重要的是，我们要创建一个 Erlang record 来管理 kvs:store/1 不断增加的状态。</p>
+        <pre><code>-define(KVS_WRITES, 3).
+-define(KVS_READS, 3).
+-define(TIMEOUT, 500).
+</code></pre>
       
     
       
-        <p>Erlang record 本质上是一个带语法糖的元组，方便人类在不记住元素顺序的情况下访问其中的值。对大多数场景来说，这个语法糖就是使用 record 的最大收益，但相比属性列表（property list），它也具有一定的性能优势。</p>
+        <p>但更重要的是，我们将创建一个 Erlang record 来管理 kvs:store/1 不断增长的状态。</p>
       
     
       
-        <p>我们的 kvs_store record 初始看起来是这样的：</p>
+        <p>Erlang record 本质上只是带有语法糖的元组，它能让人不需要记住元素顺序就能访问其中的值。对大多数场景来说，这种语法糖就是使用 record 的最大收益，但相比属性列表（property list）⁴ 也有性能优势。</p>
       
     
       
-        <p>我们将使用 data 字段存放键值映射，pending_reads 存放那些还在等待其他节点返回值才能返回给用户的读请求，pending_writes 则存放那些正在等待其他节点确认才能通知用户写入成功的写请求。</p>
+        <p>我们的 kvs_store record 初始看起来会是这样的：</p>
+      
+    
+      
+        <pre><code>-record(kvs_store, {data, pending_reads, pending_writes}).
+</code></pre>
+      
+    
+      
+        <p>我们用 data 来存放键值映射，pending_reads 存放那些仍在等待其他节点返回值、尚未返回给用户的读请求，pending_writes 则存放那些等待额外节点确认、尚未通知用户写入成功的写请求。</p>
+      
+    
+      
+        <pre><code>% a brief interlude for record syntax
+Store = #kvs_store{data=[], pending_reads=[], pending_writes=[]},
+#kvs_store{data=D, pending_reads=R, pending_writes=W} = Store,
+Writes = Store#kvsstore.pending_writes,
+get_value(Key, S=#kvs_store{data=Data}) -&gt;
+proplists:get_value(Key, Data).
+set_value(Key, Value, S=#kvs_store{data=Data}) -&gt;
+S#{data=[{Key, Value} | proplists:delete(Key, Data)]}.
+</code></pre>
       
     
       
@@ -117,139 +151,331 @@
       
     
       
-        <p>同时我们还要更新 kvs:start/1 函数以使用这个 record：</p>
+        <pre><code>-include(&quot;kvs.hrl&quot;).
+</code></pre>
       
     
       
-        <p>完成后，我们就可以继续实现持久化写入了。</p>
+        <p>同时我们还需要更新 kvs:start/1 函数以使用这个 record：</p>
       
     
       
-        <h2>持久化写入（Durable Writes）</h2>
+        <pre><code>%% @doc create N nodes in distributed key-value store
+%% @spec start(integer()) -&gt; started
+start(N) -&gt;
+    pg2:create(kvs),
+    lists:foreach(fun(_) -&gt;
+			  Store = #kvs_store{data=[],
+					     pending_reads=[],
+					     pending_writes=[]},
+			  pg2:join(kvs, spawn(kvs, store, [Store]))
+		  end, lists:seq(0, N)),
+    started.
+</code></pre>
       
     
       
-        <p>实现持久化写入的第一步是更新 store/1 函数的接口（这个修改对后续的一致性读取也同样必要）。函数的元数（arity）保持不变，但我们将传递新的 kvs_store record，而不是原来的属性列表。</p>
+        <p>完成这些后，现在我们可以继续实现持久化写入了。</p>
       
     
       
-        <p>持怀疑态度的读者可能会问：既然可以直接把函数定义改成</p>
+        <h3>持久化写入（Durable Writes）</h3>
+        
       
     
       
-        <p>然后就完事了，为什么还要费力去定义 record 呢？</p>
+        <p>实现持久化写入的第一步是更新 store/1 函数的接口（这个改动对后续的一致性读取也同样必要）。函数的元数（arity）保持不变，但我们将传递新的 kvs_store record，而不是之前的属性列表。</p>
       
     
       
-        <p>使用 record 的理由是，你只需要取出需要的数据，而不用去处理那些用不到的值。当 record 的元数从 1 增加到 3、从 3 增加到 6 乃至更多时，这一点会变得特别有意义。当然，最终这也是一个风格问题。</p>
+        <pre><code>% old definition
+store(Data) -&gt; term().
+% new definition
+store(Store = #kvs_store{data=Data, 
+                         pending_reads=Reads,
+                         pending_writes=Writes}) -&gt; term().
+</code></pre>
       
     
       
-        <p>现在我们已经更新了函数定义，接下来该修改 receive 代码块了。我们将分别讨论 set、update 和 updated 消息，但请记住它们都是针对 store/1 邮箱的模式匹配。</p>
+        <p>持怀疑态度的读者可能会问，为什么我们要费力定义一个 record，直接把函数改成下面这样不就完了吗？</p>
       
     
       
-        <h2>set、update 与 updated</h2>
+        <pre><code>store(Data, Reads, Writes) -&gt; term().
+</code></pre>
       
     
       
-        <p>接收到 set 模式的消息是更新流程的起点，因此我们从这里开始。</p>
+        <p>然后就结束了。</p>
       
     
       
-        <p>之前 set 会把更新后的键值对广播给所有节点，然后立即通知用户写入成功。现在我们将记录来自写入节点的 ack 数量，等它超过 W 阈值后再通知用户写入成功。</p>
+        <p>更倾向于使用 record 的理由是，你只需要取出需要的数据，而不用操心那些用不到的值。当 record 从 1 个字段增长到 3 个，再从 3 个增长到 6 个时，这一点就变得特别有意义。不过最终这还是一个风格问题。</p>
       
     
       
-        <p>经过这些修改后，所有节点都会在 pending_writes 中维护一个属性列表，里面存放所有已发起但尚未达到 W 阈值的持久化写操作。pending_writes 的 key 是由客户端进程 ID（即调用 kvs:set/2 的 pid）和被更新的 key 组成的二元组；value 则是计数器，表示还需要多少个额外确认才能超过写入阈值。</p>
+        <p>现在我们已经更新了函数定义，是时候开始修改 receive 代码块了。我们会分别考察 set、update 和 updated 这三种消息，但请记住它们都是针对 store/1 邮箱的模式匹配。</p>
       
     
       
-        <p>当节点收到 update 消息时，会通知最初接收 set 消息的那个节点，说自己已经成功更新了该 key 的值。</p>
+        <h3>set、update 和 updated</h3>
+        
       
     
       
-        <p>当其他节点确认写入成功后，对应的写入计数器会递减。一旦计数器减到 0，就会通知 Client pid 写入已持久化成功，并将该写操作从 pending_writes 列表中删除。后续再收到的关于该更新的确认将被忽略。</p>
+        <p>接收到 set 模式的消息是更新流程的开始，我们就从这里入手。</p>
       
     
       
-        <h2>一致性读取（Consistent Reads）</h2>
+        <p>之前 set 会把更新后的键值对广播给所有节点，然后立即通知用户写入成功；现在我们要记录从写节点收到的 ack 数量，只有当数量超过 W 阈值后才通知用户写入成功。</p>
       
     
       
-        <p>实现一致性读取的模式与持久化写入类似，但增加了协调不一致读结果的复杂度（比如一个节点返回 5，另一个节点返回 16，该怎么办）。</p>
+        <pre><code>{Sender, set, Key, Value} -&gt;
+    % client interface for updating values
+    lists:foreach(fun(Pid) -&gt;
+		  Pid ! {self(), update, Sender, Key, Value}
+	  end, pg2:get_members(kvs)),
+    Writes2 = [{ {Sender, Key}, ?KVS_WRITES} | Writes],
+    store(Store#kvs_store{pending_writes=Writes2});
+</code></pre>
       
     
       
-        <p>首先我们实现读请求扇出（read fanout），它会将读请求发送给其他节点，然后把这次读操作加入 pending_reads。</p>
+        <p>经过这些修改后，所有节点都会在 pending_writes 中维护一个属性列表，里面包含所有已发起但尚未达到持久化写入 W 阈值的写操作。pending_writes 的 key 是由客户端进程 ID（即调用 kvs:set/2 的 pid）和被更新的 key 组成的二元组，value 则是还需要多少次确认才能超过写入阈值的计数器。</p>
       
     
       
-        <p>接着是把本地该 key 的值发回给最初收到 get 消息的节点。</p>
+        <pre><code>{Sender, update, Client, Key, Value} -&gt;
+    % sent to all nodes by first receiving node
+    Sender ! {self(), updated, Client, Key, Value},
+    store(Store#kvs_store{data=[{Key, Value} | 
+		proplists:delete(Key, Data)]});
+</code></pre>
       
     
       
-        <p>最后是处理 pending_reads 中计数器递减，以及通过 retrieve 消息收集各节点返回值的逻辑。</p>
+        <p>当节点收到 update 时，会通知最初接收 set 消息的那个节点，说自己已经成功更新了该 key 的值。</p>
       
     
       
-        <p>注意，我们目前使用的是一个非常简陋的算法来解决不一致读：选择出现次数最多的值（如果有多个值出现次数相同，则根据读节点响应的先后顺序间接选择一个）。如果我们暂时能忍受这个不太优雅的做法，那么下一篇将会探讨如何利用各种时钟来大幅提升读一致性。</p>
+        <pre><code>{_Sender, updated, Client, Key, Value} -&gt;
+    Count = proplists:get_value({Client, Key}, Writes),
+    case Count of
+	undefined -&gt;
+	    store(Store);
+	0 -&gt;
+	    Client ! {self(), received, {set, Key, Value}},
+	    store(Store#kvs_store{
+		    pending_writes=proplists:delete({Key, Value}, Writes)});
+	_ -&gt;
+	    store(Store#kvs_store{
+		    pending_writes=[{ {Client, Key}, Count-1} |
+				    proplists:delete({Client, Key}, Writes)]})
+    end;
+</code></pre>
       
     
       
-        <h2>失败的读写操作</h2>
+        <p>当其他节点确认写入成功后，对应的写入计数器就会递减。一旦计数器减到 0，就会通知 Client pid 写入已持久化成功，并从 pending_writes 属性列表中删除该写操作。对于该更新的后续确认将被忽略。</p>
       
     
       
-        <p>除了解决不一致的算法比较弱之外，我们当前实现另一个不足之处是对失败或无法完成的读写操作的处理。</p>
+        <h3>一致性读取（Consistent Reads）</h3>
+        
       
     
       
-        <p>假设一个系统设置 W := 10，但由于节点故障当前只有 5 个可用节点。这时写入计数器永远不会归零，因此用户永远得不到响应，这显然不是一个可用的系统。</p>
+        <p>实现一致性读取的模式与持久化写入类似，但多了一层处理不一致读取的复杂度（例如一个节点说值是 5，另一个节点说值是 16，该怎么办）。</p>
       
     
       
-        <p>一个合理的解决方案是：将所有超过一定超时时间的待处理操作视为失败，并通知用户该读/写操作失败。</p>
+        <p>首先我们实现读请求的扇出（fanout），它会把读请求发给其他节点，然后把这次新的读请求加入 pending_reads。</p>
       
     
       
-        <p>当前我们没有记录 set 或 get 请求到达的时间，因此需要扩展 pending_reads 和 pending_writes 中保存的信息，加入时间戳。</p>
+        <pre><code>{Sender, get, Key} -&gt;
+    % client interface for retrieving values
+    lists:foreach(fun(Pid) -&gt;
+	  Pid ! {self(), retrieve, Sender, Key}
+    end, pg2:get_members(kvs)),
+    % ?KVS_READS is required # of nodes to read from
+    % [] is used to collect read values
+    Reads2 = [{ {Sender, Key}, {?KVS_READS, []}} | Reads],
+	    store(Store#kvs_store{pending_reads=Reads2});
+</code></pre>
       
     
       
-        <p>首先我们要写一个工具函数，把 erlang:now/0 的输出转换成自纪元以来的秒数，</p>
+        <p>接下来，将本地该 key 的值发送回最初接收 get 消息的节点。</p>
       
     
       
-        <p>然后需要更新若干 receive 模式，首先是 set 模式，它需要修改为创建一个包含“所需写入数量”和“请求到达时间”的二元组（之前只有所需写入数量）。</p>
+        <pre><code>{Sender, retrieve, Client, Key} -&gt;
+    Sender ! {self(), retrieved, Client, Key, proplists:get_value(Key, Data)},
+    store(Store);
+</code></pre>
       
     
       
-        <p>updated 也需要相应修改，以便从新的二元组中正确提取 Count，并在递减 Count 时正确构造值。</p>
+        <p>最后，是对 pending_reads 中计数器递减，以及收集来自各个节点通过 retrieve 消息返回的值的逻辑。</p>
       
     
       
-        <p>读取部分也需要做对应的修改，但我们大概不必逐一展示这些变化（如果你感兴趣，可以查看发生这些修改的 diff）。</p>
+        <pre><code>{_Sender, retrieved, Client, Key, Value} -&gt;
+    case proplists:get_value({Client, Key}, Reads) of
+	{0, Values} -&gt;
+	    Freq = lists:foldr(fun(X, Acc) -&gt;
+		case proplists:get_value(X, Acc) of
+		    undefined -&gt; [{X, 1} | Acc];
+		        N -&gt; [{X, N+1} | proplists:delete(X, Acc)]
+		     end
+	        end, [], Values),
+	    [{Popular, _} | _ ] = lists:reverse(lists:keysort(2, Freq)),
+            Client ! {self(), got, Popular},
+	    store(Store#kvs_store{
+		pending_reads=proplists:delete({Key, Value}, Reads)});
+	{Count, Values} -&gt;
+	    store(Store#kvs_store{
+		pending_reads=[{ {Client, Key}, {Count-1, [Value | Values]}} | 
+		    proplists:delete({Client, Key}, Reads)]})
+    end;
+</code></pre>
       
     
       
-        <p>我们要做的最后一个重要改动是在 store/1 的 receive 代码块之后添加一个 after 子句，这使我们能够定期检查过期的读写操作。</p>
+        <p>注意我们当前使用的是一个非常简陋的不一致读取解决算法：我们选择出现次数最多的值（如果存在多个出现次数最多的值，则根据读取节点响应的顺序间接选择其中一个）。如果我们暂时能忍受这个不够优雅的实现，那么下一篇我们将探讨如何使用各种时钟来大幅提升读取一致性。</p>
       
     
       
-        <p>filter_writes/1 和 filter_reads/1 负责检测那些耗时过长的待处理操作，通知客户端请求失败，并分别从 pending_writes 和 pending_reads 列表中移除这些失败的操作。</p>
+        <h3>失败的读写处理</h3>
+        
       
     
       
-        <p>把这些函数放在 receive 代码块外面并不是严格必须的，但由于 receive 块已经变得相当庞大，把它拆分一下会更容易维护。</p>
+        <p>除了解决不一致的算法很弱之外，我们当前实现中另一个缺陷是对失败或无法完成的读写请求的处理方式。</p>
       
     
       
-        <p>（这也是我们第一次看到 Erlang 的 if 表达式，我个人对它的 guard 没有对 case 的模式匹配那么喜欢。这当然是风格问题，但我倾向于在所有场景下都使用 case，除非出现类似 case X of true -&gt; A; false -&gt; B end; 这样的代码，那样就显得有点刻意回避 if 了。）</p>
+        <p>设想一个 W := 10 的系统，但由于节点故障只剩下 5 个可用节点。写入计数器永远不会归零，因此用户永远得不到响应。这不是一个可用的系统。</p>
       
     
       
-        <p>最后，最后一个修改，我们还需要把超时值添加到 kvs.hrl 中。</p>
+        <p>一个合理的解决方案是，认为所有超过某个超时时间的待处理操作都已失败，然后通知用户该读/写操作失败。</p>
+      
+    
+      
+        <p>当前我们没有记录 set 或 get 请求到达的时间，因此需要扩展 pending_reads 和 pending_writes 中记录的信息，加入时间戳。</p>
+      
+    
+      
+        <p>首先我们需要编写一个工具函数，把 erlang:now/0 的输出转换成从 epoch 开始的秒数，</p>
+      
+    
+      
+        <pre><code>ts() -&gt;
+    {Mega, Sec, _} = erlang:now(),
+    (Mega * 1000000) + Sec.
+</code></pre>
+      
+    
+      
+        <p>接下来需要更新多个 receive 模式，首先是 set 模式，它需要被修改为创建一个包含所需写入数量和请求到达时间的二元组（之前只有所需写入数量）。</p>
+      
+    
+      
+        <pre><code>{Sender, set, Key, Value} -&gt;
+            lists:foreach(fun(Pid) -&gt;
+                             Pid ! {self(), update, Sender, Key, Value}
+                          end, pg2:get_members(kvs)),
+            Writes2 = [{ {Sender, Key}, {?KVS_WRITES, ts()}} | Writes],
+            store(Store#kvs_store{pending_writes=Writes2});
+</code></pre>
+      
+    
+      
+        <p>updated 也需要相应修改，以便从新的二元组中正确提取 Count，并在递减 Count 时正确格式化值。</p>
+      
+    
+      
+        <pre><code>{_Sender, updated, Client, Key, Value} -&gt;
+  {Count, Timestamp} = proplists:get_value({Client, Key}, Writes),
+    case Count of
+      undefined -&gt;
+        store(Store);
+      0 -&gt;
+        Client ! {self(), received, {set, Key, Value}},
+        store(Store#kvs_store{
+          pending_writes=proplists:delete({Key, Value}, Writes)});
+      _ -&gt;
+        store(Store#kvs_store{
+          pending_writes=[{ {Client, Key}, {Count-1, Timestamp}} |
+            proplists:delete({Client, Key}, Writes)]})
+  end;
+</code></pre>
+      
+    
+      
+        <p>我们需要对读取做对应的修改，但大概不需要明确展示这些变化（如果你感兴趣，可以查看发生这些修改的 diff）。</p>
+      
+    
+      
+        <p>我们需要做的最后一个主要改动，是在 store/1 的 receive 代码块后面添加一个 after 块，这样我们就可以定期检查过期的读写请求。</p>
+      
+    
+      
+        <pre><code>    after
+	?KVS_POLL_PENDING -&gt;
+	    Writes2 = lists:filter(fun filter_writes/1, Writes),
+	    Reads2 = lists:filter(fun filter_reads/1, Reads),
+	    store(Store#kvs_store{pending_writes=Writes2, 
+                                  pending_reads=Reads2})
+    end.
+</code></pre>
+      
+    
+      
+        <p>filter_writes/1 和 filter_reads/1 会检测那些耗时过长的待处理操作，通知客户端其请求失败，然后分别从 pending_writes 和 pending_reads 列表中移除失败的操作。</p>
+      
+    
+      
+        <pre><code>filter_writes({ {Client, _Key}, {_Count, Ts}}) -&gt;
+    Now = ts(),
+    if Now &gt; Ts + ?KVS_WRITE_TIMEOUT -&gt;
+	    Client ! {error, write_failed},
+	    false;
+       true  -&gt;
+	    true
+    end.
+filter_reads({ {Client, Key}, {Count, _Values, Ts}}) -&gt;
+Now = ts(),
+if Now &gt; Ts + ?KVS_READ_TIMEOUT -&gt;
+Client ! {error, read_failed},
+false;
+true  -&gt;
+true
+end.
+</code></pre>
+      
+    
+      
+        <p>把这些函数放在 receive 代码块外面并不是严格必须的，但 receive 代码块已经变得相当庞大，把它适当拆分后会更容易维护。</p>
+      
+    
+      
+        <p>（这也是我们第一次看到 Erlang 的 if 表达式，我个人对它的 guard 没有对 case 的模式匹配那么喜欢。这当然是风格问题，但我倾向于在所有情况下都使用 case，除非写成 case X of true -&gt; A; false -&gt; B end; 这种形式，那样就显得有点刻意回避 if 了。）</p>
+      
+    
+      
+        <p>最后，最后一个修改，我们还需要把超时值加入 kvs.hrl。</p>
+      
+    
+      
+        <pre><code>-define(KVS_WRITE_TIMEOUT, 2).  % seconds
+-define(KVS_READ_TIMEOUT, 1).   % seconds
+-define(KVS_POLL_PENDING, 500). % ms
+</code></pre>
       
     
       
@@ -257,19 +483,37 @@
       
     
       
-        <p>这就是我们对失败的待处理读写操作的成功处理。很好。</p>
+        <pre><code>14&gt; c(kvs).       
+{ok,kvs}
+15&gt; kvs:stop().
+stopped
+16&gt; kvs:start(1).
+started
+17&gt; kvs:get(a).
+{error,read_failed}
+18&gt; kvs:set(b, 10).
+{error,write_failed}
+</code></pre>
       
     
       
-        <p>至此，我们的第二批修改告一段落；更新后的代码快照已在 GitHub 上提供。</p>
+        <p>这就是我们对失败的待处理读写请求的成功处理。很好。</p>
       
     
       
-        <p>在下一篇文章中，我们将以更严谨的方式对待一致性读取，探讨使用物理时钟、逻辑时钟和向量时钟对值进行版本化和协调的效果。</p>
+        <p>至此，我们第二批修改告一段落；更新后的代码快照已在 GitHub 上提供。</p>
+      
+    
+      
+        <p>在下一篇文章中，我们将采取更严谨的态度来处理一致性读取，探讨使用物理时钟、逻辑时钟和向量时钟对值进行版本化和协调的效果。</p>
       
     
       
         <p>这篇文章应该会在几天内发布。</p>
+      
+    
+      
+        <div class="list-content">进程组有可能被死亡的 pid 污染，尤其是当你比较懒散（像我们目前这样）使用 spawn 的进程而不是 gen_server 时。即使使用 gen_server，如果你没有 trap_exit，那么 gen_server 完全有可能在没有调用终止清理函数的情况下终止。最后，即使你正确地在 gen_server 上设置了 trap_exit，如果进程是被粗暴杀掉的（kill -9 等），终止清理函数也可能不会被执行。不过请放心，可以通过 erlang:node/1、rpc:call/3 和 erlang:is_alive/1 的组合来检测死亡进程（erlang:is_alive/1 必须在进程所在的节点上执行，这意味着你必须先发现节点，然后远程检查它的存活状态）。在预期可能出现进程被粗暴杀死的系统中，你必须设计系统，使其能够容忍向死亡 pid 发送消息（使用 gen_server:call 你会收到某种错误，虽然它可能不会立刻让你明白问题所在；而 gen_server:cast 和直接用 ! 发送消息则可能不会引发任何问题，因此你要么需要用超时来检测丢失的消息，要么在发送前显式验证进程是否存活……其中超时方式的错误更少）。↩这种一阶段提交仍然存在一个弱点，即当部分节点失败时，如何回滚已写入的部分。我们需要类似两阶段提交（two-phase commit）的东西才能真正妥善解决这个问题。这应该会在后面的文章中出现——我最近好像经常这么说。↩这只有在我们能信任 pg2:get_members/1 包含所有节点（包括所有崩溃或宕机的节点）的前提下才成立。在真正的 W := N 条件下，如果有任何节点崩溃，那么对系统的所有写入都会失败。↩将运行中的代码从之前的 record 定义迁移到新的定义时也会有性能损失，需要手工编写转换代码。一般来说，把系统停掉然后重新启动（使用新的 record 定义）比尝试迁移它要容易得多，除非你真的无法让进程停机。如果你认为自己会频繁更新 record 定义，不妨接受性能损失，直接使用属性列表就好了。没有人早上醒来就想做一次手动迁移。↩</div>
       
     
   </div>

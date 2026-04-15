@@ -29,23 +29,24 @@
   <div class="article-content">
     
       
-        <div class="list-content">你可以在此查看此项目的在线版本，包括网页界面和 Facebook 界面。</div>
+        <div class="list-content">你可以在此处找到这个项目的在线演示版本，包括网页界面和 Facebook 界面的详细说明。</div>
       
     
       
-        <p>现在我们终于要进入 Facebook 应用领域了。简单回顾一下，我们是从第五部分继续的，在那一部分我们为网页应用实现了 Ajax。如果你没有跟上之前的系列教程，可以获取我们当前的代码快照。我们正在使用 PyFacebook 来与 Facebook API 进行交互，如果你需要对 Facebook 系统有更全面的了解，请参阅开发者维基。</p>
+        <p>现在我们终于进入 Facebook 应用开发领域了。简单回顾一下，我们是从第五部分延续过来的，那里我们为网页应用实现了 Ajax。如果你没有跟上之前的系列教程，可以获取我们当前的代码快照。我们正在使用 PyFacebook 来与 Facebook API 进行交互，如果你需要对 Facebook 系统有更全面的了解，可以查看开发者 Wiki。</p>
       
     
       
-        <p>我不会详细讲解如何为你的应用获取 Facebook 密钥，这部分在维基中有详细说明。</p>
+        <p>我不会详细讲解如何为你的应用获取 Facebook Key，这部分内容在 Wiki 中已有详细说明。</p>
       
     
       
         <h2>规划我们的方法</h2>
+        
       
     
       
-        <p>我们将要构建的 Facebook 应用在功能上将与我们刚刚构建的网页应用完全等价。就像我们构建网页应用时一样，第一步我们将先处理除 Ajax 交互之外的所有内容。</p>
+        <p>我们即将构建的 Facebook 应用在功能上将与刚刚完成的网页应用完全等价。就像构建网页应用时一样，我们首先会处理除 Ajax 交互之外的所有部分。</p>
       
     
       
@@ -53,15 +54,16 @@
       
     
       
-        <div class="list-content">确定我们的 URL、编写视图、编写模板</div>
+        <div class="list-content">确定 URL、编写视图、编写模板</div>
       
     
       
-        <p>你可能已经感觉到这就是我编写 Django 应用的方式……你想得没错。</p>
+        <p>你可能已经感觉到这就是我编写 Django 应用的一贯方法……你想得没错。</p>
       
     
       
-        <h2>设计 Facebook URL</h2>
+        <h2>设计 Facebook 的 URL</h2>
+        
       
     
       
@@ -69,15 +71,46 @@
       
     
       
-        <p>然后我们从所有 urls.py 文件的标准代码开始：</p>
+        <pre><code>urlpatterns = patterns(&#x27;&#x27;,
+    (r&#x27;^vote/$&#x27;, &#x27;polling.web.views.vote&#x27;)
+)
+</code></pre>
       
     
       
-        <p>接着我们要为我们的 Poll 模型添加一个导入语句：</p>
+        <p>然后我们先写入所有 urls.py 文件的标准开头代码：</p>
       
     
       
-        <p>在网页应用中我们主要使用通用视图来处理所有内容，但我们将在 fb 应用中使用自定义视图。原因是我们在所有请求上都要进行一些自定义验证，而自定义视图能让我们非常轻松地实现这一点。我们所有的自定义视图都将放在 polling.fb.views 模块中，因此我们可以把这个信息共享给 fb/urls.py 文件，从而让事情变得更简单一些。</p>
+        <pre><code>def vote(request):
+    results = {&#x27;success&#x27;:False}
+    if request.method == u&#x27;GET&#x27;:
+        GET = request.GET
+        if GET.has_key(u&#x27;pk&#x27;) and GET.has_key(u&#x27;vote&#x27;):
+            pk = int(GET[u&#x27;pk&#x27;])
+            vote = GET[u&#x27;vote&#x27;]
+            poll = Poll.objects.get(pk=pk)
+            if vote == u&quot;up&quot;:
+                poll.up()
+            elif vote == u&quot;down&quot;:
+                poll.down()
+            results = {&#x27;success&#x27;:True}
+    json = simplejson.dumps(results)
+    return HttpResponse(json, mimetype=&#x27;application/json&#x27;)
+</code></pre>
+      
+    
+      
+        <p>接着我们要导入 Poll 模型：</p>
+      
+    
+      
+        <pre><code>emacs polling/web/views.py
+</code></pre>
+      
+    
+      
+        <p>在网页应用中我们主要使用通用视图来处理所有逻辑，但是在 fb 应用中我们将使用自定义视图。原因是我们在所有请求上都要进行一些自定义验证，而自定义视图能让我们非常方便地实现这一点。我们所有的自定义视图都将放在 polling.fb.views 模块中，因此我们可以简化 fb/urls.py 的写法，直接共享这个信息。</p>
       
     
       
@@ -85,31 +118,89 @@
       
     
       
-        <p>这意味着我们在 patterns 中指定的任何视图都可以使用 &#x27;list&#x27; 格式，而不是 &#x27;polling.fb.views.list&#x27;。当你使用通用视图时这种方式无法工作，因为它会尝试在 &#x27;polling.fb.views&#x27; 模块中查找通用视图（那里肯定不存在），但当你所有的视图都来自同一个地方时，这是一种避免重复代码的便捷方法。</p>
+        <pre><code>def vote(request):
+    results = {&#x27;success&#x27;:False}
+    if request.method == u&#x27;GET&#x27;:
+        data = request.GET
+    elif request.method == u&#x27;POST&#x27;:
+        data = request.POST
+    if data.has_key(u&#x27;pk&#x27;) and data.has_key(u&#x27;vote&#x27;):
+        pk = int(data[u&#x27;pk&#x27;])
+        vote = data[u&#x27;vote&#x27;]
+        poll = Poll.objects.get(pk=pk)
+        if vote == u&quot;up&quot;:
+            poll.up()
+        elif vote == u&quot;down&quot;:
+            poll.down()
+        results = {&#x27;success&#x27;:True}
+    json = simplejson.dumps(results)
+    return HttpResponse(json, mimetype=&#x27;application/json&#x27;)
+</code></pre>
       
     
       
-        <p>好了，现在让我们实际编写我们的 URL：</p>
+        <pre><code>def vote(request):
+    results = {&#x27;success&#x27;:False}
+    if request.REQUEST.has_key(u&#x27;pk&#x27;) and request.REQUEST.has_key(u&#x27;vote&#x27;):
+        pk = int(request.REQUEST[u&#x27;pk&#x27;])
+        vote = request.REQUEST[u&#x27;vote&#x27;]
+        poll = Poll.objects.get(pk=pk)
+        if vote == u&quot;up&quot;:
+            poll.up()
+        elif vote == u&quot;down&quot;:
+            poll.down()
+        results = {&#x27;success&#x27;:True}
+    json = simplejson.dumps(results)
+    return HttpResponse(json, mimetype=&#x27;application/json&#x27;)
+</code></pre>
       
     
       
-        <p>相当简单，看起来和我们为网页应用所做的非常相似。</p>
+        <p>这意味着我们在 patterns 中指定的视图可以简写为 &#x27;list&#x27;，而不需要写成 &#x27;polling.fb.views.list&#x27;。如果你使用的是通用视图，这种方式是行不通的，因为它会尝试在 &#x27;polling.fb.views&#x27; 模块中查找通用视图（那里显然不存在），但当你所有的视图都来自同一个地方时，这是一种避免重复代码的好方法。</p>
       
     
       
-        <h2>短暂的插曲</h2>
+        <p>好了，现在让我们真正来编写 URL 配置：</p>
       
     
       
-        <p>在本教程的第一部分，我们配置了 polling/settings.py 文件以便与 PyFacebook 良好配合。如果你没有这样做，需要编辑以下设置：</p>
+        <pre><code>var successful = &quot;True&quot;;
+var d = new Dialog(Dialog.DIALOG_POP);
+d.showMessage(&quot;Ajax&quot;, &quot;The operation was &quot; + successful);
+</code></pre>
       
     
       
-        <p>你需要填入正确的应用名称、API 密钥和密钥。最后两个设置 internal 和 callback_path 需要使用上面指定的值。同样，如果你还没有 API 密钥和密钥，请查看开发者维基寻求帮助。</p>
+        <p>非常简单，看起来和我们为网页应用所做的非常相似。</p>
       
     
       
-        <h2>组合 fb 视图</h2>
+        <h2>短暂插曲</h2>
+        
+      
+    
+      
+        <p>在本教程的第一部分，我们配置了 polling/settings.py 文件以便与 PyFacebook 良好配合。如果你当时没有这么做，现在需要编辑以下设置：</p>
+      
+    
+      
+        <pre><code>var a = new Ajax();
+// Can also be Ajax.RAW or Ajax.FBML
+a.responseType = Ajax.JSON;
+// If you want to require login
+a.requireLogin = true;
+var p = { &quot;one&quot;:10, &quot;name&quot;:&quot;Jack&quot; };
+a.post(&#x27;http://www.abc.com/d/&#x27;, p);
+</code></pre>
+      
+    
+      
+        <p>你需要填入正确的应用名称、API Key 和 Secret Key。最后两个（internal 和 callback_path）需要使用上面指定的值。同样，如果你还没有 API Key 和 Secret Key，请查阅开发者 Wiki 获取帮助。</p>
+      
+    
+      
+        <h2>构建 Facebook 视图</h2>
+        
       
     
       
@@ -117,31 +208,101 @@
       
     
       
-        <p>在这个文件的顶部我们应该已经有了这些导入语句（我们在第一部分设置好了）：</p>
+        <pre><code>emacs polling/templates/fb/detail.fbml
+</code></pre>
       
     
       
-        <p>我们要在这个列表中再添加一个导入：</p>
+        <p>在文件顶部我们应该已经有了这些导入语句（我们在第一部分已经设置好了）：</p>
       
     
       
-        <p>然后我们就准备好开始编写视图了。</p>
+        <pre><code>{% load facebook %}
+&lt;fb:dashboard&gt;
+	&lt;fb:create-button href=&quot;{% fburl &#x27;/create/&#x27; %}&quot;&gt;Create a new poll&lt;/fb:create-button&gt;
+&lt;/fb:dashboard&gt;
+&lt;fb:tabs&gt;
+  &lt;fb:tab-item href=&quot;{% fburl &#x27;/&#x27; %}&quot; title=&#x27;All Polls&#x27;/&gt;
+&lt;/fb:tabs&gt;
+&lt;div class=&quot;poll&quot;&gt;
+  &lt;p&gt; Score for &quot;{ { poll.question }}&quot; is { { poll.score }}!&lt;/p&gt;
+  &lt;p&gt;Do you &lt;span id=&quot;up&quot;&gt;agree&lt;/span&gt; or &lt;span id=&quot;down&quot;&gt;disagree&lt;/span&gt;?&lt;/p&gt;
+&lt;/div&gt;
+</code></pre>
       
     
       
-        <p>首先让我们为我们的三个视图编写基本框架：</p>
+        <p>我们需要再添加一个导入：</p>
       
     
       
-        <p>相当简单的内容。不过，现在我们要在框架中再添加一些内容，具体来说，我们将要求用户登录才能查看我们的任何页面。</p>
+        <pre><code>function vote(pk, voteUp) {
+  if (voteUp == true)
+    typ = &quot;up&quot;;
+  else
+    typ = &quot;down&quot;;
+  var ajax = new Ajax();
+  ajax.responseType = Ajax.JSON;
+  ajax.requireLogin = true;
+  var params = { &quot;pk&quot;:pk, &quot;vote&quot;:typ };
+  ajax.post(&#x27;http://krit.willarson.com/vote/&#x27;, params);
+}
+</code></pre>
       
     
       
-        <p>我们将把这三行代码添加到每一个直接与 Facebook 通信的视图中。如果你查看 PyFacebook 文档，可能会好奇我们为什么要以这种方式做这些事情（如果你忘了，这些函数是由 polling.fb.helpers 模块提供的，我们在教程第一部分将其包含在包中）。这一切都归结于在不使用 PyFacebook 中间件的情况下使用 PyFacebook（因为那会给网页应用功能带来不必要的开销）。</p>
+        <p>然后就可以开始编写视图了。</p>
       
     
       
-        <p>好了，现在我们只需要在 polling/fb/helpers.py 中做一些修改，然后我们就可以准备组合我们的视图了。</p>
+        <p>首先让我们为三个视图写好基本框架：</p>
+      
+    
+      
+        <pre><code>&lt;div class=&quot;poll&quot;&gt;
+  &lt;p&gt; Score for &quot;{ { poll.question }}&quot; is { { poll.score }}!&lt;/p&gt;
+  &lt;p&gt;
+    Do you
+    &lt;a href=&quot;#&quot; onclick=&quot;vote({ { poll.pk }}, true)&quot;&gt;agree&lt;/a&gt;
+    or
+    &lt;a href=&quot;#&quot; onclick=&quot;vote({ { poll.pk }}, false)&quot;&gt;disagree&lt;/a&gt;?
+  &lt;/p&gt;
+&lt;/div&gt;
+</code></pre>
+      
+    
+      
+        <p>非常简单。不过现在我们要给这个框架添加一点内容，具体来说，我们会要求用户必须登录才能查看我们的任何页面。</p>
+      
+    
+      
+        <pre><code>function vote(pk, voteUp) {
+  if (voteUp == true)
+    typ = &quot;up&quot;;
+  else
+    typ = &quot;down&quot;;
+  var ajax = new Ajax();
+  ajax.ondone = function(data) {
+    var d = new Dialog(Dialog.DIALOG_POP);
+    if (data.success == true)
+      msg = &quot;Your vote was successful!&quot;;
+    else
+      msg = &quot;Your vote failed. :(&quot;;
+    d.showMessage(&quot;Voting Result&quot;, msg);
+  }
+  ajax.responseType = Ajax.JSON;
+  var params = { &quot;pk&quot;:pk, &quot;vote&quot;:typ };
+  ajax.post(&#x27;http://krit.willarson.com/vote/&#x27;, params);
+}
+</code></pre>
+      
+    
+      
+        <p>我们要把这三行代码添加到每一个直接与 Facebook 通信的视图中。如果你看过 PyFacebook 的文档，可能会好奇我们为什么要用这种方式（如果你忘了，这些函数是由 polling.fb.helpers 模块提供的，我们在教程第一部分已经将其加入项目）。这一切都归结于在不使用 PyFacebook 中间件的情况下使用 PyFacebook（因为那样会对网页应用的功能造成不必要的开销）。</p>
+      
+    
+      
+        <p>好了，现在我们只需要对 polling/fb/helpers.py 做一些修改，然后就可以着手完善我们的视图了。</p>
       
     
       
@@ -161,7 +322,7 @@
       
     
       
-        <p>然后滚动到 get_fb_user() 函数（在第 75 行）。目前它的大部分内容都被注释掉了。现在我们需要稍微修改一下。嗯，这么说有点骗人，我们其实只需要去掉它周围的三引号，让它看起来像这样：</p>
+        <p>然后滚动到 get_fb_user() 函数（大约在第 75 行）。目前它的大部分代码都被注释掉了。现在我们需要稍微重构一下。其实也不是真的重构，我们只需要把包裹它的三引号去掉，让它变成下面这样：</p>
       
     
       
@@ -169,19 +330,19 @@
       
     
       
-        <p>它被注释掉的原因是这个函数完全依赖于我们在 polling.core.models 中 User 模型的具体细节。这意味着在未来的项目中你可能需要编辑它以适应你的情况，因此它所包含的“开箱即用”魔法成分比正常情况要少。</p>
+        <p>它之前被注释掉的原因是，这个函数完全依赖于 polling.core.models 中 User 模型的具体细节。这意味着在未来的项目中，你可能需要修改它以适应自己的情况，因此它所包含的“开箱即用”魔法比平常要少。</p>
       
     
       
-        <p>观察这个函数，它做了几件事情。它获取传递给它的 facebook 参数关联的用户 ID，并使用该 uid 从你的数据库中检索或创建一个 User。</p>
+        <p>观察这个函数，它做了几件事。它获取传递给它的 facebook 参数所关联的用户 ID，并使用该 uid 从数据库中检索或创建一个 User 对象。</p>
       
     
       
-        <p>如果它创建了用户（数据库中还没有该 uid 的条目），则会使用 Facebook 查询语言（更方便地称为 FQL）来填充该用户的名称。这是本教程中查询 Facebook 数据的唯一示例，但它实际上是一个非常通用的例子。</p>
+        <p>如果它创建了新用户（数据库中还没有对应 uid 的记录），就会使用 Facebook Query Language（更方便的叫法是 FQL）来填充该用户的名称。这是本教程中唯一一个查询 Facebook 数据的例子，但它其实是一个非常有代表性的例子。</p>
       
     
       
-        <p>如果你阅读 fql 文档，你会发现使用相同的 Python 代码</p>
+        <p>如果你阅读了 FQL 文档，你会发现使用同样的 Python 代码</p>
       
     
       
@@ -189,15 +350,15 @@
       
     
       
-        <p>你可以从 Facebook 获取任何可用的信息。所以从非常实际的意义上来说，一旦你知道如何使用 PyFacebook 进行 FQL 查询，那么关于访问 Facebook 数据你真正需要知道的就是这些。</p>
+        <p>就可以获取 Facebook 上任何可用的信息。所以从非常实际的意义上说，一旦你知道如何使用 PyFacebook 进行 FQL 查询，那么关于访问 Facebook 数据，你基本就掌握了所有需要知道的内容。</p>
       
     
       
-        <p>好了，回到 *views.py 并编写我们的视图，我们将利用 get_fb_user() 函数来稍微扩展一下我们的框架。</p>
+        <p>好了，回到 *views.py，继续编写我们的视图，我们将利用 get_fb_user() 函数把我们的框架再扩展一点。</p>
       
     
       
-        <p>以下是我们典型的视图函数的样子：</p>
+        <p>下面是我们典型的视图函数的样子：</p>
       
     
       
@@ -205,23 +366,24 @@
       
     
       
-        <p>那么，让我们看看发生了什么：</p>
+        <p>那么，让我们看看这里发生了什么：</p>
       
     
       
-        <div class="list-content">我们向 request 添加一个 facebook 实例（实现了与使用 PyFacebook 中间件相同的功能）。如果当前 Facebook 用户尚未登录我们的应用，我们将其重定向到应用的登录页面。我们从本地数据库中获取包含当前使用我们应用的 Facebook 用户信息的 User 模型。“执行操作”。我们为视图渲染一个合适的模板（并传递一些合适的上下文，在这个例子中是 user，但在我们的实际视图中我们还会添加其他上下文，比如对象列表、特定对象等）。</div>
+        <div class="list-content">我们向 request 中添加了一个 facebook 实例（这和使用 PyFacebook 中间件所做的事情一样）。如果当前 Facebook 用户没有登录我们的应用，我们就将他们重定向到应用的登录页面。我们从本地数据库中获取与当前使用我们应用的 Facebook 用户相关联的 User 模型。“执行具体操作”。最后渲染该视图对应的模板（并传递适当的上下文，这里是 user，但在实际的视图中我们还会添加其他上下文，比如对象列表、特定对象等等）。</div>
       
     
       
-        <p>这可以通过使用装饰器更简洁地实现（这就是 PyFacebook 的实现方式，尽管它的装饰器需要中间件，因此对我们来说不是立即可用的），而不是一堆函数调用。“if redirect is not None”这部分特别伤眼睛。我认为最干净的解决方案是创建一个名为“add_facebook_instance”的第二个装饰器，让它位于任何其他 PyFacebook 装饰器之前，并将 facebook 实例附加到 request 上，这样你就可以直接使用所有的 PyFacebook 装饰器，同时也可以避免使用 PyFacebook 中间件：也就是说，你可以鱼与熊掌兼得。不幸的是，我还没有真正写出那个装饰器（虽然我猜写它大概只需要十到二十分钟，但是……它就是还没被写出来）。</p>
+        <p>这其实可以使用装饰器更优雅地实现（PyFacebook 就是这么做的，只是它的装饰器需要中间件支持，因此对我们来说不是很方便）。其中“if redirect is not None”那部分代码特别影响可读性。我认为最干净的解决方案是创建一个名为“add_facebook_instance”的装饰器，放在其他任何 PyFacebook 装饰器之前，它负责把 facebook 实例附加到 request 上，这样你就可以直接使用所有的 PyFacebook 装饰器，同时也可以避免使用 PyFacebook 中间件：也就是说，你可以鱼与熊掌兼得。不幸的是，我还没有真正写出这个装饰器（虽然我估计写它大概只需要十几二十分钟，但是……一直没动手）。</p>
       
     
       
-        <h2>编写视图，第二版</h2>
+        <h2>编写视图（第二版）</h2>
+        
       
     
       
-        <p>好了，现在让我们实际编写视图。首先我们要组合列表视图：</p>
+        <p>好了，现在让我们真正开始写视图。首先我们来实现列表视图：</p>
       
     
       
@@ -229,15 +391,15 @@
       
     
       
-        <p>它与我们上面搭建的框架非常相似。基本上唯一的区别是</p>
+        <p>它和我们上面搭建的框架非常相似。基本上唯一的区别是：</p>
       
     
       
-        <div class="list-content">我们向渲染上下文添加了所有投票的列表，我们渲染的是名为 &#x27;fb/list.fbml&#x27; 的模板，而不是 &#x27;sometemplate.fbml&#x27;。</div>
+        <div class="list-content">我们向渲染上下文添加了所有 poll 的列表；我们渲染的模板名是 &#x27;fb/list.fbml&#x27; 而不是 &#x27;sometemplate.fbml&#x27;。</div>
       
     
       
-        <p>接下来我们组合详情视图：</p>
+        <p>接下来我们实现详情视图：</p>
       
     
       
@@ -245,15 +407,15 @@
       
     
       
-        <p>与上面的列表视图非常相似，只是我们只向渲染上下文添加了由参数 id 表示的 Poll，而不是所有投票的列表。哦，我们渲染的是名为 &#x27;detail.fbml&#x27; 的模板，而不是 &#x27;list.fbml&#x27;（顺便说一下，&#x27;fbml&#x27; 代表 FaceBookMarkupLanguage）。</p>
+        <p>和上面的列表视图非常相似，只是我们只把参数 id 所代表的 Poll 对象添加到渲染上下文，而不是所有 poll 的列表。另外，我们渲染的模板名是 &#x27;detail.fbml&#x27; 而不是 &#x27;list.fbml&#x27;（顺便说一下，&#x27;fbml&#x27; 代表 FaceBook Markup Language）。</p>
       
     
       
-        <p>现在我们只需要组合用于创建新投票的视图，即 create 视图。这将会稍微复杂一些（但也没什么太可怕的）。</p>
+        <p>现在我们只需要实现创建新 poll 的视图，也就是 create 视图。这部分会稍微复杂一些（但也没什么太可怕的）。</p>
       
     
       
-        <p>最终它会是这个样子：</p>
+        <p>最终它看起来会是这样的：</p>
       
     
       
@@ -261,31 +423,32 @@
       
     
       
-        <p>那么让我们跟着 create 视图的逻辑走一遍：</p>
+        <p>那么让我们来梳理一下 create 视图的逻辑：</p>
       
     
       
-        <div class="list-content">如果用户没有登录我们的 Facebook 应用，将其重定向到登录页面。如果 POST 数据中 &#x27;question&#x27; 键有值，则使用 POST 数据填充 PollForm。如果得到的 PollForm 有效，则创建对应的投票并重定向用户。如果得到的 PollForm 无效，则将无效表单返回到页面，这将允许我们显示错误。如果 POST 数据中 &#x27;question&#x27; 键没有值，则返回一个空白的表单。</div>
+        <div class="list-content">如果用户没有登录我们的 Facebook 应用，就重定向到登录页面。如果 POST 数据中存在 &#x27;question&#x27; 键的值，则使用该 POST 数据来填充 PollForm。如果得到的 PollForm 验证通过，则创建对应的 poll 并重定向用户。如果 PollForm 验证失败，则将无效的表单返回给页面，以便我们显示错误信息。如果 POST 数据中没有 &#x27;question&#x27; 键的值，则返回一个空的表单。</div>
       
     
       
-        <p>它与我们在之前的教程中在 polling/web/views 中创建的 create 视图非常相似。所有传入数据的验证都由 PollForm 处理，所以幸运的是，逻辑相当简单。</p>
+        <p>这和我们在之前的教程中在 polling/web/views 中创建的 create 视图非常相似。所有传入数据的验证都由 PollForm 处理，因此逻辑幸运地保持得相当简单。</p>
       
     
       
-        <h2>编写 fbml 模板</h2>
+        <h2>编写 FBML 模板</h2>
+        
       
     
       
-        <p>那么，我们剩下要做的唯一事情就是编写我们的模板。因为我们希望让界面看起来像 Facebook，这意味着我们要做的事情会和网页应用有点不同，特别是我们必须使用 fbml 元素编写自己的自定义表单，而不是使用 django.newforms 提供的“免费”表单渲染。</p>
+        <p>现在，我们剩下要做的唯一事情就是编写模板。因为我们希望界面看起来像 Facebook 风格，所以我们会和网页应用有些不同，特别是我们需要使用 fbml 元素手动编写表单，而不是使用 django.newforms 提供的“免费”表单渲染功能。</p>
       
     
       
-        <p>在我们深入编写模板本身之前，让我们先看一个在为 Facebook 应用编写模板时会遇到的问题：我们需要链接到我们的页面，但我们不想每次都要指定完整的 &quot;http://apps.facebook.com/myAppName/poll/1/&quot; 这样的 URL。一方面这是大量的重复，另一方面这也意味着我们的模板也会与我们应用程序的名称绑定。</p>
+        <p>在我们正式开始编写模板之前，先来看一个为 Facebook 应用编写模板时会遇到的问题：我们需要链接到自己的页面，但又不想每次都写完整的“http://apps.facebook.com/myAppName/poll/1/”这样的 URL。一方面这是大量的重复，另一方面也意味着我们的模板会和应用名称绑定在一起。</p>
       
     
       
-        <p>我们已经在 polling/settings.py 文件中指定了 Facebook 应用的名称，所以让我们利用这一点来创建一个有用的工具，以缓解这个潜在的尴尬问题。</p>
+        <p>我们已经在 polling/settings.py 文件中指定了 Facebook 应用的名称，所以让我们利用这一点来创建一个有用的工具，缓解这个潜在的尴尬问题。</p>
       
     
       
@@ -301,7 +464,7 @@
       
     
       
-        <p>然后我们需要创建一个 __init__ 文件，这样这个文件夹才能被识别为一个模块：</p>
+        <p>然后我们需要创建一个 __init__.py 文件，以便让这个文件夹被识别为一个模块：</p>
       
     
       
@@ -309,7 +472,7 @@
       
     
       
-        <p>现在我们需要再创建一个文件，但这次它里面真的会有一些 Python 代码：</p>
+        <p>现在我们需要再创建一个文件，这次它里面会真正包含一些 Python 代码：</p>
       
     
       
@@ -317,7 +480,7 @@
       
     
       
-        <p>现在把这段代码粘贴进去：</p>
+        <p>然后把下面的代码粘贴进去：</p>
       
     
       
@@ -325,19 +488,20 @@
       
     
       
-        <p>请注意这个装饰器语法依赖于 Python 2.5！在 Python 2.4 中看起来会有点不同，在 Python 2.3 中差异会更大，如果你需要处理这些差异，请告诉我，我会编写并发布 2.4 和 2.3 版本。</p>
+        <p>请注意，这个装饰器语法依赖于 Python 2.5！在 Python 2.4 中看起来会稍有不同，在 Python 2.3 中差异更大，如果你需要处理这些版本的差异，请告诉我，我会编写并发布 2.4 和 2.3 版本的代码。</p>
       
     
       
-        <p>然后保存文件。我不会详细解释这段代码（因为我觉得 Django 模板标签的写法有点别扭，无法用几句话干净地解释清楚），但本质上它所做的是获取一个 URL 并将其附加到上面简要提到的长 &quot;http://apps.facebook.com/yourAppName&quot; URL 前面。</p>
+        <p>然后保存文件。我不会详细解释这段代码（因为我觉得 Django 模板标签的写法有点别扭，无法用几句话干净地解释清楚），但本质上它所做的事情是：接受一个 URL，并将其附加到前面提到的长“http://apps.facebook.com/yourAppName” URL 前面。</p>
       
     
       
-        <h2>编写模板，第二版</h2>
+        <h2>编写模板（第二版）</h2>
+        
       
     
       
-        <p>好了，现在我们要真正开始编写我们的模板了。让我们从 fb/list.fbml 模板开始，我们将用它来显示所有投票的列表。</p>
+        <p>好了，现在我们要真正开始编写模板了。我们先从 fb/list.fbml 模板开始，它将用于显示所有 poll 的列表。</p>
       
     
       
@@ -345,7 +509,7 @@
       
     
       
-        <p>先看看模板会是什么样子，然后我们再看任何困难的部分：</p>
+        <p>先看看模板最终的样子，然后我们再讨论其中比较麻烦的地方：</p>
       
     
       
@@ -353,15 +517,15 @@
       
     
       
-        <p>这是一个相当标准的模板，除了两点：</p>
+        <p>这是一个相当标准的模板，除了两点之外：</p>
       
     
       
-        <div class="list-content">{% load facebook %}：这是我们让自定义模板标签 fburl 在当前模板中可用的方式。它使用了一些 FaceBookMarkupLanguage 标签，这些不是标准的 html 标签（大部分 fbml 与 html 相同，但大多数更有趣的功能则不同）。要更好地理解它们，最好的办法是查看我每次提到 fbml 时不断散落的 fbml 文档链接。大多数元素的名称都是自解释的。</div>
+        <div class="list-content">{% load facebook %}：这是我们让自定义模板标签 fburl 在当前模板中可用的方式。它使用了一些不是标准 HTML 标签的 FaceBook Markup Language 标签（很多 fbml 和 html 相同，但大多数更有趣的功能则不同）。要更好地理解这些标签，最好的办法是查看我每次提到 fbml 时不断抛出的 fbml 文档链接。大多数元素的名称都是自解释的。</div>
       
     
       
-        <p>好了，接下来我们要编写查看单个投票的模板。请创建 polling/templates/fb/detail.fbml。</p>
+        <p>好了，接下来我们要编写查看单个 poll 的模板。请创建 polling/templates/fb/detail.fbml。</p>
       
     
       
@@ -369,7 +533,7 @@
       
     
       
-        <p>现在它会是这个样子：</p>
+        <p>它的样子是这样的：</p>
       
     
       
@@ -377,19 +541,20 @@
       
     
       
-        <p>就像我们编写网页应用时一样，两个带标签的 span（&#x27;up&#x27; 和 &#x27;down&#x27;）将用于投票，但我们要到教程的下一部分才会实现投票功能。</p>
+        <p>和我们编写网页应用时一样，两个带标签的 span（&#x27;up&#x27; 和 &#x27;down&#x27;）将用于投票，但我们要到教程的下一部分才会实现投票功能。</p>
       
     
       
-        <p>这里也没有什么太复杂的内容。不过，我们的最后一个模板会稍微复杂一些。</p>
+        <p>这里也没有什么特别复杂的。不过，我们的最后一个模板会稍微复杂一些。</p>
       
     
       
         <h2>创建模板</h2>
+        
       
     
       
-        <p>我们的最后一个模板是用于创建新投票的。这稍微复杂一些，因为我们需要使用一些 fbml 元素来代替标准的 html。</p>
+        <p>我们的最后一个模板用于创建新的 poll。它稍微复杂一些，因为我们需要使用一些 fbml 元素来代替标准的 html。</p>
       
     
       
@@ -401,7 +566,7 @@
       
     
       
-        <p>并在其中插入以下文本：</p>
+        <p>然后把下面的内容插入进去：</p>
       
     
       
@@ -409,7 +574,7 @@
       
     
       
-        <p>和前两个模板一样，你需要了解 fbml 才能真正理解它。唯一不太容易理解的部分是这一行</p>
+        <p>和前两个模板一样，你需要了解 fbml 才能真正理解这段代码。其中有一行可能不太好理解：</p>
       
     
       
@@ -417,19 +582,20 @@
       
     
       
-        <p>这里发生的事情是，Django 中显示错误消息的默认方式在某种程度上都很糟糕。没有特别方便的方法来显示错误消息，尤其是当你不希望它们作为无序列表的条目时。这里的 *as_text() 方法会返回类似“ That question has already been asked!”的内容，而 slice 过滤器会去掉开头的“* ”，所以我们只会看到“That question has already been asked!”。</p>
+        <p>这里发生的事情是，Django 默认的错误信息显示方式在某种程度上都比较糟糕。没有特别方便的方式来显示错误信息，尤其是当你不希望它们以无序列表的形式出现时。这里的 *as_text() 方法会返回类似“* That question has already been asked!”这样的内容，而 slice 过滤器会去掉开头的“* ”，这样我们就只会看到“That question has already been asked!”。</p>
       
     
       
-        <p>这绝对算是个小技巧，但它完成了工作——尽管有点笨拙。</p>
+        <p>这的确算是一个小 hack，但它完成了工作——虽然显得有点笨拙。</p>
       
     
       
         <h2>继续前进</h2>
+        
       
     
       
-        <p>至此，我们的 fb 应用就完成了。除了 Ajax 部分。我们将在第七部分继续时实现它。教程第六部分结束时的代码快照可在此获取。</p>
+        <p>到此为止，我们的 fb 应用就基本完成了，只剩下 Ajax 部分。我们将在第七部分继续实现它。本教程第六部分结束时的代码快照可以在这里获取。</p>
       
     
   </div>

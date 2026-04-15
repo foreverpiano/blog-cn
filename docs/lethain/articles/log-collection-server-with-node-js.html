@@ -29,23 +29,67 @@
   <div class="article-content">
     
       
-        <p>最近我在考虑如何从多台机器上聚合日志。</p>
+        <p>最近我一直在思考如何从多台机器上聚合日志。</p>
       
     
       
-        <p>虽然解决这个问题的方法有很多，但我决定写一个简单的 HTTP 服务器来接收日志，然后再编写一个脚本去监控文件变化，并将新的日志 POST 到这个 HTTP 服务器。</p>
+        <p>虽然解决这个问题肯定有很多种方法，但我决定写一个简单的 HTTP 服务器来接收日志，然后再编写一个脚本去监控文件变化，并将变更通过 POST 发送到这个 HTTP 服务器。</p>
       
     
       
-        <p>作为一次实验，我选择用 Node.js 来实现，因为之前还没有用它做过项目，而回调机制让我觉得非常适合扩展现有的命令行工具（这里是将 tail -F 的输出通过 HTTP 请求发送到远程服务器）。</p>
+        <p>作为一个实验，我选择用 Node.js 来实现，因为我还没用它做过项目，而且我觉得回调机制非常适合扩展现有的命令行工具（这里是将 tail -F 的输出通过 HTTP 请求发送到远程服务器）。</p>
       
     
       
-        <p>首先实现日志收集服务器，它会简单地把收到的数据回显到标准输出。</p>
+        <p>首先来实现日志收集服务器，它只是简单地把收到的数据回显到标准输出。</p>
       
     
       
-        <p>接下来快速编写客户端，它通过子进程封装 tail -F 来监控日志文件。</p>
+        <pre><code>var sys = require(&quot;sys&quot;),
+    http = require(&quot;http&quot;);
+var record_message = function(request, msg) {
+sys.puts(&quot;received: &quot; + msg);
+};
+http.createServer(function (request, response) {
+var content = &quot;&quot;;
+request.addListener(&quot;body&quot;, function(chunk) {
+content += chunk;
+});
+request.addListener(&quot;complete&quot;, function() {
+record_message(request, content);
+response.sendHeader(200, {&quot;Content-Type&quot;: &quot;text/plain&quot;});
+response.sendBody(&quot;stored message&quot;);
+response.finish();
+});
+}).listen(8000);
+</code></pre>
+      
+    
+      
+        <p>接下来快速实现客户端部分，它通过子进程封装 tail -F 来监控日志文件。</p>
+      
+    
+      
+        <pre><code>var sys = require(&quot;sys&quot;),
+    http = require(&quot;http&quot;),
+    file = process.ARGV[3],
+    hostname = (process.ARGV[4]) ? process.ARGV[4] : &quot;localhost&quot;,
+    port = (process.ARGV[5]) ? parseInt(process.ARGV[5]) : 8000,
+    log_server = http.createClient(port, hostname);
+var send_log = function(msg) {
+var req = log_server.request(&quot;POST&quot;, &quot;/&quot;,
+{&quot;Content-Length&quot;:msg.length});
+req.sendBody(msg, encoding=&quot;ascii&quot;)
+req.finish();
+}
+var monitor_file = function(filename) {
+var cmd = process.createChildProcess(&quot;tail&quot;, [&quot;-F&quot;, filename]);
+cmd.addListener(&quot;output&quot;, function(data) {
+send_log(data);
+});
+};
+monitor_file(file);
+</code></pre>
       
     
       
@@ -62,7 +106,7 @@ echo &quot;another test&quot; &gt;&gt; log.txt
       
     
       
-        <p>目前日志服务器只是把收到的日志回显到标准输出，但更理想的做法是把它们保存到文件中。最简单的方式是像下面这样运行服务器：</p>
+        <p>目前日志服务器只是把收到的日志回显到标准输出，但更理想的做法是把它们保存到文件中。最简单的方式是像这样运行服务器：</p>
       
     
       
@@ -71,7 +115,7 @@ echo &quot;another test&quot; &gt;&gt; log.txt
       
     
       
-        <p>但仅仅是追加到一个文件里灵活性不够。让我们来实现一个简单的机制，允许用户以任意方式存储日志。我们以追加到文件作为示例后端，后续可以轻松替换为其他存储方式。</p>
+        <p>但仅仅追加到一个文件里灵活性不够。让我们来设计一个简单的机制，允许用户以任意方式存储日志。我们先用追加到文件的方式作为一个示例后端，后续可以轻松替换成其他实现。</p>
       
     
       
@@ -79,11 +123,37 @@ echo &quot;another test&quot; &gt;&gt; log.txt
       
     
       
-        <p>接下来我们需要创建 log_file_backend.js 文件，它会把数据追加到脚本所在目录下的 ./logs.received 文件中。</p>
+        <pre><code>var default = &quot;./log_file_backend&quot;,
+    backend = (process.ARGV[3]) ? process.ARGV[3] : default,
+    record_message = require(backend).record_message;
+/*
+var record_message = function(request, msg) {
+    sys.puts(&quot;received: &quot; + msg);
+};
+*/
+</code></pre>
       
     
       
-        <p>如果想用其他方式存储日志，只需创建一个新的模块，导出一个 record_message(request, msg) 函数，然后像这样运行 logs.js 即可：</p>
+        <p>接下来，我们需要创建一个 log_file_backend.js 文件，它会把数据追加到脚本所在目录下的 ./logs.received 文件中。</p>
+      
+    
+      
+        <pre><code>var sys = require(&quot;sys&quot;),
+    posix = require(&quot;posix&quot;),
+    filename = &quot;./logs.received&quot;,
+    fd = posix.open(filename,
+                process.O_WRONLY | process.O_APPEND | process.O_CREAT,
+                process.S_IRWXU | process.S_IRGRP | process.S_IROTH
+                ).wait();
+exports.record_message = function(request, msg) {
+posix.write(fd, msg);
+}
+</code></pre>
+      
+    
+      
+        <p>如果想用不同的方式存储日志，只需创建一个新的模块，导出一个 record_message(request, msg) 函数，然后像这样运行 logs.js 即可：</p>
       
     
       
@@ -93,15 +163,15 @@ node logs.js couchdb_backend.js
       
     
       
-        <p>可能性几乎是无限的。或者说，至少非常广阔。</p>
+        <p>可能性几乎是无限的，或者至少非常广泛。</p>
       
     
       
-        <p>这已经是一个相当不错的小工具了，而且实际上比表面上看起来的还要更好一些：虽然我们把它编写成了“发射后不管”的客户端，但 Node.js 的 HTTP 客户端实现会在主机不可用时自动将请求排队，当下次尝试发送消息发现主机恢复可用时，会按原来的顺序把它们全部发送出去。（这和我最初的预期不一样——我本来准备手动实现一个消息缓存来完成存储转发的机制——但结果是它工作得相当不错。）</p>
+        <p>这已经是一个很不错的小工具了，而且实际上比表面上看起来的还要好一些：虽然我们把它设计成了“发射后不管”的客户端，但 Node.js 的 HTTP 客户端实现会在主机不可用时自动将请求排队，等下次尝试发送发现主机恢复可用时，再按原来的顺序全部发送出去。（这和我最初的预期不一样——我本来打算手动实现一个消息缓存来完成存储转发的功能——但实际效果还挺好的。）</p>
       
     
       
-        <p>这就是全部内容了。我们用不到一百行代码实现了一个支持可插拔存储后端的日志收集服务器，以及一个能够发送被监控文件变更的存储转发客户端。在多做几个项目之后，我肯定会写一些关于 Node.js 的感想（说实话已经晚了好几个月才开始玩），但现在我已经可以说，它比我之前想象的有趣得多：用它开发真的很开心。</p>
+        <p>这就是全部内容了。我们用不到一百行代码就实现了一个支持可插拔存储后端的日志收集服务器，以及一个能够发送被监控文件变更的存储转发客户端。在完成几个更多项目之后，我肯定要写一些关于 Node.js 的心得体会（虽然已经晚了几个月），但我现在已经可以说，它比我之前想象的要有趣得多：用起来真的很愉快。</p>
       
     
       

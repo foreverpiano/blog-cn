@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>清理残留的 Erlang heart 进程 · Will Larson 文集</title>
+  <title>清理残留的 Erlang Heart 进程 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>清理残留的 Erlang heart 进程</h1>
+    <h1>清理残留的 Erlang Heart 进程</h1>
     <div class="meta">
       2009-02-04 · 
       <a href="https://lethain.com/cull-lingering-erlang-heart-processes/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,25 +29,39 @@
   <div class="article-content">
     
       
-        <p>最近又多用了些 Erlang，同时也用到了非常方便的 heart 命令行参数。
-（强烈推荐阅读这篇教程作为 heart 的入门介绍。）
-heart 参数允许你指定一个命令，当 Erlang 进程崩溃时就会执行该命令：</p>
+        <p>最近多用了一些 Erlang，同时也用到了非常方便的 heart 命令行参数。
+（强烈推荐这篇教程作为 heart 的入门介绍。）
+heart 参数允许你指定一个命令，在 Erlang 进程崩溃时执行：</p>
       
     
       
-        <p>如果 myscript 崩溃，它会自动被重启，这无疑非常实用。但也可能出现 heart 进程仍在监控一个已经不存在的 Erlang 进程的情况。当被监控的 Erlang 进程死亡后，会生成一个新的 Erlang 进程，同时伴随一个新的 heart 进程。有时如果你的应用频繁崩溃（比如你用 heart 监控着运行无效代码），旧的 heart 进程没有被正确清理掉，最终就会留下一些无用的 heart 进程在漫无目的地游荡。</p>
+        <pre><code>export HEART_COMMAND=&quot;erl -heart -detached -run myscript start 8000&quot;
+erl -heart -detached -run myscript start 8000
+</code></pre>
       
     
       
-        <p>这个简短的 Perl 脚本会清除所有正在监控不存在进程的 heart 进程。它可以在有多个 heart 进程的情况下安全运行，既可以手动执行，也可以加入定时 cron 任务。</p>
+        <p>如果 myscript 崩溃，它会自动被重启，这无疑非常实用。但也可能会留下一些 heart 进程，它们正在监控一个已经不存在的 Erlang 进程。当被监控的 Erlang 进程死亡后，会生成一个新的 Erlang 进程，同时也会生成一个新的 heart 进程。有时候，如果你的应用频繁崩溃（比如你用 heart 监控着它却尝试运行无效代码），旧的 heart 进程没有被正确清理，你就会看到一大堆无用的 heart 进程漫无目的地残留在系统中。</p>
       
     
       
-        <p>如果你在被监控进程刚刚崩溃的那一刻运行此脚本，它有可能错误地终止新的 heart 进程（一个简单的解决办法是不要终止任何运行时间少于 5 秒的 heart 进程）。</p>
+        <p>这段简短的 Perl 脚本会清除所有正在监控不存在进程的 heart 进程。它可以在有多个 heart 进程的情况下安全运行，既可以手动执行，也可以加入定时 cron 任务。</p>
       
     
       
-        <p>读着这段代码，我还是无法决定自己到底是讨厌 Perl 还是喜欢 Perl。这真是个问题。</p>
+        <p>如果你在被监控进程崩溃的瞬间运行此脚本，它有可能误杀新启动的 heart 进程（一个简单的解决办法是不要终止运行时间少于 5 秒的 heart 进程）。</p>
+      
+    
+      
+        <pre><code>ps aux</code></pre>
+      
+    
+      
+        <p>读这段代码时，我始终无法决定自己到底是讨厌 Perl 还是喜欢 Perl。这是个问题。</p>
+      
+    
+      
+        <div class="list-content">和我第一次匆忙拼凑出来的版本不同，那个版本会清除所有 heart 进程，只保留 PID 最大的那个。有时候，更糟真的就是彻头彻尾、更糟糕。↩</div>
       
     
   </div>

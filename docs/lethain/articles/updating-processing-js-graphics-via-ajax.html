@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>使用 Ajax 更新 Processing.js 图形 · Will Larson 文集</title>
+  <title>通过 Ajax 更新 Processing.js 图形 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>使用 Ajax 更新 Processing.js 图形</h1>
+    <h1>通过 Ajax 更新 Processing.js 图形</h1>
     <div class="meta">
       2008-05-20 · 
       <a href="https://lethain.com/updating-processing-js-graphics-via-ajax/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,15 +29,23 @@
   <div class="article-content">
     
       
-        <p>另一个我一直想尝试的 Processing.js 技术是利用 Ajax 来创建动态内容。本文将介绍一个依赖 Processing.js 进行图形绘制的 JavaScript 应用程序，它能显示始终保持最新的图表。该应用将使用 PHP 构建一个简单的后端示例（它会返回随机数据）。</p>
+        <p>另一个我一直想尝试的 Processing.js 技术是使用 Ajax 来创建动态内容。本文将介绍一个依赖 Processing.js 来绘制图形的 JavaScript 应用程序，它能显示始终保持最新的图表。该示例将使用 PHP 构建一个简单的后端（它会返回随机数据）。</p>
       
     
       
-        <h2>概述</h2>
+        <figure>
+          <img src="https://lethain.com/static/blog/exchangechart.jpg" alt="Image of the chart created by exchangechart.js">
+          
+        </figure>
       
     
       
-        <p>该应用显示某货币汇率的当前趋势。它每十秒更新一次汇率，并维护过去十个数据点的图表。数据点由一个 PHP 脚本随机生成（选择 PHP 是因为如果使用更复杂的语言，就好比请爱因斯坦来帮你系鞋带一样小题大做）。</p>
+        <h3>概述</h3>
+        
+      
+    
+      
+        <p>该应用显示某种货币汇率的当前趋势。它每十秒更新一次汇率数据，并维护过去十个数据点的图表。数据点由 PHP 脚本随机生成（选择 PHP 是因为如果使用更复杂的语言，就好比请爱因斯坦来帮你系鞋带）。</p>
       
     
       
@@ -45,35 +53,42 @@
       
     
       
-        <div class="list-content">生成随机数据的 PHP 脚本、获取并显示数据的 JavaScript 程序、包含 JavaScript 程序的 HTML 页面。</div>
+        <div class="list-content">生成随机数据的 PHP 脚本、获取并显示数据的 JavaScript 程序、容纳 JavaScript 程序的 HTML 页面。</div>
       
     
       
-        <h2>PHP 脚本：data.php</h2>
+        <h3>PHP 脚本：data.php</h3>
+        
       
     
       
-        <p>首先来看看这个 PHP 脚本。它的全部工作就是返回一个随机数，因此简单到不能再简单。</p>
+        <p>首先来看看 PHP 脚本。它所做的只是返回一个随机数，因此简单到不能再简单。</p>
       
     
       
-        <p>在实际应用中，你可能会查询数据库或者进行某种计算，但这个示例的目的并不是创建一个有趣的后端，而是通过 Processing.js 结合 Ajax 来创建动态图形……所以后端就只用了一行 PHP 代码。</p>
+        <pre><code>&lt;?php echo rand(50,250); ?&gt;
+</code></pre>
       
     
       
-        <h2>JS 部分：exchangechart.js</h2>
+        <p>在实际应用中，你可能需要查询数据库或进行某种计算，但这个示例并非旨在创建一个有趣的后端，而是展示如何通过 Ajax 和 Processing.js 来创建动态图形……所以后端就只用了一行 PHP 代码。</p>
       
     
       
-        <p>正如我在上面提到的，在最初构思这个示例时，我设想图表表示两种货币之间的汇率，这就是为什么文件和示例都被命名为 exchangechart。但最终它其实只是一个简单的图表，与货币没有任何关系。</p>
+        <h3>JavaScript 部分：exchangechart.js</h3>
+        
       
     
       
-        <p>它预先填充了五个数据点，额外的数据点则通过异步方式从 PHP 脚本请求。一次最多同时显示十一个数据点。当拥有十一个数据点后，每获取一个新点，最老的数据点就会从图表中移除。另外，与我之前那个稍显偏差的 bubbles 示例不同，这个图形仅在新数据加入时才重绘，所以它完全不会给处理器带来负担（即使在 Camino 浏览器中也能流畅运行，而 Processed Tower Defense 一跑起来就立刻崩溃）。</p>
+        <p>正如上面提到的，在最初构思这个示例时，我设想图表表示两种货币之间的汇率，这就是为什么文件和示例都命名为 exchangechart。但最后它其实只是一个简单的图表，与货币并没有实际关联。</p>
       
     
       
-        <p>它使用了 Processing.js 的 API，以及一个实现跨浏览器 Ajax 的简单函数。异步请求的回调函数会将返回的数据传递给 Chart 类的实例，该类负责控制图形的绘制。</p>
+        <p>它预先填充了五个数据点，额外的数据点则通过异步方式从 PHP 脚本请求。一次最多同时显示十一个数据点。当拥有十一个数据点后，每获取一个新点，最旧的数据点就会从图表中移除。此外，与我之前那个有点跑偏的 bubbles 示例不同，这个图形仅在新数据加入时才重绘，因此完全不会给处理器带来负担（即使在 Camino 浏览器中也能正常运行，而 Processed Tower Defense 在该浏览器中会立刻崩溃）。</p>
+      
+    
+      
+        <p>它使用 Processing.js 的 API，并通过一个简单的函数实现了跨浏览器的 Ajax。异步请求的回调函数会将返回的数据传递给 Chart 类的实例，该类负责控制图形的绘制。</p>
       
     
       
@@ -81,19 +96,41 @@
       
     
       
-        <p>这段代码存在上百个问题，不应该被直接复制使用（从全局变量的滥用开始骂起吧）。不过它做对了一件事，那就是不会因为请求失败而崩溃。这是因为在窗口生命周期内，你会以固定间隔请求数据，所以即使某些数据传输失败也不是什么大问题（前提是应用设计得足够合理）。</p>
+        <pre><code>  http_request.onreadystatechange = function() {
+    if (http_request.readyState == 4 &amp;&amp; http_request.status == 200)
+      eval(&quot;chart.update(http_request.responseText);&quot;);
+  }
+</code></pre>
       
     
       
-        <p>被回调函数调用的 update 方法是整个链条的下一步。</p>
+        <p>这段代码存在上百个问题，不应该被直接复制使用（从全局变量的滥用开始吐槽就对了）。不过它做对了一件事，那就是不会因为请求失败而崩溃。这是因为在窗口生命周期内，你会以固定间隔请求数据，所以即使部分数据传输失败也没什么大不了的（前提是应用设计得足够周到）。</p>
       
     
       
-        <p>它接收一个数值，并将其推入包含所有正在绘制的数据点的数组。如果数据超过十一个，则保留最近的十一个，其余的将被丢弃。之后，它调用 draw 方法来更新显示图形。除了初始绘制外，这是唯一调用 draw 的地方（如果想给这个显而易见的概念起个花哨的名字，我们或许可以称之为“懒惰绘制”）。</p>
+        <p>被回调函数调用的 update 方法则是整个流程的下一步。</p>
       
     
       
-        <p>我们要看的最后一段代码是 draw 函数，它稍微有点冗长，但拆开来看并不难理解。</p>
+        <pre><code>this.update = function(val) {
+  var maxLen = 10;
+  this.p.data.push(val);
+  // Retain a maximum of ten pieces of data.
+  var len = this.p.data.length;
+  if (len &gt; maxLen) {
+    this.p.data = this.p.data.slice(len-1-maxLen);
+  }
+  this.p.draw();
+}
+</code></pre>
+      
+    
+      
+        <p>它接收一个数值，并将其推入包含所有绘制数据点的数组。如果数据点超过十一个，则保留最近的十一个，丢弃其余的。之后，它会调用 draw 方法来更新显示图形。除了初始绘制外，这是 draw 被调用的唯一位置（如果想给这个显而易见的概念起个花哨的名字，或许可以叫它“惰性绘制”）。</p>
+      
+    
+      
+        <p>我们要看的最后一段代码是 draw 函数，它虽然有点冗长，但拆开来看并不难理解。</p>
       
     
       
@@ -101,35 +138,87 @@
       
     
       
-        <p>变量 l 和 h 只是为了让代码更简短易读。之后，最高的数据点值被赋给 max。然后我稍微增大 max 的值，因为它将用于缩放数值的相对大小，我不希望最大值正好位于画布的最顶端。</p>
+        <pre><code>var l = this.data.length;
+var h = this.height;
+// Find maximum value.
+var max = this.data[0];
+this.data.forEach(function(x) {
+  if (x &gt; max) max = x;
+});
+// Prevent max value from being on
+// absolute top of canvas.
+max = max * 1.05;
+</code></pre>
       
     
       
-        <p>接下来，代码将所有数据点缩放，使它们能够适应可用的屏幕空间，同时保持正确的相对大小。</p>
+        <p>变量 l 和 h 只是为了让代码更简短易读。之后，最高数据点的值被赋给 max。然后我稍微增大了 max 的值，因为它将用于缩放数值的相对大小，我不希望最大值正好位于画布的最顶端。</p>
       
     
       
-        <p>乍一看这可能不太直观，但要记住 Y 值为 0 对应画布顶部，Y 值为 h 对应画布底部。（我之前确实在这里把自己搞糊涂了一会儿，后来才想起来。）</p>
+        <p>接下来，代码将所有数据点缩放到适应可用屏幕空间，同时保持正确的相对大小。</p>
       
     
       
-        <p>然后我们绘制红色的图形。</p>
+        <pre><code>// Scale vertical position based on maximum value.      
+var scaled = this.data.map(function(x) {  
+  var ratio = (x * 1.0) / max;
+  return h - (h * ratio);
+});
+</code></pre>
       
     
       
-        <p>这个形状从左下角开始，在右下角结束（底部有一条横线将两端连接起来）。在这两点之间，我们将数据点在 X 维度上均匀分布。</p>
+        <p>初看这段代码可能不太直观，但要记住 Y 值为 0 对应画布顶部，而 Y 值为 h 对应画布底部。（我自己也一度被这个搞糊涂，后来才想起来。）</p>
       
     
       
-        <p>接下来，在红色图表形状之上绘制网格线和椭圆。</p>
+        <p>然后我们绘制红色的图形形状。</p>
       
     
       
-        <p>网格线先绘制，最后再绘制椭圆。椭圆绘制在数据点的精确位置上。</p>
+        <pre><code>this.fill(this.color(255,50,50));
+this.beginShape();
+this.vertex(0,h);
+for (var i=0;i&lt;l;i++) {
+  var x = this.width * 1.0 * (i/(l-1));
+  var y = scaled[i];
+  this.vertex(x,y);
+}
+this.vertex(this.width, h);
+this.endShape();
+</code></pre>
       
     
       
-        <p>代码大致就是这些。我第一个承认绘图偶尔会出现轻微异常，但希望这可以被忽略，因为它与 Ajax 和 Processing.js 的交互无关，而后者才是这个示例的有趣之处（它的外观短时间内应该拿不到什么设计奖）。</p>
+        <p>这个形状从左下角开始，到右下角结束（底部有一条横线将两端连接起来）。在这两点之间，我们将数据点在 X 方向上均匀分布。</p>
+      
+    
+      
+        <p>接下来，在红色图表形状上方绘制网格线和椭圆。</p>
+      
+    
+      
+        <pre><code>this.fill(this.color(255,0,0));
+for (var i=0;i&lt;l;i++) {
+  var x = this.width * 1.0 * (i/(l-1));
+  var y = scaled[i];
+  this.line(x,0,x,h);
+  this.ellipse(x,y,10,10);
+}
+</code></pre>
+      
+    
+      
+        <p>网格线先绘制，最后再绘制椭圆。椭圆被绘制在数据点的精确位置上。</p>
+      
+    
+      
+        <p>代码基本上就是这些了。我是第一个承认绘图偶尔会稍微出点小问题的人，但希望大家能忽略这一点，因为这与 Ajax 和 Processing.js 的交互无关，而后者才是这个示例有趣的地方（它的外观暂时还拿不到什么设计奖）。</p>
+      
+    
+      
+        <div class="list-content">由于我之前从未花足够时间学习 PHP，所以还是得去查阅参考手册。更具体地说，是日元对美元汇率，不过这些数字并不特别具有代表性。因为 reduce 实际上只是带有一个持久变量的 forEach 操作，所以我用局部变量 max 创建了一个偷懒版的 reduce。</div>
       
     
   </div>

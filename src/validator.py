@@ -17,48 +17,74 @@ def validate_translation(slug: str, parsed_dir: Path, translated_dir: Path) -> d
 
     issues = []
 
-    src_para = len(parsed.get("segments", []))
-    tgt_para = len(translated.get("segments", []))
-    if src_para != tgt_para:
-        issues.append(f"paragraph_count_mismatch: source={src_para}, translated={tgt_para}")
+    # Segment count
+    src_segs = parsed.get("segments", [])
+    tgt_segs = translated.get("segments", [])
+    if len(src_segs) != len(tgt_segs):
+        issues.append(f"segment_count_mismatch: source={len(src_segs)}, translated={len(tgt_segs)}")
 
+    # Segment type sequence
+    src_types = [(s["type"], s.get("heading_level")) for s in src_segs]
+    tgt_types = [(s["type"], s.get("heading_level")) for s in tgt_segs]
+    if src_types != tgt_types:
+        issues.append(f"segment_type_sequence_mismatch")
+
+    # Per-segment checks
+    for i, seg in enumerate(tgt_segs):
+        if i >= len(src_segs):
+            break
+        src_seg = src_segs[i]
+        text_zh = seg.get("text_zh", "")
+        text_orig = seg.get("text_original", "")
+
+        # Code segment: text must be identical (not translated)
+        if src_seg.get("type") == "code":
+            if seg.get("text_zh", "") != src_seg.get("text", ""):
+                issues.append(f"code_seg_{i}_text_modified")
+
+        # Heading level must match
+        if src_seg.get("type") == "heading":
+            src_lvl = src_seg.get("heading_level")
+            tgt_lvl = seg.get("heading_level")
+            if src_lvl != tgt_lvl:
+                issues.append(f"heading_seg_{i}_level_mismatch: source={src_lvl}, translated={tgt_lvl}")
+
+        # Figure: image_src must be preserved
+        if src_seg.get("type") == "figure":
+            src_img = src_seg.get("image_src", "")
+            tgt_img = seg.get("image_src", "")
+            if src_img and not tgt_img:
+                issues.append(f"figure_seg_{i}_image_src_missing")
+            if src_img and not (tgt_img.startswith("http://") or tgt_img.startswith("https://")
+                                or tgt_img.startswith("images/")):
+                issues.append(f"figure_seg_{i}_image_src_invalid: {tgt_img[:60]}")
+
+        # Placeholder preservation for text segments
+        if src_seg.get("type") not in ("code", "figure"):
+            src_fnref = len(re.findall(r'\{\{FNREF:\d+\}\}', text_orig))
+            tgt_fnref = len(re.findall(r'\{\{FNREF:\d+\}\}', text_zh))
+            if src_fnref != tgt_fnref:
+                issues.append(f"seg_{i}_fnref_count: source={src_fnref}, translated={tgt_fnref}")
+
+            src_link = len(re.findall(r'\{\{LINK:[^}]+\}\}', text_orig))
+            tgt_link = len(re.findall(r'\{\{LINK:[^}]+\}\}', text_zh))
+            if src_link != tgt_link:
+                issues.append(f"seg_{i}_link_count: source={src_link}, translated={tgt_link}")
+
+    # Footnote checks
     src_fn = len(parsed.get("footnotes", []))
     tgt_fn = len(translated.get("footnotes", []))
     if src_fn != tgt_fn:
         issues.append(f"footnote_count_mismatch: source={src_fn}, translated={tgt_fn}")
 
-    src_fn_ids = {fn["id"] for fn in parsed.get("footnotes", [])}
-    tgt_fn_ids = {fn["id"] for fn in translated.get("footnotes", [])}
-    if src_fn_ids != tgt_fn_ids:
-        missing = src_fn_ids - tgt_fn_ids
-        if missing:
-            issues.append(f"footnote_ids_missing: {missing}")
-
-    for i, seg in enumerate(translated.get("segments", [])):
-        text_zh = seg.get("text_zh", "")
-        text_orig = seg.get("text_original", "")
-
-        src_fnref_count = len(re.findall(r'\{\{FNREF:\d+\}\}', text_orig))
-        tgt_fnref_count = len(re.findall(r'\{\{FNREF:\d+\}\}', text_zh))
-        if src_fnref_count != tgt_fnref_count:
-            issues.append(f"para_{i}_fnref_count: source={src_fnref_count}, translated={tgt_fnref_count}")
-
-        src_link_count = len(re.findall(r'\{\{LINK:[^}]+\}\}', text_orig))
-        tgt_link_count = len(re.findall(r'\{\{LINK:[^}]+\}\}', text_zh))
-        if src_link_count != tgt_link_count:
-            issues.append(f"para_{i}_link_count: source={src_link_count}, translated={tgt_link_count}")
-
     if translated.get("slug") != parsed.get("slug"):
         issues.append("slug_modified")
 
-    # Cross-page notes checks (PG-specific, safe no-op for other sites)
+    # Cross-page notes (PG-specific, safe no-op for other sites)
     p_cpn = parsed.get("cross_page_notes")
     t_cpn = translated.get("cross_page_notes")
     if p_cpn and not t_cpn:
-        issues.append("cross_page_notes_missing_in_translated")
-    if p_cpn and t_cpn:
-        if p_cpn.get("notes_page_slug") != t_cpn.get("notes_page_slug"):
-            issues.append("cross_page_notes_slug_mismatch")
+        issues.append("cross_page_notes_missing")
 
     if bool(parsed.get("is_notes_page")) != bool(translated.get("is_notes_page")):
         issues.append("is_notes_page_mismatch")
@@ -102,6 +128,8 @@ def validate_all(paths=None) -> dict:
 
 
 def check_links(paths=None) -> dict:
+    """Check internal links. Portal links (resolving outside site dist) are allowed
+    if the portal index.html exists at the project dist root."""
     if paths is None:
         from src.config import DIST_DIR
     else:
@@ -112,6 +140,10 @@ def check_links(paths=None) -> dict:
         return {}
 
     from bs4 import BeautifulSoup
+
+    # Check if portal exists at project dist root
+    project_dist = DIST_DIR.parent
+    portal_exists = (project_dist / "index.html").exists()
 
     html_files = list(DIST_DIR.rglob("*.html"))
     file_anchors = {}
@@ -148,6 +180,13 @@ def check_links(paths=None) -> dict:
                 try:
                     target_path = str(resolved.relative_to(DIST_DIR.resolve()))
                 except ValueError:
+                    # Link resolves outside site dist — check if it's a portal link
+                    if portal_exists:
+                        try:
+                            resolved.relative_to(project_dist.resolve())
+                            continue  # Valid portal link
+                        except ValueError:
+                            pass
                     broken.append({"source": rel, "href": href, "issue": "resolves_outside_dist"})
                     continue
             else:

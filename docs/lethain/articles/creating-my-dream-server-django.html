@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>打造我的 Django 梦幻服务器 · Will Larson 文集</title>
+  <title>搭建我的 Django 梦想服务器 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>打造我的 Django 梦幻服务器</h1>
+    <h1>搭建我的 Django 梦想服务器</h1>
     <div class="meta">
       2007-07-13 · 
       <a href="https://lethain.com/creating-my-dream-server-django/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,19 +29,19 @@
   <div class="article-content">
     
       
-        <p>2009/2/13 本文针对 Ubuntu Intrepid 的更新版本可在此查看。</p>
+        <p>2009/2/13 本文使用 Ubuntu Intrepid 的更新版本可在此查看。</p>
       
     
       
-        <p>注意：本文已改版，使用 Nginx 作为 Apache2 的前端，而非本文中那种比较少见的配置。你可能更想查看改版后的内容。</p>
+        <p>注意：本文已重新修改，使用 Nginx 作为 Apache2 的前端，而不是本文中展示的那种较为少见的配置。你可能更想查看修改后的版本。</p>
       
     
       
-        <p>当你在构建对自己很重要的东西时，你会希望把它建立在坚实的基础上。再没有什么比开发出一款优秀的软件，却跑在一个配置糟糕的服务器上更让人沮丧了。最近我决定不再忍受这种感觉，于是重新搭建了我的服务器，下面是我的操作记录。</p>
+        <p>当你在构建对自己很重要的东西时，你会希望把它建立在坚实的基础之上。最令人沮丧的事情，莫过于花费大量心血开发出一款优秀的软件，最后却跑在一个配置糟糕的服务器上。最近我决定不再忍受这种感觉，于是重新搭建了我的服务器，以下是我的详细步骤。</p>
       
     
       
-        <p>最终成品是一台运行 Ubuntu Feisty 的服务器，使用 Apache2 + mod_python 来提供 Django 应用，lighttpd 负责提供静态文件。它使用 memcached 作为缓存后端，数据库则采用 Postgres 8.2。按照这些步骤搭建的机器实际上正在运行这个博客——一个 Django 应用。我是在 SliceHost 256MB 的 VPS 上完成安装的，这些步骤同样适用于任何 Ubuntu 服务器（对共享主机则不太适用）。</p>
+        <p>最终成品是一台运行 Ubuntu Feisty 的服务器，使用 Apache2 + mod_python 来提供 Django 应用，使用 lighttpd 来提供静态文件。它使用 memcached 作为缓存后端，并使用 PostgreSQL 8.2 作为数据库。按照这些步骤搭建的服务器目前正在运行这个博客——它正是一个 Django 应用。我是在 SliceHost 256MB 的 VPS 上完成安装的，这些步骤同样适用于任何 Ubuntu 服务器（对共享主机则不太适用）。</p>
       
     
       
@@ -50,38 +50,64 @@
     
       
         <h2>致谢</h2>
+        
       
     
       
-        <p>这份搭建指南整合了大量由不同作者撰写的资源。下面是我在搭建过程中参考的资料，我也会在正文中相应位置给出链接。</p>
+        <p>这篇搭建指南综合了大量由不同作者撰写的资源。下面是我在搭建过程中参考的资料，我也会在正文中相应的位置提供链接。</p>
       
     
       
-        <div class="list-content">[Feisty 服务器相关操作指南][server][Feisty 初始设置入门指南][start][将 SliceHost 升级到 Ubuntu Feisty][feisty][在 SliceHost 上搭建 MySQL + Django 服务器][start][在 Ubuntu 上安装 Postgres][postgres][DjangoJoe 撰写的在 SliceHost 上用 CentOS + Postgres 搭建 Django 环境][centos][将 Lighttpd 配置为 Apache 的静态文件服务器][lighttpd]</div>
+        <div class="list-content">[Feisty 服务器相关操作指南][server][Feisty 入门搭建指南][start][将 SliceHost 升级到 Ubuntu Feisty][feisty][在 SliceHost 上搭建 MySQL + Django 服务器][start][在 Ubuntu 上安装 Postgres][postgres][DjangoJoe 撰写的在 SliceHost 上使用 CentOS + Postgres 搭建 Django 环境的指南][centos][将 Lighttpd 配置为 Apache 的静态文件服务器][lighttpd]</div>
       
     
       
         <h2>将 Ubuntu Dapper 升级到 Feisty</h2>
+        
       
     
       
-        <p>以下步骤参考自[这里][feisty]。</p>
+        <p>以下步骤参考自[此处][feisty]。</p>
       
     
       
-        <p>从 Ubuntu Dapper（SliceHost 当前的 Ubuntu 系统）升级到 Feisty 过程快速且简单。不过你必须按顺序进行升级，直接跳到 Feisty 可能会导致系统不稳定。最后执行的 &#x27;lsb_release -a&#x27; 只是为了确认升级是否成功，它应该显示你现在安装的是 Ubuntu Feisty。</p>
+        <p>从 Ubuntu Dapper（SliceHost 当前提供的 Ubuntu 系统）升级到 Feisty 过程快速且简单。不过你必须按顺序进行升级，直接跳到 Feisty 很可能会导致系统不稳定。最后执行的 `lsb_release -a` 只是为了确认升级是否成功，它应该显示你现在安装的是 Ubuntu Feisty。</p>
+      
+    
+      
+        <pre><code>### My article
+
+My list entry one
+My list entry two
+
+&lt;code class=&quot;python&quot;&gt;def x (a, b):
+return a * b&lt;/code&gt;
+</code></pre>
       
     
       
         <h2>安装 Apache 及其他依赖库</h2>
+        
       
     
       
-        <p>主要参考自[这里][apache]。</p>
+        <p>主要参考自[此处][apache]。</p>
       
     
       
-        <p>这里我们安装了一系列库。其中有些会有有趣的配置界面需要逐步完成，但难度都不大。你可能会注意到 psyco_pg2 没有通过 apt-get 安装，那是因为 apt 仓库里的 psyco_pg2 无法正常工作（一直导致段错误）。</p>
+        <p>这里我们安装了一系列库。其中一些会有有趣的交互式安装界面，不过都没有特别复杂。你可能会注意到 psyco_pg2 没有通过 apt-get 安装，那是因为 apt 仓库中的 psyco_pg2 版本对我来说无法正常工作（一直导致段错误）。</p>
+      
+    
+      
+        <pre><code> ### My article
+
+My list entry one
+My list entry two
+
+@@ python
+def x (a, b):
+return a * b
+</code></pre>
       
     
       
@@ -90,14 +116,20 @@
     
       
         <h2>PostgreSQL</h2>
+        
       
     
       
-        <p>步骤参考自[这里][postgres]和[这里][centos]。</p>
+        <p>步骤参考自[此处][postgres]和[此处][centos]。</p>
       
     
       
-        <p>请记得把下面代码中的 &#x27;password&#x27; 替换成你自己的密码。</p>
+        <p>请务必使用自己的密码，而不是下面代码中的 &#x27;password&#x27;。</p>
+      
+    
+      
+        <pre><code>import myproject.myapp.markdownpp as markdownpp
+</code></pre>
       
     
       
@@ -105,27 +137,83 @@
       
     
       
-        <p>找到文件末尾，将所有以 host 开头的行都注释掉（除非你需要远程访问数据库）。最后 local 那行应该修改为：</p>
+        <pre><code>class Entry(models.Model):
+     title = models.CharField(maxlength=200)
+     body = models.TextField()
+     body_html = models.TextField(blank=True, null=True)
+     use_markdown = models.BooleanField(default=True)
+</code></pre>
       
     
       
-        <p>最后我们重启 Postgres：</p>
+        <p>跳转到文件末尾，注释掉所有以 host 开头的行（除非你需要远程访问数据库）。最后 local 那行应该修改为：</p>
+      
+    
+      
+        <pre><code>    def save(self):
+        if self.use_markdown:
+            self.body_html = markdownpp.markdown(self.html)
+        else:
+            self.body_html = self.body
+        super(Entry,self).save()
+</code></pre>
+      
+    
+      
+        <p>最后我们重启 PostgreSQL：</p>
+      
+    
+      
+        <pre><code>class Resource(models.Model):
+    title = models.CharField(maxlength=50)
+    markdown_id = models.CharField(maxlength=50)
+    content = models.FileField(upload_to=&quot;myapp/resource&quot;)
+</code></pre>
       
     
       
         <h2>配置 memcached</h2>
+        
       
     
       
-        <p>现在我们要设置 memcached。这一步非常简单，它将为你的 Django 应用提供强大的缓存功能。第一步是：</p>
+        <p>现在我们要来设置 memcached。这一步相当简单，它将为你的 Django 项目提供强大的缓存功能。第一步是：</p>
       
     
       
-        <p>在 Ubuntu 中，www-data 是运行 Web 服务器的用户，这与其他发行版中的 apache 用户类似。使用 -u www-data 参数运行 memcached，意味着我们将以和 Web 服务器相同的用户身份运行它。11211 是 memcached 的默认端口，除非你要同时运行多个 memcached 实例，否则不需要修改。由于我的 VPS 总内存只有 256MB，而且我的 Django 应用需要缓存的数据并不多，我选择了给 memcached 分配 32MB 内存。如果你的 VPS 内存更大，你可能希望分配更多内存给 memcached。</p>
+        <pre><code>class Entry(models.Model):
+     title = models.CharField(maxlength=200)
+     body = models.TextField()
+     body_html = models.TextField(blank=True, null=True)
+     use_markdown = models.BooleanField(default=True)
+</code></pre>
       
     
       
-        <p>接下来我们需要安装 python-memcached，这是 Python 的 memcached 客户端。还有一个替代的 cmemcached 库，速度是 python-memcached 的两倍，但我编译时遇到了问题（可能是因为我从仓库而不是源码安装的 memcached）。安装 python-memcached 非常简单：</p>
+        <p>在 Ubuntu 中，www-data 是运行 Web 服务器的用户，这与其他发行版中的 apache 用户类似。使用 -u www-data 参数运行 memcached，意味着我们将以和 Web 服务器相同的用户身份运行它。11211 是 memcached 的默认端口，除非你要同时运行多个 memcached 实例，否则不建议修改。由于我的 SliceHost 只有 256MB 内存，而我的 Django 应用需要缓存的数据并不多，因此我选择了 32MB 的内存。你可能希望分配更多内存给 memcached，尤其是当你的 VPS 配置更高时。</p>
+      
+    
+      
+        <p>接下来我们需要安装 python-memcached，它是 Python 的 memcached 客户端。还有一个叫 cmemcached 的替代库，速度是 python-memcached 的两倍，但我编译时遇到了麻烦（我认为是因为我从仓库而不是源码安装的 memcached）。python-memcached 安装起来非常简单：</p>
+      
+    
+      
+        <pre><code>    def save(self):
+        if self.use_markdown:
+            pieces = [self.html,]
+            for res in Resource.objects.all():
+                 ref = u&#x27;\n\n[%s]: %s &quot;%s&quot;\n\n&#x27; % (
+                    res.markdown_id,
+                    res.get_content_url(),
+                    res.title,
+                    )
+                pieces.append(res)
+            content = u&quot;\n&quot;.join(pieces)
+            self.body_html = markdownpp.markdown(content)
+        else:
+            self.body_html = self.body
+        super(Entry,self).save()
+</code></pre>
       
     
       
@@ -133,75 +221,366 @@
       
     
       
-        <p>在撰写本文时（2007 年 7 月 12 日），Django 的当前 SVN 版本与 python-memcached 存在兼容性问题。补丁已经提交并正在审核中，希望这个问题很快就能解决。如果有人因此受到影响，可以给我发邮件或留言，我会更新本文加入必要的修改步骤。</p>
+        <p>在当前时间（2007 年 7 月 12 日），Django 的最新 svn 版本与 python-memcached 存在兼容问题。已经有人提交了补丁，正在审核流程中，希望这个问题很快就能解决。如果有人因此受到影响，请给我发邮件或留下评论，我会更新这篇指南，加入必要的修改。</p>
       
     
       
         <h2>创建非 root 账户</h2>
+        
       
     
       
-        <p>现在来做一些安全相关的操作。我对安全了解不多，但总比没有强。</p>
+        <p>现在来做一些安全相关的操作。虽然我对安全了解不多，但每一点努力都是有帮助的。</p>
       
     
       
-        <p>复制 root 的那一行，为你的新账户创建一个类似的条目。</p>
+        <pre><code>refs = entry.resources.all()
+</code></pre>
       
     
       
-        <p>现在关闭当前 SSH 连接，用刚刚创建的新用户重新登录。</p>
+        <p>复制 root 的那一行，然后为你的新账户复制一份。</p>
       
     
       
-        <p>然后禁用 root 账户。</p>
+        <p>现在关闭当前的 ssh 连接，用你刚创建的新用户重新登录。</p>
       
     
       
-        <p>禁用 root 账户的思路是：避免使用一个众所周知且可通过 SSH 访问的用户名。同时也不希望别人能轻易通过 su 切换到 root。当然，你的新账户仍然可以被访问，但至少它是你自己的账户，而不是一个广为人知的用户名。</p>
+        <p>然后我们禁用 root 账户。</p>
       
     
       
-        <h2>使用 SSH 密钥实现免密登录</h2>
+        <pre><code>def save:
+    super(Entry,self).save()
+    res = self.resources.all()
+    # etc etc
+    super(Entry,self).save()
+</code></pre>
       
     
       
-        <p>这更多是为了方便，但当我们禁用密码登录后（当然你也可以不禁用），它也能提升安全性。我假设你已经在本地机器的 ~/.ssh 目录下有一组 rsa 密钥。如果你没有（或者你在用 Windows 等系统），最好去找一篇更详细的教程。</p>
+        <p>禁用 root 账户的原因是，不应该让一个众所周知的用户名可以通过 SSH 直接访问。同时也不应该让它能被快速 su 切换。诚然，你的新账户仍然可以被访问，但至少它是你自己的账户，而不是一个广为人知的用户名。</p>
       
     
       
-        <p>现在远程登录应该已经自动完成。接下来我们对 SSH 进行进一步限制。</p>
+        <h2>配置 SSH 密钥自动登录</h2>
+        
       
     
       
-        <p>你需要做以下修改：</p>
+        <p>这更多是为了方便，但在我们禁用密码登录后（虽然你也可以选择不这么做），它也能提升安全性。我假设你已经在本地机器的 ~/.ssh 目录下有一对 rsa 密钥。如果你没有（或者你在使用 Windows 等系统），最好去查找更详细的指南。</p>
       
     
       
-        <p>（PAM 可以防止暴力破解 SSH 登录，在禁用密码登录后这一威胁已不复存在。）</p>
+        <pre><code>import time, thread
+from django.db import models
+from django.dispatch import dispatcher
+from django.db.models import signals
+#######################
+### your models go here ###
+#######################
+</code></pre>
       
     
       
-        <p>现在只有持有有效密钥的用户才能通过 SSH 登录……也就是说只有你自己的账户可以登录。如果你想让其他人也能登录，可以让他们把自己的公钥发给你，或者临时开启密码登录让他们先配置好 SSH。</p>
+        <p>远程登录现在应该可以自动完成了。接下来我们进一步加强 SSH 的安全性。</p>
+      
+    
+      
+        <p>你需要进行以下修改：</p>
+      
+    
+      
+        <p>现在退出登录，再重新 ssh 登录。一切正常，对吧？如果没问题，我们现在要禁用 SSH 的密码登录（必须使用密钥）。再次编辑：</p>
+      
+    
+      
+        <pre><code>def resave_object(sender, instance, signal, *args, **kwargs):
+    def do_save():
+        time.sleep(3)
+        try:
+            instance.save()
+        except:
+            pass
+    id = unicode(instance) + unicode(instance.id)
+    try:
+        should_resave = resave_hist[id]
+    except KeyError:
+        resave_hist[id] = True
+        should_resave = True
+    if should_resave is True:
+        resave_hist[id] = False
+        thread.start_new_thread(do_save, ())
+    else:
+        resave_hist[id] = True
+</code></pre>
+      
+    
+      
+        <p>并在文件末尾添加这一行：</p>
+      
+    
+      
+        <pre><code>resave_hist = {}
+dispatcher.connect(resave_object, signal=signals.post_save, sender=Entry)
+</code></pre>
+      
+    
+      
+        <p>并进行如下修改：</p>
+      
+    
+      
+        <p>（PAM 可以防止暴力破解 SSH 登录，由于我们已经禁用密码登录，这项功能不再必要。）</p>
+      
+    
+      
+        <p>现在只有拥有有效密钥的用户才能通过 SSH 登录……也就是说只有你自己的这个账户可以登录。如果你想允许其他人登录，可以让他们把自己的公钥发给你，或者临时开启密码登录让他们先配置好 SSH 密钥。</p>
       
     
       
         <h2>配置 iptables</h2>
+        
       
     
       
-        <p>是的……我现在还不知道怎么在 Ubuntu 上配置 iptables。也就是说我不知道配置文件在哪里。命令行工具快把我逼疯了。我拒绝再学一门新的迷你语言！难道每个日常任务都需要一门迷你语言吗？</p>
+        <p>是的……我还不知道在 Ubuntu 上怎么配置 iptables。也就是说我不知道配置文件在哪里。命令行工具快把我逼疯了。我拒绝再学另一种迷你语言！难道每个日常任务都需要一种迷你语言吗？</p>
       
     
       
-        <p>尽管如此，你还是应该完成这一步。希望我很快能搞懂帮助文档，然后更新本文。</p>
+        <p>尽管如此，你还是应该配置它。希望我很快能研究一下帮助文档，然后更新这部分内容。</p>
       
     
       
-        <h2>设置 Django 等</h2>
+        <h2>安装和配置 Django 等组件</h2>
+        
       
     
       
-        <p>现在我们要设置 Django。首先为我们的 Django 应用创建一个 Postgres 用户：</p>
+        <p>现在我们要来设置 Django。首先为我们的 Django 应用创建一个 PostgreSQL 用户：</p>
+      
+    
+      
+        <p>提示：把数据库名、用户名和密码记下来，接下来几分钟我们还会用到它们，时间隔得刚刚好够让你把它们全忘掉。</p>
+      
+    
+      
+        <p>现在我们需要给 www-data 用户（运行 Web 服务器的用户）授予文件访问权限。</p>
+      
+    
+      
+        <p>接下来我们要为 Django 创建一些目录。你可以随意调整目录结构，这主要看个人习惯，但后续步骤中你要记住自己做出的修改。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas18ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>现在我们签出 Django 源码，并将其链接到 site-packages 目录，这样 Python 解释器就能找到它了。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas19ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>现在我们可以创建第一个 Django 项目了。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas20ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>接下来编辑刚刚生成的 settings.py 文件。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas21ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>你需要进行多处修改，以下是你需要添加（而非修改）的配置行：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas22ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>我个人使用了很长的缓存时间，因为我的页面内容变化不大（我主要是在写博客，因此整页缓存对我来说是可行的），默认值要低得多，大概在 300 左右。key prefix 用于区分使用同一缓存后端的多个 Django 项目。如果你只打算用这个缓存后端跑一个项目，那么可以将 key 留空；如果有多个项目，每个项目都应该使用唯一的 key prefix。最后，anonymous only 设置意味着已登录用户不会收到缓存页面。对于我的应用来说，只有管理员会登录，这个设置很合适，你的情况可能有所不同。</p>
+      
+    
+      
+        <p>以下是 settings.py 中你需要修改的已有配置项：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas23ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <blockquote>后续扩展这个 Django 环境时，你最终会想要添加自己的模板、媒体文件和应用。要让媒体文件可被访问，你可以从媒体文件所在位置创建一个软链接指向 /var/www/yourdomain.com/media，命令如下：</blockquote>
+      
+    
+      
+        <p>qaodmasdkwaspemas24ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <blockquote>对于模板，你只需要将模板目录的路径添加到 settings.py 中的 TEMPLATE_DIRS 变量即可。配置 Django 应用和项目有时更像是一门艺术而非科学。去画会儿画吧，如果需要帮助，随时可以提出来。</blockquote>
+      
+    
+      
+        <p>创建完 Django 项目后，我们需要完成 Apache 的配置。首先创建一个存放错误日志的目录：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas25ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>然后我们要编辑 Apache 的配置文件：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas26ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>这个文件初始应该是空的，你需要将以下内容添加到其中：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas27ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>最后再创建几个软链接来完成配置：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas28ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>现在重启 Apache，应该就能看到一个标准的 Django 欢迎页面了：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas29ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <h2>安装 Lighttpd</h2>
+        
+      
+    
+      
+        <p>我基本是按照[这里的说明][lighttpd]操作的。这些说明非常棒，不过我还是根据自己的安装情况做了一些调整。</p>
+      
+    
+      
+        <p>首先打开配置文件：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas30ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>接下来取消第 60 行的注释</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas31ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>添加以下内容（可以像他在[这里][lighttpd]那样加在第 118 行左右）：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas32ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>然后启动 lighttpd 服务：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas33ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>并启用一些 Apache2 的模块……</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas34ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>最后编辑 proxy.conf 文件</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas35ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>你需要将文件修改成下面这样（是将现有配置文件改成下面的内容，而不仅仅是在文件末尾追加）：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas36ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>你不需要启用 proxy routing 等功能，也不需要修改标签以外的其他配置。</p>
+      
+    
+      
+        <p>接下来修改 VirtualHost 文件：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas37ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>在你的 VirtualHost 配置块内（任何位置都可以，但不要放在 media location 里面，我把它放在了靠近顶部的位置）添加以下内容：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas38ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>重新加载 Apache 配置并重启服务。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas39ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>我参考的[那篇教程][lighttpd]建议使用 curl 来验证页面是由 lighttpd 提供的，但我个人觉得用 Firefox/Firebug 查看静态媒体文件的响应头会更简单。不管用哪种方法，现在你应该已经能通过 lighttpd 来提供 /media 目录下的所有文件了。</p>
+      
+    
+      
+        <h2>完成</h2>
+        
+      
+    
+      
+        <p>至此，你应该已经拥有了一个相当棒的 Django 服务器。你可能还想进一步加强安全性（我后续会研究一下并补充更多细节），但抛开安全不谈，我认为这个配置已经非常接近生产环境了。使用 mod_python 运行 Django，lighttpd 提供静态文件，memcached 负责缓存，Python 2.5（2.4 会更稳定一些，但目前 2.5 已经足够成熟），对我来说运行得非常好。</p>
+      
+    
+      
+        <p>如果你在搭建过程中有任何问题，欢迎告诉我，我很乐意帮忙。另外，如果有人对改进这个搭建方案有任何想法，我也非常希望能听到。</p>
       
     
   </div>

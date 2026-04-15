@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>在 AuditTrail 和 Django-Rcsfield 之间抉择 · Will Larson 文集</title>
+  <title>在 AuditTrail 和 Django-Rcsfield 之间做选择 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>在 AuditTrail 和 Django-Rcsfield 之间抉择</h1>
+    <h1>在 AuditTrail 和 Django-Rcsfield 之间做选择</h1>
     <div class="meta">
       2008-10-15 · 
       <a href="https://lethain.com/choosing-between-audittrail-and-django-rcsfield/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,23 +29,23 @@
   <div class="article-content">
     
       
-        <p>在我发表了如何让 django-rcsfield 运行起来的文章后不久，Marty Alchin 发帖提到了 AuditTrail，并询问我是否能找到 compelling 的理由，让人们选择类似 django-rcsfield 的方案而不是 AuditTrail。</p>
+        <p>在我发帖介绍如何让 django-rcsfield 跑起来后不久，Marty Alchin 发帖提到了 AuditTrail，并询问我是否能看到有什么 compelling 的理由让我选择类似 django-rcsfield 的方案而不是 AuditTrail。</p>
       
     
       
-        <p>如果你对两者进行比较，会发现它们提供的功能非常相似：</p>
+        <p>如果你对比两者，它们提供的功能非常相似：</p>
       
     
       
-        <div class="list-content">django-rcsfield 利用多种版本控制系统（Git、Bazaar、Subversion）来为 TextField 维护完整的历史版本记录。而 AuditTrail 则是利用数据库来为一个 Model 维护完整的历史版本记录（尽管它对关联关系的支持可能不太友好）。</div>
+        <div class="list-content">django-rcsfield 使用多种版本控制系统（Git、Bazaar、Subversion）来为 TextField 维护完整的历史版本。AuditTrail 则利用数据库来为整个 Model 维护完整的历史版本（尽管它对关联关系的支持并不完美）。</div>
       
     
       
-        <p>昨晚我为正在开发的一个应用集成了 django-rcsfield，花了不少功夫才搞明白。而就在刚才，我只用了大约五分钟就用 AuditTrail 成功替换了 django-rcsfield。rcofield 会引发各种奇怪的跨平台 Git 问题，而 AuditTrail 直接就能正常工作；rcofield 曾导致我的小型 VPS 严重卡顿——而 AuditTrail 依然是开箱即用。</p>
+        <p>昨晚我为正在开发的一个应用集成了 django-rcsfield，花了不少功夫去摸索和理解。而就在刚才，我只用了大约五分钟就用 AuditTrail 成功替换了 django-rcsfield。原本 rcsfield 会引发各种奇怪的跨平台 Git 问题，而 AuditTrail 直接就能用。原本 rcsfield 让我那台小小的 VPS 再次严重卡顿，而 AuditTrail 直接就能用。</p>
       
     
       
-        <p>我能想象到一些特定场景下，拥有合并、克隆、分支等完整功能的版本控制会成为真正的优势，但我觉得这类应用只占所有需要版本控制的应用中的极小一部分。对于不在这个小众范围内的项目来说，AuditTrail 似乎是目前最好的现成解决方案。</p>
+        <p>我能想象到，在某些特定场景下，拥有完整的合并、克隆、分支等功能会是非常宝贵的优势，但我认为这类应用只占所有需要版本控制功能的应用程序中的一小部分。对于不在这个小范围内的项目来说，AuditTrail 似乎是目前最好的现成解决方案。</p>
       
     
       
@@ -53,19 +53,26 @@
       
     
       
-        <div class="list-content">把 AuditTrail wiki 页面底部的代码复制到一个名为 audit.py 的文件中，并确保它在你的 Python 路径中。在 models.py 中引入 audit.py：
-from django.db import models
+        <pre><code>from django.db import models
 import audit
-在你的模型定义中添加 AuditTrail 字段：
-class MyModel(models.Model):
+</code></pre>
+      
+    
+      
+        <pre><code>class MyModel(models.Model):
     title = models.CharField(max_length=200)
     text = models.TextField()
     history = audit.AuditTrail()
-同步数据库：
-python manage.py syncdb
-然后就可以开始使用了。
-
-&gt;&gt;&gt; from models import MyModel
+</code></pre>
+      
+    
+      
+        <pre><code>python manage.py syncdb
+</code></pre>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; from models import MyModel
 &gt;&gt;&gt; MyModel.create(title=&quot;hi&quot;,text=&quot;some value&quot;)
 &gt;&gt;&gt; a = MyModel.objects.all()[0]
 &gt;&gt;&gt; a.text = &quot;some other value&quot;
@@ -75,15 +82,20 @@ python manage.py syncdb
 &gt;&gt;&gt; a.history.all()[0].text
 &quot;some other value&quot;
 &gt;&gt;&gt; a.history.all()[1].text
-&quot;some value&quot;</div>
+&quot;some value&quot;
+</code></pre>
       
     
       
-        <p>虽然我非常感谢为 django-rcsfield 付出大量努力的开发者，但目前看来，AuditTrail 是一种更简单的数据版本控制方案。我认为这两种方案都有存在的价值，有些应用确实会更适合使用 django-rcsfield 而非 AuditTrail。但我建议大家优先从 AuditTrail 开始，只有在实际需求要求时再考虑切换。</p>
+        <div class="list-content">把 AuditTrail wiki 页面底部的代码复制粘贴到一个名为 audit.py 的文件里，放在你的 Python 路径下。在 models.py 中导入 audit.py。在你的模型定义中添加一个 AuditTrail 字段。同步数据库。大功告成。</div>
       
     
       
-        <p>希望这两个项目都能继续得到改进，但在目前阶段，除非你需要合并、推送、拉取或克隆等高级 VCS 功能，否则 AuditTrail 是更好的选择。</p>
+        <p>虽然我非常感谢为 django-rcsfield 付出大量努力的开发者，但我认为在当前阶段，AuditTrail 是一种更简单实用的数据版本控制方案。当然，我相信这两种方案都有各自的存在价值，有些应用确实会更适合使用 django-rcsfield 而不是 AuditTrail。但我的建议是：优先从 AuditTrail 开始，只有在实际情况确实需要时再考虑切换。</p>
+      
+    
+      
+        <p>希望这两个项目都能继续发展完善，但在目前阶段，除非你需要合并、推送、拉取或克隆等更高级的 VCS 功能，否则 AuditTrail 是更好的选择。</p>
       
     
   </div>

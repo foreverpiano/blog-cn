@@ -29,15 +29,15 @@
   <div class="article-content">
     
       
-        <p>在目前这个用 Cocoa 和 Objective C 开发的项目中，我遇到了一段需要打开文件的代码，但我并不确定要用哪个应用程序来打开。我希望能重现 Finder 中双击文件的效果（即根据文件扩展名，使用用户指定的默认应用程序打开文件），幸运的是，这实现起来非常简单。</p>
+        <p>在目前一个用 Cocoa 和 Objective C 编写的项目中，我遇到了一部分需要打开文件的代码，但我并不确定要用哪个应用程序来打开它们。我希望实现类似在 Finder 中双击文件的效果（即根据文件扩展名，使用用户指定的默认应用程序打开），幸运的是，这实现起来非常简单。</p>
       
     
       
-        <p>经过一番摸索，我发现 Carbon 中这个功能是通过 LaunchServices 实现的，但很快我又发现 Cocoa 中并不存在 LaunchServices。我花了不少时间寻找 Cocoa 中的对应方案，越来越感到沮丧。我差点就打算在 Cocoa 应用中引入 Carbon 框架了，但决定再最后尝试一次：我确信 Cocoa 一定有对应的方法，只是不知道它藏在哪里。</p>
+        <p>经过一番查找，我发现 Carbon 中这个功能是通过 LaunchServices 实现的，但很快我就发现 LaunchServices 在 Cocoa 中并不存在。我花了不少时间寻找 Cocoa 中的对应方案，越来越感到沮丧。我几乎要放弃，转而在 Cocoa 应用中引入 Carbon 框架，但还是决定再最后尝试一次：我确信 Cocoa 中一定有对应的功能，只是不知道它藏在哪里。</p>
       
     
       
-        <p>在阅读 Cocoa 概览文档时，我找到了 Google 和 Apple 官方文档搜索都未能告诉我的答案：NSWorkspace 就是 LaunchServices 在 Cocoa 中的等价物。</p>
+        <p>在阅读 Cocoa 概览文档时，我找到了 Google 和 Apple 官方文档搜索都没能告诉我的答案：NSWorkspace 就是 Cocoa 中 LaunchServices 的等价物。</p>
       
     
       
@@ -49,11 +49,18 @@
       
     
       
-        <p>注意代码中使用的是 [NSWorkspace sharedWorkspace]，而不是标准的 Objective C 写法如 [[NSWorkspace alloc] init]。这是因为系统中存在一个全局共享的 workspace，你可以直接使用它，而无需自己去分配和初始化。其最大的好处是使用完后不需要（更准确地说是不能）手动 release 它。openFile 方法的参数是一个 NSString，包含你要打开文件的路径。</p>
+        <pre><code>NSString *aFilePath = [someFiles objectAtIndex:0];
+NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+[workspace openFile:aFilePath];
+</code></pre>
       
     
       
-        <p>这再次印证了我开发 Cocoa 时的座右铭：一旦你知道，它就很简单；不知道的时候，它似乎不可能。而跨越这个认知鸿沟的过程，既非简单也非不可能，往往在两个极端之间摇摆。</p>
+        <p>注意代码中使用的是 [NSWorkspace sharedWorkspace]，而不是 Objective C 通常的 [[NSWorkspace alloc] init] 方式。这是因为系统中存在一个共享的全局 workspace，你可以直接使用它，而无需自己分配和初始化一个实例。最大的好处是，你不需要（更准确地说是绝不能）在使用完后手动 release 它。openFile: 方法的参数是一个 NSString，包含你要打开文件的完整路径。</p>
+      
+    
+      
+        <p>这再次印证了我从事 Cocoa 开发的座右铭：一旦你知道，它就微不足道；在你知道之前，它则不可能实现。而跨越这个认知鸿沟的过程，既非全然轻松，也非完全不可能，而是处于两者之间的极端状态。</p>
       
     
   </div>

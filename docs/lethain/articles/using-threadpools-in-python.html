@@ -29,23 +29,49 @@
   <div class="article-content">
     
       
-        <p>和大多数程序员一样，我在使用线程时总会暗自感到愉悦。我知道一些小疏忽就可能导致死锁，进而造成难以诊断的严重问题，但说实话，线程就是通往狂喜白日梦的入口——幻想着自己的新脚本能多么高效地利用多核……或者说，如果真的有人在使用它的话，它本可以做到。</p>
+        <p>和大多数程序员一样，我在项目中使用线程时会暗自感到愉悦。我知道一些小小的疏忽就可能导致死锁，进而造成难以诊断的严重问题，但我们得承认，线程是通往狂热白日梦的大门——幻想着自己的新脚本能多么高效地利用多核……或者说，如果真的有人在使用它的话，它本可以做到。</p>
       
     
       
-        <p>幸运的是，对于我们这些追求这种“误入歧途”的快感的人来说，Python 能让你快速轻松地组建一个可靠的线程池。你只需要标准库中的 Queue 和 threading 模块即可。Queue.Queue 是一个线程安全的队列，而 threading.Thread 则提供了一个创建线程的简单接口。</p>
+        <p>幸运的是，对于我们这些追求这种误导性快感的人来说，Python 能让我们快速轻松地搭建一个合理的线程池。你只需要标准库中的 Queue 和 threading 模块即可。 Queue.Queue 是一个线程安全的队列，而 threading.Thread 则提供了一个创建线程的简单接口。</p>
       
     
       
-        <p>下面我们来看一个在 Python 中安全使用线程的示例。</p>
+        <p>让我们来看一个在 Python 中安全使用线程的示例。</p>
       
     
       
         <h2>使用线程池处理 CSV 文件</h2>
+        
       
     
       
-        <p>这个脚本会遍历一个逗号分隔值（CSV）文件，并使用线程池来处理接收到的数据。</p>
+        <p>这个脚本会遍历一个逗号分隔值文件，并使用线程池来处理接收到的数据。</p>
+      
+    
+      
+        <pre><code>from __future__ import with_statement
+from time import sleep
+from csv import DictReader
+from Queue import Queue
+from threading import Thread
+q = Queue()
+workers = []
+def worker():
+while True:
+line = q.get()
+print &quot;processing: %s\n\n&quot; % line
+q.task_done()
+for i in range(10):
+t = Thread(target=worker)
+t.setDaemon(True)
+workers.append(t)
+t.start()
+with open(&#x27;myfile.csv&#x27;,&#x27;r&#x27;) as fin:
+for line in DictReader(fin):
+q.put(line)
+q.join()
+</code></pre>
       
     
       
@@ -53,55 +79,139 @@
       
     
       
-        <div class="list-content">本例使用的是 Python 2.5，如果是 Python 2.6 则需要去掉 from __future__ import 的语句。对于 Python 3k，则需要把 from Queue import Queue 改成 from queue import Queue，并给 print 添加括号。（我漏掉什么了吗？我还没真正用过 Py3k……）我们使用 csv.DictReader 而不是 csv.reader，因为前者会返回一个 key=&gt;value 的字典映射（把第一行当作键），而后者返回的是一个有序元组。你不必把线程保存在列表中（像上面代码里的 workers 那样），但这是一种保留线程引用的简便方式。我在这里使用 range，因为它是 Py3k 中保留的函数，但对于 Py2.x 代码，使用 xrange 显然更合适。</div>
+        <div class="list-content">这是 Python 2.5 版本的代码，对于 Python 2.6 你需要去掉 from __future__ import。对于 Python 3k，你需要把 from Queue import Queue 改为 from queue import Queue，同时给 print 添加括号。（我漏掉了什么吗？我还没真正用过 Py3k……）我们使用 csv.DictReader 而不是 csv.reader，因为它会返回一个 key=&gt;value 映射的字典（将第一行作为键），而 csv.reader 返回的是一个有序元组。你不必把线程保存在列表中（上面由 workers 体现），但这是一种方便保留引用的方式。我在这里使用 range，因为在 Py3k 中它是唯一保留的函数，但对于 Py2.x 代码，使用 xrange 显然更合适。</div>
       
     
       
-        <p>我们可以更多地利用 logging 和 optparse 模块，让上面的脚本更加健壮。</p>
+        <p>我们可以通过大量使用 logging 和 optparse 模块，让上面的脚本变得更加健壮。</p>
       
     
       
-        <p>之后你可以根据实际需求稍作调整，在解析完数据后进行一些真正的工作。或者你可以扩展这个脚本，让它支持其他格式……</p>
+        <pre><code>&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;threads&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Thread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;target&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;worker&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setDaemon&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;workers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;r&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DictReader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;put&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+</code></pre>
+      
+    
+      
+        <p>从这里开始，你可以根据自己的需求稍作调整，在解析数据后进行一些实际的工作。或者你可以扩展这个脚本来支持其他格式……</p>
       
     
       
         <h2>添加对 XML 处理的支持</h2>
+        
       
     
       
-        <p>你可能会觉得本文接下来的部分有些刻意，但我刚学完 ElementTree 的新鲜知识，所以我们来写一个 manage_xml_file 函数吧。</p>
+        <p>你可能会觉得本文接下来的部分有些刻意，但我刚掌握了 ElementTree 的新鲜知识，所以让我们来一起写一个 manage_xml_file 函数吧。</p>
       
     
       
-        <p>假设我们收到的 XML 文档是这样的格式……</p>
+        <p>假设我们收到的是以下这种格式的 XML 文档……</p>
       
     
       
-        <p>……我们希望处理其中的每个 item。但我们来增加点难度：假设我们知道要处理根元素的子节点，却连根元素和子元素的名称都不知道。而且，该死的，我们还想快速地单遍完成处理。再来点更疯狂的：即使最终发现 XML 文档格式不正确，我们也希望能尽可能多地提取出格式正确的元素。</p>
+        <pre><code>&lt;list&gt;
+    &lt;item/&gt;
+    &lt;item/&gt;
+    &lt;item/&gt;
+&lt;/list&gt;
+</code></pre>
       
     
       
-        <p>首先我们需要导入 ElementTree。对于 Python 2.x，值得先尝试导入 cElementTree，如果它可用的话。</p>
+        <p>……并且我们希望处理其中的每一个 item。但让我们增加一点难度：假设我们知道要处理根元素的子节点，但我们甚至不知道根元素或子元素的名称。而且，该死的，我们还想快速地、单次遍历就完成这一切。让我们再疯狂一点：假设即使 XML 文档最终是格式错误的，我们也希望尽可能多地提取格式良好的元素。</p>
       
     
       
-        <p>在 Python 3.0 中，C 模块和 Python 模块的区别基本被消除，因此这个 try...except 的把戏就没有必要了，只需一个 import 即可。</p>
+        <p>首先我们需要导入 ElementTree。对于 Python 2.x，值得花时间尝试导入 cElementTree（如果可用的话）。</p>
       
     
       
-        <p>现在让我们来点实际的代码。</p>
+        <pre><code>try:
+    from xml.etree import cElementTree as ElementTree
+except ImportError:
+    from xml.etree import ElementTree
+</code></pre>
       
     
       
-        <p>关于这个脚本也有几点需要说明：</p>
+        <p>在 Python 3.0 中，C 模块和 Python 模块的区别基本被消除，因此这个 try...except 的把戏就没必要了，只需一个 import 即可。</p>
       
     
       
-        <div class="list-content">我觉得先把元素序列化成原生的 Python 字典，再进行处理，会舒服得多。是的，serialize 函数写得有点啰嗦。而且，如果 XML 元素嵌套足够深，它会遇到 Python 的递归限制。对此我可以接受。事实证明，把 XML 序列化成任意字典和数组的组合是一门玄学，但我认为这个 serialize 函数已经做得相当不错了。iterparse 会友好地告诉我们出错的行号和字符位置，这比很多 XML 库都要大方，因此我们得以尽可能多地提取数据，并且知道错误发生在哪儿。（遗憾的是）你很难从 XML 中再榨出更多东西了。iterparse 同时也是 Python 中最快的 XML 处理器，这也是它其他优点的附带好处。</div>
+        <pre><code>from xml.etree import ElementTree
+</code></pre>
       
     
       
-        <p>接下来我们需要更新 main 函数，检查文件是否以 xml 结尾，如果是则调用 manage_xml_file。</p>
+        <p>现在让我们来点实际的。</p>
+      
+    
+      
+        <pre><code>&lt;span class=&quot;n&quot;&gt;q&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Queue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;workers&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;worker&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;data&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;processing: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;Exception&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;logger&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;worker-thread: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task_done&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;threads&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Thread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;target&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;worker&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setDaemon&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;workers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;item_tag&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;reader&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ElementTree&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;iterparse&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;events&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;start&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;end&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;reader&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;c&quot;&gt;# discard &amp;#39;&amp;lt;List&amp;gt;&amp;#39; type tag&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;event&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;elem&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;reader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;item_tag&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;item_tag&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;elem&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tag&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;==&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;end&amp;#39;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;elem&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tag&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;item_tag&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;put&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;serialize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;elem&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;elem&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;clear&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;SyntaxError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;logger&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;critical&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;encountered invalid xml, &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;q&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+</code></pre>
+      
+    
+      
+        <p>关于这个脚本也有几点说明：</p>
+      
+    
+      
+        <div class="list-content">我觉得把元素序列化成原生的 Python 字典，然后再进行处理要舒服得多。是的，serialize 函数写得有点啰嗦。而且如果 XML 元素嵌套足够深，它会碰到 Python 的递归限制。我对此表示接受。事实证明，将 XML 序列化为字典和数组的任意组合是一门有点玄学的艺术，但我认为 serialize 函数做得相当不错。iterparse 会友好地告诉我们它在哪一行、哪个字符失败，这比许多 XML 库都要大方，所以我们能够提取尽可能多的数据，并且知道错误发生在什么位置。（遗憾的是）你很难从 XML 中再榨出更多东西了。iterparse 也是 Python 中最快的 XML 处理器，这也是它其他优点的附带好处。</div>
+      
+    
+      
+        <p>然后我们需要更新 main 函数，检查文件是否以 xml 结尾，并调用 manage_xml_file。</p>
+      
+    
+      
+        <pre><code>if filename.endswith(&#x27;csv&#x27;):
+    manage_csv_file(filename, logger, threads=threads)
+elif filename.endswith(&#x27;xml&#x27;):
+    manage_xml_file(filename, logger, threads=threads)
+else:
+    print u&quot;Cannot handle filename %s&quot; % filename.split(&#x27;.&#x27;)[0]
+</code></pre>
       
     
       
@@ -109,7 +219,7 @@
       
     
       
-        <p>希望这个例子能帮你入门 Python 线程池的奇妙世界。在你的脚本和项目中适当加入一些线程，能挖掘出巨大的灵活性和效率。当然，你最终可能会被烫伤，但这也意味着你已经成为高手了……</p>
+        <p>我希望这个例子能作为一篇入门介绍，带你走进 Python 线程池的奇妙世界。在你的脚本和项目中适当加入一些线程，能挤出大量的灵活性和效率。当然，你最终可能会被烫伤，但这也意味着你是个专业人士……</p>
       
     
       
@@ -117,7 +227,11 @@
       
     
       
-        <p>如果你有任何意见或吐槽，欢迎告诉我！</p>
+        <p>如果你有任何评论或吐槽，欢迎告诉我！</p>
+      
+    
+      
+        <div class="list-content">注意 Queue 在 Python 3.0 中已被重命名为 queue。另外注意 Python 2.6 内置了线程安全的 Lifo、Fifo 和 Priority 队列实现。真是一群幸运儿。↩你现在可能在想“这东西没用。没人会这么干。”而我用上周末刚做过的事来反驳你……↩我在尝试用纯 Python 方案解析 50MB 的 JMDict 时学到了这一课。那花了非常长的时间。后来我改了 import，只用了大概三十秒。我了个去。↩</div>
       
     
   </div>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>用 BOSS Mashup 剔除 Hacker News 中的 Reddit 内容 · Will Larson 文集</title>
+  <title>用 BOSS Mashup 从 Hacker News 中剔除 Reddit 内容 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>用 BOSS Mashup 剔除 Hacker News 中的 Reddit 内容</h1>
+    <h1>用 BOSS Mashup 从 Hacker News 中剔除 Reddit 内容</h1>
     <div class="meta">
       2008-07-12 · 
       <a href="https://lethain.com/stripping-reddit-from-hackernews-with-boss-mashup/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,15 +29,16 @@
   <div class="article-content">
     
       
-        <p>在之前的一篇文章中，我用 Python 和 Yahoo 的 BOSS Mashup Framework 写了一些搜索配方，现在我们开始实际做一个 Mashup。接下来我们通过一个相当简单的例子来实践我一直以来的一个想法：从 YC 的 Hacker News 中剔除所有来自 Reddit Programming 的转载内容。换句话说，计算 Hacker News 和 Reddit Programming 的交集，然后从 Hacker News 中移除这些交集内容，并返回剩余的结果。</p>
+        <p>在之前的一篇文章中，我用 Python 和 Yahoo 的 BOSS Mashup Framework 写了一些搜索配方，现在我们开始实际做一个 mashup。接下来我们会一步步完成一个相当简单的例子，它代表了我的一个梦想：把 YC 的 Hacker News 中所有来自 Reddit Programming 的转载内容全部去掉。换句话说，计算 Hacker News 和 Reddit Programming 的交集，然后从 Hacker News 中移除这些交集内容，并返回剩余的结果。</p>
       
     
       
-        <p>注意，在开始之前你需要先安装 BOSS Mashup Framework 并拥有一个 Yahoo BOSS App Id。相关流程我之前已经介绍过。</p>
+        <p>注意，在开始之前你需要安装好 BOSS Mashup Framework，并拥有一个 Yahoo BOSS App ID。这个流程我之前已经介绍过。</p>
       
     
       
-        <h2>开始动手</h2>
+        <h3>开始动手</h3>
+        
       
     
       
@@ -45,11 +46,58 @@
       
     
       
-        <p>db.create 函数用于获取 RSS feed 的内容（也可以获取 Yahoo 公开搜索 API 的结果），并将其封装成一个便于操作的对象。</p>
+        <pre><code>&gt;&gt;&gt; from yos.yql import db,udfs
+&gt;&gt;&gt; hn = db.create(name=&quot;hn&quot;,url=&quot;http://news.ycombinator.com/rss&quot;)
+&gt;&gt;&gt; _hn = db.select(udf=udfs.unnest_value,table=hn)
+&gt;&gt;&gt; _hn.rows
+[ {
+    &#x27;hn$link&#x27;: &#x27;http://scarybuggames.com/2008/05/chronotron&#x27;, 
+    &#x27;hn$description&#x27;: &#x27;&lt;a href=&quot;http://news.ycombinator.com/item?id=244594&quot;&gt;Comments&lt;/a&gt;&#x27;, 
+    &#x27;hn$title&#x27;: &#x27;Play this game for 20 minutes - learn about concurrency&#x27;,
+    &#x27;hn$comments&#x27;: &#x27;http://news.ycombinator.com/item?id=244594&#x27;
+  }, 
+  {
+    &#x27;hn$link&#x27;: &#x27;http://haydenplanetarium.org/resources/starstruck/manhattanhenge/&#x27;, 
+    &#x27;hn$description&#x27;: &#x27;&lt;a href=&quot;http://news.ycombinator.com/item?id=244612&quot;&gt;Comments&lt;/a&gt;&#x27;,
+    &#x27;hn$title&#x27;: &quot;Today is one of the 2 days each year when the sun lines up with Manhattan&#x27;s grid&quot;,
+    &#x27;hn$comments&#x27;: &#x27;http://news.ycombinator.com/item?id=244612&#x27;
+  },
+  &quot;Additional results truncated for brevity...&quot;
+]
+</code></pre>
       
     
       
-        <p>db.select 会在所有结果上执行一个 map 操作，这里它对每一行都应用了 udfs.unnest_value 函数并返回结果。（udfs.unnest_value 函数会尝试把嵌套的字典展平为一个所有值都在顶层的单一字典。）作为 db.select 的快速示例，我们来写一个函数，把字典中的 hn$description 键去掉。</p>
+        <p>db.create 函数用于获取 RSS feed 的内容（也可以获取 Yahoo 暴露的搜索 API 的结果），并将其封装到一个易于操作的对象中。</p>
+      
+    
+      
+        <p>db.select 会在所有结果上执行一个 map 操作，这里它对每一行应用了 udfs.unnest_value 函数并返回结果。（udfs.unnest_value 函数会尝试把嵌套的字典展平为一个所有值都在顶层的单个字典。）作为 db.select 的一个快速示例，我们来写一个函数，把字典中的 hn$description 键去掉。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; from yos.yql import db,udfs
+&gt;&gt;&gt; def strip_key(row, key):
+...     if row.has_key(key):     
+...         del row[key]
+...     return row
+... 
+&gt;&gt;&gt; def strip_desc(row):
+...     return strip_key(row, &quot;hn$description&quot;)
+... 
+&gt;&gt;&gt; hn = db.create(name=&quot;hn&quot;,url=&quot;http://news.ycombinator.com/rss&quot;)
+&gt;&gt;&gt; _hn = db.select(udf=udfs.unnest_value,table=hn)
+&gt;&gt;&gt; __hn = db.select(udf=strip_des,table=_hn)
+&gt;&gt;&gt; __hn.rows
+[
+  {
+    &#x27;hn$link&#x27;: &#x27;http://scarybuggames.com/2008/05/chronotron&#x27;,
+    &#x27;hn$title&#x27;: &#x27;Play this game for 20 minutes - learn about concurrency&#x27;,
+    &#x27;hn$comments&#x27;: &#x27;http://news.ycombinator.com/item?id=244594&#x27;
+  },
+  &quot;Additional results stripped for brevity.&quot;
+]
+</code></pre>
       
     
       
@@ -57,55 +105,193 @@
       
     
       
-        <p>接下来我们要从 Hacker News 的结果中剔除所有 Reddit Programming 的内容。第一步是找到一种方法来关联两边的结果。通常标题会非常相似，但使用 URL 会更理想。Hacker News 会直接提供 URL，但 Reddit 把 URL 藏在 description 数据里，所以我们需要把它解析出来。</p>
+        <pre><code>&gt;&gt;&gt; rp = db.create(name=&quot;rp&quot;,url=&quot;http://www.reddit.com/r/programming/.rss&quot;)
+&gt;&gt;&gt; _rp = db.select(udf=udfs.unnest_value,table=rp)
+&gt;&gt;&gt; _rp.rows 
+[
+  {
+    &#x27;rp$link&#x27;: &#x27;http://www.reddit.com/goto?rss=true&amp;id=t3_6rfwt&#x27;,
+    &#x27;rp$description&#x27;: &#x27;&lt;a href=&quot;http://www.gnu.org/fun/jokes/dna&quot;&gt;[link]&lt;/a&gt; &lt;a href=&quot;http://www.reddit.com/r/programming/info/6rfwt/comments/&quot;&gt;[comments]&lt;/a&gt;&#x27;,
+    &#x27;rp$title&#x27;: &#x27;Human DNA in C code&#x27;,
+    &#x27;rp$date&#x27;: &#x27;2008-07-12T11:43:35.936253+00:00&#x27;,
+    &#x27;rp$guid&#x27;: &#x27;http://www.reddit.com/goto?rss=true&amp;id=t3_6rfwt&#x27;
+  }, 
+  &quot;Additional results stripped for brevity.&quot;
+]
+</code></pre>
       
     
       
-        <p>幸运的是，我们可以用正则表达式很轻松地完成这件事。</p>
+        <p>接下来我们要从 Hacker News 的结果中剔除所有 Reddit Programming 的内容。第一步是找到一种方法来关联两边的结果。通常标题会非常相似，但使用 URL 会更理想。Hacker News 会直接提供 URL，而 Reddit 把 URL 藏在 description 数据里，所以我们需要把它解析出来。</p>
       
     
       
-        <p>好了，食材已经备齐，现在只需要把这锅炖汤煮好。</p>
+        <p>幸运的是，用正则表达式可以很容易地做到这一点。</p>
       
     
       
-        <h2>寻找交集</h2>
+        <pre><code>&gt;&gt;&gt; from yos.yql import db,udfs
+&gt;&gt;&gt; import re
+&gt;&gt;&gt; REDDIT_LINK_REGEX = re.compile(r&#x27;&lt;a href=&quot;(?P&lt;url&gt;.*?)&quot;&gt;\[link\]&lt;/a&gt;&#x27;)
+&gt;&gt;&gt; def update_link(row):
+...     m = REDDIT_LINK_REGEX.search(row[&#x27;rp$description&#x27;])
+...     if not m: return row
+...     row[&#x27;rp$link&#x27;] = m.group(&#x27;url&#x27;)
+...     return row
+... 
+&gt;&gt;&gt; rp = db.create(name=&quot;rp&quot;,url=&quot;http://www.reddit.com/r/programming/.rss&quot;)
+&gt;&gt;&gt; _rp = db.select(udf=udfs.unnest_value,table=rp)
+&gt;&gt;&gt; _rp = db.select(udf=update_link,table=rp)
+&gt;&gt;&gt; _rp.rows
+[
+  {
+    &#x27;rp$link&#x27;: &#x27;http://en.wikipedia.org/wiki/Computational_complexity_of_songs&#x27;,
+    &#x27;rp$description&#x27;: &#x27;&lt;a href=&quot;http://en.wikipedia.org/wiki/Computational_complexity_of_songs&quot;&gt;[link]&lt;/a&gt; &lt;a href=&quot;http://www.reddit.com/r/programming/info/6ri66/comments/&quot;&gt;[comments]&lt;/a&gt;&#x27;,
+    &#x27;rp$title&#x27;: &quot;Donal Knuth&#x27;s Complexity of Songs&quot;,
+    &#x27;rp$date&#x27;: &#x27;2008-07-13T01:44:18.961669+00:00&#x27;,
+    &#x27;rp$guid&#x27;: &#x27;http://www.reddit.com/goto?rss=true&amp;id=t3_6ri66&#x27;
+  },
+  &quot;Additional rows truncated for brevity.&quot;,
+]
+</code></pre>
       
     
       
-        <p>让我们看看经过转换后的 Hacker News 和 Reddit Programming feed 中的一个样本条目。首先看 Hacker News 的：</p>
+        <p>好了，原料我们已经备齐，现在只需要把这锅炖汤煮好。</p>
       
     
       
-        <p>再来看 Reddit Programming 的（我们已经对它运行过 update_link 函数）：</p>
+        <h3>寻找交集</h3>
+        
       
     
       
-        <p>现在我们使用 link 这个键来找出两个 RSS feed 的交集。请注意，在 overlap 函数中我们使用 &#x27;link&#x27; 作为键，而不是分别使用 &#x27;rp$link&#x27; 和 &#x27;hn$link&#x27;。db.join 函数足够智能，它会在传递参数前把命名空间去掉。</p>
+        <p>让我们看看经过转换后的 Hacker News 和 Reddit Programming feed 中的一个样本条目。首先看 Hacker News 的一条：</p>
       
     
       
-        <p>但是，我们的目标并不是找出交集，而是找出 Hacker News 中那些不在 Reddit Programming 中的内容。幸运的是，我们可以快速写一个 Python 函数来把交集剔除掉。</p>
+        <pre><code>{
+  &#x27;hn$link&#x27;: &#x27;http://scarybuggames.com/2008/05/chronotron&#x27;, 
+  &#x27;hn$description&#x27;: &#x27;&lt;a href=&quot;http://news.ycombinator.com/item?id=244594&quot;&gt;Comments&lt;/a&gt;&#x27;,
+  &#x27;hn$title&#x27;: &#x27;Play this game for 20 minutes - learn about concurrency&#x27;,
+  &#x27;hn$comments&#x27;:&#x27;http://news.ycombinator.com/item?id=244594&#x27;
+}
+</code></pre>
       
     
       
-        <p>我们终于达成了这个崇高的目标：创建了一个 Hacker News 的 feed，其中与 Reddit Programming 重复的条目已被剔除。把所有代码放在一起是这样的：</p>
+        <p>再看 Reddit Programming 的一条（我们已经对它运行过 update_link 函数）：</p>
       
     
       
-        <p>我是第一个承认这其实是一个相当人为设计的例子。不过，它确实展示了 BOSS Mashup Framework 提供了一些好用的工具来玩耍。这个框架还有更多更深入的功能本文没有涉及，而且这个任务从某种意义上说也比较特殊——它比你用这个框架通常想完成的大多数事情都要困难一些。</p>
+        <pre><code>{
+  &#x27;rp$link&#x27;: &#x27;http://en.wikipedia.org/wiki/Computational_complexity_of_songs&#x27;,
+  &#x27;rp$description&#x27;: &#x27;&lt;a href=&quot;http://en.wikipedia.org/wiki/Computational_complexity_of_songs&quot;&gt;[link]&lt;/a&gt; &lt;a href=&quot;http://www.reddit.com/r/programming/info/6ri66/comments/&quot;&gt;[comments]&lt;/a&gt;&#x27;,
+  &#x27;rp$title&#x27;: &quot;Donal Knuth&#x27;s Complexity of Songs&quot;,
+  &#x27;rp$date&#x27;: &#x27;2008-07-13T01:44:18.961669+00:00&#x27;,
+  &#x27;rp$guid&#x27;: &#x27;http://www.reddit.com/goto?rss=true&amp;id=t3_6ri66&#x27;
+}
+</code></pre>
       
     
       
-        <p>Mashup Framework 对以各种有趣的方式合并内容提供了大量支持——也就是所谓的“混搭”——但对于移除重复结果的支持却不多，这并不奇怪，因为那几乎和它的设计初衷完全相反。从这个角度看，这个框架仍然能相对轻松地完成任务，也算是对它能力的一种证明。当然了，即便完全不用 BOSS Mashup Framework，这个例子其实也很容易实现……</p>
+        <p>现在我们使用 link 这个键来找出两个 RSS feed 之间的交集。请注意，在 overlap 函数中我们使用的是 &#x27;link&#x27; 作为键，而不是分别使用 &#x27;rp$link&#x27; 和 &#x27;hn$link&#x27;。db.join 函数足够智能，在传递参数前会先把命名空间去掉。</p>
       
     
       
-        <p>在我下一篇文章（也很可能是短期内的最后一篇）关于 BOSS Mashup Framework 的教程中，我会把它用在一个它真正擅长的工作上。</p>
+        <pre><code>&gt;&gt;&gt; def overlap(r1,r2):
+...     return r1[&#x27;link&#x27;].strip() == r2[&#x27;link&#x27;].strip()
+...
+&gt;&gt;&gt; len(_hn)
+25
+&gt;&gt;&gt; len(rp)
+25
+&gt;&gt;&gt; joint = db.join(overlap, [_hn, _rp])
+&gt;&gt;&gt; len(joint)
+3
+&gt;&gt;&gt; joint.rows[0]
+{
+  &#x27;hn$description&#x27;: &#x27;&lt;a href=&quot;http://news.ycombinator.com/item?id=244837&quot;&gt;Comments&lt;/a&gt;&#x27;,
+  &#x27;hn$title&#x27;: &quot;Donald Knuth&#x27;s Complexity of Songs&quot;,
+  &#x27;rp$date&#x27;: &#x27;2008-07-13T01:44:18.961669+00:00&#x27;,
+  &#x27;hn$comments&#x27;: &#x27;http://news.ycombinator.com/item?id=244837&#x27;,
+  &#x27;hn$link&#x27;: &#x27;http://en.wikipedia.org/wiki/Computational_complexity_of_songs&#x27;,
+  &#x27;rp$description&#x27;: &#x27;&lt;a href=&quot;http://en.wikipedia.org/wiki/Computational_complexity_of_songs&quot;&gt;[link]&lt;/a&gt; &lt;a href=&quot;http://www.reddit.com/r/programming/info/6ri66/comments/&quot;&gt;[comments]&lt;/a&gt;&#x27;,
+  &#x27;rp$title&#x27;: &quot;Donal Knuth&#x27;s Complexity of Songs&quot;,
+  &#x27;rp$guid&#x27;: &#x27;http://www.reddit.com/goto?rss=true&amp;id=t3_6ri66&#x27;,
+  &#x27;rp$link&#x27;: &#x27;http://en.wikipedia.org/wiki/Computational_complexity_of_songs&#x27;
+}
+</code></pre>
       
     
       
-        <p>如果发现任何错误，或者你有任何问题，欢迎告诉我。</p>
+        <p>但是，我们的目标并不是真正找出交集，而是找出 Hacker News 中那些不在 Reddit Programming 中的内容。幸运的是，我们可以快速写一个 Python 函数来把交集部分剔除掉。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; joint = db.join(overlap, [_hn, _rp])
+&gt;&gt;&gt; def in_reddit(row):
+...     for dup in joint.rows:
+...         if row[&#x27;hn$link&#x27;] == dup[&#x27;hn$link&#x27;]:
+...             return True
+...     return False
+... 
+&gt;&gt;&gt; hn_uniques = [ x for x in _hn.rows if in_reddit(x) == False ]          
+&gt;&gt;&gt; len(hn_uniques)
+22
+</code></pre>
+      
+    
+      
+        <p>我们终于完成了这个崇高的目标：创建了一个 Hacker News 的 feed，其中与 Reddit Programming 重复的条目已被全部剔除。把所有代码放在一起是这样的：</p>
+      
+    
+      
+        <pre><code>import re
+from yos.yql import db,udfs
+REDDIT_LINK_REGEX = re.compile(r&#x27;&lt;a href=&quot;(?P&lt;url&gt;.*?)&quot;&gt;[link]&lt;/a&gt;&#x27;)
+def update_link(row):
+&quot;Replace key &#x27;rp$link&#x27; with url parsed from &#x27;rp$description&#x27;.&quot;
+m = REDDIT_LINK_REGEX.search(row[&#x27;rp$description&#x27;])
+if not m: return row
+row[&#x27;rp$link&#x27;] = m.group(&#x27;url&#x27;)
+return row
+def overlap(r1,r2):
+&quot;Returns true if dicts r1 and r2 have same value for key &#x27;link&#x27;.&quot;
+return r1[&#x27;link&#x27;].strip() == r2[&#x27;link&#x27;].strip()
+# Get HackerNews RSS feed.
+hn = db.create(name=&quot;hn&quot;,url=&quot;http://news.ycombinator.com/rss&quot;)
+_hn = db.select(udf=udfs.unnest_value,table=hn)
+# Get Reddit Programming RSS feed.
+rp = db.create(name=&quot;rp&quot;,url=&quot;http://www.reddit.com/r/programming/.rss&quot;)
+_rp = db.select(udf=udfs.unnest_value,table=rp)
+_rp = db.select(udf=update_link,table=rp)
+# Calculate the intersection between both feeds.
+joint = db.join(overlap, [_hn, _rp])
+def in_reddit(row):
+for dup in joint.rows:
+if row[&#x27;hn$link&#x27;] == dup[&#x27;hn$link&#x27;]:
+return True
+return False
+# Strip intersection from HackerNews RSS feed.
+hn_uniques = [ x for x in _hn.rows if in_reddit(x) == False ]
+</code></pre>
+      
+    
+      
+        <p>我得第一个承认，这是一个相当人为设计的例子。不过，它确实展示了 BOSS Mashup Framework 提供了一些有用的工具来供我们玩耍。这个框架还有更多更深入的功能本文并未涉及，而且这个任务在某种意义上也比较特殊——它比你用这个框架通常想要完成的大多数事情都要更难一些。</p>
+      
+    
+      
+        <p>Mashup Framework 在以有趣的方式合并内容方面提供了大量支持——也就是所谓的“mash up”——但对于去除重复结果的支持却不多，这并不奇怪，因为那几乎与它的设计初衷完全相反。从这个意义上说，这个框架仍然能相对轻松地完成这个任务，本身就证明了它的强大。当然了，如果完全不用 BOSS Mashup Framework，这个例子其实也很容易实现……</p>
+      
+    
+      
+        <p>在我下一篇文章（也很可能是接下来很长一段时间内的最后一篇）关于 BOSS Mashup Framework 的教程中，我会把它用在一个它真正擅长完成的任务上。</p>
+      
+    
+      
+        <p>如果发现任何错误，或者有任何问题，欢迎告诉我。</p>
       
     
   </div>

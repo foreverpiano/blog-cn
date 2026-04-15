@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>遗传编程：一个新奇的失败案例 · Will Larson 文集</title>
+  <title>遗传编程：一种新奇的失败 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>遗传编程：一个新奇的失败案例</h1>
+    <h1>遗传编程：一种新奇的失败</h1>
     <div class="meta">
       2009-01-19 · 
       <a href="https://lethain.com/genetic-programming-a-novel-failure/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,15 +29,16 @@
   <div class="article-content">
     
       
-        <p>之前我写过关于遗传算法基本原理的文章，并简要提到了遗传算法与遗传编程之间的区别。在这里，我们将对遗传编程进行更深入的探讨。在开始愉快地漫游遗传编程示例之前，我要先承认自己的偏见：我认为遗传编程是一个很棒但虚构的复杂问题解决方案。</p>
+        <p>之前我写过关于遗传算法基本原理的文章，并简要提到了遗传算法与遗传编程之间的区别。这里我们将对遗传编程进行更深入的探讨。在开始愉快地漫游遗传编程示例之前，我要先承认自己的偏见：我认为遗传编程是一个奇妙却虚构的解决方案，用于解决一个复杂的问题。1</p>
       
     
       
         <h2>遗传编程之梦</h2>
+        
       
     
       
-        <p>在花了漫长一夜清理互联网上错误观点之后，你意识到自己无法单枪匹马地维护它的神圣纯洁。你构建了一个神经网络，它接受博客文章作为输入，并输出修复问题的正确操作，但它总是返回“在绝望中哭泣”，无论怎样训练，这个神经网络都无法在接收到包含“Bitf*ck vs. Scheme”、“Vista Sucks”或“Git Owns Perforce”等闪亮话题的博客文章时正确输出“在 Reddit 上怒喷”或“嘲讽”。</p>
+        <p>在花了漫长一夜清理互联网上错误观点之后，你意识到自己无法单枪匹马地维护它的神圣纯洁。你构建了一个神经网络，它接受一篇博客文章作为输入，并输出正确的操作来解决问题，但它总是返回“在绝望中哭泣”，无论如何训练，神经网络都无法在接收到包含“Bitf*ck vs. Scheme”、“Vista Sucks”或“Git Owns Perforce”等精彩话题的博客文章时，正确输出“在 Reddit 上怒喷”或“嘲讽”。</p>
       
     
       
@@ -45,23 +46,29 @@
       
     
       
-        <p>两周后，那份尚未破产的报纸大肆宣扬你的成就：你、你编程得到的程序，以及那个程序所编程出的程序一起清除了互联网上的错误观点，联合国下令将那些讨厌且无关紧要的博主剥夺公民身份，送进集中营。</p>
+        <p>两周后，那份尚未破产的报纸在头条宣扬你的成就：你、你编程写出的程序，以及那个程序所编程写出的程序，已经清除了互联网上所有错误的东西，联合国下令将那些讨厌且无关紧要的博主剥夺公民身份，送进集中营。</p>
       
     
       
-        <p>啊，是的，世界一切都美好。</p>
+        <p>啊，是啊，世界一切都美好。</p>
       
     
       
         <h2>从一个稍微简单的问题开始</h2>
+        
       
     
       
-        <p>遗憾的是，我们需要从一个比拯救互联网简单得多的问题开始。不过，我们即将尝试解决的问题还是比上一篇文章中的问题（创建一个数组，其中 N 个数字求和等于 X）要复杂一些。</p>
+        <p>遗憾的是，我们需要从一个比拯救互联网简单得多的问题开始。不过，我们要尝试解决的问题还是比上一篇文章中讨论的那个（创建一个包含 N 个数字、求和等于 X 的数组）要复杂一些。</p>
       
     
       
-        <p>在我们新的问题中，一个个体将由从以下列表中随机选择的 N 个元素组成（同一个元素可以被多次选择）：</p>
+        <p>在我们新的问题中，一个个体将由 N 个元素组成，这些元素从以下列表中随机选择（同一个元素可以被多次选中）：</p>
+      
+    
+      
+        <pre><code>options = (&#x27;+&#x27;,&#x27;-&#x27;,&#x27;*&#x27;,&#x27;/&#x27;,&#x27;0&#x27;,&#x27;1&#x27;,&#x27;2&#x27;,&#x27;3&#x27;,&#x27;4&#x27;,&#x27;5&#x27;,&#x27;6&#x27;,&#x27;7&#x27;,&#x27;8&#x27;,&#x27;9&#x27;)
+</code></pre>
       
     
       
@@ -69,11 +76,27 @@
       
     
       
+        <pre><code>from random import randint
+def part():
+options = (&#x27;+&#x27;,&#x27;-&#x27;,&#x27;*&#x27;,&#x27;/&#x27;,&#x27;0&#x27;,&#x27;1&#x27;,&#x27;2&#x27;,&#x27;3&#x27;,&#x27;4&#x27;,&#x27;5&#x27;,&#x27;6&#x27;,&#x27;7&#x27;,&#x27;8&#x27;,&#x27;9&#x27;)
+return options[randint(0, len(options)-1)]
+def individual(length=5):
+return [ part() for i in range(length) ]
+</code></pre>
+      
+    
+      
         <p>而种群的生成方式如下：</p>
       
     
       
-        <p>现在让我们描述这个问题：我们想要一个个体，当它的元素被 Python 的 eval 函数求值时，结果等于某个数字 X。并非所有元素组合都能形成有效的 Python 语法（例如当 N=5 时，“5 5 * + 1”就是一个无效个体），那些无效的个体（即传递给 eval 时会触发异常的个体）应该获得非常差的适应度分数。对于那些能成功被 eval 的个体，其适应度分数则是它们与目标值 X 的距离。</p>
+        <pre><code>def population(size=1000, length=5):
+    return [ individual(length=length) for x in range(size) ]
+</code></pre>
+      
+    
+      
+        <p>现在来描述这个问题：我们想要一个个体，当它的元素被 Python 的 eval 函数求值时，结果等于某个数字 X。并非所有元素组合都能形成有效的 Python 语法（例如当 N=5 时，“5 5 * + 1”就是一个无效个体），那些个体（即传递给 eval 时引发异常的那些）应该获得极差的适应度分数。对于那些能成功被 eval 的个体，它们的适应度分数就是与目标值 X 的距离。</p>
       
     
       
@@ -81,11 +104,21 @@
       
     
       
-        <p>除了这些变化之外，代码与我们之前实现遗传算法的代码基本相同。细微的改动与我们新的适应度函数有关，其中高值代表高适应度，而之前的适应度函数中高值代表差适应度。（你可以在此处看到这个问题的初始代码。）</p>
+        <pre><code>def fitness(x, target):
+    try:
+        val = eval(&quot; &quot;.join(x))
+        return target - abs(target-val)
+    except:
+        return -100000
+</code></pre>
       
     
       
-        <p>只需少量修改就能完成，这充分证明了遗传算法的普适性；我们从用遗传算法解决一个极其简单的算术问题，转变为解决一个复杂得多的遗传编程问题，而无需对算法进行任何实质性修改！也许我们应该称它们为通用问题求解器，而不是仅仅叫遗传算法。</p>
+        <p>除了这些变化之外，代码与我们之前实现遗传算法的代码基本相同。细微的改动与我们新的适应度函数有关——在这个函数中，较高的值代表较强的适应度，而之前的适应度函数中较高的值代表较差的适应度。（你可以在此处看到这个问题的初始代码。）</p>
+      
+    
+      
+        <p>只需极少的修改就能完成，这证明了遗传算法的通用性；我们从用遗传算法解决一个极其简单的算术问题，转而解决一个复杂得多的遗传编程问题，却没有对算法本身做出任何实质性的改变！也许我们应该称它们为通用问题求解器，而不是仅仅叫遗传算法。</p>
       
     
       
@@ -93,19 +126,30 @@
       
     
       
-        <p>操。操。操。到底发生了什么？前十代的平均适应度是 -96270.54，而第 990 到 1000 代的平均适应度是 -96210.11。这甚至没有统计显著性。我称你为通用问题求解器，结果你却这样对我？操。让我花几分钟缓一缓。</p>
+        <pre><code>&gt;&gt;&gt; from gp2 import *
+&gt;&gt;&gt; populations, fitness_scores = evolve()
+&gt;&gt;&gt; fitness_scores[10:]
+[-96200.27, -95499.98, -96000.02, -96200.006, -96300.002, -96599.83, -96599.904, -96000.06, -96500.001, -96800.001]
+&gt;&gt;&gt; fitness_scores[-10:]
+[-96300.45, -96500.04, -96200.51, -96000.008, -96300.04, -96000.01, -97099.97, -96200.091, -96400.01, -95099.96]
+</code></pre>
       
     
       
-        <h2>短暂地用纸袋喘口气之后</h2>
+        <p>操。操。操。到底发生了什么？前十代的平均适应度是 -96270.54，而第 990 到 1000 代的平均适应度是 -96210.11。这甚至都没有统计显著性。我称你为通用问题求解器，结果你却给我整这出？操。让我花几分钟缓一缓。</p>
       
     
       
-        <p>好吧，我可能有点反应过度了，但你可能已经推断出第一个重要结论：未经调优的遗传算法在某些问题上表现可能非常差（即彻底失败）。特别是当依赖于一个信息量不足的适应度函数时，遗传算法表现尤为糟糕，而我们当前的适应度函数信息量极度匮乏。</p>
+        <h2>短暂地用纸袋呼吸之后</h2>
+        
       
     
       
-        <p>首先，极少数个体能形成有效的 Python 语法，而所有无效个体都获得相同的适应度值 -10000。这意味着我们当前的适应度函数对大多数个体的适应度反馈都很差，因此从一开始就以惨烈的方式失败了。不过没关系，因为我们可以改进当前的适应度函数，对吧？</p>
+        <p>好吧，我可能反应有点过度了，但你大概已经推断出第一个重要结论：未经调优的遗传算法在某些问题上可能表现得非常差（即直接失败）。特别是当依赖于一个信息量不足的适应度函数时，遗传算法的表现尤其糟糕，而我们当前的适应度函数简直信息量少得可怜。</p>
+      
+    
+      
+        <p>首先，极少数个体能形成有效的 Python 语法，所有无效个体都获得相同的适应度值 -10000。这意味着我们当前的适应度函数对大多数个体都无法提供有效的适应度反馈，因此从一开始就以惨烈的方式失败了。不过没关系，因为我们可以改进当前的适应度函数，对吧？</p>
       
     
       
@@ -113,39 +157,58 @@
       
     
       
-        <p>如果语法错误，我们就无法获得关于语法距离有效状态有多近的任何反馈。如果它是有效的，那么我们确实开始获得有用的反馈，但我们还是有些受阻，因为绝大多数个体都是无效的（我们稍后会查看有效和无效个体的比例）。</p>
+        <pre><code>def fitness(x, target):
+    try:
+        val = eval(&quot; &quot;.join(x))
+        return target - abs(target-val)
+    except:
+        return -100000
+</code></pre>
       
     
       
-        <p>在无法评估代码的情况下，我们有两种方法可以生成更具体的反馈：</p>
+        <p>如果语法错误，我们就无法获得任何关于语法距离有效形式有多近的反馈。如果语法正确，我们确实开始获得有用的反馈，但我们还是有点受阻，因为绝大多数个体都是无效的（我们稍后会查看有效和无效个体的比例）。</p>
       
     
       
-        <div class="list-content">计算一个基于代码距离语法正确程度有多近的适应度函数；计算一个基于参数距离期望正确解有多近的适应度函数。</div>
+        <p>在无法对代码进行求值的情况下，我们有两种方法可以生成更具体的反馈：</p>
       
     
       
-        <p>在这个极其简单的示例中，第一个选项相当简单（格式必须在数字和操作符之间交替，并且必须以数字开始和结束），但在更复杂的场景中，它会迅速膨胀成一个相当棘手的问题。</p>
+        <div class="list-content">根据代码距离语法正确的程度计算适应度函数，根据参数距离期望正确解的程度计算适应度函数。</div>
       
     
       
-        <p>第二个选项完全是骗人的，因为它意味着你是通过教它一个你已经知道的答案来“解决”问题；在那种情况下，你既没有优化也没有解决任何东西，你只是在 perpetuating 一场闹剧。</p>
+        <p>在这个极其简单的示例中，第一个选项相当简单（格式必须在数字和操作符之间交替，并且必须以数字开始和结束），但在更复杂的场景中，它会迅速变成一个相当棘手的问题。</p>
       
     
       
-        <h2>就像用电钻除尘</h2>
+        <p>第二个选项完全是骗人的，因为这意味着你是通过教它一个你已经知道的答案来“解决”问题；在那种情况下，你既没有优化也没有解决问题，而是在 perpetuating 一场闹剧。</p>
       
     
       
-        <p>遗传算法是一类优化技术，但从适应度来看我们可以发现问题：它首先试图解决一个搜索问题（找到可行的解，无论质量如何），然后再尝试优化（提升已发现解的质量）。很少有——如果有的话——算法能同时在这两个方面都表现良好。</p>
+        <h2>就像用冲击钻除尘</h2>
+        
       
     
       
-        <p>事实上，在这个例子中我们甚至从未逃离问题的搜索部分。我们可以通过修改 grade_population 函数来更清楚地说明这一点，让它统计语法有效的个体数量（而不是测量种群的平均适应度）。</p>
+        <p>遗传算法是一类优化技术，但从适应度来看，我们可以看到问题所在：首先它试图解决一个搜索问题（寻找可行的解，无论质量如何），然后再尝试优化（提高已发现解的质量）。很少有——如果有的话——算法能同时在这两个方面都表现良好。</p>
       
     
       
-        <p>我们将它从这样修改：</p>
+        <p>事实上，在这个例子中，我们甚至从未摆脱搜索的部分。我们可以通过修改 grade_population 函数来更清楚地说明这一点，让它统计语法有效的个体数量（而不是测量种群的平均适应度）。</p>
+      
+    
+      
+        <p>我们将它从这样：</p>
+      
+    
+      
+        <pre><code>def grade_population(pop, target):
+    total = sum([ fitness(x, target) for x in pop ])
+    avg = total / (len(pop) * 1.0)
+    return avg
+</code></pre>
       
     
       
@@ -153,7 +216,29 @@
       
     
       
-        <p>现在我们可以重新运行上面的实验，并以更具体的方式看到我们是如何困在问题的搜索阶段的。</p>
+        <pre><code>def grade_population(pop, target):
+    fitnesses = [ fitness(x, target) for x in pop ]
+    valids = [ x for x in fitnesses if x &gt; -100000 ]
+    return len(valids)
+</code></pre>
+      
+    
+      
+        <p>现在我们可以重新运行上面的实验，并更具体地看到我们是如何被困在问题的搜索阶段的。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; from gp2 import *
+&gt;&gt;&gt; history, fitness = evolve(generations=1000)
+&gt;&gt;&gt; fitness[:10]
+[37, 37, 34, 37, 33, 27, 21, 21, 33, 36]
+&gt;&gt;&gt; sum(b[:10]) / 10.0 # avg of first ten
+31.6
+&gt;&gt;&gt; b[-10:]
+[38, 46, 44, 49, 37, 43, 35, 39, 44, 35]
+&gt;&gt;&gt; sum(b[-10:]) / 10.0 # avg of last ten
+41.0
+</code></pre>
       
     
       
@@ -161,59 +246,125 @@
       
     
       
-        <p>是的，从 1000 代增加到 5000 代并没有产生任何明显影响：我们无疑被困在问题的搜索部分。既然单纯增加代数没用，那就让我们尝试调整 evolve 函数中使用的参数。目前我们只保留前 30% 的个体（因此会从成功的父代中产生大量子代），让我们试着提高到保留前 90% 的个体。</p>
+        <pre><code>&gt;&gt;&gt; history, fitness = evolve(generations=5000)
+&gt;&gt;&gt; fitness[:10]
+[37, 42, 37, 46, 41, 40, 34, 33, 35, 34]
+&gt;&gt;&gt; sum(fitness[:10]) / 10.0 # avg of first ten
+37.9
+&gt;&gt;&gt; fitness[-10:]
+[30, 43, 42, 53, 44, 45, 42, 35, 37, 36]
+&gt;&gt;&gt; sum(fitness[-10:]) / 10.0 # avg of last ten
+40.7
+</code></pre>
       
     
       
-        <p>我们显然没有看到任何明确的改进。那么把保留的个体比例降低到前 10%，并将代数增加到三千代呢？</p>
+        <p>是的，从 1000 代增加到 5000 代并没有产生任何明显的影响：我们显然被困在问题的搜索阶段。既然单纯增加代数没用，那就试着调整 evolve 函数中使用的参数。目前我们只保留前 30% 的个体（因此会从成功的父母那里产生大量子代），让我们试试把这个比例提高到保留前 90% 的个体。</p>
       
     
       
-        <p>嗯，那也没什么效果。也许我们的方法不对。目前我们创建的个体 N（元素数量）是 5。让我们试着把 N 减少到 3。（我们将目标数字保持在 15。）</p>
+        <pre><code>&gt;&gt;&gt; history, fitness = evolve(generations=1000, retain=0.9)
+&gt;&gt;&gt; fitness[:10]
+[35, 38, 34, 34, 33, 35, 32, 37, 32, 38]
+&gt;&gt;&gt; sum(fitness[:10]) / 10.0
+34.8
+&gt;&gt;&gt; fitness[-10:]
+[42, 34, 36, 26, 37, 34, 31, 44, 36, 41]
+&gt;&gt;&gt; sum(fitness[-10:]) / 10.0
+36.1
+</code></pre>
       
     
       
-        <p>由于组合数量更少（3^3 而不是 5^5），我们看到了更多语法正确的个体，但随着代数增加的比例实际上更差。让我们做最后一次努力。把目标 X 从 15 改成 6，只保留前 10% 的个体，并将代数增加到三千。</p>
+        <p>我们显然没有看到任何明确的改进。那么把保留比例降低到前 10%，并把代数增加到三千呢？</p>
       
     
       
-        <p>对于一个主要弱点是快速而短视优化的算法来说，这种毫无进展的情况强烈表明了我们已经开始怀疑的事情：遗传算法根本无法克服这个问题的搜索部分。</p>
+        <pre><code>&gt;&gt;&gt; history, fitness = evolve(retain=0.1, generations=3000)
+&gt;&gt;&gt; fitness[:10]
+[35, 28, 30, 37, 38, 44, 41, 49, 37, 39]
+&gt;&gt;&gt; sum(fitness[:10]) / 10.0
+37.8
+&gt;&gt;&gt; fitness[-10:]
+[36, 38, 47, 43, 46, 50, 45, 47, 51, 43]
+&gt;&gt;&gt; sum(fitness[-10:]) / 10.0
+44.6
+</code></pre>
       
     
       
-        <p>这一个例子远不足以作为充分理由，但我会更进一步指出，只有当你提供解决方案的详细轮廓时，遗传编程才能解决问题。遗传算法可以从提供的组件中优化出一个解决方案，但遗传编程不足以同时发现并优化解决方案。这很遗憾，因为这个概念本身具有一种难以忽视的优雅。</p>
+        <p>嗯，那也没什么效果。也许我们的方法不对。目前我们创建的个体中 N（元素数量）是 5。让我们试着把 N 减少到 3。（我们将目标数字保持在 15。）</p>
       
     
       
-        <p>不难看出这个想法如何反复引诱科学家们撞墙，直到他们扭曲了自己的大脑皮层和算法，足以让自己相信它有效。要是遗传编程的结果能配得上它概念上的美感就好了。</p>
+        <pre><code>&gt;&gt;&gt; history, fitness = evolve(individ_size=3)
+&gt;&gt;&gt; fitness[:10]
+[162, 162, 141, 146, 140, 162, 148, 145, 152, 170]
+&gt;&gt;&gt; (sum(fitness[:10])*1.0) / 10
+152.8
+&gt;&gt;&gt; fitness[-10:]
+[149, 156, 157, 158, 165, 169, 174, 157, 159, 164]
+&gt;&gt;&gt; (sum(fitness[-10:])*1.0) / 10
+160.8
+</code></pre>
       
     
       
-        <p>（你可以在此处看到修订后的代码。）</p>
+        <p>由于组合数更少（3^3 而不是 5^5），我们看到了更多语法正确的个体，但随着代数增加的比例实际上更差。让我们做最后一次努力。把目标 X 从 15 改成 6，只保留前 10% 的个体，并把代数增加到三千。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; history, fitness = evolve(retain=0.1, individ_size=3, target=6, generations=3000)
+&gt;&gt;&gt; fitness[:10]
+[156, 147, 137, 135, 129, 153, 152, 141, 146, 149]
+&gt;&gt;&gt; sum(fitness[:10]) / 10.0
+144.5
+&gt;&gt;&gt; fitness[-10:]
+[160, 166, 157, 152, 163, 170, 177, 167, 153, 161]
+&gt;&gt;&gt; sum(fitness[-10:]) / 10.0
+162.6
+</code></pre>
+      
+    
+      
+        <p>对于一个主要弱点是快速且短视优化的算法来说，这种缺乏进展的情况有力地表明了我们已经开始怀疑的事情：遗传算法根本无法克服这个问题的搜索部分。</p>
+      
+    
+      
+        <p>这一个例子远不足以作为充分的理由，但我会进一步指出，只有当你提供一个详细的解决方案大纲时，遗传编程才会解决问题。遗传算法可以从提供的组件中优化出一个解决方案，但遗传编程不足以同时发现和优化一个解决方案。这很遗憾，因为这个概念本身有着难以忽视的优雅之处。</p>
+      
+    
+      
+        <p>不难看出这个想法如何反复引诱科学家们在这个问题上撞得头破血流，直到他们扭曲了自己的大脑皮层和算法，以至于相信它真的有效。要是遗传编程的结果能配得上它概念上的美丽就好了。</p>
+      
+    
+      
+        <p>（你可以在此处看到修改后的代码。）</p>
       
     
       
         <h2>2009 年 1 月 20 日的简短回应</h2>
+        
       
     
       
-        <p>许多评论者强烈认为这个引言不公平地诋毁了遗传编程。从他们所表达的深切愤怒来看，这些很可能是正在从事遗传编程领域研究的人。总是那些离某个话题太近的人，尤其是学者，会对批评产生非理性的愤怒。当然，如果有人暗示我花了半个十年在追逐一个白日梦，我也会同样生气。</p>
+        <p>许多评论者强烈认为这篇引言不公平地诋毁了遗传编程。根据他们表现出的强烈愤怒来看，这些人很可能是正在从事遗传编程领域研究的研究者。总是那些离某个话题太近的人，尤其是学者，会对批评产生不理性的反应。当然，如果有人暗示我花了十年时间追求一个白日梦，我也会同样生气。</p>
       
     
       
-        <p>除了愤怒，基本的抱怨是我在生成个体时使用了随机组合元素的简单方法，而不是创建相当复杂的 инфраструк来持续生成语法正确的抽象语法树。</p>
+        <p>除了愤怒，核心的抱怨是我使用了一种简单的方法来生成个体——随机组合元素，而不是构建相当复杂的底层设施来持续生成语法正确的抽象语法树。</p>
       
     
       
-        <p>在上面的文章中，我提到了针对信息量不足的适应度函数的两种应对方法：</p>
+        <p>在上面的文章中，我提到了针对信息量不足的适应度函数的两种回应：</p>
       
     
       
-        <div class="list-content">教会适应度函数如何编写代码。教会适应度函数解决问题的代码。</div>
+        <div class="list-content">教适应度函数如何编写代码。教适应度函数要解决问题的代码。</div>
       
     
       
-        <p>虽然分开列出，而且在那些尖叫的声音之上，我并不认为这两个解决方案真正有本质区别。即使我们将诉诸#2 的做法包装在执行#1 的前提之下，我们仍然是在教适应度函数创建我们想要的解决方案。如果我们承认遗传算法无法解决搜索领域的问题，那还能怎样呢？即使限制在有效代码范围内，问题空间也极其庞大；我们要么需要一个真正的搜索算法来发现解决方案，要么提供搜索方向的提示。</p>
+        <p>虽然分开列出，而且在那些尖叫的声音之上，但我并不认为这两个解决方案真正有区别。即使我们把诉诸 #2 包装在执行 #1 的前提之下，我们仍然是在教适应度函数创建我们想要的解决方案。如果我们承认遗传算法无法在搜索领域解决问题，那还能怎样呢？即使限制在有效代码范围内，问题空间也极其庞大；我们要么需要一个真正的搜索算法来发现解决方案，要么就得提供搜索方向的提示。</p>
       
     
       
@@ -221,15 +372,156 @@
       
     
       
-        <div class="list-content">这些文章的目的是向初学者程序员介绍计算机科学的思想，同时坚持使用 Python 语言，最重要的是提供完整的、可运行的示例，不依赖外部（即非标准）库。在解决方案中使用抽象语法树不在考虑范围内，同样也不打算把遗传编程贬低为过于复杂或仅限于天界研究者领域。有评论提到某个未具体说明的问题领域，在那里遗传编程明显优于遗传算法，或许也优于其他算法。虽然“优越”的定义和问题领域都没有说明，但我很乐意进行这样一场竞赛：选择一个被认为 firmly 处于遗传编程最具竞争力的领域的问题。决定使用一种通用编程语言（也许是 Scheme 或 Common Lisp？）。编写代码时不使用算法特定的支持库（即生成随机数的库是可以的，但支持遗传编程/遗传算法的库不行）。这很重要，因为它能揭示算法的真实复杂度，而不是把复杂度隐藏在库背后。任意数量的参赛者提交解决方案，并说明所使用的算法类别。将解决方案和测试用例打包在一个 zip 文件中分发，以便我们都能验证结果。任何人可以创建自己的评分标准，并以自己的观点撰写群体结果总结。</div>
+        <div class="list-content">这些文章的目的是向初级程序员介绍计算机科学的思想，同时坚持使用 Python 语言，最重要的是提供完整可运行的示例，不依赖外部（即非标准）库。在解决方案中使用抽象语法树不在考虑范围内，把遗传编程斥为过于复杂或仅限于天界研究者领域也不行。有提到某个未具体说明的问题领域，在那里遗传编程明显优于遗传算法，或许也优于其他算法。虽然“优越”的定义和问题领域都没有说明，但我很乐意进行这样一场竞赛：选择一个被认为 firmly 处于遗传编程最具竞争力的领域的问题。决定使用一种共同的编程语言（也许是 Scheme 或 Common Lisp？）。编写代码时不使用特定于算法的支撑库（即生成随机数的库是可以接受的，但支持遗传编程/遗传算法的库则不行）。这点很重要，因为它揭示了算法的真实复杂性，而不是把复杂性隐藏在库的背后。任意数量的参赛者提交解决方案，以及它所使用的算法类别。解决方案和测试用例以 zip 文件形式分发，以便我们所有人验证结果。任何人都可以创建自己的评分标准，并以自己的偏见撰写群体结果的报告。</div>
       
     
       
         <h2>初始完整代码</h2>
+        
+      
+    
+      
+        <pre><code>from random import randint, random
+def part():
+options = (&#x27;+&#x27;,&#x27;-&#x27;,&#x27;*&#x27;,&#x27;/&#x27;)
+options += tuple( &quot;%d&quot; % x for x in range(0,10))
+return options[randint(0, len(options)-1)]
+def individual(length=5):
+return [ part() for i in range(length) ]
+def population(size=1000, length=5):
+return [ individual(length=length) for x in range(size) ]
+def fitness(x, target):
+try:
+val = eval(&quot; &quot;.join(x))
+return target - abs(target-val)
+except:
+return -100000
+def grade_population(pop, target):
+total = sum([ fitness(x, target) for x in pop ])
+avg = total / (len(pop) * 1.0)
+return avg
+def generation(pop, target, retain=0.3, random_select=0.05, mutate=0.01):
+graded = [ (fitness(x, target), x) for x in pop ]
+graded = [ x[1] for x in sorted(graded, reverse=True) ]
+retain_length = int(len(graded)*retain)
+parents = graded[:retain_length]
+# randomly add other individuals to
+# promote genetic diversity
+for individual in graded[retain_length:]:
+if random() &gt; random_select:
+parents.append(individual)
+# mutate some individuals
+for individual in parents:
+if random() &gt; mutate:
+pos_to_mutate = randint(0, len(individual)-1)
+# this mutation is not ideal, because it
+# restricts the range of possible values,
+# but the function is unaware of the min/max
+# values used to create the individuals,
+individual[pos_to_mutate] = part()
+# crossover parents to create children
+parents_length = len(parents)
+desired_length = len(pop) - parents_length
+children = []
+while len(children) &lt; desired_length:
+male = randint(0, parents_length-1)
+female = randint(0, parents_length-1)
+if male != female:
+male = parents[male]
+female = parents[female]
+half = len(male) / 2
+child = male[:half] + female[half:]
+children.append(child)
+parents.extend(children)
+return parents
+def evolve(pop_size=1000, target=15, individ_size=5, retain=0.3,
+generations=1000, random_select=0.05, mutate=0.01):
+p = population(size=pop_size, length=individ_size)
+history = [ p, ]
+fit_history = [ grade_population(p, target=target) ]
+for i in range(generations):
+p = generation(p, target, retain, random_select, mutate)
+history.append(p)
+fit_history.append(grade_population(p, target=target))
+return history, fit_history
+</code></pre>
       
     
       
         <h2>优化后的完整代码</h2>
+        
+      
+    
+      
+        <pre><code>from random import randint, random
+def part():
+options = (&#x27;+&#x27;,&#x27;-&#x27;,&#x27;*&#x27;,&#x27;/&#x27;)
+options += tuple( &quot;%d&quot; % x for x in range(0,10))
+return options[randint(0, len(options)-1)]
+def individual(length=5):
+return [ part() for i in range(length) ]
+def population(size=1000, length=5):
+return [ individual(length=length) for x in range(size) ]
+def fitness(x, target):
+try:
+val = eval(&quot; &quot;.join(x))
+return target - abs(target-val)
+except:
+return -100000
+def grade_population(pop, target):
+pop_fitness = [ fitness(x, target) for x in pop ]
+valid_syntax = [ x for x in pop_fitness if x &gt; -100000 ]
+valid_count = len(valid_syntax)
+return valid_count
+def generation(pop, target, retain=0.3, random_select=0.05, mutate=0.01):
+graded = [ (fitness(x, target), x) for x in pop ]
+graded = [ x[1] for x in sorted(graded, reverse=True) ]
+retain_length = int(len(graded)*retain)
+parents = graded[:retain_length]
+# randomly add other individuals to
+# promote genetic diversity
+for individual in graded[retain_length:]:
+if random() &gt; random_select:
+parents.append(individual)
+# mutate some individuals
+for individual in parents:
+if random() &gt; mutate:
+pos_to_mutate = randint(0, len(individual)-1)
+# this mutation is not ideal, because it
+# restricts the range of possible values,
+# but the function is unaware of the min/max
+# values used to create the individuals,
+individual[pos_to_mutate] = part()
+# crossover parents to create children
+parents_length = len(parents)
+desired_length = len(pop) - parents_length
+children = []
+while len(children) &lt; desired_length:
+male = randint(0, parents_length-1)
+female = randint(0, parents_length-1)
+if male != female:
+male = parents[male]
+female = parents[female]
+half = len(male) / 2
+child = male[:half] + female[half:]
+children.append(child)
+parents.extend(children)
+return parents
+def evolve(pop_size=1000, target=15, individ_size=5, retain=0.3,
+generations=1000, random_select=0.05, mutate=0.01):
+p = population(size=pop_size, length=individ_size)
+history = [ p, ]
+fit_history = [ grade_population(p, target=target) ]
+for i in range(generations):
+p = generation(p, target, retain, random_select, mutate)
+history.append(p)
+fit_history.append(grade_population(p, target=target))
+return history, fit_history
+</code></pre>
+      
+    
+      
+        <div class="list-content">如果这些计算机科学文章有一天被收录成书，书名中将会用粗体 Marker Felt 突出显示“biased”这个词。↩</div>
       
     
   </div>

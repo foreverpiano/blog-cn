@@ -29,15 +29,29 @@
   <div class="article-content">
     
       
-        <p>我正在规划一个新的副业项目，目前还处于概念阶段，想用 Node.js 来实现。（主要是因为它部署起来非常简单，而且在空闲时不会像我平时用 Apache2 + mod_wsgi 部署 Django 那样耗费资源。）</p>
+        <p>我正在构思一个新的个人小项目，打算用 Node.js 来实现。（主要是因为它部署起来极其简单，而且在空闲时不会像我平时用的 Apache2 + mod_wsgi 配置部署 Django 那样消耗资源。）</p>
       
     
       
-        <p>我对[这篇博客文章中介绍的配置思路][boldr]相当满意，但希望引入更多 Django 的特性，于是把 [urlpatterns.py 的 URL 分发模式][urlpatten]移植了过来。结果发现实现起来非常容易。</p>
+        <p>我对[这篇博客文章中介绍的配置思路][boldr]颇为满意，但希望再多融入一些 Django 的风格，于是就把 [urlpatterns.py 的 URL 分发模式][urlpatten]移植了过来。结果发现实现起来相当容易。</p>
       
     
       
-        <p>通过使用这个 dispatcher，我可以编写一个 views.js 文件，它能把正则表达式匹配到的 URL 参数提取出来，并作为函数参数传递进去。</p>
+        <p>使用这个 dispatcher 之后，我就能编写一个 views.js 文件，它会把正则表达式从 URL 中提取的匹配结果作为参数传递给对应的函数。</p>
+      
+    
+      
+        <pre><code>exports.index = function(req, res) {
+    res.writeHead(200, {&#x27;Content-Type&#x27;: &#x27;text/html&#x27;});
+    res.write(&#x27;index.html&#x27;);
+    res.close();
+};
+exports.project = function(req, res, project) {
+res.writeHead(200, {&#x27;Content-Type&#x27;: &#x27;text/html&#x27;});
+res.write(&#x27;project.html: &#x27; + project);
+res.close();
+};
+</code></pre>
       
     
       
@@ -45,7 +59,36 @@
       
     
       
-        <p>总的来说，这个配置很不错。我正在尝试结合 Mu，也许今晚或明天会发布一个微型框架，不过可能不会比其他人已经投入时间打造的方案增加多少价值。哎，随它去吧。</p>
+        <pre><code>var http = require(&quot;http&quot;),
+    url = require(&quot;url&quot;),
+    views = require(&quot;./views&quot;),
+    port = 8000;
+require(&quot;../underscore/underscore&quot;);
+var patterns = [
+[/^/project/([\w-_])/$/, views.project],
+[/^/$/, views.index]
+];
+http.createServer(function(req, res) {
+req.addListener(&#x27;end&#x27;, function() {
+var path = url.parse(req.url).pathname,
+match = _.detect(patterns, function(pattern) {
+return pattern[0].exec(path);
+});
+if (match) {
+var p = [req, res].concat((match[0].exec(path)).slice(1));
+match[1].apply(this, p);
+} else {
+res.writeHead(404, {&#x27;Content-Type&#x27;: &#x27;text/html&#x27;});
+res.write(&#x27;No matching pattern found&#x27;);
+res.close();
+}
+});
+}).listen(port);
+</code></pre>
+      
+    
+      
+        <p>总的来说，这是一个很不错的小巧方案。我正在尝试结合 Mu，可能今晚或明天会发布一个微框架，不过很可能也没比其他人已经花时间打造的那些东西多出多少价值。唉，就这样吧。</p>
       
     
   </div>

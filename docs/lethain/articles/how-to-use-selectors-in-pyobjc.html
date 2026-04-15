@@ -29,7 +29,7 @@
   <div class="article-content">
     
       
-        <p>最近我在处理一个 PyObjC 项目时遇到了一个稍微复杂的情况。我希望安排一个操作，让它在稍后某个时间执行，除非满足特定条件，在这种情况下我需要取消已安排的操作。</p>
+        <p>最近我在开发一个 PyObjC 项目时，遇到一个稍微复杂的情况。我需要安排一个操作在稍后执行，除非满足特定条件，那时我希望能取消这个已安排的操作。</p>
       
     
       
@@ -37,51 +37,122 @@
       
     
       
-        <p>但当时我的思路完全处在 Objective-C 模式，所以立刻就想到了使用 NSTimer。NSTimer 创建新实例的方法定义如下1：</p>
+        <pre><code>from random import random
+from threading import Timer
+def disp():
+print &quot;Couldn&#x27;t find in time.&quot;
+timer = Timer(15.0,disp)
+timer.start()
+while 1:
+if random() &gt; 0.9:
+timer.cancel()
+print &quot;Found!&quot;
+break
+</code></pre>
       
     
       
-        <p>没问题，我们可以直接用熟悉的 PyObjC 规则来翻译它。</p>
+        <p>但当时我的思维还停留在 Objective-C 模式，所以立刻就想到使用 NSTimer。NSTimer 创建新实例的方法定义如下1：</p>
       
     
       
-        <p>大多数参数都一目了然，但有一个地方我不太确定：如何在 PyObjC 中创建 selector？结果发现非常简单，只是需要一点点“魔法”。</p>
+        <pre><code>+scheduledTimerWithTimeInterval:target:selector:userInfo:repeats:
+</code></pre>
       
     
       
-        <p>上面这些看起来都挺合理，对吧？不过可能有一个小细节完全说不通？如果我可以大胆说的话，signature=&#x27;v@:&#x27; 这部分看起来有点神奇，甚至（我敢说）有些随意。幸运的是，这是一个很容易掌握的魔法技巧。</p>
+        <p>没问题，我们可以直接用熟悉的 PyObjC 规则进行转换。</p>
       
     
       
-        <p>第一部分 v 表示该方法返回 void——也就是不返回任何值；第二部分 @:@ 表示它是一个实例方法。由于我的对象没有接受任何参数，所以就只有这些内容。</p>
+        <pre><code>NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(delay,target,selector,userInfo,repeats)
+</code></pre>
       
     
       
-        <p>但如果方法需要接受一些参数，也很容易处理。签名 v@:@fi 表示该方法接受三个参数，@ 代表一个对象，f 代表一个浮点数，i 代表一个整数。你也可以用这些相同的符号来代替 v，以指定返回值的类型。例如，考虑下面这个 Python 方法：</p>
+        <p>大多数参数都很好理解，但有一个地方让我不太确定：如何在 PyObjC 中创建 selector？结果发现其实很简单，只是需要一点“魔法”。</p>
       
     
       
-        <p>在 Python 中为该方法创建 selector 看起来是这样的：</p>
+        <pre><code>&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;reset_timer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;timer&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;timer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;invalidate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;s&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;objc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;selector&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;advertise&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;signature&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;v@:&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;timer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NSTimer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;scheduleTimerWithTimeInterval_target_selector_userInfo_repeats&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;30.0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;advertise&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;Don&amp;#39;cha wanna buy something?&amp;quot;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;vend&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;reset_timer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;Thanks for buying.&amp;quot;&lt;/span&gt;
+</code></pre>
       
     
       
-        <p>确实有点别扭，但用我们四个神奇的符号 v、@、i 和 f 就能轻松解决，没有什么克服不了的。</p>
+        <p>到这里应该都挺清楚了，对吧？不过，可能有一个小地方完全说不通？如果我可以直言的话，signature=&#x27;v@:&#x27; 这部分看起来有点神奇，甚至（我敢说）有些随意。幸运的是，这是个很容易掌握的小魔法。</p>
       
     
       
-        <h2>补充资料</h2>
+        <p>第一部分 v 表示该方法返回 void——即不返回任何值；第二部分 @：表示这是一个实例方法。因为我的对象没有接受任何参数，所以就是这些了。</p>
       
     
       
-        <p>我四处搜集信息的几个地方——都很有帮助，但都不够全面——包括 Jim Matthews 博客上的 objc.selector 和 objc.signature、一些在线的 PyObjC 文档，以及 PyObjC 代码本身中一直很有帮助的 Python docstring：</p>
+        <p>但如果方法需要接受一些参数，也同样简单。签名 v@:@fi 表示该方法接受三个参数，@ 代表对象，f 代表 float，i 代表整数。你也可以用这些符号代替 v 来指定返回值的类型。例如，考虑下面这个 Python 方法：</p>
       
     
       
-        <p>对于那些希望收集更多细节、拼凑出 PyObjC 中使用 selector 的较为完整图景的人来说，这三者都值得一看。</p>
+        <pre><code>class MyClass(object):
+    def my_method(self,x_int,y_int,z_obj):
+        print x_int + y_int
+        return z_obj
+</code></pre>
       
     
       
-        <p>如果有任何问题或想法，欢迎告诉我！</p>
+        <p>在 Python 中为该方法创建 selector 的写法如下：</p>
+      
+    
+      
+        <pre><code>import objc
+s = objc.selector(my_method,signature=&quot;@@:ii@&quot;)
+</code></pre>
+      
+    
+      
+        <p>虽然看起来有点别扭，但用我们四个魔法符号：v、@、i 和 f，就能轻松搞定。</p>
+      
+    
+      
+        <h3>更多参考资料</h3>
+        
+      
+    
+      
+        <p>我查找信息的地方——都很有帮助但都不够全面——包括 Jim Matthews 博客上的 objc.selector 和 objc.signature、一些在线的 PyObjC 文档，以及 PyObjC 代码中一直很有帮助的 Python docstring：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; import objc
+&gt;&gt;&gt; print objc.selector.__doc__
+selector(function, [, selector] [, signature] [, isClassMethod=0]
+    [, returnType] [, argumentTypes] [, isRequired=True]) -&gt; selector
+Return an Objective-C method from a function. The other arguments 
+specify attributes of the Objective-C method.
+etc…
+</code></pre>
+      
+    
+      
+        <p>对于想进一步了解、在 PyObjC 中使用 selector 的完整知识的人来说，这三处都值得一读。</p>
+      
+    
+      
+        <p>如果有任何问题或评论，欢迎告诉我！</p>
+      
+    
+      
+        <div class="list-content">实际上有好几个类方法可供选择，但我挑选了最容易使用的一个。↩</div>
       
     
   </div>

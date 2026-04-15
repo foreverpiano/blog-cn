@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LifeFlow 编辑器的技术细节 · Will Larson 文集</title>
+  <title>Life Flow Editor 的技术细节 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>LifeFlow 编辑器的技术细节</h1>
+    <h1>Life Flow Editor 的技术细节</h1>
     <div class="meta">
       2008-02-03 · 
       <a href="https://lethain.com/technical-aspects-of-the-life-flow-editor/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,51 +29,160 @@
   <div class="article-content">
     
       
-        <p>过去几天我投入了大量时间来实现 LifeFlow 编辑器，虽然还有很多工作要做，但它正在逐步成型，朝着我预想的方向发展。其中有一些有趣的细节值得分享。</p>
+        <p>过去几天我花了很多时间来实现 LifeFlow 编辑器，虽然还有大量工作要做，但它正逐渐成型为我想要的样子。其中有一些有趣的细节值得一提。</p>
       
     
       
-        <h2>通过 Ajax 通用更新模型</h2>
+        <h3>通过 Ajax 通用更新模型</h3>
+        
       
     
       
-        <p>LFE 中我使用得最多的一个核心功能，就是在后台发送模型更新。这让我可以在不显式提交 POST 表单的情况下保持内容最新，既让编辑过程不那么打扰用户，也大大降低了数据丢失的风险。其中一个明显的好处是，你再也不会遇到因为保存失败而丢失所有数据的情况（因为现在的保存是增量式的，而不是一次性整体保存）。</p>
+        <p>LFE 中我使用的最重要的功能之一，是在后台发送模型更新。这意味着我无需显式提交 POST 表单就能保持内容是最新的，整体编辑过程也更少打扰，同时降低了数据丢失的风险。特别值得一提的是，你再也不会遇到保存失败导致数据丢失的情况（因为保存是增量进行的，而不是一次性整体保存）。</p>
       
     
       
-        <p>在之前开发的另一个 Django 应用中，我写过一个完全通用的更新函数，它会内省模型来获取待保存字段的类型，并据此进行相应处理。</p>
+        <p>在之前开发的一个 Django 应用中，我写过一个完全通用的更新函数，它会自省模型来判断待保存字段的类型，然后进行相应处理。</p>
       
     
       
-        <p>为了实现这种通用性，代码相当复杂。下面是一些相关代码片段，你可以大致浏览一下，不必细读。（读这段代码示例时如果知道我是把一个 JSON 序列化后的字典以 &#x27;json&#x27; 为键放在 POST 中提交，可能会更容易理解。虽然现在重写的话我可能不会再用这种方式，但当时用着还算顺手，尽管一开始听起来有点别扭。）</p>
+        <p>为了实现这种通用性，代码相当复杂。下面是一些相关片段，你可以大致浏览而不用仔细阅读。（如果知道我是把一个经过 JSON 序列化的字典以 &#x27;json&#x27; 为键放在 POST 中，阅读代码示例可能会更容易。虽然现在重写的话我不一定会再用这种方式，但它当时工作得还不错，尽管听起来有点别扭。）</p>
       
     
       
-        <p>最终代码看起来是这样的：</p>
+        <p>最终代码如下所示：</p>
       
     
       
-        <p>呼，真是一种非常复杂的方式，主要是因为它必须足够通用，以应对各种结构不一致的模型。幸运的是，为 LifeFlow 编辑器实现所需的更新函数要简单得多：</p>
+        <pre><code>def process_json_params(request):
+    &#x27;Parses received JSON into a Python dict, or returns error message.&#x27;
+    if request.method == &quot;POST&quot; and request.POST.has_key(&#x27;json&#x27;):
+        return simplejson.loads(request.POST[u&#x27;json&#x27;])
+    else:
+        return None
+def retrieve_by_id(request, model):
+&#x27;Attempt to retrieve a model instance by id.&#x27;
+params = process_json_params(request)
+if params is not None and params.has_key(&#x27;id&#x27;):
+id = params[&#x27;id&#x27;]
+try:
+object = model.objects.get(id=id)
+return True, object, params
+except ObjectDoesNotExist:
+return None, &quot;ID refers to a non-existant instance.&quot;, params
+else:
+return None, &quot;Did not specify valid ID.&quot;, params
+def locate_class_by_string(string, module=project.models):
+&#x27;&#x27;&#x27;
+    Return a Class object from a module based on string.
+    Expected input: &#x27;case&#x27;, &#x27;event, &#x27;email_address&#x27;
+    &#x27;&#x27;&#x27;
+def cap(str):
+return str.capitalize()
+def combine(a, b):
+return &quot;%s%s&quot; % (a, b)
+capitalized_string = reduce(combine ,map(cap, string.split(&#x27;&#x27;)))
+return getattr(module, capitalized_string)
+def get_field(model, field_str):
+for field in model._meta.fields:
+if field.name == field_str:
+return field
+def generic_update(request, model):
+&#x27;Abstracted update operation for the API.&#x27;
+model = locate_class_by_string(model)
+status, obj_or_msg, params = retrieve_by_id(request, model)
+if status is True:
+try:
+for key in params.keys():
+val = params[key]
+f = get_field(model, key)
+if f.class == fields.related.ForeignKey:
+val = f.rel.to.objects.get(pk=val)
+setattr(obj_or_msg, key, val)
+obj_or_msg.save()
+data = simplejson.dumps({&#x27;successful&#x27;:True})
+return HttpResponse(data, mimetype=&#x27;application/json&#x27;)
+except:
+msg = &quot;Improper parameters for updating a %s.&quot; % model
+return improper_api_request(msg)
+else:
+return improper_api_request(obj_or_msg)
+</code></pre>
       
     
       
-        <p>因为我只处理一个模型（准确来说是两个模型：Draft 和 Entry，但它们的字段完全重叠，所以可以忽略它们不是同一个模型这一点），我就不需要对字段本身进行内省，代码也干净了许多。另外一个方便的技巧是，我可以用 login_required 装饰器来限制对这些 Ajax 接口的访问。</p>
+        <p>呼，这是一种非常复杂的方式，主要是因为它必须足够通用，以应对各种不一致的模型。幸运的是，为 LifeFlow 编辑器实现所需的更新函数要简单得多：</p>
       
     
       
-        <h2>高亮已选中的标签/流程/系列</h2>
+        <pre><code>BOOLEAN_FIELDS = [&quot;send_ping&quot;, &quot;allow_comments&quot;, &quot;use_markdown&quot;]
+MANY_TO_MANY_FIELDS = [&quot;flows&quot;, &quot;tags&quot;, &quot;series&quot;, &quot;authors&quot;]
+@login_required
+def update(request):
+dict = request.POST.copy()
+print dict
+id = dict.pop(&#x27;pk&#x27;)[0]
+model = dict.pop(&#x27;model&#x27;)[0]
+if model == u&quot;draft&quot;:
+object = Draft.objects.get(pk=id)
+else:
+object = Entry.objects.get(pk=id)
+obj_dict = object.dict
+for key in dict.keys():
+if obj_dict.has_key(key):
+val = dict[key]
+if key in BOOLEAN_FIELDS:
+if val == u&quot;true&quot;:
+val = True
+elif val == u&quot;false&quot;:
+val = False
+obj_dict[key] = val
+elif key in MANY_TO_MANY_FIELDS:
+vals = dict.getlist(key)
+manager = getattr(object, key)
+manager.clear()
+manager.add(*vals)
+object.save()
+return HttpResponse(&quot;success&quot;)
+</code></pre>
       
     
       
-        <p>有一个问题我花了一点时间思考，就是如何预先选中所有已经选择的标签。这是一个重要的视觉提示，所幸实现起来相当简单。</p>
+        <p>因为我只处理一个模型（准确来说是两个模型：Draft 和 Entry，但它们的字段完全重叠，所以可以忽略它们不是同一个模型这一点），我无需对字段本身进行自省，代码也干净得多。另外一个很方便的技巧是，我可以用 login_required 装饰器来限制对这些 Ajax 调用的访问。</p>
       
     
       
-        <p>首先，我在 Python 的视图中使用简单的列表推导式来确定哪些条目已经被选中：</p>
+        <h3>高亮已选中的标签/流程/系列</h3>
+        
       
     
       
-        <p>然后通过下面的模板片段来实现视觉上的高亮显示：</p>
+        <p>有一个问题我花了一点时间思考，那就是如何预先选中所有已经选择的标签。这是一个很重要的视觉提示，但幸运的是处理起来相当简单。</p>
+      
+    
+      
+        <p>首先，我在 Python 的视图中使用简单的列表推导式来确定哪些项目已被选中：</p>
+      
+    
+      
+        <pre><code>@login_required
+def edit_four(request, category, id):
+    if category == &quot;entry&quot;:
+        obj = Entry.objects.get(pk=id)
+    else:
+        obj = Draft.objects.get(pk=id)
+    obj_tags = obj.tags.all()
+    tags = [ (x, x in obj_tags) for x in Tag.objects.all()]
+    return render_to_response(&#x27;lifeflow/editor/edit_four.html&#x27;,
+                              {&#x27;object&#x27;:obj,
+                               &#x27;tags&#x27;:tags,
+                               &#x27;model&#x27;:category},
+                              RequestContext(request, {}))
+</code></pre>
+      
+    
+      
+        <p>然后用下面的模板片段来实现视觉展示：</p>
       
     
       
@@ -81,23 +190,46 @@
       
     
       
-        <p>非常简单。接下来是用于向服务器发送更新的 JavaScript 代码（使用 jQuery）。我没有使用任何明确的保存按钮，而是每当鼠标进入或离开包含该内容的 div 时就推送更新。</p>
+        <p>非常简单。下面是我用来向服务器发送更新的 JavaScript 代码（使用 jQuery）。我没有使用任何显式的保存按钮，而是每次鼠标进入和离开包含的 div 时就推送更新。</p>
       
     
       
-        <p>注意 hover 函数接受两个参数，第一个是鼠标进入区域时调用的函数，第二个是鼠标离开时调用的函数。我给第一个参数传入了一个空操作的匿名函数，因为我不希望鼠标进入区域时执行任何操作。</p>
+        <pre><code>$(document).ready(function(){$(&quot;#selectables&quot;).hover(
+  function() { ;},
+  function() {
+    var selected = $.map($(&quot;a.selected&quot;),function(x) {
+      return x.id;
+    });
+    jQuery.ajax({type:&quot;POST&quot;, url:&#x27;/editor/update/&#x27;,
+      data:{&quot;pk&quot;:{ { object.pk }}, &quot;model&quot;:&quot;{ { model }}&quot; ,&quot;tags&quot;:selected}});
+    }
+)});
+</code></pre>
       
     
       
-        <p>最后再附上用于切换可选择项目高亮效果的代码：</p>
+        <p>注意 hover 函数接受两个参数，第一个是鼠标进入区域时调用的函数，第二个是鼠标离开时调用的函数。我给第一个参数传入了一个什么都不做的匿名函数，因为我不想鼠标进入区域时执行任何操作。</p>
       
     
       
-        <h2>在 Draft 和 Entry 之间相互转换</h2>
+        <p>作为补充，下面是用于切换可选择项目高亮效果的代码：</p>
       
     
       
-        <p>代码中经常要做的一件事就是在 Draft 和 Entry 模型之间进行转换。这两个模型大部分字段都相同，Entry 是 Draft 的超集，唯一的区别是 Draft 有一个 edited 字段而 Entry 没有。</p>
+        <pre><code>$(document).ready(function() {
+  $(&quot;a.selectable&quot;).click(function () {
+    $(this).toggleClass(&quot;selected&quot;);
+})});
+</code></pre>
+      
+    
+      
+        <h3>在 Draft 和 Entry 之间互相转换</h3>
+        
+      
+    
+      
+        <p>代码中经常要做的一件事是在 Draft 和 Entry 模型之间互相转换。两个模型大部分字段都相同，Entry 是 Draft 的超集，只是 Draft 有一个 Entry 没有的 edited 字段。</p>
       
     
       
@@ -109,15 +241,79 @@
       
     
       
-        <p>将 Entry 实例转换为 Draft 则要简单一些：</p>
+        <pre><code>@login_required
+def edited_to_published(request, id):
+    def slugify(str):
+        return str.lower().replace(&#x27; &#x27;,&#x27;-&#x27;)[:95]
+    def prepare_draft(draft):
+        dict = draft.__dict__.copy()
+        if dict[&#x27;pub_date&#x27;] is None:
+            dict[&#x27;pub_date&#x27;] = datetime.datetime.now()
+        del dict[&#x27;edited&#x27;]
+        if dict[&#x27;slug&#x27;] is None:
+            dict[&#x27;slug&#x27;] = slugify(dict[&#x27;title&#x27;])
+        return dict
+    try:
+        obj = Draft.objects.get(pk=id)
+        pub = Entry(**prepare_draft(obj))
+        pub.save()
+        obj.delete()
+        return HttpResponse(pub.pk)
+    except TypeError:
+        return HttpResponseServerError(u&quot;Missing required fields.&quot;)
+    except:
+        return HttpResponseServerError(u&quot;Update failed.&quot;)
+</code></pre>
       
     
       
-        <h2>动态渲染 Markdown 格式的文本</h2>
+        <p>将 Entry 实例转换为 Draft 要更简单一些：</p>
       
     
       
-        <p>下面是处理格式化文本渲染的视图。如果传入了 model 和 id，则直接使用对应对象的 body 字段内容，否则会渲染 POST 数据中 &#x27;txt&#x27; 参数的内容。dbc_markup 是 Dynamic Blog Context markup 的缩写，它会依次应用代码语法高亮、Markdown 格式化，以及 LifeFlow 专属的 Dynamic Blog Context 扩展。</p>
+        <pre><code>@login_required
+def published_to_edited(request, id):
+    def convert_to_draft(entry):
+        dict = entry.__dict__.copy()
+        dict[&#x27;edited&#x27;] = True
+        del dict[&#x27;body_html&#x27;]
+        return dict
+    try:
+        entry = Entry.objects.get(pk=id)
+        draft = Draft(**convert_to_draft(entry))
+        draft.save()
+        entry.delete()
+        return HttpResponse(draft.pk)
+    except:
+        return HttpResponseServerError(u&quot;Update failed.&quot;)
+</code></pre>
+      
+    
+      
+        <h3>动态渲染 Markdown 格式的文本</h3>
+        
+      
+    
+      
+        <p>下面是处理格式化文本渲染的视图。如果指定了 model 和 id，它会直接使用对应对象的 body 文本，否则会渲染 POST 字典中 &#x27;txt&#x27; 参数的内容。dbc_markup 是 Dynamic Blog Context markup 的缩写，它会应用代码语法高亮、Markdown 格式化，以及 LifeFlow 特定的 Dynamic Blog Context 扩展。</p>
+      
+    
+      
+        <pre><code>@login_required
+def render(request, model=None, id=None):
+    if id is None:
+        txt = dbc_markup(request.POST[&#x27;txt&#x27;])
+    else:
+        if model == u&quot;draft&quot;:
+            obj = Draft.objects.get(pk=id)
+        elif model ==u&quot;entry&quot;:
+            obj = Entry.objects.get(pk=id)
+        if obj.use_markdown:
+            txt = dbc_markup(obj.body, obj)
+        else:
+            txt = obj.body
+    return HttpResponse(txt)
+</code></pre>
       
     
       
@@ -125,11 +321,11 @@
       
     
       
-        <p>总之，LifeFlow Editor 的代码中应该还有其他一些值得一看的有趣片段，但目前很多部分仍在开发中，代码还不够优雅。</p>
+        <p>总之，在 LifeFlow Editor 的代码中可能还有其他一些值得一看的有趣片段，但目前大部分代码仍在开发中，此时看还有点不够专业。</p>
       
     
       
-        <p>如果大家对这些实现的风格或细节有任何意见，欢迎告诉我。有些设计上的选择是因为这是一个后台工具，不需要做到极致的安全性（当然也不能暴露给危险的用户）。但整体来说，还有很长的路要走。</p>
+        <p>如果大家对实现风格或细节有任何意见，欢迎告诉我。某些设计选择是基于这是一个后端工具，不需要做到极其安全（当然不能暴露给危险用户）。但它还有很长的路要走。</p>
       
     
   </div>

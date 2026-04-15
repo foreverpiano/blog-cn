@@ -29,23 +29,24 @@
   <div class="article-content">
     
       
-        <p>虽然我的专业工作已经转移到了 VSCode（而且别误会，作为 CTO 我几乎不写代码了），但个人项目我仍然使用 Screen、Emacs 和 shell 命令的组合。最近我买了一台新的家用电脑来替换那台老化的 iMac，并决定尝试一些不同的做法：如果我不再每天点击“明天提醒我”，而是直接开启自动更新，会怎么样呢？直到这台电脑也被新机器取代。</p>
+        <p>虽然我的专业工作已经转到 VSCode（而且别误会，作为 CTO，我几乎不写代码了），但个人工作仍然依赖 Screen、Emacs 和各种 shell 命令的组合。最近我买了一台新电脑来替换老化的 iMac，并决定尝试一些不同的做法：如果我不再每天点“明天提醒我”，而是直接开启自动更新会怎么样？直到这台电脑也被换掉为止。</p>
       
     
       
-        <p>目前一切都还不错，但问题是我通常同时有两到三个项目，每个月会各做一两次（比如 staffeng、这个博客等等），每次系统更新强制重启后，screen 会话就全部丢失了。</p>
+        <p>目前一切还算顺利，只是我通常有两到三个项目，每个月会各做一两次（比如 staffeng、这个博客等等），每次软件更新强制重启后，我的 screen 会话就被清除了。</p>
       
     
       
-        <p>今天我终于受够了每次重启后都要手动重新设置这些 screen 窗口，于是花了些时间研究如何在重启后自动恢复配置。</p>
+        <p>今天我终于受够了每次重启后都要手动重建这些 screen 窗口，于是花了些时间研究如何在重启后自动完成配置。</p>
       
     
       
-        <h2>第一个版本</h2>
+        <h2>第一版</h2>
+        
       
     
       
-        <p>第一次尝试时，我的目标是先找到一个能用的方案，不管它有多丑陋或不优雅。最后我创建了两个文件：</p>
+        <p>第一次尝试时，我的目标是先找到一个能用的方案，不管它有多笨拙或不优雅。最后我创建了两个文件：</p>
       
     
       
@@ -53,31 +54,63 @@
       
     
       
+        <pre><code>escape ^Pp
+startup_message off
+vbell off
+screen -t dev	1	zsh -c &quot;gatsby develop&quot;
+screen -t write	2	zsh
+screen -t cli	3	zsh
+</code></pre>
+      
+    
+      
         <p>~/config/staffeng.sh</p>
       
     
       
-        <p>然后（用 chmod +x 给 staffeng.sh 加上执行权限后），我就可以通过以下命令启动我想要的配置：</p>
+        <pre><code>ORIG=`pwd`
+cd ~/git/staff-eng &amp;&amp; screen -d -R staffeng -c $ORIG/staffeng.rc
+</code></pre>
       
     
       
-        <p>效果出奇地好！它不仅能帮我快速搭建工作环境，还能通过 -d -R 参数在已有会话时自动重新连接。</p>
+        <p>然后（用 chmod +x 给 staffeng.sh 加上执行权限后），我就可以通过以下命令启动期望的配置：</p>
       
     
       
-        <h2>第二个版本</h2>
+        <pre><code>cd ~/config
+./staffeng.sh
+</code></pre>
       
     
       
-        <p>不过我有好几个不同的项目，不想在每个项目里都重复写 ~/.screenrc 的内容。幸运的是，Screen 配置文件支持 source 指令，于是我把 ~/config/staffeng.rc 精简成了：</p>
+        <p>效果出奇地好！它不仅能帮我搭建工作环境，还能通过 -d -R 参数在已有会话时自动重新连接上去。</p>
       
     
       
-        <p>这样 staffeng.rc 已经尽可能简洁了，但 runner 脚本还是显得有点多余。</p>
+        <h2>第二版</h2>
+        
       
     
       
-        <h2>第三个版本</h2>
+        <p>然而我有好几个不同的项目，不想在每个项目里都重复写 ~/.screenrc 的内容。幸好 Screen 支持 source 指令来引用配置文件，于是我把 ~/config/staffeng.rc 简化成：</p>
+      
+    
+      
+        <pre><code>source ~/.screenrc
+screen -t dev	1	zsh -c &quot;gatsby develop&quot;
+screen -t write	2	zsh
+screen -t cli	3	zsh
+</code></pre>
+      
+    
+      
+        <p>这样 staffeng.rc 已经简洁到极致，但启动脚本还是显得有些冗余。</p>
+      
+    
+      
+        <h2>第三版</h2>
+        
       
     
       
@@ -85,15 +118,33 @@
       
     
       
-        <p>我决定换一种思路：在每个正在开发的项目仓库里放一个 .screenrc 文件，然后写一个通用的命令，在对应目录下运行即可启动该项目的 screen 配置。</p>
+        <pre><code>ORIG=`pwd`
+cd ~/git/staff-eng &amp;&amp; screen -d -R staffeng -c $ORIG/staffeng.rc
+</code></pre>
       
     
       
-        <p>比如，我会创建这样一个文件：</p>
+        <p>我决定换一种思路：在各个项目仓库里放一个 .screenrc，然后写一个通用的命令，在对应目录下运行即可启动该项目的 screen 配置。</p>
       
     
       
-        <p>然后理想情况下我只需要执行：</p>
+        <p>比如，我会创建：</p>
+      
+    
+      
+        <pre><code>~/git/staff-eng/.screenrc
+~/git/irrational_exuberance/.screenrc
+</code></pre>
+      
+    
+      
+        <p>然后理想情况下只需要执行：</p>
+      
+    
+      
+        <pre><code>cd ~/git/staff-eng
+setup-screen
+</code></pre>
       
     
       
@@ -101,19 +152,39 @@
       
     
       
+        <pre><code>PWD=`pwd`
+NAME=`basename $PWD`
+screen -d -R $NAME -c ./.screenrc
+</code></pre>
+      
+    
+      
         <p>接着我把 staffeng.rc 复制到 ~/git/staff-eng/.screenrc，并调用新的 setup-screen。</p>
       
     
       
-        <p>它会自动使用仓库名称作为 screen 会话名，并尝试重新连接同名的已有会话：</p>
+        <pre><code>cd ~/git/staff-eng
+setup-screen
+</code></pre>
       
     
       
-        <p>总体来说，我对这个方案的效果非常满意。</p>
+        <p>它会自动把仓库名作为 screen 会话名，并重新接入同名的已存在会话：</p>
       
     
       
-        <p>目前唯一的缺点是，如果启动的进程退出（比如运行 gatsby develop），它不会回到 shell，而是直接关闭整个窗口。希望以后能找到办法，让它回到 zsh 而不是直接关闭窗口。</p>
+        <pre><code>willl@Mac-mini staff-eng % screen -ls
+There is a screen on:
+    1435.staff-eng  (Attached)
+</code></pre>
+      
+    
+      
+        <p>总的来说，我对这个方案的表现非常满意。</p>
+      
+    
+      
+        <p>目前唯一的问题是，如果里面启动的进程退出了（比如运行 gatsby develop），它不会回到 shell，而是直接把整个窗口关闭。希望我能找到办法让它回到 zsh 而不是直接关闭窗口。</p>
       
     
   </div>

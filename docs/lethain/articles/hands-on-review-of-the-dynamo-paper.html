@@ -29,59 +29,63 @@
   <div class="article-content">
     
       
-        <p>最近我有幸阅读了 Amazon Dynamo 论文，本打算整理一些结构化的笔记，却发现很难下笔，因为论文的话题切换得相当快。</p>
+        <p>最近我有幸阅读了 Amazon Dynamo 论文，本打算整理一些结构化的笔记，却发现颇有难度，因为论文的话题切换得相当快。</p>
       
     
       
-        <p>我认为一个很好的记录思路（同时也能加深理解）的方式，就是动手实现一个分布式键值存储，然后逐步加入 Dynamo 论文中讨论的各项改进。通过这个系列文章，最终我们将在一个分布式的 Erlang 系统中重新实现 Dynamo 的大部分核心思想。</p>
+        <p>我认为一个很好的记录想法（同时加深自己理解）的方式，就是动手实现一个分布式键值存储，然后逐步加入 Dynamo 论文中讨论的各种改进。通过这个系列，最终我们会在一个分布式 Erlang 系统中重新实现 Dynamo 的大部分核心思想。</p>
       
     
       
-        <p>每一篇文章都会介绍一个概念，并将其应用到一个随着系列不断演进的分布式键值存储示例中。（某些文章可能会包含多个概念，目的是让每篇文章既有足够长度值得拥有独立 URI，又足够简短可以在一次阅读中消化。）</p>
+        <p>每一篇文章都会介绍一个概念，并将其应用到一个随着系列不断演化的分布式键值存储示例中。（有些文章可能会包含多个概念，目的是让每篇文章既有足够的分量值得拥有独立 URI，又足够简短，能在一次阅读中消化。）</p>
       
     
       
-        <h2>为什么选择 Dynamo 论文？</h2>
+        <h3>为什么选择 Dynamo 论文？</h3>
+        
       
     
       
-        <p>因为它涵盖了大量主题。其中包括 virtual nodes、consistent hashing、merkle trees、incremental scaling、vector clocks、gossip protocols、seeds 和 sloppy quorums。这些主题任何一个都足以单独成文，因此这篇 27 页的 Dynamo 论文不得不对许多细节一带而过。</p>
+        <p>因为它涵盖了大量主题。其中涉及虚拟节点（virtual nodes）、一致性哈希（consistent hashing）、Merkle 树、增量扩容、向量时钟（vector clocks）、gossip 协议、种子节点（seeds）和松散法定人数（sloppy quorums）等。任何一个主题都足以单独成文，因此这篇 27 页的 Dynamo 论文不得不略过许多细节。</p>
       
     
       
-        <p>而一系列文章则有更多空间来深入探讨这些想法；通过动手构建项目，能带来一些实践的感觉，我认为这是呈现材料最有教益的方式。</p>
+        <p>而系列文章则有更多空间来深入探讨这些想法；通过构建实际项目能增加动手实践的感觉，我认为这是呈现材料最有启发性的方式。</p>
       
     
       
-        <h2>为什么选择 Erlang？</h2>
+        <h3>为什么选择 Erlang？</h3>
+        
       
     
       
-        <p>Erlang 是设计分布式系统的绝佳选择。这并不是特别为消息传递唱赞歌，而更多是对 pg2 模块的致敬——它能够注册运行在其他主机上的进程，并像本地进程一样与之交互。</p>
+        <p>Erlang 是设计分布式系统的绝佳选择。这并不是特别推崇消息传递，而是更多地致敬 pg2 模块，以及它能够在其他主机上注册并与进程交互，就像它们运行在本地一样的能力。</p>
       
     
       
-        <p>我一直很享受用 Clojure 做实验，也长期是 Python 的忠实用户，但无论是它们还是绝大多数编程语言，都无法像 Erlang 这样以如此轻松的方式抽象掉跨机器操作。</p>
+        <p>我一直很享受对 Clojure 的实验，也长期是 Python 的粉丝，但无论是它们还是绝大多数编程语言，都无法像 Erlang 这样以如此轻松随意的方式抽象跨机器操作。</p>
       
     
       
-        <p>这是一条重要信息，所以请允许我再说一遍：对于分布式系统来说，Erlang 的核心优势在于 OTP 应用平台和 Erlang 虚拟机。模式匹配、消息传递和函数式编程都是强大的语言特性，但它们都可以被替代；而 OTP 和 Erlang VM 则不可替代。</p>
+        <p>这是一个重要观点，请允许我再说一遍：对于分布式系统，Erlang 的核心优势在于 OTP 应用平台和 Erlang 虚拟机。模式匹配、消息传递和函数式编程范式都是强大的语言特性，但它们是可以被替代的；而 OTP 和 Erlang VM 则无法替代。1</p>
       
     
       
-        <h2>前置要求？</h2>
+        <h3>前置知识？</h3>
+        
       
     
       
-        <p>本系列的目标读者是热衷编程的人，但不一定是热衷 Erlang 编程的人。阅读本系列，你只需要一点点坚持精神。如果要跟着动手实践，你需要熟悉 Erlang 语法，并安装好可运行的 erl，但并不需要事先熟悉 pg2 等模块。</p>
+        <p>本系列的目标读者是热爱编程的人，但不一定是热爱 Erlang 编程的人。阅读本系列，你只需要一点点坚持。如果要动手实践，你需要熟悉 Erlang 语法并安装好可用的 erl，但不需要特别熟悉 pg2 等模块。</p>
       
     
       
-        <p>除了讨论 Dynamo 的实现之外，本系列的另一个目标是尽可能多地介绍实现和部署 Erlang 应用的各种重要概念，因此它非常适合 Erlang 新手作为启发性的阅读材料。</p>
+        <p>除了讨论 Dynamo 的实现之外，本系列的另一个目标是尽可能多地介绍实现和部署 Erlang 应用的重要概念，因此它非常适合 Erlang 新手作为一篇启发性的读物。</p>
       
     
       
-        <h2>我们的原型</h2>
+        <h3>我们的原型</h3>
+        
       
     
       
@@ -93,31 +97,72 @@
       
     
       
-        <p>用法示例如下：</p>
+        <pre><code>start(N) -&gt; started.
+stop() -&gt; stopped.
+get(Key) -&gt; {ok, Value}.
+get(Key, Timeout) -&gt; {ok, Value}.
+set(Key, Value) -&gt; {ok, updated}.
+set(Key, Value, Timeout) -&gt; {ok, updated}.
+</code></pre>
       
     
       
-        <p>这些函数定义大部分不会改变，但 start 函数会随着更多配置选项的加入而需要改进。现在让我们来实现初始版本（这些实现会在整个系列中发生较大变化）。</p>
+        <p>这些函数定义大部分不会改变，但 start 函数会随着我们增加更多配置选项而需要一些改进。现在让我们来看看初始实现（这些实现在整个系列中会发生很大变化）。</p>
       
     
       
-        <h2>start 和 stop</h2>
+        <pre><code>2&gt; kvs:start(5).
+started
+3&gt; kvs:get(a).
+{ok,undefined}
+4&gt; kvs:set(a, 10).
+{ok,updated}
+5&gt; kvs:get(a).
+{ok,10}
+6&gt; kvs:get(a).
+{ok,10}
+7&gt; kvs:stop().  
+stopped
+</code></pre>
       
     
       
-        <p>在整个系列中，我们会大量依赖 pg2。pg2 是一个用于创建全局进程组的模块，进程可以在其中注册自己，从而可以被其他进程轻松发现。</p>
+        <p>For the most part these function definitions won&#x27;t change, but start will need
+some improvements as we add more configuration options. Now let&#x27;s work through
+the initial implementations (which will change quite a bit over the series).</p>
       
     
       
-        <p>其真正价值在于，注册的进程不仅能被同一节点上的其他进程发现，也能被运行在其他节点上的进程发现。由于节点可以运行在不同的物理机器上，pg2 让我们能够以最小的麻烦实现跨机器扩展。</p>
+        <h3>start 和 stop</h3>
+        
       
     
       
-        <p>使用 pg2 时，第一步是通过 pg2:create/1 创建一个进程组（这是一个幂等操作，对已存在的组再次调用不会产生副作用），之后通过 pg2:join/2 将进程加入该组。后来，可以通过 pg2:leave/2 从组中移除进程。（进程组本身可以通过 pg2:delete/1 删除。）</p>
+        <p>在整个系列中，我们会大量依赖 pg2 模块。pg2 是一个用于创建全局进程组的模块，进程可以在其中注册自己，从而可以被其他进程轻松发现。</p>
       
     
       
-        <p>因此，我们可以按如下方式实现 start/1（其中唯一的参数是一个整数，表示要创建的节点数量）：</p>
+        <p>它的真正价值在于，已注册的进程不仅能被同一节点上的其他进程发现，也能被运行在其他节点上的进程发现。由于节点可以运行在不同的物理机器上，pg2 让我们能够以最小的麻烦实现跨机器扩展。</p>
+      
+    
+      
+        <p>使用 pg2 时，第一步是通过 pg2:create/1 创建一个进程组（这是一个幂等操作，对已存在的组再次调用不会产生副作用），之后通过 pg2:join/2 将进程加入组中。随后，可以通过 pg2:leave/2 将进程从组中移除。（进程组本身可以通过 pg2:delete/1 删除。）</p>
+      
+    
+      
+        <p>因此，我们可以按如下方式实现 start/1（其中参数是一个整数，表示要创建的节点数量）：</p>
+      
+    
+      
+        <pre><code>%% @doc create N processes in distributed key-value store
+%% @spec start(integer()) -&gt; started
+start(N) -&gt;
+    pg2:create(kvs),
+    lists:foreach(fun(_) -&gt;
+			  pg2:join(kvs, spawn(kvs, store, [[]]))
+		  end, lists:seq(0, N)),
+    started. 
+</code></pre>
       
     
       
@@ -125,7 +170,7 @@
       
     
       
-        <div class="list-content">我们还没有介绍 kvs:store/1 函数，因此上面的代码目前还无法成功编译。spawn/3 用于使用指定的函数和参数创建进程，并返回进程标识符。pg2:join/2 的第二个参数接受由 spawn/3 返回的进程标识符。 你可以多次运行 start/1，也可以在多个节点上运行，所有创建的进程都会加入同一个进程组。因此，这个 start 函数已经支持跨多个物理主机利用进程。</div>
+        <div class="list-content">我们尚未介绍 kvs:store/1 函数，因此上面的代码目前还无法成功编译。spawn/3 用于使用指定的函数和参数创建进程，并返回进程标识符。pg2:join/2 的第二个参数接受由 spawn/3 返回的进程标识符。2 你可以多次运行 start/1，也可以在多个节点上运行，所有创建的进程都会加入同一个进程组。因此，这个 start 函数已经支持跨多个物理主机利用进程。</div>
       
     
       
@@ -133,80 +178,142 @@
       
     
       
-        <p>注意 stop/0 会从 kvs 进程组中移除所有进程，这意味着它会移除在其他物理主机上创建的进程。目前这样是合理的，但随着系列推进，我们可能会希望创建一个更细致的停止机制。</p>
+        <pre><code>%% @doc stop all pids in KVS process group
+%% stop() -&gt; stopped.
+stop() -&gt;
+    lists:foreach(fun(Pid) -&gt;
+			  pg2:leave(kvs, Pid),
+			  Pid ! stop
+		  end, pg2:get_members(kvs)),
+    stopped.
+</code></pre>
       
     
       
-        <p>stop/0 的另一个有趣之处在于，它展示了本系列中消息传递的第一个例子。 Erlang 中消息传递的语法是</p>
+        <p>注意 stop/0 会从 kvs 进程组中移除所有进程，这意味着它会移除其他物理主机上创建的进程。目前这是合理的，但随着系列推进，我们可能需要设计一个更细致的停止策略。3</p>
       
     
       
-        <p>其中 ReceiverPid 是接收者的进程标识符，TermToSend 是任意的 Erlang term。以下都是合法的消息传递示例：</p>
+        <p>stop/0 的另一个有趣之处在于，它展示了本系列中消息传递的第一个例子。4 Erlang 中消息传递的语法是：</p>
       
     
       
-        <p>现在我们已经写好了 start/1 和 stop/0 函数，是时候编写包含真实键值存储逻辑的 store/1 函数了。</p>
+        <pre><code>ReceiverPid ! TermToSend.
+</code></pre>
       
     
       
-        <h2>键值存储 store/1</h2>
+        <p>其中 ReceiverPid 是接收者的进程标识符，TermToSend 是任意的 Erlang 项。下面都是合法的消息传递示例：</p>
       
     
       
-        <p>store/1 函数是整个实现的核心。它维护键值存储、处理值的更新和传播，并负责为客户端检索值。</p>
+        <pre><code>Pid ! ok.
+Pid ! {ok, [{a, 10}, {b, 20}]}.
+Pid ! [a,b,c,d].
+Pid ! dict;store(name, &lt;&lt;&quot;Will&quot;&gt;&gt;, dict:new()).
+</code></pre>
       
     
       
-        <p>在这个初始实现中，我们做了几个战略性的决定：</p>
+        <p>现在我们已经写好了 start/1 和 stop/0 函数，是时候编写包含真正键值存储逻辑的 store/1 函数了。</p>
       
     
       
-        <div class="list-content">我们把值存储在属性列表（property list）中，因为它非常简单。不用说，属性列表并不适合存储大量数据（读写平均复杂度为 O(N/2)，最坏情况为 O(N)）。我们稍后会解决这个问题。我们把所有数据都存储在每个进程中，也就是说我们在做复制而不是分片。这只是暂时的状态，我们会在整个系列中逐步改进。读取总是从单个进程读取，如果我们能在确认其他所有进程都成功更新后再报告写入成功，这样做是合适的。这一点也会随着时间推移而改进。</div>
+        <h3>键值存储 store/1</h3>
+        
       
     
       
-        <p>考虑到这些前提，以下是 store/1 的初始实现：</p>
+        <p>store/1 函数是实现的核心。它维护键值存储，处理值的更新和传播，并负责为客户端检索值。</p>
       
     
       
-        <p>store/1 有几个方面值得简单讨论：</p>
+        <p>在这个初始实现中，我们做了几个策略性的决定：</p>
       
     
       
-        <div class="list-content">这是第一次出现 receive 关键字，它是 Erlang 中使用消息传递的后半部分（前半部分是 ! 操作符）。receive 和 ! 一起工作的方式如下：
-% 在发送者进程
+        <div class="list-content">我们使用属性列表（property list）来存储值，因为它非常简单。不用说，属性列表不适合存储大量数据（读写平均复杂度为 O(N/2)，最坏情况为 O(N)）。我们稍后会解决这个问题。我们在每个进程中都存储所有数据，也就是说，我们采用的是复制而非分片。这只是临时状态，我们会在整个系列中逐步改进。读取总是从单个进程读取，如果我们在报告写入成功前验证所有其他进程都已成功更新，那么这是合适的。这一行为也会随着时间推移而改进。</div>
+      
+    
+      
+        <p>考虑到这些前提，以下是我们 store/1 的初始实现：</p>
+      
+    
+      
+        <pre><code>%% @doc implementation of distributed key-value store
+%% @spec store(proplist()) -&gt; term()
+%%       proplist = [{term(), term()}]
+store(Data) -&gt;
+    receive 
+	{Sender, get, Key} -&gt;
+	    % client interface for retrieving values
+	    Sender ! {self(), got, proplists:get_value(Key, Data)},
+	    store(Data);
+	{Sender, set, Key, Value} -&gt;
+	    % client interface for updating values
+	    lists:foreach(fun(Pid) -&gt;
+				  Pid ! {self(), update, Key, Value}
+			  end, pg2:get_members(kvs)),
+	    Sender ! {self(), received, {set, Key, Value}},
+	    store(Data);
+	{Sender, update, Key, Value} -&gt;
+	    % sent to all nodes by first receiving node
+	    Sender ! {self(), updated, Key, Value},
+	    store([{Key, Value} | proplists:delete(Key, Data)]);
+	{_Sender, updated, _Key, _Value} -&gt;
+	    store(Data);
+	stop -&gt;
+	    ok
+    end.
+</code></pre>
+      
+    
+      
+        <p>store/1 有几个方面值得简要讨论：</p>
+      
+    
+      
+        <pre><code>% in the Sender process
 Receiver ! {set, a, &quot;b&quot;}.
-% 在接收者进程
+% in Receiver process
 receive
     {set, Key, Val} -&gt;
         io:format(&quot;Received ~p =&gt; ~p~n&quot;, [Key, Val]),
-end.
-还要注意 self/0 函数会返回调用它的进程的 pid，因此当发送者希望接收者回复时经常使用它。
-% 在发送者进程
+end.   
+</code></pre>
+      
+    
+      
+        <pre><code>% in Sender process
 Receiver ! {self(), get, name}.
-% 在接收者进程
+% in Receiver process
 receive
-    {Sender, get, Key} -&gt;
-        Value = get_from_somewhere(Key),
-        Sender ! {got, Key, Value}
+{Sender, get, Key} -&gt;
+Value = get_from_somewhere(Key),
+Sender ! {got, Key, Value)
 end.
-pg2:get_members/1 接受一个进程组名称，并返回当前所有成员的 pid 列表。它和 pg2:get_closest_pid/1 是在进程组中获取 pid 的两种机制。注意我们对 set 和 update 做了区分：set 是更新值的外部接口，而 update 是传播值的内部接口。（同时注意我们目前忽略了 updated 消息。）</div>
+</code></pre>
       
     
       
-        <p>现在 store/1 的实现已经完成，是时候编写一些便捷的包装函数并从 kvs 模块导出，它们可以简化与 store/1 函数的交互。</p>
+        <div class="list-content">这是第一次出现 receive 关键字，它是 Erlang 中使用消息传递的后半部分（前半部分是 ! 操作符）。receive 和 ! 一起工作的方式如下：还要注意 self/0 函数返回调用它的进程的 pid，因此当发送者希望接收者回复时经常使用它。pg2:get_members/1 接受一个进程组名称，并返回当前所有成员的 pid 列表。它与 pg2:get_closest_pid/1 是从进程组获取 pid 的两种机制。注意我们在 set 和 update 之间做的区分：set 是更新值的外部接口，而 update 是传播值的内部接口。（同时注意我们目前忽略了 updated 消息。）</div>
       
     
       
-        <h2>get 和 set 接口</h2>
+        <p>现在 store/1 实现已经完成，是时候编写一些便捷的包装函数并从 kvs 模块导出，它们可以简化与 store/1 函数的交互。</p>
       
     
       
-        <p>虽然可以直接与这些进程通信，但这需要了解很多细节。你需要知道它们注册在 kvs 进程组中，需要知道它们期望的消息格式，还需要确保交互是同步的（默认情况下 Erlang 的消息传递是异步的，但我们下面会看到同步消息传递的标准模式）。</p>
+        <h3>get 和 set 接口</h3>
+        
       
     
       
-        <p>我们可以通过编写接口函数来缓解这些问题，这些函数用于执行键值存储中两个最重要的操作：设置和获取。</p>
+        <p>虽然可以直接与进程通信，但这需要了解很多细节。你需要知道它们注册在 kvs 进程组中，需要知道它们期望的消息格式，还需要确保交互是同步的（默认情况下 Erlang 消息传递是异步的，但我们下面会看到同步消息传递的标准模式）。</p>
+      
+    
+      
+        <p>我们可以通过编写接口函数来缓解这些问题，用于执行键值存储中两个最重要的操作：设置和获取。</p>
       
     
       
@@ -214,23 +321,65 @@ pg2:get_members/1 接受一个进程组名称，并返回当前所有成员的 p
       
     
       
-        <p>这个例子中出现了一些新内容：首先是 pg2:get_closest_pid/1，它会随机选择指定进程组中的一个进程，并优先选择与当前节点在同一节点上运行的 pid。这对于在进程组的各个 pid 之间均匀分配工作非常有用。</p>
+        <pre><code>%% @doc retrieve value for key
+%% @spec get(term()) -&gt; value() | undefined
+%%       value = term()
+get(Key) -&gt; get(Key, ?TIMEOUT).
+%% @doc retrieve value for key, with timeout
+%% @spec get(term(), integer()) -&gt; val() | timeout()
+%%       val = {ok, term()} | {ok, undefined}
+%%       timeout = {error, timeout}
+get(Key, Timeout) -&gt;
+Pid = pg2:get_closest_pid(kvs),
+Pid ! {self(), get, Key},
+receive
+{Pid, got, Value} -&gt;
+{ok, Value}
+after
+Timeout -&gt;
+{error, timeout}
+end.
+</code></pre>
       
     
       
-        <p>其次，注意这里的“发送消息，然后使用 receive 阻塞等待响应”的模式，这是两个进程之间进行同步通信的常用方式。</p>
+        <p>这个例子中出现了一些新内容：首先是 pg2:get_closest_pid/1，它会随机选择指定进程组中的一个进程，并优先选择与当前节点在同一节点上运行的 pid。这有助于在进程组中的各个 pid 之间均匀分配工作。5</p>
       
     
       
-        <p>set/2 和 set/3 函数与 get/2 非常相似，遵循相同的模式，区别仅在于发送的消息和期望的响应。</p>
+        <p>其次，注意这里使用的“发送消息，然后用 receive 阻塞等待响应”的模式，这是在两个进程之间进行同步通信的常用方式。</p>
       
     
       
-        <p>set/3 中应该没有什么我们没见过的东西，所以我们可以继续完成实现这个最简分布式键值存储的最后一项任务。</p>
+        <p>set/2 和 set/3 函数与 get/2 非常相似；它们遵循相同的模式，区别仅在于发送的消息和期望的响应。</p>
       
     
       
-        <h2>kvs 模块</h2>
+        <pre><code>%% @doc update value for key
+%% @spec set(term(), term()) -&gt; {ok, updated} | {error, timeout}
+set(Key, Val) -&gt; set(Key, Val, ?TIMEOUT).
+%% @doc update value for key, with timeout
+%% @spec set(term(), term()) -&gt; {ok, updated} | {error, timeout}
+set(Key, Val, Timeout) -&gt;
+Pid = pg2:get_closest_pid(kvs),
+Pid ! {self(), set, Key, Val},
+receive
+{Pid, received, {set, Key, Val}} -&gt;
+{ok, updated}
+after
+Timeout -&gt;
+{error, timeout}
+end.
+</code></pre>
+      
+    
+      
+        <p>set/3 中应该没有什么我们没见过的内容，所以我们可以继续进行实现这个最简单分布式键值存储的最后一步任务。</p>
+      
+    
+      
+        <h3>kvs 模块</h3>
+        
       
     
       
@@ -238,23 +387,35 @@ pg2:get_members/1 接受一个进程组名称，并返回当前所有成员的 p
       
     
       
-        <p>注意我们定义了 TIMEOUT，它表示等待响应的毫秒数。你也可以把 500 改成 infinity，表示不使用超时。不过目前 500 毫秒在功能上等价于 infinity，所以 500 是一个合理的默认值。</p>
+        <pre><code>-module(kvs).
+-export([get/1, get/2, set/2, set/3, start/1, stop/0, store/1]).
+-define(TIMEOUT, 500).
+</code></pre>
       
     
       
-        <h2>总结</h2>
+        <p>注意我们定义了 TIMEOUT，它表示等待响应的毫秒数。你可能也想把 500 改成 infinity，这意味着不设置超时。不过目前 500 毫秒在功能上等同于 infinity，所以 500 是一个合理的默认值。6</p>
       
     
       
-        <p>本文撰写的完整代码可在 GitHub 上获取。（注意我链接的是 kvs.erl 文件的特定修订版本，而不是最新版本的代码。）</p>
+        <h3>结束语</h3>
+        
       
     
       
-        <p>现在我们已经为这个系列搭建好了基础设施，很快我们就能开始研究 Dynamo 论文中的思想，并逐步构建出一个看起来略微相似的东西。</p>
+        <p>本文撰写的完整代码可在 GitHub 上找到。（请注意我链接到的是 kvs.erl 文件的特定修订版本，而不是最新的代码版本。）</p>
       
     
       
-        <p>下一篇文章已经发布，将讨论如何加入持久化写入和一致性读取。</p>
+        <p>现在我们已经为本系列搭建好了基础设施，很快我们就能开始研究 Dynamo 论文中的想法，并逐步构建出一个看起来有点相似的东西。</p>
+      
+    
+      
+        <p>下一篇文章已经发布，将讨论添加持久化写入和一致性读取。</p>
+      
+    
+      
+        <div class="list-content">好吧好吧。任何东西都是可以替代的。如果我们真的想，我猜我们也可以在 Hadoop 之上构建一个分布式键值存储。那肯定会很有趣。↩在更严肃的实现中，pg2:join/2 通常由 OTP gen_server 在创建时将自己加入进程组，并在终止时移除自己。对于这个示例，处理 spawn 出来的 pid 能让代码更简洁，而不必面对完整的 gen_server 那一套及其特有的怪癖。↩如果你想知道如何轻松扩展为只停止本地节点上启动的进程，可以看看 erlang:node/1 函数，它会返回特定进程所在的节点。↩由于前面提到的 gen_server，许多（如果不是大多数）Erlang 系统在编写时并不使用显式的消息传递操作符（即 !）。而是分别使用 gen_server:call/2 和 gen_server:cast/2 进行同步和异步通信。在系列接近尾声时，将代码转换为 gen_server 会很有价值，但在一开始我认为那样只会用样板代码掩盖真正有趣的想法。↩请注意这里不保证随机性，而且它总是会把工作分配到本地节点，因此在某些极端情况下，使用 pg2:get_closest_pid/1 可能会导致工作分布严重不均。如果你需要保证均衡，需要在 pg2:get_members/1 之上编写一个包装器，并进行检查。↩通常模块的所有 -define 语句都会放在 .hrl 文件中。由于我们只有一个定义，目前我觉得放在同一个文件里更简单，但一般来说这不是最佳实践。↩</div>
       
     
   </div>

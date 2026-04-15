@@ -29,128 +29,131 @@
   <div class="article-content">
     
       
-        <p>比我预想的发布时间晚了大约三周，LifeFlow 0.91 终于准备好发布了。这次更新包含多项小的改进，让 LifeFlow 用起来更加方便，也更加灵活。代码在多个地方也得到了优化，尽管仍有不少可以进一步改进的空间。下面我们先来看看其中的一些改进和变化。</p>
+        <p>比我预想的发布时间晚了大约三周，LifeFlow 0.91 终于准备好发布了。本次更新包含多项小的改进，让 LifeFlow 变得更加易用和灵活。代码也在多个地方得到了优化，尽管仍有许多地方值得进一步改进。下面我们先来看看主要的功能改进和变化。</p>
       
     
       
-        <h2>0.91 版本的改进</h2>
+        <h3>0.91 版本的改进</h3>
+        
       
     
       
-        <div class="list-content">支持在文章中嵌入非 Markdown 格式的片段，包括 Textile、ReST 和 HTML。使用方式如下：~~~Textile
-在这里写 Textile 格式的内容。
+        <pre><code>~~~Textile
+Do whatever in textile.
 ~~~
-或者像这样：~~~ReST
-一段 ReST 格式的文档。
+</code></pre>
+      
+    
+      
+        <pre><code>~~~ReST
+A document in ReST formatting.
 ~~~
-还可以直接插入完全不做处理的 HTML，像这样：~~~
+</code></pre>
+      
+    
+      
+        <pre><code>~~~
 &lt;script&gt; alert(&#x27;bah&#x27;); &lt;/script&gt;
 ~~~
-请注意，Textile 和 ReST 的渲染依赖于你本地是否安装了对应的 Python 模块（Textile 和 Docutils），因此你需要先安装它们才能使用渲染功能。如果没有安装（或者你使用了不支持的块名称，比如 ~~~magic），则内容会原封不动地插入到文档中（与上面的 HTML 示例一样）。扩展此功能（代码位于 lifeflow/markdown/mdx_foreign_formats.py）来支持其他格式非常容易，如果你觉得有其他合适的格式的话。Rageev Sebastian 贡献了一个非常棒的补丁，改进了代码语法高亮功能，现在它能在非基础缩进层级下正常工作。这意味着代码语法高亮现在可以很好地用在列表中（如下面的例子），以及你可能尝试的其他各种场景。
-
-var person = {};
+</code></pre>
+      
+    
+      
+        <pre><code>var person = {};
 person[&#x27;name&#x27;] = &quot;Will&quot;;
 person[&#x27;age&#x27;] = 22;
 person[&#x27;hobbies&#x27;] = [&#x27;programming&#x27;,&#x27;basketball&#x27;,&#x27;riding on trains&#x27;];
-
-这也让向已有的 Markdown 文档添加语法高亮变得简单得多。不再需要把所有代码重新缩进到相对于基础层级的缩进，只需在缩进块的开头加上 @@ common-lisp（或者对应语言的 lexer 名称），并在缩进块的结尾加上 @@ 即可。
-
-新增了对语法高亮代码片段的行号支持。要使用此功能，只需在语法高亮块的语言声明后加上 table 或 inline。例如 @@ ruby table 或 @@ java inline。table 和 inline 的效果分别如下：
-
-1
+</code></pre>
+      
+    
+      
+        <pre><code>1
 2
 3
 4
 5
-6def double(x):
+6</code></pre>
+      
+    
+      
+        <pre><code>def double(x):
     return x * x
 y = 10
 z = double(y)
 a = double(double(double(z)))
-
-和
-
-1 def double(x):
+</code></pre>
+      
+    
+      
+        <pre><code>1 def double(x):
 2     return x * x
 3 
 4 y = 10
 5 z = double(y)
 6 a = double(double(double(z)))
-
-我意识到表格行号的对齐还有点问题，但我有点搞不清楚具体原因（即使使用了非常规手段也没能解决这个 CSS 问题）。另外，我也清楚 inline 版本在复制粘贴时非常不友好。行号功能是通过暴露更多 Pygments 的功能实现的，而不是我自己写的，所以我还在思考如何进一步改进这些选项。
-
-感谢 Luke Hatcher 的贡献，RSS Feed 现在包含了发布日期和时间。
-
-Pre 和 code 标签现在使用等宽字体，修复了众多不合理的 CSS 问题之一。（这也导致了基于表格的语法高亮行号出现了一些 CSS 怪现象。）
-
-提升了 LifeFlow 专有 Markdown 扩展以及通用 Markdown 的内联帮助质量。虽然还有改进空间，但现在已经足够实用，我自己也会经常查阅它来了解 LifeFlow 特有的语法魔法。
-
-对 LifeFlow 前台模板和 CSS 进行了大量调整，以改善视觉效果。其中许多改进受到了 Kenneth Arnold 的评论和建议的启发。
-
-可以在 LifeFlow Editor 中编辑评论。
-
-可以在 LifeFlow Editor 中编辑当前的 Django site。Django site 用于定义框架中某些组件所使用的 URL（例如 RSS feed）。
-
-可以在 LifeFlow Editor 中修改需要 ping 的网站（通常是博客聚合器，比如 Ping-O-Matic，但几乎可以是任何你想在文章发布时通知的服务）。
-
-进行了大量重构和代码质量改进。从简单的地方开始，比如采用了 Peter Burns 建议的基于正则表达式的 sluggify 方法，到用 QuerySetPaginator 替换大量手动分页的代码。虽然代码中仍有一些不理想的地方，特别是 models.py 仍然会执行别扭的“双重保存”，以便正确设置多对多关系（这是渲染文章标记所必需的）。尽管如此，代码质量正在向更好的方向发展，并将继续改进。</div>
+</code></pre>
       
     
       
-        <h2>可下载的 Zip 压缩包</h2>
+        <div class="list-content">新增了对在文章中嵌入非 Markdown 标记片段的支持，包括 Textile、ReST 和 HTML。该功能的使用方式如下：或者这样完全未经过处理的 HTML 可以这样嵌入：请注意，Textile 和 ReST 的渲染依赖于你本地安装的 Textile Python 模块和 Docutils 模块，因此你需要先安装它们才能使用相应的渲染功能。如果没有安装（或者你使用了不支持的块名称，例如 ~~~magic），则会将内容原样注入文档（就像上面的 HTML 嵌入示例一样）。如果有其他合适的格式，非常容易扩展此功能（代码位于 lifeflow/markdown/mdx_foreign_formats.py）。Rageev Sebastian 贡献了一个非常棒的补丁，改进了代码语法高亮器，现在它能在非基础缩进层级下正常工作。这意味着代码语法高亮现在可以很好地与列表（如下方示例）或其他任何你想尝试的复杂排版配合使用。这也让向现有 Markdown 文档添加语法高亮变得简单得多。不再需要将所有代码重新缩进到相对于基础层级，只需在缩进块的开头添加 @@ common-lisp（或相应语言的 lexer 名称），并在缩进块的结尾添加 @@ 即可。新增加了对语法高亮代码片段的行号支持。要使用此功能，只需在语言声明后面加上 table 或 inline。例如 @@ ruby table 或 @@ java inline。table 和 inline 的效果分别如下：我意识到表格行号的对齐还有点问题，但我目前不太清楚具体原因（即使尝试了一些 hack 也没能解决这个 CSS 问题）。另外，我也清楚内联版本在复制粘贴时非常不友好。行号功能是通过暴露更多 Pygments 的功能实现的，并非我自己从头实现，因此我还在考虑如何进一步改进这些选项。感谢 Luke Hatcher 的贡献，RSS Feed 现在包含了发布日期和时间。pre 和 code 标签现在使用等宽字体，修复了众多糟糕的 CSS 问题之一。（这也导致了基于表格的语法高亮行号出现一些 CSS 怪异表现。）大幅提升了 LifeFlow 专用 Markdown 扩展和通用 Markdown 的内联帮助质量。虽然还有改进空间，但现在已经足够实用，我自己也会经常查阅它来了解 LifeFlow 特有的技巧。对面向用户的模板和 CSS 进行了多项调整，以提升 LifeFlow 的外观。其中很多改进灵感来自 Kenneth Arnold 的评论和建议。在 LifeFlow Editor 中可以编辑评论。在 LifeFlow Editor 中可以编辑当前 Django site。Django site 用于定义框架中某些组件所使用的 URL（例如 RSS feed）。可以在 LifeFlow Editor 中修改需要 ping 的站点（通常是博客聚合器如 Ping-O-Matic，但几乎可以是你想通知文章已发布的任何目标）。进行了大量重构和代码质量的常规改进。从简单的改进（如采用 Peter Burns 建议的基于正则表达式的 sluggify 方法），到用 QuerySetPaginator 替换大量手动分页的代码。虽然代码中仍有一些不完善的地方，特别是 models.py 仍然采用别扭的“双重保存”来正确设置多对多关系，以便渲染文章的标记。尽管如此，代码质量正在向更好的方向发展，并将继续改进。</div>
       
     
       
-        <p>虽然获取 LifeFlow 的推荐方式仍然是从它的 Git 仓库获取（下文会说明），但从现在起我也会提供各版本的 zip 压缩包。这些压缩包包含两个目录：</p>
+        <h3>可下载的 Zip 包</h3>
+        
       
     
       
-        <div class="list-content">一个 project 目录，里面是一个已配置好 LifeFlow 的标准 Django 项目。
-一个 lifeflow 目录，包含 LifeFlow 本身的代码。</div>
+        <p>虽然获取 LifeFlow 的推荐方式仍然是从它的 Git 仓库获取（下面会说明），但从现在起我也会提供各版本的 zip 压缩包。这些 zip 包包含两个目录：</p>
       
     
       
-        <p>你可以在这里下载 0.91 发布版 Zip 压缩包</p>
+        <div class="list-content">一个 project 目录，其中包含一个配置好 LifeFlow 的标准 Django 项目。一个 lifeflow 目录，其中包含 LifeFlow 的项目代码。</div>
       
     
       
-        <p>其中的设置是针对无需太多配置的开发环境，如果你想用于面向公众的部署，还需要进行调整。具体配置如下：</p>
+        <p>你可以在这里获取 0.91 Release Zip</p>
       
     
       
-        <div class="list-content">使用 SQLite3 数据库（会使用 os.path 模块在项目文件夹中创建数据库文件）。
-使用 Django 的开发服务器来提供媒体文件。</div>
+        <p>其中的设置适用于零配置的开发环境，如果用于面向公众的部署则需要进行调整。具体配置如下：</p>
       
     
       
-        <p>搭建开发环境会尽可能简单：</p>
+        <div class="list-content">使用 SQLite3 数据库（会使用 os.path 模块在项目文件夹中创建）。使用 Django 开发服务器来提供媒体文件。</div>
       
     
       
-        <div class="list-content">解压发布的 zip 文件。
-将 lifeflow 文件夹添加到你的 Python 路径中。
-进入 project 文件夹，运行 python manage.py syncdb。
-编辑 project/settings.py 以适应你的环境。以下是需要重点修改的设置：
-LIFEFLOW_* 需要根据你的博客进行定制。
-MEDIA_ROOT 需要设置为你的 lifeflow/media/ 文件夹的绝对路径。例如我的配置是：
-MEDIA_ROOT = &#x27;/Users/username/git/lifeflow/media&#x27;
-TEMPLATE_DIRS 必须将 lifeflow/templates 文件夹添加到它的目录元组中。例如我的配置是：
-TEMPLATE_DIRS = (
+        <p>搭建开发副本的过程会尽可能简化：</p>
+      
+    
+      
+        <pre><code>MEDIA_ROOT = &#x27;/Users/username/git/lifeflow/media&#x27;
+</code></pre>
+      
+    
+      
+        <pre><code>TEMPLATE_DIRS = (
     &#x27;Users/will/git/lifeflow/templates&#x27;,
 )        
-像往常一样运行开发服务器：python manage.py runserver。</div>
+</code></pre>
       
     
       
-        <p>完成上述步骤后，你应该可以在 http://127.0.0.1:8000/editor/ 撰写文章并管理你的站点，并在 http://127.0.0.1:8000/ 查看你的博客。</p>
+        <div class="list-content">解压发布的 zip 文件。将 lifeflow 文件夹添加到你的 Python 路径。进入 project 文件夹，运行 python manage.py syncdb。编辑 project/settings.py 以适应你的环境。以下是需要重点修改的配置：LIFEFLOW_* 需要根据你的博客进行定制。MEDIA_ROOT 需要设置为 lifeflow/media/ 文件夹的绝对路径。例如我的配置是：TEMPLATE_DIRS 必须将 lifeflow/templates 文件夹添加到它的目录元组中。例如我的配置是：像往常一样运行开发服务器：python manage.py runserver。</div>
       
     
       
-        <h2>从代码仓库克隆</h2>
+        <p>完成以上步骤后，你就可以在 http://127.0.0.1:8000/editor/ 撰写文章和管理你的部署，并在 http://127.0.0.1:8000/ 查看你的博客。</p>
       
     
       
-        <p>你可以访问 GitHub 上的 Git 仓库来获取 LifeFlow 的最新版本。如果你还没试过 Git，在电脑上搭建它可能会有些麻烦（至少对我来说是这样，因为 OSX 包管理器里的版本没能成功安装），但它非常值得一用。</p>
+        <h3>从仓库克隆</h3>
+        
+      
+    
+      
+        <p>你可以访问 GitHub 上的 Git 仓库获取 LifeFlow 的最新版本。如果你还没有尝试过 Git，在电脑上搭建它可能会有些麻烦（至少对我来说是这样，因为 OSX 包管理器里的版本都没能成功安装），但非常值得。</p>
       
     
       
@@ -158,19 +161,25 @@ TEMPLATE_DIRS = (
       
     
       
-        <p>然后把克隆下来的 lifeflow 文件夹添加到你的 Python 路径中。这样之后，对本地副本进行修改就非常简单了。如果你做了任何有趣或有帮助的修改，请开放你的仓库，我会 pull 这些改动并整合进去（你也可以使用 git send-email，不过相关文档看起来有点吓人）。</p>
+        <pre><code>git clone git://github.com/lethain/lifeflow.git
+</code></pre>
       
     
       
-        <h2>即将到来的改动和改进</h2>
+        <p>然后将克隆下来的 lifeflow 文件夹添加到你的 Python 路径。这样你就可以非常方便地修改本地副本。如果你做出了任何有趣或有帮助的修改，请将你的仓库公开，我会拉取并整合这些改动（或者你也可以使用 git send-email，尽管相关文档看起来有点吓人）。</p>
       
     
       
-        <p>LifeFlow 0.92 将是一个有趣的版本，重点将放在我暂时称为“文本魔法”（text wizardry）的东西上，更准确地说可能是文本处理或简称为文本相关功能。重点是增加方便的文本预处理器和后处理器钩子，让有想法的用户能够扩展 LifeFlow，对他们的文本做几乎任何想做的事情。一个例子是为第一次提到的特定术语自动创建指向 Wikipedia 的链接。这些想法还处于规划阶段，但应该会打开一扇全新的可能之门。</p>
+        <h3>即将到来的变化和改进</h3>
+        
       
     
       
-        <p>更长远来看，正在计划的其他功能包括：引入多种用户权限模型（从编辑者、作者和管理员开始），以支持复杂的多用户工作流；以及清理 LifeFlow Editor，使其更加一致且更不易混淆。</p>
+        <p>LifeFlow 0.92 将是一个有趣的版本，重点将放在我暂时称为“文本巫术”（更准确地说可能是文本处理或简称为文本相关功能）上。核心在于为文本预处理器和后处理器添加便捷的钩子，让有进取心的用户能够扩展 LifeFlow，对他们的文本进行几乎任何处理。一个例子是为首次出现的特定术语自动创建指向 Wikipedia 的链接。这些想法目前还在草图阶段，但应该会打开一大片全新的可能性。</p>
+      
+    
+      
+        <p>更远的未来计划中的其他功能包括：加入多种用户权限模型（先从编辑者、作者和管理员开始），以支持复杂的多用户工作流，以及对 LifeFlow Editor 进行清理，使其更加一致且更易使用。</p>
       
     
   </div>

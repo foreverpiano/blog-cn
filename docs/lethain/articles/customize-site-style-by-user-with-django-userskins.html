@@ -29,7 +29,7 @@
   <div class="article-content">
     
       
-        <p>在我正在开发的一个 Django 项目中，我想让用户从若干种皮肤中进行选择，以个性化网站的界面（类似于 Twitter 新推出的皮肤切换功能），于是决定开发一个可插拔的 Django 应用来实现这个需求。</p>
+        <p>在我正在开发的一个 Django 项目中，我想允许用户从若干套皮肤中选择一款，以个性化网站的界面（类似于 Twitter 新推出的换肤功能），于是决定开发一个可插拔的 Django 应用来实现这个需求。</p>
       
     
       
@@ -37,79 +37,181 @@
       
     
       
-        <p>自述文件（README）对实现细节已经讲得比较详尽，不过我还是在这里简单说明几点。</p>
+        <p>自述文件（readme）对实现细节已经介绍得相当详尽，不过我还是在这里简单说明几点。</p>
       
     
       
-        <h2>尽可能减少数据库访问次数</h2>
+        <h3>尽可能减少数据库访问次数</h3>
+        
       
     
       
-        <p>我认为尽量避免数据库查询非常重要，因为如果允许用户选择皮肤却导致网站加载变慢，那就得不偿失了。我的方案是使用 Cookie 来保持状态：如果已认证用户没有对应的 Cookie，就去数据库查一下他们的皮肤偏好并重新设置 Cookie。这样每个用户只需要在清除浏览器 Cookie 后才会访问一次数据库。</p>
+        <p>我认为尽量避免数据库查询非常重要，因为如果用户换肤功能导致网站加载明显变慢，那就失去了意义。我的方案是使用 cookie 进行持久化，当已认证用户没有对应 cookie 时，才会去数据库查询其皮肤偏好并重新设置 cookie。因此，每个用户只会在清理浏览器 cookie 后，才需要访问一次数据库。</p>
       
     
       
-        <p>此外，django-userskins 还提供了一个完全不访问数据库的选项，这种情况下仅通过 Cookie 来存储用户的皮肤偏好。</p>
+        <p>此外，django-userskins 还提供了一个完全不访问数据库的选项，这种情况下将仅通过 cookie 来保存用户的皮肤偏好。</p>
       
     
       
-        <h2>节约带宽</h2>
+        <h3>节省带宽</h3>
+        
       
     
       
-        <p>另一个我很重视的问题是尽可能节约带宽。为此，我不太喜欢那种把自定义样式表直接插入模板的做法，因为它无法利用缓存、压缩或 far-future-expires 机制，而且每次渲染模板都要重新发送样式内容。</p>
+        <p>另一个我认为很重要的问题是尽可能节省带宽。为此，我不喜欢那种把自定义样式表直接插入模板的做法，因为它无法利用缓存、压缩和长期过期策略，而且每次渲染模板都要重新发送样式内容。</p>
       
     
       
-        <p>django-userskins 的做法是让你为每种皮肤指定要加载的 CSS 文件。一个简单的配置如下：</p>
+        <p>django-userskins 则允许你为每种皮肤指定要加载的 CSS 文件。一个简单的配置如下：</p>
       
     
       
-        <p>这个配置会配合 userskin 模板标签使用……</p>
+        <pre><code>USERSKINS_DEFAULT = &quot;light&quot;
+USERSKINS_DETAILS = {
+    &#x27;light&#x27;:&#x27;light.css&#x27;,
+    &#x27;dark&#x27;:&#x27;dark.css&#x27;,
+}
+</code></pre>
       
     
       
-        <p>最终会渲染出类似下面的 HTML：</p>
+        <p>这个配置会被 userskin 模板标签使用……</p>
       
     
       
-        <p>更让我兴奋的是，django-userskins 可以和 django-compress 集成。你的配置文件大致会像这样：</p>
+        <pre><code>{% load userskins %}
+&lt;head&gt;
+&lt;title&gt;Yadayada&lt;/title&gt;
+{% userskin %}
+&lt;/head&gt;
+</code></pre>
       
     
       
-        <p>模板标签的使用方式完全不变，但会输出对应皮肤经过压缩、合并且带版本号的文件。</p>
+        <p>最终渲染出类似下面的 HTML：</p>
       
     
       
-        <p>将 django-compress 和 django-userskins 结合起来使用，你可以在支持用户选择皮肤的同时，不必在每个页面都额外发送数据；配合 far-future-expires 头部，甚至不需要额外发起一次 HTTP 请求来获取皮肤的 CSS 文件。再加上对数据库访问的最小化设计，django-userskins 可以在对网站性能和带宽影响极小的情况下使用。</p>
+        <pre><code>&lt;head&gt;
+&lt;title&gt;Yadayada&lt;/title&gt;
+&lt;link rel=&quot;stylesheet&quot; href=&quot;http://127.0.0.1:8000/media/light.css&quot;&gt;
+&lt;/head&gt;
+</code></pre>
       
     
       
-        <h2>已认证用户和匿名用户均可使用皮肤</h2>
+        <p>更让人兴奋的是（至少对我来说），django-userskins 可以与 django-compress 很好地集成。你的配置文件大致会是这样：</p>
       
     
       
-        <p>django-userskins 的一个优点是，未登录的用户也能选择皮肤（通过 Cookie 持久化）。设置用户 Cookie 的代码可以非常简单（比如你在侧边栏放了一组可用的皮肤，用户点击链接即可切换）：</p>
+        <pre><code>COMPRESS = True
+COMPRESS_VERSION = True
+COMPRESS_CSS = {
+    &#x27;light&#x27;:{
+        &#x27;source_filenames&#x27;:(&#x27;css/base.css&#x27;,&#x27;css/skins/light.css&#x27;),
+        &#x27;output_filename&#x27;:&#x27;css/light_skin.r?.css&#x27;,
+    },
+    &#x27;dark&#x27;:{
+        &#x27;source_filenames&#x27;:(&#x27;css/base.css&#x27;,&#x27;css/skins/dark.css&#x27;),
+        &#x27;output_filename&#x27;:&#x27;css/dark_skin.r?.css&#x27;,
+    },
+}
+USERSKINS_DEFAULT = &quot;light&quot;
+# USERSKINS_DETAILS is not used when integrating with django-compress
+USERSKINS_USE_COMPRESS_GROUPS = True
+</code></pre>
       
     
       
-        <p>如果你的网站不需要已认证用户，那么选择视图还可以写得更短：</p>
+        <p>模板标签的使用方式完全不变，但会输出经过压缩、合并并带版本号的皮肤 CSS 文件。</p>
       
     
       
-        <h2>还有什么遗漏的吗？</h2>
+        <pre><code>{% load userskins %}
+&lt;head&gt;
+&lt;title&gt;Yadayada&lt;/title&gt;
+{% userskin %}
+&lt;/head&gt;
+</code></pre>
       
     
       
-        <p>你能想到现有设计没有覆盖到的其他使用场景吗？欢迎告诉我，我会尽量把它纳入进来。</p>
+        <p>通过 django-compress 和 django-userskins 的组合，你可以在支持用户换肤的同时，不必在每个页面多发送额外数据，而且（配合 far-future-expires 头部）甚至不需要额外发起一次 HTTP 请求来获取皮肤的 CSS 文件。再结合最小化的数据库访问设计，django-userskins 可以在对网站性能和带宽影响极小的情况下投入使用。</p>
       
     
       
-        <p>我很快就会把 django-userskins 集成到自己的实际项目中，并会在遇到问题时继续打磨它。除非发现新的使用场景，否则我应该不会做太大的改动。</p>
+        <h3>已认证用户和匿名用户均可使用皮肤</h3>
+        
       
     
       
-        <p>项目 Git 仓库托管在 GitHub 上，自述文件也可以在那里找到。</p>
+        <p>django-userskins 的另一个优点是，未登录的用户也可以选择皮肤（通过 cookie 持久化）。设置用户 cookie 的代码可以非常简单（比如你在侧边栏提供了一个皮肤列表，用户点击链接即可切换皮肤）：</p>
+      
+    
+      
+        <pre><code>from django.conf.urls.defaults import *
+from django.http import HttpResponseRedirect
+from userskins.models import SkinPreference
+def dark_skin(request):
+hrr = HttpResponseRedirect(&quot;/&quot;)
+hrr.set_cookie(&quot;userskins&quot;, &quot;dark&quot;)
+if request.user.is_authenticated():
+try:
+sp = SkinPreference.objects.get(user=request.user)
+sp.skin = &quot;dark&quot;
+sp.save()
+except SkinPreference.ObjectDoesNotExist:
+sp = SkinPreference.objects.create(user=request.user,
+skin=&quot;dark&quot;)
+return hrr
+def light_skin(request):
+hrr = HttpResponseRedirect(&quot;/&quot;)
+hrr.set_cookie(&quot;userskins&quot;, &quot;light&quot;)
+if request.user.is_authenticated():
+try:
+sp = SkinPreference.objects.get(user=request.user)
+sp.skin = &quot;dark&quot;
+sp.save()
+except SkinPreference.ObjectDoesNotExist:
+sp = SkinPreference.objects.create(user=request.user,
+skin=&quot;light&quot;)
+return hrr
+urlpatterns = patterns(
+&#x27;&#x27;,
+(r&#x27;^skin/dark/$&#x27;, dark_skin),
+(r&#x27;^skin/light/$&#x27;, light_skin),
+)
+</code></pre>
+      
+    
+      
+        <p>如果你的网站不需要已认证用户，那么选择视图还可以写得更简短：</p>
+      
+    
+      
+        <pre><code>def light_skin(request):
+    hrr = HttpResponseRedirect(&quot;/&quot;)
+    hrr.set_cookie(&quot;userskins&quot;, &quot;light&quot;)
+    return hrr
+</code></pre>
+      
+    
+      
+        <h3>还有什么遗漏吗？</h3>
+        
+      
+    
+      
+        <p>你能想到现有设计尚未覆盖的其他使用场景吗？欢迎告诉我，我会尽量将其纳入进来。</p>
+      
+    
+      
+        <p>我不久后就会把 django-userskins 集成到自己的实际项目中，并会在遇到问题时持续进行优化。除非发现新的重要使用场景，否则我不打算做太大的改动。</p>
+      
+    
+      
+        <p>Git 仓库托管在 GitHub 上，自述文件也可以在那里找到。</p>
       
     
   </div>

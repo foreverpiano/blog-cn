@@ -29,39 +29,49 @@
   <div class="article-content">
     
       
-        <p>一位同事（我得找到他那篇隐秘的博客文章，好给他加上链接…… :)）转发给我一封来自 Erlang 邮件列表的关于 BeepBeep 的消息。这个项目看起来相当令人兴奋，因为它结合了我工作中正在使用但还需更多练习的技术——Erlang——并为其增添了一抹熟悉的味道：Django。</p>
+        <p>一位同事（得找找他隐藏的博客，好给他加上链接…… :)）转发了一封来自 Erlang 邮件列表关于 BeepBeep 的消息。这个项目看起来相当令人兴奋，因为它将我工作中正在使用但还需要更多练习的 Erlang，与熟悉的 Django 风味结合在了一起。</p>
       
     
       
-        <p>本教程将一步步介绍如何安装、创建以及（某种程度上、差不多、但其实不算真正地）部署一个极其简单的 BeepBeep 应用。我无法保证你会立刻被兴奋所淹没，但它将为后续更多精彩的教程铺平道路。</p>
+        <p>本教程将带你完成一个极其简单的 BeepBeep 应用的安装、创建以及（某种程度上、差不多、但也不是真的）部署。我不能保证你会立刻兴奋不已，但这将为后续更精彩的教程铺平道路。</p>
       
     
       
-        <p>请注意，本教程在很大程度上借鉴了 BeepBeep 的官方文档，如果没有这些文档，这篇教程将无法完成。</p>
+        <p>请注意，本教程在很大程度上借鉴了 BeepBeep 的官方文档，没有这些文档就不可能完成。</p>
       
     
       
-        <p>在本教程中，我们将构建一个简单的 Web 应用，它会显示随机素数（看来我对 Web 应用的评判标准最近有点降低了），同时展示 BeepBeep 应用的基本组成部分。闲话不多说，让我们开始吧。</p>
+        <p>在本教程中，我们将构建一个简单的网页应用，它会显示随机素数（看来我对网页应用的评判标准最近有点降低了），同时展示 BeepBeep 应用的基本组成部分。不再废话，让我们开始吧。</p>
       
     
       
         <h2>安装 BeepBeep</h2>
+        
       
     
       
-        <div class="list-content">首先，安装 Erlang。在 OS X 上使用 Port 时，可以运行 sudo port install erlang；Debian 系统则可以使用 apt-get install erlang。接下来，从 Git 仓库下载源代码。cd ~/git/
+        <pre><code>cd ~/git/
 git clone git://github.com/dmitriid/beepbeep.git
-（在本教程撰写时，最新的提交是 96fb57a58322aa9abd0340755f0c94d6501d223d，日期为 2009 年 7 月 2 日。如果你希望本教程无需修改就能正常运行，建议使用该版本。）第三步，我们需要编译 BeepBeep 源代码。（该 Git 仓库很贴心地将其依赖——MochiWeb 和 ErlyDTL——也一同包含在内。）cd beepbeep
-make
-有点不同寻常的是，代码第一次编译就成功了，并没有遇到需要四处寻找隐藏依赖的问题。</div>
+</code></pre>
       
     
       
-        <p>现在，你已经完成了相当轻松的 BeepBeep 安装过程。</p>
+        <pre><code>cd beepbeep
+make
+</code></pre>
+      
+    
+      
+        <div class="list-content">首先，安装 Erlang。在 OS X 上使用 Port 可以执行 sudo port install erlang，Debian 系统则可以使用 apt-get install erlang。接下来，从 Git 仓库下载源代码。（在本教程撰写时，最新的提交是 2009 年 7 月 2 日的 96fb57a58322aa9abd0340755f0c94d6501d223d。如果你希望本教程无需修改就能正常运行，我推荐使用这个版本。）第三，我们需要构建 BeepBeep 源代码。（Git 仓库很贴心地包含了它的依赖——MochiWeb 和 ErlyDTL。）有点不同寻常的是，代码第一次构建就成功了，而且没有遇到任何隐藏的依赖问题。</div>
+      
+    
+      
+        <p>现在你已经完成了相当轻松的 BeepBeep 安装。</p>
       
     
       
         <h2>创建 BeepBeep 项目</h2>
+        
       
     
       
@@ -69,17 +79,24 @@ make
       
     
       
-        <div class="list-content">首先，为 BB_Primes 创建项目脚手架，这是我们正在构建的这个项目非常不聪明的名字。./script/new_beep.erl Primes ../BB_Primes
-然后启动新项目的 Web 服务器。cd ../BB_Primes/primes/
+        <pre><code>./script/new_beep.erl Primes ../BB_Primes
+</code></pre>
+      
+    
+      
+        <pre><code>cd ../BB_Primes/primes/
 make
 ./stat_server.sh
-如果你忘记运行 make 编译代码，可能会得到一个相当笼统的崩溃文件，所以如果出现问题，请先检查这一点。服务器成功启动后，访问
-http://localhost:8000
-即可看到默认的 BeepBeep 应用页面。现在让我们花点时间看看 new_beep.erl 脚本创建的各种文件和文件夹。deps 目录包含 BeepBeep、MochiWeb 和 ErlyDTL 的源代码，这意味着你无需手动将它们加入 Erlang 路径。这里没什么太多要做的，不过你可能想添加项目所需的其他依赖。ebin 目录存放由 Makefile 生成的编译后文件。这里也没什么太多要做的。support 目录包含 include.mk，这是一个用于 make 的辅助文件。www 目录包含由 MochiWeb 提供的静态文件。（我必须承认，我原本以为生产环境中使用 BeepBeep 会将其隐藏在 Nginx/Lighttpd 后面，只用来提供动态内容，但看来 MochiWeb 本身也是一个不错的静态文件服务器。）views 目录包含用于渲染应用页面的模板。这些模板使用 Django 模板语言编写，并通过 ErlyDTL 进行编译。src 目录包含应用的所有代码，其中有一些对于没有 Erlang 经验的人来说会比较陌生的部分。home_controller.erl 是定义控制器逻辑的地方。对于简单的应用，这是 src 目录中你唯一需要编辑的文件。primes.app 定义了一个 OTP 应用。primes.erl 为 primes.app 定义了启动和停止函数。primes_deps.erl 定义并定位依赖项（我之前其实没见过 X_deps.erl 这样的文件，这对可复用应用来说是个相当不错的主意。）primes_app.erl 启动和停止 primes_sup.erl 监督者应用。primes_sup.erl 为 primes.app 定义了监督者。primes_web.erl 为应用定义了 MochiWeb 服务器。</div>
+</code></pre>
+      
+    
+      
+        <div class="list-content">首先，为 BB_Primes 创建项目脚手架，这是我们正在构建的这个项目的一个不太聪明的名字。现在启动新项目的 Web 服务器。如果你忘记编译代码，可能会得到一个相当通用的崩溃文件，所以如果出现问题，请先检查这里。成功启动服务器后，访问 http://localhost:8000 查看默认的 BeepBeep 应用页面。现在让我们花几分钟时间，看看 new_beep.erl 脚本创建的各种文件和文件夹。deps 目录包含 BeepBeep、MochiWeb 和 ErlyDTL 的源代码，这意味着你不需要将它们添加到 Erlang 路径中。这里不需要做太多事情，不过你可能会想添加项目所使用的其他依赖。ebin 存储由 Makefile 生成的编译文件。这里也没什么要做的。support 包含 include.mk，这是一个用于 make 的辅助文件。www 包含由 MochiWeb 提供的静态文件。（我必须承认，我原本以为生产环境中使用 BeepBeep 会把它隐藏在 Nginx/Lighttpd 后面，只用它来提供动态内容，但看来 MochiWeb 也是一个不错的静态文件服务器。）views 包含用于渲染应用页面的模板。这些模板使用 Django 模板语言编写，并通过 ErlyDTL 进行编译。src 包含应用的所有代码，包括几个对没有 Erlang 经验的人来说会感到陌生的部分。home_controller.erl 是定义控制器逻辑的地方。对于简单的应用，这是 src 目录中唯一需要编辑的文件。primes.app 定义了一个 OTP 应用。primes.erl 为 primes.app 定义了启动和停止函数。primes_deps.erl 定义并定位依赖项（我以前没见过 X_deps.erl 文件，这对可重用应用来说是个相当不错的想法。）primes_app.erl 启动和停止 primes_sup.erl 监控树应用。primes_sup.erl 为 primes.app 定义了监控进程。primes_web.erl 为应用定义了 MochiWeb 服务器。</div>
       
     
       
         <h2>定制 BeepBeep 项目</h2>
+        
       
     
       
@@ -87,19 +104,37 @@ http://localhost:8000
       
     
       
-        <div class="list-content">src/home_controller.erl 用于定义 URL 模式和行为。用 Django 的术语来说，它同时扮演了项目中 urls.py 和 views.py 的角色。views/ 目录包含所有模板，由控制器用来向用户展示内容。在 Django 中，这相当于你的 templates/ 文件夹。www/ 目录包含所有静态资源，类似于大多数 Django 项目中的 media/ 文件夹。</div>
+        <div class="list-content">src/home_controller.erl 是定义 URL 模式和行为的地方。用 Django 的术语来说，它同时充当了项目的 urls.py 和 views.py 文件。views/ 包含所有模板，由控制器用来向用户展示内容。在 Django 中，这相当于你的 templates/ 文件夹。www/ 包含所有静态资源，类似于大多数 Django 项目中的 media/ 文件夹。</div>
       
     
       
-        <p>一般来说，我建议从一个简单的控制器开始，编写对应的简单视图，然后在两者之间不断迭代，直到达到你想要的结果。最后再添加静态文件。</p>
+        <p>一般来说，我建议从一个简单的控制器开始，编写一个匹配的简单视图，然后在两者之间迭代，直到达到你想要的终点。最后再添加静态文件。</p>
       
     
       
-        <p>遵循我自己的建议，首先让我们打开 src/home_controller.erl。找到名为 index 的处理函数，它看起来像这样：</p>
+        <p>按照我自己的建议，首先打开 src/home_controller.erl。找到名为 index 的处理函数，它看起来像这样：</p>
       
     
       
-        <p>并将其修改为如下样子：</p>
+        <pre><code>handle_request(&quot;index&quot;,[]) -&gt;
+    {render,&quot;home/index.html&quot;,[{data,&quot;Hello There From BeepBeep!&quot;}]};
+</code></pre>
+      
+    
+      
+        <p>并将其修改为如下所示：</p>
+      
+    
+      
+        <pre><code>random_prime(N) -&gt;
+    % skipping the logic for finding
+    % nth prime to keep things concise ;(
+    101.
+handle_request(&quot;index&quot;,[]) -&gt;
+N =	random:uniform(100),
+SomePrime =	random_prime(N),
+{render, &quot;home/primes.html&quot;, [{prime, SomePrime}]};
+</code></pre>
       
     
       
@@ -107,7 +142,31 @@ http://localhost:8000
       
     
       
-        <p>base.html 模板被用作其他模板的基础脚手架，是支持 Django“不要重复自己（Don&#x27;t Repeat Yourself）”理念的简单方式。我们接下来会将其扩展为 home/primes.html 模板。</p>
+        <pre><code>&lt;!DOCTYPE html PUBLIC &quot;-//W3C//DTD XHTML 1.0 Transitional//EN&quot;
+       &quot;http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd&quot;&gt;
+&lt;html xmlns=&quot;http://www.w3.org/1999/xhtml&quot; xml:lang=&quot;en&quot; lang=&quot;en&quot;&gt;
+&lt;head&gt;
+ &lt;meta http-equiv=&quot;content-type&quot; content=&quot;text/html;charset=UTF-8&quot; /&gt;
+ &lt;title&gt;Welcome to Primes&lt;/title&gt;
+ &lt;link href=&quot;/stylesheets/style.css&quot; rel=&quot;stylesheet&quot; type=&quot;text/css&quot;/&gt;
+&lt;/head&gt;
+  &lt;body&gt;
+    {% block content %}{% endblock %}
+  &lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+      
+    
+      
+        <p>base.html 模板被用作其他模板的脚手架，是支持 Django“Don&#x27;t Repeat Yourself（不要重复自己）”理念的一种简单方式。我们接下来会将其扩展为 home/primes.html 模板。</p>
+      
+    
+      
+        <pre><code>{% extends &quot;../base.html&quot; %}
+{% block content %}
+    &lt;p&gt;Prime is : { { prime }}&lt;/p&gt;
+{% endblock %}
+</code></pre>
       
     
       
@@ -115,7 +174,15 @@ http://localhost:8000
       
     
       
-        <p>哎呀，这里有个警告，因为我回头取消了素数生成代码的实现，不过问题不大。</p>
+        <pre><code>will-larsons-macbook:primes will$ make
+(cd src;make)
+erlc -W -I ../include -I ../deps/beepbeep-src/include -pa ../deps/beepbeep-src/ebin -pa ../deps/erlydtl-src/ebin -pa ../deps/mochiweb-src/ebin +debug_info -o ../ebin home_controller.erl
+./home_controller.erl:8: Warning: variable &#x27;N&#x27; is unused
+</code></pre>
+      
+    
+      
+        <p>哎呀，这里有个警告，因为我回退了素数代码的实现，但不是什么重要问题。</p>
       
     
       
@@ -123,15 +190,39 @@ http://localhost:8000
       
     
       
-        <p>如果你（当然，这只是假设）在控制器文件中把 home/primes.html 错误地写成了 home/prime.html，那么你会看到类似这样的错误：</p>
+        <pre><code>./start-server.sh 
+</code></pre>
       
     
       
-        <p>它不像 Django 的错误页面那么漂亮或信息丰富，但也算够用了。成功的运行结果看起来是这样的：</p>
+        <p>如果你（当然只是假设）在控制器文件中把 home/primes.html 错写成了 home/prime.html，那么你会看到这样的错误：</p>
       
     
       
-        <p>目前它使用的是 www/stylesheets/style.css 中 BeepBeep 默认的样式表，但让我们稍微做一点改变。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/bb_error.png" alt="BeepBeep error message page.">
+          
+        </figure>
+      
+    
+      
+        <p>它不像 Django 的错误页面那样漂亮或信息丰富，但仍然能用。成功的运行看起来像这样：</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/bb_success.png" alt="BB_Prime running successfully.">
+          
+        </figure>
+      
+    
+      
+        <p>目前它使用的是 www/stylesheets/style.css 中默认的 BeepBeep 样式表，但让我们稍微做一点改变。</p>
+      
+    
+      
+        <pre><code>emacs www/stylesheets/primes.css
+</code></pre>
       
     
       
@@ -139,7 +230,21 @@ http://localhost:8000
       
     
       
+        <pre><code>body {
+     padding: 25px; 
+     background: #333;
+     color: #BBF;
+}
+</code></pre>
+      
+    
+      
         <p>然后编辑 views/base.html，将</p>
+      
+    
+      
+        <pre><code>&lt;link href=&quot;/stylesheets/style.css&quot; rel=&quot;stylesheet&quot; type=&quot;text/css&quot;/&gt;
+</code></pre>
       
     
       
@@ -147,39 +252,64 @@ http://localhost:8000
       
     
       
+        <pre><code>&lt;link href=&quot;/stylesheets/primes.css&quot; rel=&quot;stylesheet&quot; type=&quot;text/css&quot;/&gt;
+</code></pre>
+      
+    
+      
         <p>现在重启服务器，</p>
       
     
       
-        <p>刷新页面，尽情欣赏你刚刚创建的这个极为简单的应用吧。</p>
+        <pre><code>./start-server.sh
+</code></pre>
+      
+    
+      
+        <p>重新加载页面，尽情享受你创建的这个非常简单的应用的荣耀吧。</p>
       
     
       
         <h2>部署</h2>
+        
       
     
       
-        <p>当前的启动脚本运行在当前 Shell 会话中，这对开发来说很棒，但对于长期运行的进程来说就不太方便了。你可以对其进行大量改进（在另一个节点启动、使用 heart 监控等等），但为了保持本教程的简洁风格，我们可以简单地以 detached 模式运行它，这样就能保留你的 Shell 会话。</p>
+        <p>当前的启动脚本在当前的 shell 会话中运行，这对开发来说很好，但对于长期运行的进程来说就不太方便了。你可以对其进行很多改进（在另一个节点启动，使用 heart 运行等），但为了保持本教程的简单风格，只需用 detached 模式运行它即可，这样你就能保留自己的 shell 会话。</p>
       
     
       
-        <p>然后将 start-detached-server.sh 修改成如下内容：</p>
+        <pre><code>cp start-server.sh start-detached-server.sh
+emacs start-detached-server.sh
+</code></pre>
       
     
       
-        <p>如果你希望进程在登出后仍然持续运行，可以使用 sudo -u 以一个持久化用户的身份运行该进程（以 root 运行会有一些微小的安全隐患，但你可以使用 www-data 或自定义用户来运行你的 BeepBeep 应用）。</p>
+        <p>然后将 start-detached-server.sh 修改为如下内容：</p>
       
     
       
-        <p>就是这样，一个非常简单的 BeepBeep 应用。本教程诚然没有给你带来“5 分钟搭建博客”那种你可能已经习惯的框架体验，但请继续关注，我保证下一篇 BeepBeep 教程会精彩得多。</p>
+        <pre><code>#!/bin/sh
+cd `dirname $0`
+exec erl -pa $PWD/ebin $PWD/deps/*/ebin -boot start_sasl &lt;/span&gt;
+-s reloader -s primes -detached
+</code></pre>
       
     
       
-        <p>（本教程的代码在 BeepBeep Examples 的 Git 仓库中以 BB_Primes 的名义提供。）</p>
+        <p>如果你希望在注销后进程仍然存在，可以使用 sudo -u 以一个持久的用户身份运行该进程（以 root 运行会有一些非常轻微的安全后果，但你可以使用 www-data 或自定义用户来运行你的 BeepBeep 应用）。</p>
       
     
       
-        <p>一如既往，我非常感谢任何反馈或纠正！</p>
+        <p>就是这样，一个非常简单的 BeepBeep 应用。诚然，本教程没有给你那种“5 分钟创建一个博客”的框架体验，但请继续关注，我保证下一个 BeepBeep 教程会精彩得多。</p>
+      
+    
+      
+        <p>（本教程的代码可在 BeepBeep Examples Git 仓库中以 BB_Primes 的名称获取。</p>
+      
+    
+      
+        <p>一如既往，我非常感谢任何反馈或更正！</p>
       
     
   </div>

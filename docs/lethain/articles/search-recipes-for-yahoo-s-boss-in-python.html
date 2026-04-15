@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>用 Python 为 Yahoo 的 BOSS 搜索食谱 · Will Larson 文集</title>
+  <title>用 Python 为 Yahoo 的 BOSS 编写搜索代码实例 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>用 Python 为 Yahoo 的 BOSS 搜索食谱</h1>
+    <h1>用 Python 为 Yahoo 的 BOSS 编写搜索代码实例</h1>
     <div class="meta">
       2008-07-11 · 
       <a href="https://lethain.com/search-recipes-for-yahoo-s-boss-in-python/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,55 +29,77 @@
   <div class="article-content">
     
       
-        <p>本教程将介绍如何使用 Yahoo BOSS Mashup Framework 的可选 Python 库来（还能是什么？）构建你自己的搜索服务。我们将从安装该库并申请 BOSS 开发者账号开始，然后在 Python 命令行中体验 BOSS，整理出一系列实用的食谱，用于搜索网页、新闻、图片等内容。</p>
+        <p>本教程将介绍如何使用 Yahoo BOSS Mashup Framework 的可选 Python 库来（还能是什么呢？）构建你自己的搜索服务。我们会先安装该库并申请一个 BOSS 开发者账号，然后在 Python 命令行中体验 BOSS 的用法，整理出一系列实用的代码实例，用于搜索网页、新闻、图片等内容。</p>
       
     
       
-        <p>本教程不会尝试构建一个完整的应用，仅展示如何直接使用 BOSS 库本身。如果你对在 Web 框架中使用 BOSS 的文章感兴趣，我最近写了一篇在 Django 中使用 BOSS 的文章，应该会对你有所帮助。</p>
+        <p>本教程不会尝试构建一个完整的应用程序，只会展示如何直接使用 BOSS 库本身。如果你对在 Web 框架中使用 BOSS 的文章感兴趣，我最近写过一篇在 Django 中使用 BOSS 的文章，应该会对你有帮助。</p>
       
     
       
-        <p>在学习这些示例时，你可能需要参考官方的 Yahoo BOSS API 文档（该文档的链接在 BOSS 页面上比较难找到）。</p>
+        <p>在学习这些示例的过程中，你可能会需要参考官方的 Yahoo BOSS API 文档（它的链接在 BOSS 页面上不太容易找到）。</p>
       
     
       
-        <h2>配置 BOSS 库</h2>
+        <h3>配置 BOSS 库</h3>
+        
       
     
       
-        <p>在开始之前，请注意 BOSS Framework 库依赖于 Python 2.5，无法直接用于更早的版本。</p>
+        <p>在开始之前需要注意，BOSS Framework 库依赖 Python 2.5，无法直接用于之前的版本。</p>
       
     
       
-        <div class="list-content">注册一个 BOSS App ID。你需要选择使用浏览器内认证，并提供两个 URL：一个是你的应用地址，另一个是认证成功后的重定向地址。不过，这些 URL 并不被该库实际使用（库也不需要对使用你服务的最终用户进行任何形式的认证，尽管你必须提供 BOSS APP ID 才能让库正常工作），但它们用于验证你的账号，因此你需要选择一个有效的域名，并在该域名下放置一个静态文件以供其验证域名所有权。下载用于控制 BOSS 的 Python 库。解压后删除压缩包。
-unzip boss_mashup_framework_0.1.zip
+        <pre><code>unzip boss_mashup_framework_0.1.zip
 rm boss_mashup_framework_0.1.zip
-打开 boss_mashup_framework_0.1/config.json 文件，为前三项填写你的信息。appid 是你在第 1 步注册 BOSS 时获得的 ID。email 是你的邮箱地址。org 是你组织的名称（通常就是你的名字）。如果尚未安装 Simple JSON，请先安装它。你可以在 Python 2.5 交互环境中输入 import simplejson 来检查是否已安装。
-如果无法导入，请下载 Simple JSON，解压，进入目录后进行安装。
-tar -xzvf simplejson-1.9.2.tar.gz
+</code></pre>
+      
+    
+      
+        <pre><code>import simplejson
+</code></pre>
+      
+    
+      
+        <pre><code>tar -xzvf simplejson-1.9.2.tar.gz
 cd simplejson-1.9.2
 python2.5 setup.py build
 python2.5 setup.py install
 cd ../
 rm -rf simplejson-1.9.2*
-创建文件夹 boss_mashup_framework_0.1/deps/。
-cd boss_mashup_framework_0.1
+</code></pre>
+      
+    
+      
+        <pre><code>cd boss_mashup_framework_0.1
 mkdir deps
-下载 dict2xml 和 xml2dict，将它们解压到 deps 文件夹中，删除 .tgz 文件，然后返回 boss_mashup_framework_0.1 目录。
-cd deps
+</code></pre>
+      
+    
+      
+        <pre><code>cd deps
 cp ~/Desktop/dict2xml.tgz ./
 cp ~/Desktop/xml2dict.tgz ./
 tar -xzvf dict2xml.tgz
 tar -xzvf xml2dict.tgz
 rm *.tgz
 cd ..
-现在我们可以构建该库了。
-python2.5 setup.py build
+</code></pre>
+      
+    
+      
+        <pre><code>python2.5 setup.py build
 python2.5 setup.py install
-最后，让我们测试一下是否一切正常。
-python2.5 examples/ex3.py
-你应该会在屏幕上看到一些新闻报道输出。成功了。如果你遇到类似以下的错误信息：
-Traceback (most recent call last):
+</code></pre>
+      
+    
+      
+        <pre><code>python2.5 examples/ex3.py
+</code></pre>
+      
+    
+      
+        <pre><code>Traceback (most recent call last):
   File &quot;examples/ex3.py&quot;, line 16, in &lt;module&gt;
     from yos.yql import db
   File &quot;/Library/Frameworks/Python.framework/Versions/2.5/lib/python2.5/site-packages/yos/yql/db.py&quot;, line 44, in &lt;module&gt;
@@ -85,19 +107,24 @@ Traceback (most recent call last):
   File &quot;/Library/Frameworks/Python.framework/Versions/2.5/lib/python2.5/site-packages/yos/crawl/rest.py&quot;, line 15, in &lt;module&gt;
     HEADERS = {&quot;User-Agent&quot;: simplejson.load(open(&quot;config.json&quot;, &quot;r&quot;))[&quot;agent&quot;]}
 IOError: [Errno 2] No such file or directory: &#x27;config.json&#x27;
-那么你很可能是在一个没有 config.json 文件的目录下启动了 Python。我认为这是当前版本库中一个相当糟糕的缺陷：你必须在一个包含 config.json 文件的目录下运行 Python。希望这种情况将来能得到改进。</div>
+</code></pre>
       
     
       
-        <p>至此，我们已经完成所有设置，可以继续前进了。如果你在安装过程中遇到问题，请查看 boss_mashup_framework_0.1/README 文件。如果还是无法解决，欢迎在评论中留言，我会尽量提供帮助。</p>
+        <div class="list-content">注册一个 BOSS App ID。你需要选择使用浏览器内认证方式，并提供两个 URL：一个是你应用的地址，另一个是认证成功后的跳转地址。不过这个库并不使用这些 URL（也不使用任何针对最终用户的认证方式，尽管你必须提供 BOSS APP ID 才能让库正常工作），但它们用于验证你的账号，因此你需要选择一个有效的域名，并在该域名下放置一个静态文件以供其验证域名所有权。下载用于控制 BOSS 的 Python 库。解压后删除压缩包。打开 boss_mashup_framework_0.1/config.json 文件，填写前三项的内容。appid 是你在第一步注册 BOSS 时获得的 ID。email 是你的邮箱地址。org 是你组织的名称（很可能就是你的名字）。如果尚未安装 Simple JSON，请先安装它。你可以在 Python 2.5 交互环境中输入以下命令来检查是否已安装。如果无法导入，则下载 Simple JSON，解压后进入目录进行安装。在 boss_mashup_framework_0.1 目录下创建文件夹 deps/。下载 dict2xml 和 xml2dict，将它们解压到 deps 文件夹中，删除 .tgz 文件，然后返回 boss_mashup_framework_0.1 目录。现在我们可以构建这个库了。最后，让我们测试一下是否一切正常。你应该会看到一些新闻故事被打印到屏幕上。成功了。如果你遇到类似这样的错误信息：那么你很可能是在一个不包含 config.json 文件的目录中启动了 Python。我认为这是目前这个库的一个比较严重的缺陷：你必须在一个包含 config.json 文件的目录中运行 Python。希望这种情况将来能得到改进。</div>
       
     
       
-        <p>现在，让我们开始编写搜索食谱吧。</p>
+        <p>至此，我们已经完成所有设置，可以继续前进了。如果你在配置过程中遇到问题，请查看 boss_mashup_framework_0.1/README 文件。如果还是无法解决，欢迎在评论区留言，我会尽量帮忙。</p>
       
     
       
-        <h2>搜索网页</h2>
+        <p>现在，让我们开始编写代码实例吧。</p>
+      
+    
+      
+        <h3>搜索网页</h3>
+        
       
     
       
@@ -105,27 +132,77 @@ IOError: [Errno 2] No such file or directory: &#x27;config.json&#x27;
       
     
       
-        <p>之后我们可以非常轻松地操作返回的数据：</p>
+        <pre><code>&gt;&gt;&gt; from yos.boss import ysearch
+&gt;&gt;&gt; from yos.yql import db
+&gt;&gt;&gt; data = ysearch.search(&quot;Django&quot;,count=10)
+&gt;&gt;&gt; table = db.create(data=data)
+&gt;&gt;&gt; table.rows
+[
+  { u&#x27;dispurl&#x27;: u&#x27;www.&lt;b&gt;djangoproject.com&lt;/b&gt;&#x27;,
+    u&#x27;title&#x27;: u&#x27;&lt;b&gt;Django&lt;/b&gt; | The Web framework for perfectionists with deadlines&#x27;,
+    u&#x27;url&#x27;: u&#x27;http://www.djangoproject.com/&#x27;, u&#x27;abstract&#x27;: u&#x27;&lt;b&gt;Django&lt;/b&gt; is a high-level Python Web framework that encourages rapid development and clean, pragmatic design. &lt;b&gt;...&lt;/b&gt; &lt;b&gt;Django&lt;/b&gt; focuses on automating as much as possible &lt;b&gt;...&lt;/b&gt;&#x27;,
+    u&#x27;clickurl&#x27;: u&#x27;http://www.djangoproject.com/&#x27;,
+    u&#x27;date&#x27;: u&#x27;2008/06/19&#x27;,
+    u&#x27;size&#x27;: u&#x27;8524&#x27;
+  }, 
+  &quot;would display 9 more results, but removed to save space&quot;
+]
+</code></pre>
       
     
       
-        <p>需要指出的是 url 和 clickurl 之间的区别。在上面的代码中它们是相同的：</p>
+        <p>接下来我们可以很方便地操作返回的数据：</p>
       
     
       
-        <p>然而，根据 Yahoo 官方文档，clickurl 和 url 有着重要区别。具体来说，你应该使用 clickurl 作为访问该网站的实际链接。例如，如果你正在编写 Django 模板，链接可能应该是下面这样的：</p>
+        <pre><code>&gt;&gt;&gt; for row in table.rows:
+...     print &quot;(%s) %s : %s&quot; % (row[&#x27;date&#x27;],row[&#x27;title&#x27;],row[&#x27;url&#x27;]
+(2008/06/19) &lt;b&gt;Django&lt;/b&gt; | The Web framework for perfectionists with deadlines : http://www.djangoproject.com/
+(2006/03/15) &lt;b&gt;Django&lt;/b&gt; Reinhardt : http://www.redhotjazz.com/django.html
+(2008/07/09) &lt;b&gt;Django&lt;/b&gt; Reinhardt - Wikipedia, the free encyclopedia : http://en.wikipedia.org/wiki/Django_Reinhardt
+...
+</code></pre>
       
     
       
-        <p>而不应该是这样的：</p>
+        <p>这里需要指出 url 和 clickurl 的区别。在上面的代码中它们是相同的：</p>
       
     
       
-        <p>虽然我目前还没有遇到 url 和 clickurl 实际不同的情况，但遵循 Yahoo 的官方建议似乎更安全，因为这背后很可能有非常合理的解释，尽管他们的文档没有解释清楚。</p>
+        <pre><code>{  u&#x27;url&#x27;: u&#x27;http://www.djangoproject.com/&#x27;,
+   u&#x27;clickurl&#x27;: u&#x27;http://www.djangoproject.com/&#x27;,
+   ...
+}
+</code></pre>
       
     
       
-        <h2>将搜索限制在单个网站</h2>
+        <p>然而，根据 Yahoo 官方文档的说明，这两者有重要区别。即你应当使用 clickurl 作为实际访问该网站的链接。例如，如果你在编写 Django 模板，链接应该写成下面这样：</p>
+      
+    
+      
+        <pre><code>&lt;a href=&quot;{ { row.clickurl }}&quot;&gt;{ { row.url }}&lt;/a&gt;
+&lt;a href=&quot;{ { row.clickurl }}&quot;&gt;{ { row.title }}&lt;/a&gt;
+</code></pre>
+      
+    
+      
+        <p>而不应写成下面这样：</p>
+      
+    
+      
+        <pre><code>&lt;a href=&quot;{ { row.url }}&quot;&gt;{ { row.url }}&lt;/a&gt;
+&lt;a href=&quot;{ { row.url }}&quot;&gt;{ { row.title }}&lt;/a&gt;
+</code></pre>
+      
+    
+      
+        <p>虽然我目前还没遇到 url 和 clickurl 实际不同的情况，但遵循 Yahoo 的官方建议似乎更安全，因为这背后很可能有合理的解释，尽管他们的文档没有解释得很清楚。</p>
+      
+    
+      
+        <h3>将搜索限制在单个网站</h3>
+        
       
     
       
@@ -133,35 +210,119 @@ IOError: [Errno 2] No such file or directory: &#x27;config.json&#x27;
       
     
       
+        <pre><code>&gt;&gt;&gt; query = u&quot;%s site:%s&quot; % (&quot;HttpRequest&quot;, &quot;djangoproject.com&quot;)
+&gt;&gt;&gt; query
+u&#x27;HttpRequest site:djangoproject.com&#x27;
+&gt;&gt;&gt; data = ysearch.search(query)
+</code></pre>
+      
+    
+      
         <p>下面是一个完整的示例：</p>
       
     
       
-        <h2>在不同区域和语言中搜索</h2>
+        <pre><code>&gt;&gt;&gt; from yos.boss import ysearch
+&gt;&gt;&gt; from yos.yql import db
+&gt;&gt;&gt; data = ysearch.search(&quot;Django site:lethain.com&quot;)
+&gt;&gt;&gt; results = db.create(data=data)
+&gt;&gt;&gt; results.rows
+[{ u&#x27;dispurl&#x27;: u&#x27;www.&lt;b&gt;lethain.com&lt;/b&gt;/tags/&lt;b&gt;django&lt;/b&gt;&#x27;,
+   u&#x27;title&#x27;: u&#x27;&lt;b&gt;django&lt;/b&gt;&#x27;,
+   u&#x27;url&#x27;: u&#x27;http://www.lethain.com/tags/django/&#x27;,
+   u&#x27;abstract&#x27;: u&quot;Will Larson&#x27;s blog about programming and other things. &lt;b&gt;...&lt;/b&gt; Tags: Google App Engine &lt;b&gt;django&lt;/b&gt; &lt;b&gt;...&lt;/b&gt; and disadvantages of using &lt;b&gt;Django&lt;/b&gt; with the Google App Engine. &lt;b&gt;...&lt;/b&gt;&quot;, 
+   u&#x27;clickurl&#x27;: u&#x27;http://www.lethain.com/tags/django/&#x27;,
+   u&#x27;date&#x27;: u&#x27;2008/07/03&#x27;,
+   u&#x27;size&#x27;: u&#x27;29012&#x27;}, 
+   u&quot;9 more results truncated for brevity&quot;,
+]
+</code></pre>
       
     
       
-        <p>BOSS 也支持在不同语言和区域进行搜索，它在这里列出了支持的区域。这些功能通过传递 lang 和 region 参数给 ysearch.search 来实现。例如，如果你想在阿根廷区域（ar）使用西班牙语（es）进行搜索，代码如下：</p>
+        <h3>在不同地区和语言中搜索</h3>
+        
       
     
       
-        <p>下面是一个使用日语区域和语言进行搜索的完整示例。</p>
+        <p>BOSS 也支持在不同语言和地区进行搜索，它在这里列出了支持的地区。这些功能通过给 ysearch.search 传递 lang 和 region 参数来实现。例如，如果你想在阿根廷地区（ar）使用西班牙语（es）进行搜索，可以这样写：</p>
       
     
       
-        <h2>搜索 Yahoo 新闻</h2>
+        <pre><code>&gt;&gt;&gt; data = ysearch(&quot;BOSS Framework&quot;,lang=&quot;es&quot;,region=&quot;ar&quot;)
+</code></pre>
       
     
       
-        <p>从 Yahoo 新闻搜索数据与前面基本相同，只需在 ysearch.search 函数中额外添加 vertical=&quot;news&quot; 参数即可。</p>
+        <p>下面是一个使用日语地区和语言进行搜索的完整示例。</p>
       
     
       
-        <p>假设我们想从这些结果中生成一个 HTML 链接列表，代码大致如下：</p>
+        <pre><code>&gt;&gt;&gt; from yos.boss import ysearch
+&gt;&gt;&gt; from yos.yql import db
+&gt;&gt;&gt; data = ysearch.search(&quot;Django&quot;,lang=&#x27;jp&#x27;,region=&#x27;jp&#x27;)
+&gt;&gt;&gt; results = db.create(data=data)
+&gt;&gt;&gt; results.rows
+[{ u&#x27;dispurl&#x27;: u&#x27;&lt;b&gt;django&lt;/b&gt;.nqsblog.jp&#x27;,
+   u&#x27;title&#x27;: u&#x27;&lt;b&gt;Django&lt;/b&gt; Kumamoto&#x27;,
+   u&#x27;url&#x27;: u&#x27;http://django.nqsblog.jp/&#x27;,
+   u&#x27;abstract&#x27;: u&#x27;&lt;b&gt;Django&lt;/b&gt; Kumamoto. \u718a\u672c\u30b8\u30e3\u30f3\u30b4\u306e\u30e9\u30a4\u30d6\u30fb\u30a2\u30fc\u30c6\u30a3\u30b9\u30c8\u30fb\u30d4\u30c3\u30af\u30a2\u30c3\u30d7\u60c5\u5831 ... \u718a\u672c&lt;b&gt;\uff24\uff4a\uff41\uff4e\uff47\uff4f&lt;/b&gt;\u30e9\u30a4\u30d6\u30b9\u30b1\u30b8\u30e5\u30fc\u30eb ... &lt;b&gt;Django&lt;/b&gt;. 07-01-12. \u53ea\u4eca\u597d\u8a55\u767a\u58f2\u4e2d! \u544a\u77e5\u6709\u96e3\u3046\u5fa1\u5ea7\u3044\u307e.. TIGER HOLE ...&#x27;,
+   u&#x27;clickurl&#x27;: u&#x27;http://django.nqsblog.jp/&#x27;,
+   u&#x27;date&#x27;: u&#x27;2008/07/07&#x27;,
+   u&#x27;size&#x27;: u&#x27;23025&#x27;},
+   u&quot;9 more results truncated for brevity&quot;,
+]
+</code></pre>
       
     
       
-        <h2>搜索图片</h2>
+        <h3>搜索 Yahoo 新闻</h3>
+        
+      
+    
+      
+        <p>从 Yahoo 新闻搜索数据的用法基本相同，只需在 ysearch.search 函数中额外添加 vertical=&quot;news&quot; 参数即可。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; from yos.boss import ysearch
+&gt;&gt;&gt; from yos.yql import db
+&gt;&gt;&gt; data = ysearch.search(&quot;Python&quot;,vertical=&quot;news&quot;,count=10)
+&gt;&gt;&gt; news = db.create(data=data)
+&gt;&gt;&gt; news.rows
+[{u&#x27;sourceurl&#x27;: u&#x27;http://www.geek.com/&#x27;,
+  u&#x27;language&#x27;: u&#x27;en english&#x27;,
+  u&#x27;title&#x27;: u&#x27;Sun to add Python support to NetBeans IDE&#x27;,
+  u&#x27;url&#x27;: u&#x27;http://www.geek.com/sun-to-add-python-support-to-netbeans-ide-20080710/&#x27;,
+  u&#x27;abstract&#x27;: u&#x27;Sun\u2019s open source IDE NetBeans is expanding fast. After announcing support for PHP back in May, Sun has used the EuroPython 2008 event to announce support for Python and Jython in upcoming releases. NetBeans is an all-in-one development environment in the same vein as Microsoft\u2019s Visual Studio. The one key difference being Sun\u2019s version is open [...]&#x27;,
+  u&#x27;clickurl&#x27;: u&#x27;http://www.geek.com/sun-to-add-python-support-to-netbeans-ide-20080710/&#x27;,
+  u&#x27;source&#x27;: u&#x27;Geek.com&#x27;,
+  u&#x27;time&#x27;: u&#x27;14:50:27&#x27;,
+  u&#x27;date&#x27;: u&#x27;2008/07/10&#x27;}, 
+  &quot;9 results truncated for brevity&quot;
+]
+</code></pre>
+      
+    
+      
+        <p>假设我们想根据这些结果生成一个 HTML 链接列表，代码大致如下：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; def make_link(row):
+...     return u&#x27;&lt;a href=&quot;%s&quot;&gt;%s&lt;/a&gt;&#x27; % (row[&#x27;clickurl&#x27;],row[&#x27;title&#x27;])
+... 
+&gt;&gt;&gt; links = [make_link(row) for row in news.rows]
+&gt;&gt;&gt; links
+[ u&#x27;&lt;a href=&quot;http://www.geek.com/sun-to-add-python-support-to-netbeans-ide-20080710/&quot;&gt;Sun to add Python support to NetBeans IDE&lt;/a&gt;&#x27;,
+  u&#x27;&lt;a href=&quot;http://www.akron.com/akron-ohio-community-news.asp?aID=2875&quot;&gt;Peninsula celebrates Python Day with special events&lt;/a&gt;&#x27;,
+  u&#x27;8 results truncated for brevity&#x27;]
+</code></pre>
+      
+    
+      
+        <h3>搜索图片</h3>
+        
       
     
       
@@ -169,31 +330,103 @@ IOError: [Errno 2] No such file or directory: &#x27;config.json&#x27;
       
     
       
-        <h2>搜索拼写检查</h2>
+        <pre><code>&gt;&gt;&gt; from yos.boss import ysearch
+&gt;&gt;&gt; from yos.yql import db
+&gt;&gt;&gt; data = ysearch.search(&quot;cherry blossom&quot;,vertical=&quot;images&quot;,count=10)
+&gt;&gt;&gt; images = db.create(data=data)
+&gt;&gt;&gt; images.rows
+[
+  { u&#x27;mimetype&#x27;: u&#x27;image/jpeg&#x27;,
+    u&#x27;refererurl&#x27;: u&#x27;http://whatdigitalcamera.com/gallery/view_photo_properties.php?set_albumName=wdc_gallery&amp;amp;index=127&amp;amp;gallery_popup=true&#x27;,
+    u&#x27;format&#x27;: u&#x27;jpeg&#x27;,
+    u&#x27;url&#x27;: u&#x27;http://whatdigitalcamera.com/albums/wdc_gallery/Cherry_Blossom.thumb.jpg&#x27;,
+    u&#x27;abstract&#x27;: u&#x27;Photo Properties Cherry Blossom&#x27;,
+    u&#x27;clickurl&#x27;: u&#x27;http://whatdigitalcamera.com/albums/wdc_gallery/Cherry_Blossom.thumb.jpg&#x27;, 
+    u&#x27;thumbnail_width&#x27;: u&#x27;125&#x27;,
+    u&#x27;height&#x27;: u&#x27;100&#x27;,
+    u&#x27;width&#x27;: u&#x27;150&#x27;,
+    u&#x27;refererclickurl&#x27;: u&#x27;http://whatdigitalcamera.com/gallery/view_photo_properties.php?set_albumName=wdc_gallery&amp;index=127&amp;gallery_popup=true&#x27;,
+    u&#x27;date&#x27;: u&#x27;2006/07/26&#x27;,
+    u&#x27;title&#x27;: u&#x27;Cherry_Blossom.thumb.jpg&#x27;,
+    u&#x27;thumbnail_height&#x27;: u&#x27;83&#x27;,
+    u&#x27;filename&#x27;: u&#x27;Cherry_Blossom.thumb.jpg&#x27;,
+    u&#x27;thumbnail_url&#x27;: u&#x27;http://sp1.yt-thm-a01.yimg.com/image/25/m3/2578341441&#x27;,
+    u&#x27;size&#x27;: u&#x27;5500&#x27;
+  },
+  u&quot;9 more results truncated for brevity&quot;,
+] 
+</code></pre>
       
     
       
-        <p>你也可以使用 BOSS 来检查拼写。为此，只需在 ysearch.search 函数中添加 vertical=&quot;spelling&quot; 参数。</p>
+        <h3>搜索拼写检查</h3>
+        
       
     
       
-        <h2>分页显示搜索结果</h2>
+        <p>你也可以用 BOSS 检查拼写。要实现这一点，只需在 ysearch.search 函数中添加 vertical=&quot;spelling&quot; 参数。</p>
       
     
       
-        <p>你经常会需要分页浏览搜索结果，先显示前十条，然后是后十条，以此类推。幸运的是，这也很容易实现。只需使用 ysearch.search 函数的 start 命名参数，并逐步增加其值即可：</p>
+        <pre><code>&gt;&gt;&gt; from yos.boss import ysearch
+&gt;&gt;&gt; from yos.yql import db
+&gt;&gt;&gt; data = ysearch.search(&quot;exubberance&quot;,vertical=&quot;spelling&quot;)
+&gt;&gt;&gt; spellings = db.create(data=data)
+&gt;&gt;&gt; spellings.rows
+[{u&#x27;suggestion&#x27;: u&#x27;exuberance&#x27;}]
+&gt;&gt;&gt; data = ysearch.search(&quot;horrifiy&quot;,vertical=&quot;spelling&quot;)
+&gt;&gt;&gt; spellings = db.create(data=data)
+&gt;&gt;&gt; spellings.rows
+[{u&#x27;suggestion&#x27;: u&#x27;horrific&#x27;}]
+</code></pre>
       
     
       
-        <p>下面是一个完整的搜索结果分页示例：</p>
+        <h3>分页显示搜索结果</h3>
+        
       
     
       
-        <h2>后续进阶</h2>
+        <p>通常你会希望能够翻页浏览搜索结果，先显示前十条，然后是接下来的十条，依此类推。幸运的是，这也很容易实现。只需使用 ysearch.search 函数的 start 命名参数，并逐步增加它的值即可：</p>
       
     
       
-        <p>本文中的食谱仅涉及 ysearch.search 的功能，并没有充分利用 BOSS Mashup 库其他部分的特性。我很快会整理一些使用 yos.yql 功能的食谱，在此之前，最好的学习方式是阅读 examples 目录下的示例代码，并直接阅读源代码。当然还有官方文档，但它并没有专门针对 Python 库，因此可能帮助有限。</p>
+        <pre><code>&gt;&gt;&gt; pos = 0
+&gt;&gt;&gt; first_five = ysearch.search(&quot;Django&quot;,start=pos,count=5)
+&gt;&gt;&gt; pos = pos + 5
+&gt;&gt;&gt; second_five = ysearch.search(&quot;Django&quot;,start=pos,count=5)
+&gt;&gt;&gt; pos = pos + 5
+&gt;&gt;&gt; third_five = ysearch.search(&quot;Django&quot;,start=pos,count=5)
+</code></pre>
+      
+    
+      
+        <p>下面是一个分页显示搜索结果的完整示例：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; from yos.boss import ysearch
+&gt;&gt;&gt; from yos.yql import db
+&gt;&gt;&gt; data = ysearch.search(&quot;Python&quot;,start=0,count=5)
+&gt;&gt;&gt; results = db.create(data=data)
+&gt;&gt;&gt; titles = [ row[&#x27;title&#x27;] for row in results.rows ]
+&gt;&gt;&gt; titles
+[u&#x27;&lt;b&gt;Python&lt;/b&gt; Programming Language&#x27;, u&#x27;&lt;b&gt;Python&lt;/b&gt; (programming language) - Wikipedia, the free encyclopedia&#x27;, u&#x27;&lt;b&gt;Python&lt;/b&gt; (programming language) - Wikipedia, the free encyclopedia&#x27;, u&#x27;Download &lt;b&gt;Python&lt;/b&gt; Software&#x27;, u&#x27;&lt;b&gt;Python&lt;/b&gt; - Wikipedia, the free encyclopedia&#x27;]
+&gt;&gt;&gt; data = ysearch.search(&quot;Python&quot;,start=5,count=5)
+&gt;&gt;&gt; results = db.create(data=data)
+&gt;&gt;&gt; titles = [ row[&#x27;title&#x27;] for row in results.rows ]
+&gt;&gt;&gt; titles
+[u&#x27;&lt;b&gt;Python&lt;/b&gt; (programming language) - Wikipedia, the free encyclopedia&#x27;, u&#x27;&lt;b&gt;Python&lt;/b&gt; for S60&#x27;, u&#x27;PythOnline&#x27;, u&quot;&lt;b&gt;Python&lt;/b&gt; | O&#x27;Reilly Media&quot;, u&#x27;&lt;b&gt;Python&lt;/b&gt; for S60&#x27;]
+</code></pre>
+      
+    
+      
+        <h2>后续扩展</h2>
+        
+      
+    
+      
+        <p>本文中的实例只使用了 ysearch.search 的功能，而没有利用 BOSS Mashup 库其他部分的功能。我很快会整理一些使用 yos.yql 功能的代码实例。在此之前，最好的学习方式是阅读 examples 目录中的示例代码，并直接阅读源代码。当然还有官方文档，但它并不是专门针对 Python 库编写的，可能帮助不是很大。</p>
       
     
       

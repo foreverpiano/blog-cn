@@ -33,7 +33,7 @@
       
     
       
-        <p>这并不是一个无关紧要的问题，因为 PyFacebook middleware 对于那些不直接与 Facebook 通信的视图来说只是多余的代码，对于某些即使直接与 Facebook 通信的视图（例如使用 FBJSM Ajax 对象发出的请求）也不太合适。</p>
+        <p>这并不是一个无关紧要的问题，因为 PyFacebook middleware 对于那些不直接与 Facebook 通信的视图来说只是多余的负担，甚至对于某些直接与 Facebook 通信的视图（使用 FBJSM Ajax 对象发出的请求）也不太合适。</p>
       
     
       
@@ -41,11 +41,17 @@
       
     
       
-        <p>你需要将 PyFacebook 库导入到你的 views.py 文件中才能使用下面的示例。如果你已经将 PyFacebook 库安装到 Python 路径中，导入语句会是这样的：</p>
+        <p>你需要将 PyFacebook 库导入到你的 views.py 文件中才能使用下面的示例。如果已经将 PyFacebook 库安装到 Python 路径中，导入方式如下：</p>
+      
+    
+      
+        <pre><code>import facebook.djangofb as facebook
+</code></pre>
       
     
       
         <h2>将 Facebook 实例添加到 request 中</h2>
+        
       
     
       
@@ -53,19 +59,61 @@
       
     
       
-        <p>用法非常简单：</p>
+        <pre><code>def add_fb_instance(request):
+    # if already has a facebook instance, immediately return
+    if getattr(request, &#x27;facebook&#x27;, None) is not None:
+        return request
+    # auth_token is other important possible param
+    api_key = settings.FACEBOOK_API_KEY
+    secret_key = settings.FACEBOOK_SECRET_KEY
+    app_name = getattr(settings, &#x27;FACEBOOK_APP_NAME&#x27;, None)
+    callback_path = getattr(settings, &#x27;FACEBOOK_CALLBACK_PATH&#x27;, None)
+    internal = getattr(settings, &#x27;FACEBOOK_INTERNAL&#x27;, True)
+    request.facebook = facebook.Facebook(
+        api_key=api_key,
+        secret_key=secret_key,
+        app_name=app_name,
+        callback_path=callback_path,
+        internal=internal
+        )
+</code></pre>
       
     
       
-        <p>add_fb_instance 函数会在 request.facebook 上添加一个 Facebook 实例。由于这就是 PyFacebook middleware 所做的全部工作，我们已经重新实现了它的大部分功能。不过我们可能还想要更多功能，比如强制用户在访问视图前必须登录。</p>
+        <p>用法相当简单：</p>
+      
+    
+      
+        <pre><code>def canvas(request):
+    add_fb_instance(request)
+    fb = request.facebook
+    # do whatever
+    return direct_to_template(request, &#x27;fb/canvas.fbml&#x27;,
+                              extra_context={&#x27;request&#x27;:request})
+</code></pre>
+      
+    
+      
+        <p>add_fb_instance 会将一个 Facebook 实例添加到 request.facebook 中。由于这就是 PyFacebook middleware 所做的全部工作，我们已经重新实现了它的大部分功能。不过我们可能还想要更多功能，比如强制用户必须登录才能访问某个视图。</p>
       
     
       
         <h2>要求用户登录</h2>
+        
       
     
       
-        <p>要求用户登录我们的应用也非常直接。</p>
+        <p>要求用户登录我们的应用也非常简单。</p>
+      
+    
+      
+        <pre><code>def require_fb_login(request, next=None):
+    if getattr(request, &#x27;facebook&#x27;, None) is None:
+        add_fb_instance(request)
+    fb = request.facebook
+    if not fb.check_session(request):
+        return fb.redirect(fb.get_login_url(next=next))
+</code></pre>
       
     
       
@@ -73,31 +121,65 @@
       
     
       
-        <p>如果用户尚未登录，这段代码会将用户重定向到应用的登录页面。注意，如果 request 中还没有 Facebook 实例，它会自动添加一个。因此无需显式调用 add_fb_instance(request)（但建议还是调用一下，因为这样能更清楚地表明 request 中已添加了 Facebook 实例）。</p>
+        <pre><code>def canvas(request):
+    redirect = require_fb_login(request)
+    if redirect is not None: return redirect
+    user = get_fb_user(request.facebook)
+    return direct_to_template(request, &#x27;fb/canvas.fbml&#x27;,
+                              extra_context={&#x27;request&#x27;:request, &#x27;fbuser&#x27;: user})
+</code></pre>
       
     
       
-        <h2>使用 Facebook 实例来完成操作</h2>
+        <p>如果用户尚未登录，它会将用户重定向到应用的登录页面。请注意，如果 request 中还没有 Facebook 实例，它会自动添加一个。因此，显式调用 add_fb_instance(request) 并不是必需的（但建议还是调用一下，因为这样能更明确地表明已经向 request 中添加了 Facebook 实例）。</p>
       
     
       
-        <p>好了，现在我们已经把 Facebook 实例附加到了 request 上……但它们能为我们做什么呢？让我们来一探究竟。我们将创建一个模型来存储已登录用户的信息，并使用 Facebook 实例来为模型填充一些数据。</p>
+        <h2>使用 Facebook 实例来完成一些操作</h2>
+        
       
     
       
-        <p>让我们来定义模型：</p>
+        <p>好了，现在我们已经把 Facebook 实例附加到 request 上了……但它们能为我们做什么呢？我们来看看。可以创建一个模型来存储已登录用户的信息，并使用 Facebook 实例来为模型填充一些数据。</p>
       
     
       
-        <p>好了，一个简单的模型。现在，我们创建一个函数，它接收一个 Facebook 实例，获取或创建对应的 User 模型实例，并使用来自 Facebook 的数据填充 name 字段。</p>
+        <p>让我们来创建模型：</p>
       
     
       
-        <p>这里我们使用 Facebook Query Language（FQL）来获取信息。FQL 的优点在于你可以编写非常复杂的查询，而且上面这个例子足以让你学会如何通过 PyFacebook 获取其他数据：只需写一个新的 FQL 查询，并以相同方式调用即可。</p>
+        <pre><code>class User(models.Model):
+    facebook_id = models.IntegerField()
+    name = models.CharField(blank=True, null=True, max_length=60)
+</code></pre>
       
     
       
-        <p>调用 facebook.fql.query(your_query) 会返回一个字典列表。由于我们调用的查询只会返回一个结果（用户的 user id），所以我们直接取第一个结果，但在其他查询中你可能需要更仔细地处理结果（通常是遍历所有结果）。</p>
+        <p>一个简单的模型。现在，我们来写一个函数，它接收一个 Facebook 实例，获取或创建对应的 User 模型，并使用来自 Facebook 的数据填充 name 字段。</p>
+      
+    
+      
+        <pre><code>from django.shortcuts import get_object_or_404
+def get_fb_user(facebook):
+user, created = User.objects.get_or_create(facebook_id=int(facebook.uid))
+# if the object is newly created
+if created is True:
+# get first and last name using FQL
+query = &quot;SELECT uid, first_name, last_name FROM user WHERE uid=%s&quot; % facebook.uid
+# FQL results a list of dicts, retrieve the first (and only) one
+results = facebook.fql.query(query)[0]
+user.name = &quot;%s %s&quot; % (results[u&#x27;first_name&#x27;], results[u&#x27;last_name&#x27;])
+user.save()
+return user
+</code></pre>
+      
+    
+      
+        <p>这里我们使用 Facebook Query Language（FQL）来获取信息。FQL 的优点在于你可以编写非常复杂的查询，而且上面这个例子就足以让你掌握如何通过 PyFacebook 获取其他数据：只需编写新的 FQL 查询，并以相同方式调用即可。</p>
+      
+    
+      
+        <p>调用 facebook.fql.query(your_query) 会返回一个字典列表。由于我们调用的查询只会返回一条记录（用户的 user id），因此我们只取第一个结果，但在其他查询中，你可能需要更仔细地处理结果（通常是遍历所有结果）。</p>
       
     
       
@@ -105,35 +187,74 @@
       
     
       
-        <p>注意，我们需要在使用 request.facebook 实例获取用户之前，先调用 add_fb_instance(request)（在调用该函数之前，facebook 实例是不存在的）。</p>
+        <pre><code>def my_view(request):
+    add_fb_instance(request)
+    user = get_fb_user(request.facebook)
+    return direct_to_template(request, &#x27;fb/canvas.fbml&#x27;,
+                              extra_context={&#x27;request&#x27;:request, &#x27;fbuser&#x27;: user})
+</code></pre>
+      
+    
+      
+        <p>注意，我们需要在使用 request.facebook 实例获取用户之前，先调用 add_fb_instance（在调用 add_fb_instance 之前，该实例并不存在）。</p>
       
     
       
         <h2>将所有内容整合起来</h2>
+        
       
     
       
-        <p>好了，现在来看一个稍微复杂一点的例子，它用到了我们前面编写的所有功能，还加入了一些其他内容。</p>
+        <p>好了，现在来看一个稍微复杂一点的例子，它综合使用了我们前面编写的所有功能，还有一些额外的小东西。</p>
       
     
       
-        <p>这个视图还会接收一个 &#x27;id&#x27; 参数。因此 urls.py 大概是这样的：</p>
+        <pre><code>from django.shortcuts import get_object_or_404
+def club(request, id):
+add_fb_instance(request)
+redirect = require_fb_login(request)
+if redirect is not None: return redirect
+user = get_fb_user(request.facebook)
+club = get_object_or_404(Club, pk=int(id))
+if user in club.admins.all():
+is_admin = True
+else:
+is_admin = False
+return direct_to_template(request, &#x27;fb/club.fbml&#x27;,
+extra_context={&#x27;fbuser&#x27;:user,
+&#x27;club&#x27;:club,
+&#x27;is_admin&#x27;:is_admin,
+})
+</code></pre>
       
     
       
-        <p>由于 URL 中的正则表达式只允许数字，我们可以直接对 id 调用 int() 函数（不过完全忽略错误处理仍然不是一个好主意）。</p>
+        <p>这个视图还向我们传递了一个 &#x27;id&#x27; 参数。因此 urls.py 大概是这样的：</p>
       
     
       
-        <p>首先我们向 request 添加一个 Facebook 实例，然后验证用户是否已登录 Facebook。如果没有登录，就将他们重定向到我们应用的登录页面。接着我们获取与当前已登录 Facebook 用户关联的 User 实例。然后使用传入的 id 来获取或创建一个 club。</p>
+        <pre><code>from django.conf.urls.defaults import *
+urlpatterns = patterns(&#x27;bookface.fb.views&#x27;,
+(r&#x27;^$&#x27;, &#x27;canvas&#x27;),
+(r&#x27;^club/(?P&lt;id&gt;\d+)/$&#x27;, &#x27;club&#x27;),
+)
+</code></pre>
       
     
       
-        <p>接下来我们检查该用户是否是俱乐部的管理员之一。最后我们向模板渲染器传递大量额外上下文（包括 user、club 以及用户是否为俱乐部管理员）。</p>
+        <p>因为 URL 中的正则表达式只允许数字，所以我们可以直接对 id 调用 int() 函数（不过完全忽略错误处理仍然不是一个好主意）。</p>
       
     
       
-        <p>就是这么简单。</p>
+        <p>因此我们先给 request 添加一个 Facebook 实例，然后验证用户是否已登录到 Facebook。如果没有登录，就将他们重定向到我们应用的登录页面。接着我们获取与当前登录的 Facebook 用户关联的 User 实例。然后使用传入的 id 来获取或创建一个 club。</p>
+      
+    
+      
+        <p>之后我们检查用户是否是该 club 的管理员之一。最后向模板渲染器传递大量额外上下文（user、club 以及用户是否为 club 管理员）。</p>
+      
+    
+      
+        <p>就是这样。</p>
       
     
       

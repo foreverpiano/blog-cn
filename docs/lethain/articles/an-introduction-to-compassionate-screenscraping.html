@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>慈悲的屏幕抓取入门 · Will Larson 文集</title>
+  <title>善意网页抓取入门 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>慈悲的屏幕抓取入门</h1>
+    <h1>善意网页抓取入门</h1>
     <div class="meta">
       2008-08-10 · 
       <a href="https://lethain.com/an-introduction-to-compassionate-screenscraping/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,35 +29,36 @@
   <div class="article-content">
     
       
-        <p>屏幕抓取（Screen scraping）是一门通过程序自动从网站提取数据的艺术。如果你觉得它很有用：确实如此。如果你觉得它很难：其实不然。而如果你觉得用考虑不周的脚本很容易惹恼网站管理员，那你说得太对了。本教程不仅教你如何进行屏幕抓取，更重要的是如何以负责任的方式进行。它是将你想要的数据与“黄金法则”相结合的产物，读完它将会让网络变得更美好。</p>
+        <p>网页抓取（Screen scraping）是用程序自动从网站提取数据的技巧。如果你觉得它很有用：确实如此。如果你觉得它很难：其实不然。而如果你认为写得不周到的脚本很容易把网站管理员惹恼，那你说得太对了。本教程不仅讲网页抓取，更强调负责任的、社会性的网页抓取。它是将你想要的数据和“己所不欲，勿施于人”原则结合在一起的产物，读完它会让互联网变得更好。</p>
       
     
       
-        <p>我们将在本教程中使用 Python，并借助 httplib2 和 BeautifulSoup 库来让整个过程尽可能简单。我们稍后会讨论如何设置环境，但首先要说几句关于如何友善行事的话。</p>
+        <p>我们将在本教程中使用 Python，并借助 httplib2 和 BeautifulSoup 库来让事情尽可能简单。稍后我们会介绍如何搭建环境，但首先要说几句关于友善的话。</p>
       
     
       
-        <p>网站会崩溃。它们看起来漂亮、可靠且稳定，但只要某处一只蝴蝶扇动翅膀，它们就会瞬间坠入地狱。对小型网站来说，“地狱”就是彻底崩溃；而对大型网站而言，则更多是性能变得迟缓。不管哪种情况，扇动翅膀的蝴蝶总是意料之外的流量激增，而这种流量峰值往往是欠考虑的屏幕抓取程序直接导致的。</p>
+        <p>网站会崩溃。它们看起来漂亮、可靠且稳定，但一只蝴蝶在某处扇动翅膀，它们就可能直接坠入地狱。对小型网站来说，“地狱”就是彻底崩溃；而对大型网站来说，更常见的是性能显著变慢。无论哪种情况，扇动翅膀的蝴蝶总是意料之外的流量激增，而这种流量尖峰常常是不顾他人的网页抓取器直接导致的。</p>
       
     
       
-        <p>在我的博客中，我收到的错误报告几乎都来自搜索引擎中过于狂热的网络爬虫（这可能是最普遍的一种屏幕抓取程序）。早期，我经常被一个小型研究爬虫骚扰，其所有者几乎无法联系上。它常常因为发起的 HTTP 请求超过我的小型 VPS 所能承受的范围而导致网站崩溃。编写这个抓取程序的程序员不够体贴，从而引发了各种问题。</p>
+        <p>在我的博客中，我收到的错误报告几乎都来自搜索引擎那些过于热情的网络爬虫（这可能是最常见的屏幕抓取器种类）。早期，我经常被一个小型研究爬虫骚扰，它的作者几乎无法联系上。它常常因为发起的 HTTP 请求超出我小型 VPS 的承受能力而导致崩溃。编写那个抓取器的程序员没有考虑周到，结果造成了麻烦。</p>
       
     
       
-        <p>这引出了我关于负责任屏幕抓取的唯一规则：抓取程序产生的流量应当与人类流量无法区分。遵循这条规则，我们就能避免给被抓取的网站带来过大压力，而且额外的好处是，我们还能避免被限流或阻止屏幕抓取。我们将使用几条指导原则来帮助脚本模拟人类行为：</p>
+        <p>这就引出了我关于负责任网页抓取的唯一规则：抓取器的流量应该与普通人类流量无法区分。遵循这条规则，我们就不会给被抓取的网站带来过度的压力，而且还有额外的好处——我们能避免被限流或阻止抓取的行为。我们将用几条指导原则帮助脚本伪装成人类行为：</p>
       
     
       
-        <div class="list-content">积极使用缓存。特别是当你抓取的数据量相对较小时（而且你的计算机有充足内存），你应该尽可能保存并重复使用已获取的结果。错开 HTTP 请求。虽然并行发出所有 HTTP 请求能加快你的速度，但网站并不会感谢你。然而，即便你按顺序发出请求，也可能造成相当大的冲击。相反，应该让请求之间间隔一小段时间。每次请求之间间隔几秒，就能确保不会引发问题。只获取你需要的内容。在屏幕抓取时，人们很容易想要抓取一切，因为页面就在那里就不断下载更多页面。但这既浪费他们的带宽，也浪费你的时间，所以请列出你想要提取的数据清单，并严格遵守。</div>
+        <div class="list-content">疯狂地使用缓存。尤其是当你要抓取的数据量相对较小时（而且你的电脑有足够内存），应该尽可能保存并复用结果。错开 HTTP 请求。虽然并行发出所有请求能让你更快完成，但网站不会喜欢。即使你按顺序发送请求，也可能造成相当大的冲击。相反，应该让请求之间间隔一小段时间。每次请求间隔几秒钟，就能确保不会制造麻烦。只获取你需要的内容。在网页抓取时，人们很容易想把所有东西都抓下来，因为页面在那里就多抓几页。但这既浪费他们的带宽，也浪费你的时间，所以请先列出你想提取的数据清单，并严格遵守。</div>
       
     
       
-        <p>现在，带着这三条指导原则，让我们开始屏幕抓取吧。</p>
+        <p>现在，带着这三条指导原则，让我们开始网页抓取吧。</p>
       
     
       
-        <h2>设置库</h2>
+        <h3>安装所需库</h3>
+        
       
     
       
@@ -65,35 +66,77 @@
       
     
       
-        <p>如果你还没有安装 easy_install，则需要从它们的项目页面下载：httplib2 和 BeautifulSoup。</p>
+        <pre><code>sudo easy_install BeautifulSoup
+sudo easy_install httplib2
+</code></pre>
       
     
       
-        <h2>选择抓取目标</h2>
+        <p>如果你尚未安装 easy_install，则需要从它们的项目页面下载：httplib2 和 BeautifulSoup。</p>
       
     
       
-        <p>现在让我们开始抓取。我们会从简单入手，逐步构建一个简单且体贴的库，用于抓取 HackerNews。第一步是考虑我们想要提取哪些数据。HackerNews 的网页界面如下所示：</p>
+        <h3>选择抓取目标</h3>
+        
       
     
       
-        <p>因此，仅加载首页我们就能提取到每条新闻的大量数据：标题、链接、社交分数、发帖人、发帖时间以及评论数量。每页会显示 30 条内容，所以我们只需获取一个页面，就能收集到相当多的数据。</p>
+        <p>现在我们开始抓取。我们打算从简单入手，逐步构建一个简单且有分寸的 HackerNews 抓取库。第一步是要考虑我们想提取哪些数据。HackerNews 的网页界面如下所示：</p>
       
     
       
-        <h2>最简单的情况</h2>
+        <figure>
+          <img src="https://lethain.com/static/blog/hackernews_example.jpg" alt="A picture of HackerNew's web interface.">
+          
+        </figure>
       
     
       
-        <p>使用 httplib2 和 BeautifulSoup，从 HackerNews 提取我们需要的数据既快速又简单。简单到只需在解释器中输入几条命令即可：</p>
+        <p>因此，仅加载首页我们就能从每条故事中提取大量数据：标题、链接、社会评分、发布者、发布时间以及评论数量。每页显示 30 条内容，所以只需获取一页，我们就能收集到相当多的数据。</p>
       
     
       
-        <p>关于标题的那部分代码难免有些令人困惑。标题的 CSS 类同时被用于包含条目编号（例如 1. 或 15.）的 td 标签，以及包含故事标题和链接的 a 标签的 td 标签。然而，我们只想要后一种，所以我们过滤掉了那些没有子标签的 td 标签。我们还从过滤后的列表中排除了最后一个结果。因为最后一个包含指向下一页 30 条结果的“More”链接，它本身并不是一条故事。</p>
+        <h3>最简单的情况</h3>
+        
       
     
       
-        <p>所以我们已经非常接近目标了，但数据目前还不是很易于使用的格式。让我们试着把它整理成可用的形式。目前每条故事都是一个由两个 Tag 对象组成的二元组：</p>
+        <p>使用 httplib2 和 BeautifulSoup，从 HackerNews 提取我们需要的数据既快速又简单。简单到只需在解释器里输入几条命令即可：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; import httplib2
+&gt;&gt;&gt; from BeautifulSoup import BeautifulSoup
+&gt;&gt;&gt; conn = httplib2.Http(&quot;.cache&quot;)
+&gt;&gt;&gt; page = conn.request(u&quot;http://news.ycombinator.com/&quot;,&quot;GET&quot;)
+&gt;&gt;&gt; page[0]
+{&#x27;status&#x27;: &#x27;200&#x27;, &#x27;content-location&#x27;: u&#x27;http://news.ycombinator.com/&#x27;, &#x27;transfer-encoding&#x27;: &#x27;chunked&#x27;, &#x27;keep-alive&#x27;: &#x27;timeout=3&#x27;, &#x27;connection&#x27;: &#x27;Keep-Alive&#x27;, &#x27;content-type&#x27;: &#x27;text/html; charset=utf-8&#x27;}
+&gt;&gt;&gt; # page[1] contains the retrieved html.
+... 
+&gt;&gt;&gt; soup = BeautifulSoup(page[1])
+&gt;&gt;&gt; titles = soup.findAll(&#x27;td&#x27;,&#x27;title&#x27;)
+&gt;&gt;&gt; titles = [x for x in titles if x.findChildren()][:-1]
+&gt;&gt;&gt; subtexts = soup.findAll(&#x27;td&#x27;,&#x27;subtext&#x27;)
+&gt;&gt;&gt; stories = zip(titles,subtexts)
+&gt;&gt;&gt; len(stories)
+30
+&gt;&gt;&gt; stories[0]
+(&lt;td align=&quot;right&quot; valign=&quot;top&quot; class=&quot;title&quot;&gt;1.&lt;/td&gt;, &lt;td class=&quot;subtext&quot;&gt;&lt;span id=&quot;score_272314&quot;&gt;38 points&lt;/span&gt; by &lt;a href=&quot;user?id=yangyang42&quot;&gt;yangyang42&lt;/a&gt; 5 hours ago  | &lt;a href=&quot;item?id=272314&quot;&gt;8 comments&lt;/a&gt;&lt;/td&gt;)
+</code></pre>
+      
+    
+      
+        <p>关于标题的那部分写得有些绕。class 为 “title” 的样式同时被用于包含条目序号（例如 1. 或 15.）的 td 标签，以及包含故事标题和链接 a 标签的 td 标签。但我们只需要后一种，因此要过滤掉那些没有子标签的 td。同时我们还排除了过滤后列表的最后一个结果，因为最后一个包含指向下一页 30 条的 “More” 链接，它本身并不是一篇故事。</p>
+      
+    
+      
+        <p>所以我们已经非常接近目标了，但数据目前还不是很容易使用的格式。让我们试着把它整理成可用的形式。目前每条故事是一个由两个 Tag 对象组成的二元组：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; stories[0]
+(&lt;td class=&quot;title&quot;&gt;&lt;a href=&quot;http://sethgodin.typepad.com/seths_blog/2008/08/the-secret-of-t.html&quot;&gt;The secret of the web (hint: it&#x27;s a virtue)&lt;/a&gt;&lt;span class=&quot;comhead&quot;&gt; (sethgodin.typepad.com) &lt;/span&gt;&lt;/td&gt;, &lt;td class=&quot;subtext&quot;&gt;&lt;span id=&quot;score_272314&quot;&gt;38 points&lt;/span&gt; by &lt;a href=&quot;user?id=yangyang42&quot;&gt;yangyang42&lt;/a&gt; 5 hours ago  | &lt;a href=&quot;item?id=272314&quot;&gt;8 comments&lt;/a&gt;&lt;/td&gt;)
+</code></pre>
       
     
       
@@ -101,119 +144,415 @@
       
     
       
-        <p>于是，我们已经弄清楚如何获取除了“故事发布于多久之前”之外的所有信息。到目前为止，我们一直使用 findChildren 方法来遍历标签树，但还有一个 contents 属性，它允许同时访问标签和字符串。</p>
+        <pre><code>&gt;&gt;&gt; s = stories[0]
+&gt;&gt;&gt; s[0].findChildren()[0][&#x27;href&#x27;]
+u&#x27;http://sethgodin.typepad.com/seths_blog/2008/08/the-secret-of-t.html&#x27;
+&gt;&gt;&gt; s[0].findChildren()[0].string
+u&quot;The secret of the web (hint: it&#x27;s a virtue)&quot;
+&gt;&gt;&gt; s[1].findChildren()[0].string
+u&#x27;38 points&#x27;
+&gt;&gt;&gt; s[1].findChildren()[1].string
+u&#x27;yangyang42&#x27;
+&gt;&gt;&gt; s[1].findChildren()[2].string
+u&#x27;8 comments&#x27;
+&gt;&gt;&gt; s[1].findChildren()[2].string.split(&quot; &quot;)[0]
+u&#x27;8&#x27;
+</code></pre>
       
     
       
-        <p>不过，实际上最简单的方法可能是直接使用正则表达式来提取这些数据。</p>
+        <p>好了，除了“故事发布于多久之前”之外，我们已经知道怎么获取其他所有内容了。到目前为止我们一直在使用 findChildren 方法来遍历标签树，但还有一个 contents 属性，它可以同时访问标签和字符串。</p>
       
     
       
-        <p>现在让我们将这些整合成一个提取函数：</p>
+        <pre><code>&gt;&gt;&gt; s[1].contents
+[&lt;span id=&quot;score_272314&quot;&gt;38 points&lt;/span&gt;, u&#x27; by &#x27;, &lt;a href=&quot;user?id=yangyang42&quot;&gt;yangyang42&lt;/a&gt;, u&#x27; 5 hours ago  | &#x27;, &lt;a href=&quot;item?id=272314&quot;&gt;8 comments&lt;/a&gt;]
+&gt;&gt;&gt; s[1].contents[-2].split(&quot; &quot;)
+[u&#x27;&#x27;, u&#x27;5&#x27;, u&#x27;hours&#x27;, u&#x27;ago&#x27;, u&#x27;&#x27;, u&#x27;|&#x27;, u&#x27;&#x27;]
+&gt;&gt;&gt; s[1].contents[-2].strip().split(&quot; &quot;)
+[u&#x27;5&#x27;, u&#x27;hours&#x27;, u&#x27;ago&#x27;, u&#x27;&#x27;, u&#x27;|&#x27;]
+&gt;&gt;&gt; s[1].contents[-2].strip().split(&quot; &quot;)[0]
+u&#x27;5&#x27;
+</code></pre>
       
     
       
-        <p>这里只有一个小的缺陷，那就是当某条故事的评论数为零时，它会显示“discuss”而不是“0 comments”。我们可以很快修复这个问题，改进后的函数如下：</p>
+        <p>不过实际上，最简单的做法可能是直接使用正则表达式来提取这个信息。</p>
       
     
       
-        <p>诚然有点丑，但并不难理解。</p>
+        <pre><code>&gt;&gt;&gt; import re
+&gt;&gt;&gt; txt = unicode(s[1])
+&gt;&gt;&gt; txt
+u&#x27;&lt;td class=&quot;subtext&quot;&gt;&lt;span id=&quot;score_272314&quot;&gt;38 points&lt;/span&gt; by &lt;a href=&quot;user?id=yangyang42&quot;&gt;yangyang42&lt;/a&gt; 5 hours ago  | &lt;a href=&quot;item?id=272314&quot;&gt;8 comments&lt;/a&gt;&lt;/td&gt;&#x27;
+&gt;&gt;&gt; DATE_RE = re.compile(&quot; (?P&lt;qty&gt;\d+) (?P&lt;unit&gt;\w+) ago &quot;)
+&gt;&gt;&gt; DATE_RE.findall(txt)
+[(u&#x27;5&#x27;, u&#x27;hours&#x27;)]
+&gt;&gt;&gt; txt = DATE_RE.findall(txt)[0]
+&gt;&gt;&gt; txt
+(u&#x27;5&#x27;, u&#x27;hours&#x27;)
+&gt;&gt;&gt; u&quot;%s %s&quot; % (txt[0],txt[1])
+u&#x27;5 hours&#x27;
+</code></pre>
       
     
       
-        <h2>操作数据</h2>
+        <p>现在让我们把这些整合成一个提取函数：</p>
       
     
       
-        <p>在继续之前，让我们看看如何轻松地对当前形式的数据进行操作。例如，我们可以按评论数量重新排序：</p>
+        <pre><code>&gt;&gt;&gt; def extract_story(data):
+...     d = {}
+...     d[&#x27;link&#x27;] = data[0].findChildren()[0][&#x27;href&#x27;]
+...     d[&#x27;title&#x27;] = data[0].findChildren()[0].string
+...     d[&#x27;score&#x27;] = data[1].findChildren()[0].string
+...     d[&#x27;poster&#x27;] = data[1].findChildren()[1].string
+...     d[&#x27;num_comments&#x27;] = int(data[1].findChildren()[2].string.split(&quot; &quot;)[0])
+...     d[&#x27;time&#x27;] = &quot; &quot;.join(data[1].contents[-2].strip().split(&quot; &quot;)[:2])
+...     return d
+... 
+&gt;&gt;&gt; extract_story(s)
+{&#x27;title&#x27;: u&quot;The secret of the web (hint: it&#x27;s a virtue)&quot;, &#x27;poster&#x27;: u&#x27;yangyang42&#x27;, &#x27;time&#x27;: u&#x27;5 hours&#x27;, &#x27;score&#x27;: u&#x27;38 points&#x27;, &#x27;link&#x27;: u&#x27;http://sethgodin.typepad.com/seths_blog/2008/08/the-secret-of-t.html&#x27;, &#x27;num_comments&#x27;: 8}
+</code></pre>
       
     
       
-        <p>或者我们可以使用高度专有的 PosterRank 算法（意思是我刚编出来的，它是发帖人所有文章得分的总和）来对发帖人进行排名。</p>
+        <p>这里只有一个小的缺陷，那就是当某条故事的评论数为零时，显示的是 “discuss” 而不是 “0 comments”。我们可以很快修复它，改进后的函数如下：</p>
       
     
       
-        <p>看这些数据，在三十条故事中只有二十一位提交者，而 mqt 的 PosterRank 分数最高。当然你能想到（更）有趣得多的玩法，但字典格式让这一切变得非常容易，你可以尽情发挥。</p>
+        <pre><code>def extract_story(s):
+    d = {}
+    d[&#x27;link&#x27;] = s[0].findChildren()[0][&#x27;href&#x27;]
+    d[&#x27;title&#x27;] = s[0].findChildren()[0].string
+    d[&#x27;score&#x27;] = s[1].findChildren()[0].string
+    d[&#x27;poster&#x27;] = s[1].findChildren()[1].string
+    try:
+        d[&#x27;num_comments&#x27;] = int(s[1].findChildren()[2].string.split(&quot; &quot;)[0])
+    except ValueError:
+        d[&#x27;num_comments&#x27;] = 0
+    d[&#x27;time&#x27;] = &quot; &quot;.join(s[1].contents[-2].strip().split(&quot; &quot;)[:2])
+    return d
+</code></pre>
       
     
       
-        <h2>缓存，缓存，还是缓存</h2>
+        <p>确实有点丑，但并不复杂，很好理解。</p>
       
     
       
-        <p>现在让我们稍微回退一下，看看如何更体贴地获取页面。我们最初的页面获取代码是这样的：</p>
+        <h3>操作数据</h3>
+        
       
     
       
-        <p>让我们创建一个辅助函数来处理这些细节。</p>
+        <p>在继续之前，让我们看看如何对目前这种形式的数据进行简单操作。例如，我们可以按照评论数量重新排序：</p>
       
     
       
-        <p>这并没有真正改进什么，但它为我们添加缓存机制打开了大门。</p>
+        <pre><code>&gt;&gt;&gt; stories = [ extract_story(x) for x in stories ]
+&gt;&gt;&gt; stories.sort(lambda a,b: cmp(a[&#x27;num_comments&#x27;],b[&#x27;num_comments&#x27;]))
+&gt;&gt;&gt; stories[0][&#x27;num_comments&#x27;]
+0
+&gt;&gt;&gt; stories[-1][&#x27;num_comments&#x27;]
+74
+&gt;&gt;&gt; stories.reverse()
+&gt;&gt;&gt; stories[0]
+{&#x27;title&#x27;: u&#x27;A Fundraising Survival Guide&#x27;, &#x27;poster&#x27;: u&#x27;mqt&#x27;, &#x27;time&#x27;: u&#x27;1 day&#x27;, &#x27;score&#x27;: u&#x27;123 points&#x27;, &#x27;link&#x27;: u&#x27;http://www.paulgraham.com/fundraising.html&#x27;, &#x27;num_comments&#x27;: 74}
+&gt;&gt;&gt; stories[1]
+{&#x27;title&#x27;: u&#x27;The Wrong Way to Get Noticed by YC&#x27;, &#x27;poster&#x27;: u&#x27;matt1&#x27;, &#x27;time&#x27;: u&#x27;1 day&#x27;, &#x27;score&#x27;: u&#x27;82 points&#x27;, &#x27;link&#x27;: u&#x27;http://www.mattmazur.com/2008/08/the-wrong-way-to-get-noticed-by-yc/&#x27;, &#x27;num_comments&#x27;: 49}
+</code></pre>
       
     
       
-        <p>现在我们每个独立页面最多每十五分钟获取一次，这将有助于减少对服务器的压力。</p>
+        <p>或者我们可以用高度私有的 “PosterRank” 算法（意思是我刚编出来的，它是该用户所有文章得分的总和）来对发帖者进行排名。</p>
       
     
       
-        <h2>错开请求</h2>
+        <pre><code>&gt;&gt;&gt; posters = {}
+&gt;&gt;&gt; for story in stories:
+...     score = getattr(posters,story[&#x27;poster&#x27;],0)
+...     posters[story[&#x27;poster&#x27;]] = score + int(story[&#x27;score&#x27;].split(&quot; &quot;)[0])
+... 
+&gt;&gt;&gt; posters
+{u&#x27;yangyang42&#x27;: 38, u&#x27;ovi256&#x27;: 9, u&#x27;epi0Bauqu&#x27;: 32, u&#x27;bootload&#x27;: 11, u&#x27;echair&#x27;: 9, u&#x27;matt1&#x27;: 82, u&#x27;iamelgringo&#x27;: 14, u&#x27;prakash&#x27;: 24, u&#x27;gaika&#x27;: 19, u&#x27;ericb&#x27;: 3, u&#x27;pius&#x27;: 106, u&#x27;ml1234&#x27;: 30, u&#x27;markbao&#x27;: 26, u&#x27;nickb&#x27;: 5, u&#x27;pauljonas&#x27;: 20, u&#x27;astrec&#x27;: 22, u&#x27;mqt&#x27;: 123, u&#x27;marvin&#x27;: 3, u&#x27;robg&#x27;: 8, u&#x27;jmorin007&#x27;: 39, u&#x27;Anon84&#x27;: 2}
+&gt;&gt;&gt; p = posters.items()
+&gt;&gt;&gt; p
+[(u&#x27;yangyang42&#x27;, 38), (u&#x27;ovi256&#x27;, 9), (u&#x27;epi0Bauqu&#x27;, 32), (u&#x27;bootload&#x27;, 11), (u&#x27;echair&#x27;, 9), (u&#x27;matt1&#x27;, 82), (u&#x27;iamelgringo&#x27;, 14), (u&#x27;prakash&#x27;, 24), (u&#x27;gaika&#x27;, 19), (u&#x27;ericb&#x27;, 3), (u&#x27;pius&#x27;, 106), (u&#x27;ml1234&#x27;, 30), (u&#x27;markbao&#x27;, 26), (u&#x27;nickb&#x27;, 5), (u&#x27;pauljonas&#x27;, 20), (u&#x27;astrec&#x27;, 22), (u&#x27;mqt&#x27;, 123), (u&#x27;marvin&#x27;, 3), (u&#x27;robg&#x27;, 8), (u&#x27;jmorin007&#x27;, 39), (u&#x27;Anon84&#x27;, 2)]
+&gt;&gt;&gt; p.sort(lambda a,b: cmp(a[1],b[1]))
+&gt;&gt;&gt; p
+[(u&#x27;Anon84&#x27;, 2), (u&#x27;ericb&#x27;, 3), (u&#x27;marvin&#x27;, 3), (u&#x27;nickb&#x27;, 5), (u&#x27;robg&#x27;, 8), (u&#x27;ovi256&#x27;, 9), (u&#x27;echair&#x27;, 9), (u&#x27;bootload&#x27;, 11), (u&#x27;iamelgringo&#x27;, 14), (u&#x27;gaika&#x27;, 19), (u&#x27;pauljonas&#x27;, 20), (u&#x27;astrec&#x27;, 22), (u&#x27;prakash&#x27;, 24), (u&#x27;markbao&#x27;, 26), (u&#x27;ml1234&#x27;, 30), (u&#x27;epi0Bauqu&#x27;, 32), (u&#x27;yangyang42&#x27;, 38), (u&#x27;jmorin007&#x27;, 39), (u&#x27;matt1&#x27;, 82), (u&#x27;pius&#x27;, 106), (u&#x27;mqt&#x27;, 123)]
+&gt;&gt;&gt; p.reverse()
+&gt;&gt;&gt; len(p)
+21
+&gt;&gt;&gt; p
+[(u&#x27;mqt&#x27;, 123), (u&#x27;pius&#x27;, 106), (u&#x27;matt1&#x27;, 82), (u&#x27;jmorin007&#x27;, 39), (u&#x27;yangyang42&#x27;, 38), (u&#x27;epi0Bauqu&#x27;, 32), (u&#x27;ml1234&#x27;, 30), (u&#x27;markbao&#x27;, 26), (u&#x27;prakash&#x27;, 24), (u&#x27;astrec&#x27;, 22), (u&#x27;pauljonas&#x27;, 20), (u&#x27;gaika&#x27;, 19), (u&#x27;iamelgringo&#x27;, 14), (u&#x27;bootload&#x27;, 11), (u&#x27;echair&#x27;, 9), (u&#x27;ovi256&#x27;, 9), (u&#x27;robg&#x27;, 8), (u&#x27;nickb&#x27;, 5), (u&#x27;marvin&#x27;, 3), (u&#x27;ericb&#x27;, 3), (u&#x27;Anon84&#x27;, 2)]
+</code></pre>
       
     
       
-        <p>现在，假设我们想要获取每条故事所指向的文章。使用我们新的获取函数，这很容易实现：</p>
+        <p>从这些数据来看，30 条故事中只有 21 个不同的提交者，而 mqt 的 PosterRank 分数最高。当然你能想到（有趣得多的）其他玩法，但字典格式让随心所欲地玩这些数据变得非常容易。</p>
       
     
       
-        <p>在这种情况下，每条故事可能位于不同的服务器，因此错开请求并不是特别重要，但让我们假设它们都在同一台服务器上（例如，如果我们想获取每条故事的评论页面）。我们可以修改获取函数，使其对请求更加体贴：</p>
+        <h3>缓存，缓存，还是缓存</h3>
+        
       
     
       
-        <p>经过这个修改，它会尽可能快地返回缓存数据，但会对任何新的请求进行错开。不过这仍然有点粗糙，我们真正想要的是按域名错开请求，而不是错开每一个请求。</p>
+        <p>现在让我们稍稍回退，看看如何在获取页面时表现得更有分寸。我们最初的页面获取代码是这样的：</p>
       
     
       
-        <p>现在我们有了一个便捷且有同理心的获取函数。接下来我们可以写和之前一样“野蛮”的代码：</p>
+        <pre><code>&gt;&gt;&gt; import httplib2
+&gt;&gt;&gt; from BeautifulSoup import BeautifulSoup
+&gt;&gt;&gt; conn = httplib2.Http(&quot;.cache&quot;)
+&gt;&gt;&gt; page = conn.request(u&quot;http://news.ycombinator.com/&quot;,&quot;GET&quot;)
+</code></pre>
       
     
       
-        <p>它不再会猛烈冲击任何服务器，即使所有故事都位于同一域名下。相反，它会顺序下载这些故事，并遵守对同一域名的请求之间 1.1 秒的暂停。这还可以从很多方面进一步改进（并行下载等），但我们已经建立了一个很好的工具基础，我们可以随意使用，而不必将我们的鲁莽强加给他人。</p>
+        <p>让我们创建一个辅助函数来帮我们处理这些细节。</p>
       
     
       
-        <h2>整合代码</h2>
+        <pre><code>import httplib2
+from BeautifulSoup import BeautifulSoup
+SCRAPING_CONN = httplib.Http(&quot;.cache&quot;)
+def fetch(url,method=&quot;GET&quot;):
+return SCRAPING_CONN.request(url,method)
+page = fetch(&quot;http://news.ycombinator.com/&quot;)
+</code></pre>
       
     
       
-        <p>将我们写好的代码整合起来，我们可以写一个简单且体贴的脚本，每五分钟显示 HackerNews 上按评论数量排序的热门故事，但它最多每十五分钟只获取一次页面。</p>
+        <p>这并没有真正改进多少，但它为我们加入缓存打开了大门。</p>
       
     
       
-        <p>如果你把这段代码输入到 Python 解释器中，输出将如下所示：</p>
+        <pre><code>import httplib2,time
+from BeautifulSoup import BeautifulSoup
+SCRAPING_CONN = httplib2.Http(&quot;.cache&quot;)
+SCRAPING_CACHE_FOR = 60 * 15 # cache for 15 minutes
+SCRAPING_CACHE = {}
+def fetch(url,method=&quot;GET&quot;):
+key = (url,method)
+now = time.time()
+if SCRAPING_CACHE.has_key(key):
+data,cached_at = SCRAPING_CACHE(key)
+if now - cached_at &lt; SCRAPING_CACHE_FOR:
+return data
+data = SCRAPING_CONN.request(url,method)
+SCRAPING_CACHE[key] = (data,now)
+return data
+# Fetch the page.
+page = fetch(&quot;http://news.ycombinator.com/&quot;)
+# Fetch the page again, but use cached copy.
+page = fetch(&quot;http://news.ycombinator.com/&quot;)
+</code></pre>
       
     
       
-        <p>你可以在这里下载包含完整代码的文件。</p>
+        <p>现在我们每十五分钟最多获取一次每个独立页面，这将有助于减少对服务器的压力。</p>
       
     
       
-        <h2>关于 Httplib2 的附注</h2>
+        <h3>错开请求</h3>
+        
       
     
       
-        <p>你可能很早就注意到，我们在初始化用于发起请求的 httplib2.Http 对象时做了一些与缓存相关的事情。初始化代码如下：</p>
+        <p>现在，假设我们想要抓取每条故事所指向的文章。使用我们新的 fetch 函数，这非常容易实现：</p>
       
     
       
-        <p>这里发生的事情是，httplib2 理解 HTTP 缓存指令，如果服务器提供了适当的缓存指令，它就会在本地缓存并重复使用缓存数据。因此，在我们自己编写的缓存层之下，还有一个额外的缓存层，这让整个堆栈比我们自己构建的还要更友好一些。</p>
+        <pre><code>&gt;&gt;&gt; pages = [fetch(x[&#x27;link&#x27;]) for x in stories]
+</code></pre>
       
     
       
-        <h2>结束语</h2>
+        <p>在这种情况下，每条故事可能位于不同的服务器上，因此错开请求并不那么重要，但让我们假设它们都在同一台服务器上（例如，如果我们想抓取每条故事的评论页）。我们可以修改 fetch 函数，让它在发出请求时更有分寸：</p>
       
     
       
-        <p>我强烈地认为，抓取别人的网站就像拜访他们的家：做到体贴和礼貌并不难，而主人会非常感激。希望这个教程能让你思考到其他更有效的方法，来减少屏幕抓取造成的负载。如果我哪里写错了，请告诉我，我也非常乐意听到你关于如何负责任地进行屏幕抓取的评论和想法。</p>
+        <pre><code>import httplib2,time
+from BeautifulSoup import BeautifulSoup
+SCRAPING_CONN = httplib2.Http(&quot;.cache&quot;)
+SCRAPING_CACHE_FOR = 60 * 15 # cache for 15 minutes
+SCRAPING_REQUEST_STAGGER = 1.1 # in seconds
+SCRAPING_CACHE = {}
+def fetch(url,method=&quot;GET&quot;):
+key = (url,method)
+now = time.time()
+if SCRAPING_CACHE.has_key(key):
+data,cached_at = SCRAPING_CACHE[key]
+if now - cached_at &lt; SCRAPING_CACHE_FOR:
+return data
+time.sleep(SCRAPING_REQUEST_STAGGER)
+data = SCRAPING_CONN.request(url,method)
+SCRAPING_CACHE[key] = (data,now)
+return data
+</code></pre>
+      
+    
+      
+        <p>做了这个修改后，它会尽可能快地返回缓存数据，但会对任何新的请求进行错开处理。不过这还不够完善，我们真正想要的是按域名进行错开，而不是对每个请求都做全局错开。</p>
+      
+    
+      
+        <pre><code>import httplib2,time,re
+from BeautifulSoup import BeautifulSoup
+SCRAPING_CONN = httplib2.Http(&quot;.cache&quot;)
+SCRAPING_DOMAIN_RE = re.compile(&quot;\w+:/*(?P&lt;domain&gt;[a-zA-Z0-9.]*)/&quot;)
+SCRAPING_DOMAINS = {}
+SCRAPING_CACHE_FOR = 60 * 15 # cache for 15 minutes
+SCRAPING_REQUEST_STAGGER = 1100 # in milliseconds
+SCRAPING_CACHE = {}
+def fetch(url,method=&quot;GET&quot;):
+key = (url,method)
+now = time.time()
+if SCRAPING_CACHE.has_key(key):
+data,cached_at = SCRAPING_CACHE[key]
+if now - cached_at &lt; SCRAPING_CACHE_FOR:
+return data
+domain = SCRAPING_DOMAIN_RE.findall(url)[0]
+if SCRAPING_DOMAINS.has_key(domain):
+last_scraped = SCRAPING_DOMAINS[domain]
+elapsed = now - last_scraped
+if elapsed &lt; SCRAPING_REQUEST_STAGGER:
+wait_period = (SCRAPING_REQUEST_STAGGER - elapsed) / 1000
+time.sleep(wait_period)
+SCRAPING_DOMAINS[domain] = time.time()
+data = SCRAPING_CONN.request(url,method)
+SCRAPING_CACHE[key] = (data,now)
+return data
+</code></pre>
+      
+    
+      
+        <p>现在我们有了一个方便且有善意的 fetch 函数。接下来我们可以写和之前一样“野蛮”的代码：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; pages = [fetch(x[&#x27;link&#x27;]) for x in stories]
+</code></pre>
+      
+    
+      
+        <p>即使所有故事都在同一个域名下，它也不会再猛烈轰击任何服务器了。相反，它会依次下载故事，并且会遵守对同一域名 1.1 秒的请求间隔。这个工具还可以从很多方面继续改进（并行下载等），但我们已经建立了一个不错的基础，可以放心大胆地使用，而不用把这种大胆强加给别人。</p>
+      
+    
+      
+        <h3>整合代码</h3>
+        
+      
+    
+      
+        <p>把我们写过的代码整合起来，我们就能写一个简单且有分寸的脚本：每五分钟显示 HackerNews 上按评论数排序的热门故事，但每十五分钟最多只抓取一次页面。</p>
+      
+    
+      
+        <pre><code>import httplib2,time,re
+from BeautifulSoup import BeautifulSoup
+SCRAPING_CONN = httplib2.Http(&quot;.cache&quot;)
+SCRAPING_DOMAIN_RE = re.compile(&quot;\w+:/*(?P&lt;domain&gt;[a-zA-Z0-9.]*)/&quot;)
+SCRAPING_DOMAINS = {}
+SCRAPING_CACHE_FOR = 60 * 15 # cache for 15 minutes
+SCRAPING_REQUEST_STAGGER = 1100 # in milliseconds
+SCRAPING_CACHE = {}
+def fetch(url,method=&quot;GET&quot;):
+key = (url,method)
+now = time.time()
+if SCRAPING_CACHE.has_key(key):
+data,cached_at = SCRAPING_CACHE[key]
+if now - cached_at &lt; SCRAPING_CACHE_FOR:
+return data
+domain = SCRAPING_DOMAIN_RE.findall(url)[0]
+if SCRAPING_DOMAINS.has_key(domain):
+last_scraped = SCRAPING_DOMAINS[domain]
+elapsed = now - last_scraped
+if elapsed &lt; SCRAPING_REQUEST_STAGGER:
+wait_period = (SCRAPING_REQUEST_STAGGER - elapsed) / 1000
+time.sleep(wait_period)
+SCRAPING_DOMAINS[domain] = time.time()
+data = SCRAPING_CONN.request(url,method)
+SCRAPING_CACHE[key] = (data,now)
+return data
+def extract_story(s):
+d = {}
+d[&#x27;link&#x27;] = s[0].findChildren()[0][&#x27;href&#x27;]
+d[&#x27;title&#x27;] = s[0].findChildren()[0].string
+d[&#x27;score&#x27;] = s[1].findChildren()[0].string
+d[&#x27;poster&#x27;] = s[1].findChildren()[1].string
+try:
+d[&#x27;num_comments&#x27;] = int(s[1].findChildren()[2].string.split(&quot; &quot;)[0])
+except ValueError:
+d[&#x27;num_comments&#x27;] = 0
+d[&#x27;time&#x27;] = &quot; &quot;.join(s[1].contents[-2].strip().split(&quot; &quot;)[:2])
+return d
+def fetch_stories():
+page = fetch(u&quot;http://news.ycombinator.com/&quot;)
+soup = BeautifulSoup(page[1])
+titles = [x for x in soup.findAll(&#x27;td&#x27;,&#x27;title&#x27;) if x.findChildren()][:-1]
+subtexts = soup.findAll(&#x27;td&#x27;,&#x27;subtext&#x27;)
+stories = [extract_story(s) for s in zip(titles,subtexts)]
+return stories
+while True:
+stories = fetch_stories()
+stories.sort(lambda a,b: cmp(a[&#x27;num_comments&#x27;],b[&#x27;num_comments&#x27;]))
+stories.reverse()
+for s in stories:
+print u&quot;[%s cmnts] %s (%s) by %s, %s ago.&quot; % (s[&#x27;num_comments&#x27;],s[&#x27;title&#x27;],s[&#x27;link&#x27;],s[&#x27;poster&#x27;],s[&#x27;time&#x27;])
+print u&quot;\n\n\n&quot;
+time.sleep(60 * 5)
+</code></pre>
+      
+    
+      
+        <p>如果你把这段代码输入 Python 解释器，输出会是这样的：</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/hackernews_terminal_output.jpg" alt="A picture of the output of the script in a terminal.">
+          
+        </figure>
+      
+    
+      
+        <p>你可以在这里下载包含这段代码的文件。</p>
+      
+    
+      
+        <h3>关于 Httplib2 的题外话</h3>
+        
+      
+    
+      
+        <p>你可能很早就注意到，在初始化我们用来发送请求的 httplib2.Http 对象时，做了一些和缓存有关的操作。初始化代码如下：</p>
+      
+    
+      
+        <pre><code>import httplib2
+SCRAPING_CONN = httplib2.Http(&quot;.cache&quot;)
+</code></pre>
+      
+    
+      
+        <p>这里发生的事情是，httplib2 能理解 HTTP 缓存指令，如果服务器提供了适当的缓存指令，它就会在本地缓存并复用这些数据。因此，在我们自己写的缓存层之下，还有额外的一层缓存，这使得整个体系比我们自己拼凑的还要再友好一些。</p>
+      
+    
+      
+        <h3>结束语</h3>
+        
+      
+    
+      
+        <p>我强烈认为，抓取别人的网站就像拜访他们的家：做到体贴和礼貌并不难，而主人会非常感激。希望这篇教程能让你思考到其他更有效的方法，来减少你的网页抓取行为带来的负载。如果我写错了什么，请告诉我，我也非常乐意听到任何关于如何负责任地进行网页抓取的评论和想法。</p>
+      
+    
+      
+        <div class="list-content">这绝不是什么邪恶的事情。人们对网页抓取进行限流，是因为要应对那些不顾他人、消耗大量带宽和其他有限资源（CPU 负载等）的抓取器。不过请记住，当你使用本地内存存储数据时，Python 解释器的不同实例无法共享这些数据，因此如果你的 Web 服务器在多个解释器实例上运行这样的脚本，那么它每十五分钟就会为每个解释器实例获取一次页面（如果你持续尝试获取数据的话）。在这种情况下，你最好使用类似 memcached 这样的工具，让不同实例能够共享它们的缓存。</div>
       
     
   </div>

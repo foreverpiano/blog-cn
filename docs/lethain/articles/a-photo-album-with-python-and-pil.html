@@ -29,47 +29,144 @@
   <div class="article-content">
     
       
-        <p>周末闲来无事，我决定尝试用 Python Imaging Library（PIL）把任意一组照片处理成一个照片画廊。在 PIL 文档的帮助下，整个过程相当有趣。（完整代码已在 Github 发布。）</p>
+        <p>周末突发奇想，我决定玩玩 Python Imaging Library（PIL），把任意一组照片组合成一个照片画廊。在 PIL 文档的帮助下，这个过程相当有趣。（完整代码已在 Github 上开放。）</p>
       
     
       
-        <p>我所编辑的图片都是自己的，来自几年前我写过的关于 Kamioka 的文章，那是我曾经生活过的小镇。</p>
+        <p>我所编辑的照片全部来自我自己，内容出自几年前我写的那篇关于 Kamioka 的文章，那是我曾经生活过的小镇。</p>
       
     
       
-        <p>首先，我们来加载一张图片，然后不做任何修改直接保存。</p>
+        <p>首先，我们先加载一张图片，然后不做任何修改直接保存。</p>
       
     
       
-        <p>保存后的图片和原图完全一样，细心的读者应该还没见过这张图。</p>
+        <pre><code>&gt;&gt;&gt; import Image
+import Image
+&gt;&gt;&gt; img = Image.open(&quot;kamioka.png&quot;)
+img = Image.open(&quot;kamioka.png&quot;)
+&gt;&gt;&gt; img.save(&quot;kam2.png&quot;)
+img.save(&quot;kam2.png&quot;)
+</code></pre>
       
     
       
-        <p>老实说，没什么意思。接下来，我们试着创建一个新图像，把第一张图复制两份放进去。</p>
+        <p>保存后的图片和原图完全一致，细心的读者应该还没见过原图吧。</p>
       
     
       
-        <p>然后就可以用它来生成包含两份副本的图片了。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/kam2.png" alt="Picture of Kamioka, unmodified.">
+          
+        </figure>
       
     
       
-        <p>我们也可以用同样的方法做出包含更多份副本的图片。</p>
+        <p>老实说，没什么意思。接下来，我们尝试创建一个新图像，里面放两份第一张图片的副本。</p>
       
     
       
-        <p>下面是包含五份副本的效果。</p>
+        <pre><code>def mirror(img, n=2):
+    x,y = img.size
+    mirror_img = Image.new(&quot;RGB&quot;, (x*n,y), &quot;White&quot;)
+    for i in range(0, n):
+        mirror_img.paste(img, (i*x,0))
+    return mirror_img
+</code></pre>
       
     
       
-        <p>现在，我们来尝试给图片加上边框，增加一点高级感。先从单色边框开始。</p>
+        <p>然后用它来生成包含两份副本的图像。</p>
       
     
       
-        <p>这是一张带白色边框的图片经过镜像处理后的效果。</p>
+        <pre><code>&gt;&gt;&gt; img = Image.open(&quot;kamioka.png&quot;)
+img = Image.open(&quot;kamioka.png&quot;)
+&gt;&gt;&gt; mirror(img).save(&quot;kam3.png&quot;)
+mirror(img).save(&quot;kam3.png&quot;)
+</code></pre>
       
     
       
-        <p>我得承认这个边框确实有点简陋。我们可以扩展 border 函数，让边框支持更多自定义功能。与其简单地假设边框只有宽度和颜色，不如把它定义为一个由（宽度,颜色）元组组成的列表。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/kam3.png" alt="Picture of Kamioka, duplicated.">
+          
+        </figure>
+      
+    
+      
+        <p>我们也可以用它来制作包含更多副本的图像。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; img = Image.open(&quot;kamioka.png&quot;)
+img = Image.open(&quot;kamioka.png&quot;)
+&gt;&gt;&gt; mirror(img, n=5).save(&quot;kam3_2.png&quot;)
+mirror(img).save(&quot;kam3_2.png&quot;)
+</code></pre>
+      
+    
+      
+        <p>下面是包含五份副本的版本。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/kam3_2.png" alt="Picture of Kamioka, with five duplicates.">
+          
+        </figure>
+      
+    
+      
+        <p>现在，我们来尝试给图片加上边框，增加一点精致感。先从单色边框开始。</p>
+      
+    
+      
+        <pre><code>def border(img, width=10, color=&quot;White&quot;):
+    x,y = img.size
+    bordered = Image.new(&quot;RGB&quot;, (x+(2*width), y+(2*width)), color)
+    bordered.paste(img, (width, width))
+    return bordered
+</code></pre>
+      
+    
+      
+        <p>这是一张带有白色边框的图片经过镜像处理后的效果。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; img = Image.open(&quot;kamioka.png&quot;)
+img = Image.open(&quot;kamioka.png&quot;)
+&gt;&gt;&gt; mirror(border(img)).save(&quot;kam4.png&quot;)
+mirror(border(img)).save(&quot;kam4.png&quot;)
+</code></pre>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/kam4.png" alt="Picture of Kamioka, duplicated with lame border.">
+          
+        </figure>
+      
+    
+      
+        <p>我得承认这个边框确实挺寒酸的。边框函数可以进一步扩展，以便支持更多自定义。我们不再假设边框只有宽度和颜色，而是把边框描述为一个由（宽度，颜色）元组组成的列表。</p>
+      
+    
+      
+        <pre><code>def border(img, brdrs=[(2, &quot;White&quot;), (8, &quot;Black&quot;), (1, &quot;Grey&quot;)]):
+    x,y = img.size
+    width = sum([ z[0] for z in borders ])
+    bordered = Image.new(&quot;RGB&quot;, (x+(2*width), y+(2*width)), &quot;Grey&quot;)
+    offset = 0
+    print offset
+    for b_width, b_color in brdrs:
+        bordered.paste(Image.new(&quot;RGB&quot;, (x+2*(width-offset),
+            y+2*(width-offset)), b_color), (offset, offset))
+        offset = offset + b_width
+    bordered.paste(img, (offset, offset))
+    return bordered
+</code></pre>
       
     
       
@@ -77,15 +174,28 @@
       
     
       
-        <p>得到的结果是：</p>
+        <pre><code>&gt;&gt;&gt; mirror(border(img)).save(&quot;kam5.png&quot;)
+mirror(border(img)).save(&quot;kam5.png&quot;)
+</code></pre>
       
     
       
-        <p>在对边框稍作改进之后，我们来写一个函数，它接受一组图片，并将它们整齐地拼合在一起。为了简化处理，这里做了一些妥协：</p>
+        <p>得到的结果如下：</p>
       
     
       
-        <div class="list-content">将所有图片缩放到相同的高度；把较宽的图片分割成块，其中最大的块宽度等于最窄原图的宽度；统一平铺所有图片。</div>
+        <figure>
+          <img src="https://lethain.com/static/blog/kam5.png" alt="Picture of Kamioka, duplicated with border.">
+          
+        </figure>
+      
+    
+      
+        <p>边框功能改进之后，接下来我们创建一个函数，它接收一组图片，并将它们整齐地排列显示出来。为了简化实现，我们做了以下妥协：</p>
+      
+    
+      
+        <div class="list-content">将所有图片缩放到相同高度；将较宽的图片拆分成块，其中最大块的宽度等于最窄原始图片的宽度；将图片均匀平铺。</div>
       
     
       
@@ -93,16 +203,76 @@
       
     
       
-        <p>接下来，将较宽的图片分割成宽度与最窄图片一致的块。</p>
+        <pre><code>def normalize(imgs):
+    &quot;Normalize height for all images to shortest image.&quot;
+    shortest = min([ x.size[1] for x in imgs ])
+    resized = []
+    for img in imgs:
+        height_ratio = float(img.size[1]) / shortest
+        new_width = img.size[0] * height_ratio
+        img2 = img.resize((new_width, shortest), Image.ANTIALIAS)
+        resized.append(img2)
+    return resized
+</code></pre>
       
     
       
-        <p>第三步是将这些图片平铺到相册页面上。
-（注意 merge 函数假定输入的图片已经完成归一化和分块处理。）</p>
+        <p>接下来，我们把较宽的图片分割成若干块，每一块的宽度都和最窄的图片一致。</p>
       
     
       
-        <p>最后，我们把这些函数调用封装成 album 函数，它会依次调用上述功能并添加边框。</p>
+        <pre><code>def chunk(imgs):
+    &quot;Break images into chunks equal to size of smallest image.&quot;
+    smallest = min([ x.size[0] for x in imgs ])
+    height = imgs[0].size[1]
+    chunked_imgs = []
+    for img in imgs:
+        parts = math.ceil((img.size[0] * 1.0) / smallest)
+        for i in xrange(0, parts):
+            box = (i*smallest, 0, (i+1)*smallest, height)
+            img2 = img.crop(box)
+            img2.load()
+            chunked_imgs.append(img2)
+    return chunked_imgs
+</code></pre>
+      
+    
+      
+        <p>第三步，我们需要把这些图片平铺到相册页面上。（注意，merge 函数假定输入的图片已经完成归一化和分块处理。）</p>
+      
+    
+      
+        <pre><code>def merge(imgs, per_row=4):
+    &quot;Format equally sized images into rows and columns.&quot;
+    width = imgs[0].size[0]
+    height = imgs[0].size[1]
+    page_width = width * per_row
+    page_height = height * math.ceil((1.0*len(imgs)) / 4)
+    page = Image.new(&quot;RGB&quot;, (page_width, page_height), &quot;White&quot;)
+    column = 0
+    row = 0
+    for img in imgs:
+        if column != 0 and column % per_row == 0:
+            row = row + 1
+            column = 0
+        pos = (width*column, height*row)
+        page.paste(img, pos)
+        column = column + 1
+    return page
+</code></pre>
+      
+    
+      
+        <p>最后，我们把这些函数调用封装到一个 album 函数中，让它们协同工作，并额外添加一个边框。</p>
+      
+    
+      
+        <pre><code>def album(imgs):
+    imgs = normalize(imgs)
+    imgs = chunk(imgs)
+    imgs = [ border(x) for x in imgs ]
+    return merge(imgs)
+</code></pre>
       
     
       
@@ -110,15 +280,35 @@
       
     
       
-        <p>这里我使用了 Kamioka 文章里的所有图片，它们恰好原本就是相同尺寸的。</p>
+        <pre><code>&gt;&gt;&gt; album(imgs).save(&quot;album.png&quot;)
+album(imgs).save(&quot;album.png&quot;)
+</code></pre>
       
     
       
-        <p>下面是将函数应用于原始图片以及第一次调用 album 后的输出结果。</p>
+        <p>这里我使用了 Kamioka 文章里的所有图片，它们碰巧尺寸已经一致。</p>
       
     
       
-        <p>结果看起来确实有点糟糕，但如果选图更合适的话，效果应该会不错。我很享受这次与 PIL 打交道的经历，也希望这个漫无目的的小项目里的一些代码片段能对大家有所帮助。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/kam6.png" alt="Picture book of Kamioka, five images with borders.">
+          
+        </figure>
+      
+    
+      
+        <p>下面是将函数应用在原始尺寸各不相同的图片上，并将首次调用 album 的结果也加入其中的输出效果。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/kam7.png" alt="Picture book of Kamioka, images of diff sizes with borders.">
+          
+        </figure>
+      
+    
+      
+        <p>虽然看起来相当糟糕，但如果挑选更合适的图片，效果应该会不错。我很享受这次和 PIL 打交道的经历，也希望这个随性项目中的一些代码片段能对大家有所帮助。</p>
       
     
   </div>

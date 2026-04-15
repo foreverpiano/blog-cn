@@ -29,35 +29,64 @@
   <div class="article-content">
     
       
-        <p>这是 Django、jQuery 与 Ajax 系列的第三篇文章，接续《Custom Django Views for Happier Ajax》之后的内容。这一次我们将探讨如何在 Ajax 应用中正确处理认证。</p>
+        <p>这是 Django、jQuery &amp; Ajax 系列的第三篇，接着《Custom Django Views for Happier Ajax》继续往下讲。这一次我们将探讨如何在 Ajax 应用中正确处理认证。</p>
       
     
       
-        <p>“如何在 Ajax 应用中处理认证？”这个问题的简短答案和你在其他任何应用中的做法是一样的，但也有一个更详细的答案。</p>
+        <p>“如何在 Ajax 应用中处理认证？”这个问题的简短答案和你在其他任何应用中的做法是一样的，但还有一个更长的答案。</p>
       
     
       
-        <p>既然我似乎擅长给出那些通常只有简短答案的问题的长答案，这显然正合我意。</p>
+        <p>因为我似乎擅长对那些通常只有简短答案的问题给出冗长的回答，所以这正好适合我。</p>
       
     
       
-        <h2>认证的两个层次，以及两种风格</h2>
+        <h3>认证的两个层次，以及两种风格</h3>
+        
       
     
       
-        <p>当我们在 Django 中考虑认证时，首先想到的可能是根据用户是否已认证，在模板中展示不同的内容。</p>
+        <p>当我们考虑 Django 中的认证时，首先可能会想到在模板中为已认证和未认证的用户呈现不同的内容。</p>
       
     
       
-        <p>在这种情况下，我们进行认证是为了防止不希望的数据被查看。</p>
+        <pre><code>{% if user.is_authenticated %}
+&lt;p&gt; Hi there { { user.get_full_name }}. Welcome to Notes! &lt;/p&gt;
+{% for note in notes %}
+&lt;p&gt;{ { note }}&lt;/p&gt;
+{% endfor %}
+{% else %}
+&lt;p&gt;
+We don&#x27;t take kindly to strangers around here.
+&lt;a href=&quot;/register/&quot;&gt;Try registering!&lt;/a&gt;
+&lt;/p&gt;
+{% endif %}
+</code></pre>
       
     
       
-        <p>你可能会认为这里我们是在防止数据被修改，但事实并非如此。如果攻击者发现了表单的 URL，他们仍然可以手动提交 POST 数据。</p>
+        <p>在这种情况下，我们进行认证是为了防止不希望看到的数据被查看。</p>
       
     
       
-        <p>我们在这里所做的并不是为了保护系统，而是通过隐藏不可用的功能来改善用户界面。这一点很重要，因为我们不希望用户界面误导用户，但它并不会提升应用的安全性。</p>
+        <pre><code>{% if user.is_authenticated %}
+&lt;form type=&quot;POST&quot; action=&quot;/create/&quot;&gt;
+&lt;label for=&quot;title&quot;&gt;Title&lt;/label&gt;
+&lt;input type=&quot;text&quot; name=&quot;title&quot;&gt;
+&lt;input type=&quot;submit&quot; value=&quot;create&quot;&gt;
+&lt;/form&gt;
+{% else %}
+&lt;p&gt; Nothing to see here. &lt;/p&gt;
+{% endif %}
+</code></pre>
+      
+    
+      
+        <p>现在你可能会认为我们是在阻止数据修改，但事实并非如此。如果攻击者发现了表单的 URL，他们仍然可以手动向其 POST 数据。</p>
+      
+    
+      
+        <p>我们在这里所做的并不是为了保护我们的系统，而是通过隐藏不可用的功能来提升用户界面。这很重要，因为我们不希望 UI 误导用户，但它并不会提升应用的安全性。</p>
       
     
       
@@ -65,35 +94,56 @@
       
     
       
-        <p>在这三种场景中，认证的层次和风格有一些重叠，但我们最终可以归纳出几个重要的概念：</p>
+        <pre><code>python create(request):
+    if request.user.is_authenticated():
+        return render_template(&quot;my_app/i_trust_you.html&quot;)
+    return render_template(&quot;my_app/no.html&quot;)
+# or even more simply
+from django.contrib.auth.decorations import login_required
+@login_required
+def create(request):
+return render_template(&quot;my_app/i_trust_you.html&quot;)
+</code></pre>
       
     
       
-        <div class="list-content">对于数据修改，必须在视图层进行认证。对于内容展示，可以在视图层或模板层进行认证。让用户界面与权限保持同步并不能为你的应用提供安全保障，但能保护你不被愤怒的用户用刀捅。</div>
+        <p>在这三种场景中，认证的层次和风格有一些重叠，但我们最终得到几个重要的概念需要考虑：</p>
       
     
       
-        <p>你可以将这些想法浓缩为两个简单的问题：在用户界面层，我应该暴露这个吗？在 API 层，我应该允许这个吗？</p>
+        <div class="list-content">对于修改操作，我们必须在视图层进行认证。对于呈现操作，我们可以在视图层或模板层进行认证。让用户界面与权限保持同步并不能为你的应用提供安全保障，但能保护你免受暴躁用户拿着刀追着捅的危险。</div>
       
     
       
-        <p>是时候开始 Notes 应用的拷问了。</p>
+        <p>你可以将这些想法归结为两个简单的问题：在用户界面层，我是否应该暴露这个？在 API 层，我是否应该允许这个？</p>
       
     
       
-        <h2>设置用户认证</h2>
+        <p>是时候开始 Notes 的审讯了。</p>
       
     
       
-        <p>不过，首先我们得停下来开个茶话会。嗯，也许不算严格意义上的茶话会，但我们确实需要先设置账户创建功能。</p>
+        <h3>设置用户认证</h3>
+        
       
     
       
-        <p>第一步是打开 settings.py，确认 django.contrib.auth 已经存在于 INSTALLED_APPS 列表中。如果没有，请添加进去。</p>
+        <p>但是，首先我们得停下来开个茶会。嗯，也许不算真正的茶会，但我们确实需要先设置账号创建功能。</p>
       
     
       
-        <p>第二步，我们需要为登录和登出操作配置 URL。打开 ajax_tut/urls.py，添加以下两条 URL：</p>
+        <p>第一步是打开 settings.py，确认 django.contrib.auth 已经在 INSTALLED_APPS 列表中。如果没有，请添加它。</p>
+      
+    
+      
+        <p>第二步，我们需要为登录和登出操作配置 URL。打开 ajax_tut/urls.py，添加以下两个 URL：</p>
+      
+    
+      
+        <pre><code># Authentication Views
+(r&#x27;^accounts/login/$&#x27;, &#x27;django.contrib.auth.views.login&#x27;),
+(r&#x27;^accounts/logout/$&#x27;, &#x27;django.contrib.auth.views.logout&#x27;),
+</code></pre>
       
     
       
@@ -105,7 +155,31 @@
       
     
       
+        <pre><code>mkdir templates
+mkdir templates/registration
+</code></pre>
+      
+    
+      
         <p>然后我们需要创建两个简单的模板。首先是 registration/login.html：</p>
+      
+    
+      
+        <pre><code>{% extends &quot;base.html&quot; %}
+{% block content %}
+{% if form.errors %}
+&lt;p&gt;Your username and password didn&#x27;t match. Please try again.&lt;/p&gt;
+{% endif %}
+&lt;form method=&quot;post&quot; action=&quot;.&quot;&gt;
+&lt;table&gt;
+&lt;tr&gt;&lt;td&gt;{ { form.username.label_tag }}&lt;/td&gt;&lt;td&gt;{ { form.username }}&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;{ { form.password.label_tag }}&lt;/td&gt;&lt;td&gt;{ { form.password }}&lt;/td&gt;&lt;/tr&gt;
+&lt;/table&gt;
+&lt;input type=&quot;submit&quot; value=&quot;login&quot; /&gt;
+&lt;input type=&quot;hidden&quot; name=&quot;next&quot; value=&quot;{ { next }}&quot; /&gt;
+&lt;/form&gt;
+{% endblock %}
+</code></pre>
       
     
       
@@ -113,31 +187,58 @@
       
     
       
-        <p>现在模板已经创建好了，我们还需要在 settings.py 中设置 LOGIN_REDIRECT_URL。打开 ajax_tut/settings.py，添加以下这行：</p>
+        <pre><code>{% extends &quot;base.html&quot; %}
+{% block content %}
+&lt;p&gt; You have been logged out. &lt;/p&gt;
+{% endblock %}
+</code></pre>
       
     
       
-        <p>接着我们修改基础模板 base.html，添加一个登录/登出链接（以及返回首页的导航链接）。</p>
+        <p>现在模板已经创建好了，我们还需要在 settings.py 中设置 LOGIN_REDIRECT_URL。打开 ajax_tut/settings.py，添加下面这行：</p>
       
     
       
-        <p>在 &lt;body&gt; 标签开始之后立即插入以下 HTML：</p>
+        <pre><code>LOGIN_REDIRECT_URL = u&quot;/&quot;
+</code></pre>
       
     
       
-        <p>现在运行开发服务器，你会看到我们可以正常登录、登出，而且登录|登出按钮会显示正确的选项。</p>
+        <p>然后我们来修改基础模板 base.html，添加一个登录/登出链接（以及一个返回首页的导航链接）。</p>
       
     
       
-        <h2>我应该暴露这个吗？</h2>
+        <p>在 &lt;body&gt; 标签开始之后，立即插入以下 HTML：</p>
       
     
       
-        <p>我们要回答的两个问题中的第一个是“我应该暴露这个吗？”</p>
+        <pre><code>&lt;div class=&quot;navbar&quot;&gt;
+  &lt;a href=&quot;/&quot;&gt;Home&lt;/a&gt;
+  &lt;span&gt; | &lt;/span&gt;
+  {% if user.is_authenticated %}
+  &lt;a href=&quot;/accounts/logout/&quot;&gt;Logout&lt;/a&gt;
+  {% else %}
+  &lt;a href=&quot;/accounts/login/&quot;&gt;Login&lt;/a&gt;
+  {% endif %}
+&lt;/div&gt;
+</code></pre>
       
     
       
-        <p>在本例中，这意味着我们将查看 notes/note_list.html 和 notes/note_detail.html 模板，并对未登录用户隐藏编辑功能。</p>
+        <p>现在如果你运行开发服务器，你会看到我们已经可以登录、登出，而且 login|logout 按钮会显示正确的选项。</p>
+      
+    
+      
+        <h3>我是否应该暴露这个？</h3>
+        
+      
+    
+      
+        <p>我们要回答的两个问题中的第一个是“我是否应该暴露这个？”</p>
+      
+    
+      
+        <p>在这个例子中，这意味着我们将查看 notes/note_list.html 和 notes/note_detail.html 模板，并对未登录的用户隐藏编辑功能。</p>
       
     
       
@@ -145,7 +246,21 @@
       
     
       
-        <p>我们需要做的就是用模板的 if 语句把 &lt;div class=&quot;new&quot;&gt; 区块和 &lt;script&gt; 标签包裹起来，让它们变成这样：</p>
+        <p>我们需要做的就是用模板的 if 语句把 &lt;div class=&quot;new&quot;&gt; 这个 div 和 &lt;script&gt; 标签包裹起来，让它们变成下面这样：</p>
+      
+    
+      
+        <pre><code>{% if user.is_authenticated %}
+&lt;div class=&quot;new&quot;&gt;
+  &lt;h2&gt; Create a new note. &lt;/h2&gt;
+  &lt;form method=&quot;post&quot; action=&quot;/create/&quot;&gt;
+  &lt;label for=&quot;title&quot;&gt;Title&lt;/label&gt; &lt;input type=&quot;text&quot; name=&quot;title&quot; id=&quot;title&quot;&gt;
+  &lt;label for=&quot;slug&quot;&gt;Slug&lt;/label&gt; &lt;input type=&quot;text&quot; name=&quot;slug&quot; id=&quot;slug&quot;&gt;
+  &lt;input id=&quot;create&quot; type=&quot;submit&quot; value=&quot;create note&quot;&gt;
+  &lt;/form&gt;
+&lt;/div&gt;
+{% endif %}
+</code></pre>
       
     
       
@@ -153,43 +268,84 @@
       
     
       
-        <p>分别对应上述两部分。</p>
+        <pre><code>{% if user.is_authenticated %}
+&lt;script&gt;
+// lots of JavaScript here
+&lt;/script&gt;
+{% endif %}
+</code></pre>
       
     
       
-        <p>然后回到应用中，分别在登录和未登录状态下查看首页的变化。</p>
+        <p>分别对应上面两部分。</p>
       
     
       
-        <p>接下来我们对 notes/note_detail.html 模板做同样的处理。</p>
+        <p>然后回到应用，分别在登录和未登录状态下查看首页的变化。</p>
       
     
       
-        <p>首先我们像之前一样排除 JavaScript 部分：</p>
+        <p>接下来我们需要对 notes/note_detail.html 模板做同样的处理。</p>
       
     
       
-        <p>然后还需要处理显示的内容。因为未认证用户无法进行修改，所以不应该向他们展示输入框或文本框。我们将直接用几个 &lt;span&gt; 和一个 &lt;p&gt; 来显示内容。</p>
+        <p>首先我们像之前一样把 JavaScript 部分排除掉：</p>
       
     
       
-        <p>现在运行应用，尝试登录和登出，查看不同的笔记（以及笔记列表），感受一下效果。</p>
+        <pre><code>{% if user.is_authenticated %}
+&lt;script&gt;
+// lots more JavaScript
+&lt;/script&gt;
+{% endif %}
+</code></pre>
       
     
       
-        <p>我们的 UI 现在已经向用户表明了可用的权限，但我们仍然需要实际强制执行这些权限。进入下一节。</p>
+        <p>然后我们还需要处理显示的内容。因为未认证的用户无法进行修改，所以不应该向他们显示输入框或文本框。相反，我们只用几个 &lt;span&gt; 和一个 &lt;p&gt; 来显示内容。</p>
       
     
       
-        <h2>我应该允许这个吗？</h2>
+        <pre><code>&lt;div class=&quot;detail&quot;&gt;
+  {% if user.is_authenticated %}
+  &lt;form method=&quot;post&quot; action=&quot;update/&quot;&gt;
+  &lt;div class=&quot;text&quot;&gt;
+    &lt;label for=&quot;title&quot;&gt;Title&lt;/label&gt;
+    &lt;input type=&quot;text&quot; name=&quot;title&quot; id=&quot;title&quot; value=&quot;{ { object.title }}&quot;&gt;
+    &lt;label for=&quot;slug&quot;&gt;Slug&lt;/label&gt;
+    &lt;input type=&quot;text&quot; name=&quot;slug&quot; id=&quot;slug&quot; value=&quot;{ { object.slug }}&quot;&gt;
+  &lt;/div&gt;
+  &lt;textarea name=&quot;text&quot; id=&quot;text&quot;&gt;{ { object.text }}&lt;/textarea&gt;
+  &lt;input class=&quot;submit&quot; type=&quot;submit&quot; value=&quot;update note&quot;&gt;
+  &lt;/form&gt;
+  {% else %}
+  &lt;span&gt;Title: { { object.title }}&lt;/span&gt;
+  &lt;span&gt;Slug: { { object.slug }}&lt;/span&gt;
+  &lt;p&gt; { { object.text }} &lt;/p&gt;
+  {% endif %}
+&lt;/div&gt;
+</code></pre>
       
     
       
-        <p>添加认证的最后一步是回答第二个问题：“我应该允许这个吗？”</p>
+        <p>现在运行应用，登录登出多切换几次，看看不同的笔记（以及笔记列表），感受一下。</p>
       
     
       
-        <p>我们的四个自定义视图都允许创建或修改数据，因此答案非常简单：不允许，不允许，不允许，不允许。</p>
+        <p>我们的 UI 现在已经能向用户表明可用的权限了，但我们还需要实际强制执行这些权限。进入下一节。</p>
+      
+    
+      
+        <h3>我是否应该允许这个？</h3>
+        
+      
+    
+      
+        <p>添加认证的最后一步是回答第二个问题：“我是否应该允许这个？”</p>
+      
+    
+      
+        <p>我们的四个自定义视图都允许创建或修改数据，因此答案非常简单：不，不，不，不。</p>
       
     
       
@@ -197,23 +353,45 @@
       
     
       
-        <p>首先在文件顶部添加以下导入：</p>
+        <p>首先在文件顶部添加这个 import：</p>
       
     
       
-        <p>然后为每个视图加上这个装饰器：</p>
+        <pre><code>from django.contrib.auth.decorators import login_required
+</code></pre>
       
     
       
-        <p>保存应用，然后手动在浏览器中输入 /create/、note/&lt;slug&gt;/update/ 等对应的 URL，测试这些视图确实无法在未登录时工作。</p>
+        <p>然后给每个视图加上这个装饰器：</p>
       
     
       
-        <p>现在我们宝贵的笔记终于安全了。</p>
+        <pre><code>@login_required
+def create_note(request):
+    # etc etc
+@login_required
+def ajax_create_note(request):
+# etc etc
+@login_required
+def update_note(request):
+# etc etc
+@login_required
+def ajax_update_note(request):
+# etc etc
+</code></pre>
       
     
       
-        <h2>下载</h2>
+        <p>保存应用，然后通过手动在浏览器输入对应的 URL（比如 /create/、note/&lt;slug&gt;/update/ 等）来测试这些视图是否已经无法正常工作。</p>
+      
+    
+      
+        <p>现在我们珍贵的笔记终于真正安全了。</p>
+      
+    
+      
+        <h3>下载</h3>
+        
       
     
       
@@ -221,23 +399,24 @@
       
     
       
-        <h2>继续前进</h2>
+        <h3>继续前进</h3>
+        
       
     
       
-        <p>虽然我们没有大张旗鼓地强调，但值得注意的是，这个小小的测试应用现在已经能在四种不同的用户场景下正确运行：有 JavaScript 未认证、有 JavaScript 已认证、无 JavaScript 未认证、无 JavaScript 已认证。</p>
+        <p>虽然我们没有特别强调，但值得一提的是，这个小小的测试应用现在已经能在四种不同的用户场景下正确运行：有 JavaScript 无认证、有 JavaScript 有认证、无 JavaScript 无认证、无 JavaScript 有认证。</p>
       
     
       
-        <p>当我们谨慎地设计系统时，就可以只关注简单的二分法（JavaScript 与无 JavaScript、已认证与未认证），而不是去处理更大范围的组合所带来的指数级复杂性。</p>
+        <p>当我们谨慎地设计系统时，就可以只关注简单的二分法（JavaScript 与无 JavaScript、已认证与未认证），而不是不得不处理更大范围的指数级复杂组合。</p>
       
     
       
-        <p>嗯。好了。说教结束。</p>
+        <p>嗯，好。说教结束。</p>
       
     
       
-        <p>至此，Django、jQuery 与 Ajax 系列的第三篇文章告一段落。这原本将是本系列的最后一篇，但我想到了一个既有趣又有用的点子，所以决定再加最后一篇作为收尾。</p>
+        <p>至此，Django、jQuery &amp; Ajax 系列的第三篇也告一段落。这原本将是本系列的最后一篇，但我脑子里一直有个想法，听起来既有趣又有帮助，所以我决定再加最后一响。</p>
       
     
   </div>

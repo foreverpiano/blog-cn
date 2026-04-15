@@ -29,11 +29,11 @@
   <div class="article-content">
     
       
-        <p>快速记录一篇关于简单但实用的技巧的博客：利用 Django 视图中的可选参数，可以避免重复编写代码。</p>
+        <p>快速记录一篇关于简单却实用的技巧的博客：利用 Django 视图中的可选参数来避免重复编写代码。</p>
       
     
       
-        <p>最近我在开发 LifeFlow Editor 时，希望能够通过 Ajax 将文本发送到后端进行渲染，然后在前端展示渲染后的新文本。有两种场景需要这样做：有时我想渲染直接 POST 到视图的文本，有时则想根据提交的模型类名和主键，渲染特定模型实例的内容。</p>
+        <p>最近在开发 LifeFlow Editor 时，我希望能够通过 Ajax 将文本发送到后端进行渲染，然后把渲染后的结果展示出来。这种需求有两种场景：有时需要渲染直接 POST 到视图的文本，有时则需要根据 POST 传来的模型类名和主键，渲染特定模型实例的内容。</p>
       
     
       
@@ -41,19 +41,46 @@
       
     
       
-        <p>第一个视图向 render 函数传入了两个参数，第二个视图则一个参数都没传，但它们明显使用的是同一个视图函数，这是如何实现的呢？</p>
+        <pre><code>from lifeflow.models import *
+urlpatterns = patterns(&#x27;lifeflow.editor.views&#x27;,
+(r&#x27;^render/$&#x27;, &#x27;render&#x27;),
+(r&#x27;^render/(?P&lt;model&gt;\w+)/(?P&lt;id&gt;\d+)/$&#x27;, &#x27;render&#x27;),
+)
+</code></pre>
       
     
       
-        <p>其实非常简单：</p>
+        <p>第一个视图向 render 函数传递了两个参数，第二个则一个参数都没传，但它们实际上调用的是同一个视图函数，这是怎么做到的呢？</p>
       
     
       
-        <p>如果没有获取到 ID，我就知道应该从 POST 数据中获取要渲染的文本；否则就使用主键和模型类来渲染对应的 Draft 或 Entry 实例。</p>
+        <p>实现起来其实非常简单：</p>
       
     
       
-        <p>（这里使用了 login_required 装饰器来防止未授权用户访问该视图。此外，内容验证写得比较粗糙，但这个视图不会对数据造成任何修改，只是在某些地方显示它，而能够访问该视图的用户本来就有权限查看这些数据，因此这对我来说不是大问题。）</p>
+        <pre><code>@login_required
+def render(request, model=None, id=None):
+    if id is None:
+        txt = dbc_markup(request.POST[&#x27;txt&#x27;])
+    else:
+        if model == u&quot;draft&quot;:
+            obj = Draft.objects.get(pk=id)
+        elif model == u&quot;entry&quot;:
+            obj = Entry.objects.get(pk=id)
+        if obj.use_markdown:
+            txt = dbc_markup(obj.body, obj)
+        else:
+            txt = obj.body
+    return HttpResponse(txt)
+</code></pre>
+      
+    
+      
+        <p>如果没有收到 id 参数，我就知道应该去 POST 数据中查找待渲染的文本；否则就根据传入的主键和模型类，获取对应的 Draft 或 Entry 实例并进行渲染。</p>
+      
+    
+      
+        <p>（这里使用了 login_required 装饰器来防止未授权用户访问该视图。另外，内容验证写得比较简陋，但这个视图不会对数据造成任何修改，只是在某些地方显示它，而能够访问该视图的用户本来就有权限查看这些数据，因此对我来说不是大问题。）</p>
       
     
       

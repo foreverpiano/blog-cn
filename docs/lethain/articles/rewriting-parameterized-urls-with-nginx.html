@@ -29,11 +29,11 @@
   <div class="article-content">
     
       
-        <p>上周日（以及今天凌晨的一部分时间），我的目标是彻底关闭旧的 WordPress 博客，将有价值的内容重新发布到这个博客上，并完成我一直最害怕的那一步——在新旧博客之间设置重定向。</p>
+        <p>上周日（以及今天凌晨），我的目标是彻底关闭旧的 WordPress 博客，将有价值的内容重新发布到这个博客上，并完成我一直害怕的那一步——在新旧博客之间设置重定向。</p>
       
     
       
-        <p>使用 Nginx 处理这些重定向最终变得有些棘手，因为我 WordPress 的 URL 是这样的：</p>
+        <p>使用 Nginx 处理这些重定向有些棘手，因为我的 WordPress URL 是这样的：</p>
       
     
       
@@ -43,7 +43,7 @@ http://willarson.com/blog/?p=41
       
     
       
-        <p>一点也不友好。当人们谈论重写美观的 URL 时，他们指的是将这种格式的 URL：</p>
+        <p>完全称不上美观的 URL。人们谈论重写 pretty URL 时，通常指的是将下面这种格式的 URL：</p>
       
     
       
@@ -52,19 +52,27 @@ http://willarson.com/blog/?p=41
       
     
       
-        <p>转换成 /p=3 这样的格式，但反向转换却很少被讨论。尤其是 Nginx，它的 rewrite 模块得到的关注远少于 Apache 的 mod_rewrite。在仔细阅读了 Nginx Http Core Module 文档后，我终于想出了一个解决方案。</p>
+        <p>转换成 /p=3 这样的形式，但反方向的操作却很少被讨论。特别是在 Nginx 上，其 rewrite 模块的资料远不如 Apache 的 mod_rewrite 丰富。在仔细阅读了 Nginx Http Core Module 文档后，我终于想出了一个解决方案。</p>
       
     
       
-        <p>以下是 willarson.com（稍作泛化）的 server 配置：</p>
+        <p>以下是 willarson.com 稍作泛化的 server 配置：</p>
       
     
       
-        <p>其中的关键是 set $p $1; 这行。在较新版本的 Nginx 上（至少比 Ubuntu Intrepid 所自带的版本新），你可以跳过这一步，直接使用 $arg_p（可能需要用 $arg_P，文档对此表述不太清晰）。</p>
+        <pre><code>   &lt;span class=&quot;kn&quot;&gt;location&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;kn&quot;&gt;root&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;/home/django/domains/willarson.com/public&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;kn&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;index.html&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+</code></pre>
       
     
       
-        <p>它以其丑陋而强大的方式，将类似下面的 URL</p>
+        <p>这里的关键是 set $p $1; 这行。在较新版本的 Nginx 中（至少比 Ubuntu Intrepid 打包的版本新），你可以跳过这一步，直接使用 $arg_p（也可能是 $arg_P，文档对此表述不清）。</p>
+      
+    
+      
+        <p>它以一种丑陋但有效的方式，将类似下面的 URL</p>
       
     
       
@@ -78,27 +86,59 @@ http://willarson.com/blog/?p=41
       
     
       
-        <p>这看起来相当糟糕，但对于我非常简单的需求来说已经足够了。之后我又写了一个同样丑陋的 Python 脚本用来生成重定向页面。</p>
+        <p>重写。虽然这看起来挺糟糕，但对我非常简单的需求来说已经足够了。之后我又写了一个同样不怎么优雅的 Python 脚本用来生成重定向页面。</p>
       
     
       
-        <p>（我决定使用新的 canonical meta tag，因为它既新又亮眼，希望能帮助把旧博客的 Google 权重转移到新博客上。让我们拭目以待。）</p>
+        <pre><code>import sys
+url = sys.argv[1]
+print &quot;&quot;&quot;
+&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.01//EN&quot;
+&quot;http://www.w3.org/TR/html4/strict.dtd&quot;&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;link rel=&quot;canonical&quot; href=&quot;%s&quot;&gt; 
+&lt;script type=&quot;text/javascript&quot;&gt;
+&lt;!--
+window.location = &quot;%s&quot;
+//--&gt;
+&lt;/script&gt;
+&lt;meta http-equiv=&quot;Refresh&quot; content=&quot;5; url=%s&quot;&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;h2&gt;You will be redirected shortly. Sorry for the inconvenience.&lt;/h2&gt;
+&lt;a href=&quot;%s&quot;&gt;Click here to transition more quickly.&lt;/a&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+&quot;&quot;&quot; % (url, url, url, url)
+</code></pre>
       
     
       
-        <p>然后我为每篇文章确定了从旧博客到新博客的映射关系（旧博客总共只有大约 27 篇文章，其中 9 篇值得重新发布，5 篇值得定向重定向到更新的内容，其余的则统一重定向到新博客首页。大体上，有流量的内容都获得了指向相关页面的定制重定向，而纯文字垃圾内容则使用通用的首页重定向）。</p>
+        <p>（我决定使用新的 canonical meta tag，是因为它更新且时髦，希望能帮助把旧博客的 Google 权重顺利转移到新博客上。让我们拭目以待。）</p>
       
     
       
-        <p>之后我为每个页面做了类似这样的设置：</p>
+        <p>然后我为每篇文章确定了从旧博客到新博客的映射关系（旧博客总共只有大约 27 篇文章，其中 9 篇值得重新发布，5 篇值得定向重定向到更新的内容，其余则全部重定向到新博客首页。大致原则是：有流量的内容都做了定制重定向指向相关新内容，而那些“文字垃圾”则统一跳转到首页）。</p>
       
     
       
-        <p>你可以试试看。</p>
+        <p>接着我为每个页面做了类似下面的设置：</p>
       
     
       
-        <p>就这样，全部搞定。</p>
+        <pre><code>cd ~/domains/willarson.com/public/
+mkdir 17
+python create_redirect http://lethain.com/etc/etc/ &gt; 17/index.html
+</code></pre>
+      
+    
+      
+        <p>你可以点击试试看。</p>
+      
+    
+      
+        <p>至此，全部搞定。</p>
       
     
   </div>

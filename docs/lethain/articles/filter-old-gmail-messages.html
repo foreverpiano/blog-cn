@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>如何筛选收件箱中的旧邮件 · Will Larson 文集</title>
+  <title>如何过滤收件箱中的旧邮件 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>如何筛选收件箱中的旧邮件</h1>
+    <h1>如何过滤收件箱中的旧邮件</h1>
     <div class="meta">
       2025-05-03 · 
       <a href="https://lethain.com/filter-old-gmail-messages/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,15 +29,15 @@
   <div class="article-content">
     
       
-        <p>每隔几年，我都会花些时间来整理个人收件箱里的混乱。邮件实在太多了，这通常导致我越来越难以跟进重要的邮件。</p>
+        <p>每隔几年，我都会花时间整理个人收件箱里混乱的邮件。邮件实在太多，导致我越来越容易忽略重要邮件的跟进。</p>
       
     
       
-        <p>到目前为止，我的策略主要是过滤掉那些我永远不想读的邮件。但还有另一类邮件：我希望在它们新鲜出炉时阅读，却不想在过期后再看到。比如日历提醒、某些邮件列表、一些新闻通讯等。</p>
+        <p>到目前为止，我的策略主要是过滤掉那些永远不想读的邮件。但还有另一类邮件，我通常在它们新鲜时想读，一旦过时就不再想看了。比如日历提醒、某些邮件列表、新闻通讯等。</p>
       
     
       
-        <p>我决定想办法建立一个系统，能将一些邮件标记为“收到三天后过滤”。这是一个不错的折中方案，因为我确实想看到这些内容，但又不想事后还要记得去手动归档。</p>
+        <p>我决定想办法建立一个系统，能将一批邮件标记为“收到三天后过滤”。这是一个不错的折中方案，因为我确实想看到这些内容，但又不想每次都记住事后去归档。</p>
       
     
       
@@ -50,27 +50,62 @@
       
     
       
-        <p>然而，如果你试图用这个查询创建 GMail 过滤器，它会把 older_than:3d 变成一个固定的时间点，而不是按照你期望的方式动态处理。</p>
+        <p>然而，如果你尝试用这个查询在 GMail 中创建过滤器，它会把 older_than:3d 变成一个固定的时间点，而不是按照你期望的方式动态过滤。</p>
       
     
       
-        <p>看起来在 GMail 自身功能内无法解决这个问题。不过快速搜索后发现，可以通过编写 Google App Script 来实现，于是我让 Claude 为我生成了这个脚本。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/gmail-filter.png" alt="The image shows a Gmail search filter setup, looking for emails from “calendar-notification@google.com” that are older than three days and have a size greater than a specified amount, dated within one day of May 3, 2025. Options to filter by attachments and exclude chats are available, with “Create filter” and “Search” buttons at the bottom.">
+          
+        </figure>
       
     
       
-        <p>按照说明，我打开了多年未访问的 script.google.com。我对 Claude 生成的脚本进行了修改：将标签改为“TempMsg”，取消了归档操作的注释，并限制只处理前 50 条匹配该标签的邮件。完整代码可以在这篇 gist 中找到。</p>
+        <p>看起来这个问题在 GMail 自身功能里无法解决。不过快速搜索后发现，可以通过编写 Google App Script 来实现，于是我请 Claude 为我生成了这个脚本。</p>
       
     
       
-        <p>我尝试直接运行脚本，结果提示需要授予权限。这需要在 Google Scripts 的界面中点击三次确认。</p>
+        <p>按照说明，我打开了多年未用的 script.google.com。我对 Claude 生成的脚本进行了修改：把标签改成“TempMsg”，取消归档操作的注释，并限制只处理前五十条匹配该标签的邮件。完整代码可以在这个 gist 中找到。</p>
       
     
       
-        <p>此外还需批准一条有些吓人的提示，确认我信任自己。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/gmail-script-setup.png" alt="This image provides instructions on setting up a Google Apps Script to filter Gmail messages with a tag older than three days. It includes steps for opening Gmail settings and creating a new script project.">
+          
+        </figure>
       
     
       
-        <p>之后我再次运行脚本，却因为收件箱中不存在 TempMsg 标签而失败。</p>
+        <p>我尝试直接运行，结果提示需要授予权限。这需要在 Google Scripts 界面点击三次确认。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/gmail-permissions.png" alt="The image shows a Google Apps Script interface where a user is adding the Gmail API service to a project. Red arrows highlight the action of selecting the Gmail API from a list of services and the “Add” button.">
+          
+        </figure>
+      
+    
+      
+        <p>这还需要批准一条有点吓人的提示，表明我信任自己。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/gmail-auth.png" alt="The image displays a warning that Google hasn’t verified a specific app, advising users not to use it until the developer verifies it with Google due to its request for sensitive account information. Users have the option to return to safety or proceed with caution if they trust the developer.">
+          
+        </figure>
+      
+    
+      
+        <p>之后我再次尝试运行脚本，却失败了，因为我的收件箱里不存在 TempMsg 这个标签。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/gmail-run-failed.png" alt="The image shows a script written in JavaScript for Google Apps Script, designed to filter Gmail messages older than three days with a specific label. The execution log indicates that the label “TempMsg” was not found during the script’s execution.">
+          
+        </figure>
       
     
       
@@ -78,15 +113,29 @@
       
     
       
-        <p>之后我再运行脚本就一切正常了。需要说明的是，我一度以为它出错了，因为它不会处理过去三天内的邮件。这其实正是它应有的行为，但我运行后看到标签还在，就会误以为失败。真是乌龙。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/gmail-add-filter.png" alt="This image shows the Gmail filter creation settings page, where emails from “calendar-notification@google.com” are set to be labeled as “TempMsg.” Options for other actions like skipping the inbox, marking as read, or forwarding are available but not selected.">
+          
+        </figure>
       
     
       
-        <p>确认脚本正常工作后，我又添加了一个定期触发器让它自动运行。</p>
+        <p>之后我就能顺利运行脚本了。它确实有效。不过我一度以为它出错了，因为它不会处理过去三天内的邮件——这正是它应该有的行为。可我运行后看到标签还在，就以为失败了。真是乌龙。</p>
       
     
       
-        <p>现在这个脚本每天都会运行，为我提供了一个更好地管理邮件的新工具。验证无误后，我还用标签管理器把这个标签“隐藏”在收件箱中，这样就不用到处看到 TempMsg 了。如果以后需要调试，我随时可以重新让它显示出来。</p>
+        <p>确认脚本正常工作后，我又添加了一个定时触发器让它定期运行。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/gmail-add-trigger.png" alt="This image shows a Google Cloud Platform interface for adding a time-driven trigger to run the function “filterOldGmailMessages” daily between midnight and 1am, with immediate failure notifications.">
+          
+        </figure>
+      
+    
+      
+        <p>现在这个脚本每天都会自动运行，为我管理邮件提供了一个很好的新工具。验证完成后，我还用标签管理器把“TempMsg”这个标签“隐藏”在收件箱里，这样就不会到处看到它。如果以后需要调试，我随时可以重新显示出来。</p>
       
     
   </div>

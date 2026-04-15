@@ -29,35 +29,96 @@
   <div class="article-content">
     
       
-        <p>很长一段时间以来（包括整个 touchDefense 的开发过程），我一直对 Objective-C 2.0 的理念持反对态度。并不是我讨厌变化，而是觉得 Apple 擅自修改 Objective-C 有些武断。当然没有哪家公司像 Apple 这样对 ObjC 投入如此之多，但 Apple 对 ObjC 也没有像 Microsoft 对 .NET 语言那样拥有法律上的绝对控制权。这让我一直觉得有些不对劲。</p>
+        <p>很长一段时间以来（包括整个 touchDefense 的开发过程），我一直反对 Objective-C 2.0 这个概念。并不是我讨厌变化，而是觉得 Apple 擅自修改 Objective-C 有点随意。当然没有其他公司像 Apple 这样对 ObjC 有如此深厚的投入，但 Apple 并不像 Microsoft 对 .NET 语言那样拥有法律上的绝对控制权。这件事一直让我觉得有些不对劲。</p>
       
     
       
-        <p>但当我开始开发最新的 iPhone 应用时，我决定还是接受现实，转而使用 Objective-C 2.0 提供的那些语法糖来编写代码。</p>
+        <p>但当我开始开发最新的 iPhone 应用时，我决定不再纠结，转而采用 Objective-C 2.0 提供的那些语法糖来编写代码。</p>
       
     
       
-        <p>去他的意识形态吧，我宁愿再去西弗吉尼亚加油，也不愿意再多写一个不必要的 mutator 或 accessor 方法。作为一个长期的反 ObjC 2.0 人士，以下是我最终决定大快朵颐这些语法糖的原因。</p>
+        <p>什么意识形态都见鬼去吧，我宁愿再去西弗吉尼亚加油，也不愿意再写那些毫无必要的 mutator 和 accessor 方法了。作为一个长期的反 ObjC 2.0 人士，下面就是我决定大快朵颐这些语法糖的原因。</p>
       
     
       
         <h2>@property、@property、@synthesize。</h2>
+        
       
     
       
-        <p>我并不喜欢“属性”（property）这个概念，它让我觉得会造成不必要的语义模糊，你不清楚到底在做什么。但我确实很喜欢不用再敲那么多样板代码。</p>
+        <p>我并不喜欢 property 这个概念，它让我觉得在你实际操作的事情上制造了不必要的模糊不清。但我确实很喜欢不用再敲那么多模板代码。</p>
       
     
       
-        <p>使用属性相当简单。来看下面这个 ObjC 1.0 的接口定义：</p>
+        <p>使用 property 非常简单。来看看下面这个 ObjC 1.0 的接口：</p>
       
     
       
-        <p>其实现部分是这样的：</p>
+        <pre><code>@interface Person : NSObject {
+    NSString       * name;
+    int              age;
+    NSMutableArray * friends; 
+}
+-(void)setName: (NSString *)aName;
+-(NSString *)name;
+-(void)setAge: (int)anAge;
+-(int)age;
+-(void)setFriends: (NSMutableArray *)someFriends;
+-(NSMutableArray)friends;
+@end
+</code></pre>
       
     
       
-        <p>诚然，这些代码写起来并不难，但当你写了一百遍之后，肯定已经受够了。使用 ObjC 2.0 和属性，你可以把接口改写成这样：</p>
+        <p>它的实现是这样的：</p>
+      
+    
+      
+        <pre><code>@implementation Person 
+-(void)dealloc {
+[self setName:nil];
+[self setFriends:nil];
+[super dealloc];
+}
+-(void)setName: (NSString *)aName {
+if (name != nil) [name release];
+name = [aName copy];
+}
+-(NSString *)name {
+return name;
+}
+-(void)setAge: (int)anAge {
+age = anAge;
+}
+-(int)age {
+return age;
+}
+-(void)setFriends: (NSMutableArray *)someFriends {
+if (friends != nil) [friends release];
+friends = [someFriends retain];
+}
+-(NSMutableArray)friends {
+return friends;
+}
+@end
+</code></pre>
+      
+    
+      
+        <p>写这些代码其实不算难，但当你写了一百次之后，估计早就受够了。使用 ObjC 2.0 和 property，你可以把接口改写成这样：</p>
+      
+    
+      
+        <pre><code>@interface Person : NSObject {
+    NSString       * name;
+    int            * age;
+    NSMutableArray * friends; 
+}
+@property(readwrite,copy)   NSString       * name;
+@property(readwrite,assign) int              age;
+@property(readwrite,retain) NSMutableArray * friends;
+@end
+</code></pre>
       
     
       
@@ -65,11 +126,39 @@
       
     
       
-        <p>啊，真是简洁太多了。我们仍然需要编写 dealloc 方法，但我们把十几行繁琐的代码压缩成了一行，这对我来说是一次真正的胜利。</p>
+        <pre><code>@implementation Person 
+@synthesize name, age, friends;
+-(void)dealloc {
+[self setName:nil];
+[self setFriends:nil];
+[super dealloc];
+}
+@end
+</code></pre>
       
     
       
-        <p>除了自动生成 mutator 和 accessor 之外，你还可以使用属性来简化字段的存取方法。有些人可能会觉得这很有用，但对我来说这最多算是中性，并没有成为我切换到 2.0 的重要理由。</p>
+        <p>啊……短多了。虽然我们仍然需要写一个 dealloc 方法，但我们把十几行繁琐的代码压缩成了一行，这对我来说是真正的胜利。</p>
+      
+    
+      
+        <p>除了神奇地自动生成 mutator 和 accessor 之外，你还可以使用属性作为字段的 mutator 和 accessor 的简写。有些人可能会觉得这很有用，但对我来说这最多算是中性，并没有强烈促使我转向 2.0。</p>
+      
+    
+      
+        <pre><code>// is this
+Person * p = [[Person alloc] init];
+p.name = @&quot;Will&quot;;
+p.age = 23;
+p.friends = [[[NSMutableArray alloc] init] autorelease];
+NSLog(@&quot;Person(%@, %d, %@)&quot;,p.name,p.age,p.friends);
+// really better than this?
+Person * p = [[Person alloc] init];
+[p setName:@&quot;Will&quot;];
+[p setAge:23];
+[p setFriends:[[[NSMutableArray alloc] init] autorelease]];
+NSLog(@&quot;Person(%@, %d, %@)&quot;, [p name],[p age],[p friends]);
+</code></pre>
       
     
       
@@ -77,15 +166,25 @@
       
     
       
-        <h2>我也喜欢迭代器。</h2>
+        <h2>我也很喜欢迭代器。</h2>
+        
       
     
       
-        <p>在属性和 synthesize 之后，我最喜欢的下一个新增功能就是迭代器了。Perl、Python、Ruby、Java 1.5——几乎所有主流语言的这一天才设计，终于来到了 Objective-C，我很高兴。</p>
+        <p>在 property 和 synthesize 之后，我接下来最喜欢的新增功能就是迭代器了。我很高兴 Perl、Python、Ruby、Java 1.5——几乎所有主流语言里的这个天才设计——终于来到了 Objective-C。</p>
       
     
       
-        <p>从代码行数来看，下面两种写法</p>
+        <p>从代码行数来看，下面两者的差别其实很小：</p>
+      
+    
+      
+        <pre><code>int i, int l = [people count];
+for (i=0; i&lt;l; i++) {
+    Person * p = [people objectAtIndex:i];
+    NSLog(@&quot;age: %d&quot;, [p age]);
+}
+</code></pre>
       
     
       
@@ -93,19 +192,34 @@
       
     
       
-        <p>差别其实很小。但我认为这是一个巨大的改进。首先，手动遍历列表是非常容易出现灾难性笔误的地方。更重要的是，当我进入心流状态专注写代码时，写一个老式循环会比新式循环更严重地打断我的思路。即使新式写法偶尔出现笔误，编译器也能立刻指出；而老式写法我必须更专注语法本身（而不是专注于循环到底要完成什么）。</p>
+        <pre><code>for (Person *p in people) {
+    NSLog(@&quot;age: %d&quot;, [p age]);
+}
+</code></pre>
+      
+    
+      
+        <p>但我认为这是一个巨大的改进。首先，手动遍历列表是非常容易出现灾难性拼写错误的地方。更重要的是，当我进入状态疯狂写代码时，写一个老式循环比新式循环更能打断我的思维节奏。即使新式循环偶尔出现拼写错误，编译器也能帮我抓住，而老式循环则需要我更关注语法本身（而不是专注于循环实际要完成的事情）。</p>
       
     
       
         <h2>大家都在这么做。</h2>
+        
       
     
       
-        <p>我转向 Objective-C 2.0 的最后一个原因是势头。大多数新项目和新开发者（iPhone 带来了很多）都在使用 ObjC 2.0，用 ObjC 2.0 编写示例代码，并且对 ObjC 2.0 感到满意。有些意识形态之战我认为值得去打，但在一 个完全封闭的平台上为了一门编程语言更“开放”而战，感觉并不值得。</p>
+        <p>我转向 Objective-C 2.0 的最后一个原因是势头。大多数新项目和新开发者（iPhone 带来了很多这样的人）都在使用 ObjC 2.0，用 ObjC 2.0 写示例代码，并且对 ObjC 2.0 很满意。有些意识形态之战我觉得值得去打，但在一个完全封闭的平台上为保持一门编程语言更“开放”而斗争，感觉并不值得。</p>
       
     
       
-        <p>所以最终，我发现自己其实并没有花多大力气就从高头大马上跳了下来。一开始爬上去可能本身就有点傻。还有谁在坚持 1.0 的“正义之战”吗？还是你们切换到 2.0 有其他不同的理由？</p>
+        <p>所以最后我想，我其实没费多少力气就从自己的高 horse 上跳下来了。一开始爬上去可能本来就有点傻。  
+还有谁在坚持“1.0 才是正义”这场战斗吗？还是你们切换到 2.0 有其他不同的原因？</p>
+      
+    
+      
+        <div class="list-content">我对 Python 的属性也有同样的抱怨。它们确实是简化语法的巧妙方式，但我认为它们在很大程度上违反了“最小惊奇原则”。我想要——而且确实在使用——它们，但用完之后总感觉脏脏的。就像我赤手空拳刚杀了一只火鸡，却突然想起我们其实需要一只鸡。该死。  
+咳咳。趁着跑题的时候说一句，我一直不太明白，一门以 monkey-patching 闻名的语言，怎么会同时大力推崇“最小惊奇原则”。这就好比 Java 大肆宣扬简洁的语法优雅一样。不过抛开人身攻击不谈，这确实是个非常好的原则，即使它常常和“做些很酷的事来结交朋友、影响 Reddit 用户”的原则相矛盾。↩“你这个无知的蠢货，”愤怒的评论者说，“你可以使用垃圾回收啊。你这么笨是怎么打开电脑的？”  
+嗯，我主要是做 iPhone 开发，而 iPhone 不支持 GC，所以垃圾回收对我来说基本没用，也和我后来从 ObjC 1.0 切换到 2.0 毫无关系。↩</div>
       
     
   </div>

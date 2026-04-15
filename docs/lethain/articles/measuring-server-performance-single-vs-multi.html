@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>衡量单服务器与多服务器的性能 · Will Larson 文集</title>
+  <title>单服务器与多服务器性能对比 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>衡量单服务器与多服务器的性能</h1>
+    <h1>单服务器与多服务器性能对比</h1>
     <div class="meta">
       2009-02-18 · 
       <a href="https://lethain.com/measuring-server-performance-single-vs-multi/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,71 +29,116 @@
   <div class="article-content">
     
       
-        <p>关于服务器架构的永恒争论之一，就是在提供动态 Web 应用时，究竟该采用多服务器配置还是单服务器配置。</p>
+        <p>关于服务器架构的永恒争论之一，就是在提供动态 Web 应用时，到底是采用多服务器配置更好，还是单服务器配置更优。</p>
       
     
       
-        <p>我决定运行一些性能测试，用实际数据来参与这场讨论。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/performance_setups.png" alt="A single-server and multi-server setup.">
+          
+        </figure>
       
     
       
-        <h2>测试条件</h2>
+        <p>我决定运行一些性能测试，用实际数据来为这场讨论提供一些参考。</p>
       
     
       
-        <div class="list-content">在每次运行数据采集脚本前，服务器都会重启，但在每次测试之间则不对机器做任何操作。每次测试之间间隔 30 秒，每个测试运行三次，每种配置进行八轮测试（从 25 个并发用户开始，以 25 为步长递增至 200 个并发用户），共有八种不同配置。总共运行了 192 次测试，其中一半针对 Apache + mod_wsgi 配置，另一半针对 Nginx + Apache + mod_wsgi 配置。原始数据包含每个测试的三次运行结果，但在绘制图表时，我选择了平均事务每秒数最高的那次运行。测试所用的机器是一台来自 Slicehost、内存为 256MB 的 VPS，其配置规格如下。负载生成机同样是一台 Slicehost VPS，两台机器之间的往返延迟约为 0.5 毫秒。对于 Nginx + Apache + mod_wsgi 配置，重启后我未对 VPS 做任何修改。对于 Apache + mod_wsgi 测试，我在重启前修改了 Apache 的配置，使其监听外部端口。重启后通过 SSH 登录 VPS，关闭 Nginx，然后退出 SSH 会话。所加载的页面都极为轻量级，不含数据库查询的页面大小为 1KB，含数据库查询的页面大小为 0.4KB。数据采集使用 Siege 完成，并由以下脚本统一管理。</div>
+        <h3>测试条件</h3>
+        
       
     
       
-        <h2>关于测试条件的说明</h2>
+        <div class="list-content">在每次运行数据收集脚本前，服务器都会重启，但在每组测试之间，机器不做任何操作。每组测试之间间隔 30 秒，每个测试重复运行三次，每种配置进行八组测试（并发用户数从 25 到 200，每次递增 25），总共测试了八种不同配置。总计运行了 192 次测试，其中一半针对 Apache + mod_wsgi 配置，另一半针对 Nginx + Apache + mod_wsgi 配置。原始数据包含每次测试的三次运行结果，但图表和数据中我选择了每组中平均每秒事务数最高的那次。被测机器是一台来自 Slicehost、内存 256MB 的 VPS，按以下规格搭建。负载生成机同样是 Slicehost 的 VPS，两台机器之间的往返时间约为 0.5 毫秒。对于 Nginx + Apache + mod_wsgi 配置，重启后我没有对 VPS 做任何修改。对于 Apache + mod_wsgi 测试，在重启前我修改了 Apache 的配置，让它监听外部端口。重启后通过 SSH 登录 VPS，关闭 Nginx，然后退出 SSH 会话。被访问的页面都非常轻量，无数据库查询的页面大小为 1KB，带数据库查询的页面大小为 0.4KB。数据采集使用 Siege 完成，并由这个脚本统一管理。</div>
       
     
       
-        <p>这些条件非常有利于 Apache + mod_wsgi 配置超越 Nginx + Apache + mod_wsgi 配置。因为查询极其轻量级（适合工作线程较少的服务器），而且响应速度极快（同样有利于工作线程较少的服务器）。</p>
+        <h3>测试条件说明</h3>
+        
       
     
       
-        <p>这些条件可以说是单服务器配置超越多服务器配置的“完美风暴”。</p>
+        <p>这些条件对 Apache + mod_wsgi 配置来说极为有利，理论上它应该能胜过 Nginx + Apache + mod_wsgi 配置。因为查询极其轻量（适合工作线程较少的服务器），而且响应速度极快（同样有利于工作线程较少的服务器）。</p>
       
     
       
-        <h2>测试结果</h2>
+        <p>这些条件可以说是单服务器配置能够击败多服务器架构的“完美风暴”。</p>
       
     
       
-        <p>最初我选择用每秒事务数来评估结果。下面简短的测试片段就能说明为什么这个指标其实相当乏味。</p>
+        <h3>测试结果</h3>
+        
       
     
       
-        <p>从每秒事务数来看，不同配置（以及是否开启调试、是否查询数据库）几乎没有任何影响。看来得换个思路。</p>
+        <p>最初我选择用每秒事务数来评估结果。下面一小段数据就能说明为什么这个指标其实没什么意义。</p>
       
     
       
-        <p>我的第二个方案是比较完成所有请求所用的总时间。不幸的是，总耗时和每秒事务数是基于重叠数据计算的，因此两种配置之间的差异基本一致。有时多服务器配置表现更好，有时单服务器配置更胜一筹。没有得出明确结论。</p>
+        <p>从每秒事务数来看，不同配置（包括是否开启调试、是否查询数据库）几乎没有产生任何影响。看来得换个思路。</p>
       
     
       
-        <p>这种趋势贯穿了负载测试记录的所有指标。如果不取最佳值而是对三次运行取平均值，或许能得到更大差异。但即便如此，在这些条件下拼命寻找两者之间的优劣，也只会发现非常微小的差别。对于那些把性能视为拼图的一部分——而非全部——的人来说，这样的数据点几乎毫无意义。</p>
+        <p>我的第二个方案是比较完成所有请求所用的总时间。不幸的是，总耗时和每秒事务数基于互相重叠的数据计算得出，因此两种配置之间的差异基本一致。有时多服务器配置表现更好，有时单服务器配置更优，没有得出明确结论。</p>
       
     
       
-        <p>我很希望看到有人复现这些测试，并引入更多有趣的对比（例如 Nginx + mod_wsgi 与 Nginx + fcgi 与 Apache + mod_wsgi 等），甚至重复这个实验本身，以防我犯了什么严重错误导致这些数据失效。</p>
+        <p>这种趋势贯穿了负载测试记录的所有指标。或许如果对三次运行结果取平均值而不是选最佳值，数据差异会更明显。不过，即便在这些条件下极力寻找两者之间的优劣，也只能发现非常微小的差别。对于那些把性能视为拼图的一部分——而非全部——的人来说，这个数据点的价值几乎可以忽略。</p>
       
     
       
-        <p>目前我的结论是：在条件良好的情况下提供动态内容时，单服务器和多服务器配置的性能大致相当。</p>
+        <p>我很希望看到有人能重复这些测试，并引入更多有趣的对比（例如 Nginx + mod_wsgi vs Nginx + fcgi vs Apache + mod_wsgi 等），甚至将这个实验本身再重复一次，以防我犯了什么严重错误导致这些数据失去参考价值。</p>
       
     
       
-        <h2>原始数据</h2>
+        <p>目前我的结论是：在条件良好的情况下，提供动态内容时，单服务器和多服务器配置的性能大致相当。</p>
       
     
       
-        <p>原始数据可在此处以 CSV 格式下载。</p>
+        <h3>原始数据</h3>
+        
       
     
       
-        <p>下面是我用来提取单一指标数据（并发数、完成时间等）、从三次重复运行中选出最优值，并最终生成 CSV 文件的脚本。</p>
+        <p>原始数据可以在这里以 CSV 格式下载。</p>
+      
+    
+      
+        <p>下面是我用来提取单个指标数据（并发数、完成时间等）、从三次重复运行中挑选最佳值，并最终生成 CSV 文件的脚本。</p>
+      
+    
+      
+        <pre><code>import csv
+fin = open(&#x27;results.csv&#x27;,&#x27;r&#x27;)
+dr = csv.DictReader(fin)
+results = []
+field = &#x27;Concurrency&#x27; # &#x27;Transaction rate&#x27;
+while True:
+    try:
+        tests = [dr.next(),dr.next(),dr.next()]
+        tests.sort(lambda a,b : cmp(a[field], b[field]))
+        test = tests[-1]
+        summary = {}
+        summary[field] = test[field].split(&#x27; &#x27;)[0]
+        summary[&#x27;clients&#x27;] = test[&#x27;users&#x27;]
+        desc = &quot;%s Debug? %s Db? %s&quot; % (
+            test[&#x27;config&#x27;],test[&#x27;debug_on&#x27;], test[&#x27;use_db&#x27;])
+        summary[&#x27;description&#x27;] = desc
+        results.append(summary)  
+    except StopIteration:
+        break
+fin.close()
+fout = open(&#x27;cleaned.csv&#x27;,&#x27;w&#x27;)
+fields =  results[0].keys()
+fields.sort()
+field_dict = {}
+for field in fields:
+    field_dict[field] = field
+writer = csv.DictWriter(fout, fields)
+writer.writerow(field_dict)
+writer.writerows(results)
+fout.close()
+</code></pre>
       
     
   </div>

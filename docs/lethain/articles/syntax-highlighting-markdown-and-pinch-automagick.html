@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>使用 Markdown 实现语法高亮，并为 Django 添加一点自动魔法 · Will Larson 文集</title>
+  <title>使用 Markdown 实现语法高亮，并为 Django 加入一点自动魔法 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>使用 Markdown 实现语法高亮，并为 Django 添加一点自动魔法</h1>
+    <h1>使用 Markdown 实现语法高亮，并为 Django 加入一点自动魔法</h1>
     <div class="meta">
       2007-07-14 · 
       <a href="https://lethain.com/syntax-highlighting-markdown-and-pinch-automagick/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,28 +29,57 @@
   <div class="article-content">
     
       
-        <p>关于在 Django 中为内容实现语法高亮和 Markdown 支持，已有不少不错的资源。当我开始开发自己的博客时，代码主要参考了这里找到的示例。这是一篇写得很好的文章，最终实现了一个可用的系统（其核心部分我在这里复用）。但本文将探讨如何进一步扩展其功能，同时简化代码。</p>
+        <p>关于在 Django 中为内容实现语法高亮和 Markdown 支持，有不少不错的资源。当我开始开发自己的博客时，代码主要基于在这里找到的示例。这是一篇写得很好的文章，最终得到了一个可用的系统（其核心部分我在这里复用了）。但本文将探讨如何对其功能进行一些扩展，同时简化代码。</p>
       
     
       
-        <p>如果你按照上述文章的代码来实现，最终编写的 Markdown 会是这样的：</p>
+        <p>如果你按照上面文章的代码来实现，最终编写的 Markdown 会是这样的：</p>
       
     
       
-        <p>这是一个合理的解决方案，但我觉得代码元素有点笨重，因此这里给出我自己实现的 Django 下 Markdown 语法高亮方案。实现之后，那段 Markdown 可以这样编写：</p>
+        <pre><code>### My article
+
+My list entry one
+My list entry two
+
+&lt;code class=&quot;python&quot;&gt;def x (a, b):
+return a * b&lt;/code&gt;
+</code></pre>
+      
+    
+      
+        <p>这是一个合理的解决方案，但我觉得 code 元素有点笨重，所以这里给出我自己实现的 Django 下 Markdown 语法高亮方案。实现之后，那段 Markdown 可以这样写：</p>
+      
+    
+      
+        <pre><code> ### My article
+
+My list entry one
+My list entry two
+
+@@ python
+def x (a, b):
+return a * b
+</code></pre>
       
     
       
         <p>@@
-效果因人而异，但我认为这在可读性和可写性上都有很大提升。此外，本文展示的 Markdown++ 方案可以访问 Pygments 的所有语法词法分析器，因此你可以使用 html+django、ruby、scheme 或 apache 等语言。</p>
+各人感受可能不同，但我认为这在可读性和可写性上都有很大改进。此外，这里展示的 Markdown++ 方案可以访问 Pygments 的所有语法词法分析器，因此你可以使用 html+django、ruby、scheme 或 apache 等语言。</p>
       
     
       
-        <h2>实现方法</h2>
+        <h3>实现方式</h3>
+        
       
     
       
-        <p>第一步是下载 [MarkDown++][markdownpp]。你可以将其添加到 Python 路径，或者像我一样把它作为文件放在 Django 应用中调用，因此我这样导入它：</p>
+        <p>第一步是下载 [MarkDown++][markdownpp]。你可以将其添加到 Python 路径，或者像我一样把它作为文件加入到 Django 应用中，然后这样导入：</p>
+      
+    
+      
+        <pre><code>import myproject.myapp.markdownpp as markdownpp
+</code></pre>
       
     
       
@@ -58,23 +87,43 @@
       
     
       
-        <p>并为其添加一个 save 方法</p>
+        <pre><code>class Entry(models.Model):
+     title = models.CharField(maxlength=200)
+     body = models.TextField()
+     body_html = models.TextField(blank=True, null=True)
+     use_markdown = models.BooleanField(default=True)
+</code></pre>
       
     
       
-        <p>这样就完成了，现在你可以使用 Markdown++ 语法来进行代码语法高亮。你需要保存这份 CSS 文件，并将其放在媒体文件夹中，让模板能够加载它（这是实现语法着色所需的 CSS，完全不会干扰你现有的样式）。</p>
+        <p>并为其添加 save 方法：</p>
       
     
       
-        <h2>更进一步</h2>
+        <pre><code>    def save(self):
+        if self.use_markdown:
+            self.body_html = markdownpp.markdown(self.html)
+        else:
+            self.body_html = self.body
+        super(Entry,self).save()
+</code></pre>
       
     
       
-        <p>现在你已经拥有了一个可用的 Markdown 和代码语法高亮实现，但我们可以让它变得更加优雅。</p>
+        <p>就这样，现在你就可以使用 Markdown++ 语法来进行代码高亮了。你需要保存这份 CSS 文件，并将其放在媒体文件夹中，让模板能够加载它（这是实现语法着色所需的 CSS，完全不会干扰你现有的样式）。</p>
       
     
       
-        <p>你经常会在内容中引用一些文件（图片或其他资源）。不幸的是，手动编写引用链接很容易出错：</p>
+        <h3>更进一步</h3>
+        
+      
+    
+      
+        <p>现在你已经拥有了一个可用的 Markdown 和代码语法高亮实现，但我们还可以让它更优雅一些。</p>
+      
+    
+      
+        <p>通常你会在内容中引用一些文件（图片或其他资源）。不幸的是，手动编写引用链接很容易出错：</p>
       
     
       
@@ -83,7 +132,7 @@
       
     
       
-        <p>如果要写很多这样的链接，就会变得相当繁琐。要是文章能自动为自己生成引用链接该多好？我们可以做到，而且我们就要这么做（于是大地上一片欢腾）。</p>
+        <p>如果要写很多这样的链接，就会变得相当繁琐。要是条目能自动为自己生成引用链接该多好？我们可以做到，而且我们正要这样做（于是大地上一片欢腾）。</p>
       
     
       
@@ -91,51 +140,141 @@
       
     
       
-        <p>现在需要对之前创建的 Entry 模型进行一些修改：</p>
+        <pre><code>class Resource(models.Model):
+    title = models.CharField(maxlength=50)
+    markdown_id = models.CharField(maxlength=50)
+    content = models.FileField(upload_to=&quot;myapp/resource&quot;)
+</code></pre>
       
     
       
-        <p>现在当你撰写文章时，就可以使用任何已创建 Resource 的 markdown_id。</p>
+        <p>现在需要对之前创建的 Entry 模型做一些修改：</p>
       
     
       
-        <p>看完代码后你可能会想：“为什么不只导入 Entry 实际用到的 Resource 呢？只需加入一个多对多关系然后……”事实上我当初也是这么做的，但很快就会发现这是一个非常不愉快的方案……让我来解释一下。</p>
+        <pre><code>class Entry(models.Model):
+     title = models.CharField(maxlength=200)
+     body = models.TextField()
+     body_html = models.TextField(blank=True, null=True)
+     use_markdown = models.BooleanField(default=True)
+</code></pre>
       
     
       
-        <p>如果你使用 ManyToMany 字段将 Entry 和 Resource 实例关联起来，那么获取相关资源时会这样写：</p>
+        <pre><code>    def save(self):
+        if self.use_markdown:
+            pieces = [self.html,]
+            for res in Resource.objects.all():
+                 ref = u&#x27;\n\n[%s]: %s &quot;%s&quot;\n\n&#x27; % (
+                    res.markdown_id,
+                    res.get_content_url(),
+                    res.title,
+                    )
+                pieces.append(res)
+            content = u&quot;\n&quot;.join(pieces)
+            self.body_html = markdownpp.markdown(content)
+        else:
+            self.body_html = self.body
+        super(Entry,self).save()
+</code></pre>
       
     
       
-        <p>这看起来很棒，非常简单。但它无法正常工作。问题在于，当你保存 Entry 时，同时也在保存 Entry 与 Resource 之间的新关系。这意味着在保存 Entry 的那一刻，Entry 关联的完整更新后的 Resource 列表还不可用。所以你可能会想这样做：</p>
+        <p>现在当你写文章时，就可以使用任何已创建 Resource 的 markdown_id 了。</p>
       
     
       
-        <p>但遗憾的是，这样也不行。不知什么原因，变更无法足够快地传播到数据库中以供此时使用（免责声明：我主要使用 SQLite3 进行开发，它的数据库锁机制非常糟糕，也许在 PostgreSQL 上这个方案能工作得更好，但我对此表示怀疑）。</p>
+        <p>看过代码后你可能会想：“为什么不只导入 Entry 实际用到的 Resource 呢？只要加一个多对多关系然后……”事实上，我确实这么做过，但很快就会发现这是一个非常令人不快的解决方案……让我解释一下。</p>
       
     
       
-        <p>好吧，现在你可能会想：“那我们就用 dispatcher 监听 post_save 信号，然后第二次保存 Entry 吧。”你说得没错，这确实能工作，但并不像你想象的那么干净。问题的关键在于，如果你立即在 post_save 钩子中再次调用保存，数据仍然不会更新，你必须实际等待 2-3 秒才能看到变更生效。</p>
+        <p>如果你有一个 ManyToMany 字段将 Entry 和 Resource 实例关联起来，那么获取相关资源时会这样做：</p>
       
     
       
-        <p>我并不特别推荐使用这种方法，但为了完整性，这里给出我目前解决这个更新问题的方案：</p>
+        <pre><code>refs = entry.resources.all()
+</code></pre>
       
     
       
-        <p>这非常 hack，但它是我能想到的唯一能正常工作的解决方案（除了简单地把所有资源都加到每篇文章里之外）。其核心是用一个单独的线程等待三秒钟后再重新保存。同时还有一些额外代码来防止出现无限保存循环。</p>
+        <p>这看起来很棒，非常简单。但它实际上行不通。问题在于，当你保存 Entry 时，同时也在保存 Entry 与 Resource 之间的新关系。这意味着在保存 Entry 的那一刻，尚未获得该 Entry 关联的完整更新后的 Resource 列表。所以你可能会想这样做：</p>
       
     
       
-        <h2>继续前进</h2>
+        <pre><code>def save:
+    super(Entry,self).save()
+    res = self.resources.all()
+    # etc etc
+    super(Entry,self).save()
+</code></pre>
       
     
       
-        <p>预先生成引用链接以免除手动劳动是一个很有前景的想法：你可以自动生成指向上一篇文章、下一篇文章、博客侧栏中其他博客的链接，等等。稍微思考一下，或许你可以把部分写作流程转移到软件中来完成。</p>
+        <p>但遗憾的是，这也不行。不知什么原因，变更无法足够快地传播到数据库中以便及时更新（免责声明：我开发时主要使用 SQLite3，它的数据库锁机制非常糟糕，也许在 PostgreSQL 上这个方法会好一些，但我对此表示怀疑）。</p>
       
     
       
-        <p>我很想知道是否有人对只加载相关引用的部分有更好的解决方案。如果有任何问题，欢迎告诉我。</p>
+        <p>好的，现在你可能会想：“那我们就用 dispatcher 监听 post_save 信号，然后第二次保存 Entry。”你是对的，这确实能工作，但并不像你想象的那么干净。问题的核心在于，如果你立即在 post_save 钩子中再次调用保存，数据仍然不会更新，你必须实际等待 2-3 秒才能看到变更生效。</p>
+      
+    
+      
+        <p>我并不特别推荐使用这种方式，但为了完整性，这里给出我目前解决这个更新问题的方案：</p>
+      
+    
+      
+        <pre><code>import time, thread
+from django.db import models
+from django.dispatch import dispatcher
+from django.db.models import signals
+#######################
+### your models go here ###
+#######################
+</code></pre>
+      
+    
+      
+        <pre><code>def resave_object(sender, instance, signal, *args, **kwargs):
+    def do_save():
+        time.sleep(3)
+        try:
+            instance.save()
+        except:
+            pass
+    id = unicode(instance) + unicode(instance.id)
+    try:
+        should_resave = resave_hist[id]
+    except KeyError:
+        resave_hist[id] = True
+        should_resave = True
+    if should_resave is True:
+        resave_hist[id] = False
+        thread.start_new_thread(do_save, ())
+    else:
+        resave_hist[id] = True
+</code></pre>
+      
+    
+      
+        <pre><code>resave_hist = {}
+dispatcher.connect(resave_object, signal=signals.post_save, sender=Entry)
+</code></pre>
+      
+    
+      
+        <p>这非常 hacky，但它是我想到的唯一能正常工作的解决方案（除了把所有资源都加到每一条 Entry 里）。其核心是用一个单独的线程等待三秒钟后再重新保存。同时还有一些额外代码来防止出现无限保存循环。</p>
+      
+    
+      
+        <h3>继续前进</h3>
+        
+      
+    
+      
+        <p>预先生成引用链接以免手动编写，这个想法很有价值：你可以自动生成指向前后文章的链接、指向博客侧栏中其他博客的链接，或者任何你使用的链接。稍微思考一下，或许你可以把部分写作流程转移到软件上来完成。</p>
+      
+    
+      
+        <p>我很想知道是否有人对只加载相关引用有更好的解决方案。如果有任何问题，欢迎告诉我。</p>
       
     
   </div>

@@ -29,7 +29,7 @@
   <div class="article-content">
     
       
-        <p>在我的写作中（包括这个博客上的公开文章和个人笔记），我最常使用的两个工具就是 Graphviz 和 Markdown。最近几天我一直想着如何把 Graphviz 图表嵌入到 Markdown 里，今天终于抽出几个小时快速实现了一个原型。</p>
+        <p>在我的写作中（包括这个博客上的公开文章和个人笔记），我最常使用的两个工具就是 Graphviz 和 Markdown。最近几天我一直在考虑如何将 Graphviz 图表嵌入到 Markdown 中，今天终于抽出了几个小时快速实现了一个原型。</p>
       
     
       
@@ -37,11 +37,11 @@
       
     
       
-        <p>我选择扩展 Python-Markdown，是因为这个博客所使用的自定义 Markdown 扩展（有人觉得有些随意）就是基于它开发的。</p>
+        <p>我选择扩展 Python-Markdown，是因为这个博客所使用的自定义 Markdown 扩展（有人认为比较随意）就是基于它实现的。</p>
       
     
       
-        <p>编写文档的语法非常简单：把 Graphviz 图表代码放在一个标签内，标签类型对应要使用的 Graphviz 可执行程序（dot、neato、lefty、dotty）。</p>
+        <p>书写文档的语法非常直观：将 Graphviz 图表代码放在一对标签内，标签类型对应具体的 Graphviz 可执行程序（dot、neato、lefty、dotty）。</p>
       
     
       
@@ -63,7 +63,15 @@ This is some text
       
     
       
-        <p>一个简单的使用示例如下（需确保 mdx_graphviz.py 在 Python 路径中）：</p>
+        <p>一个简单的使用示例（需要将 mdx_graphviz.py 放在 Python 路径下）：</p>
+      
+    
+      
+        <pre><code>import markdown
+txt = &quot;* this is some\n&lt;dot&gt;\ndigraph a {\n a -&gt; b;\n}\n&lt;/dot&gt;\nhi\n&quot;
+md = markdown.Markdown(extensions=[&#x27;graphviz&#x27;])
+print md.convert(txt)
+</code></pre>
       
     
       
@@ -71,11 +79,24 @@ This is some text
       
     
       
-        <div class="list-content">BINARY_PATH 是 dot、neato 等可执行程序的路径（默认不指定路径，即假设已在 $PATH 中）。FORMAT 是 Graphviz 生成的图片格式（默认为 png）。WRITE_IMGS_DIR 是图片的输出目录（默认为当前目录）。BASE_IMG_LINK_DIR 是生成图片链接的基础目录（默认为当前目录）。</div>
+        <div class="list-content">BINARY_PATH 是 dot、neato 等可执行文件的路径（默认为空，即假定已在 $PATH 中）。FORMAT 是 Graphviz 生成图片的格式（默认为 png）。WRITE_IMGS_DIR 是图片的输出目录（默认为当前目录）。BASE_IMG_LINK_DIR 是生成图片链接的基础目录（默认为当前目录）。</div>
       
     
       
-        <p>修改默认设置的示例如下：</p>
+        <p>修改默认设置的示例：</p>
+      
+    
+      
+        <pre><code>import markdown
+txt = &quot;* this is some\n&lt;dot&gt;\ndigraph a {\n a -&gt; b;\n}\n&lt;/dot&gt;\nhi\n&quot;
+md = markdown.Markdown(
+    extensions=[&#x27;graphviz&#x27;],
+    extension_configs={&#x27;graphviz&#x27;:
+                           {&#x27;FORMAT&#x27;:&#x27;gif&#x27;}
+                       },
+    )
+print md.convert(txt)
+</code></pre>
       
     
       
@@ -83,11 +104,11 @@ This is some text
       
     
       
-        <div class="list-content">使用图的名称（从 Graphviz 语法中提取）作为文件名，而不是纯数字文件名。支持指定图的尺寸，或者至少指定宽度并自动计算高度。</div>
+        <div class="list-content">使用图的名称（从 Graphviz 语法中提取）作为文件名，而不是纯数字文件名。支持指定图的尺寸，或者至少可以指定宽度并自动计算高度。</div>
       
     
       
-        <p>基本上就是这些了。在后续使用过程中我可能会继续改进，如果这个工具对你有用，我也非常欢迎其他人一起参与开发。</p>
+        <p>基本就是这些了。在后续使用过程中我可能会做一些改进，如果这个扩展对你有用，我也非常欢迎其他人一起完善它。</p>
       
     
       

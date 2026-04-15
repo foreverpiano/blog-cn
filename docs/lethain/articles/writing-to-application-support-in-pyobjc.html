@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>在 PyObjC 中写入 Application Support 目录 · Will Larson 文集</title>
+  <title>在 PyObjC 中写入 Application Support · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>在 PyObjC 中写入 Application Support 目录</h1>
+    <h1>在 PyObjC 中写入 Application Support</h1>
     <div class="meta">
       2008-08-22 · 
       <a href="https://lethain.com/writing-to-application-support-in-pyobjc/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,11 +29,19 @@
   <div class="article-content">
     
       
-        <p>使用 PyObjC 编写 Cocoa 应用时，很容易养成在 .app 包内存放错误类型数据的坏习惯。例如，在我正在开发的一个应用中，我使用了一个 SQLite 数据库，并像下面这样从 .app 包内部访问它：</p>
+        <p>使用 PyObjC 编写 Cocoa 应用时，很容易养成在 .app 包内保存错误类型数据的坏习惯。例如，在我正在开发的一个应用中，我使用了一个 SQLite 数据库，并像下面这样从 .app 包内部访问它：</p>
       
     
       
-        <p>因为这个数据库包含的是不可变数据，所以将其存放在 .app 包内是合适的。然而，在同一个应用中，我还需要存储一些用户特定的数据。与不可变数据库不同，用户特定数据的正确存放位置应该是 ~/Library/Application Support/ 的子文件夹中。</p>
+        <pre><code>import os,sqlite3
+def getDatabase(self):
+    path = os.path.join(os.path.dirname(__file__),&#x27;my_dict.sqlite&#x27;)
+    return sqlite3.connect(path)
+</code></pre>
+      
+    
+      
+        <p>由于这个数据库包含的是不可变数据，因此将其存储在 .app 包内是合适的位置。然而，在同一个应用中，我还需要存储一些用户特定的数据。与不可变的数据库不同，用户特定数据的正确存储位置是 ~/Library/Application Support/ 的某个子文件夹中。</p>
       
     
       
@@ -41,15 +49,43 @@
       
     
       
-        <p>这样我们就能找到任意应用的 Support 文件夹（只要知道它的名称即可），但我们可以进一步构建一个更实用的函数，在此基础上拼接出指定文件的完整路径。</p>
+        <pre><code>import os
+from AppKit import *
+from Foundation import *
+def applicationSupportFolder(appname=u&quot;MyAppNameHere&quot;):
+    paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory,NSUserDomainMask,True)
+    basePath = (len(paths) &gt; 0 and paths[0]) or NSTemporaryDirectory()
+    fullPath = basePath.stringByAppendingPathComponent_(appname)
+    if not os.path.exists(fullPath):
+        os.mkdir(fullPath)
+    return fullPath
+</code></pre>
       
     
       
-        <p>使用 pathForFilename 函数的方式如下：</p>
+        <p>这样我们就能为任意应用找到它的支持文件夹（只要知道应用名称即可），但我们可以进一步构建一个更实用的函数，在此基础上拼接出给定文件名的完整路径。</p>
       
     
       
-        <p>如果有任何问题或建议，欢迎告诉我。</p>
+        <pre><code>def pathForFilename(filename,appname=None):
+    base = (appname and applicationSupportFolder(appname)) or applicationSupportFolder()
+    return base.stringByAppendingPathComponent_(filename)
+</code></pre>
+      
+    
+      
+        <p>使用 pathForFilename 的方式如下：</p>
+      
+    
+      
+        <pre><code>path = pathForFilename(&#x27;user_data.xml&#x27;,&#x27;my_app&#x27;)
+fin = open(path,&#x27;r&#x27;)
+prefs = SomeCustomPythonClass(fin.read())
+</code></pre>
+      
+    
+      
+        <p>如果有任何问题或意见，欢迎随时告诉我。</p>
       
     
   </div>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我们自己的智能体，以及它们自己的工具。 · Will Larson 文集</title>
+  <title>我们自己的智能体及其专属工具 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>我们自己的智能体，以及它们自己的工具。</h1>
+    <h1>我们自己的智能体及其专属工具</h1>
     <div class="meta">
       2025-02-04 · 
       <a href="https://lethain.com/our-own-agents-our-own-tools/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,55 +29,139 @@
   <div class="article-content">
     
       
-        <p>进入2025年，我决定花些时间深入探索智能体（agents）这个话题。我先阅读了 Anthropic 的《Building effective agents》，接着又看了 Chip Huyen 的《AI Engineering》。我在工作中启动了一个使用智能体的大型项目，同时也决定做一个个人的实验项目。本文就是对构建这个项目的总体感想。</p>
+        <p>进入2025年，我决定花些时间深入探索智能体（agents）这个主题。我先阅读了Anthropic的《Building effective agents》，接着又看了Chip Huyen的《AI Engineering》。我在工作中启动了一个使用智能体的大型项目，同时也决定做一个个人的小实验。本文就是关于构建这个项目的总体心得。</p>
       
     
       
-        <p>我想构建的是一个简单的聊天界面，能让我编写提示词、选择模型，并让模型在合适的时候调用工具。我的附带目标是尽量使用 Cursor 来开发，尽可能不直接手写代码。但实际体验下来，我发现直接在 emacs 中写代码、同时让 4o-mini 提供可用的示例，整体效率反而更高。</p>
+        <p>我想构建的是一个简单的聊天界面，能够输入提示词、选择模型，并让模型根据需要自主调用工具。我的次要目标是尽量使用Cursor来开发，尽可能少直接手写代码。但实际体验下来，我发现直接在emacs里写代码、同时让4o-mini提供可用的示例代码，反而效率更高。</p>
       
     
       
-        <p>同样，虽然我最初设想用 Cursor 以全栈 TypeScript 来开发，但最终还是转回到了自己更熟悉的技术栈，最终使用了 Python3、FastAPI、PostgreSQL，以及基于 async psycopg3 驱动的 SQLAlchemy。我已经好久没有从零开始一个新的 Python 项目了，这次就把这个项目当作机会，熟悉了 Python3 的 async/await 机制、类型系统以及 mypy。最后，我还想尝试一下 Tailwind，最终使用了 TailwindUI 的组件来构建前端页面。</p>
+        <p>同样，我一开始设想用Cursor全程以全栈TypeScript来开发，但最终还是切换到了自己更熟悉的技术栈，最终采用了Python 3、FastAPI、PostgreSQL，以及搭配异步psycopg3驱动的SQLAlchemy。我已经很久没有从零开始一个新的Python项目了，于是把这个项目当作机会，熟悉了Python 3的async/await机制、类型系统以及mypy的使用。最后，我也想尝试Tailwind，最终使用了TailwindUI的组件来构建界面。</p>
       
     
       
-        <p>当前可运行的版本已经支持我想要的所有功能：创建与不同模型的对话，并允许这些模型通过函数调用来使用我提供的工具。模型可以为了解决问题而调用任意数量的工具。其中工具的使用绝对是最有趣的部分。我创建的最简单的工具是一个 get_temperature，它会返回你所在位置的伪造温度。这让我可以问出类似“明天在旧金山（San Francisco, CA）我应该穿什么？”这样的问题，并得到有用的回答。</p>
+        <p>最终完成的版本支持我想要的一切功能：创建与不同模型的聊天会话，并允许这些模型通过函数调用来使用我提供的工具。模型可以为了解决问题而调用任意数量的工具。其中工具的使用绝对是最有趣的部分。我创建的最简单的工具是一个get_temperature工具，它能为你的位置提供一个虚拟的温度读数。这让我可以问出类似“明天在加州旧金山我该穿什么？”这样的问题，并得到有用的回答。</p>
       
     
       
-        <p>把这个功能添加到项目中的代码非常简洁，只需要三行 Python 代码，再加上 25 行传递给 OpenAI API 的元数据。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/agent-temp.png" alt="Example of an agent responding to query about weather.">
+          
+        </figure>
       
     
       
-        <p>在实现这个工具之后，我接下来添加的是一个简单的 URL 抓取工具，它允许智能体获取某个网页内容，并将其纳入提示词中使用。</p>
+        <p>将这个功能添加到项目中的代码非常简洁，只需要三行Python代码，再加上25行传递给OpenAI API的元数据。</p>
       
     
       
-        <p>这个工具的实现也同样非常简单。</p>
+        <pre><code>def tool_get_current_weather(location: str|None=None, format: str|None=None) -&gt; str:
+    &quot;Simple proof of concept tool.&quot;
+    temp = random.randint(40, 90) if format == &#x27;fahrenheit&#x27; else random.randint(10, 25)
+    return f&quot;It&#x27;s going to be {temp} degrees {format} tomorrow.&quot;
+
+
+FUNCTION_REGISTRY[&#x27;get_current_weather&#x27;] = tool_get_current_weather
+TOOL_USAGE_REGISTRY[&#x27;get_current_weather&#x27;] = {
+    &quot;type&quot;: &quot;function&quot;,
+    &quot;function&quot;: {
+        &quot;name&quot;: &quot;get_current_weather&quot;,
+        &quot;description&quot;: &quot;Get the current weather&quot;,
+        &quot;parameters&quot;: {
+            &quot;type&quot;: &quot;object&quot;,
+            &quot;properties&quot;: {
+                &quot;location&quot;: {
+                    &quot;type&quot;: &quot;string&quot;,
+                    &quot;description&quot;: &quot;The city and state, e.g. San Francisco, CA&quot;,
+                },
+                &quot;format&quot;: {
+                    &quot;type&quot;: &quot;string&quot;,
+                    &quot;enum&quot;: [&quot;celsius&quot;, &quot;fahrenheit&quot;],
+                    &quot;description&quot;: &quot;The temperature unit to use. Infer this from the users location.&quot;,
+                },
+            },
+            &quot;required&quot;: [&quot;location&quot;, &quot;format&quot;],
+        },
+    }
+}
+</code></pre>
       
     
       
-        <p>真正令人惊讶的是，通过增加这样一个检索 URL 的微不足道的工具，你能给智能体带来多大的能力。类似地，你可以想象添加获取和评论 GitHub Pull Request 的工具等等，这会让这样一个极其简单的智能体工具变得相当实用。</p>
+        <p>在实现这个工具之后，我接下来添加的是一个简单的URL获取工具，它允许智能体抓取一个URL，并将其内容纳入提示词中。</p>
       
     
       
-        <p>这个项目让我对不远的未来产生了一个颇为令人信服的展望：大多数工程师都会拥有这样一个简单的应用，他们可以把来自各种系统（邮件、短信、GitHub Pull Request、日历等）的事件导入其中，创建触发器把事件映射到提示词模板，然后让具备工具调用能力的智能体去执行这些提示词。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/2025/agent-url.png" alt="An agent using a tool to retrieve the contents of a URL.">
+          
+        </figure>
       
     
       
-        <p>如果再结合其他智能体能够向你注册自己并暴露它们可用的工具（例如“帮我用工具所有者的日历安排一个会议”），那么只需非常适度的投入，就能实现大量有趣的功能：</p>
+        <p>这个工具的实现同样非常简单。</p>
       
     
       
-        <div class="list-content">你可以为两个忙碌的人的日历安排会议，就像他们各自都有一个助理在管理日历一样；用新发布的博客文章回复你自己的 Pull Request，并对错别字和语法问题提供反馈；抓取你关心的网站并找出你可能感兴趣的文章；让模型使用 lethain:systems 生成一个系统模型，运行它，然后绘制响应图表；增加一个“规划工具”，让模型生成一个计划来指导复杂任务的后续步骤（例如获取我的日历、获取朋友的日历、建议一个我们都能参加的时间）。</div>
+        <pre><code>def tool_get_url(url: str|None=None) -&gt; str:
+    if url is None:
+        return &#x27;&#x27;
+    url = str(url)
+
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, &#x27;html.parser&#x27;)
+    content = soup.find(&#x27;main&#x27;) or soup.find(&#x27;article&#x27;) or soup.body
+    if not content:
+        return str(response.content)
+
+    markdown = markdownify(str(content), heading_style=&quot;ATX&quot;).strip()
+    return str(markdown)
+
+
+FUNCTION_REGISTRY[&#x27;get_url&#x27;] = tool_get_url
+TOOL_USAGE_REGISTRY[&#x27;get_url&#x27;] = {
+    &quot;type&quot;: &quot;function&quot;,
+    &quot;function&quot;: {
+        &quot;name&quot;: &quot;get_url&quot;,
+        &quot;description&quot;: &quot;Retrieve the contents of a website via its URL.&quot;,
+        &quot;parameters&quot;: {
+            &quot;type&quot;: &quot;object&quot;,
+            &quot;properties&quot;: {
+                &quot;url&quot;: {
+                    &quot;type&quot;: &quot;string&quot;,
+                    &quot;description&quot;: &quot;The complete URL, including protocol to retrieve. For example: \&quot;https://lethain.com\&quot;&quot;,
+                }
+            },
+            &quot;required&quot;: [&quot;url&quot;],
+        },
+    }
+}
+</code></pre>
       
     
       
-        <p>这些功能都不是能改变人生的，但每一个都多少有些用处。我相信，一旦你有了必要的基础设施让这类事情变得容易，还会有许多更显而易见的想法变得容易实现。</p>
+        <p>令人惊叹的是，通过添加一个像获取URL这样看似微不足道的工具，你就能为智能体赋予巨大的能力。你可以想象再加入获取和评论GitHub Pull Request的工具等等，这类简单的智能体工具就能变得相当实用。</p>
       
     
       
-        <p>总的来说，我现在确信，利用当前的基础模型，智能体将会创造出一系列非常有趣的体验，在日常生活中给我们带来许多小的改善，而这些小的改善累积起来将会相当具有变革性。不过我不太确信这会成为未来所有软件的开发方式，关于这一点我以后会再多谈。（工作中正在进行一系列有趣的实验，但目前都还处于早期阶段。）</p>
+        <p>通过这个项目，我对不久的将来有了一个颇为清晰的想象：大多数工程师都会运行一个类似这样的简单应用，他们可以将来自各种系统（邮件、短信、GitHub Pull Request、日历等）的事件导入其中，创建触发器将事件映射到提示词模板，再让具备工具调用能力的智能体来执行这些提示。</p>
+      
+    
+      
+        <p>如果再结合其他智能体能够向你注册并暴露它们可用的工具（例如“帮工具所有者安排一个日程”），那么只需非常适度的投入，就能实现许多有趣的功能：</p>
+      
+    
+      
+        <div class="list-content">为两个忙碌的人的日历安排会议，就像他们各自都有助理在管理日程一样；用新发布的博客文章回复你自己的Pull Request，并对错别字和语法问题提供反馈；抓取你关注的网站，找出你可能感兴趣的文章；让模型使用lethain:systems生成一个系统模型，运行它，然后绘制结果图表；添加一个“规划工具”，让模型先生成一个计划，来指导复杂任务的后续步骤（例如获取我的日历、获取朋友的日历，然后建议一个合适的见面时间）。</div>
+      
+    
+      
+        <p>这些功能都不是能改变人生的，但每一项都多少有些用处。我相信，一旦你具备了让这类事情变得简单的必要基础架构，还会有更多显而易见的好想法变得容易实现。</p>
+      
+    
+      
+        <p>总的来说，我现在确信，基于当前基础模型的智能体将会创造出许多非常有趣的体验，在日常生活的一些小事上给我们带来改善，而这些改善累积起来，会相当具有变革性。不过，我不太确定这是否就是未来所有软件都应该采用的方式，这一点我以后会继续思考。（目前在工作中也正在进行一些有趣的实验，但还处于早期阶段。）</p>
       
     
   </div>

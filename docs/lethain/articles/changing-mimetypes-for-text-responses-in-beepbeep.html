@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>在 BeepBeep 中为文本响应更改 MIME 类型 · Will Larson 文集</title>
+  <title>在 BeepBeep 中更改文本响应的 MIME 类型 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>在 BeepBeep 中为文本响应更改 MIME 类型</h1>
+    <h1>在 BeepBeep 中更改文本响应的 MIME 类型</h1>
     <div class="meta">
       2009-09-03 · 
       <a href="https://lethain.com/changing-mimetypes-for-text-responses-in-beepbeep/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,11 +29,66 @@
   <div class="article-content">
     
       
-        <p>我正在开发一个使用 BeepBeep 实现的项目。其中一部分工作是实现一个返回 JSON 格式结果的 API。如果是通过渲染模板来实现，这很容易做到，</p>
+        <p>我正在开发一个项目，该项目基于 BeepBeep 实现。其中一部分工作是实现一个 API，并以 JSON 格式返回结果。如果是通过渲染模板来实现，这非常简单，</p>
       
     
       
-        <p>但如果你不想渲染模板，而是直接返回任意的二进制数据或列表数据，目前并没有一种直接简便的方法。通过修改 src/PROJECT_web.erl 文件，将 loop/1 函数替换为以下内容，就可以轻松添加这个功能：</p>
+        <pre><code>handle_request(&quot;index&quot;,[]) -&gt;
+  {render,&quot;home/index.html&quot;,[], [{content_type, &quot;application/json&quot;]}.
+</code></pre>
+      
+    
+      
+        <p>但如果你不想渲染模板，而是直接返回任意的二进制数据或列表数据，目前并没有一种直接的方式。可以通过修改 src/PROJECT_web.erl 文件来轻松添加此功能：将 loop/1 函数替换为以下内容：</p>
+      
+    
+      
+        <pre><code>loop(Req) -&gt;
+    %% Setup env...                                                                                                                                                                
+    InitialEnv = mochiweb_env:setup_environment(Req),
+    Env = setup_session(Req,InitialEnv),
+    %% Possible return values                                                                                                                                                      
+    %% {render,View,Data}                                                                                                                                                          
+    %% {render,View,Data,Options}                                                                                                                                                  
+    %% {text,Data}                                                                                                                                                                 
+    %% {text,Data,Options}                                                                                                                                                         
+    %% {json,Data}                                                                                                                                                                 
+    %% {redirect,Url}                                                                                                                                                              
+    %% {static,File}                                                                                                                                                               
+    %% {error,_}
+    case beepbeep:dispatch(Env) of
+        {render,View,Data} -&gt;
+            {ok,Content} = render_template(View,Data,Env),
+            Req:respond({200,
+                         [{&quot;Content-Type&quot;,&quot;text/html&quot;}|[get_cookie(Env)]],
+                         Content});
+        {render,View,Data,Options} -&gt;
+            {Status,ContentType,Headers} = extract_options(Options, 200, &quot;text/html&quot;),
+            {ok,Content} = render_template(View,Data,Env),
+            Req:respond({Status,
+                         [{&quot;Content-Type&quot;,ContentType}|[get_cookie(Env)|Headers]],
+                         Content});
+        {text,Content} -&gt;
+            Req:respond({200,
+                         [{&quot;Content-Type&quot;,&quot;text/plain&quot;}|[get_cookie(Env)]],
+                         Content});
+        {text,Content,Options} -&gt;
+            {Status,ContentType,Headers} = extract_options(Options, 200, &quot;text/plain&quot;),
+            Req:respond({Status,
+                         [{&quot;Content-Type&quot;,ContentType}|[get_cookie(Env)|Headers]],
+                         Content});
+        {redirect,Url} -&gt;
+            Req:respond({302,
+                         [{&quot;Location&quot;, Url},
+                          {&quot;Content-Type&quot;, &quot;text/html; charset=UTF-8&quot;}],
+                         &quot;&quot;});
+        {static, File} -&gt;
+            &quot;/&quot; ++ StaticFile = File,
+            Req:serve_file(StaticFile,skel_deps:local_path([&quot;www&quot;]));
+        {error,_} -&gt;
+            Req:respond({500,[],&quot;Server Error&quot;})
+    end.
+</code></pre>
       
     
       
@@ -41,11 +96,26 @@
       
     
       
-        <p>之后你就可以使用任意 MIME 类型返回任意数据了。</p>
+        <pre><code>extract_options(Options, DefaultStatus, DefaultMimetype) -&gt;
+    {proplists:get_value(status,Options,DefaultStatus),
+     proplists:get_value(content_type,Options,DefaultMimetype),
+     proplists:get_value(headers,Options,[])}.
+</code></pre>
       
     
       
-        <p>你可以为自己的项目打上这个补丁，或者直接使用我修改后的 BeepBeep 版本，不过我们还是希望能够顺利将这个补丁 upstream 到官方版本。</p>
+        <p>这样你就可以返回任意数据并设置任意 MIME 类型了。</p>
+      
+    
+      
+        <pre><code>handle_request(&quot;index&quot;,[]) -&gt;
+  Json = mochijson:encode({struct, [{a, &quot;b&quot;}, {b, &quot;c&quot;}]}),
+  {text, Json, [{content_type, &quot;application/json&quot;]}.
+</code></pre>
+      
+    
+      
+        <p>你可以为自己的项目打上这个补丁，或者直接使用我修改后的 BeepBeep 版本，希望我们能顺利将这个补丁 upstream 到官方版本中。</p>
       
     
   </div>

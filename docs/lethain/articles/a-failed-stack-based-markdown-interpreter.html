@@ -29,11 +29,11 @@
   <div class="article-content">
     
       
-        <p>我周末的一个项目是尝试用 Erlang 写一个基于栈的 Markdown 解释器。首先要承认，这个项目在完整性和性能上都失败了。</p>
+        <p>我周末的一个项目是使用 Erlang 写一个基于栈的 Markdown 解释器。首先我要承认，这个项目在完整性和性能上都失败了。</p>
       
     
       
-        <p>Markdown 的行内语法用栈来解析非常直截了当：</p>
+        <p>Markdown 的行内部分使用栈来解析非常直截了当：</p>
       
     
       
@@ -47,15 +47,15 @@
       
     
       
-        <p>即使是像 *test **this** out `please *if you won&#x27;t mind* it`* 这样相当复杂的嵌套组合，用基于栈的解释器也容易处理，尽管如果用正则表达式来实现可能会非常复杂。</p>
+        <p>即使是 *test **this** out `please *if you won&#x27;t mind* it`* 这样相当复杂的组合，用基于栈的解释器处理也很容易，尽管如果依赖正则表达式来解决可能会相当复杂。</p>
       
     
       
-        <p>然而，Markdown 的多行结构用朴素的实现就变得非常棘手，或者至少在缺乏前期规划的朴素实现下是如此。</p>
+        <p>然而，Markdown 的多行结构用朴素的实现方式会变得非常 awkward，至少在缺乏规划的朴素实现中是如此。</p>
       
     
       
-        <p>以无序列表的语法为例：</p>
+        <p>考虑无序列表的语法：</p>
       
     
       
@@ -66,31 +66,32 @@
       
     
       
-        <p>在创建每个 &lt;li&gt; 元素之前，你需要检查栈上是否已经存在 &lt;ul&gt; 元素。如果没有，就添加它，否则继续。关闭标签则更复杂一些，需要在关闭 &lt;li&gt; 元素时检查下一行内容并做出判断。</p>
+        <p>在创建每个 &lt;li&gt; 元素之前，你需要检查栈上是否已经存在 &lt;ul&gt; 元素。如果没有，就添加它，否则继续。关闭操作则更为复杂，需要在关闭 &lt;li&gt; 元素时检查下一行并做出判断。</p>
       
     
       
-        <p>接下来是引用块（blockquotes），其行为与 &lt;ul&gt; 类似，只是栈上没有 &lt;li&gt; 元素来帮助跟踪当前位置。</p>
+        <p>然后是 blockquote，其行为与 &lt;ul&gt; 类似，只是栈上没有 &lt;li&gt; 元素可用于跟踪当前位置。</p>
       
     
       
-        <p>然后是代码块，其行为与引用块类似。</p>
+        <p>接着是代码块，其行为类似于 blockquote。</p>
       
     
       
-        <p>再就是段落，默认情况下没有被其他标签包裹的文本都会被视为段落。</p>
+        <p>再然后是段落，对于没有被封闭标签包围的文本会默认出现。</p>
       
     
       
-        <p>将这些结构与多级缩进以及对换行符处理不一致（引用块里的换行会变成空格，而 pre 块里的换行仍保持换行等）结合起来，这次初始实现中缺乏规划的问题就显得极为致命。</p>
+        <p>将这些东西与多级缩进以及对换行符不一致的处理（blockquote 中的换行会变成空格，而 pre 块中仍保留换行，等等）结合起来，这次第一个实现中缺乏规划就显得极为致命。</p>
       
     
       
-        <p>下面是这个初始实现取得的一些进展细节，但我现在要重新从头设计多行解析的部分。我还没决定是否继续为多行解析保留基于栈的概念，但我倾向于先做一个预编译阶段，构建出所有多行结构的 DOM，然后只对单行内容使用栈解析器。</p>
+        <p>下面是一些关于这个第一个实现所取得进展的更多细节，但我得回到绘图板重新设计多行部分的处理。我目前还没有决定是否继续为多行解析坚持使用基于栈的概念，但我倾向于先做一个预编译阶段，构建所有多行结构的 DOM，然后仅对单独的行使用栈解析器。</p>
       
     
       
         <h2>完整性</h2>
+        
       
     
       
@@ -98,55 +99,215 @@
       
     
       
+        <pre><code>testcases() -&gt;
+    [{&quot;*test*&quot;,  &lt;&lt;&quot;&lt;p&gt;&lt;em&gt;test&lt;/em&gt;&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;**test**&quot;, &lt;&lt;&quot;&lt;p&gt;&lt;strong&gt;test&lt;/strong&gt;&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;``test``&quot;, &lt;&lt;&quot;&lt;p&gt;&lt;code&gt;test&lt;/code&gt;&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;`test`&quot;, &lt;&lt;&quot;&lt;p&gt;&lt;code&gt;test&lt;/code&gt;&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;[test](http://test.com/)&quot;,  &lt;&lt;&quot;&lt;p&gt;&lt;a href=\&quot;http://test.com/\&quot;&gt;test&lt;/a&gt;&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;[test](http://test.com/ \&quot;test2\&quot;)&quot;, &lt;&lt;&quot;&lt;p&gt;&lt;a href=\&quot;http://test.com/\&quot; title=\&quot;test2\&quot;&gt;test&lt;/a&gt;&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;[test]: http://test.com/\n[test][test]&quot;, &lt;&lt;&quot;&lt;p&gt;&lt;a href=\&quot;http://test.com/\&quot;&gt;test&lt;/a&gt;&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;[test]: http://test.com/ \&quot;test2\&quot;\n[test][test]&quot;, &lt;&lt;&quot;&lt;p&gt;&lt;a href=\&quot;http://test.com/\&quot; title=\&quot;test2\&quot;&gt;test&lt;/a&gt;&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;out&quot;, &lt;&lt;&quot;&lt;p&gt;out&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;out\n&quot;, &lt;&lt;&quot;&lt;p&gt;out&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;out\nwoot\n&quot;, &lt;&lt;&quot;&lt;p&gt;out woot&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;out\nwoot&quot;, &lt;&lt;&quot;&lt;p&gt;out woot&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;&gt;&gt; this is\n&gt;&gt; a test\n&quot;, &lt;&lt;&quot;&lt;blockquote&gt;this is a test&lt;/blockquote&gt;&quot;&gt;&gt;},
+     {&quot;    this is\n    a test\n&quot;, &lt;&lt;&quot;&lt;pre&gt;this is\na test&lt;/pre&gt;&quot;&gt;&gt;},
+     {&quot;    this is a\n    test\n    yep\n&gt;&gt; and this\n&gt;&gt; is too&quot;, &lt;&lt;&quot;&lt;pre&gt;this is a\ntestyep&lt;/pre&gt;&lt;blockquote&gt;and this is too&lt;/blockquote&gt;&quot;&gt;&gt;},
+     {&quot;this is a test\nand another\nand *another*\n&quot;, &lt;&lt;&quot;&lt;p&gt;this is a test and another and &lt;em&gt;another&lt;/em&gt;&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;    test\n    this\n    out\n\n **yep**&quot;, &lt;&lt;&quot;&lt;pre&gt;test\nthisout&lt;/pre&gt;&lt;p&gt; &lt;strong&gt;yep&lt;/strong&gt;&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;this is *a test*\n\n    import test\n    import test2\nstill a **test**\n&quot;, &lt;&lt;&quot;&lt;p&gt;this is &lt;em&gt;a test&lt;/em&gt;&lt;/p&gt;&lt;pre&gt;import test\nimport test2&lt;/pre&gt;&lt;p&gt;still a &lt;strong&gt;test&lt;/strong&gt;&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;test\nthis\n\n&gt;&gt; out&quot;, &lt;&lt;&quot;&lt;p&gt;test this&lt;/p&gt;&lt;blockquote&gt;out&lt;/blockquote&gt;&quot;&gt;&gt;},
+     {&quot;test\nthis\n\n&gt;&gt; out\n&gt;&gt; again\n&quot;, &lt;&lt;&quot;&lt;p&gt;test this&lt;/p&gt;&lt;blockquote&gt;out again&lt;/blockquote&gt;&quot;&gt;&gt;},
+     {&quot;test this\n**out**\n\n&gt;&gt; and this\n&gt;&gt; as well\n\n    woo\n    hoo\n&quot;, &lt;&lt;&quot;&lt;p&gt;test this &lt;strong&gt;out&lt;/strong&gt;&lt;/p&gt;&lt;blockquote&gt;and this as well&lt;/blockquote&gt;&lt;pre&gt;woo\nhoo&lt;/pre&gt;&quot;&gt;&gt;},
+     {&quot;    this is a test\n    of pre\n\n* test this\n* out\n\n woohoo&quot;, &lt;&lt;&quot;&lt;pre&gt;this is a test\nof pre&lt;/pre&gt;&lt;ul&gt;&lt;li&gt;test this&lt;/li&gt;&lt;li&gt;out&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;woohoo&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot; *test this ``out``*&quot;, &lt;&lt;&quot;&lt;p&gt; &lt;em&gt;test this &lt;code&gt;out&lt;/code&gt;&lt;/em&gt;&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot; *test this **out***&quot;, &lt;&lt;&quot;&lt;p&gt; &lt;em&gt;test this &lt;strong&gt;out&lt;/strong&gt;&lt;/em&gt;&lt;/p&gt;&quot;&gt;&gt;},
+     {&quot;* this is a test\n* so is this\n* and this\n&quot;, &lt;&lt;&quot;&lt;ul&gt;&lt;li&gt;this is a test&lt;/li&gt;&lt;li&gt;so is this&lt;/li&gt;&lt;li&gt;and this&lt;/li&gt;&lt;/ul&gt;&quot;&gt;&gt;},
+     {&quot;* *test this **out***\n&quot;, &lt;&lt;&quot;&lt;ul&gt;&lt;li&gt;&lt;em&gt;test this &lt;strong&gt;out&lt;/strong&gt;&lt;/em&gt;&lt;/li&gt;&lt;/ul&gt;&quot;&gt;&gt;},
+     {&quot;1. test\n2. test&quot;, &lt;&lt;&quot;&lt;ol&gt;&lt;li&gt;test&lt;/li&gt;&lt;li&gt;test&lt;/ol&gt;&lt;/li&gt;&quot;&gt;&gt;},
+     {&quot;1. this is a test\n2. so is this\n\n* and so on\n* and further\n\na paragraph\n&quot;, &lt;&lt;&quot;&lt;ol&gt;&lt;li&gt;this is a test&lt;/li&gt;&lt;li&gt;so is this&lt;/li&gt;&lt;/ol&gt;&lt;ul&gt;&lt;li&gt;and so on&lt;/li&gt;&lt;li&gt;and further&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;a paragraph&lt;/p&gt;\
+&quot;&gt;&gt;},
+     % failing tests                                                                                                                                                                                             
+     {&quot;* *test this **out***&quot;, &lt;&lt;&quot;&lt;ul&gt;&lt;li&gt;&lt;em&gt;test this &lt;strong&gt;out&lt;/strong&gt;&lt;/em&gt;&lt;/li&gt;&lt;/ul&gt;&quot;&gt;&gt;},
+     {&quot;this is really just a test\nis that okay?\n\nand what about\nthis\n&quot;, &lt;&lt;&quot;&lt;p&gt;this is really just a test is that okay?&lt;/p&gt;&lt;p&gt;and what about this&lt;/p&gt;&quot;&gt;&gt;}
+    ].
+</code></pre>
+      
+    
+      
         <p>以及运行测试用例的输出结果：</p>
       
     
       
-        <p>第一个问题可以通过在输入末尾添加一个换行符来解决，但它实际上应该能直接正常工作。第二个问题暴露出了根本性的规划缺失，这导致这个部分实现变得极难修改，也注定它无法完全符合规范。</p>
+        <pre><code>62&gt; timer:tc(markdown, test, []).
+Running tests: 
+EE............................
+Failed: &lt;&lt;&quot;&lt;ul&gt;&lt;li&gt;&lt;em&gt;test this &lt;strong&gt;out&lt;/strong&gt;&lt;/em&gt;&lt;/ul&gt;&lt;/li&gt;&quot;&gt;&gt; != &lt;&lt;&quot;&lt;ul&gt;&lt;li&gt;&lt;em&gt;test this &lt;strong&gt;out&lt;/strong&gt;&lt;/em&gt;&lt;/li&gt;&lt;/ul&gt;&quot;&gt;&gt; (input: &quot;* *test this **out***&quot;)
+Failed: &lt;&lt;&quot;&lt;p&gt;this is really just a test is that okay?  and what about this&lt;/p&gt;&quot;&gt;&gt; != &lt;&lt;&quot;&lt;p&gt;this is really just a test is that okay?&lt;/p&gt;&lt;p&gt;and what about this&lt;/p&gt;&quot;&gt;&gt; (input: &quot;this is really just a test\nis that okay?\n\nand what about\nthis\n&quot;)
+28 Tests Passed / 2 Tests Failed / 30 Total Tests
+{1885,ok}
+</code></pre>
       
     
       
-        <p>你会注意到测试并未覆盖多级结构。设计上已经考虑到了这些，我相当确定让它们工作起来并不困难，但老实说，多行解析的整体设计存在足够严重的缺陷，不值得再花功夫去优化它。</p>
+        <p>第一个问题可以通过在输入末尾添加一个换行符来解决，但它其实应该在当前形式下就能正常工作。第二个问题揭示了根本性的规划缺失，这导致这个部分实现变得极其难以修改，也使得它永远无法完全符合标准。</p>
+      
+    
+      
+        <p>你会注意到测试并没有覆盖多层级结构。设计上已经考虑到了它们，我也相当确信让它们工作起来会比较直接，但老实说，多行解析的整体设计存在足够严重的缺陷，不值得再花功夫去完善。</p>
       
     
       
         <h2>性能</h2>
+        
       
     
       
-        <p>对于大型文档来说，性能也相当糟糕。其中有一些明显的 O(n^2) 操作（将累积的二进制数据合并成字符串再转回二进制不可能是个廉价操作），此外即兴实现也可能带来一些不那么明显的性能问题。</p>
+        <pre><code>test_performance(N) -&gt;
+    Str1 = &quot;* **this is a test** *and so is this*\n* another line\n\n1. a line\n2. a line2\n3. another line\n\n&quot;,
+    Str2 = &quot;&gt;&gt; blockquote\n&gt;&gt; blockquote2\n\n    pre block1\n    same pre block\n\n&quot;,
+    Str3 = &quot;[test](http://test.com \&quot;this\&quot;)\ this out\n ``code block``\n\n&quot;,
+    Str = lists:append([Str1, Str2, Str3]),
+    LongStr = lists:append(lists:map(fun(_n) -&gt; Str end, lists:seq(0,100))),
+    {Time, _} = timer:tc(markdown, markdown, [LongStr]),
+    Seconds = Time / 1000000.0,
+    io:format(&quot;~p chars took ~p seconds~n&quot;, [length(LongStr), Seconds]).
+</code></pre>
       
     
       
-        <p>是的，简直惨不忍睹。出于好奇，我去掉了最后一步对整个结构调用 list_to_binary 的操作，然后重新运行测试：</p>
+        <p>对于大型文档来说，性能也远谈不上好看。存在一些明显的 O(n^2) 操作（将累积的二进制数据合并成字符串然后再转换回二进制不可能是个廉价操作），而且这个临时实现的其他一些性能影响可能还不那么明显。</p>
       
     
       
-        <p>结果不知怎么花了几乎两倍的时间。我姑且把它当成一次异常，但它显然没有奇迹般地改善性能。</p>
+        <pre><code>8&gt; markdown:test_performance(1).
+428 chars took 5.04e-4 seconds
+ok
+9&gt; markdown:test_performance(10).
+2354 chars took 0.002643 seconds
+ok
+10&gt; markdown:test_performance(100).
+21614 chars took 0.040283 seconds
+ok
+11&gt; markdown:test_performance(1000).
+214214 chars took 58.638143 seconds
+ok
+</code></pre>
+      
+    
+      
+        <p>是的，简直糟糕透顶。出于好奇，我去掉了最后一步对整个结构调用 list_to_binary 的操作，然后重新运行了测试：</p>
+      
+    
+      
+        <pre><code>18&gt; markdown:test_performance(1000).
+214214 chars took 106.470855 seconds
+ok
+</code></pre>
+      
+    
+      
+        <p>结果不知怎么花了几乎两倍的时间。我就当它是个异常值好了，但它显然没有神奇地改善任何事情。</p>
       
     
       
         <h2>经过一些后续工作之后……</h2>
+        
       
     
       
-        <p>我重新设计了多行逻辑，使其更加系统化（概念与之前类似，但实现上更为系统），现在已经能通过所有测试了。唯一缺少的功能是缩进列表，这确实是个相当重要的缺失。</p>
+        <p>我把多行逻辑重构为更系统化的形式（概念与之前的逻辑类似，但实现上更加系统化），现在它已经能通过所有测试了。唯一缺失的功能是缩进列表。这点 admittedly 还是相当重要的。</p>
       
     
       
-        <p>性能也得到了显著提升：</p>
+        <p>性能也有了相当明显的提升：</p>
       
     
       
-        <p>这次我更系统地测试了去掉最终 list_to_binary 调用后的性能，结果似乎完全不一致。虽然总是比带上它要快，但有时候会极其快（快 10 倍），有时候又没那么明显……</p>
+        <pre><code>71&gt; markdown:test_performance(1).
+428 chars took 3.04e-4 seconds
+ok
+72&gt; markdown:test_performance(1).
+428 chars took 3.04e-4 seconds
+ok
+73&gt; markdown:test_performance(10).
+2354 chars took 0.001699 seconds
+ok
+74&gt; markdown:test_performance(100).
+21614 chars took 0.033964 seconds
+ok
+75&gt; markdown:test_performance(200).
+43014 chars took 0.121854 seconds
+ok
+76&gt; markdown:test_performance(500).
+107214 chars took 4.124487 seconds
+ok
+77&gt; markdown:test_performance(1000).
+214214 chars took 25.825798 seconds
+ok
+</code></pre>
       
     
       
-        <p>既然所有数据都在内存中，缓存应该不会产生太大影响。也许我遗漏了什么。</p>
+        <p>这次我更加系统地测试了去掉最终 list_to_binary 调用后的情况，而性能似乎完全不一致。虽然总是比带上它要快，但有时会极其快（快 10 倍），有时却没有那么明显……</p>
       
     
       
-        <p>嗯。还有更多工作要做。等 GitHub 恢复正常后我会把修改推送上去。</p>
+        <p>既然所有内容都在内存中，缓存应该不会产生太大影响。也许我遗漏了什么。</p>
+      
+    
+      
+        <pre><code>78&gt; l(markdown).                    
+{module,markdown}
+79&gt; markdown:test_performance(1).   
+428 chars took 3.84e-4 seconds
+ok
+80&gt; markdown:test_performance(10).
+2354 chars took 0.001953 seconds
+ok
+81&gt; markdown:test_performance(100).
+21614 chars took 0.019525 seconds
+ok
+82&gt; markdown:test_performance(200).
+43014 chars took 0.449793 seconds
+ok
+83&gt; markdown:test_performance(200).
+43014 chars took 0.054803 seconds
+ok
+84&gt; markdown:test_performance(200).
+43014 chars took 0.052132 seconds
+ok
+85&gt; markdown:test_performance(200).
+43014 chars took 0.160802 seconds
+ok
+86&gt; markdown:test_performance(500).
+107214 chars took 0.566199 seconds
+ok
+87&gt; markdown:test_performance(500).
+107214 chars took 0.417525 seconds
+ok
+88&gt; markdown:test_performance(500).
+107214 chars took 0.245372 seconds
+ok
+89&gt; markdown:test_performance(1000).
+214214 chars took 7.128518 seconds
+ok
+90&gt; markdown:test_performance(1000).
+214214 chars took 11.816736 seconds
+ok
+91&gt; markdown:test_performance(1000).
+214214 chars took 2.119201 seconds
+ok
+92&gt; markdown:test_performance(1000).
+214214 chars took 17.814619 seconds
+ok
+</code></pre>
+      
+    
+      
+        <p>嗯。还需要更多工作。等它恢复活力后我会把改动推送到 GitHub。</p>
       
     
   </div>

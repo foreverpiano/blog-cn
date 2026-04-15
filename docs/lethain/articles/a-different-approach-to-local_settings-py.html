@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>local_settings.py 的另一种用法 · Will Larson 文集</title>
+  <title>local_settings.py 的另一种方法 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>local_settings.py 的另一种用法</h1>
+    <h1>local_settings.py 的另一种方法</h1>
     <div class="meta">
       2008-11-28 · 
       <a href="https://lethain.com/a-different-approach-to-local_settings-py/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,31 +29,41 @@
   <div class="article-content">
     
       
-        <p>几周前我在 Django NYC 做演讲时，在其中一张幻灯片里介绍了 Django 中 local_settings.py 的常用技巧。下一张幻灯片我又提到了这个技巧的一种轻微变体，我之前曾尝试推广过，但因为那篇文章篇幅较长，这个思路被淹没了。</p>
+        <p>几周前我在 Django NYC 演讲时，在其中一张幻灯片中介绍了 Django 中使用 local_settings.py 的小技巧，而在下一张幻灯片里，我提到了这个标准技巧的一个轻微变体。我之前曾尝试介绍过这个想法，但它淹没在一篇较长的文章中，没能引起注意。</p>
       
     
       
-        <h2>真正的 local_settings.py</h2>
+        <h3>真正的 local_settings.py</h3>
+        
       
     
       
-        <p>这个技巧的原始版本简单又极其实用。在 settings.py 文件的底部，加上以下四行代码：</p>
+        <p>这个技巧的原始版本简单且极其实用。在你的 settings.py 文件底部，添加以下四行代码：</p>
       
     
       
-        <p>这样你就可以创建一个自定义的 local_settings.py 文件，在里面覆盖针对当前机器的配置，从此一劳永逸。</p>
+        <pre><code>try:
+    from local_settings import *
+except ImportError:
+    pass
+</code></pre>
       
     
       
-        <p>当你创建公开仓库时，要确保不要把自己的 local_settings.py 提交到版本控制中。但你可以创建一个 local_settings.py.template 文件，让其他人通过 cp local_settings.py.template local_settings.py 的方式复制一份，然后根据自己的需求进行修改。</p>
+        <p>然后你就可以创建一个自定义的 local_settings.py 文件，里面存放针对你当前机器的配置覆盖，这样就大功告成了。</p>
       
     
       
-        <h2>我所说的变体</h2>
+        <p>当你在创建公开仓库时，要确保不要把自己的 local_settings.py 提交到版本控制中，但你可以创建一个 local_settings.py.template 文件，让其他人通过 cp local_settings.py.template local_settings.py 来复制一份，然后根据自己的需求进行修改。</p>
       
     
       
-        <p>我第一次使用这个变体时，正在开发一个需要部署到两个地方的应用：我的 VPS 和个人电脑。我希望把两套配置都放到版本控制里，同时又不需要每次更新代码后都去修改本地文件。</p>
+        <h3>我所说的变体</h3>
+        
+      
+    
+      
+        <p>我第一次使用这个变体时，正在开发一个需要部署到两个地方的应用：我的 VPS 和个人电脑。我希望能把两套配置都纳入版本控制，同时又不需要在每次更新代码后都进行修改。</p>
       
     
       
@@ -61,42 +71,85 @@
       
     
       
-        <div class="list-content">让 settings.py 包含所有共享的配置，并在文件末尾保留这几行：
-try:
+        <pre><code>try:
     from local_settings import *
 except ImportError:
     pass
-把开发环境的配置放在 devel_settings.py 中，把 VPS 的配置放在 vps_settings.py 中。
-在每台开发机器上，创建一个 local_settings.py 文件，里面只包含一行代码。在我的开发服务器上，这一行是：from devel_settings import *
-而在 VPS 上则是：from vps_settings import *</div>
+</code></pre>
       
     
       
-        <p>这样一来，我就可以轻松修改两套配置，并把它们都纳入版本控制，以便将来把项目部署到其他机器上。</p>
+        <pre><code>from devel_settings import *
+</code></pre>
       
     
       
-        <p>本质上，这做的就是类似对 settings 文件进行“子类化”，只覆盖自己需要修改的部分。如果你愿意，完全可以把这个思路玩出花来，做成一个 settings 自助餐，想组合哪些配置就组合哪些。</p>
+        <pre><code>from vps_settings import *
+</code></pre>
       
     
       
-        <p>举个例子，你可以有一个名为 site_caching_settings.py 的文件，内容如下：</p>
+        <div class="list-content">让 settings.py 文件包含所有共享的配置，并且在文件末尾仍然加上：将开发环境的配置保存在 devel_settings.py 中，将 VPS 的配置保存在 vps_settings.py 中。在每台开发机器上，创建一个 local_settings.py 文件，里面只包含一行代码。在我的开发服务器上，这一行是：而在 VPS 上则是：</div>
       
     
       
-        <p>还可以有一个 sqlite_settings.py 文件：</p>
+        <p>这样一来，我就可以轻松修改两套配置，并将它们都纳入版本控制，以便将来想把项目部署到其他机器上时使用。</p>
       
     
       
-        <p>最后，在你的 local_settings.py 中引入你需要的那些配置模块（同时覆盖你想修改的部分）：</p>
+        <p>本质上，这种做法类似于对 settings 文件进行“子类化”，只覆盖需要修改的部分。如果你愿意，可以把这个思路玩得很花哨，做成一个 settings 自助餐，根据需要随意组合不同的配置片段。</p>
       
     
       
-        <h2>你说得对。这种做法无法横向扩展。</h2>
+        <p>举个例子，你可以创建一个名为 site_caching_settings.py 的文件，内容如下：</p>
       
     
       
-        <p>我认为这个方案最明显的缺点就是扩展性不佳，它也不能完全替代标准的 local_settings.py 技巧。但对于那些只需要部署在少数几个环境中的项目，它一直让我用得很顺手。比如工作项目和个人项目，那些不打算做成可复用或可插拔应用的场景。</p>
+        <pre><code>CACHE_BACKEND = &quot;memcached://127.0.0.1:11211/&quot;
+CACHE_MIDDLEWARE_SECONDS = 60 * 30
+CACHE_MIDDLEWARE_KEY_PREFIX = &quot;scs&quot;
+CACHE_MIDDLEWARE_ANONYMOUS_ONLY = True
+MIDDLEWARE_CLASSES = (
+    &#x27;django.contrib.sessions.middleware.SessionMiddleware&#x27;,
+    &#x27;django.contrib.auth.middleware.AuthenticationMiddleware&#x27;,
+    &#x27;django.middleware.cache.CacheMiddleware&#x27;,
+) +  MIDDLEWARE_CLASSES
+</code></pre>
+      
+    
+      
+        <p>还可以创建一个名为 sqlite_settings.py 的文件：</p>
+      
+    
+      
+        <pre><code>ROOT_PATH = os.path.dirname(__file__)
+DATABASE_ENGINE = &#x27;sqlite3&#x27;
+DATABASE_NAME = os.path.join(ROOT_PATH, &#x27;db.sqlite&#x27;)
+DATABASE_USER = &#x27;&#x27;
+DATABASE_PASSWORD = &#x27;&#x27;
+DATABASE_HOST = &#x27;&#x27;
+DATABASE_PORT = &#x27;&#x27;
+</code></pre>
+      
+    
+      
+        <p>最后，在你的 local_settings.py 中引入你需要的配置片段（同时覆盖你想修改的部分）：</p>
+      
+    
+      
+        <pre><code>from site_caching_settings import *
+from sqlite_settings import *
+CACHE_BACKEND = &quot;localmem:///&quot;
+</code></pre>
+      
+    
+      
+        <h3>你说得对，它不能无限扩展。</h3>
+        
+      
+    
+      
+        <p>我认为这个方法的明显缺点是它不能很好地扩展，而且它也不是标准 local_settings.py 技巧的替代方案。但对于那些只需要部署在少量环境中的项目，它对我帮助很大。比如工作项目和个人项目，那些不打算做成可复用或可插拔的 app。</p>
       
     
   </div>

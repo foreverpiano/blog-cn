@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我见过的最奇怪的 JavaScript Bug · Will Larson 文集</title>
+  <title>我见过最诡异的 JavaScript Bug · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>我见过的最奇怪的 JavaScript Bug</h1>
+    <h1>我见过最诡异的 JavaScript Bug</h1>
     <div class="meta">
       2008-06-06 · 
       <a href="https://lethain.com/strangest-javascript-bug-ive-ever-seen/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,7 +29,7 @@
   <div class="article-content">
     
       
-        <p>最近我遇到了有生以来最令人费解的一个 JavaScript Bug。在某个方法的其中一段代码里——而且只在那一个方法的那个特定位置——数字比较的功能突然彻底失效了。</p>
+        <p>最近我遇到了有生以来最令人困惑的一个 JavaScript Bug。在某个方法的某一部分——而且只有这一处——数值比较的功能突然彻底失效了。</p>
       
     
       
@@ -37,7 +37,32 @@
       
     
       
-        <p>你可以看到我朋友为了排查问题而添加的日志语句。下面是生成的日志输出：</p>
+        <pre><code>this.action = function(x,y) {
+  var creeps = SET.rendering_groups[SET.creep_render_level];
+  log(&quot;radius&quot;, this.radius);
+  log(&quot;radius type&quot;, typeof this.radius);
+  creeps.forEach(function(creep) {
+    var distance = dist(x,y,creep.x,creep.y);
+    log(&quot;distance&quot;, distance);
+    log(&quot;distance type&quot;, typeof distance);
+    log(&quot;distance &lt;= radius&quot;, distance &lt;= this.radius);
+    log(&quot;distance &lt; radius&quot;, distance &lt; this.radius);
+    log(&quot;radius &lt; distance&quot;, distance &gt; this.radius);
+    log(&quot;radius &lt;= distance&quot;, distance &gt;= this.radius);
+    if (distance &lt; this.radius) {
+      log(&quot;creep before missile&quot;, creep);
+      creep.hp = Math.floor(creep.hp / 2);
+      log(&quot;creep after missile&quot;, creep);
+    }
+  });
+  play_sound(&quot;bomb&quot;);
+  SET.gold -= this.cost;
+};
+</code></pre>
+      
+    
+      
+        <p>你可以看到我朋友为了排查问题添加的日志语句。下面是生成的日志输出：</p>
       
     
       
@@ -53,15 +78,33 @@ radius &lt;= distance: false
       
     
       
-        <p>我至今仍然完全搞不懂这里到底出了什么问题。在 Processed Tower Defense 的 issue tracker 上对此 bug 有进一步的讨论，但简单来说，我们尝试了大量 workaround 和各种取巧的办法，都没能揭示问题的本质。我试过用 Math.floor 来做整数比较（以为可能是某种浮点数 bug），也试过用半径减去距离后再判断是否大于零……尝试了很多方法。最后我只能祭出对抗自己愚蠢行为的终极手段：把整个方法从头重写了一遍。</p>
+        <p>直到现在我依然完全搞不懂这里到底出了什么问题。在 Processed Tower Defense 的 issue tracker 上有关于这个 Bug 的进一步讨论，但简单来说，我们尝试了各种 workaround 和取巧办法，都没能揭示问题的本质。我试过用 Math.floor 进行整数比较（以为是浮点数精度问题），也试过用半径减去距离后再判断是否大于零……我尝试了很多方法。最后我使出了对付自己犯蠢的终极手段：把整个方法从头重写了一遍。</p>
       
     
       
-        <p>以下是重写后的——并且能正常工作的——代码：</p>
+        <p>下面是重写后能正常工作的代码：</p>
       
     
       
-        <p>我能看到的唯一区别，就是把 forEach 迭代改成了显式的 for 循环。这真的会有影响吗？</p>
+        <pre><code>this.action = function(x,y) {
+  var creeps = SET.rendering_groups[SET.creep_render_level];
+  var l = creeps.length;
+  var range = Math.floor(this.radius);
+  for (var i=0;i&lt;l;i++) {
+    var creep = creeps[i];
+    var d = Math.floor(dist(x,y,creep.x,creep.y));
+    if (d &lt;= range) {
+      creep.hp = Math.floor(creep.hp / 2);
+    }
+  }
+  play_sound(&quot;bomb&quot;);
+  SET.gold -= this.cost;
+}
+</code></pre>
+      
+    
+      
+        <p>我能看到的唯一区别，就是把 forEach 迭代改成了显式的 for 循环。这真的会产生影响吗？</p>
       
     
   </div>

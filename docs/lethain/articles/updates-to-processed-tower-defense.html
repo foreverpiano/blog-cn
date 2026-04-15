@@ -29,71 +29,152 @@
   <div class="article-content">
     
       
-        <p>John Resig 很慷慨地提到了 Processed Tower Defense，于是我决定今天下午简单庆祝一下，补上了几个最重要缺失的功能：防御塔升级和不同类型的敌人。</p>
+        <p>John Resig 非常慷慨地提到了 Processed Tower Defense，于是我决定今天下午稍作庆祝，补上了两个最重要且缺失的功能：炮塔升级和多种类型的敌人。</p>
       
     
       
-        <p>先去玩一会儿，如果你对细节感兴趣，再回来看看吧。</p>
+        <p>先去玩一会儿吧，如果你对细节感兴趣，再回来继续看。</p>
       
     
       
-        <h2>敌人类型</h2>
+        <h3>敌人类型</h3>
+        
       
     
       
-        <p>现在有四种敌人：Normal、Fiz、Buzz 和 FizBuzz。如果你是一名程序员，可能马上就猜到它们会在什么时候出现；如果不是，那就算是个小玩笑吧。FizBuzz 在能被 15 整除的波次出现，Buzz 在能被 5 整除但不能被 15 整除的波次出现，Fiz 在能被 3 整除但不能被 15 整除的波次出现，而 Normal 则出现在其他所有波次。</p>
+        <p>现在一共有四种敌人：Normal、Fiz、Buzz 和 FizBuzz。如果你是一名程序员，可能已经猜到它们会在什么时候出现；如果不是，那这只是个小小的玩笑而已。FizBuzz 会在能被 15 整除的波次出现，Buzz 会在能被 5 整除但不能被 15 整除的波次出现，Fiz 会在能被 3 整除但不能被 15 整除的波次出现，而 Normal 则出现在所有其他波次。</p>
       
     
       
-        <p>以下是这几种新敌人的区别：</p>
+        <p>以下是这些新敌人类型的区别：</p>
       
     
       
-        <p>简单来说，Fiz 血量很高但移动缓慢，Buzz 速度很快但血量较低，而 FizBuzz 则是极其耐打的 Boss。它们各自也有对应的波次代码：</p>
+        <pre><code>var FizCreep = function(wave) {
+  var fc = Creep(wave);
+  fc.color = color(0,255,255);
+  fc.size = fc.size * 1.3;
+  fc.hp = fc.hp * 2;
+  fc.value = fc.value * 1.5;
+  fc.speed = fc.speed * 0.75;
+  return fc;
+};
+var BuzzCreep = function(wave) {
+var bc = Creep(wave);
+bc.color = color(100,150,50);
+bc.speed = bc.speed  1.5;
+bc.hp = bc.hp  .75;
+bc.size = bc.size  0.9;
+bc.value = bc.value  1.25;
+return bc;
+};
+var FizBuzzCreep = function(wave) {
+var fbc = Creep(wave);
+fbc.color = color(255,100,150);
+fbc.size = fbc.size  1.5;
+fbc.hp = fbc.hp  10;
+fbc.value = fbc.value * 10;
+return fbc;
+}
+</code></pre>
       
     
       
-        <p>基本上就是对原有 CreepWave 的样板式扩展，只有 FizBuzzCreepWave 每次只生成一个敌人（因为它实在太难杀了）。</p>
+        <p>简单来说，Fiz 血量很高但移动缓慢；Buzz 速度很快但血量较低；而 FizBuzz 则是极其耐打的 Boss。它们各自也有专属的出怪代码：</p>
       
     
       
-        <h2>防御塔升级</h2>
+        <pre><code>var FizCreepWave = function(settings) {
+  var fcw = CreepWave(settings);
+  fcw.spawn_creep = function() { FizCreep(this.wave);  }
+  SET.creep_variety = &quot;Fiz Creeps&quot;;
+  return fcw;
+};
+var BuzzCreepWave = function(settings) {
+var fcw = CreepWave(settings);
+fcw.spawn_creep = function() { BuzzCreep(this.wave);  }
+SET.creep_variety = &quot;Buzz Creeps&quot;;
+return fcw;
+};
+var FizBuzzCreepWave = function(settings) {
+var fcw = CreepWave(settings);
+fcw.remaining = 1;
+fcw.spawn_creep = function() { FizBuzzCreep(this.wave);  }
+SET.creep_variety = &quot;FizBuzz Creeps&quot;;
+return fcw;
+};
+</code></pre>
       
     
       
-        <p>防御塔升级实现起来稍微麻烦一些，主要是因为我大量使用 HTML 控件来绘制 UI（这是由于 Canvas 的文本渲染支持有限）。不管怎样，现在已经可以正常使用了。要升级防御塔，先点击它，然后点击右侧（在其当前属性下方）出现的升级按钮即可。</p>
+        <p>基本上就是对原有 CreepWave 的样板式扩展，只是 FizBuzzCreepWave 每次只生成一个敌人（因为它实在太难杀死了）。</p>
       
     
       
-        <p>两种防御塔的升级方式略有不同。我们先来看看 Missile Tower。</p>
+        <h3>炮塔升级</h3>
+        
       
     
       
-        <p>它的射速完全不会提升，但每次升级射程都会大幅增加。伤害提升速度不如 Laser Tower 快，但由于它的初始伤害就是后者的十倍，所以其实关系不大。</p>
+        <p>炮塔升级的实现稍微麻烦一些，主要是因为我大量使用 HTML 控件来绘制界面（这是由于 canvas 的文本渲染支持有限）。不管怎样，它现在已经可以正常使用了。想要升级炮塔时，点击它，然后使用右侧（在其当前属性下方）出现的升级按钮即可。</p>
       
     
       
-        <p>接下来看一下 Laser Tower。</p>
+        <p>两种炮塔的升级方式略有不同。先来看看 Missile Tower。</p>
       
     
       
-        <p>Laser Tower 的伤害提升很快，射程也会略有增加。此外，每次升级其装填时间会减少 10 毫秒（初始装填时间为 250 毫秒），这是一个很实用的改进。如果你把一座 Laser Tower 升级 25 次，那么每次渲染循环它都会发射一发激光。不过由于游戏帧率只有 60 帧每秒，实际上升级 24 次就能达到它的最大有效射速。</p>
+        <pre><code>mt.upgrade = function() {
+  if (SET.gold &gt;= this.upgrade_cost) {
+    SET.gold -= this.upgrade_cost;
+    this.upgrade_cost = this.upgrade_cost * 2;
+    this.damage = this.damage * 1.5;
+    this.set_range(this.range + 0.5);
+  }
+}
+</code></pre>
       
     
       
-        <h2>未来计划</h2>
+        <p>它的射速完全没有提升，但每次升级射程都会大幅增加。虽然伤害提升速度不如 Laser Tower 快，但由于其初始伤害就是后者的十倍，所以实际上影响不大。</p>
       
     
       
-        <p>其实我原本没打算继续开发 PTD，但这个游戏目前还是有点无聊，我想让偶然发现它的人能玩得稍微开心一点。再说一次，我并没有明确要继续开发它的打算，但如果有人真的很感兴趣，或许会再更新。</p>
+        <p>接下来是 Laser Tower 的升级情况。</p>
       
     
       
-        <p>以下是一些我可能想实现的功能（不分先后顺序）：</p>
+        <pre><code>lt.upgrade = function() {
+  if (SET.gold &gt;= this.upgrade_cost) {
+    SET.gold -= this.upgrade_cost;
+    this.upgrade_cost = this.upgrade_cost * 1.5;
+    this.damage = this.damage * 2.0;
+    this.set_range(this.range + 0.25);
+    this.reload_rate = this.reload_rate - 10;
+  }
+}
+</code></pre>
       
     
       
-        <div class="list-content">更多防御塔类型。可能包括小型椭圆（加特林？）和大型椭圆（加农炮）。另外一些战术型防御塔实现起来也不难（减速、持续伤害、强化周围防御塔等），也能增加游戏的可玩性。更多种类的敌人波次。有时候加快出怪速度，有时混合不同类型的敌人。增加入口格子的数量，让同时出现的敌人翻倍或三倍。加入更多街机元素，比如需要玩家手动控制的强力防御塔等。弄一个高分榜会很不错，但几乎不可能信任，因为任何使用 Firefox 的人都能打开控制台直接提交分数。虽然可以通过计算玩家拥有的防御塔数量、剩余金钱等来推断合理分数，采用各种反作弊手段，但无论多么精密，我都无法想象它能通过一个 JavaScript 程序员“五分钟扫一眼”的考验。这大概是开发 JavaScript 游戏的一个显著缺点。为敌人加入寻路 AI。如果敌人偶尔能不走直线就更好了。我很希望能同时显示多个防御塔的攻击范围，看看它们的完整覆盖情况。</div>
+        <p>Laser Tower 的伤害提升非常快，射程也会略有增加。此外，每次升级其装填时间会减少 10 毫秒（初始装填时间为 250 毫秒），这是一个很实用的改进。如果你能把一座 Laser Tower 升级 25 次，那么它每次渲染循环都会发射一发激光。不过由于游戏帧率只有 60 FPS，实际上只需要升级 24 次就能达到其最大有效射速。</p>
+      
+    
+      
+        <h3>未来计划</h3>
+        
+      
+    
+      
+        <p>其实我一开始并没打算继续开发 PTD，但这个游戏目前确实比较单调，我想让那些不幸发现它的人能玩得稍微开心一点。再强调一次，我目前并没有明确的继续开发计划，但如果有人特别感兴趣的话，也许会继续做下去。</p>
+      
+    
+      
+        <p>以下是一些我可能会实现的特性（不分先后顺序）：</p>
+      
+    
+      
+        <div class="list-content">更多炮塔类型。可能包括小型椭圆（加特林？）和大型椭圆（加农炮）。另外一些战术型炮塔也不难实现（减速、持续伤害、炮塔增强等等），能为游戏增添不少乐趣。更多种类的出怪波次。有时加快出怪速度，有时混合不同类型的敌人。增加入口格子的数量，让同时出现的敌人数量翻倍或三倍。加入更多街机元素，比如需要玩家手动控制的强力炮塔等等。能有一个高分榜就好了，不过这几乎不可能做到可信，因为任何使用 FireFox 的人都能打开控制台直接提交分数。虽然可以通过计算塔的数量、剩余金币等来估算预期分数，从而增加作弊难度，但无论反作弊机制多么复杂，我都无法想象它能通过一个 JavaScript 程序员“五分钟扫一眼”的考验。这无疑是开发 JavaScript 游戏的一个缺点。为敌人加入路径寻找 AI。如果敌人偶尔能不走直线就更好了。我很想加入同时显示多个炮塔攻击范围的功能，能看到你所有炮塔的完整覆盖区域。</div>
       
     
       

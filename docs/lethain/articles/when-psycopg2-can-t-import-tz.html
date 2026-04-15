@@ -33,31 +33,70 @@
       
     
       
-        <p>每次看到它我都非常困惑。然后我才意识到问题所在，解决它，接着又把它抛到脑后，直到下一次再次出现。</p>
+        <pre><code>File &quot;/home/django/domains/substanceis.com/substanceis.com/lib/python2.5/site-packages/django/db/__init__.py&quot;, line 16, in &lt;module&gt;
+    backend = __import__(&#x27;%s%s.base&#x27; % (_import_path, settings.DATABASE_ENGINE), {}, {}, [&#x27;&#x27;])
+File &quot;/home/django/domains/substanceis.com/substanceis.com/lib/python2.5/site-packages/django/db/backends/postgresql_psycopg2/base.py&quot;, line 20, in &lt;module&gt;
+    raise ImproperlyConfigured(&quot;Error loading psycopg2 module: %s&quot; % e)
+ImproperlyConfigured: Error loading psycopg2 module: cannot import name tz
+</code></pre>
       
     
       
-        <p>你的服务器无法写入 PYTHON_EGG_CACHE 路径，因此无法使用 egg 文件。这就是问题的全部原因。
-虽然你可能还需要安装 egenix-mx-base。我甚至不确定它是否真的相关，还是只是我在与这个错误苦苦斗争时希望它能发挥作用的东西。</p>
+        <p>每次看到它我都感到非常困惑。然后我才反应过来是怎么回事，解决问题，之后又把它抛到脑后。直到下一次再次出现。</p>
       
     
       
-        <p>解决这个问题的真正办法是在你的 mod_python 或 mod_wsgi 配置文件中进行设置。对于 mod_wsgi，需要在你网站的 .wsgi 文件中添加这样一行。</p>
+        <p>你的服务器无法写入 PYTHON_EGG_CACHE 路径，因此无法使用 egg。这就是整个问题的根源。
+虽然你可能还需要安装 egenix-mx-base。我甚至不确定它是否真的相关，还是只是我在与这个错误反复作斗争时希望它能起作用的东西。</p>
       
     
       
-        <p>不一定是 home/django/.python-eggs，任何 www-data 用户可以写入的目录都可以（Ubuntu 系统下）。
-要确认的话，只需切换到 www-data 用户然后试一下就知道了。</p>
+        <pre><code>sudo easy_install egenix-mx-base
+</code></pre>
       
     
       
-        <p>如果成功了，那你就搞定了。重启服务器然后就可以离开了。如果你使用的是 mod_python，
+        <p>解决这个问题的正确方法是在你的 mod_python 或 mod_wsgi 配置文件中进行设置。对于 mod_wsgi，需要在你站点的 .wsgi 文件中添加类似下面的一行。</p>
+      
+    
+      
+        <pre><code>os.environ[&#x27;PYTHON_EGG_CACHE&#x27;] = &#x27;/home/django/.python-eggs&#x27;
+</code></pre>
+      
+    
+      
+        <p>路径不一定非要是 home/django/.python-eggs，只要是 www-data 用户可以写入的目录即可（Ubuntu 系统）。
+要验证的话，只需切换到 www-data 用户然后尝试一下就知道了。</p>
+      
+    
+      
+        <pre><code>sudo su www-data
+cd /home/django/.python-eggs
+mkdir test
+rm -rf test
+</code></pre>
+      
+    
+      
+        <p>如果成功了，那就万事大吉。重启服务器然后就可以离开了。如果你使用的是 mod_python，
 则需要在其他位置进行这个修改。这里有更详细的说明，
-但基本上你需要在某个地方创建一个 eggs.py 文件，内容如下</p>
+但基本上你需要在某个地方创建一个 eggs.py 文件，内容如下：</p>
+      
+    
+      
+        <pre><code>import os
+os.environ[&#x27;PYTHON_EGG_CACHE&#x27;] = &#x27;/home/django/.python-eggs&#x27;
+</code></pre>
       
     
       
         <p>然后把这些指令添加到你域名的 VirtualHost 配置中。</p>
+      
+    
+      
+        <pre><code>PythonInterpreter my_django
+PythonImport /path/to/my/profile/eggs.py my_django
+</code></pre>
       
     
       

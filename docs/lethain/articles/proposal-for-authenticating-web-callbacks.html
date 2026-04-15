@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>网络回调身份验证方案 · Will Larson 文集</title>
+  <title>Web Callback 认证方案提议 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>网络回调身份验证方案</h1>
+    <h1>Web Callback 认证方案提议</h1>
     <div class="meta">
       2009-09-20 · 
       <a href="https://lethain.com/proposal-for-authenticating-web-callbacks/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,46 +29,66 @@
   <div class="article-content">
     
       
-        <p>网络回调是个相当棒的想法，对我来说，无论在理念还是效率上，它都是对轮询的重大改进。</p>
+        <p>Web callback 是一个非常酷的想法，对我来说，无论是在概念上还是效率上，它都是对轮询方式的重大改进。</p>
       
     
       
-        <p>在轮询模式下，对服务状态一无所知的客户端需要自己负责检测服务何时发生变化。</p>
+        <p>在轮询设计中，对服务状态一无所知的客户端需要负责检测服务何时发生变化。</p>
       
     
       
-        <p>这意味着客户端会反复向服务发起请求，询问服务状态是否改变。它无法提前知道自己是否在浪费自身和服务的带宽，也无法预判是否有新数据需要处理。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/web_polling_2.png" alt="Design of web polling solution.">
+          
+        </figure>
       
     
       
-        <p>轮询就像是忙等待（busy wait）。</p>
+        <p>这意味着客户端会反复 ping 服务以检查其状态是否发生变化，而且它无法提前判断自己是否在浪费自身（和服务端）的带宽，也不知道是否有新数据需要处理。</p>
       
     
       
-        <p>而网络回调则非常类似于编程中的回调机制，最常见于 JavaScript 中用来绕过单线程实现的做法。</p>
+        <p>轮询就像忙等待（busy wait）一样。</p>
       
     
       
-        <p>面对这个相当新颖的想法，我脑中冒出一个问题：网络回调服务应该如何对客户端请求进行身份验证？如果完全没有身份验证，服务就可能被用作发起 DOS 攻击的载体。而且在没有验证对方确实是自己请求的客户端之前，就贸然向其发送消息也显得非常不礼貌。</p>
+        <p>另一方面，Web callback 非常类似于编程中的回调机制，最常见于 JavaScript 中作为单线程实现的权宜之计。</p>
       
     
       
-        <p>经过思考，我提出两个我认为都切实可行的方案：</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/web_callbacks_2.png" alt="Design of web callbacks solution.">
+          
+        </figure>
       
     
       
-        <div class="list-content">第一种是三次握手：客户端先发起服务请求，服务端则向客户端指定的主机名发送一个共享密钥，随后客户端使用该密钥对请求进行签名。
-第二种是在 robots.txt 中为指定 API 添加明确的 Allow 行。这样网站所有者可以在他们的 robots.txt 中加入类似以下内容：
-Allow: /api/callback/
-然后服务端会在将网站加入已验证回调列表之前，检查该行是否存在。（也可以考虑使用一个新的约定文件 callbacks.txt 来实现。）</div>
+        <p>面对这个相当新颖的想法，我脑海中浮现出一个问题：Web callback 服务应该如何对客户端请求进行认证？在一个没有认证的世界里，服务可能会被用作发动 DOS 攻击的载体，而且在未经确认的情况下就向客户端发送消息，通常也是非常不礼貌的行为——我们应该先确认确实是客户端自己发出了请求。</p>
       
     
       
-        <p>我个人更倾向于第二种方案（尤其是希望使用独立的 callbacks.txt 文件），因为它不需要客户端进行任何额外的开发工作，实现起来也不会特别困难。</p>
+        <p>经过思考，我提出两个我认为都可行的方案：</p>
+      
+    
+      
+        <pre><code>Allow: /api/callback/
+</code></pre>
+      
+    
+      
+        <div class="list-content">三次握手机制：客户端先请求服务，服务端会向客户端指定的主机名发送一个共享密钥（shared secret），客户端再使用该密钥对请求进行签名。或者，要求在 robots.txt 中为该 API 添加明确的 allow 行。这样网站所有者需要在他们的 robots.txt 中添加类似的内容，然后服务端会在将该站点加入已验证 callback 列表之前，检查是否存在这样一行。（也可以考虑使用一个新的约定文件 callbacks.txt 来实现。）</div>
+      
+    
+      
+        <p>我个人更倾向于第二个方案（特别是希望使用独立的 callbacks.txt 文件），因为它不需要客户端做任何额外的开发工作，实现起来也不会特别困难。</p>
       
     
       
         <p>大家有什么想法？</p>
+      
+    
+      
+        <div class="list-content">尽管 Web Workers 有可能在不久的将来（虽然还不是那么近）缓解 JavaScript 单线程的限制。↩</div>
       
     
   </div>

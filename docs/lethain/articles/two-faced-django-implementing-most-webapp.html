@@ -29,7 +29,7 @@
   <div class="article-content">
     
       
-        <div class="list-content">你可以在此找到该项目的在线演示版本，包括 Web 和 Facebook 两种界面。</div>
+        <div class="list-content">你可以在此处找到查看本项目在线版本的详情，包括网页和 Facebook 两种界面。</div>
       
     
       
@@ -37,91 +37,190 @@
       
     
       
-        <p>在本段教程中，我们将实现大部分 Web 应用功能（它只是用户与核心应用之间的一个中间层，核心应用中包含了我们最基本的功能）。实际上，除了 Ajax 相关的部分之外（我们将在下一部分实现），其他内容我们都会实现：很快我们就会有一个可以在浏览器中实际使用的应用了。</p>
+        <p>在本篇教程中，我们要实现大部分的 Web 应用（它只是用户与核心应用之间的一个中间层，我们的核心功能都在核心应用里）。事实上，除了 Ajax 相关部分之外（这些我们会在下一部分实现），我们要把其他所有功能都实现：很快我们就会有一个可以在浏览器中实际使用的应用了。</p>
       
     
       
         <h2>编写 web/urls.py 文件</h2>
+        
       
     
       
-        <p>现在我们要在 polling/web 文件夹中创建一个新文件：urls.py。</p>
+        <p>现在我们需要在 polling/web 目录下创建一个新文件：urls.py。</p>
       
     
       
-        <p>并且要在文件顶部添加两个导入语句：</p>
+        <pre><code>emacs web/urls.py
+</code></pre>
       
     
       
-        <p>我们要为 Web 项目创建三个不同的 URL 模式：一个用于查看投票列表，一个用于查看特定投票，还有一个用于创建投票。代码看起来会是这样的：</p>
+        <p>并且要在文件顶部加入两个 import 语句：</p>
       
     
       
-        <p>观察代码，我们使用了名为 generic views 的机制来避免编写重复的模板代码。对于这些视图，我们唯一需要自行编写的是要渲染的模板。</p>
+        <pre><code>from django.conf.urls.defaults import *
+from polling.core.models import *
+</code></pre>
       
     
       
-        <h2>调整我们的模板（适配通用视图）</h2>
+        <p>我们要为 Web 项目创建三个不同的 URL 模式：一个用于查看投票列表，一个用于查看特定投票，还有一个用于创建投票。代码大致如下：</p>
       
     
       
-        <p>我们正在编辑的 urls.py 文件位于 *web 应用中，用于表示 Poll 模型，因此列表和详情的通用视图（默认情况下，此行为可被覆盖）将会去 web/poll_list.html 和 web/poll_detail.html* 中查找模板。</p>
+        <pre><code>polls = Poll.objects.all()
+urlpatterns = patterns(
+    (r&#x27;^$&#x27;, &#x27;django.views.generic.list_detail.object_list&#x27;, dict(template_name=&#x27;web/poll_list.html&#x27;, queryset=polls)),
+    (r&#x27;^poll/(?P&lt;object_id&gt;\d+)/$&#x27;, &#x27;django.views.generic.list_detail.object_detail&#x27;, dict(template_name=&#x27;web/poll_detail.html&#x27;, queryset=polls)),
+    (r&#x27;^create/$&#x27;, &#x27;polling.web.views.create&#x27;),
+)
+</code></pre>
       
     
       
-        <p>在创建这些模板之前，我们需要先准备一个基础模板，让所有 Web 模板都能继承它。我们将把它放在 polling/templates/web/base.html，内容大致如下：</p>
+        <p>观察上面的代码，我们使用了泛型视图（generic views），从而避免编写重复的通用代码。对于这些视图，我们唯一需要自行编写的内容就是用于渲染的模板。</p>
       
     
       
-        <p>保存该文件后，现在我们来编写一个非常简单的模板，用于展示 Poll 对象列表。在 polling/templates/web/poll_list.html 创建一个文件，内容如下：</p>
+        <h2>调整我们的模板（适配泛型视图）</h2>
+        
       
     
       
-        <p>接下来是一个同样简单的模板，用于显示单个 Poll 对象：</p>
+        <p>我们正在编辑的 urls.py 文件位于 *web 应用* 中，并且用于展示 Poll 模型，因此列表和详情的泛型视图（默认情况下，该行为可被重写）会去 web/poll_list.html 和 web/poll_detail.html 中寻找模板。</p>
       
     
       
-        <p>（我们将在本系列的下一部分处理向上和向下投票的功能（通过 JQuery JavaScript 库实现），目前我们先忽略还不能投票的事实。这只是个小细节……）</p>
+        <p>在创建这些模板之前，我们先来准备一个基础模板，让所有 Web 模板都能继承它。我们把它放在 polling/templates/web/base.html，内容大致如下：</p>
       
     
       
-        <h2>一个稍微不那么通用的视图</h2>
+        <pre><code>&lt;html&gt; &lt;head&gt;
+&lt;title&gt;{% block title %}A Generic Title{% endblock %}&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+{% block body %}
+{% endblock %}
+&lt;/body&gt; &lt;/html&gt;
+</code></pre>
       
     
       
-        <p>现在我们需要再实现一个视图，这个视图不是通用的，因此我们得自己写一点代码。它将是我们的“创建新投票”视图。之前在 web/urls.py 文件中我们已经说明了它的位置，让我们先快速看一下 web/urls.py 文件。</p>
+        <p>保存该文件后，现在我们来写一个非常简单的模板，用于展示 Poll 对象列表。在 polling/templates/web/poll_list.html 创建一个文件，内容如下：</p>
       
     
       
-        <p>没错。它将被放在 polling/web/views.py 文件中一个名为 create 的函数里。在编写代码之前，让我们简单思考一下这个视图应该做什么。有两件事：允许用户创建新投票，以及当用户试图创建无效投票时（在本例中指与之前已创建的投票提出相同的问题）进行提示。</p>
+        <pre><code>{% extends &quot;web/base.html&quot; %}
+{% block title %} Our Polls! {% endblock %}
+{% block body %}
+&lt;div id=&quot;polls&quot;&gt;
+  {% for object in object_list %}
+  &lt;p id=&quot;poll{ { object.pk }}&quot; &gt;&lt;a href=&quot;/poll/{ { object.pk }}/&quot;&gt;{ { object }}&lt;/a&gt; has a score of { { object.score }}.&lt;/p&gt;
+  {% endfor %}
+&lt;/div&gt;
+{% endblock %}
+</code></pre>
       
     
       
-        <p>首先让我们打开 web 应用中的 views.py 文件。</p>
+        <p>接下来是一个同样简单的模板，用于展示单个 Poll 对象：</p>
       
     
       
-        <p>现在我们来为文件添加一些导入语句</p>
+        <pre><code>{% extends &quot;web/base.html&quot; %}
+{% block title %} Poll: { { object.question }} {% endblock %}
+{% block body %}
+&lt;div id=&quot;poll&quot;&gt;
+  &lt;p&gt;We have a question for you. { { object.question }}
+  &lt;p&gt; So far we have { { object.up_votes }} upvotes and { { object.down_votes }} downvotes, for an overall vote of { { object.score }}! &lt;/p&gt;
+  &lt;p&gt; Do you &lt;span id=&quot;upvote&quot;&gt;agree&lt;/span&gt; or &lt;span id=&quot;downvote&quot;&gt;disagree&lt;/span&gt;? &lt;/p&gt;
+&lt;/div&gt;
+{% endblock %}
+</code></pre>
       
     
       
-        <p>我们将使用 *PollForm 来渲染和验证创建新投票的表单。我们需要 Poll 模型，以便在表单有效时创建新的实例；我们还需要 direct_to_template* 来渲染即将为这个视图创建的模板（它位于 templates/web/create.html，不过不用担心，我们马上就会编写它）。</p>
+        <p>（我们会在本系列的下一部分中处理向上和向下投票的功能，这些功能通过 JQuery JavaScript 库实现，目前我们暂且忽略无法投票这一事实。这只是个小细节……）</p>
       
     
       
-        <p>我们的视图代码会有一些简单的逻辑：</p>
+        <h2>一个稍微不那么“泛型”的视图</h2>
+        
       
     
       
-        <div class="list-content">检查是否附加了 POST 数据。如果有 POST 数据，尝试用它创建一个 PollForm。如果新的 PollForm 有效，则创建一个新的 Poll 并重定向到主页。如果新的 PollForm 无效，则将用户返回到同一页面，并显示所有错误信息。如果没有 POST 数据，则显示一个空白表单供用户描述他们的新投票。</div>
+        <p>现在我们还需要编写一个视图，它不是泛型视图，所以我们得自己写一点代码。它就是我们的“创建新投票”视图。之前在 web/urls.py 中我们已经说明了它要放在哪里，让我们稍微看一眼 web/urls.py 文件。</p>
       
     
       
-        <p>在 Python 中，它看起来会像这样：</p>
+        <pre><code>(r&#x27;^create/$&#x27;, &#x27;polling.web.views.create&#x27;),
+</code></pre>
       
     
       
-        <p>现在我们只需要编写一个简短的模板来显示我们的 web.create 视图，然后就大功告成了。</p>
+        <p>好的。它将被放在 polling/web/views.py 文件中一个名为 create 的函数里。在编写代码之前，我们先简单思考一下这个视图应该做什么。它需要做两件事：允许用户创建新的投票，并在用户试图创建无效投票时（这里指与之前已创建的投票提问相同）进行提示。</p>
+      
+    
+      
+        <p>首先我们打开 web 应用中的 views.py 文件。</p>
+      
+    
+      
+        <pre><code>emacs web/views.py
+</code></pre>
+      
+    
+      
+        <p>现在在文件中加入一些 import 语句：</p>
+      
+    
+      
+        <pre><code>from django.http import HttpResponseRedirect
+from django.views.generic.simple import direct_to_template
+from polling.core.models import Poll, User
+from polling.core.forms import PollForm
+</code></pre>
+      
+    
+      
+        <p>我们将使用 *PollForm* 来渲染和验证创建新投票的表单。我们需要 Poll 模型，以便在表单验证通过时创建新的实例；还需要 direct_to_template 来渲染即将为这个视图创建的模板（模板位于 templates/web/create.html，不用担心，我们马上就会编写它）。</p>
+      
+    
+      
+        <p>我们的视图代码会包含一些简单的逻辑：</p>
+      
+    
+      
+        <div class="list-content">检查是否附带了 POST 数据。如果有 POST 数据，则尝试用它创建一个 PollForm。如果新的 PollForm 验证通过，则创建一个新的 Poll 并重定向到首页。如果新的 PollForm 验证不通过，则将用户返回到同一页面，并显示错误信息。如果没有 POST 数据，则显示一个空表单供用户填写新的投票描述。</div>
+      
+    
+      
+        <p>用 Python 写出来是这样的：</p>
+      
+    
+      
+        <pre><code>def create(request):
+    if request.method == &#x27;POST&#x27;:
+        form = PollForm(request.POST)
+        if form.is_valid():
+	   # Because explaining in detail how to use the
+	   # authentication framework isn&#x27;t within my
+	   # energy level at this exact moment
+	    u = User(name=&quot;Someone Else&quot;)
+	    u.save()
+            poll = Poll(creator=u, question=form.cleaned_data[&#x27;question&#x27;])
+            poll.save()
+            return HttpResponseRedirect(&#x27;/&#x27;)
+    else:
+        form = PollForm()
+    return direct_to_template(request, &#x27;web/create.html&#x27;,
+                              extra_context={&#x27;form&#x27;:form})
+</code></pre>
+      
+    
+      
+        <p>现在我们只需要为 web.create 视图编写一个简短的模板，然后就全部完成了。</p>
       
     
       
@@ -129,23 +228,41 @@
       
     
       
-        <p>我们的模板看起来会是这样的：</p>
+        <pre><code>emacs templates/web/create.html
+</code></pre>
       
     
       
-        <p>至此本部分结束。</p>
+        <p>我们的模板看起来是这样的：</p>
+      
+    
+      
+        <pre><code>{% extends &quot;web/base.html&quot; %}
+{% block title %} Creating a new Poll {% endblock %}
+{% block body %}
+&lt;form method=&quot;post&quot; action=&quot;&quot;&gt;
+&lt;table&gt;{ { form }}&lt;/table&gt;
+&lt;input type=&quot;submit&quot; /&gt;
+&lt;/form&gt;
+{% endblock %}
+</code></pre>
+      
+    
+      
+        <p>至此全部完成。</p>
       
     
       
         <h2>测试我们的新代码</h2>
+        
       
     
       
-        <p>为这类代码编写单元测试会稍微困难一些。你可以编写代码来验证每个网页是否返回了预期内容，也可以接入 HTML 验证器来确认页面返回的是有效的 HTML。你甚至可以编写一些多步交互。关键是要确保你的测试能够承受模板发生少量变化。</p>
+        <p>为这类代码编写单元测试会稍微困难一些。你可以编写代码来验证每个网页是否返回了预期内容，也可以接入 HTML 验证器来确认页面返回的是有效的 HTML。你甚至可以编写一些多步骤的交互测试。关键在于要确保你的测试能够承受模板发生一些变化。</p>
       
     
       
-        <p>我们不会在这里明确编写这些测试，但自己实践一下是个不错的主意。另一方面，我们会用浏览器做一些快速的非正式测试，以确保这些功能正确地整合在了一起。</p>
+        <p>我们不会在这里明确地编写这些测试，不过你自己动手实践一下是个不错的主意。另一方面，我们会用浏览器做一些快速的非正式测试，以确保这些功能正确地集成在一起。</p>
       
     
       
@@ -153,23 +270,33 @@
       
     
       
-        <p>系统会提示你创建一个超级用户。请继续创建。数据库同步完成后，接下来我们要运行开发服务器：</p>
+        <pre><code>python manage.py syncdb
+</code></pre>
       
     
       
-        <p>现在让我们启动浏览器，访问 http://127.0.0.1:8000/create/。我们要先创建一个投票，因为如果还没有任何投票，我们的通用视图会报错（如果这个行为真的让我们很烦，我们可以在 web/urls.py 中修改它）。</p>
+        <p>系统会要求你创建一个超级用户。请继续创建。当数据库同步完成后，接下来我们要启动开发服务器：</p>
       
     
       
-        <p>先创建一个投票，它应该会将你重定向到投票列表。然后返回去尝试用相同的问题再创建一个投票。它应该会显示一条错误消息，说明这个投票已经被创建过了。很好。</p>
+        <pre><code>python manage.py runserver
+</code></pre>
       
     
       
-        <p>返回到投票列表页面，点击其中一个投票，确保它的表现合理（显示我们投票的一些简短信息）。</p>
+        <p>现在打开浏览器，访问 http://127.0.0.1:8000/create/。我们先创建一个投票，因为如果没有任何投票，泛型视图会报错（如果这个行为真的让我们很困扰，我们可以在 web/urls.py 中修改它）。</p>
       
     
       
-        <p>本教程当前开发进度的快照可在此[下载][polling4]。当你准备好时，欢迎随时继续本教程的第五部分。</p>
+        <p>先创建一个投票，它应该会将你重定向到投票列表页面。之后返回去尝试用同一个问题再创建一个投票，它应该会显示一条错误消息，说明这个投票已经被创建过了。很好。</p>
+      
+    
+      
+        <p>回到投票列表页面，点击其中一个投票，确保它表现正常（显示关于该投票的一些简短信息）。</p>
+      
+    
+      
+        <p>本教程当前开发进度的代码快照可在此处获取 [here][polling4]。当你准备好时，随时可以继续学习本教程的第五部分。</p>
       
     
   </div>

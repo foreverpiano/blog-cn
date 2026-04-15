@@ -29,11 +29,12 @@
   <div class="article-content">
     
       
-        <p>这个周末花了一些时间开始学习 Clojure（得益于《Setting Up Clojure for Mac OS X Leopard》这篇优秀的教程帮助我搭建开发环境），没想到查找如何简洁地读取文件却多花了不少时间。所以在这里整理一些关于这个主题的想法。</p>
+        <p>这个周末花了一些时间开始学习 Clojure（得益于《Setting Up Clojure for Mac OS X Leopard》这篇优秀的文章，它指导我搭建了开发环境），但在查找如何读取文件这个问题的简洁答案时，还是比预期多花了一些时间。因此，我想把关于这个主题的一些想法整理出来。</p>
       
     
       
-        <h2>slurp</h2>
+        <h3>slurp</h3>
+        
       
     
       
@@ -41,23 +42,40 @@
       
     
       
+        <pre><code>user&gt; (slurp &quot;tokenize.clj&quot;)
+&quot;(ns tokenize\n  (:import (java.io BufferedReader FileR....\n&quot;  
+</code></pre>
+      
+    
+      
         <p>对于简单的脚本来说，这可能就足够了，但它存在几个问题：</p>
       
     
       
-        <div class="list-content">它会把整个文件一次性读入内存，因此不适合处理大文件，而且不会按行（或其他分隔符）拆分内容，而按行读取通常才是我们想要的方式。</div>
+        <div class="list-content">它会将整个文件读入内存，因此不适合处理大文件；而且不会按行（或其他分隔符）拆分内容，而这通常是我们想要的结果。</div>
       
     
       
-        <h2>java.io.BufferedReader</h2>
+        <h3>java.io.BufferedReader</h3>
+        
       
     
       
-        <p>如果需要更具扩展性的流式处理方式，java.io.BufferedReader 是一个简单而高效的选择。</p>
+        <p>如果想要更具扩展性的流式处理方式，java.io.BufferedReader 是一个简单而高效的选择。</p>
       
     
       
-        <p>BufferedReader 包装了 FileReader，为文件提供了一个延迟加载的接口，而 line-seq 让我们可以把这个流当作一个列表来处理，背后实际是通过调用 BufferedReader 的 readLine 方法实现的。</p>
+        <pre><code>(ns tokenize
+  (:import (java.io BufferedReader FileReader)))
+(defn process-file [file-name]
+(with-open [rdr (BufferedReader. (FileReader. file-name))]
+(doseq [line (line-seq rdr)] (println line))))
+(process-file &quot;tokenize.clj&quot;)
+</code></pre>
+      
+    
+      
+        <p>BufferedReader 包装了 FileReader，为文件提供了一个惰性接口，而 line-seq 则让我们可以将这个流当作一个列表来处理，背后实际是通过调用 BufferedReader 的 readLine 方法实现的。</p>
       
     
       
@@ -65,35 +83,71 @@
       
     
       
-        <p>上面的代码片段只是统计了文件中的行数，但你可以修改 process-line 函数，使其能够从文件中检测并提取 token。</p>
+        <pre><code>(ns tokenize
+  (:import (java.io BufferedReader FileReader)))
+(defn process-file [file-name line-func line-acc]
+(with-open [rdr (BufferedReader. (FileReader. file-name))]
+(reduce line-func line-acc (line-seq rdr))))
+(defn process-line [acc line]
+(+ acc 1))
+(prn (process-file &quot;tokenize.clj&quot; process-line 0))
+</code></pre>
       
     
       
-        <p>此时运行这个脚本：</p>
+        <p>上面的代码片段只是统计了文件中的行数，但你可以修改 process-line 函数，让它也能从文件中提取 token。</p>
       
     
       
-        <p>总的来说，对于大多数文件读取场景，BufferedReader 和 line-seq 应该已经足够了（BufferedReader 也是 Java 中读取大文件的推荐方式），但 Clojure 里总是有更多实现方式。</p>
+        <pre><code>(defn process-line [acc	line]
+  (reduce #(assoc %1 %2	(+ (get	%1 %2 0) 1))	acc (.split line &quot; &quot;)))
+</code></pre>
       
     
       
-        <h2>clojure.contrib.duck-streams</h2>
+        <p>运行这个脚本后，结果如下：</p>
       
     
       
-        <p>如果你已经安装了 clojure.contrib，那么还有一种稍微更简洁的流式处理文件的方法：duck-streams。</p>
+        <pre><code>bash-3.2$ clj read1.clj
+{&quot;&quot; 20, &quot;rdr))))&quot; 1, &quot;*command-line-args*))))&quot; 1, ...}
+</code></pre>
       
     
       
-        <p>把前面的 BufferedReader 示例改成使用 duck-streams，代码如下：</p>
+        <p>一般来说，对于大多数文件读取场景，BufferedReader 和 line-seq 已经足够了（BufferedReader 也是 Java 中读取大文件的推荐方式），但 Clojure 中总是有更多的方法可供选择。</p>
       
     
       
-        <p>代码更加简洁，但你通常会使用 duck-streams.read-lines，是因为你已经在使用 duck-streams 的其他功能（比如用 spit 写出文件，用 append-spit 向文件追加内容）。</p>
+        <h3>clojure.contrib.duck-streams</h3>
+        
       
     
       
-        <p>在 Clojure 中读取文件还有很多其他方法，但以上这些应该足够让你上手了。</p>
+        <p>如果你已经安装了 clojure.contrib，那么还有一种稍微更简洁的流式解析文件的方式：duck-streams。</p>
+      
+    
+      
+        <p>把前面 BufferedReader 的例子改成使用 duck-streams，代码如下：</p>
+      
+    
+      
+        <pre><code>(ns tokenize
+  (:use	[clojure.contrib.duck-streams :only (read-lines)]))
+(defn process-file [file-name line-func line-acc]
+(reduce line-func line-acc (read-lines file-name)))
+(defn process-line [acc line]
+(reduce #(assoc %1 %2 (+ (get %1 %2 0) 1)) acc (.split line &quot; &quot;)))
+(prn (process-file &quot;tokenize.clj&quot; process-line (hash-map)))
+</code></pre>
+      
+    
+      
+        <p>代码更简洁了，但你通常会使用 duck-streams/read-lines，是因为你已经在使用 duck-streams 的其他功能（比如用于写文件的 spit，以及用于追加内容的 append-spit）。</p>
+      
+    
+      
+        <p>在 Clojure 中读取文件还有很多其他方法，但上面这些应该足以帮助你入门。</p>
       
     
   </div>

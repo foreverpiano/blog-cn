@@ -29,83 +29,152 @@
   <div class="article-content">
     
       
-        <p>昨天花了一些时间来美化 mahou.appspot.com。此前它只能进行图片搜索，但我决定再提升几个档次，充分利用 Yahoo! BOSS Search Mashup Framework 更多潜在的功能。</p>
+        <p>昨天花了些时间打磨 mahou.appspot.com。之前它只能进行图片搜索，但我决定再提升几个档次，充分利用 Yahoo! BOSS Search Mashup Framework 更多潜在的功能。</p>
       
     
       
-        <p>最明显的变化是它现在支持网页、图片和新闻搜索结果。从呈现效果来看，图片搜索仍然比另外两种更具吸引力，但我成功地对代码进行了大力重构，以便于进一步定制（WLWebResultsView.j——负责显示网页搜索结果——去除空白后约 100 行，而显示图片的 WLImageResultsView.j 约 65 行）。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/MahouFilter.jpg" alt="A picture of Mahou search filtered by Delicious.">
+          
+        </figure>
       
     
       
-        <p>我添加了几个菜单，“搜索”菜单允许你选择每次查询返回的结果数量，“网页”菜单则提供通过 Delicious 进行过滤的选项。启用 Delicious 过滤后，网页搜索结果将通过该主题的 Delicious 热门 RSS feed 进行筛选。</p>
+        <p>最明显的变化是它现在支持网页、图片和新闻搜索结果。从呈现效果来看，图片搜索依然比另外两种更具吸引力，但我已经足够激进地重构了代码，以便后续进一步定制（WLWebResultsView.j —— 负责显示网页搜索结果 —— 去掉空白后约 100 行，而显示图片的 WLImageResultsView.j 约 65 行）。</p>
       
     
       
-        <p>实际上，这种过滤会严重扼杀结果数量，但确实能提供高质量的内容。目前这还只是一个实验，而这正是 Mahou 的全部意义：Mahou 是我一个小小而有些偏差的尝试，旨在探索和实验搜索引擎的界面与功能。从现在起，尝试一个新想法应该只需 30 分钟的“假期”，或许一些有趣的想法会在这片贫瘠的园地里逐渐成长。</p>
+        <p>我添加了几个菜单，“Search”菜单可以选择每次查询返回的结果数量，“Web”菜单则提供通过 Delicious 过滤的选项。启用 Delicious 过滤后，网页搜索结果会通过该主题的 Delicious 热门 RSS feed 进行筛选。</p>
       
     
       
-        <p>接下来我要谈谈开发过程中遇到的几个尴尬问题，同时分享代码中一些有趣的地方。</p>
+        <p>实际上，这种过滤会严重压制结果数量，但确实能提供高质量的内容。目前这还只是一个实验，而这也正是 Mahou 的全部意义：Mahou 是我一次微小而偏执的尝试，旨在探索和实验搜索引擎的界面与功能1。从现在起，尝试一个新想法应该只需要三十分钟的“假期”，也许一些有趣的想法就会在这片贫瘠的园地里生长出来。</p>
       
     
       
-        <h2>良好地显示文本并不容易</h2>
+        <p>下面我来谈谈开发过程中遇到的几个尴尬难点，同时分享代码中一些有趣的地方。</p>
       
     
       
-        <p>Cappuccino 在尝试显示文本时仍然显得笨拙。公平地说，Cocoa 在这方面也做得不够好。我认为 Cappuccino 有潜力在这方面超越 Cocoa，特别是如果他们能绕过 NSAttributedString 那种可怕的格式化方式，转而直接尊重格式化 HTML 标签的含义（尤其是 em 和 strong）。</p>
+        <h3>良好地显示文本并不容易</h3>
+        
       
     
       
-        <p>朝着这个方向，我扩展了文本框，创建了 WLHTMLTextField.j 类，负责剥离 HTML 标签。未来我希望进一步扩展它以支持渲染，但目前它仅支持忽略或剥离 HTML。</p>
+        <p>Cappuccino 在尝试显示文本时仍然显得笨拙。公平地说，Cocoa 在这方面也表现不佳。我认为 Cappuccino 有潜力在这方面超越 Cocoa，尤其是如果它能绕过可怕的 NSAttributedString 格式化方式，直接尊重格式化 HTML 标签的语义（特别是 em 和 strong）。</p>
       
     
       
-        <p>使用方法非常简单。</p>
+        <p>朝着这个方向，我扩展了文本框，创建了 WLHTMLTextField.j 类，专门用来剥离 HTML 标签。未来我希望进一步扩展它以支持渲染，但目前它只能做到忽略或剥离 HTML。</p>
       
     
       
-        <p>这样做是必要的，因为 Yahoo! BOSS 返回的内容中带有 strong 和 emphasis 标签（用于高亮匹配搜索查询的字符串等），而 Cappuccino 不知道如何处理这些标签。因此，穷人的解决方案就是把标签剥掉。</p>
+        <pre><code>import &lt;Foundation/CPObject.j&gt;
+import &lt;AppKit/CPTextField.j&gt;
+WLStripHTML = 0,
+WLIgnoreHTML = 1,
+WLRepresentHTML = 2;
+@implementation WLHTMLTextField : CPTextField
+{
+int _htmlMode;
+}
+-(void)setHTMLMode: (int)anInt {
+_htmlMode = anInt;
+}
+-(int)htmlMode {
+if (!_htmlMode) {
+_htmlMode = WLStripHTML;
+}
+return _htmlMode;
+}
+-(void)setStringValue: (CPString)aString {
+var mode = [self htmlMode];
+if (mode == WLStripHTML) {
+aString = aString.replace(/&lt;&lt;/span&gt;S[^&gt;]*&gt;/g,&#x27;&#x27;);
+}
+[super setStringValue:aString];
+}
+</code></pre>
       
     
       
-        <p>我就是个穷人。</p>
+        <p>用法非常简单。</p>
       
     
       
-        <h2>Collection View 的陷阱</h2>
+        <pre><code>// top of file
+import &quot;WLHTMLTextField.j&quot;
+// somewhere in the midst of your code
+var field = [[WLHTMLTextField alloc] initAtFrame:CGRectMakeZero()];
+// is in WLStripHTML mode by default, so this is optional.
+[field setHTMLMode:WLStripHTML];
+[field setString:@&quot;&lt;strong&gt;Blah blah blah&lt;/strong&gt;&lt;em&gt;Yep.&lt;/em&gt;&quot;];
+[field sizeToFit];
+</code></pre>
       
     
       
-        <p>CPCollectionView 是 CPView 的子类，它可以方便地显示多个较小的视图，并以行列方式排列以最大限度利用可用空间。它用很低的代价提供了大量功能，Flickr 示例代码是学习这个主题的绝佳教材。</p>
+        <p>这是必要的，因为 Yahoo! BOSS 返回的内容带有 strong 和 emphasis 标签（用于高亮匹配搜索查询的字符串等），而 Cappuccino 不知道如何处理这些标签。因此，穷人的解决方案就是把标签剥掉。</p>
       
     
       
-        <p>尽管如此，情况并不完美。我特别遇到了两个尴尬的场景：</p>
+        <p>我就是一个穷人。</p>
       
     
       
-        <div class="list-content">CPCollectionView 通过 CPCollectionViewItem 来填充内容，每个 item 包含一个视图来展示它所代表的对象。例如，Mahou 接收到一个包含搜索结果的字典数组。我将这个数组传给 collection view，然后 collection view 将每个字典分别传给对应的 view item。这工作得非常好。然而，要确定 view item 的视图可用空间却相当麻烦。我在这个问题上解释得不太清楚，主要是因为我怀疑自己犯了一个大错误，错过了一个显而易见的解决方案。尽管我尽力尝试，但在创建 collection view item 时还是无法获取 collection view 的大小。这使得相对定位 item 变得很 awkward。替代方案是你只能为 collection view item 定义一个较小的最小/最大尺寸范围，然后在 item 内部进行绝对定位。顿悟总是来得太晚，重新翻看文档后，我发现可以使用 setMaxNumberOfColumns 方法巧妙地解决这个问题。我还遇到了一个极其奇怪的缓存错误。如果我先搜索日本的图片，再搜索美国的图片，第一次的图片能被正确清除。但如果是网页搜索，同样的操作却无法正确显示美国的搜索结果。释放和重置 represented object 的代码都由这些类的父类处理，所以我完全搞不懂为什么网页视图不能正常工作。这里的陷阱在于 CPCollectionView 会复用 CPCollectionViewItem，因此你自定义的 CPCollectionViewItem 子类必须能够在 setRepresentedObject: 方法被调用时正确更新其内容。</div>
+        <h3>Collection View 的陷阱</h3>
+        
       
     
       
-        <h2>Python 后端</h2>
+        <p>CPCollectionView 是 CPView 的子类，它可以方便地显示多个较小的视图，并以行列形式排列以充分利用可用空间。它用很低的代价提供了大量功能，Flickr 示例代码是学习这个主题的极佳教材。</p>
       
     
       
-        <p>Cappuccino 处理了几乎所有功能，因此你的后端只需是一个简单的 API。在这个项目中，Mahou 的 Python 代码不到一百行。例如，处理图片搜索的后端全部代码是这样的：</p>
+        <p>尽管如此，实际情况并不完美。我特别遇到了两个尴尬的情况：</p>
       
     
       
-        <p>这已经非常精简了。网页搜索的代码要稍微复杂一些，因为如果启用了 Delicious 过滤选项，它需要进行额外处理，但即便如此也只有十二行代码（这得益于 Yahoo! BOSS Search Mashup Framework 的灵活性）。</p>
+        <div class="list-content">CPCollectionView 通过 CPCollectionViewItem 来填充内容，每个 item 包含一个视图来展现它所代表的对象。例如，Mahou 接收到一个包含搜索结果的字典数组。我把这个数组传给 Collection View，然后 Collection View 把每个字典分别传给对应的 view item。这工作得非常好。然而，要确定 view item 里的视图有多大可用空间却相当尴尬。我很难把这一点解释清楚，主要是因为我怀疑自己犯了一个大错误，漏掉了某个显而易见的解决方案。尽管我尽了最大努力，仍然无法在创建 collection view item 时获知 collection view 的大小。这使得对 item 进行相对定位变得很麻烦。替代方案是给 collection view item 定义一个较小的最小/最大尺寸范围，然后在 item 内部进行绝对定位。顿悟总是来得太晚，重新查阅文档后发现，我本来可以使用 setMaxNumberOfColumns 方法巧妙地解决这个问题。我还遇到了一个极其奇怪的缓存错误：如果先搜索日本的图片，再搜索美国的图片，第一次的图片能被正确清除。但如果是网页搜索，同样的操作却无法正确显示美国的搜索结果。释放和重置 represented objects 的代码全部由这些类的父类处理，所以我完全搞不懂为什么网页视图不能正常工作。这里的陷阱在于：CPCollectionView 会复用 CPCollectionViewItem，因此你自定义的 CPCollectionViewItem 子类必须能在 setRepresentedObject: 方法被调用时正确更新自己的内容。</div>
       
     
       
-        <h2>结束思考</h2>
+        <h3>Python 后端</h3>
+        
       
     
       
-        <p>我目前对 Cappuccino 的看法依然相当正面，但当你离开那些琐碎的功能领域后，几乎肯定会遇到 bug。280 North 是一个三人团队，这么大体量的库难免会有一些裂缝让 bug 溜进来。现在库已经开源，你只需要愿意去阅读源代码。如果你想使用 Cappuccino，请确保你愿意阅读源代码！</p>
+        <p>Cappuccino 承担了几乎所有功能，因此后端只需要一个简单的 API。在这个项目中，Mahou 的 Python 代码还不到一百行。例如，处理图片搜索的后端代码全部如下：</p>
+      
+    
+      
+        <pre><code>class ImageSearchHandler(webapp.RequestHandler):
+  def get(self):
+    query = console.strfix(self.request.get(&quot;query&quot;))
+    count = int(console.strfix(self.request.get(&quot;count&quot;)))
+    offset = int(console.strfix(self.request.get(&quot;offset&quot;)))
+    data = ysearch.search(query,vertical=&quot;images&quot;,count=count,start=offset);
+    images = db.create(data=data)
+    serialized = simplejson.dumps(images.rows)
+    self.response.out.write(serialized)
+</code></pre>
+      
+    
+      
+        <p>这已经非常精简了。网页搜索的代码稍微复杂一些，因为如果启用了 Delicious 过滤选项，它需要进行额外处理，但即便如此也只有十二行代码（这得益于 Yahoo! BOSS Search Mashup Framework 的灵活性）。</p>
+      
+    
+      
+        <h3>结束思考</h3>
+        
+      
+    
+      
+        <p>我目前对 Cappuccino 的观感依然相当正面，但当你离开那些简单功能的舒适区后，几乎肯定会遇到有 bug 的代码。280 North 是一个三人团队，这么大体量的库难免会有一些漏洞。现在库已经开源，你只需要愿意去阅读源代码。如果你想使用 Cappuccino，请确保自己愿意阅读源代码！</p>
+      
+    
+      
+        <div class="list-content">这似乎已经成为我个人的一个趋势——为各类软件编写个人版本。我的博客系统、我的 Twitter 客户端、我的日语词典、教师课程大纲和资源管理工具、笔记应用，现在又加上了一个搜索引擎。大概我这个人有点问题。↩</div>
       
     
   </div>

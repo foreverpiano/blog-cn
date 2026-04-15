@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>用 Python 实现 tail · Will Larson 文集</title>
+  <title>用 Python 实现 tail 命令 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>用 Python 实现 tail</h1>
+    <h1>用 Python 实现 tail 命令</h1>
     <div class="meta">
       2010-05-16 · 
       <a href="https://lethain.com/tailing-in-python/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,23 +29,23 @@
   <div class="article-content">
     
       
-        <p>编写复杂的系统是一种很棒的感觉。你知道，那些宏大的想法让你不得不坐下来，拿起纸笔先思考一会儿。你甚至可能会和同事讨论，而不是直接认为自己的方案完美无缺，然后立即动手写下 code_that_wont_get_used_for_various_reasons/misguided_solution.py.r9999 这样的文件。</p>
+        <p>编写复杂的系统是一种很棒的感觉。你知道，那些庞大的想法让你不得不坐下来拿出纸笔先思考一会儿。你甚至可能会和同事讨论，而不是直接认为自己的方案完美无缺，然后写出 code_that_wont_get_used_for_various_reasons/misguided_solution.py.r9999 这样的文件。</p>
       
     
       
-        <p>但也有些日子，你完全失去了正常工作的能力，最后把过多的脑力都花在实现一个 Python 版的……我也不知道该怎么说……tail 命令上。</p>
+        <p>但也有些日子，你完全失去了正常工作的能力，最后把大量脑力都浪费在用 Python 实现一个……我也不知道……类似 tail 的功能上。</p>
       
     
       
-        <p>如果在这个美好的周日，你也正对着墙壁发呆发愣，或许可以试着自己写一个 Python 版的 tail，要求满足以下条件：</p>
+        <p>如果在这个美好的星期天，你也正茫然地盯着空白的墙壁发呆，或许可以试试写一个满足以下要求的 Python 版 tail：</p>
       
     
       
-        <div class="list-content">支持实时追踪文件新追加的行（不显示文件已有的内容）；支持先遍历输出文件所有已有的行，然后继续跟随新增的内容。</div>
+        <div class="list-content">支持持续跟踪文件新追加的行（不显示文件已有的内容），支持先遍历输出文件现有的所有行，然后继续跟随后续出现的新行。</div>
       
     
       
-        <p>评判标准如下：</p>
+        <p>评判标准包括：</p>
       
     
       
@@ -53,19 +53,55 @@
       
     
       
-        <p>好了，开始写代码吧！</p>
+        <p>好了，开始 coding 吧！</p>
       
     
       
-        <h2>我的实现</h2>
+        <h3>我的实现</h3>
+        
       
     
       
-        <p>欢迎品鉴，这是我的解决方案。</p>
+        <p>供大家参考，这是我的解决方案。</p>
       
     
       
-        <p>那么，你的版本在哪里呢？</p>
+        <pre><code>import time
+from optparse import OptionParser
+SLEEP_INTERVAL = 1.0
+def readlines_then_tail(fin):
+&quot;Iterate through lines and then tail for further lines.&quot;
+while True:
+line = fin.readline()
+if line:
+yield line
+else:
+tail(fin)
+def tail(fin):
+&quot;Listen for new lines added to file.&quot;
+while True:
+where = fin.tell()
+line = fin.readline()
+if not line:
+time.sleep(SLEEP_INTERVAL)
+fin.seek(where)
+else:
+yield line
+def main():
+p = OptionParser(&quot;usage: tail.py file&quot;)
+(options, args) = p.parse_args()
+if len(args) &lt; 1:
+p.error(&quot;must specify a file to watch&quot;)
+with open(args[0], &#x27;r&#x27;) as fin:
+for line in readlines_then_tail(fin):
+print line.strip()
+if name == &#x27;main&#x27;:
+main()
+</code></pre>
+      
+    
+      
+        <p>那么，你的版本呢？</p>
       
     
   </div>

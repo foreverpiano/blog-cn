@@ -29,7 +29,16 @@
   <div class="article-content">
     
       
-        <p>最近我开始接触 Objective C，觉得这门语言真的很有趣。但有一点让我不是特别开心，那就是不得不写更多老式的 for 循环。</p>
+        <p>最近我开始接触 Objective C，发现这门语言真的很有趣。唯一让我不是特别开心的是，需要写更多老式的 for 循环。</p>
+      
+    
+      
+        <pre><code>int i, count = [someList count];
+for (i=0; i&lt;count;i++) {
+    NSObject * obj = [someList objectAtIndex:i];
+    NSLog(@&quot;Object at %d: %@&quot; , count, obj);
+}
+</code></pre>
       
     
       
@@ -37,43 +46,79 @@
       
     
       
-        <p>或者 Lisp</p>
+        <pre><code>for obj in someList:
+    some_func(obj)
+</code></pre>
       
     
       
-        <p>不过最终还是能接受的。</p>
+        <p>或者和 Lisp 相比也是。</p>
       
     
       
-        <p>另一方面，我目前正在做的项目需要进行大量列表过滤操作，我希望能在 Objective C 中实现过滤，而不用为每种过滤场景都写一个 for 循环。本质上我想找到一种方法来实现以下功能：</p>
+        <pre><code>(map #&#x27;some-func someList)
+</code></pre>
       
     
       
-        <p>幸运的是，Objective C 的 NSArray 对这种操作有相当不错的支持。让我们来看看具体怎么做。</p>
+        <p>但最终还是可以接受的。</p>
       
     
       
-        <h2>简单过滤 NSArray</h2>
+        <p>另一方面，我正在做的当前项目需要大量列表过滤操作，我希望找到一种在 Objective C 中无需为每种过滤场景都写一个 for 循环的方法。本质上我想实现类似这样的功能：</p>
       
     
       
-        <p>首先来看如何实现上面那个例子（从数字列表中过滤出正数）。</p>
+        <pre><code>(setf filtered (filter #&#x27;is-positive-numberp numbers))
+</code></pre>
       
     
       
-        <p>我们使用 NSPredicate 的实例来帮助过滤列表。虽然其语法可以变得非常复杂，但仍然需要你和一个迷你语言打交道来过滤列表（尽管其他语言中的列表推导式也存在同样的缺点）。</p>
+        <pre><code>filtered = [ x for x in numbers if x &gt; 0]
+</code></pre>
       
     
       
-        <p>有时候谓词迷你语言并不是解决问题的优雅方案，好在你可以使用谓词语言向对象发送消息，让对象自己完成判断工作。</p>
+        <p>幸运的是，Objective C 的 NSArray 对这种操作提供了相当不错的支持。让我们一起来看看。</p>
       
     
       
-        <p>来看看具体例子。</p>
+        <h3>简单过滤 NSArray</h3>
+        
       
     
       
-        <h2>过滤 NSArray 中的对象</h2>
+        <p>首先我们来看如何实现上面的例子（从数字列表中过滤出正数）。</p>
+      
+    
+      
+        <pre><code>NSMutableArray *arr = [[NSMutableArray alloc] init];
+[arr addObject:[[NSNumber alloc] initWithDouble:53.0]];
+[arr addObject:[[NSNumber alloc] initWithDouble:17.0]];
+[arr addObject:[[NSNumber alloc] initWithDouble:-34.0]];
+[arr addObject:[[NSNumber alloc] initWithDouble:0.0]];
+NSPredicate *pred = [NSPredicate predicateWithFormat:@&quot;doubleValue &gt; 0.0&quot;];
+NSArray *filtered = [arr filteredArrayUsingPredicate:pred];
+[filtered retain]; // didn&#x27;t alloc, init, or copy so not yet retained
+[arr release]; // we did alloc &amp; init this, so we need to release it
+</code></pre>
+      
+    
+      
+        <p>我们使用 NSPredicate 实例来帮助过滤列表。虽然其语法可以变得非常复杂，但仍然需要你和一个迷你语言打交道来过滤列表（不过其他语言的列表推导式往往也存在同样的问题）。</p>
+      
+    
+      
+        <p>有时候谓词迷你语言并不是解决问题的优雅方案，好消息是你可以用谓词语言向你的对象发送消息，由对象自身来进行判断。</p>
+      
+    
+      
+        <p>让我们来看一个例子。</p>
+      
+    
+      
+        <h3>过滤 NSArray 中的对象</h3>
+        
       
     
       
@@ -81,27 +126,92 @@
       
     
       
-        <h2>Transaction.h</h2>
+        <h4>Transaction.h</h4>
+        
       
     
       
-        <p>它的实现也非常简单。</p>
+        <pre><code>#import &lt;Cocoa/Cocoa.h&gt;
+@interface Transaction : NSObject
+{
+@private
+double	value;
+NSString    type;
+}
+-(id)initWithValue: (double)aValue withType:aType;
+-(double)value;
+-(void)setValue: (double)aValue;
+-(NSString )type;
+-(void)setType: (NSString *)aType;
+-(BOOL)isPositive;
+-(BOOL)isNegative;
+@end
+</code></pre>
       
     
       
-        <h2>Transaction.m</h2>
+        <p>其实现也非常简单。</p>
       
     
       
-        <p>这里的 isPositive 和 isNegative 方法非常简单，完全可以用谓词迷你语言来表达。但我想传达的核心思想是，你可以在其中进行任意复杂的计算，而不仅仅是简单的 double 比较。</p>
+        <h4>Transaction.m</h4>
+        
       
     
       
-        <p>现在让我们使用 Transaction 类来进行一些过滤操作。</p>
+        <pre><code>#import &quot;Transaction.h&quot;
+@implementation Transaction
+/*
+ initWithValue:aValue withType:aType is a standard
+  init method, storing the two values in the
+  &#x27;value&#x27; and &#x27;type&#x27; fields respectivey.
+ the &#x27;value&#x27;, &#x27;setValue&#x27;, &#x27;type&#x27; and &#x27;setType&#x27; methods
+  are also normal getter/setter methods
+ */
+-(BOOL) isPositive {
+if (value &gt; 0.0) return YES;
+else return NO;
+}
+-(BOOL) isNegative {
+return ![self isPositive];
+}
+@end
+</code></pre>
       
     
       
-        <p>在 Objective C 中过滤数组并不是特别简单便捷，但还是可以实现的。祝你好运。</p>
+        <p>这里的 isPositive 和 isNegative 方法非常简单，完全可以用谓词迷你语言来表达，但这个例子的重点在于，你可以在其中进行任意复杂的计算，而不仅仅是简单的 double 比较。</p>
+      
+    
+      
+        <p>现在让我们用 Transaction 类来进行一些过滤操作。</p>
+      
+    
+      
+        <pre><code>// only positive transactions
+-(NSArray *)positiveTransactions: (NSArray *)someTransactions {
+    NSPredicate *isPositive = [NSPredicate predicateWithFormat:@&quot;isPositive == YES&quot;];
+    return [someTransactions filteredArrayUsingPredicate:isPositive];
+}
+// only negative transactions
+-(NSArray )negativeTransactions: (NSArray )someTransactions {
+NSPredicate *isNegative = [NSPredicate predicateWithFormat:@&quot;isNegative == YES&quot;];
+return [someTransactions filteredArrayUsingPredicate:isNegative];
+}
+// are of a specified type
+-(NSArray )getTransactions: (NSArray )someTransactions withType: (NSString )aType {
+NSPredicate ofType = [NSPredicate predicateWithFormat:@&quot;type like %@&quot;, aType];
+return [someTransactions filteredArrayUsingPredicate:ofType];
+}
+</code></pre>
+      
+    
+      
+        <p>在 Objective C 中过滤数组算不上特别简单便捷，但确实是可行的。祝你好运。</p>
+      
+    
+      
+        <div class="list-content">Apple 所谓的 Objective C 2.0（随 Leopard 发布）提供了更简洁的循环语法，但我还在使用 Tiger，并且不确定 gcc 的 ObjC 编译器是否支持新的 ObjC 2.0 语法。↩</div>
       
     
   </div>

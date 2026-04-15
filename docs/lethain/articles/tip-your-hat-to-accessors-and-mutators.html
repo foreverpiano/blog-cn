@@ -29,91 +29,157 @@
   <div class="article-content">
     
       
-        <p>我还记得本科刚开始学习编程时，老师们反复强调：在面向对象代码中，应该始终使用访问器（accessor）和修改器（mutator）来获取和修改数据。当然，那时候我们更常把它们叫做 getter 和 setter 方法，大多数学生都讨厌它们。我记得特别有一个学生坚决拒绝使用它们，认为这些东西“很蠢”。而据说，他现在成了一名职业程序员。</p>
+        <p>我还记得本科刚开始学习编程时，老师们反复强调，在面向对象代码中，始终应该使用 mutator 和 accessor 来获取和修改数据。当然，那时候我们管它们叫 setter 和 getter 方法，大多数学生都很讨厌它们。我特别记得有个学生坚决拒绝使用它们，理由是“太蠢了”。故事的结局是，他现在当然成了一名职业程序员。</p>
       
     
       
-        <p>我认为很多新手程序员对访问器和修改器产生了误解，这可能是因为很少有人清楚地解释为什么要这么做。教授们可能会告诉学生应该始终使用 setter/getter 对来处理数据交互，但我从未听到过为什么它们重要的解释。当你刚开始学习编程时，头脑里已经被大量新信息塞满，大脑会自动丢弃那些它不理解或认为无关紧要的内容。那个觉得它们很蠢的学生认为，这些只是传统的冗余代码，不值得花费额外的代码行。</p>
+        <p>我认为很多新手程序员对访问器和修改器存在误解，这可能是因为很少有清晰的解释说明为什么应该重视它们。教授们可能会告诉学生要始终使用 setter/getter 对来处理数据交互，但我从未听到过它们为什么重要的解释。当你刚开始学习编程时，脑海里会被各种新信息塞满，大脑会自动丢弃那些它不理解或认为无关紧要的东西。那个觉得它们很蠢的学生认为，这些只是传统遗留下来的冗余代码，不值得占用那些代码行。</p>
       
     
       
-        <p>然而，我编程的时间越长，就越能体会到访问器和修改器那微妙的价值。</p>
+        <p>然而，我编程的时间越长，就越能体会到 mutator 和 accessor 方法的微妙价值。</p>
       
     
       
-        <h2>惰性初始化</h2>
+        <h4>惰性初始化</h4>
+        
       
     
       
-        <p>我第一次意识到访问器方法的价值，是在学习如何使用 Java 的 Swing 图形包时。那门课使用的是 Visual Eclipse，它会为你生成大量代码。我注意到，程序启动时很少有变量被初始化，大多数东西都是在它们的访问器方法中进行初始化的。</p>
+        <p>我第一次发现 accessor 方法的价值，是在学习如何使用 Java 的 Swing 图形包时。当时我们使用 Visual Eclipse，它会为你生成大量代码，我注意到程序启动时很少有变量被初始化，大部分东西都是在它们的 accessor 中进行初始化的。</p>
       
     
       
-        <p>不同于过去那些毫无意义的访问器：</p>
+        <p>不再是过去那种毫无意义的访问器：</p>
       
     
       
-        <p>我开始看到真正有实际作用的访问器：</p>
+        <pre><code>public JList getPersonList() {
+    return personList;
+}
+</code></pre>
       
     
       
-        <p>访问器的价值突然变得清晰起来。你可以用它来初始化对象中的变量，但只有在真正需要它们的时候才会初始化。如果你只在极少数情况下使用某个变量，那也没关系——只有当你真的进入那种罕见场景时，它才会被初始化。或者你有大量计算密集型的运算，但每次只需要其中一部分结果，这也没问题，因为惰性初始化——访问器的第一个福利——可以帮你分摊这些成本。</p>
+        <p>我开始看到真正能做事的访问器：</p>
       
     
       
-        <p>在更复杂的问题中，你可以实现动态规划算法，只生成并缓存你真正关心的那些值，并把这一切都隐藏在访问器背后：</p>
+        <pre><code>public JList getPersonList() {
+    if (personList == null) {
+        personList = new JList(getPersons());
+        personList.setCellRenderer(getMyCustomRenderer());
+        personList.setPrototypeCellValue(&quot;Initial&quot;);
+        personList.setPreferredSize(new java.awt.Dimension(100,200));
+    }
+    return personList;
+}
+</code></pre>
       
     
       
-        <p>这是一种在不增加类公共 API 复杂性的前提下，大幅提升性能的绝佳方式。</p>
+        <p>突然间，accessor 的价值变得清晰多了。你可以用它来初始化对象中的变量，但只在真正需要它们的时候才初始化。如果你只在极少数情况下使用某个变量，那也没关系，除非真的进入那种罕见场景，否则它就不会被初始化。或者你有一大堆计算量很大的运算，但每次只需要其中一部分结果，这也没问题，因为惰性初始化——访问器的第一个福音——会帮你摊薄这些成本。</p>
       
     
       
-        <h2>访问控制</h2>
+        <p>在更复杂的问题中，你可以实现动态规划算法，只生成并缓存你真正关心的那些值，然后把这一切都隐藏在访问器背后：</p>
       
     
       
-        <p>访问器的另一个用途是验证调用对象是否有权限使用某个访问器。也许你只允许关联的主对象才能调用你的访问器方法：</p>
+        <pre><code>- (id) valueAtX: (int)x andY: (int)y {
+    id val = [self cachedValueForX:x andY:y];
+    if (val == nil) {
+        // use dynamic programming to generate the value
+    }
+    return val;
+}
+</code></pre>
       
     
       
-        <p>这是一个相当简单的例子，但你可以将其扩展到更有用的场景中。例如，在多个程序之间共享的分布式对象中，某些数据需要受到保护，不能被随意访问。</p>
+        <p>这是一种在不增加类的公共 API 复杂性的前提下，大幅提升性能的绝佳方式。</p>
       
     
       
-        <h2>修改器</h2>
+        <h4>访问控制</h4>
+        
       
     
       
-        <p>好了，我们已经讨论了访问器的重要性，现在来看看修改器。修改器的理由相对更显而易见，但仍然值得深入考察。</p>
+        <p>访问器的另一个用途是验证调用对象是否有权使用某个访问器。也许你只希望关联的主对象才能使用你的访问器方法：</p>
       
     
       
-        <h2>数据验证</h2>
+        <pre><code>-(NSNumber *)ssn: (NSObject *)sender {
+    if (sender != [self masterObject]) return nil;
+    return ssn;
+}
+</code></pre>
       
     
       
-        <p>你通常希望在更新数据之前验证更新是否有效，而修改器正是做这件事的完美场所。</p>
+        <p>这是一个很简单的例子，但你可以将其推演到更有用的场景。例如在多个程序之间共享的分布式对象，其中某些数据需要受到保护，不能被过于随意地访问。</p>
       
     
       
-        <h2>清理和设置工作</h2>
+        <h3>修改器</h3>
+        
       
     
       
-        <p>此外，当你使用修改器时，可以在更新为新值之前对旧值进行清理。例如，你可能有一个频繁写入的文件流，需要先把它关闭，然后再打开一个指向新文件的新流。</p>
+        <p>好了，我们已经看了几个访问器为什么重要，现在来谈谈修改器。修改器的理由相对更直观一些，但仍然值得仔细分析。</p>
       
     
       
-        <p>这对于没有自动垃圾回收机制的语言尤其重要，但即使是带垃圾回收的语言，有时也需要显式的清理操作（例如打破引用循环）。</p>
+        <h4>数据验证</h4>
+        
       
     
       
-        <h2>继承</h2>
+        <p>你通常希望在更新数据前验证更新是否有效，而修改器正是做这件事的完美场所。</p>
       
     
       
-        <p>当你开始对对象进行子类化时，修改器和设置器的真正潜力就显现出来了。你可以复用已有的验证或设置代码，只需添加少量额外逻辑即可。</p>
+        <pre><code>def setName(self, newName):
+    if len(newName) &lt; 3:
+        raise TooShortNameException, u&quot;You name is too short!&quot;
+    elif newName in [&quot;Bob&quot;, &quot;Jim&quot;, &quot;Joe&quot;]:
+        raise AwfulNameException, u&quot;The quality of your name is substandard.&quot;
+    elif newName.contains(&quot;teh&quot;):
+        raise IHateInternetSpellingException, u&quot;Just go home.&quot;
+    self.name = newName
+</code></pre>
+      
+    
+      
+        <h3>清理和初始化工作</h3>
+        
+      
+    
+      
+        <p>此外，当你使用修改器时，可以在更新为新值之前对旧值进行清理工作。比如你可能有一个频繁写入的文件流，需要先把它关闭，同时打开一个指向新文件的新流。</p>
+      
+    
+      
+        <pre><code>def setFile(self, newFile):
+    if newFile != self.file:
+        self.file.close()
+        self.file = newFile
+        self.file.open()
+</code></pre>
+      
+    
+      
+        <p>这在没有自动垃圾回收的语言中尤其重要，但即使是带垃圾回收的语言，有时也需要一些显式的清理操作（例如打破引用循环）。</p>
+      
+    
+      
+        <h3>继承</h3>
+        
+      
+    
+      
+        <p>当你开始对对象进行子类化时，mutator 和 setter 的真正潜力才最明显显现出来——你可以复用已有的验证或初始化代码，只需添加少量额外逻辑即可。</p>
       
     
       
@@ -121,19 +187,42 @@
       
     
       
+        <pre><code>def getName(self):
+    return super.getName().upper()
+</code></pre>
+      
+    
+      
         <p>或者你可能想创建一个会记录自身操作的子类。</p>
       
     
       
-        <p>又或者，你可能想为修改器增加额外的验证逻辑：</p>
+        <pre><code>-(NSString *)name {
+    NSString * tmpName = [super name];
+    NSLog(@&quot;%@: Setting name to %@.&quot;, self, tmpName);
+    return tmpName;
+}
+</code></pre>
       
     
       
-        <p>这些用途中有些作用更强，有些相对较弱，但综合起来，它们为编写访问器和修改器的实践提供了强有力的理由。这远远超出了最基本的辩护——即直接访问对象的成员会将代码与实现细节紧密绑定，从而打破抽象层。</p>
+        <p>又或者，你可能想给修改器增加额外的验证逻辑：</p>
       
     
       
-        <p>是我高估了访问器和修改器的价值吗？它们是否只在 Objective C、Java 或 C++ 这些老旧繁琐的语言中才有价值，而在如今动态脚本语言的乌托邦中就显得浪费？我知道自己曾经也对它们很反感，但随着项目规模和复杂度的增加，我发现越来越难以忽视它们带来的帮助。</p>
+        <pre><code>def setName(self, newName):
+    if newName.contains(u&quot;McLovin&quot;):
+        raise TopicalButPredictableException, &quot;A good try, but...&quot;
+    return super.setName(newName)
+</code></pre>
+      
+    
+      
+        <p>上述这些用途有的强一些，有的弱一些，但合在一起就形成了强有力的理由，说明为什么应该养成编写访问器和修改器的习惯。这远比最简单的辩护——直接访问对象的成员会将代码绑定到实现细节上，从而打破抽象层——更有说服力。</p>
+      
+    
+      
+        <p>是我高估了访问器和修改器的价值吗？它们是否只在 Objective C、Java 或 C++ 这些老旧繁琐的语言中才有价值，而在如今充满动态脚本语言的乌托邦里就显得浪费呢？我知道自己以前也曾对它们感到恼火，但随着项目规模和复杂度的增加，我越来越难以忽视它们带来的帮助。</p>
       
     
   </div>

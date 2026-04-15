@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YUI 对话框、IE z-index 与惨痛教训 · Will Larson 文集</title>
+  <title>YUI 对话框、IE z-index 与悲剧 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>YUI 对话框、IE z-index 与惨痛教训</h1>
+    <h1>YUI 对话框、IE z-index 与悲剧</h1>
     <div class="meta">
       2009-06-16 · 
       <a href="https://lethain.com/yui-dialogs-ie-z-index-and-tragedy/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,35 +29,81 @@
   <div class="article-content">
     
       
-        <p>虽然我目前在工作中做了大量的前端开发，但从未真正将自己视为一名前端工程师。这 partly 是出于一点自负，但更重要的是，我仍在为真正配得上这个头衔而付出必要的努力。这是一个关于“交学费”的故事。</p>
+        <p>虽然我目前在工作中做了大量前端开发，但从未真正将自己视为一名前端工程师。这其中有一点自负，但更主要的是，我还在为真正配得上这个头衔而付出必要的代价。这是一个关于“交学费”的故事。</p>
       
     
       
-        <p>在工作中，我正在处理一个大型应用的多浏览器兼容阶段，刚刚确保 Firefox 和 Safari 都能正常运行，接下来就轮到 IE7 了。我启动 VirtualBox，选了一个装有 IE7 的 Windows XP 镜像，然后就迎头撞上了 IE z-index bug 这堵著名的砖墙。</p>
+        <p>在工作中，我正在处理一个大型应用的跨浏览器适配阶段，刚刚确保 Firefox 和 Safari 都能正常运行，接下来轮到 IE7 了。我启动 VirtualBox，选好装有 IE7 的 Windows XP 镜像，然后就一头撞上了著名的 IE z-index bug 这堵墙。</p>
       
     
       
-        <p>看着上面的方块，你可能会以为（好吧，如果它们是用 CSS 而不是 PNG 渲染的话……）它们是按照 z-index 值进行层叠的。代码大概是这样的：</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/layers.png" alt="A picture of layered squares.">
+          
+        </figure>
       
     
       
-        <p>但不幸的是，Internet Explorer 并不尊重 z-index 值，因此你会遇到各种尴尬的情况。我遇到的尴尬情况就是：我的模态 YUI Dialog 不再按预期渲染了。</p>
+        <p>看到上面的方块，你可能会以为（如果它们是用 CSS 而不是 PNG 渲染的话……）它们是通过 z-index 值来实现层叠的。代码大概长这样：</p>
       
     
       
-        <p>相反，对话框被渲染到了其 underlay 的下方，导致文字难以阅读，也无法与之交互。</p>
+        <pre><code>.red, .grey {  z-index: 0; }
+.why_did_i_pick_such_an_ugly_color { z-index: 1; }
+.blue { z-index: 2; }
+</code></pre>
       
     
       
-        <p>在 IE6 上情况更加惨烈，由于透明度 workaround 的影响，underlay 变成了纯黑色，于是使用对话框时整个屏幕都会变黑（除非页面里有个 &lt;input&gt; 标签，那就会变成被另一个 z-index bug 打断的黑色）。</p>
+        <p>但不幸的是，Internet Explorer 并不遵守 z-index 值，于是你就遇到了各种尴尬的情况。我遇到的尴尬情况是，我发现 YUI 模态对话框不再按预期渲染了。</p>
       
     
       
-        <p>绕过这个问题其实非常简单，YUI Container 页面上也简要提到过。只需将弹出框调整为 &lt;body&gt; 标签的直接子元素即可解决问题。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/correct_dialog.png" alt="The correctly positioned dialogs.">
+          
+        </figure>
       
     
       
-        <p>在你的代码中，这个改动可能简单到：</p>
+        <p>相反，对话框被渲染在了其 underlay 下面，导致文字难以阅读，也无法进行交互。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/ie_dialog.png" alt="The incorrectly rendered dialogs in IE.">
+          
+        </figure>
+      
+    
+      
+        <p>在 IE6 上情况更加惨烈，由于透明度处理方式的问题，underlay 变成了纯黑色，导致使用对话框时整个屏幕都变黑（除非页面里某处有 &lt;input&gt; 标签，那就会变成被另一个 z-index bug 打断的黑色）。</p>
+      
+    
+      
+        <p>绕过这个问题其实非常简单，YUI Container 的文档里也简单提到过。只要把弹窗元素调整为 &lt;body&gt; 标签的直接子元素，就能正常工作了。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/organize_nodes.png" alt="Reorganizing the YUI nodes for proper rendering in IE.">
+          
+        </figure>
+      
+    
+      
+        <p>在代码中，这个改动可能简单到只需：</p>
+      
+    
+      
+        <pre><code>var yus = YAHOO.util.Selector;
+// some code...
+// the old way
+// d.render(&quot;some-element-id&quot;);
+// the new way
+var body = yus.query(&quot;body&quot;)[0];
+d.render(body);
+</code></pre>
       
     
       
@@ -66,14 +112,15 @@
     
       
         <h2>两小时后，一切都崩了</h2>
+        
       
     
       
-        <p>在确认所有功能（哈哈……）都正常之后，我就去忙其他事情了。也许是在处理像癌细胞扩散一样越来越多的 bug 单，也可能是在吃晚饭，咱们别纠结这些细节了。</p>
+        <p>在确认一切（哈哈……）都正常之后，我去忙其他事情了。也许是在处理像癌症一样不断增长的 bug 单，也可能是在吃晚饭，咱们就不纠结细节了。</p>
       
     
       
-        <p>等我回来准备快速跑一遍应用测试时，灾难悄无声息却又确定无疑地发生了。我先把事实告诉你，然后你可以用几分钟时间试着找出问题所在。</p>
+        <p>等我回来对应用做一次快速测试时，灾难悄无声息却又确定无疑地发生了。让我先把事实告诉你，然后你可以花几分钟试着自己想出原因。</p>
       
     
       
@@ -81,39 +128,47 @@
       
     
       
-        <div class="list-content">某个页面上有一个表单，包含两个输入框：一个是面向用户的 primary key，另一个用于存储 JSON blob。该 blob 在页面加载时由后端填充。当用户点击页面的“保存”按钮时，UI 的状态会被重新序列化成这个 JSON blob。这个页面中有一系列规则，可以有零条或多条。每条规则包含类型、key、value 以及零个或多个条件。你可以在弹出的对话框中创建新规则。在创建新规则时也可以创建新的条件。点击“添加规则”后，该规则会显示在主页面上。主页面上的规则可以通过“删除”按钮移除，也可以通过“编辑”按钮进行修改。存在一个用于编辑规则和创建新规则的弹出容器，删除规则时不会打开它。由于这些操作的复杂性，状态被维护在两个地方：一个包含每条规则信息的 JavaScript 数组。一个编辑界面维护着自己的一份字典，用于描述当前正在编辑的规则的变更，这样用户可以取消对某条规则的修改，或者保存修改并覆盖主规则列表中对应的那一条。点击“保存”时，主规则列表会被序列化为 JSON，注入到一个隐藏的表单输入框中，然后通过 JavaScript 调用表单的 submit 方法以 POST 方式提交。面向用户的 primary key 也包含在该表单中。如果你在访问页面时，GET 或 POST 中都没有这个面向用户的 primary key，那么你会被重定向到应用首页。（没有关联的 primary key 时，这个页面没有意义。）</div>
+        <div class="list-content">某个页面上有一个表单，包含两个输入框：一个是用户可见的主键，另一个存储着一个 JSON blob。该 blob 在页面加载时由后端填充。当用户点击页面的“保存”按钮时，UI 的当前状态会被重新序列化到这个 JSON blob 中。页面中有一组规则，可以是零个或多个。每条规则有一个类型、一个键、一个值，以及零个或多个条件。你可以在弹窗对话框中创建新规则。在创建新规则时也可以创建新的条件。点击“添加规则”后，规则会显示在主页面上。主页面上的规则可以通过“删除”按钮移除，也可以通过“编辑”按钮进行修改。有一个用于编辑和创建规则的弹窗容器，删除规则时不会打开它。由于这些操作的复杂性，状态被保存在两个地方：一个包含每条规则字典的 JavaScript 数组。编辑界面维护着自己的字典来描述当前对规则的修改，允许用户取消对正在编辑规则的改动，或者保存改动并覆盖主规则列表中对应的那一条。在点击“保存”时，主规则列表会被序列化为 JSON，注入到一个隐藏的表单输入框中，然后通过 JavaScript 调用表单的 submit 方法进行 POST 提交。用户可见的主键也包含在这个表单中。如果你访问页面时，在 GET 或 POST 参数中都没有这个主键，则会被重定向到应用首页。（没有关联的主键，这个页面没有意义。）</div>
       
     
       
-        <p>接下来描述这个 bug。</p>
+        <p>现在来说说这个 bug。</p>
       
     
       
-        <div class="list-content">如果你进入页面，添加一条新规则，然后点击保存，你会被错误地重定向到首页。如果你进入页面后不做任何修改直接点击保存，你会正确地留在当前页面。如果你进入页面，删除一条规则，然后点击保存，你会正确地回到同一页面，且被删除的条目已消失。</div>
+        <div class="list-content">如果你进入页面，添加一条新规则，然后点击保存，你会被错误地重定向到首页。如果你进入页面后不做任何修改直接点击保存，能正确地停留在当前页面。如果你进入页面，删除一条规则后再点击保存，也能正确返回同一页面，且规则已被删除。</div>
       
     
       
-        <p>我在这个问题上卡了很久，非常久。如果你还没想出来，这里再给一些提示。</p>
+        <p>我在这个问题上卡了很久。非常久。如果你还没想出来，这里再给一些提示。</p>
       
     
       
-        <div class="list-content">如果你进入页面，编辑一条规则，然后保存，你会被错误地重定向到首页。这个问题是在我为修复 IE z-index bug 做出调整之后才出现的。</div>
+        <div class="list-content">如果你进入页面，编辑一条规则，然后保存，你会被错误地重定向到首页。这个问题是在我为修复 IE z-index bug 做了调整之后才出现的。</div>
       
     
       
-        <p>还是没头绪吗？嘿，我当时也一样。</p>
+        <p>还是没头绪？嘿，我当时也一样。</p>
       
     
       
-        <div class="list-content">许多——也许是全部，但我需要进一步确认——YUI 对话框都包含一个 &lt;form&gt; 标签。</div>
+        <div class="list-content">许多——也许是全部，但我需要有人验证一下——YUI 对话框内部都包含一个 &lt;form&gt; 标签。</div>
       
     
       
-        <p>然后就是令人悲伤的结局。</p>
+        <p>以及悲伤的结局。</p>
       
     
       
-        <p>我就这么浪费了四个小时的人生。</p>
+        <pre><code>var submit = function() {
+    // do some stuff.
+   document.forms[0].submit();
+}
+</code></pre>
+      
+    
+      
+        <p>就这样，我浪费了四个小时的生命。</p>
       
     
   </div>

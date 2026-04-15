@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>安装 LifeFlow 的开发部署环境：一个 Django 博客解决方案 · Will Larson 文集</title>
+  <title>安装 LifeFlow 的开发环境：一个基于 Django 的博客方案 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>安装 LifeFlow 的开发部署环境：一个 Django 博客解决方案</h1>
+    <h1>安装 LifeFlow 的开发环境：一个基于 Django 的博客方案</h1>
     <div class="meta">
       2008-01-07 · 
       <a href="https://lethain.com/installing-development-deployment-lifeflow-django-/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,19 +29,20 @@
   <div class="article-content">
     
       
-        <p>在我主导的最近一次 LifeFlow 开发冲刺之后，现在终于到了我坐下来，为非我本人的人写一系列 LifeFlow 安装教程的时候了。我说“系列”，并不是因为安装很难，而是因为我设想了这样的一个推进顺序：</p>
+        <p>在我主导的最近一次 LifeFlow 冲刺开发之后，现在终于到了我坐下来，为非我本人的人写一系列安装 LifeFlow 文章的时候了。我说“系列”，不是因为安装很难，而是因为我设想了这样一个递进过程：</p>
       
     
       
-        <div class="list-content">为已经熟悉 Django 的人提供的本地开发环境安装教程；针对 Django 新手的更深入扩展版教程；介绍如何在拥有 root 权限的虚拟或真实服务器上部署 LifeFlow；介绍如何在 DreamHost 上部署 LifeFlow。</div>
+        <div class="list-content">为已经熟悉 Django 的人准备的本地开发环境安装教程；为 Django 新手准备的更深入的扩展版教程；探讨如何在拥有 root 权限的虚拟或真实服务器上部署 LifeFlow；探讨如何在 DreamHost 上部署 LifeFlow。</div>
       
     
       
-        <p>这是该系列中的第一篇文章：为已经熟悉 Django 的人安装 LifeFlow 的开发环境（注意：本文包含了一个有经验的 Django 用户部署生产环境版本的 LifeFlow 所需的所有知识，但并未刻意将生产环境的各个点串联起来。关于该主题的更明确的教程将会随后推出）。</p>
+        <p>这是该系列中的第一篇文章：为已经熟悉 Django 的人安装 LifeFlow 的开发环境（注意：本文包含了经验丰富的 Django 用户部署生产环境版本的 LifeFlow 所需的一切知识，但并未刻意去串联生产环境的各个点。关于该主题的更明确的教程将在后续发布）。</p>
       
     
       
-        <h2>所需库</h2>
+        <h3>所需库</h3>
+        
       
     
       
@@ -53,7 +54,14 @@
       
     
       
-        <h2>获取代码</h2>
+        <pre><code>easy_install pygments
+easy_install markdown
+</code></pre>
+      
+    
+      
+        <h3>获取代码</h3>
+        
       
     
       
@@ -61,107 +69,200 @@
       
     
       
-        <p>接下来需要让 Python 可以访问这个检出的代码。你需要找到你的 site-library 所在位置：</p>
+        <pre><code>svn co http://www.willarson.com/lifeflow/trunk/lifeflow
+</code></pre>
       
     
       
-        <p>然后在该位置创建 lifeflow 的符号链接：</p>
+        <p>接下来你需要让 Python 可以访问这个签出目录。你需要找到你的 site-library 所在位置：</p>
       
     
       
-        <p>然后你需要验证符号链接是否正确。启动 Python 解释器并尝试：</p>
+        <pre><code>python -c &quot;from distutils.sysconfig import get_python_lib; print get_python_lib()&quot;
+</code></pre>
       
     
       
-        <p>如果没有抛出任何错误，那么就没问题。如果出现了错误，你需要查看你的 site-library 目录，确认 lifeflow 是否存在，并找出哪里出了问题（很可能是个拼写错误）。</p>
+        <p>然后创建一个指向 lifeflow 的符号链接：</p>
       
     
       
-        <h2>创建 Django 项目</h2>
+        <pre><code>ln -s `pwd`/lifeflow /somewhere/site-library/lifeflow
+</code></pre>
       
     
       
-        <p>接下来我们需要为 LifeFlow 创建一个项目（LF 只是一个 Django app，而非 project）。</p>
+        <p>接着你需要验证符号链接是否正确。启动 Python 解释器并尝试：</p>
       
     
       
-        <p>如果你的系统路径中没有 django-admin.py，你可能需要手动找到它。它位于你检出的 Django 目录下的 django/bin 文件夹中。</p>
+        <pre><code>import lifeflow
+</code></pre>
       
     
       
-        <p>现在我们需要编辑新创建项目中的 settings.py 文件。</p>
+        <p>如果没有抛出任何错误，那么一切正常。如果出现错误，你需要查看你的 site-library 目录，确认 lifeflow 是否存在，并找出哪里出了问题（很可能是个拼写错误）。</p>
       
     
       
-        <p>首先需要配置数据库。因为这是开发环境，我使用 sqlite3 以方便使用。（你需要将路径修改为你系统上实际存在的文件夹。）</p>
+        <h3>创建 Django 项目</h3>
+        
       
     
       
-        <p>以下是你需要做的其他修改（请记住 MEDIA_ROOT 和 TEMPLATE_DIRS 需要根据你的检出路径进行调整，因为它们很可能与我的位置不同）：</p>
+        <p>接下来我们需要为 LifeFlow 创建一个项目（LF 只是一个 Django app，而不是一个完整的 project）。</p>
       
     
       
-        <p>最后，我们还需要向 settings.py 添加一些 LifeFlow 专用的配置项：</p>
+        <pre><code>django-admin.py startproject blog
+</code></pre>
       
     
       
-        <p>前两个（LIFEFLOW_KEYWORDS 和 LIFEFLOW_DESCRIPTION）允许你设置博客的 meta keywords 和 meta description。</p>
+        <p>如果你的系统 PATH 中没有 django-admin.py，你可能需要手动找到它。它位于你的 Django 签出目录下的 django/bin 文件夹中。</p>
       
     
       
-        <p>LIFEFLOW_BLOG_NAME 用于设置你的博客名称。它应该是一个字符串。默认值是“Unconfigured LifeFlow”，你可能不想用这个名字称呼自己的博客，虽然现在想想还挺有讽刺意味的。</p>
+        <p>现在我们需要编辑新创建的项目中的 settings.py 文件。</p>
       
     
       
-        <p>LIFEFLOW_AUTHOR_NAME 用于为侧边栏的“About”链接指定目标，因此相当重要。我们还没有为博客创建第一个 Author（很快就会做），但这个设置允许你指定“About”链接所指向的作者个人资料/简介。如果你不设置这个值，LifeFlow 会自动将“About”链接指向主键为 1 的 Author。（如果你指定了一个无效的字符串（即与任何作者名称都不匹配），它将会把用户导向一个无效页面。）</p>
+        <p>首先你需要设置数据库。因为这是开发环境，我使用 sqlite3 以简化操作。（你需要将路径修改为你系统中实际存在的文件夹。）</p>
       
     
       
-        <p>LIFEFLOW_USE_PROJECTS 的值为 True 或 False（默认为 True），它会决定是否在每个页面顶部的链接中显示指向项目页面的链接。（Project 很像博客文章，但它们没有关联日期，因此它们的 URL 是 /projects/lifeflow/ 而不是类似 /entry/2008/jan/03/lifeflow/ 的形式。它们还有其他一些区别，但本质上被用作简单的作品集。）</p>
+        <pre><code>DATABASE_ENGINE = &#x27;sqlite3&#x27;
+DATABASE_NAME = &#x27;/Users/will/django/blog/db.db&#x27;
+</code></pre>
       
     
       
-        <p>LIFEFLOW_GOOGLE_ANALYTICS_ID 用于指定你网站的 Google Analytics ID。如果你不想使用 Google Analytics，将其留空或设置为 None 都是完全可以的。</p>
+        <p>以下是其他需要进行的修改（请记住 MEDIA_ROOT 和 TEMPLATE_DIRS 需要根据你的签出目录进行调整，因为它们在你那里可能和我不一样）：</p>
       
     
       
-        <p>接下来的两个（LIFEFLOW_TEMPLATE_AUTHOR 和 LIFEFLOW_TEMPLATE_AUTHOR_URL）用于覆盖你所使用模板的作者信息。如果你在 settings.py 中没有指定任何内容，它们将默认使用默认模板的创建者（那应该就是我）。但是，如果你明确将其中任意一个设置为 None，那么那里将不会显示任何内容。</p>
+        <pre><code>LOGIN_URL = &quot;/editor/login/&quot;
+LOGOUT_URL = &quot;/editor/logout/&quot;
+LOGIN_REDIRECT_URL = &quot;/editor/&quot;
+MEDIA_ROOT = &#x27;/Users/will/django/lifeflow/trunk/lifeflow/media&#x27;
+MEDIA_URL = &#x27;http://127.0.0.1:8000/media/&#x27;
+# This is because we&#x27;ll be using the development file
+# server to serve our static media, and it gets confused
+# sometimes if we don&#x27;t do this
+ADMIN_MEDIA_PREFIX = &#x27;/admin_media/&#x27;
+TEMPLATE_DIRS = (
+    &#x27;Users/will/django/lifeflow/trunk/lifeflow/templates&#x27;,
+)
+TEMPLATE_CONTEXT_PROCESSORS = (
+    &quot;django.core.context_processors.auth&quot;,
+    &quot;django.core.context_processors.debug&quot;,
+    &quot;django.core.context_processors.i18n&quot;,
+    &quot;django.core.context_processors.media&quot;,
+    &quot;lifeflow.context.blog&quot;,
+)
+INSTALLED_APPS = (
+    &#x27;lifeflow&#x27;,
+    &#x27;django.contrib.auth&#x27;,
+    &#x27;django.contrib.contenttypes&#x27;,
+    &#x27;django.contrib.sessions&#x27;,
+    &#x27;django.contrib.sites&#x27;,
+    &#x27;django.contrib.admin&#x27;,
+    &#x27;django.contrib.markup&#x27;,
+)
+</code></pre>
       
     
       
-        <p>最后三个变量可能是最有趣的。它们都期望一个格式如“/media/lifeflow/mystyle.css”或“/media/myjs.js”或“/media/lifeflow/header.js”这样的字符串。简单来说，它们期望的是文件的绝对路径。</p>
+        <p>最后，我们还需要在 settings.py 中添加一些 LifeFlow 专属的配置项：</p>
       
     
       
-        <p>LIFEFLOW_CUSTOM_CSS 期望一个 CSS 文件，它会在加载完所有其他 LifeFlow CSS 之后再加载这个文件。这是在不破坏 SVN 检出内容的情况下自定义 LifeFlow 最简单的方式。几乎每个 DIV 都有命名以便于这种方式（尽管在默认未修改的模板中，很多 DIV 并没有关联任何 CSS 样式）。</p>
+        <pre><code>LIFEFLOW_KEYWORDS = &quot;Blog Will Larson Programming Life&quot;
+LIFEFLOW_DESCRIPTION = &quot;Will Larson&#x27;s blog about programming and other things.&quot;
+LIFEFLOW_BLOG_NAME = &quot;Irrational Exuberance&quot;
+LIFEFLOW_AUTHOR_NAME = &quot;Will Larson&quot;
+LIFEFLOW_USE_PROJECTS = True
+LIFEFLOW_ANALYTICS_ID = None
+LIFEFLOW_TEMPLATE_AUTHOR = &quot;Will Larson&quot;
+LIFEFLOW_TEMPLATE_AUTHOR_URL = &quot;http://www.lethain.com&quot;
+LIFEFLOW_CUSTOM_CSS = None
+LIFEFLOW_CUSTOM_JS_HEADER = None
+LIFEFLOW_CUSTOM_JS_FOOTER = None
+</code></pre>
       
     
       
-        <p>LIFEFLOW_CUSTOM_JS_HEADER 和 LIFEFLOW_CUSTOM_JS_FOOTER 作用类似，只是它们期望的是 JavaScript 文件。前者会在文件的 head 部分加载 JavaScript，后者则会在 body 标签关闭之前作为最后的内容加载 JavaScript。</p>
+        <p>前两个（LIFEFLOW_KEYWORDS 和 LIFEFLOW_DESCRIPTION）用于设置你博客的 meta keywords 和 meta description。</p>
       
     
       
-        <p>所有三个 LIFEFLOW_CUSTOM_ 开头的配置都是可选的，可以通过设置为 None 来明确禁用（但简单地不指定它们也能达到相同效果）。</p>
+        <p>LIFEFLOW_BLOG_NAME 用于设置博客名称。它应该是一个字符串。默认值是“Unconfigured LifeFlow”，你可能不想用这个名字来称呼自己的博客——不过现在想想，它还挺有讽刺意味的。</p>
       
     
       
-        <h2>编辑 urls.py</h2>
+        <p>LIFEFLOW_AUTHOR_NAME 用于指定侧边栏“关于”链接的目标，因此相当重要。我们还没有为博客创建第一个 Author（很快就会做），这个设置允许你指定“关于”链接指向的作者简介。如果不设置此值，LifeFlow 会自动将“关于”链接指向主键为 1 的 Author。（如果你指定了一个无效的字符串（即不对应任何作者名称），它就会把用户带到无效页面。）</p>
       
     
       
-        <p>现在我们需要修改新创建项目中的 urls.py 文件。删除已有的内容，并粘贴以下代码：</p>
+        <p>LIFEFLOW_USE_PROJECTS 的值是 True 或 False（默认为 True），它会相应地在每个页面顶部的链接中显示或隐藏指向项目页面的链接。（项目很像博客文章，但没有关联日期，所以它们的 URL 是 /projects/lifeflow/ 而不是类似 /entry/2008/jan/03/lifeflow/ 的形式。它们还有其他一些区别，但主要被用作简单的作品集。）</p>
       
     
       
-        <p>这是我用于开发的“懒到极致”的 urls.py。它使用 Django 的开发服务器（很慢，不适合生产环境，你懂的）来提供静态媒体文件，并从 settings.py 中获取 document_root。</p>
+        <p>LIFEFLOW_GOOGLE_ANALYTICS_ID 用于指定网站的 Google Analytics ID。如果你不想使用 Google Analytics，将其留空或设置为 None 都是完全可以的。</p>
       
     
       
-        <p>保存 urls.py 即可。</p>
+        <p>接下来的两个（LIFEFLOW_TEMPLATE_AUTHOR 和 LIFEFLOW_TEMPLATE_AUTHOR_URL）用于覆盖当前模板的作者信息。如果你在 settings.py 中不指定任何内容，它们会默认使用默认模板的创建者（那应该就是我）。但是，如果你明确将其中任何一个设置为 None，那么那里将不显示任何内容。</p>
       
     
       
-        <h2>启动开发服务器</h2>
+        <p>最后三个变量可能是最有趣的。它们都期望一个格式为“/media/lifeflow/mystyle.css”或“/media/myjs.js”或“/media/lifeflow/header.js”等字符串，也就是一个文件的绝对路径。</p>
+      
+    
+      
+        <p>LIFEFLOW_CUSTOM_CSS 期望一个 CSS 文件，它会在加载完所有其他 LifeFlow CSS 之后再加载这个文件。这是在不破坏 SVN 签出的情况下自定义 LifeFlow 的最简单方式。几乎每个 DIV 都被命名以支持这种方式（尽管在默认未修改的模板中，其中很多 DIV 并没有关联任何 CSS 样式）。</p>
+      
+    
+      
+        <p>LIFEFLOW_CUSTOM_JS_HEADER 和 LIFEFLOW_CUSTOM_JS_FOOTER 与上面类似，只是它们期望的是 JavaScript 文件。前者会在文件的 head 部分加载 JavaScript，后者则会在 body 标签关闭前作为最后的内容加载。</p>
+      
+    
+      
+        <p>所有三个 LIFEFLOW_CUSTOM_? 配置都是可选的，可以通过设置为 None 来显式禁用（但不指定它们也能达到同样效果）。</p>
+      
+    
+      
+        <h3>编辑 urls.py</h3>
+        
+      
+    
+      
+        <p>现在我们需要修改新创建项目中的 urls.py 文件。删除已有的内容，粘贴以下代码：</p>
+      
+    
+      
+        <pre><code>from django.conf.urls.defaults import *
+from django.conf import settings
+urlpatterns = patterns(
+&#x27;&#x27;,
+(r&#x27;^media/(?P&lt;path&gt;.*)$&#x27;, &#x27;django.views.static.serve&#x27;, {&#x27;document_root&#x27;: settings.MEDIA_ROOT }),
+(r&#x27;^admin/&#x27;, include(&#x27;django.contrib.admin.urls&#x27;)),
+(r&#x27;^&#x27;, include(&#x27;lifeflow.urls&#x27;)),
+)
+</code></pre>
+      
+    
+      
+        <p>这是我用于开发的“懒到极致”的 urls.py。它使用 Django 的开发服务器（速度慢，不适合生产环境，你懂的）来提供静态媒体文件，并从 settings.py 中获取 document_root。</p>
+      
+    
+      
+        <p>保存 urls.py。</p>
+      
+    
+      
+        <h3>启动开发服务器</h3>
+        
       
     
       
@@ -169,15 +270,26 @@
       
     
       
+        <pre><code>python manage.py syncdb
+</code></pre>
+      
+    
+      
         <p>然后运行开发服务器：</p>
       
     
       
-        <p>这样 LifeFlow 就运行起来了，不过在我们完成之前，还需要在 Django 管理后台做一些快速修改。</p>
+        <pre><code>python manage.py runserver
+</code></pre>
       
     
       
-        <h2>与 Django Admin 的短暂相遇</h2>
+        <p>这样 LifeFlow 就运行起来了，不过在结束之前，我们还需要在 Django 管理后台进行一些快速修改。</p>
+      
+    
+      
+        <h3>与 Django Admin 的短暂相遇</h3>
+        
       
     
       
@@ -185,39 +297,40 @@
       
     
       
-        <p>第一处修改是编辑 Sites 应用中的站点信息。你需要将 settings.py 中指定的主键（默认为 1）的站点修改为你的实际站点。例如我将域名和显示名称都设为 &#x27;www.lethain.com&#x27;。这个域名会被 feed 和 syndication 框架大量使用（LifeFlow  heavily 依赖它们），也会被每篇博客文章末尾的社交分享链接使用。</p>
+        <p>第一处修改是编辑 Sites 应用中的站点信息。你需要将 settings.py 中指定的主键（默认为 1）的站点修改为你的实际站点。例如我把域名和显示名称都设为 &#x27;www.lethain.com&#x27;。这个域名会被 feed 和 syndication 框架（LifeFlow 大量使用）使用，也会被每篇文章末尾的社会化分享链接使用。</p>
       
     
       
-        <p>接下来你要创建一个 Author。如果你为 LIFEFLOW_AUTHOR_NAME 指定了一个名字，请确保你创建的 Author 的名字与之匹配。</p>
+        <p>接下来你需要创建一个 Author。如果你在 LIFEFLOW_AUTHOR_NAME 中指定了名称，请确保这里创建的 Author 名称与之匹配。</p>
       
     
       
-        <p>然后你至少需要创建一个 Flow。它的标题会出现在每个页面上，所以请设置一个你喜欢的。slug 用于 URL，如果你愿意可以设置得短一些。</p>
+        <p>然后你至少需要创建一个 Flow。标题会出现在每个页面上，所以选一个你喜欢的。slug 用于 URL，如果你喜欢可以做得更短。</p>
       
     
       
-        <p>如果你将 LIFEFLOW_USE_PROJECTS 设置为 True，那么你还至少需要创建一个 project。如果你不创建 project，那么页面顶部的 Projects 链接将会导向 404 错误，直到你后续创建了 project 为止。</p>
+        <p>如果你将 LIFEFLOW_USE_PROJECTS 设置为 True，那么你还需要至少创建一个 project。如果你不创建项目，那么页面顶部的 Projects 链接在你后续创建项目之前都会跳转到 404 错误页。</p>
       
     
       
-        <p>（你现在可能不想做这个，但你可能会注意到 Django Admin 中的“Sites to Notify”条目。它允许你在更新文章时 ping 类似 Ping-O-Matic 这样的站点。我个人只使用 Ping-O-Matic，但 LifeFlow 的理念是灵活性，所以你可以定义任意站点。Ping-O-Matic 的设置很简单：将标题设为任意内容，ping 的 URL 设为 &#x27;http://rpc.pingomatic.com/&#x27;，然后将博客标题和博客 URL 设为你的博客的标题和网址（例如 &#x27;Irrational Exuberance&#x27; 和 &#x27;http://www.lethain.com&#x27;）。）</p>
+        <p>（你现在可能不想做这件事，但你可能会注意到 Django Admin 中的“Sites to Notify”条目。它允许你在更新文章时 ping 像 Ping-O-Matic 这样的站点。我个人只使用 Ping-O-Matic，但 LifeFlow 的理念是灵活性，所以你可以定义任意站点。Ping-O-Matic 的设置相当简单：标题随便填，ping 的 URL 设为 &#x27;http://rpc.pingomatic.com/&#x27;，然后博客标题和博客 URL 分别填你的博客名称和地址（例如 &#x27;Irrational Exuberance&#x27; 和 &#x27;http://www.lethain.com&#x27;）。）</p>
       
     
       
-        <h2>接下来怎么做</h2>
+        <h3>下一步怎么做</h3>
+        
       
     
       
-        <p>很快我就会发布一篇关于生产环境部署 LifeFlow 的文章，但在那之前，你仍然有很多方式可以自己去了解 LifeFlow。首先，这个项目还比较年轻，仍缺少一些功能（例如，我不太喜欢 traceback，所以还没有实现，但如果你实现了，我很乐意把这些改动推送到 SVN）。</p>
+        <p>很快我就会发布关于部署生产环境 LifeFlow 的文章，但在那之前，你还有很多方式可以自己去了解 LifeFlow。首先，这个项目还比较年轻，仍缺少一些功能（例如，我不太在意 traceback，所以还没有实现，但如果你实现了，我很乐意把这些改动 push 到 SVN 中）。</p>
       
     
       
-        <p>如果这不是你感兴趣的方向，你可以研究如何在 settings.py 中使用 LIFEFLOW_CUSTOM_CSS 设置来加载自定义 CSS 文件，从而个性化你的博客外观。（我希望在不久的将来能发一篇关于通过这种方式自定义博客外观的快速文章。）</p>
+        <p>如果这不是你喜欢的，你可以尝试在 settings.py 中使用 LIFEFLOW_CUSTOM_CSS 设置来加载自定义 CSS 文件，从而个性化你的博客外观。（我希望在不久的将来能就这种自定义博客外观的方法发一篇快速文章。）</p>
       
     
       
-        <p>除此之外，我非常希望收到关于 LifeFlow 的更多反馈。你觉得它缺少哪些功能？你有什么不满？设置过程中遇到困难了吗？告诉我，我会尽力帮忙！</p>
+        <p>除此之外，我非常希望收到关于 LifeFlow 的更多反馈。你觉得它缺少哪些功能？有什么不满的地方？设置过程中遇到困难了吗？告诉我，我会尽力帮助！</p>
       
     
   </div>

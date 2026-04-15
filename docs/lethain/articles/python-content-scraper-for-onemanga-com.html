@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OneManga.com 的 Python 漫画抓取器 · Will Larson 文集</title>
+  <title>OneManga.com 的 Python 内容抓取器 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>OneManga.com 的 Python 漫画抓取器</h1>
+    <h1>OneManga.com 的 Python 内容抓取器</h1>
     <div class="meta">
       2008-08-08 · 
       <a href="https://lethain.com/python-content-scraper-for-onemanga-com/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,51 +29,140 @@
   <div class="article-content">
     
       
-        <p>我今天花了几个小时写了一个针对 OneManga.com 的 Python 网页抓取程序。该网站是一个在线漫画扫描资源的聚合站点。主要是因为我有时网络连接较慢，所以想要一种方便的方式来获取图片而不用花费太多精力。这也是一个很好地使用 BeautifulSoup 和 Httplib2 的实践机会。整个实现重点关注两个理念：易用性和友好性。易用性是指让用户能够轻松获取和操作可用数据；友好性则是指不会用不必要的请求去轰炸服务器。</p>
+        <p>我今天花了几个小时写了一个针对 OneManga.com 的 Python 网页抓取器。该网站是一个在线漫画扫描版的聚合站点。特别是我有时候网速较慢，所以想要一个方便的方式来获取图片，而不用费太多功夫。这也是一个使用 BeautifulSoup 和 Httplib2 的有趣机会。实现时重点关注了两个理念：易用性和友好性。易用性是指让用户能够轻松获取可用的数据；友好性则是指不会用不必要的请求去轰炸服务器。</p>
       
     
       
-        <p>让我们从一个使用示例开始：</p>
+        <p>先来看一个使用示例：</p>
       
     
       
-        <p>抓取器中的所有对象都兼容 Python 的列表接口。不过，OMReader 对象还能响应类似字典的查询：</p>
+        <pre><code>&gt;&gt;&gt; import onemanga_reader
+&gt;&gt;&gt; x = OMReader()
+x = OMReader()
+&gt;&gt;&gt; x
+OMReader(http://onemanga.com/)
+&gt;&gt;&gt; pluto = x[&#x27;Pluto&#x27;]
+&gt;&gt;&gt; pluto
+OMSeries(Pluto)
+&gt;&gt;&gt; len(pluto)
+55
+&gt;&gt;&gt; pluto
+OMSeries(Pluto, 55 episodes)
+&gt;&gt;&gt; ep = pluto[-1]
+&gt;&gt;&gt; ep
+OMEpisode(Pluto 55)
+&gt;&gt;&gt; urls = [ page.url for page in ep[:5] ]
+&gt;&gt;&gt; ep
+OMEpisode(Pluto 55, 26 pages)
+&gt;&gt;&gt; ep[0].show() # open 0th page in webbrowser
+</code></pre>
       
     
       
-        <p>这为访问数据提供了极大的灵活性。你可以遍历所有可用的漫画列表，也可以尝试按名称获取特定的漫画。你还可以遍历某部漫画的章节列表，以及某个章节的页面列表。例如，如果你想获取网站上每部漫画每一张图片的 URL（虽然我必须提醒你，请不要真的这么做）：</p>
+        <p>抓取器中的所有对象都兼容 Python 的列表 API。不过，OMReader 对象还能响应类似字典的查询：</p>
       
     
       
-        <p>或者你可以把它精简成这样……</p>
+        <pre><code>&gt;&gt;&gt; x[&quot;Pluto&quot;]
+OMSeries(Pluto, 55 episodes)
+&gt;&gt;&gt; x[155]
+OMSeries(D.Gray-Man)
+</code></pre>
       
     
       
-        <p>虽然写得有点丑，但你应该明白意思：获取这些数据非常简单。不过，实现上仍然相当友好。当你第一次创建 OMReader 时，它什么都不知道，也不会发起任何 HTTP 请求。而是在真正需要时才懒加载（lazy retrieve）相应数据。</p>
+        <p>这为访问数据提供了极大的灵活性。你可以遍历所有可用漫画的列表，也可以尝试按名称获取特定漫画。你还能遍历某部漫画的章节列表，以及某个章节的页面列表。例如，如果你想获取网站上每部漫画的每一张图片的 URL（虽然我必须请求你不要真的这么做）：</p>
       
     
       
-        <p>让我们来看下面这段交互：</p>
+        <pre><code>scraper = OMReader()
+series = scraper[:]
+episodes = reduce(lambda a,b: a[:]+b[:],series)
+pages = reduce(lambda a,b: a[:]+b[:],episodes)
+urls = map(lambda a: a.url,pages)
+</code></pre>
       
     
       
-        <p>第一次查看 x 时，它还是一张白纸。然后我们获取第 0 个漫画，它必须先获取可用的漫画列表才能做到这一点。因此，当我们第二次输出 x 时，它已经知道有多少系列可用。幸运的是，可用漫画列表出现在每个页面的 select 元素中，所以只需获取首页（希望它被大量缓存，因为内容不常变化）就足够了。之后，我们就知道所有可用的漫画，可以遍历它们，或者尝试按名称获取：</p>
+        <p>或者你可以把它压缩成一行……</p>
       
     
       
-        <p>到目前为止，所有操作只发出了一个 HTTP 请求。不过，让我们进一步看看《Pluto》这部漫画（我可能是在推荐它，没错）。</p>
+        <pre><code>urls = map(lambda a: a.url,reduce(lambda a,b: a[:]+b[:],reduce(lambda a,b: a[:]+b[:],OMReader()[:])))
+</code></pre>
       
     
       
-        <p>每当出现新的信息，就表明又进行了一次额外的 HTTP 请求。这里我们需要获取 Pluto 的索引页来找到它的章节列表。现在，让我们查看一个具体的章节：</p>
+        <p>虽然写得有点丑，但你懂的：获取这些数据非常简单。不过，它的实现仍然相当友好。当你首次创建 OMReader 时，它什么都不知道，也不会发出任何 HTTP 请求。而是会按需懒加载所需的数据。</p>
       
     
       
-        <p>再次出现了新信息，表明又发生了一次 HTTP 请求。从概览页面深入到第一个章节的页面列表，只用了三次 HTTP 请求，但从这里开始，获取每一页都需要一个 HTTP 请求，因此保持克制非常重要。由此可见，获取 Pluto 第一章的全部内容还需要额外 32 个请求。此外，这个库对 HTTP 请求的处理比较简单，没有实现并行，所以获取大量页面时可能会相当慢。</p>
+        <p>来看看下面的交互过程：</p>
       
     
       
-        <p>这就是全部内容了。这是一次挺有意思的、（某种意义上）具有社会责任感的网页抓取练习。我不确定它是否会被实际使用，但代码里还是有一些有趣的地方，而且总共只有大约 120 行，不会让你感到疲惫。你可以在这里获取到这个文件。</p>
+        <pre><code>&gt;&gt;&gt; x = OMReader()
+&gt;&gt;&gt; x
+OMReader(http://onemanga.com/)
+&gt;&gt;&gt; x[0]
+OMSeries(+Anima)
+&gt;&gt;&gt; x
+OMReader(http://onemanga.com/, 1514 series)
+</code></pre>
+      
+    
+      
+        <p>第一次查看 x 时，它还是一片空白。然后我们获取第 0 部漫画，它必须先获取可用漫画列表才能做到这一点。因此，当我们第二次打印 x 时，它就已经知道有多少系列可用。幸运的是，可用漫画列表出现在每个页面的 select 元素中，所以只需获取首页（首页不常更新，希望被大量缓存）就足够了。在此之后，我们就知道了所有可用的漫画，既可以遍历它们，也能按名称获取：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; names = [ a.name for a in x[100:103]]
+&gt;&gt;&gt; names
+[u&#x27;Boku ni Natta Watashi  &#x27;, u&#x27;Boku no Hatsukoi wo Kimi ni Sasagu&#x27;, u&#x27;Boku no Watashi no Yusha Gaku&#x27;]
+&gt;&gt;&gt; x[&#x27;Bleach&#x27;]
+OMSeries(Bleach)
+</code></pre>
+      
+    
+      
+        <p>到目前为止，所有操作只发出了一个 HTTP 请求。不过，让我们再深入看看《Pluto》（我可能会推荐它，没错）。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; p = x[&#x27;Pluto&#x27;]
+&gt;&gt;&gt; p
+OMSeries(Pluto)
+&gt;&gt;&gt; len(p)
+55
+&gt;&gt;&gt; p
+OMSeries(Pluto, 55 episodes)
+</code></pre>
+      
+    
+      
+        <p>每当出现新的信息，就表明发生了额外的 HTTP 请求。这里我们必须获取 Pluto 的索引页才能找到它的章节列表。现在，我们来看看具体某一话：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; a = p[0]
+&gt;&gt;&gt; a
+OMEpisode(Pluto 1)
+&gt;&gt;&gt; len(a)
+32
+&gt;&gt;&gt; a
+OMEpisode(Pluto 1, 32 pages)
+&gt;&gt;&gt; a[:4]
+[OMPage(Page 01 of Pluto 1), OMPage(Page 02 of Pluto 1), OMPage(Page 03 of Pluto 1), OMPage(Page 04 of Pluto 1)]
+</code></pre>
+      
+    
+      
+        <p>再次出现新信息，说明又进行了一次 HTTP 请求。从概览页面深入到第一话的页面列表，一共只用了三次 HTTP 请求，但从这里开始，获取每一页都需要一次请求，因此保持体贴很重要。由此可知，获取 Pluto 第一话的全部内容还需要额外发出 32 个请求。此外，这个库对 HTTP 请求的处理比较简单，没有并行处理，所以获取大量页面时可能会相当慢。</p>
+      
+    
+      
+        <p>这就是全部内容了。这是一次（某种意义上）具有社会责任感的网页抓取练习。我不确定它是否会被人使用，但代码里还是有一些挺有意思的地方，而且总共只有大约 120 行，不会让你感到疲惫。你可以在这里获取该文件。</p>
       
     
   </div>

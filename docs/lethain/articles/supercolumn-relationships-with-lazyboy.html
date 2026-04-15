@@ -29,7 +29,7 @@
   <div class="article-content">
     
       
-        <p>最近我开始研究 Cassandra 及其 Python 客户端 Lazyboy。虽然文档已经相当不错，但我还是自己动手尝试并阅读了部分源代码后才真正理解它（当然，前提是我真的理解对了。如果我只是达到了理解的平台期，还望亲爱的读者不吝赐教）。</p>
+        <p>最近我开始研究 Cassandra 及其 Python 客户端 lazyboy。虽然文档写得相当不错，但我还是自己动手把玩了一阵子，并阅读了部分源码，才真正理解它（当然，我是否真的理解了，还请亲爱的读者指正，如果我只是达到了理解的某个高原期）。</p>
       
     
       
@@ -37,15 +37,22 @@
       
     
       
-        <h2>建模我们的应用</h2>
+        <h3>建模我们的应用</h3>
+        
       
     
       
-        <p>对于这个项目，我决定构建一个简单的开发团队任务管理系统。</p>
+        <p>对于这个项目，我决定做一个简单的开发团队任务管理系统。</p>
       
     
       
-        <p>我们的系统会有很多人。</p>
+        <p>我们的系统会有很多成员。</p>
+      
+    
+      
+        <pre><code>p1 = {&quot;first&quot;: &quot;Jack&quot;, &quot;last&quot;:&quot;Bauer&quot;, &quot;role&quot;:&quot;developer&quot;}
+p2 = {&quot;first&quot;: &quot;Lindsay&quot;, &quot;last&quot;:&quot;Lohan&quot;, &quot;role&quot;:&quot;product-manager&quot;}
+</code></pre>
       
     
       
@@ -53,15 +60,34 @@
       
     
       
-        <p>每个任务会有零个或多个人员参与。</p>
+        <pre><code>t1 = {&quot;name&quot;:&quot;Prevent Nuclear Bomb Plot&quot;, 
+      &quot;estimated-hours&quot;:&quot;24&quot;,
+      &quot;completed-hours&quot;:&quot;23&quot;}
+t2 = {&quot;name&quot;:&quot;Resurrect Career&quot;,
+      &quot;estimated-hours&quot;:&quot;4000&quot;,
+      &quot;completed-hours&quot;:&quot;0&quot;}
+</code></pre>
       
     
       
-        <p>基于这些关系，我们可能需要能够执行以下操作：</p>
+        <p>每个任务会有零个或多个成员参与。</p>
       
     
       
-        <div class="list-content">获取所有人员、获取所有任务、获取特定人员、获取特定任务、获取正在处理某个特定任务的人员。</div>
+        <pre><code># Sometimes I find myself typing snippets to maintain consistency even
+# though they aren&#x27;t actually coherent or helpful.
+# I&#x27;m having trouble finding the delete key right now.
+t1.people.append(p1)
+t1.people.append(p2)
+</code></pre>
+      
+    
+      
+        <p>基于这些关系，我们很可能需要支持以下操作：</p>
+      
+    
+      
+        <div class="list-content">获取所有成员、获取所有任务、获取特定成员、获取特定任务、获取正在处理某个特定任务的成员。</div>
       
     
       
@@ -69,11 +95,11 @@
       
     
       
-        <blockquote>每种类型的文档对应一个 ColumnFamily，同时每种文档之间的关系也对应一个 ColumnFamily。</blockquote>
+        <blockquote>每种文档类型对应一个 ColumnFamily，同时每种文档之间的关系也对应一个 ColumnFamily。</blockquote>
       
     
       
-        <p>（ColumnFamily 是一组相似文档的集合。同一 ColumnFamily 中的文档不必拥有相同或相似的键/值，但通常保持一致会让你的应用更简洁，尤其是在你需要遍历数据时。）</p>
+        <p>（ColumnFamily 是一组相似文档的集合。同一 ColumnFamily 中的文档不必拥有完全相同或相似的键/值，但通常这样做能简化你的应用，尤其是当你需要遍历数据时。）</p>
       
     
       
@@ -85,7 +111,7 @@
       
     
       
-        <p>同时它们之间还存在一种关系：</p>
+        <p>此外它们之间存在一种关系：</p>
       
     
       
@@ -97,26 +123,40 @@
       
     
       
-        <p>接下来，在开始实现之前，我们先安装 Lazyboy 和 Cassandra。</p>
+        <p>接下来我们先安装 lazyboy 和 Cassandra，然后再进入具体的实现环节。</p>
       
     
       
-        <h2>安装前提条件</h2>
+        <h3>安装前提条件</h3>
+        
       
     
       
-        <div class="list-content">下载 Cassandra 0.6.1。安装 Cassandra（以下是 OS X 的安装说明，其他操作系统可自行调整目录结构）：cd ~/Download
+        <pre><code>cd ~/Download
 tar -xvf apache-cassandra-*.gz
 mv apache-cassandra-0.6.1 ~/Library/cassandra
-为 Cassandra 创建必要的运行目录：tar -zxvf cassandra-$VERSION.tgz
+</code></pre>
+      
+    
+      
+        <pre><code>tar -zxvf cassandra-$VERSION.tgz
 cd cassandra-$VERSION
 sudo mkdir -p /var/log/cassandra
 sudo chown -R `whoami` /var/log/cassandra
 sudo mkdir -p /var/lib/cassandra
 sudo chown -R `whoami` /var/lib/cassandra
-如果还没有 Git，先安装 Git。下载 Lazyboy，我们将把它作为 Cassandra 的 Python 客户端（注意需要使用 Python 2.5 或更高版本，OS X 10.5 或更高版本已自带）：mkdir ~/git &amp;&amp; cd ~/git        
+</code></pre>
+      
+    
+      
+        <pre><code>mkdir ~/git &amp;&amp; cd ~/git        
 git clone http://github.com/digg/lazyboy.git
-sudo python setup.py</div>
+sudo python setup.py
+</code></pre>
+      
+    
+      
+        <div class="list-content">下载 Cassandra 0.6.1。按照说明安装 Cassandra（这里提供的是 OS X 的安装步骤，其他操作系统可以采用类似的目录结构）：创建 Cassandra 运行所需的目录：如果尚未安装 Git，请先安装它。下载 Lazyboy，我们将把它作为 Python 的 Cassandra 客户端使用（注意需要使用 Python 2.5 或更高版本，如果你使用的是 OS X 10.5 或更新版本，则已经满足要求）：</div>
       
     
       
@@ -124,15 +164,30 @@ sudo python setup.py</div>
       
     
       
-        <h2>配置并启动 Cassandra</h2>
+        <h3>配置并启动 Cassandra</h3>
+        
       
     
       
-        <p>接下来，我们需要为项目配置合适的 Cassandra 设置。虽然 Cassandra 不强制要求遵守固定的 schema，但它要求在启动 Cassandra 进程之前定义每个 ColumnFamily。</p>
+        <p>接下来我们需要为项目配置合适的 Cassandra 设置。虽然 Cassandra 不强制要求遵守严格的 schema，但在启动 Cassandra 进程之前，必须预先定义每个 ColumnFamily。</p>
       
     
       
-        <p>准确来说，这更像是声明它们的存在。打开 ~/Library/cassandra/conf/storage-conf.xml，将 &lt;Keyspaces/&gt; 标签内的现有内容替换为以下内容：</p>
+        <p>更准确地说，这与其说是“定义”，不如说是“声明它的存在”。打开 ~/Library/cassandra/conf/storage-conf.xml 文件，将 &lt;Keyspaces/&gt; 标签内的现有内容替换为以下内容：</p>
+      
+    
+      
+        <pre><code>&lt;Keyspaces&gt;
+ &lt;Keyspace Name=&quot;TaskManager&quot;&gt;
+  &lt;ColumnFamily CompareWith=&quot;UTF8Type&quot; Name=&quot;Task&quot;/&gt;
+  &lt;ColumnFamily CompareWith=&quot;UTF8Type&quot; Name=&quot;Member&quot;/&gt;
+  &lt;ColumnFamily CompareWith=&quot;UTF8Type&quot; Name=&quot;TaskMember&quot;/&gt;
+  &lt;ReplicaPlacementStrategy&gt;org.apache.cassandra.locator.RackUnawareStrategy&lt;/ReplicaPlacementStrategy&gt;
+  &lt;ReplicationFactor&gt;1&lt;/ReplicationFactor&gt;
+  &lt;EndPointSnitch&gt;org.apache.cassandra.locator.EndPointSnitch&lt;/EndPointSnitch&gt;
+ &lt;/Keyspace&gt;
+&lt;/KeySpaces&gt;
+</code></pre>
       
     
       
@@ -145,23 +200,49 @@ sudo python setup.py</div>
       
     
       
-        <h2>使用 Lazyboy</h2>
+        <h3>使用 lazyboy</h3>
+        
       
     
       
-        <p>现在各种组件都已经安装并配置好了，我们需要编写代码来使用 Lazyboy。（如果下面这部分看起来有点难懂，不妨先看看 Lazyboy 的 readme 和示例代码。）</p>
+        <p>现在各个组件都已安装并配置完毕，我们需要编写代码来使用 lazyboy。（如果你觉得下面这部分有点难懂，可以先看看 lazyboy 的 README 和示例代码。）</p>
       
     
       
-        <p>对于我们的每个 Column Family（Task、Member、TaskMember），都需要继承三个类：</p>
+        <p>对于我们的每一个 Column Family（Task、Member、TaskMember），都需要继承三个类：</p>
       
     
       
-        <div class="list-content">lazyboy.key.Key 的子类，这样我们就可以写成 a = TaskKey(&quot;my-task-a&quot;)，而不是 a = Key(&quot;TaskManager&quot;, &quot;Task&quot;, &quot;my-task-a&quot;)。虽然不是必须的，但这是一个很不错的小模式。lazyboy.record.Record 的子类，用于访问特定 ColumnFamily 中的元素，配合 TaskKey 类，我们就可以写成：t1 = Task()
-t2 = Task().load(TaskKey(&quot;my-task-a&quot;))，而不是 t1 = Record()
+        <pre><code>a = TaskKey(&quot;my-task-a&quot;)
+</code></pre>
+      
+    
+      
+        <pre><code>a = Key(&quot;TaskManager&quot;, &quot;Task&quot;, &quot;my-task-a&quot;)
+</code></pre>
+      
+    
+      
+        <pre><code>t1 = Task()
+t2 = Task().load(TaskKey(&quot;my-task-a&quot;)
+</code></pre>
+      
+    
+      
+        <pre><code>t1 = Record()
 t1.key = Key(&quot;TaskManager&quot;, &quot;Task&quot;, &quot;my-task-a&quot;)
-t2 = Record().load(Key(&quot;TaskManager&quot;, &quot;Task&quot;, &quot;my-task-a&quot;))。
-Record 的子类还允许我们在保存列之前要求必须存在某些字段（稍后我们会深入讨论）。lazyboy.View 的子类，用于遍历某个 ColumnFamily 中的条目。</div>
+t2 = Record().load(Key(&quot;TaskManager&quot;, &quot;Task&quot;, &quot;my-task-a&quot;)
+</code></pre>
+      
+    
+      
+        <div class="list-content">lazyboy.key.Key 的子类，这样就能把 
+写成 
+虽然不是必须的，但这是一个很方便的小模式。
+lazyboy.record.Record 的子类，用于访问某个 ColumnFamily 中的元素，结合 TaskKey 类就能写成 
+而不是原来的形式。
+Record 的子类还可以要求在保存列之前必须提供某些字段（稍后我们会深入讨论）。
+lazyboy.View 的子类，用于遍历某个 ColumnFamily 中的条目。</div>
       
     
       
@@ -169,11 +250,32 @@ Record 的子类还允许我们在保存列之前要求必须存在某些字段�
       
     
       
-        <p>Member 和 TaskMember 也需要创建相同的类，具体可参考源代码。</p>
+        <pre><code>class TaskKey(Key):
+    def __init__(self, key=None):
+        Key.__init__(self, &quot;TaskManager&quot;, &quot;Task&quot;, key)
+class Task(record.Record):
+# note that we&#x27;re requiring these two keys for each column
+# in the Task ColumnFamily
+_required = (&#x27;name&#x27;,&#x27;desc&#x27;)
+def init(self, args, **kwargs):
+record.Record.init(self, args, **kwargs)
+self.key = TaskKey()
+class TaskView(View):
+def init(self):
+View.init(self)
+self.key = TaskKey(key=&quot;row_a&quot;)
+self.record_class = Task
+self.record_key = TaskKey()
+</code></pre>
       
     
       
-        <h2>创建与操作单个 Column</h2>
+        <p>Member 和 TaskMember 也需要创建相同的类，具体代码可以在源代码中查看。</p>
+      
+    
+      
+        <h3>创建和操作单个 Column</h3>
+        
       
     
       
@@ -181,15 +283,56 @@ Record 的子类还允许我们在保存列之前要求必须存在某些字段�
       
     
       
-        <p>注意这里我们显式指定了 key，但这并非必需。如果不指定，系统会为你生成一个随机 key。</p>
+        <pre><code>&gt;&gt;&gt; from tasks import *
+&gt;&gt;&gt; t = Task()
+&gt;&gt;&gt; t.key = TaskKey(&quot;my-project-a&quot;)
+&gt;&gt;&gt; t.update({&quot;name&quot;:&quot;My Project A&quot;, &quot;desc&quot;:&quot;Build A project&quot;})
+Task: {&#x27;name&#x27;: &#x27;My Project A&#x27;, &#x27;desc&#x27;: &#x27;Build the critical A project&#x27;}
+&gt;&gt;&gt; t.save()
+Task: {&#x27;name&#x27;: &#x27;My Project A&#x27;, &#x27;desc&#x27;: &#x27;Build the critical A project&#x27;}
+</code></pre>
       
     
       
-        <p>保存 Task 之后，我们就可以随时检索它了。</p>
+        <p>注意这里我们显式指定了 key，但这并不是必需的。如果不指定，系统会为你生成一个随机 key。</p>
       
     
       
-        <p>它表现得像一个字典，可以用来获取特定值，也支持使用字典语法进行更新。请注意，必须调用 save 方法才能将数据更新到 Cassandra 中。</p>
+        <pre><code>&gt;&gt;&gt; t = Task()
+&gt;&gt;&gt; t.key
+{&#x27;column_family&#x27;: &#x27;Task&#x27;, 
+ &#x27;keyspace&#x27;: &#x27;TaskManager&#x27;,
+ &#x27;super_column&#x27;: None, 
+ &#x27;key&#x27;: &#x27;cff715a0f7cf4f5bb78e70cab6bcd867&#x27;}
+</code></pre>
+      
+    
+      
+        <p>保存 Task 之后，我们就可以随时检索它。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; t2 = Task().load(TaskKey(&quot;my-project-a&quot;))
+&gt;&gt;&gt; t2
+Task: {&#x27;name&#x27;: &#x27;My Project A&#x27;, &#x27;desc&#x27;: &#x27;Build the critical A project&#x27;}
+</code></pre>
+      
+    
+      
+        <p>它像字典一样可以获取特定值，也支持用字典语法进行更新。请注意，必须调用 save 方法才能将数据更新到 Cassandra 中。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; t2[&#x27;name&#x27;]
+&#x27;My Project A&#x27;
+&gt;&gt;&gt; t2[&#x27;name&#x27;] = &quot;A newer project&quot;
+&gt;&gt;&gt; t2
+Task: {&#x27;name&#x27;: &#x27;A newer project&#x27;, 
+       &#x27;desc&#x27;: &#x27;Build the critical A project&#x27;}
+&gt;&gt;&gt; t2.save()
+Task: {&#x27;name&#x27;: &#x27;A newer project&#x27;, 
+       &#x27;desc&#x27;: &#x27;Build the critical A project&#x27;}
+</code></pre>
       
     
       
@@ -197,79 +340,202 @@ Record 的子类还允许我们在保存列之前要求必须存在某些字段�
       
     
       
-        <p>通过这些示例，你已经掌握了足够的信息，可以将 Cassandra 当作一个简单的键值存储来使用。但仅仅局限于键值存储并不足以开发某些类型的应用，幸运的是 Cassandra 提供了更多功能。</p>
+        <pre><code>&gt;&gt;&gt; t2.remove()
+Task: {}
+&gt;&gt;&gt; Task().load(TaskKey(&quot;my-project-a&quot;))
+Traceback (most recent call last):
+  File &quot;&lt;stdin&gt;&quot;, line 1, in &lt;module&gt;
+  File &quot;/Library/Python/2.6/site-packages/Lazyboy-0.7.5-py2.6.egg/lazyboy/record.py&quot;, line 184, in load
+    columns = iterators.slice_iterator(key, consistency)
+  File &quot;/Library/Python/2.6/site-packages/Lazyboy-0.7.5-py2.6.egg/lazyboy/iterators.py&quot;, line 50, in slice_iterator
+    raise exc.ErrorNoSuchRecord(&quot;No record matching key %s&quot; % key)
+lazyboy.exceptions.ErrorNoSuchRecord: No record matching key {&#x27;column_family&#x27;: &#x27;Task&#x27;, &#x27;keyspace&#x27;: &#x27;TaskManager&#x27;, &#x27;super_column&#x27;: None, &#x27;key&#x27;: &#x27;my-project-a&#x27;}
+</code></pre>
       
     
       
-        <h2>获取多个 Column</h2>
+        <p>通过上面的例子，你已经掌握了足够的信息，可以把 Cassandra 当作一个简单的键值存储来使用。但仅仅局限于键值存储不足以开发某些类型的应用，幸运的是 Cassandra 提供了更多功能。</p>
       
     
       
-        <p>除了获取特定 key 之外，我们还可以遍历 ColumnFamily 中的所有 key。为了简化示例，假设我们已经定义了以下函数：</p>
+        <h3>获取多个 Column</h3>
+        
       
     
       
-        <p>特别注意最后两行，我们显式地将新的 Member 添加到 MembersView 中。这对实现下面要介绍的那些查询操作至关重要。</p>
+        <p>除了获取特定的 key，我们还可以遍历 ColumnFamily 中的所有 key。为了简化示例，我们假设已经定义了下面这个函数：</p>
       
     
       
-        <p>现在让我们尝试遍历所有的 Member 记录。</p>
+        <pre><code>def add_member(username, first, last):
+    m = Member()
+    m.key = MemberKey(username)
+    m[&#x27;first&#x27;] = first
+    m[&#x27;last&#x27;] = last
+    m.save()
+    mv = MembersView()
+    mv.append(m)
+</code></pre>
       
     
       
-        <p>不仅如此，我们还可以通过指定起始 key 来遍历一部分 Column：</p>
+        <p>特别注意最后两行，我们显式地将新 Member 添加到 MembersView 中。这一步至关重要，它决定了后续操作能否正确检索到该成员。</p>
       
     
       
-        <p>你可能会认为应该有办法指定迭代的结束范围，确实有，但目前需要一些技巧（这可能是 API 设计上的一个小疏忽，我写完这篇文章后会尽快提交一个补丁）。</p>
+        <p>现在让我们尝试遍历 Member columns。</p>
       
     
       
-        <p>至此，我们已经从只能把 Cassandra 当作键值存储，提升到了能够遍历整个或部分 ColumnFamily 中的 key。</p>
+        <pre><code>&gt;&gt;&gt; members = ((&#x27;a&#x27;,&#x27;a&#x27;,&#x27;last_f&#x27;),
+...                (&#x27;b&#x27;,&#x27;b&#x27;,&#x27;last_c&#x27;),
+...                (&#x27;c&#x27;,&#x27;c&#x27;,&#x27;last_d&#x27;),
+...                (&#x27;d&#x27;,&#x27;d&#x27;,&#x27;last_e&#x27;),
+...                (&#x27;e&#x27;,&#x27;e&#x27;,&#x27;last_a&#x27;),
+...            (&#x27;f&#x27;,&#x27;f&#x27;,&#x27;last_b&#x27;))
+&gt;&gt;&gt; 
+&gt;&gt;&gt; for member in members:
+...         add_member(member[0], member[1], member[2])
+... 
+&gt;&gt;&gt; len(MemberView())
+6
+&gt;&gt;&gt; for m in MemberView(): print m
+... 
+Member: {&#x27;last&#x27;: &#x27;last_f&#x27;, &#x27;first&#x27;: &#x27;a&#x27;}
+Member: {&#x27;last&#x27;: &#x27;last_c&#x27;, &#x27;first&#x27;: &#x27;b&#x27;}
+Member: {&#x27;last&#x27;: &#x27;last_d&#x27;, &#x27;first&#x27;: &#x27;c&#x27;}
+Member: {&#x27;last&#x27;: &#x27;last_e&#x27;, &#x27;first&#x27;: &#x27;d&#x27;}
+Member: {&#x27;last&#x27;: &#x27;last_a&#x27;, &#x27;first&#x27;: &#x27;e&#x27;}
+Member: {&#x27;last&#x27;: &#x27;last_b&#x27;, &#x27;first&#x27;: &#x27;f&#x27;}
+</code></pre>
       
     
       
-        <h2>管理关系</h2>
+        <p>不仅如此，我们还可以通过指定起始 key 来遍历某一段 columns：</p>
       
     
       
-        <p>实现我们总体计划的最后一步，是存储分配给特定 Task 的 Member 列表。最简单的想法可能是在 Task 里存一个逗号分隔的 key 列表，但随着写入量的增加，这种方式会变得不可靠，因为冲突时不会合并值，而是以最后一次写入为准。（我知道这听起来有点模糊，但我一直没能简洁地解释清楚，所以我需要另写一篇文章来详细说明，而不是在这篇里贪多。）</p>
+        <pre><code>&gt;&gt;&gt; mv = MemberView()
+&gt;&gt;&gt; mv.start_col = &quot;c&quot;
+&gt;&gt;&gt; for m in mv: print m
+... 
+Member: {&#x27;last&#x27;: &#x27;last_d&#x27;, &#x27;first&#x27;: &#x27;c&#x27;}
+Member: {&#x27;last&#x27;: &#x27;last_e&#x27;, &#x27;first&#x27;: &#x27;d&#x27;}
+Member: {&#x27;last&#x27;: &#x27;last_a&#x27;, &#x27;first&#x27;: &#x27;e&#x27;}
+Member: {&#x27;last&#x27;: &#x27;last_b&#x27;, &#x27;first&#x27;: &#x27;f&#x27;}
+</code></pre>
       
     
       
-        <p>更好的做法是使用一个新的 ColumnFamily（对我们来说是 TaskMember）来存储这些关系。对于每个 Task，我们还会创建一个具有相同 key 的 TaskMember，并用它来保存与 Member 的关联。</p>
+        <p>你可能会认为应该有办法指定迭代的结束范围，确实有，不过目前需要一点技巧（这可能是 API 设计上的一个小疏忽，我写完这篇文章后会尽快提交一个补丁）。</p>
       
     
       
-        <p>首先我们来创建一些 Member 和一个 Task，同时创建一个与该 Task 拥有相同 key 的 TaskMember。</p>
+        <pre><code>&gt;&gt;&gt; mv = MemberView()
+&gt;&gt;&gt; for a in mv._cols(&quot;c&quot;, &quot;e&quot;): print a
+... 
+Column(timestamp=1274654073, name=&#x27;c&#x27;, value=&#x27;c&#x27;)
+Column(timestamp=1274654073, name=&#x27;d&#x27;, value=&#x27;d&#x27;)
+Column(timestamp=1274654073, name=&#x27;e&#x27;, value=&#x27;e&#x27;)
+</code></pre>
       
     
       
-        <p>现在让我们把 Will 和 Jill 添加到这个任务中，而让 Bill 独自留在外面。</p>
+        <p>至此，我们已经从单纯把 Cassandra 当作键值存储，提升到了能够遍历整个或部分 key 的范围。</p>
       
     
       
-        <p>是的，我们所做的就是为每个想要加入项目的用户添加一条新的键值对。下面是一个不那么刻意的版本：</p>
+        <h3>管理关系</h3>
+        
       
     
       
-        <p>然后你可以直接获取它并遍历，以确定当前分配给该任务的成员：</p>
+        <p>实现我们总体计划的最后一步，是存储分配给某个特定 Task 的 Member 列表。最简单的做法可能是直接在 Task 里存一个逗号分隔的 key 列表，但随着写入量的增加，这种方式会变得不可靠，因为 Cassandra 在冲突时不会合并值，而是以最后一次写入为准。（我知道这个解释有点模糊，但我一直没能找到简洁的说明方式，所以我打算另写一篇文章详细讨论，而不是在这篇文章里勉强展开。）</p>
       
     
       
-        <p>这就是全部内容了。现在我们已经可以处理关系、键值存储以及范围迭代。使用这些简单的工具，你几乎可以构建任何东西。</p>
+        <p>更好的做法是使用一个新的 ColumnFamily（对我们来说就是 TaskMember）来存储这些关系。对于每个 Task，我们还会创建一个具有相同 key 的 TaskMember，用它来保存与 Member 的关联。</p>
       
     
       
-        <h2>结束</h2>
+        <p>首先我们来创建一些成员和一个 Task，同时创建一个与 Task 拥有相同 key 的 TaskMember。</p>
       
     
       
-        <p>这段代码可以在我 fork 的 Lazyboy GitHub 仓库中找到，等我稍作清理后，我会考虑向官方仓库提交 pull request。</p>
+        <pre><code>&gt;&gt;&gt; from tasks import *
+&gt;&gt;&gt; add_member(&quot;will&quot;, &quot;will&quot;, &quot;larson&quot;)
+&gt;&gt;&gt; add_member(&quot;bill&quot;, &quot;bill&quot;, &quot;fakename&quot;)
+&gt;&gt;&gt; add_member(&quot;jill&quot;, &quot;jill&quot;, &quot;lastnamehere&quot;)
+&gt;&gt;&gt; Task().update({&quot;name&quot;:&quot;Web App 1&quot;, 
+         &quot;desc&quot;:&quot;We will build a fantastic web applicaiton&quot;}).save()
+&gt;&gt;&gt; t.key
+{&#x27;column_family&#x27;: &#x27;Task&#x27;, &#x27;keyspace&#x27;: &#x27;TaskManager&#x27;, 
+ &#x27;super_column&#x27;: None, &#x27;key&#x27;: &#x27;52a6c23e1afd480991e2232f5e7d9ba8&#x27;}
+&gt;&gt;&gt; t.key.key
+&#x27;52a6c23e1afd480991e2232f5e7d9ba8&#x27;
+&gt;&gt;&gt; tm = TaskMember()
+&gt;&gt;&gt; tm.key = TaskMemberKey(t.key.key)
+&gt;&gt;&gt; tm.save()
+TaskMember: {}
+&gt;&gt;&gt; tv = TaskView()
+&gt;&gt;&gt; tv.append(t)
+</code></pre>
       
     
       
-        <p>如果有任何问题或意见，欢迎随时告诉我！</p>
+        <p>现在我们把 Will 和 Jill 添加到这个任务中，而让 Bill 独自留在外面。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; tm = TaskMember().load(TaskMemberKey(t.key.key))
+&gt;&gt;&gt; will = Member().load(MemberKey(&quot;will&quot;))
+&gt;&gt;&gt; will.key.key
+&#x27;will&#x27;
+&gt;&gt;&gt; tm[will.key.key] = 1
+&gt;&gt;&gt; jill = Member().load(MemberKey(&quot;jill&quot;))
+&gt;&gt;&gt; tm[jill.key.key] = 1
+&gt;&gt;&gt; tm.save()
+</code></pre>
+      
+    
+      
+        <p>是的，我们所做的只是为每个要加入项目的用户添加一条新的 key/value。更自然的写法如下：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; tm.update({&quot;will&quot;:1, &quot;jill&quot;:1}).save()
+TaskMember: {&#x27;will&#x27;: &#x27;1&#x27;, &#x27;jill&#x27;: &#x27;1&#x27;}
+</code></pre>
+      
+    
+      
+        <p>然后你可以直接获取它并遍历，查看当前分配给该任务的成员：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; tm = TaskMember().load(TaskMemberKey(t.key.key))
+&gt;&gt;&gt; for a in tm: print a
+... 
+will
+jill
+</code></pre>
+      
+    
+      
+        <p>这就是全部内容了。现在我们已经能处理关系、键值存储以及范围迭代。使用这些基础工具，你几乎可以构建任何想构建的东西。</p>
+      
+    
+      
+        <h3>结束语</h3>
+        
+      
+    
+      
+        <p>本文的代码可以在我 fork 的 lazyboy GitHub 仓库中找到，等我稍微清理一下代码后，我会考虑向官方仓库提交一个 Pull Request。</p>
+      
+    
+      
+        <p>如果你有任何问题或意见，欢迎告诉我！</p>
       
     
   </div>

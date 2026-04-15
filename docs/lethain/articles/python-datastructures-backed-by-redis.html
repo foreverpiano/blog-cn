@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Redis 驱动的 Python 数据结构 · Will Larson 文集</title>
+  <title>基于 Redis 的 Python 数据结构 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>Redis 驱动的 Python 数据结构</h1>
+    <h1>基于 Redis 的 Python 数据结构</h1>
     <div class="meta">
       2010-09-05 · 
       <a href="https://lethain.com/python-datastructures-backed-by-redis/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,43 +29,74 @@
   <div class="article-content">
     
       
-        <p>最近在工作中我频繁使用 Redis，并且越来越喜欢它。后来我突然想到，用 Redis 作为 Python 最常用的数据结构——列表（list）和字典（dict）的后端，应该非常简单直接。这不仅实现起来容易，还能带来一些实际好处：更高的可读性、跨进程/线程/机器的分布式能力，以及对现有接口的熟悉度。</p>
+        <p>最近在工作中我经常和 Redis 打交道，并且真的喜欢上了它。后来我突然想到，用 Redis 作为后端来实现 Python 最常用的数据结构——列表和字典，其实非常简单。不仅实现起来容易，这种方式还能带来一些额外的好处：更高的可读性、跨进程/线程/机器的分布式能力，以及对现有接口的熟悉感。</p>
       
     
       
-        <p>基于这些想法实现的代码已在 Github 上开源。在你跑去查看之前，我们先来看看这种方法几个简单却强大的应用场景：共享配置机制和经典的生产者-消费者示例。</p>
+        <p>基于这些想法实现的代码已经放到了 Github 上。在你跑去查看之前，我们先来看几个简单却强大的应用场景：共享配置机制和经典的生产者-消费者示例。</p>
       
     
       
         <h2>共享配置</h2>
+        
       
     
       
-        <p>当系统规模扩大后，管理共享配置数据就成了一个越来越重要的问题。幸运的是，这是一个可以解决的问题。下面就是其中一种方案。</p>
+        <p>当你开始进行大规模系统开发时，管理共享配置数据会成为一个越来越重要的问题。幸运的是，这是一个可以解决的问题。下面就是一个解决方案。</p>
       
     
       
-        <p>非常直截了当。长期运行的进程需要偶尔检查配置是否发生变化，虽然有点麻烦，但完全可行。</p>
+        <pre><code>import redis_dict
+# create and edit the configuration
+x = redis_dict.RedisDict()
+x[&#x27;mysql-master&#x27;] = &quot;127.0.0.0:1999&quot;
+x[&#x27;mysql-slaves&#x27;] = &quot;127.0.0.1:2000,127.0.0.2:2001&quot;
+x[&#x27;mysql-slaves&#x27;] = x[&#x27;mysql-slaves&#x27;] + &quot;,127.0.0.3:2002&quot;
+# read the config on your machines
+x = redis_dict.RedisDict()
+master = x[&#x27;mysql-master&#x27;].split(&#x27;:&#x27;)
+slaves = [ y.split(&#x27;:&#x27;) for y in x[&#x27;mysql-slaves&#x27;].split(&#x27;,&#x27;) ]
+</code></pre>
+      
+    
+      
+        <p>非常简单。长期运行的进程需要定期检查配置是否发生变化，虽然有点麻烦，但还是可行的。</p>
       
     
       
         <h2>分布式生产者和消费者</h2>
+        
       
     
       
-        <p>当架构发展到一定阶段，大多数系统都会急需一个消息队列。很多时候人们最终会在 MySQL 上层实现一个奇怪的队列。还有不少人选择了 RabbitMQ，但它并不总是能完全兑现“开箱即用的消息传递”这一口号。让我们来看看另一种不同的方法。</p>
+        <p>当架构发展到一定规模时，大多数系统都会迫切需要一个消息队列。很多团队最终选择在 MySQL 之上搭建一个奇怪的队列实现。还有不少人选择了 RabbitMQ，但它并不总能完全兑现“Messaging that just works”的口号。让我们来看看另一种不同的方法。</p>
       
     
       
-        <p>系统中可以存在大量的生产者和消费者，而且它们不必运行在同一台机器上。你无需纠结于 Python 的线程或 multiprocessing，直接从命令行启动任意数量的实例即可。很不错，对吧？</p>
+        <pre><code>import redis_list
+# producer
+import random
+x = redis_list.RedisList(&quot;producer-queue&quot;)
+for i in xrange(0, 100):
+x.append(random.randint(0,101)
+# consumer
+x = redis_list.RedisList(&quot;producer-queue&quot;)
+while True:
+n = x.pop(blocking=True)
+print &quot;Popped %s&quot; % (n,)
+</code></pre>
       
     
       
-        <p>配置良好的 Redis 集群可以在主库宕机时自动将写操作 failover 到从库，让系统在不丢失数据、且无需等待主库恢复的情况下继续运行；这些特性用 RabbitMQ 很难实现。对于更有野心的场景，可以通过 Redis 的 LTRIM 命令轻松限制队列的最大长度，从而保证队列的稳定性。最有野心的做法是，可以参考 Kestrel 的策略，监控队列大小，当队列过大时将消息拉出并写入文件，等队列恢复后再重新填充（这可以通过使用两个 Redis list 来实现，在不丢失消息顺序的前提下：对象从输入队列被移动到序列化文件或处理队列，当处理队列小于最小大小时优先填充处理队列，且在磁盘上还有剩余数据时，不直接将数据从输入队列写入处理队列）。</p>
+        <p>系统中可以存在大量的生产者和消费者，它们不必运行在同一台机器上。你不需要纠结于 Python 的线程或 multiprocessing，而是可以直接从命令行启动任意数量的进程。很不错，对吧？</p>
       
     
       
-        <p>好了，去造点东西吧。</p>
+        <p>一个配置良好的 Redis 集群可以在主库宕机时自动将写操作 failover 到从库，让系统在不丢失数据、也不需要等待主库恢复的情况下继续运行；这些特性在 RabbitMQ 中是很难实现的。对于更进一步的需求，可以通过 Redis 的 LTRIM 命令轻松限制队列的最大长度，从而保证队列的稳定性。而对于最有野心的实现，可以参考 Kestrel 的策略：监控队列长度，当队列过大时将消息拉出并写入文件，等队列恢复后再重新填充（这可以通过使用两个 Redis 列表来实现，且不会丢失消息顺序——对象从输入队列被移动到序列化文件或处理队列（当处理队列低于最小大小时），在磁盘上仍有数据时，不会直接从输入队列写入处理队列）。</p>
+      
+    
+      
+        <p>好了，去动手做点东西吧。</p>
       
     
   </div>

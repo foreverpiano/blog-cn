@@ -29,55 +29,110 @@
   <div class="article-content">
     
       
-        <p>在使用 Erlang Actor、Clojure Agent 等异步通信机制时，我一直在思考的一个问题是：如何在异步系统中安排循环执行的事件？</p>
+        <p>在使用 Erlang actor、Clojure agent 等异步通信机制时，我一直思考的一个问题是：在异步系统中应该如何调度循环事件？</p>
       
     
       
-        <p>最简单的实现循环事件的方式，就是使用循环并在其中加入 sleep 语句，</p>
+        <p>最简单的实现循环事件的方式是在循环中加入 sleep 语句，</p>
       
     
       
-        <p>但通过外部脚本去触发异步系统，总让人觉得不太自然。我真正想要的是一种让异步分布式系统能够自我维持、持续运转，而无需外部干预的机制。</p>
+        <pre><code>import time
+while True:
+print(&quot;hello&quot;)
+time.sleep(1)
+</code></pre>
       
     
       
-        <p>花一些时间思考后，你可以设计出多种 perpetual（永续）的异步循环机制，通过适当的调整，它们能呈现出不同的特性。</p>
+        <p>但通过外部脚本去触发异步系统总让人觉得不太对劲。我真正想要的是一种能让异步分布式系统自我维持、持续运转，而无需外部干预的机制。</p>
       
     
       
-        <p>其中最简单的永续运动方式就是乒乓循环（ping-pong loop）。</p>
+        <p>经过一些思考，我们可以设计出多种不同的永久异步循环，通过适当调整，它们能呈现出各式各样的特性。</p>
+      
+    
+      
+        <p>其中最简单的一种永久运动机制就是乒乓循环。</p>
       
     
       
         <h2>乒乓循环</h2>
+        
       
     
       
-        <p>在一个仅包含两个 Actor 的系统中，两个 Actor 可以通过执行自己的操作，然后向对方发送 ping 消息来维持永续运动。</p>
+        <p>在只有两个 actor 的系统中，两个 actor 可以各自完成自己的工作，然后向对方发送 ping 消息，从而维持系统的永久运动。</p>
       
     
       
-        <p>这种方式实现起来非常简单，但最终难免让人觉得它是一种完全人为构造的机制。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/ping_pong2.png" alt="Ping Pong architecture.">
+          
+        </figure>
       
     
       
-        <p>Erlang 版本的 Ping-Pong 实现</p>
+        <p>这种方式实现起来非常简单，但最终难免让人觉得它是一种完全人为构造的方案。</p>
       
     
       
-        <p>Clojure 版本的 Ping-Pong 实现</p>
+        <p>Erlang 实现的 Ping-Pong 示例。</p>
       
     
       
-        <p>（注意：在最后的 send 外面加了 nil? 判断，因为直接打印 send 的返回值会导致无限循环——每个 Agent 的状态里都引用了对方，最终引发栈溢出错误。）</p>
+        <pre><code>-module(ping).
+-export([ping/1, test/0]).
+ping(Delay) -&gt;
+receive
+{ping, Target} -&gt;
+io:format(&quot;received ping from ~p…~n&quot;, [Target]),
+timer:sleep(Delay),
+Target ! {ping, self()},
+ping(Delay)
+end.
+test() -&gt;
+A = spawn(ping, ping, [2500]),
+B = spawn(ping, ping, [500]),
+A ! {ping, B}.
+</code></pre>
+      
+    
+      
+        <p>Clojure 实现的 Ping-Pong 示例。</p>
+      
+    
+      
+        <pre><code>(defn ping [state]
+      (println &quot;ping&quot;)
+      (. java.lang.Thread sleep (:delay state))
+      (send (:target state) ping)
+      state)
+(def a (agent {:delay 1000, :target nil}))
+(def b (agent {:delay 1000, :target a}))
+(send a #(assoc % :target b))
+(nil? (send a ping))
+</code></pre>
+      
+    
+      
+        <p>（注意我将最后的 send 用 nil? 包裹起来，是因为直接打印 send 的返回值会导致无限循环——每个 agent 的状态里都引用了对方，从而引发栈溢出错误。）</p>
       
     
       
         <h2>环形循环</h2>
+        
       
     
       
-        <p>虽然我们单独讨论，但更准确的看法是：乒乓循环其实是只有两个节点的环。不过，真正的环形结构比乒乓更现实，因为它能容纳可变数量的节点。</p>
+        <p>虽然前面单独讨论了乒乓循环，但更准确的理解是把它看作只有两个节点的环。不过，环形结构比单纯的乒乓循环更接近实际，因为它能支持任意数量的节点。</p>
+      
+    
+      
+        <figure>
+          <img src="https://lethain.com/static/blog/circle.png" alt="Circle architecture.">
+          
+        </figure>
       
     
       
@@ -85,83 +140,218 @@
       
     
       
-        <p>Erlang 版本的 Circle 实现</p>
+        <p>Erlang 实现的 Circle 示例。</p>
       
     
       
-        <p>Clojure 版本的 Circle 实现</p>
+        <pre><code>-module(circle).
+-export([ping/2, test/0]).
+ping(Target, Delay) -&gt;
+receive
+ping -&gt;
+io:format(&quot;~p pinged by ~p…~n&quot;, [self(), Target]),
+timer:sleep(Delay),
+Target ! ping,
+ping(Target, Delay);
+{target, NewTarget} -&gt;
+NewTarget ! ping,
+ping(NewTarget, Delay)
+end.
+test() -&gt;
+A = spawn(circle, ping, [nil, 2500]),
+B = spawn(circle, ping, [A, 500]),
+C = spawn(circle, ping, [B, 1000]),
+D = spawn(circle, ping, [C, 100]),
+A ! {target, D}.
+</code></pre>
+      
+    
+      
+        <p>Clojure 实现的 Circle 示例。</p>
+      
+    
+      
+        <pre><code>(defn ping [state]
+      (println (str &quot;ping &quot; (:name state)))
+      (. java.lang.Thread sleep (:delay state))
+      (send (:target state) ping)
+      state)
+(def a (agent {:delay 100, :target nil, :name &quot;a&quot;}))
+(def b (agent {:delay 1000, :target a, :name &quot;b&quot;}))
+(def c (agent {:delay 4000, :target b, :name &quot;c&quot;}))
+(def d (agent {:delay 2000, :target c, :name &quot;d&quot;}))
+(send a #(assoc % :target d))
+(nil? (send a ping))
+</code></pre>
       
     
       
         <h2>协调者模式</h2>
+        
       
     
       
-        <p>打破环形结构，协调者（Coordinator）将“发送 ping”的职责集中化，只有单个节点需要包含向外 ping 的逻辑，其他节点只需监听 ping 消息即可。</p>
+        <p>打破环形结构的思路，协调者模式将“发送 ping”的职责集中到一个节点上，只有这一个节点需要维护 ping 逻辑，其他节点只需被动监听即可。</p>
       
     
       
-        <p>当你的任务只需要定时调度功能时，协调者模式非常实用。它把 ping 逻辑从大多数节点中移除，同时也能让所有节点在大致相同的时间收到心跳（尽管各个接收 Actor 实际处理 ping 的时机可能差异很大）。不过，默认情况下协调者并不具备环形结构所拥有的数据同步和更新传播能力。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/timer2.png" alt="Coordinator architecture.">
+          
+        </figure>
       
     
       
-        <p>如果更新传播是必需的功能，可以让所有节点主动把更新发送给协调者，由协调者每个周期进行广播（这样可以保证任何更新在最多两个周期内被所有节点接收到）。</p>
+        <p>当你的任务只需要定时调度功能时，协调者模式非常实用。它把 ping 逻辑从大多数节点中移除，同时也允许在同一逻辑时刻向所有节点发送心跳（尽管各个 actor 实际处理 ping 的时间可能差异很大）。但默认情况下，协调者模式缺少环形结构中数据同步和更新传播的能力。</p>
       
     
       
-        <p>Erlang 版本的 Coordinator 实现</p>
+        <p>如果更新传播是必需的功能，可以让所有节点将更新发送给协调者，由协调者每隔一个周期进行广播（这样可以保证任何更新最多在两个周期内被所有节点接收）。</p>
       
     
       
-        <p>Clojure 版本的 Coordinator 实现</p>
+        <p>Erlang 实现的 Coordinator 示例。</p>
       
     
       
-        <h2>Gossip（流言）机制</h2>
+        <pre><code>module(coordinator).
+-export([coordinator/2, listener/0, test/0]).
+listener() -&gt;
+receive
+{ping, Sender} -&gt;
+io:format(&quot;~p received ping from pn&quot;, [self(), Sender]),
+listener()
+end.
+coordinator(Targets, Delay) -&gt;
+receive
+ping -&gt;
+lists:foreach(fun(X) -&gt;
+X ! {ping, self()}
+end, Targets),
+timer:sleep(Delay),
+self() ! ping,
+coordinator(Targets, Delay)
+end.
+test() -&gt;
+A = lists:map(fun(_) -&gt;
+spawn(coordinator, listener, [])
+end, lists:seq(0, 10)),
+B = spawn(coordinator, coordinator, [A, 1000]),
+B ! ping.
+</code></pre>
       
     
       
-        <p>Gossip 方法与环形结构有许多相似之处，但它的结构更松散，保证更少，在面对节点失效时却具有更强的韧性。</p>
+        <p>Clojure 实现的 Coordinator 示例。</p>
       
     
       
-        <p>上图中的 Gossip 从节点 C 开始传播。</p>
+        <pre><code>defn ping [state sender]
+      (println (str state &quot; pinged by &quot; (:name sender)))
+      state)
+(defn coordinate [state]
+(. java.lang.Thread sleep (:delay state))
+(doseq [listener (:listeners state)]
+(send listener ping state))
+(send (:target state) coordinate)
+state)
+(def coord (agent {:delay 2500, :name &quot;a&quot;}))
+(def listeners (list (agent &quot;b&quot;) (agent &quot;c&quot;)))
+(send coord #(assoc (assoc % :target coord) :listeners listeners))
+(nil? (send coord coordinate))
+</code></pre>
       
     
       
-        <p>在 Gossip 中，当一个节点收到 ping 后，会随机选择另一个节点进行 ping。为了加快传播速度（同时应对单个节点失效的情况），每个节点可以在每次 ping 时通知多个其他节点，但必须小心控制每个周期产生的 ping 消息总量，避免指数增长。</p>
+        <h2>Gossip 协议</h2>
+        
       
     
       
-        <p>这种方式的优点在于能够容忍节点丢失，而环形结构无法承受任意节点的丢失，协调者模式则对发送 ping 的那个节点非常敏感。</p>
+        <p>Gossip 方法与环形结构有很多相似之处，但它的结构更松散，保证更少，在节点故障面前也更具韧性。</p>
       
     
       
-        <p>比上面这个过于简单的 Gossip 更有趣的，是将协调者与 Gossip 相结合的方案。每个节点会随机 ping 另一个节点，然后 ping 自己并休眠一段时间。在休眠期间，它会接收其他同样在执行此流程的节点发来的更新。醒来后，它会处理之前收到的 ping 消息（实际上只会处理它安排下一次 ping 之前收到的，那些之后收到的则在本次 ping 发送之后、下一次 ping 之前处理），然后再次开始相同的循环。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/gossip.png" alt="Gossip architecture.">
+          
+        </figure>
       
     
       
-        <p>Erlang 版本的 Gossip 实现</p>
+        <p>图中的传播从节点 C 开始。</p>
       
     
       
-        <p>Clojure 版本的 Gossip 实现</p>
+        <p>在 Gossip 中，当一个节点收到 ping 后，会随机选择另一个节点进行 ping 操作。为了加快传播速度（并在单个节点宕机时增强容错），每个节点可以在一次 ping 中通知多个其他节点，但必须注意控制每个周期内 ping 的总量，避免指数级增长。</p>
+      
+    
+      
+        <p>这种方式的优点在于能够容忍节点丢失，而环形结构无法承受任意节点的失效，协调者模式则对负责 ping 的节点极为敏感。</p>
+      
+    
+      
+        <p>比这里介绍的简单 Gossip 更有趣的方案，是将协调者与 Gossip 结合起来。每个节点会随机 ping 另一个节点，然后 ping 自己并进入休眠。在休眠期间，它会接收其他同样在执行此过程的节点发来的更新。醒来后，它会处理之前收到的 ping（实际上只处理在它安排本次 ping 之前收到的，那些之后收到的会在本次 ping 发送之后、下一次 ping 之前处理），然后再次重复整个循环。</p>
+      
+    
+      
+        <p>Erlang 实现的 Gossip 示例。</p>
+      
+    
+      
+        <pre><code>-module(gossip).
+-export([ping/1, test/0]).
+ping(Delay) -&gt;
+receive
+{ping, Sender, Targets} -&gt;
+io:format(&quot;~p received ping from ~p…~n&quot;, [Sender, self()]),
+timer:sleep(Delay),
+lists:nth(random:uniform(length(Targets)), Targets) ! {ping, self(), Targets},
+ping(Delay)
+end.
+test() -&gt;
+Pids = lists:map(fun(_) -&gt;
+spawn(gossip, ping, [1000])
+end, lists:seq(0, 10)),
+hd(Pids) ! {ping, self(), Pids}.
+</code></pre>
+      
+    
+      
+        <p>Clojure 实现的 Gossip 示例。</p>
+      
+    
+      
+        <pre><code>(defn ping [state sender]
+  (println (str (:name state) &quot; pinged by &quot; (:name sender)))
+  (. java.lang.Thread sleep (:delay state))
+  (send (nth (:agents state)
+             (rand-int (count (:agents state)))) ping state)
+  state)
+(def agents (doall (map #(agent {:name (str &quot;agent_&quot; %),
+:delay 1000})
+(range 0 10))))
+(doseq [agent agents]
+(send agent #(assoc % :agents agents)))
+(nil? (send (first agents) ping {:name &quot;start&quot;}))
+</code></pre>
       
     
       
         <h2>结束思考</h2>
+        
       
     
       
-        <p>我们可以把持续运转的异步系统看作是在进行某种分布式尾递归。虽然其语义比简单的 while 循环更复杂，但这些方法的潜力也更为有趣。</p>
+        <p>我们可以把持续运行的异步系统看作是在进行某种分布式尾递归。虽然其语义比普通的 while 循环更复杂，但这些方法所蕴含的潜力也更有趣。</p>
       
     
       
-        <p>它们能够让永续运动机制抵御单机崩溃，同时允许多个定时器并发运行，而无需编写复杂的自定义逻辑（比如不停地寻找最近要触发的定时器、睡眠直到触发、重新调度、寻找下一个……）。</p>
+        <p>它们既能让系统的永久运动不受单台机器崩溃的影响，也允许同时运行多个定时器而无需编写复杂的自定义逻辑（例如不停地寻找最近要触发的定时器、休眠等待、重新调度、寻找下一个……）。</p>
       
     
       
-        <p>随着我花更多时间思考带有心跳的分布式系统，我相信自己会对这里讨论的这些非常简单的方案产生更细致和深入的看法。但就目前而言，它们仍然是设计分布式系统时非常有用的工具。</p>
+        <p>随着我对带心跳的分布式系统投入更多思考，相信会对上面这些看似简单的方案产生更细致和深入的认识。但就目前而言，它们仍是设计分布式系统时非常有用的工具。</p>
       
     
   </div>

@@ -29,23 +29,35 @@
   <div class="article-content">
     
       
-        <p>我一直有个反复出现的想法，就是能用手机远程控制自己的服务器。当然，我完全可以安装一个 SSH 应用，用常规方式来做，但我觉得通过 Twitter 给服务器发送私信会更有趣一些。</p>
+        <p>我一直有个反复出现的梦想，就是能用手机远程控制自己的服务器。当然，我完全可以安装一个 SSH 应用，用常规方式实现，但我觉得通过 Twitter 向服务器发送私信会更有趣一些。</p>
       
     
       
-        <p>暂且不讨论这么做的实际价值，下面就快速介绍一下如何通过 Twitter 远程控制你的服务器。</p>
+        <p>先不讨论这么做的实际价值，下面快速介绍一下如何通过 Twitter 远程控制你的服务器。</p>
       
     
       
-        <h2>安装</h2>
+        <h3>安装</h3>
+        
       
     
       
-        <p>安装过程依赖于 Python-Twitter 库和一个极简的 python-twitter-remote 库。</p>
+        <p>安装依赖于 Python-Twitter 库和精简版的 python-twitter-remote 库。</p>
       
     
       
-        <h2>设置与配置</h2>
+        <pre><code>svn checkout http://python-twitter.googlecode.com/svn/trunk/ python-twitter
+cd python-twitter
+python setup.py install
+cd ../
+git clone git://github.com/lethain/python-twitter-remote.git
+cd python-twitter-remote
+</code></pre>
+      
+    
+      
+        <h3>设置与配置</h3>
+        
       
     
       
@@ -53,27 +65,55 @@
       
     
       
-        <p>接下来创建一个 rules.json 文件来定义你的规则，文件格式如下：</p>
+        <pre><code>mkdir ~/remote
+cd ~/remote
+</code></pre>
       
     
       
-        <p>users 是被允许执行某条命令的用户列表，pattern 是私信必须匹配的格式（目前是完全字面匹配，不过改成正则表达式匹配也非常简单），rewrite 则是当 pattern 匹配成功后所要执行的实际命令。</p>
+        <p>接下来创建一个 rules.json 文件来定义你的规则。该文件的格式如下：</p>
       
     
       
-        <p>最后一步是设置一个 cron 任务，让脚本定期运行。由于 Twitter 对过于频繁的轮询支持不佳，我建议将脚本设置为每小时轮询两到三次。</p>
+        <pre><code>[
+  {
+    &quot;users&quot;:   [&quot;lethain&quot;,&quot;lukeman&quot;],
+    &quot;pattern&quot;: &quot;update monocle studios&quot;,
+    &quot;rewrite&quot;: &quot;/home/will/scripts/update_monocle_studios.sh&quot;
+  },
+  {
+    &quot;users&quot;: [&quot;lethain&quot;],
+    &quot;pattern&quot;: &quot;reboot apache&quot;,
+    &quot;rewrite&quot;: &quot;/usr/sbin/apache2ctl graceful&quot;
+  }
+]
+</code></pre>
       
     
       
-        <p>每次脚本执行命令后，都会将用户名、输入文本和最终执行的命令记录到 remote/remote.log 文件中。</p>
+        <p>users 是允许执行对应命令的用户列表，pattern 是私信必须匹配的格式（目前是完全字面匹配，不过改成正则表达式匹配也很简单），rewrite 则是当 pattern 匹配成功时要执行的命令。</p>
       
     
       
-        <h2>发送命令</h2>
+        <p>最后一步是设置一个 cron 任务，让脚本定期运行。Twitter  historically 对过于频繁的轮询支持得不好，因此建议将脚本设置为每小时轮询两到三次。</p>
       
     
       
-        <p>最后，你只需要向监听的 Twitter 账号发送私信命令即可。</p>
+        <pre><code>15,45 * * * * /usr/bin/python /home/USERNAME/libs/python-twitter-remote/remote.py TWITTER-UN TWITTER-PWD /home/USERNAME/remote
+</code></pre>
+      
+    
+      
+        <p>每次脚本执行命令后，都会将用户名、输入文本和执行的命令记录到 remote/remote.log 文件中。</p>
+      
+    
+      
+        <h3>发送命令</h3>
+        
+      
+    
+      
+        <p>最后，你只需要开始向监听的 Twitter 账号发送私信命令即可。</p>
       
     
       
@@ -86,19 +126,20 @@
       
     
       
-        <h2>为什么这么做？</h2>
+        <h3>为什么这么做？</h3>
+        
       
     
       
-        <p>我实际使用这个方案的场景有两个。虽然这两个场景用其他技术（比如邮件）会更好，但我还是喜欢这种略显曲折的实现方式。</p>
+        <p>我实际使用这个方案的场景有两个。这两个场景用其他技术（比如大家都知道的 email）能做得更好，但我就是喜欢走这种稍微绕弯路的玩法。</p>
       
     
       
-        <p>第一个场景是在手机上更新网站和重启 Apache，而不需要真正 SSH 到服务器（服务器只允许公钥认证，不使用密码）；第二个场景是允许朋友更新我服务器上的项目（通常是从 Git 仓库拉取代码并运行构建脚本），而不需要为他们单独创建账号和配置公钥。</p>
+        <p>第一个场景是在手机上更新网站和重启 Apache，而无需真正 SSH 到服务器（服务器只允许公钥认证，不支持密码）；第二个场景是允许朋友更新我服务器上托管的项目（通常是 pull Git 仓库并运行构建脚本），而无需为他们单独设置账号和公钥。</p>
       
     
       
-        <p>正如我前面所说，我认为使用邮件会是比依赖 Twitter 更好的方案，而这个方法最多算是一个有趣的新奇玩法。</p>
+        <p>正如我前面所说，我确实认为用 email 会是比依赖 Twitter 更好的方案，而且我自己也觉得这最多算是个有趣的新奇玩意儿。</p>
       
     
   </div>

@@ -29,43 +29,72 @@
   <div class="article-content">
     
       
-        <p>假设你正在开发一个 PyObjC 应用程序，正在考虑如何表示你的数据。你打开了一个 nib 文件（现在叫 xib），盯着 NSTableView 和 NSOutlineView 看了半天，最后选择了其中之一。假设你选了 NSOutlineView，那么你需要一种创建新节点的方法。这很简单，只需拖一个 NSButton 进来，并使用 NSAddTemplate 图标让大家明白它的功能。</p>
+        <p>假设你正在开发一个 PyObjC 应用程序，需要决定如何表示数据。你打开了一个 nib 文件（现在叫 xib），盯着 NSTableView 和 NSOutlineView 看了半天，最终选择了 NSOutlineView。你需要一种创建新节点的方法。这很简单，拖一个 NSButton 进去，用 NSAddTemplate 图标就能清楚地表明它的功能。</p>
       
     
       
-        <p>但接下来出现了一个重要问题：如何从你这个崭新的 NSOutlineView 中移除数据？最简单的办法是再添加一个按钮（或许用 NSRemoveTemplate 图标，你这个大胆的家伙）。如果你野心够大，甚至可以给这个按钮绑定一个快捷键，让 Delete 键也能生效。</p>
+        <p>但接下来出现了一个大问题：如何从你这个崭新的 NSOutlineView 中删除数据？最简单的办法是再添加一个按钮（或许用 NSRemoveTemplate 图标，你这个大胆的家伙）。如果你特别有野心，甚至可以给这个按钮绑定一个快捷键，让 Delete 键也能生效。</p>
       
     
       
-        <p>然而过一段时间后，你开始产生一种挥之不去的感觉。总觉得哪里不对劲。你几乎从不使用那个移除按钮，而是一直在按 Delete 键。甚至有一次你本想点添加，却不小心删除了东西。这时你终于愿意接受现实了：你只想按 Delete 键，根本不想要那个烦人的移除按钮。</p>
+        <p>然而过了一段时间，你开始感到不安。总觉得哪里不太对劲。你几乎从不使用那个移除按钮，一直都是直接按 Delete 键。甚至有一次你本来想点添加，却不小心删掉了东西。你终于愿意接受现实了：你只想直接按 Delete 键，根本不想要那个烦人的移除按钮。</p>
       
     
       
-        <p>要实现这一点，你需要对 NSOutlineView（或者你正在使用的 NSTableView）进行子类化。代码大致如下：</p>
+        <p>要实现这个功能，你需要子类化 NSOutlineView（或者你正在使用的 NSTableView）。代码大致如下：</p>
       
     
       
-        <p>这是一个相当简单的技巧，但理解起来可能会有些困惑。特别是用 Python 如何表示非文本字符。这里最困难的是如何引用 Delete 字符，以便检查传入的按键是否匹配。幸运的是，Python 内置的 ord 函数可以将 ASCII 字符转换为它们的整数值，这让比较变得很简单。</p>
+        <pre><code>from Foundation import *
+class WRLOutlineView(NSOutlineView):
+    def keyDown_(self, event):
+        key = event.charactersIgnoringModifiers()[0]
+        flags = event.modifierFlags() &amp; 0x00FF
+        if ord(key) == 127 and flags == 0:
+            # Do your removal magic here.
+            pass
+        else:       
+            super(DeletableOutlineView,self).keyDown_(event)
+</code></pre>
       
     
       
-        <p>为了完整起见，下面是我用来实际从表格中移除节点的代码。在“# 在这里执行你的移除魔法”这一行，我使用的代码是：</p>
+        <p>这是一个很简单的技巧，但理解起来可能会有些困惑。特别是在 Python 中如何表示非文本字符。这里最让人头疼的是如何引用 Delete 字符，以便检查传入的按键是否匹配。幸运的是，内置函数 ord 可以将 ASCII 字符转换成对应的整数值，这让比较变得非常简单。</p>
       
     
       
-        <p>我使用的是自定义的 datasource 和 delegate，在 delegate 中，removeList_ 方法如下所示：</p>
+        <p>为了完整起见，下面是我用来实际从表格中移除节点的代码。在“# 在这里执行你的删除魔法”这一行，我使用了以下代码：</p>
       
     
       
-        <p>在这段代码中，self.data 是一个包含我树状结构的类的实例，而 self.data.remove 是一个方法，它会递归地在树结构中查找并移除作为参数传入的节点。</p>
+        <pre><code>self.delegate().removeList_(self)
+</code></pre>
       
     
       
-        <p>以后我遇到 PyObjC 的小技巧时，会继续把它们记录下来。如果你对某个特定主题特别感兴趣，请告诉我，我会很乐意去研究。</p>
+        <p>我使用的是自定义的 datasource 和 delegate，在 delegate 中 removeList_ 方法是这样的：</p>
       
     
       
-        <p>我一直很高兴听到你的问题和评论。</p>
+        <pre><code>@objc.IBAction
+def removeList_(self,sender):
+    item = self.outlineView.itemAtRow_(self.outlineView.selectedRow())
+    parent = self.outlineView.parentForItem_(item)
+    self.data.remove(item)
+    self.outlineView.reloadItem_reloadChildren_(parent,True)
+</code></pre>
+      
+    
+      
+        <p>在这段代码中，self.data 是一个包含我整个树状结构的类的实例，而 self.data.remove 是一个方法，它会递归地在树结构中查找并移除作为参数传入的节点。</p>
+      
+    
+      
+        <p>今后我遇到 PyObjC 的有用技巧时，会继续把这些短小的提示和窍门记录下来。如果你对某个特定主题特别感兴趣，请告诉我，我会很乐意去深入研究。</p>
+      
+    
+      
+        <p>我一直很乐意听到你的问题和评论。</p>
       
     
   </div>

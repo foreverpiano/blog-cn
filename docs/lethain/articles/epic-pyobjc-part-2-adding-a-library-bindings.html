@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Epic PyObjC 第二部分：添加库与绑定 · Will Larson 文集</title>
+  <title>史诗级 PyObjC 教程（二）：添加库与绑定 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>Epic PyObjC 第二部分：添加库与绑定</h1>
+    <h1>史诗级 PyObjC 教程（二）：添加库与绑定</h1>
     <div class="meta">
       2008-08-24 · 
       <a href="https://lethain.com/epic-pyobjc-part-2-adding-a-library-bindings/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,51 +29,67 @@
   <div class="article-content">
     
       
-        <p>在本系列第一部分中，我们介绍了如何在 Leopard 上开始使用 PyObjC。我们在 XCode 中创建了一个项目，对 InterfaceBuilder 有了初步了解，并基本搭建了一个应用的框架，接下来我们将逐步将其完善。</p>
+        <p>在本系列第一部分中，我们介绍了如何在 Leopard 上开始使用 PyObjC，使用 XCode 创建了一个项目，对 InterfaceBuilder 有了一定了解，并基本搭建了一个应用程序的框架，接下来我们就要开始逐步将其完善。</p>
       
     
       
-        <p>如果你没有完成第一部分的内容，仍然可以跟着本教程继续操作。你可以下载这个包含项目的 zip 文件。更好的方式是访问本教程的 GitHub 仓库，这样你可以看到所有的修改过程（包括那些惨痛的错误）。</p>
+        <p>如果你没有跟着第一部分操作，也可以直接下载这个包含项目的 zip 文件继续学习。更推荐的是，你可以访问本教程的 GitHub 仓库，这样就能看到所有的修改过程（包括那些惨痛的错误）。</p>
       
     
       
-        <h2>首先，一个小小的更正</h2>
+        <h3>首先，一个快速修正</h3>
+        
       
     
       
-        <p>打开 MWController.py，将 _results = [] 这一行修改为 results = []。修改后 MWController 类的字段应该如下所示：</p>
+        <p>打开 MWController.py，将 _results = [] 这行改为 results = []。修改后 MWController 类的字段应该如下所示：</p>
       
     
       
-        <p>其实我犯了一个很明显的错误：方法名前面的下划线无法与 Python 和 Objective-C 之间的转换机制很好地配合。或许这是一个宝贵的教训：方法名中的下划线可能会产生意想不到的后果。</p>
+        <pre><code>class MWController(NSObject):
+    tableView = objc.IBOutlet()
+    textField = objc.IBOutlet()
+    results = []
+</code></pre>
       
     
       
-        <p>因此，我建议对方法和函数名采用驼峰命名法。例如使用 thisIsAMethod 而不是 this_is_a_method。虽然这样的方法名看起来有点丑，但总比给自己埋下一堆地雷要好。</p>
+        <p>基本上，我犯了一个很明显的错误：方法名前面的下划线与 Python 和 Objective-C 之间的桥接不兼容。也许这是一个宝贵的教训：在方法名中使用下划线可能会产生意想不到的后果。</p>
       
     
       
-        <p>现在我们回到正轨。</p>
+        <p>因此，我建议对方法和函数名使用驼峰命名法。例如使用 thisIsAMethod 而不是 this_is_a_method。虽然这样方法名看起来有点丑，但总比给自己埋下一堆地雷要好。</p>
       
     
       
-        <h2>metaweb.py 和 NSArrayController</h2>
+        <p>现在我们回到预定的教程内容。</p>
       
     
       
-        <p>本部分将介绍 PyObjC 的两个重要概念。首先，我们将以 metaweb.py 为例，展示如何在 PyObjC 项目中使用 Python 库。其次，我们将了解 Cocoa Bindings。</p>
+        <h3>metaweb.py 和 NSArrayController</h3>
+        
       
     
       
-        <p>我们先从集成 metaweb.py 开始，这一步会出奇地简单。而解释 Cocoa Bindings 和 NSArrayController 会稍复杂一些，但一旦你理解了绑定机制，你会惊叹于自己能多么迅速地创建复杂的用户界面。</p>
+        <p>本部分将介绍 PyObjC 的两个重要概念。首先，我们将以 metaweb.py 为例，展示如何在 PyObjC 项目中使用 Python 库。其次，我们将学习 Cocoa Bindings。</p>
       
     
       
-        <h2>将 metaweb.py 集成到 MetaWindow.app 中</h2>
+        <p>我们先从集成 metaweb.py 开始，这一步出奇地简单。而讲解 Cocoa Bindings 和 NSArrayController 会稍微复杂一些，但一旦你理解了绑定机制，你会惊叹于自己能多么快速地创建复杂的用户界面。</p>
       
     
       
-        <p>在开始之前，metaweb.py 有一个前提依赖：simplejson。你可以从 PyPi 下载，或者使用 easy_install 安装：</p>
+        <h3>将 metaweb.py 集成到 MetaWindow.app 中</h3>
+        
+      
+    
+      
+        <p>在开始之前，metaweb.py 有一个前提依赖：simplejson。你可以从 PyPI 下载，或者使用 easy_install 安装：</p>
+      
+    
+      
+        <pre><code>sudo easy_install simplejson
+</code></pre>
       
     
       
@@ -81,59 +97,115 @@
       
     
       
-        <p>现在在 XCode 中打开我们的 MetaWindow 项目。你可以打开 XCode 后选择 File-&gt;Open Recent Projects，或者直接从 Finder 中打开 MetaWindow/MetaWindow.xcodeproj 文件。</p>
+        <pre><code>svn checkout http://freebase-python.googlecode.com/svn/trunk/ freebase-python-read-only
+</code></pre>
       
     
       
-        <p>项目打开后，进入 Project 菜单，选择 Add to Project...。（如果 Add to Project... 选项不可用，请返回项目窗口，点击左侧大纲视图最上方的项目图标（默认应用图标，名为 MetaWindow），然后再尝试。）</p>
+        <p>现在在 XCode 中打开我们的 MetaWindow 项目。你可以先打开 XCode，然后选择 File-&gt;Open Recent Projects，或者直接从 Finder 中打开 MetaWindow/MetaWindow.xcodeproj 文件。</p>
       
     
       
-        <p>接着选择 freebase-python-read-only/metaweb-py/metaweb.py 文件，点击 Add。随后会弹出一个对话框，提供一些将文件添加到项目的选项。勾选 Copy items into destination group&#x27;s folder (if needed) 旁边的复选框，然后点击 Add。</p>
+        <p>项目打开后，前往 Project 菜单，选择 Add to Project...（如果 Add to Project... 选项不可选，请返回项目窗口，点击左侧大纲视图最顶层的项目图标——标有 MetaWindow 的默认应用程序图标——然后再试一次。）</p>
       
     
       
-        <p>在项目窗口中，将 metaweb.py 文件拖动到 Other Sources 文件夹中。</p>
+        <p>接着选择 freebase-python-read-only/metaweb-py/metaweb.py 文件，点击 Add。随后会弹出一个面板，提供一些将文件添加到项目的选项。勾选 Copy items into destination group&#x27;s folder (if needed) 旁边的复选框，然后点击 Add。</p>
       
     
       
-        <p>顺便提一下，项目窗口中 Groups &amp; Files 大纲视图里的文件夹只是逻辑结构，并非真实文件夹。当你在组织器中（技术上称为“组”）创建一个文件夹时，文件系统上并不会创建对应的真实文件夹。同样，当你把 metaweb.py 拖到 Other Sources 组中时，实际上并没有移动文件系统上的 metaweb.py 文件，只是让它在项目窗口中更容易找到。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/PyObjC2_AddFile.jpg" alt="Adding a file to an XCode project.">
+          
+        </figure>
       
     
       
-        <p>接下来我们需要弄清楚如何使用 metaweb.py。我推荐熟悉新 Python 库的做法是直接进入解释器。所以让我们进入 MetaWindow 目录（现在应该已经包含 metaweb.py），打开一个解释器。</p>
+        <p>在项目窗口中，将 metaweb.py 文件拖拽到 Other Sources 文件夹中。</p>
       
     
       
-        <p>嗯。search 函数看起来很有意思，我们来看看它的文档字符串。</p>
+        <p>顺便提一句，项目窗口中 Groups &amp; Files 大纲视图里的文件夹都是逻辑结构，并非真实的文件系统文件夹。当你在组织器中（技术上称为“组”）创建一个文件夹时，文件系统上并不会真的创建一个对应文件夹。同样，当你把 metaweb.py 拖到 Other Sources 组里时，实际上并没有移动文件系统上的 metaweb.py 文件，只是让它在项目窗口中更容易找到。</p>
       
     
       
-        <p>唉，又失败了。search 似乎没有文档字符串。那我们就用 XCode 来看看 search 函数。在 metaweb.py 的第 375 行，我们找到了一行注释描述 search：# Search for topics，这并没有太大帮助，但我们找到了函数定义。</p>
+        <p>接下来我们需要弄清楚如何使用 metaweb.py。我推荐熟悉新 Python 库的方法是直接去解释器里试用。所以我们进入 MetaWindow 目录（现在应该已经包含 metaweb.py），打开一个 Python 解释器。</p>
       
     
       
-        <p>看起来 search 只需要一个参数，应该是一个字符串，我们来试试。</p>
+        <pre><code>&gt;&gt;&gt; import metaweb
+&gt;&gt;&gt; dir(metaweb)
+[&#x27;MQLError&#x27;, &#x27;__builtins__&#x27;, &#x27;__doc__&#x27;, &#x27;__file__&#x27;, &#x27;__name__&#x27;, &#x27;cookiefile&#x27;, &#x27;cookiejar&#x27;, &#x27;cookielib&#x27;, &#x27;credentials&#x27;, &#x27;cursor&#x27;, &#x27;debug&#x27;, &#x27;escape&#x27;, &#x27;host&#x27;, &#x27;httplib&#x27;, &#x27;login&#x27;, &#x27;loginservice&#x27;, &#x27;os&#x27;, &#x27;permission&#x27;, &#x27;read&#x27;, &#x27;readall&#x27;, &#x27;readmulti&#x27;, &#x27;readservice&#x27;, &#x27;search&#x27;, &#x27;searchservice&#x27;, &#x27;simplejson&#x27;, &#x27;upload&#x27;, &#x27;uploadservice&#x27;, &#x27;urllib&#x27;, &#x27;urllib2&#x27;, &#x27;write&#x27;, &#x27;writeservice&#x27;]
+</code></pre>
       
     
       
-        <p>很好。这正是我们想要的。一些结构化的数据，可以作为搜索结果放入我们的表格中。PyObjC 可以无缝（好吧，偶尔还是会有一些接缝）地将标准 Python 数据结构（特别是我们熟悉的 list 和 dict）转换为 Objective-C 数据结构，所以这个字典列表对我们来说是非常理想的格式。</p>
+        <p>嗯，search 函数看起来很有意思，让我们看看它的文档字符串。</p>
       
     
       
-        <p>如果你对 Objective-C 数据结构不太了解，这里是一个快速入门。最常见的结构是 NSArray 和 NSDictionary。它们与 Python 的列表和字典非常相似，但有一个重要区别：它们是不可变的。因此，NSArray 实际上更类似于 Python 的元组，而 NSDictionary 在 Python 中没有完全对应的类型。</p>
+        <pre><code>&gt;&gt;&gt; print metaweb.search
+&lt;function search at 0x68a070&gt;
+&gt;&gt;&gt; print metaweb.search.__doc__
+None
+</code></pre>
       
     
       
-        <p>相应地，PyObjC 会将 Python 列表映射到 NSMutableArray 类，将 Python 字典映射到 NSMutableDictionary 类，它们与 NSArray 和 NSDictionary 相同，只是其数据可以被修改。这种模式在许多其他 Objective-C 类中也存在，比如 NSString 和 NSMutableString。</p>
+        <p>啊，又失败了。search 似乎没有文档字符串。那我们就用 XCode 直接查看 search 函数。在 metaweb.py 的第 375 行，我们找到了一条注释描述 search：# Search for topics，这不算太有用，但我们找到了函数定义。</p>
       
     
       
-        <p>免责声明：这里简化了一个重要区别，即 Python 的 list 是链表，而 NSArray 是数组。这意味着两者在许多操作上的效率并不相同。想了解更多可以查看 Wikipedia 上关于 linked list 和 array 的条目。</p>
+        <pre><code>def search(query, type=None, start=0, limit=0):
+    # implementation truncated - Will
+</code></pre>
       
     
       
-        <p>现在我们需要做几件事来完成 metaweb.py 与应用的集成。首先需要打开 main.py，添加对 metaweb.py 的 import，修改后的内容如下：</p>
+        <p>看起来 search 只需一个参数，应该是个字符串，我们来试试。</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; metaweb.search(&quot;Python&quot;)
+[
+ {u&#x27;name&#x27;: u&#x27;Python&#x27;,
+  u&#x27;image&#x27;: {u&#x27;id&#x27;: u&#x27;/guid/9202a8c04000641f800000000515378e&#x27;},
+  u&#x27;alias&#x27;: [], u&#x27;article&#x27;: {u&#x27;id&#x27;: u&#x27;/guid/9202a8c04000641f800000000002f849&#x27;},
+  u&#x27;guid&#x27;: u&#x27;#9202a8c04000641f800000000002f83f&#x27;,
+  u&#x27;type&#x27;: [{u&#x27;id&#x27;: u&#x27;/common/topic&#x27;, u&#x27;name&#x27;: u&#x27;Topic&#x27;},
+            u&quot;additional types truncated by me - Will&quot;],
+  u&#x27;id&#x27;: u&#x27;/guid/9202a8c04000641f800000000002f83f&#x27;},
+  u&quot;additional results truncated by me as well - Will&quot;,
+]
+</code></pre>
+      
+    
+      
+        <p>很好。这正是我们想要的——一些结构化的数据，可以作为搜索结果放入我们的表格中。PyObjC 可以无缝（好吧，偶尔还是会有点缝隙）地将标准 Python 数据结构（特别是我们熟悉的 list 和 dict）转换为 Objective-C 数据结构，因此这个字典列表对我们的用途来说是非常理想的格式。</p>
+      
+    
+      
+        <p>如果你对 Objective-C 数据结构不太了解，这里快速补个基础课。最常用的结构是 NSArray 和 NSDictionary。它们与 Python 的列表和字典相当接近，但有一个重要区别：它们是不可变的。因此，NSArray 其实更类似于 Python 的元组，而 NSDictionary 在 Python 中没有完全对应的类型。</p>
+      
+    
+      
+        <p>相应地，PyObjC 会将 Python 的 list 映射到 NSMutableArray 类，将 Python 的 dict 映射到 NSMutableDictionary 类，它们与 NSArray 和 NSDictionary 相同，只是其中的数据可以被修改。这种模式在许多其他 Objective-C 类中也存在，比如 NSString 和 NSMutableString。</p>
+      
+    
+      
+        <p>免责声明：这忽略了一个重要区别，即 Python 的 list 是链表，而 NSArray 是数组。这意味着两者在许多操作上的效率并不相同。想了解更多可以查看维基百科中关于链表（linked list）和数组（array）的条目。</p>
+      
+    
+      
+        <p>现在我们需要做几件事来完成 metaweb.py 的集成。首先打开 main.py，添加对 metaweb.py 的导入，修改后的代码如下：</p>
+      
+    
+      
+        <pre><code># import modules containing classes required to start application and load MainMenu.nib
+import metaweb
+import MetaWindowAppDelegate
+import MWController
+</code></pre>
       
     
       
@@ -141,7 +213,13 @@
       
     
       
-        <p>首先，在 MWController.py 文件顶部的 import 部分添加 metaweb，使其看起来像这样：</p>
+        <p>首先，在 MWController.py 文件顶部的导入部分添加 metaweb，修改后应如下所示：</p>
+      
+    
+      
+        <pre><code>import objc, metaweb
+from Foundation import *
+</code></pre>
       
     
       
@@ -149,23 +227,40 @@
       
     
       
-        <p>我们要做的是获取文本框当前的输入值，将其传递给 metaweb.search 函数，并把结果保存到 self.results 字段中。代码如下：</p>
+        <p>我们要做的是获取文本框当前的值，将其传递给 metaweb.search 函数，并把结果存入 self.results 字段。代码如下：</p>
       
     
       
-        <p>我们还修改了日志输出函数，以便确认一切是否如我们预期的那样工作。现在点击 Build and Go 按钮（Command-Return），同时打开 XCode 控制台（Shift-Command-R）。在文本框中输入一些内容，然后点击搜索。你应该能在控制台窗口中看到结果。</p>
+        <pre><code>@objc.IBAction
+def search_(self,sender):
+    search_value = self.textField.stringValue()
+    self.results = metaweb.search(search_value)
+    NSLog(u&quot;Search: %s&quot; % self.results)
+</code></pre>
       
     
       
-        <p>通过这些简单的步骤，我们已经将 metaweb.py 集成到项目中了。希望这能加深我关于 PyObjC 的第一个原则：PyObjC 就是 Python。在下一部分，我们将努力说明这句话的另一半——PyObjC 也是 Objective-C，通过展示如何几乎不写代码就能用 Cocoa Bindings 驱动我们的表格视图。（咳，如果我还没发表的话，我可能会把这句话改成“PyObjC 也是 Cocoa”。算了，就这样吧。）</p>
+        <p>我们还修改了日志输出函数，以便确认一切是否如预期那样工作。现在点击 Build and Go 按钮（Command-Return），同时打开 XCode 控制台（Shift-Command-R）。在文本框中输入一些内容，然后点击搜索。你应该能在控制台窗口看到输出结果。</p>
       
     
       
-        <h2>Cocoa Bindings 入门</h2>
+        <figure>
+          <img src="https://lethain.com/static/blog/PyObjC2_SearchToConsole.jpg" alt="Displaying NSLogged statements in XCode's console.">
+          
+        </figure>
       
     
       
-        <p>Cocoa Bindings 是从 OS X Panther 开始加入 Cocoa 的框架。如果使用得当，绑定可以帮助消除 Cocoa 应用中重复且常见的模式。最常见的场景（也是我们马上要看到的）是 NSArrayController 可以自动完成使用数组为表格视图提供内容的过程。</p>
+        <p>通过这些简单的步骤，我们已经将 metaweb.py 集成到了项目中。希望这能帮助你深刻理解我关于 PyObjC 的第一个原则：PyObjC 就是 Python。在接下来的部分，我们将努力阐明这句话的另一半——PyObjC 也是 Objective-C，通过展示如何几乎不写代码就能使用 Cocoa Bindings 来驱动我们的表格视图。（咳咳，如果我还没发表的话，我可能会把后半句改成“PyObjC 也是 Cocoa”。算了，就这样吧。）</p>
+      
+    
+      
+        <h3>Cocoa Bindings 入门</h3>
+        
+      
+    
+      
+        <p>Cocoa Bindings 在 OS X Panther 版本中被加入到 Cocoa 中。如果使用得当，绑定可以帮助消除 Cocoa 应用程序中重复且常见的模式。最常见的场景（也是我们马上要看到的）是 NSArrayController 可以自动完成使用数组为表格视图提供内容的过程。</p>
       
     
       
@@ -173,43 +268,51 @@
       
     
       
-        <p>此外，你还需要为 delegate 非正式协议实现若干方法。</p>
+        <pre><code>- (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex;
+- (void)tableView:(NSTableView *)aTableView setObjectValue:anObject forTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex;
+- (int)numberOfRowsInTableView:(NSTableView *)aTableView;
+</code></pre>
       
     
       
-        <p>以这种方式控制 NSTableView 并不难——只是有点繁琐——但在你搭建了第四或第五个表格视图之后，你会开始觉得应该有更好的办法。</p>
+        <p>此外，你还必须为 delegate 非正式协议实现若干方法。</p>
       
     
       
-        <p>Cocoa Bindings 就是那个更好的办法。你在 InterfaceBuilder 中创建几个对象，将一些 IBOutlets 连接起来，根据应用需求再写几行代码，就完成了。</p>
+        <p>用这种方式控制 NSTableView 并不难——只是有些繁琐——但在搭建第四或第五个表格视图之后，你就会开始觉得应该有更好的办法。</p>
       
     
       
-        <p>顺便说一句，这似乎是适合插入一段温和提醒的好时机：我有时仍然会使用 datasource 和 delegate 方法来为表格视图提供数据。Cocoa Bindings 能让常见操作变得简单，但当你开始做一些非典型的事情时，它们的适用范围就不会那么广了。</p>
+        <p>Cocoa Bindings 就是那个更好的办法。你在 InterfaceBuilder 中创建几个对象，连接一些 IBOutlets，根据应用情况可能再写几行代码，然后就完成了。</p>
       
     
       
-        <p>你的应用逻辑和工作方式偏离常规越多，你就越有可能遇到 Cocoa Bindings 无法帮到你的情况。</p>
+        <p>顺便说一句，这似乎是个合适的时机来发出一条中肯的信息：我仍然会在某些时候使用 datasource 和 delegate 方法来为表格视图提供数据。Cocoa Bindings 能让常见操作变得简单，但当你开始做一些非典型的事情时，它们往往无法完全胜任。</p>
       
     
       
-        <p>另一个值得一提的是，如果你将 Core Data 与 Cocoa Bindings 结合起来，可以免费获得大量强大功能。本教程不会深入探讨这种强大的组合，但当你继续前进时，非常值得花时间去研究。</p>
+        <p>你的应用程序逻辑和工作方式越偏离常规，最终就越有可能遇到 Cocoa Bindings 无法帮到你的情况。</p>
       
     
       
-        <p>我强烈推荐 CocoaDevCentral 上关于 Core Data 和 Cocoa Bindings 的文章作为起点。它是用 Objective-C 实现的，基于 OS X 10.4 时代，但仍然是一篇很棒的入门文章。</p>
+        <p>另一个题外话，如果你将 Core Data 与 Cocoa Bindings 结合使用，可以免费获得大量强大功能。本教程不会深入探讨这种强力组合，但随着你继续学习，非常值得花时间去研究。</p>
       
     
       
-        <p>除了 NSArrayController 之外，还有其他几个类似的控制器：NSObjectController 用于普通对象，NSDictionaryController 用于字典，NSTreeController 用于树状数据类型，以及 NSUserDefaultsController 用于用户默认设置。它们都与 Cocoa Bindings 结合，让你的开发工作轻松一些。</p>
+        <p>我强烈推荐 CocoaDevCentral 上关于 Core Data 和 Cocoa Bindings 的文章作为起点。它是用 Objective-C 实现的，基于 OS X 10.4 时代，但仍然是非常棒的入门材料。</p>
       
     
       
-        <p>刚开始你可能需要强迫自己去使用它们——Cocoa Bindings 的学习曲线确实不太友好——但掌握它们后，你会变得更快乐、更有生产力。</p>
+        <p>除了 NSArrayController 之外，还有其他几个类似的控制器：NSObjectController 用于普通对象，NSDictionaryController 用于字典，NSTreeController 用于树形数据，以及 NSUserDefaultsController 用于用户默认设置。它们都与 Cocoa Bindings 结合，让你的开发工作轻松一些。</p>
       
     
       
-        <h2>创建 NSArrayController</h2>
+        <p>刚开始你可能需要强迫自己去使用它们——Cocoa Bindings 的学习曲线确实有点陡峭——但掌握它们后，你会变得更高效，也更快乐。</p>
+      
+    
+      
+        <h3>创建 NSArrayController</h3>
+        
       
     
       
@@ -217,27 +320,42 @@
       
     
       
-        <p>我们要创建一个（准确地说是实例化）NSArrayController 的实例。在 Library 窗口中找到它，然后拖动到 MainMenu.xib (English) 窗口中，与我们其他的实例放在一起。</p>
+        <p>我们要创建一个（准确地说是实例化）NSArrayController 的实例。在 Library 窗口中找到它，然后拖拽到 MainMenu.xib (English) 窗口中，与我们其他的实例放在一起。</p>
       
     
       
-        <p>然后打开 Inspector（Shift-Command-I），选中我们刚刚实例化的新对象——Array Controller，点击 Inspector 中的第四个标签（名为 Bindings）。点击 Content Array 旁边的箭头，在标有 Bind to: 的下拉菜单中选择 Controller。然后在 Model Key Path 中输入 results。Controller Key 和 Value Transformer 字段应该留空。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/PyObjC2_CreateArrayController.jpg" alt="Creating an NSArrayController in InterfaceBuilder.">
+          
+        </figure>
       
     
       
-        <p>现在点击 Inspector 中的第一个标签。在本教程中我们不会修改这里的值，但请注意它默认假设我们将使用 NSMutableDictionary 作为数组中对象的基类。换句话说，这个数组控制器被配置为表示一个字典数组。如果情况不是这样（在你自己的应用中，以后可能会遇到），你就需要修改这个设置。</p>
+        <p>然后打开 Inspector（Shift-Command-I），选中我们刚刚实例化的新对象——Array Controller，并点击 Inspector 中的第四个标签（名为 Bindings）。点击 Content Array 旁边的箭头，在标有 Bind to: 的下拉菜单中选择 Controller。然后在 Model Key Path 中输入 results。Controller Key 和 Value Transformer 字段应该留空。</p>
       
     
       
-        <h2>填充我们的表格视图：NSTableView 本身</h2>
+        <figure>
+          <img src="https://lethain.com/static/blog/PyObjC_RetakeOfBindingSetup.jpg" alt="Configuring Cocoa Bindings for an NSArrayController in Interface Builder.">
+          
+        </figure>
       
     
       
-        <p>在 InterfaceBuilder 中，点击 Window (Window) 窗口内的 NSTableView。在 Inspector 中你会发现第一次点击表格视图实际上会选中包含它的 NSScrollView，所以你需要再点击一次才能选中里面的 NSTableView（可以通过查看 Inspector 窗口的标题来判断当前选中了哪个）。</p>
+        <p>现在点击 Inspector 中的第一个标签。在本教程中我们不会修改这里的值，但请注意，它默认假设我们将使用 NSMutableDictionary 作为数组中对象的基类。换句话说，这个数组控制器被配置为表示一个字典数组。如果情况不是这样（在你自己的某个将来的应用中），你就应该修改这个设置。</p>
       
     
       
-        <p>然后第三次点击表格中的第一列。当你选中 NSTableColumn 后（通过 Inspector 的标题确认），切换到 Inspector 的 bindings 标签。点击 Value 旁边的箭头（顶部第一个选项）。</p>
+        <h3>填充我们的表格视图：NSTableView 本身</h3>
+        
+      
+    
+      
+        <p>在 InterfaceBuilder 中，点击 Window (Window) 窗口内部的 NSTableView。在 Inspector 中你会发现，第一次点击表格视图实际上会选中包含它的 NSScrollView，因此你需要再点击一次才能选中里面的 NSTableView（可以通过查看 Inspector 窗口的标题来判断当前选中了哪个）。</p>
+      
+    
+      
+        <p>然后第三次点击表格中的第一列。一旦选中了 NSTableColumn（通过 Inspector 的标题确认），就切换到 Inspector 的 bindings 标签。点击 Value 旁边的箭头（顶部第一个选项）。</p>
       
     
       
@@ -245,31 +363,49 @@
       
     
       
-        <p>然后对第二列执行相同的操作，但 Model Key Path 应该使用 value article.id。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/PyObjC_ConfigNameColumn2.jpg" alt="Configuring the Cocoa bindings for an NSTableColumn in InterfaceBuilder.">
+          
+        </figure>
       
     
       
-        <p>保存，然后振作起来，因为我们已经非常接近完成本部分内容了。真的，真的很接近了。</p>
+        <p>然后对第二列做同样的操作，但 Model Key Path 应该使用 value article.id。</p>
       
     
       
-        <h2>为 MWController 添加一个 IBOutlet</h2>
+        <p>保存文件，振作起来，因为我们离完成本部分已经非常非常近了。</p>
       
     
       
-        <p>回到 XCode，打开 MWController.py。在 MWController 类定义中再添加一个 IBOutlet，命名为 arrayController。修改后 MWController 类的开头部分应该像这样：</p>
+        <h3>给 MWController 添加一个 IBOutlet</h3>
+        
       
     
       
-        <p>现在回到 InterfaceBuilder，点击 MainMenu.xib (English) 窗口中的 Controller 对象。按住 Control 键，从 Controller 拖动到 Array Controller 然后释放。在弹出的菜单中选择 arrayController。</p>
+        <p>回到 XCode，打开 MWController.py。在 MWController 类定义中再添加一个 IBOutlet，命名为 arrayController。修改后 MWController 类的开头应该如下所示：</p>
       
     
       
-        <p>保存，然后关闭 InterfaceBuilder。</p>
+        <pre><code>class MWController(NSObject):
+    tableView = objc.IBOutlet()
+    textField = objc.IBOutlet()
+    arrayController = objc.IBOutlet()
+    results = []
+</code></pre>
       
     
       
-        <h2>search_ 方法</h2>
+        <p>现在回到 InterfaceBuilder，点击 MainMenu.xib (English) 窗口中的 Controller 对象。按住 Control 键，从 Controller 拖拽到 Array Controller，然后松开。在弹出的菜单中选择 arrayController。</p>
+      
+    
+      
+        <p>保存并关闭 InterfaceBuilder。</p>
+      
+    
+      
+        <h3>search_ 方法</h3>
+        
       
     
       
@@ -277,43 +413,59 @@
       
     
       
-        <p>关于 Python 和 Objective-C 在垃圾回收机制上的差异，简单说明一下。</p>
+        <p>关于 Python 和 Objective-C 垃圾回收机制差异的简短说明。</p>
       
     
       
-        <p>在 Python 中，内存管理对程序员来说通常是完全透明的。你创建对象，使用它们直到不再需要。然后你停止使用它们，事情就结束了。如果某个对象在某处仍有引用，它就会一直存活，否则垃圾回收机制下次检查时就会回收它。简单又方便。</p>
+        <p>在 Python 中，内存管理对程序员通常是完全透明的。你创建对象，使用它们，直到不再需要。然后你就不再引用它们，如此而已。如果某个对象在某处仍有引用，它就会一直存在，否则垃圾回收器下次检查时就会回收它。简单又方便。</p>
       
     
       
-        <p>然而，在 Objective-C 中，你需要自己进行一些内存管理。通常有三个方法（存在于所有 Objective-C 对象中）用于管理内存：retain、release 和 autorelease。</p>
+        <p>然而，在 Objective-C 中，你必须自己进行一些内存管理。通常有三个方法（存在于所有 Objective-C 对象中）用于管理内存：retain、release 和 autorelease。</p>
       
     
       
-        <p>每个对象在创建时都有一个计数器，初始值为零。每当调用其 retain 方法，计数器就增加一。每当调用 release 方法，计数器就减少一，当计数器为零时，该对象就面临被垃圾回收机制回收的危险。</p>
+        <p>每个对象在创建时都有一个计数器，初始值为零。每次调用 retain 方法，计数器就加一。每次调用 release 方法，计数器就减一。当计数器为零时，该对象就面临被垃圾回收器回收的危险。</p>
       
     
       
-        <p>autorelease 稍微复杂一些，它意味着计数器将在当前运行循环结束时减少一。基本上这意味着你可以在短时间内使用一个 autoreleased 对象，但它不会长时间存在。</p>
+        <p>autorelease 稍微复杂一些，它表示计数器将在当前运行循环结束时减一。基本上就是说你可以在短期内使用一个 autoreleased 对象，但它不会持久存在。</p>
       
     
       
-        <p>不过，要理解 Objective-C 中的内存管理，还有一个关键信息：当你创建一个对象的新实例时，谁拥有它？或者继续用前面的解释，它的计数器初始值是多少？</p>
+        <p>然而，要理解 Objective-C 中的内存管理，还有一个关键点：当你创建一个对象的新实例时，谁拥有它？或者继续用前面的解释，它的计数器初始值是多少？</p>
       
     
       
-        <p>事实证明这个问题没有单一答案，而是一条指导原则。如果你使用的方法名中包含 init 或 copy 来创建对象，那么你就负责释放该对象（即它的初始计数值为 1）；否则你应该假设该对象是被 autoreleased 的，会在当前运行循环结束时被释放，而你无需做任何事情。</p>
+        <p>答案并不是单一的，而是一套准则。如果你使用的方法名中包含 init 或 copy 来创建对象，那么你有责任释放该对象（即其初始计数器值为 1）；否则你应该假设该对象是 autoreleased 的，会在当前运行循环结束时被自动释放，而不需要你做任何事。</p>
       
     
       
-        <p>最后一个细节，大多数集合对象会 retain 它们包含的对象，直到集合自身被释放或对象从集合中被移除。考虑下面这段代码：</p>
+        <p>最后一个细节：大多数集合会 retain 它们包含的对象，直到集合本身被释放或者对象从集合中被移除。考虑下面这段代码：</p>
       
     
       
-        <p>因为我们创建 myString 时使用的方法名中不包含 init 或 copy，所以它会在当前循环结束时被 autorelease，但由于我们把它加入了数组，数组会 retain 它，因此 myString 会一直存在，直到数组释放它（要么是数组被释放，要么是从数组中移除它）。</p>
+        <pre><code>NSMutableArray * a = [[NSMutableArray alloc] init];
+NSString * myString = [NSString stringWithString:@&quot;PyObjC is good times.&quot;];
+[a addObject:myString];
+</code></pre>
       
     
       
-        <p>我们想要的 search_ 方法的简单——但遗憾的是过于天真——实现如下：</p>
+        <p>因为我们创建 myString 时使用的方法名不包含 init 或 copy，所以它会在当前循环结束时被 autorelease，但由于我们把它加入了数组，数组会 retain 它，因此 myString 会一直存在，直到数组释放它（要么是数组被释放，要么是它从数组中被移除）。</p>
+      
+    
+      
+        <p>我们想要的 search_ 方法的简单（但遗憾的是很幼稚）的实现如下所示：</p>
+      
+    
+      
+        <pre><code>@objc.IBAction
+def search_(self,sender):
+    search_value = self.textField.stringValue()
+    self.results = metaweb.search(search_value)
+    self.arrayController.rearrangeObjects()
+</code></pre>
       
     
       
@@ -321,43 +473,65 @@
       
     
       
-        <p>实际上这几乎能正常工作，但当你运行应用时，它会开始喷出大量关于 Key Value Observers 和对象在到期前就被释放的错误。问题在于 NSTableView 和 NSArrayController 不会 retain 它们的内容（不像 NSArray），而 Python 的字典实例在两个垃圾回收器之间的“中间地带”丢失了。</p>
+        <p>实际上这几乎能工作，但当你运行程序时，它会开始喷出大量关于 Key Value Observers 和对象在到期前就被释放的错误。问题在于 NSTableView 和 NSArrayController 不会 retain 它们的内容（不像 NSArray），而 Python 的字典实例在两个垃圾回收器之间的“冥界”中丢失了。</p>
       
     
       
-        <p>解决这个问题的一个简单方法是将所有 Python 字典重新创建为 NSDictionary 的实例。幸运的是，这只需要额外加一行代码。最终能正常工作的 search_ 方法定义如下：</p>
+        <p>解决这个问题的一个简单方法是将所有 Python 字典重新创建为 NSDictionary 的实例。幸运的是，这只需要增加一行代码。最终能正常工作的 search_ 方法定义如下：</p>
       
     
       
-        <p>随着你继续使用 PyObjC，你无疑会偶尔遇到内存管理问题，让你困惑到底哪里出了错。这看起来可能令人生畏，但这些问题通常可以用下面两种方案之一轻松解决：</p>
+        <pre><code>@objc.IBAction
+def search_(self,sender):
+    search_value = self.textField.stringValue()
+    lst = metaweb.search(search_value)
+    self.results = [ NSDictionary.dictionaryWithDictionary_(x) for x in lst]
+    self.arrayController.rearrangeObjects()
+</code></pre>
       
     
       
-        <div class="list-content">使用已经存在的 Objective-C 类（就像我们在 search_ 中做的那样），或者在 Python 中继承一个 Objective-C 类（即使只是继承自 NSObject 也足够了）。</div>
+        <p>随着你继续使用 PyObjC，毫无疑问会偶尔遇到内存管理问题，让你困惑到底哪里出了错。这可能看起来令人生畏，但这些问题通常可以用以下两种方法之一轻松解决：</p>
       
     
       
-        <p>好了，我们已经完成了对 MWController 的修改，可以保存这些更改了。</p>
+        <div class="list-content">使用已有的 Objective-C 类（就像我们在 search_ 中所做的），或者在 Python 中子类化一个 Objective-C 类（即使只是从 NSObject 继承也足够）。</div>
       
     
       
-        <h2>测试一下</h2>
+        <p>好了，我们已经完成了对 MWController 的修改，可以保存这些改动。</p>
       
     
       
-        <p>现在点击 Build and Go 来启动应用。在文本框中输入一些内容，点击搜索，尽情享受结果吧。</p>
+        <h3>测试一下</h3>
+        
       
     
       
-        <p>此时的项目 zip 包可以在这里下载，同时还有一个包含项目代码的 GitHub 仓库。</p>
+        <p>现在点击 Build and Go 运行应用程序。在文本框中输入一些内容，点击搜索，尽情享受结果吧。</p>
       
     
       
-        <p>我们在这里涵盖了很多内容。尤其是 Cocoa Bindings，你需要花一段时间去摸索和实践，它们才能真正“啪”的一声豁然开朗。尽管如此，多亏了 Cocoa Bindings 的强大威力，我们只写了大约 15 行 Python 代码就让这个项目进展到这个程度。这还是挺令人印象深刻的。</p>
+        <figure>
+          <img src="https://lethain.com/static/blog/PyObjC2_SuccessShot.jpg" alt="Picture of MetaWindow successfully working">
+          
+        </figure>
       
     
       
-        <p>在下一部分，我们将讨论三个较小的主题：启动浏览器显示搜索结果中的文章页面、将结果缓存到磁盘，以及让搜索按钮感觉更灵敏。</p>
+        <p>此阶段的项目 zip 包可以在这里下载，同时还有一个包含项目代码的 GitHub 仓库。</p>
+      
+    
+      
+        <p>我们在这里涵盖了很多内容。尤其是 Cocoa Bindings，你需要挣扎和玩耍一段时间才能真正掌握。尽管如此，多亏了 Cocoa Bindings 的强大，我们只写了大约 15 行 Python 代码就把项目推进到了这个程度。这还是挺令人印象深刻的。</p>
+      
+    
+      
+        <p>在下一部分，我们将探讨三个较小的主题：启动浏览器显示搜索结果中的文章页面、将结果缓存到磁盘，以及让搜索按钮感觉更灵敏。</p>
+      
+    
+      
+        <div class="list-content">我并不是在摆架子或吹毛求疵，只是想写一篇即使是从未使用过 XCode 的人也能跟着走的教程，而不需要到处提问或依赖其他资源。我第一次接触 XCode 是在几年前，同时也是我第一次接触 PyObjC、Cocoa 和 Objective-C，所以我尽量不假设读者已经掌握任何知识。↩虽然随着 Leopard 的发布，Apple 提供了垃圾回收框架来为 ObjC 提供自动 GC，但你仍然应该了解 ObjC 中内存管理的工作原理，因为有些情况下你无法使用 ObjC 的自动垃圾回收框架。↩在这个幼稚的实现中我回避了一个问题，那就是它不能很好地处理不完整的结果。例如，有些结果没有 name，有些没有 article 或 article.id。要亲自体验使用这种幼稚方法带来的失败，你需要过滤或补全这些部分结果。事实证明，当我们采用不那么幼稚的解决方案时，不完整的问题就自然消失了，因此我选择跳过一些为错误答案写得更“正确”而引入的复杂性。↩</div>
       
     
   </div>

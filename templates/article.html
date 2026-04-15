@@ -20,11 +20,19 @@
   <div class="article-content">
     {% for segment in article.segments %}
       {% if segment.type == "heading" %}
-        <h2>{{ segment.rendered_html | safe }}</h2>
+        {% if segment.heading_level == 3 %}<h3>{{ segment.rendered_html | safe }}</h3>
+        {% elif segment.heading_level == 4 %}<h4>{{ segment.rendered_html | safe }}</h4>
+        {% else %}<h2>{{ segment.rendered_html | safe }}</h2>
+        {% endif %}
       {% elif segment.type == "code" %}
         <pre><code>{{ segment.rendered_html }}</code></pre>
       {% elif segment.type == "blockquote" %}
         <blockquote>{{ segment.rendered_html | safe }}</blockquote>
+      {% elif segment.type == "figure" %}
+        <figure>
+          <img src="{{ segment.image_src }}" alt="{{ segment.alt_text|default('') }}">
+          {% if segment.caption %}<figcaption>{{ segment.rendered_html | safe }}</figcaption>{% endif %}
+        </figure>
       {% elif segment.type == "list" %}
         <div class="list-content">{{ segment.rendered_html | safe }}</div>
       {% else %}

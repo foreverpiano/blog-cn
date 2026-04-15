@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PHP中为文件添加版本号的几种方法 · Will Larson 文集</title>
+  <title>在 PHP 中为文件添加版本号的几种方法 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>PHP中为文件添加版本号的几种方法</h1>
+    <h1>在 PHP 中为文件添加版本号的几种方法</h1>
     <div class="meta">
       2009-07-28 · 
       <a href="https://lethain.com/how-to-version-files-in-php/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,83 +29,135 @@
   <div class="article-content">
     
       
-        <p>最近在处理公司项目的前端部分，上周遇到了一个小难题：如何用最少的工作量，在 PHP 中实现静态文件的版本控制？</p>
+        <p>在公司的一个项目中，我正在为前端部分做最后的收尾工作，上周遇到了一个小难题：如何在 PHP 中以最少的工作量来使用带版本号的静态文件？</p>
       
     
       
-        <p>如果你之前没用过带版本号的静态文件，这其实是个非常实用的技巧。你可以配置 Apache、Lighttpd 或 Nginx，让浏览器知道某个文件（或者某个目录下的内容、特定后缀的文件等）在未来 5 分钟、3 天甚至 10 年内都不会发生变化。这相当于强烈建议浏览器对该文件进行缓存，不到指定时间就无需重新请求。这样能降低带宽消耗（减少文件发送量）、减轻服务器压力（每个页面浏览产生的 HTTP 请求更少），同时加快页面加载速度（同样得益于更少的 HTTP 请求）。</p>
+        <p>如果你之前没用过带版本号的静态文件，这其实是一个非常有用的技巧。你可以配置 Apache、Lighttpd 或 Nginx，让浏览器知道某个文件（或某个目录下的内容，或特定扩展名的文件等）在未来 5 分钟、3 天甚至 10 年内都不会发生变化。这相当于强烈建议浏览器缓存该文件，在指定时间之前不需要重新请求。它能降低带宽消耗（减少文件传输）、减轻服务器负载（每个页面浏览产生的 HTTP 请求更少），同时加快页面加载速度（同样得益于更少的 HTTP 请求）。</p>
       
     
       
-        <p>但这个做法有个尴尬的副作用：当你更新了文件内容后，用户不会主动重新加载，除非他们强制刷新页面或清空浏览器缓存（而这两件事并不常发生）。标准的解决办法是在文件名中加入版本号，比如把 styles.css 改成 styles-1.css，以后更新再变成 styles-231.css。回到我们的问题：如何在不手动修改代码的情况下，自动给文件加上最新的版本号呢？</p>
+        <p>这个做法带来的尴尬副作用是，当你更新了文件内容后，用户不会自动加载新版本，除非他们强制刷新页面或清空浏览器缓存（而这两者并不常发生）。标准的解决办法是在文件名中加入版本号，例如将 styles.css 改名为 styles-1.css，以后升级时变成 styles-231.css。回到我们的问题：如何在不需要手动更新代码的情况下，自动为文件加上最新的版本号？</p>
       
     
       
-        <p>我认为这个问题大致有两类解决思路，</p>
+        <p>我认为这个问题大致有两种解决方案。无论采用哪一种，最终的使用方式都是一样的，</p>
       
     
       
-        <p>虽然最终在代码中的使用方式是一致的，</p>
+        <pre><code>&lt;?php
+$f = get_versioned_filename(&#x27;styles&#x27;, &#x27;css&#x27;);
+echo &quot;&lt;link rel=&#x27;stylesheet&#x27; type=&#x27;text/css&#x27; href=&#x27;$f&#x27; title=&#x27;EDoc&#x27;&gt;&quot;;
+?&gt;
+</code></pre>
       
     
       
-        <h2>但底层的实现机制有所不同。</h2>
+        <p>只是底层的实现机制略有不同。</p>
       
     
       
-        <p>编译时版本发现</p>
+        <h3>编译时版本发现</h3>
+        
       
     
       
-        <p>虽然现代 Web 大量使用解释型语言（PHP、CSS、JS、HTML），但很多项目仍然需要一个编译环节。对于 CSS 和 JS 这类静态文件，通常会把它们送入某种压缩工具进行处理（本文示例中使用的是 YUI Compressor）。</p>
+        <p>虽然如今大部分网站都构建在解释型语言（PHP、CSS、JS、HTML）之上，但许多项目仍然需要一个编译环节。对于 CSS 和 JS 这类静态文件，通常是将它们通过某种压缩工具进行处理（本文示例中会使用 YUI Compressor）。</p>
       
     
       
-        <p>编译过程提供了一个很好的切入点，可以为所有文件分配统一的版本号，并将这个信息传递给服务器。</p>
+        <p>编译过程提供了一个很好的切入点，可以为所有文件分配同一个版本号，并将这个上下文传递给服务器。</p>
       
     
       
-        <p>然后在项目的安装脚本中，你需要做类似下面的事情：</p>
+        <pre><code>&lt;/span&gt;date +%s&lt;span class=&quot;sb&quot;&gt;</code></pre>
       
     
       
-        <p>注意，修改完配置文件后必须重启 Apache 才能让改动生效。</p>
+        <p>然后在项目的安装脚本中，你需要执行类似下面的操作：</p>
       
     
       
-        <p>运行完构建脚本后，我们只需要编写一个函数来生成带版本号的完整路径。</p>
+        <pre><code>cp build/css/ /path/to/webserver/css/
+cp build/js/ /path/to/webserver/js/
+cp build/php/ path/to/php/config/include/directory/
+sudo apache2ctl graceful
+</code></pre>
       
     
       
-        <h2>总体来说，这是一个可行的方案，但用起来比较别扭。有没有更优雅的办法呢？</h2>
+        <p>注意，修改完配置文件后必须重启 Apache 才能使其生效。</p>
       
     
       
-        <p>运行时版本发现</p>
+        <p>运行完构建脚本后，我们还需要编写一个函数来生成带版本号的完整文件路径。</p>
       
     
       
-        <p>另一种思路是在运行时扫描目录来找到带版本号的文件名（你仍然需要使用上面提到的编译脚本，但不需要生成配置文件，因此也就不需要每次修改后都重启服务器）。</p>
+        <pre><code>&lt;?php
+function get_versioned_filename($base, $ext) {
+  return $base .&#x27;.&#x27;. get_cfg_var(&#x27;versioned_files&#x27;) .&#x27;.&#x27; . $ext;
+}
+?&gt;
+</code></pre>
       
     
       
-        <p>如果真的要采用上面的代码，我们可能需要对其进行扩展，让它优先选择版本号更高的文件。这样就能允许同一文件的两个不同版本同时存在（根据你的部署方式，这实际上是很可能发生的）。</p>
+        <p>总的来说，这是一个可行的方案，但用起来比较别扭。我们能做得更好吗？</p>
       
     
       
-        <h2>另一个可能的改进是把带版本的文件名缓存起来（比如使用 Alternative PHP Cache），但这样又会增加更新到新版本时的复杂度，最终可能比简单重启 Apache 重新加载配置文件更麻烦。</h2>
+        <h3>运行时版本发现</h3>
+        
       
     
       
-        <p>更好的方案？</p>
+        <p>另一种方案是在运行时扫描目录来找到带版本号的文件名（你仍然需要使用上面的编译脚本，但不需要生成配置文件，也就不必在每次修改后重启服务器）。</p>
       
     
       
-        <p>坦白说，我对上面两种方案都不是特别满意，虽然它们都能工作。我的 PHP 经验不算特别深厚，也许存在某种标准的 PHP 原生解决方案，是我没有留意到的。</p>
+        <pre><code>&lt;?php
+function get_versioned_filename($base, $ext) {
+    // directory is some/path/js for .js files, and 
+    // some/path/css for .css files
+    if($handle = opendir(&quot;/path/to/webserver/$ext&quot;)) {
+        while (false !== ($file = readdir($handle))) {
+            if (preg_match(&quot;/$base\.\d+\.$ext/&quot;, $file)) {
+                closedir($handle);
+                return $file;
+            }
+        }
+    }
+    closedir($handle);
+    return false;
+}
+?&gt;
+</code></pre>
       
     
       
-        <p>欢迎大家提出建议。</p>
+        <p>如果我们真的要使用上面的代码，可能需要对其进行扩展，让它优先选择版本号更高的文件。这样一来，同一个文件就可能同时存在两个不同版本（根据你的部署方式，这实际上是很常见的）。</p>
+      
+    
+      
+        <p>另一个可能的改进是在某个层面缓存版本文件名（比如使用 Alternative PHP Cache），但这样会在你想更新到新版本文件名时增加一层复杂度，最终可能比简单重启 Apache 加载最新配置还要麻烦。</p>
+      
+    
+      
+        <h3>有更好的建议吗？</h3>
+        
+      
+    
+      
+        <p>最后，我对这两个方案都不是特别满意，虽然它们都能工作。我的 PHP 经验不算特别深厚，所以可能存在某个标准的 PHP 解决方案，只是我忽略了。</p>
+      
+    
+      
+        <p>欢迎提出建议！</p>
+      
+    
+      
+        <p>（附注：我保留了 &lt;?php ?&gt; 标签，因为 Pygments 似乎需要它们才能正确高亮 PHP 代码片段。）</p>
       
     
   </div>

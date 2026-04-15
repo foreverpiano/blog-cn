@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>使用 BeautifulSoup 实现部署脚本 · Will Larson 文集</title>
+  <title>使用 BeautifulSoup 的部署脚本 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>使用 BeautifulSoup 实现部署脚本</h1>
+    <h1>使用 BeautifulSoup 的部署脚本</h1>
     <div class="meta">
       2008-06-09 · 
       <a href="https://lethain.com/deployment-scripts-with-beautifulsoup/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,15 +29,31 @@
   <div class="article-content">
     
       
-        <p>在开发《Processed Tower Defense》的过程中，我们很快就发现代码量越来越大，全部放在单个文件里已经不合适了。虽然计算机并不觉得文件很大，但查找和维护代码变得非常困难，尤其是我们使用纯文本编辑器（我用 Emacs，Peter 用 TextMate）而不是 IDE 的情况下。</p>
+        <p>在开发 Processed Tower Defense 的过程中，我们很快就发现代码量越来越大，全部放在一个文件里已经不合适了。虽然计算机并不觉得文件很大，但要从中查找内容变得越来越困难，尤其是我们使用文本编辑器（我用 Emacs，Peter 用 TextMate）而不是 IDE 的情况下。</p>
       
     
       
-        <p>Peter 很干脆地把原本庞大的 ptd.js 拆成了五六个文件，但这样又带来了一个新问题：部署游戏时如何把这些“碎片”重新拼装起来？</p>
+        <p>Peter 很轻松地解决了这个问题，他把那个庞大的 ptd.js 文件拆成了五六个小文件，但随之而来又出现了一个新问题：部署游戏时，如何把这些“Humpty Dumpty”重新拼装起来呢？</p>
       
     
       
-        <p>幸运的是，Python 和 BeautifulSoup 帮了我大忙，让我能够写出一个简洁而强大的部署脚本。首先，我在 HTML 中为所有需要加载的 JavaScript 文件添加了一个容器 div，如下所示：</p>
+        <p>幸运的是，Python 和 BeautifulSoup 拯救了我，让我能够写出一个简单却强大的部署脚本。首先，我为所有需要加载的 JavaScript 文件添加了一个容器 div，代码如下：</p>
+      
+    
+      
+        <pre><code>&lt;div id=&quot;js_imports&quot;&gt;
+&lt;script src=&quot;processing.js&quot; type=&quot;text/javascript&quot; charset=&quot;utf-8&quot; &gt;&lt;/script&gt;
+&lt;script src=&quot;jsfprocessing.js&quot; type=&quot;text/javascript&quot; charset=&quot;utf-8&quot; &gt;&lt;/script&gt;
+&lt;script src=&quot;jquery-1.2.6.min.js&quot; type=&quot;text/javascript&quot; charset=&quot;utf-8&quot; &gt;&lt;/script&gt;
+&lt;script src=&quot;game/creep_waves.js&quot; type=&quot;text/javascript&quot; charset=&quot;utf-8&quot; &gt;&lt;/script&gt;
+&lt;script src=&quot;game/terrain.js&quot; type=&quot;text/javascript&quot; charset=&quot;utf-8&quot; &gt;&lt;/script&gt;
+&lt;script src=&quot;game/util.js&quot; type=&quot;text/javascript&quot; charset=&quot;utf-8&quot; &gt;&lt;/script&gt;
+&lt;script src=&quot;game/creeps.js&quot; type=&quot;text/javascript&quot; charset=&quot;utf-8&quot; &gt;&lt;/script&gt;
+&lt;script src=&quot;game/ui_modes.js&quot; type=&quot;text/javascript&quot; charset=&quot;utf-8&quot; &gt;&lt;/script&gt;
+&lt;script src=&quot;game/weapons.js&quot; type=&quot;text/javascript&quot; charset=&quot;utf-8&quot; &gt;&lt;/script&gt;
+&lt;script src=&quot;game/ptd.js&quot; type=&quot;text/javascript&quot; charset=&quot;utf-8&quot; &gt;&lt;/script&gt;
+&lt;/div&gt;
+</code></pre>
       
     
       
@@ -45,15 +61,41 @@
       
     
       
-        <p>BeautifulSoup 的 findAll 方法可以轻松找到 ptd.html 中所有的 script 标签。接着我们遍历这些标签，把所有通过 src 引入的脚本文件内容追加到正在创建的 merged_js 文件中。</p>
+        <pre><code>from BeautifulSoup import BeautifulSoup
+html = open(&#x27;ptd.html&#x27;, &#x27;r&#x27;)
+soup = BeautifulSoup(html.read())
+html.close()
+merged_js = open(&#x27;deploy/ptd.js&#x27;, &#x27;w&#x27;)
+tags = soup.findAll(&quot;script&quot;)
+for tag in tags:
+    if tag.has_key(&#x27;src&#x27;):
+        src_file = open(tag[&#x27;src&#x27;],&#x27;r&#x27;)
+        merged_js.write(src_file.read())
+        src_file.close()
+merged_js.close()
+</code></pre>
       
     
       
-        <h2>临时插播一条消息。</h2>
+        <p>BeautifulSoup 的 findAll 方法可以轻松找到 ptd.html 中所有的 script 标签。接着我们遍历这些标签，将所有引入的脚本文件内容追加到正在创建的 merged_js 文件中。</p>
       
     
       
-        <p>我们可以用 Python 的列表推导式重写这个循环，让代码更加简洁优雅。</p>
+        <h4>插播一条与正题无关的消息。</h4>
+        
+      
+    
+      
+        <p>我们可以用 Python 的列表推导式来重写这个循环，让代码更简洁舒适。</p>
+      
+    
+      
+        <pre><code>def merge(file):
+    src = open(file,&#x27;r&#x27;)
+    merged_js.write(src.read())
+    src.close()
+[merge(tag[&#x27;src&#x27;]) for tag if tag.has_key(&#x27;src&#x27;)]
+</code></pre>
       
     
       
@@ -61,51 +103,134 @@
       
     
       
-        <p>可惜，我们是有责任心的程序员，不会打开文件后忘记关闭。不过，我仍然认为，偶尔尝试用列表推导式重写循环是个有趣且有价值的练习，既能复习语法，又能欣赏它们简洁优雅的表达力。</p>
+        <pre><code>[merged_js.write(open(tag[&#x27;src&#x27;],&#x27;r&#x27;).read()) for tag if tag.has_key(&#x27;src&#x27;)]
+</code></pre>
       
     
       
-        <h2>回到原来的话题……</h2>
+        <p>不幸的是，我们是负责任的程序员，不会打开文件后不关闭它。不过，我依然认为，尝试用列表推导式重写循环是一个有趣且偶尔很有价值的练习，既能复习语法，又能欣赏它们简洁强大的表达力。</p>
       
     
       
-        <p>好了，我们已经把引入的 JavaScript 文件合并成了一个文件。现在需要把整个 js_imports 这个 div 替换成对这个新合并文件的单一引用，这一步也非常简单。</p>
+        <h4>回到原来的话题……</h4>
+        
       
     
       
-        <p>我们只需在 soup 中找到 js_imports 标签，然后用 replaceWith 方法插入一个新创建的 Tag 即可。这样我们就修复了 HTML 文件并合并了 JavaScript 文件，但还有几处需要清理。</p>
+        <p>好了，我们已经把引入的 JavaScript 文件合并成了一个文件。现在需要把整个 js_imports div 替换为对这个新合并文件的单个引用。这同样非常简单。</p>
       
     
       
-        <p>首先，需要把修改后的 HTML 写回文件：</p>
+        <pre><code>from BeautifulSoup import BeautifulSoup, Tag
+# html is a string containing raw html
+soup = BeautifulSoup(html)
+js_imports_div = soup.find(id=&quot;js_imports&quot;)
+merged_src = Tag(soup, &quot;script&quot;)
+merged_src[&quot;src&quot;] = u&quot;ptd.js&quot;
+merged_src[&quot;charset&quot;] = &quot;utf-8&quot;
+merged_src[&quot;type&quot;] = &quot;text/javascript&quot;
+js_imports_div.replaceWith(merged_src)
+</code></pre>
       
     
       
-        <p>这步也相当简单。之后最后一步，是对 JavaScript 文件进行压缩以节省空间。</p>
+        <p>我们只需在 soup 中找到 js_imports，然后使用 replaceWith 方法插入一个新建的 Tag。这样我们就修复了 HTML 文件，也合并了 JavaScript 文件，但还有几处需要清理。</p>
       
     
       
-        <p>这会压缩 deploy/ptd.js 文件，为我们节省一些空间。虽然一次性压缩整个文件感觉有点反直觉（而不是先压缩各部分再合并），但根据我的经验，如果逐个压缩后再合并，很容易导致代码出错。</p>
+        <p>首先，需要把修改后的 HTML 写入文件：</p>
       
     
       
-        <p>现在部署脚本里相对复杂的部分已经处理完毕，剩下的工作用一个简单的 shell 脚本就能轻松完成。你的 shell 脚本最终可能会像下面这样：</p>
+        <pre><code>deploy_html = open(&#x27;deploy/ptd.html&#x27;, &#x27;w&#x27;)
+deploy_html.write(str(soup))
+deploy_html.close()
+</code></pre>
       
     
       
-        <p>自从体会到用 BeautifulSoup 操作 HTML 的便利之后，我就迷上了这种方式，开始把所有静态网页都改成类似的简单构建脚本。例如，ptdef.com 就是先运行 PTD 的部署脚本，再在这个基础上运行第二个部署脚本：它会提取内联的 JavaScript，并将其与游戏内容一起注入到 ptdef.com 的模板中。</p>
+        <p>这也相当简单。之后最后一步，是压缩 JavaScript 文件以节省空间。</p>
       
     
       
-        <p>另外，我个人极其简洁的网站 willarson.com 也是基于一个简单的 HTML 模板，把 Markdown 内容渲染后注入进去生成最终版本。它的构建脚本只有懒人友好的 24 行，短到可以当作睡前读物快速浏览一下：</p>
+        <pre><code>from jsmin import jsmin
+merged_js = open(&#x27;deploy/ptd.js&#x27;, &#x27;r&#x27;)
+js = merged_js.read()
+merged_js.close()
+minified_js = open(&#x27;deploy/ptd.js, &#x27;w&#x27;)
+minified_js.write(jsmin(js))
+minified_js.close()
+</code></pre>
       
     
       
-        <p>该脚本由一个简单的 shell 脚本驱动：</p>
+        <p>这会压缩 deploy/ptd.js 文件，为我们节省一些空间。有人可能会觉得，先把各部分分别压缩再合并成 merged_js 更合理，但根据我的经验，分开压缩再合并很容易导致代码出错。</p>
       
     
       
-        <p>总之，我希望这些想法能对其他人有所帮助，通过编写灵活方便的部署脚本来简化项目和网站的构建流程。</p>
+        <p>现在部署脚本中相对复杂的部分已经处理完毕，剩下的工作用一个简单的 shell 脚本就能轻松完成。你的 shell 脚本最终可能会像这样：</p>
+      
+    
+      
+        <pre><code>echo &quot;Beginning deploy script...&quot;
+rm -rf deploy/*
+echo &quot;Merging &amp; minifying javascript imports...&quot;
+python scripts/build.py
+echo &quot;Copying files...&quot;
+cp -r assets deploy/assets/
+cp LICENSE deploy/LICENSE
+echo &quot;Deploy script completed! Files are in deploy/&quot;
+</code></pre>
+      
+    
+      
+        <p>自从体会到用 BeautifulSoup 操作 HTML 的便利之后，我就迷上了这种做法，开始把所有静态网页都改成使用类似简单构建脚本的方式。例如，ptdef.com 就是先运行 PTD 的部署脚本，再在它的输出结果上运行第二个部署脚本实现的，后者会提取内联的 JavaScript 并将其与游戏内容一起注入到 ptdef.com 的模板中。</p>
+      
+    
+      
+        <p>另外，我个人极其简单的网站 willarson.com 也是一个简单的 HTML 模板，把一些 Markdown 内容渲染后注入进去，生成最终的部署版本。它的构建脚本只有懒人友好的二十四行。长度适中，可以当作睡前小读快速浏览一下：</p>
+      
+    
+      
+        <pre><code>import markdown
+from BeautifulSoup import BeautifulSoup
+def main():
+main_file = open(&quot;main.md&quot;, &#x27;r&#x27;)
+main_md = main_file.read()
+main_file.close()
+main_html = markdown.markdown(main_md)
+index_file = open(&quot;index.html&quot;, &#x27;r&#x27;)
+index_html = index_file.read()
+index_file.close()
+index_soup = BeautifulSoup(index_html)
+main_div = index_soup.find(id=&quot;main&quot;)
+main_div.replaceWith(main_html)
+merged_file = open(&quot;deploy/index.html&quot;,&#x27;w&#x27;)
+merged_file.write(str(index_soup))
+merged_file.close()
+if name == &quot;main&quot;:
+main()
+</code></pre>
+      
+    
+      
+        <p>它由一个简单的 shell 脚本管理：</p>
+      
+    
+      
+        <pre><code>echo &quot;Building deploy copy of &#x27;willarson.com&#x27;...&quot;
+echo &quot;Removing old files...&quot;
+rm -rf deploy/*
+echo &quot;Running scripts/build.py...&quot;
+python scripts/build.py
+echo &quot;Copying media files...&quot;
+cp -r media deploy/
+echo &quot;Finished building deploy copy of &#x27;willarson.com&#x27;!&quot;
+</code></pre>
+      
+    
+      
+        <p>总之，我希望其他人也能从这些想法中获得启发，为自己的项目和网站打造灵活、便捷的部署脚本，从而简化工作。</p>
       
     
       

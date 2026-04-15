@@ -29,35 +29,55 @@
   <div class="article-content">
     
       
-        <p>在开发这个网站的过程中，我遇到了很多情况：使用的是通用视图（generic views），却需要一些无法直接获取的额外信息。当然，我可以编写大量自定义视图，但那是我第一个大型 Django 项目时采用的方式，我并不打算再那么做（之前因为对通用视图的非理性恐惧而浪费了大量时间，唉）。</p>
+        <p>在构建这个网站的过程中，我遇到了很多使用通用视图（generic views）却需要额外信息的情况，而这些信息又无法直接获取。当然，我可以编写大量自定义视图，但那正是我第一个大型 Django 项目所采用的方式，我并不打算再那么做（之前因为对通用视图的莫名恐惧而浪费了太多时间）。</p>
       
     
       
-        <p>幸运的是，有一个非常简单优雅的方法可以解决这个问题：编写自己的 context。</p>
+        <p>幸运的是，解决这个问题有一个非常简单优雅的方法：编写自己的 context。</p>
       
     
       
         <h2>什么是 context？</h2>
+        
       
     
       
-        <p>Context 就是一些数据信息。通常是 QuerySet，但也可以是任意内容。这些数据可以在模板中直接使用。而且，创建它们非常轻松。</p>
+        <p>Context 就是一些信息。通常它们是 QuerySet，但也可以是任何内容。这些信息可以在模板中直接使用。而且，创建它们非常简单。</p>
       
     
       
-        <p>在开发网站时，我希望在每一页的导航栏上都能显示一些随机条目，让我们来看看如何通过 context 来实现这一点。</p>
+        <p>在构建网站时，我希望在每一页的导航栏上都能显示一些随机条目，下面我们来看看如何通过 context 来实现。</p>
       
     
       
-        <p>Context 其实就是接收一个 request 参数并返回一个字典的函数。我编写的 context 如下所示：</p>
+        <p>Context 本质上就是一个函数，它接受一个 request 参数，并返回一个包含值的字典。我编写的 context 如下所示：</p>
       
     
       
-        <p>就是这样。现在你需要在 settings.py 文件中简单配置一下。假设你的 context 所在的文件路径是 myproject/blog/context.py，那么我们在 settings.py 中加入以下内容：</p>
+        <pre><code>from blog.models import Entry
+def blog(request):
+random = Entry.current.all().order_by(&#x27;?&#x27;)[:3]
+return { &#x27;random_entries&#x27; : random, }
+</code></pre>
       
     
       
-        <p>就是这么简单，但相关文档却写得不是特别清楚。好了，现在去大展身手吧。</p>
+        <p>就是这样。现在你需要在 settings.py 文件中添加一个简单的配置。假设你的 context 文件位于 myproject/blog/context.py，那么我们只需在 settings.py 中加入以下内容：</p>
+      
+    
+      
+        <pre><code>TEMPLATE_CONTEXT_PROCESSORS = (
+      &quot;django.core.context_processors.auth&quot;,
+      &quot;django.core.context_processors.debug
+      &quot;django.core.context_processors.i18n&quot;,
+      &quot;django.core.context_processors.media&quot;,
+      &quot;myproject.blog.context.blog&quot;,
+      )
+</code></pre>
+      
+    
+      
+        <p>就是这么简单，但相关文档却并不多。好啦，现在去征服它们吧。</p>
       
     
   </div>

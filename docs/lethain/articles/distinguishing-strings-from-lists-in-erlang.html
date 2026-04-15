@@ -29,12 +29,24 @@
   <div class="article-content">
     
       
-        <p>我每隔几周就会在 Erlang 中遇到一个问题：如何区分列表和字符串。
+        <p>我每隔几周就会在 Erlang 中遇到一个问题，那就是如何区分列表和字符串。
 这个问题之所以复杂，是因为字符串本质上只是一个整数列表。尽管如此，按照这个定义，其实有一个非常简单的解决办法。</p>
       
     
       
-        <p>诚然，这个方案效率并不高。你可以把它包在 try-catch 块里，一旦遇到第一个非整数就通过 throw 退出循环，但最坏情况下的时间复杂度仍然是 O(N)。欢迎大家给出改进建议？</p>
+        <pre><code>is_string(X) -&gt;
+    lists:foldl(fun(N,Acc) -&gt;
+                         case Acc of
+                             false -&gt;
+                                 false;
+                             true -&gt;
+                                 is_integer(N)
+                         end end, true, X).
+</code></pre>
+      
+    
+      
+        <p>不得不承认，这并不是一个高效的方案。你可以把它包装在 try-catch 块中，当遇到第一个非整数时通过 throw 跳出循环，但最坏情况下的时间复杂度仍然是 O(N)。有人能提出改进建议吗？</p>
       
     
   </div>

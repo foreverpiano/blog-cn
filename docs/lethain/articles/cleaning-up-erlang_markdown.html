@@ -29,135 +29,293 @@
   <div class="article-content">
     
       
-        <p>又花了几个小时后，erlang_markdown 已经清理得相当不错，并且几乎支持了 Markdown 规范的所有特性，除了多行标题语法。你可以查看当前的测试套件来了解它的完整性。</p>
+        <p>又花了几个小时后，erlang_markdown 已经清理得相当干净，并且几乎支持了 Markdown 规范的所有特性，只剩下多行标题语法尚未实现。你可以查看当前的测试套件来了解其完备性。</p>
       
     
       
-        <p>这里我将讨论并反思这个脚本的设计，最后再看看如何对该库进行性能调优。</p>
+        <p>在这里，我将讨论并反思这个脚本的设计，最后再看看如何对该库进行性能调优。</p>
       
     
       
         <h2>单遍解析</h2>
+        
       
     
       
-        <p>从一开始，这个项目的目标就是创建一个单遍 Markdown 解释器。比我更厉害的人无疑能为这种方法给出充分理由，而我只是恰好想用这种方式。既然已经这么做了，下面是一些关于使用单遍还是多遍方法将 Markdown 转换为 HTML 的思考：</p>
+        <p>从一开始，这个项目的目标就是创建一个单遍 Markdown 解释器。比我更优秀的人无疑能为这种做法给出充分理由，而我只是恰好想采用这种方式。在实践之后，以下是我对使用单遍还是多遍方法将 Markdown 转换为 HTML 的一些思考：</p>
       
     
       
-        <div class="list-content">语言越不规则，编写单遍解释器就越痛苦。特别是那些带有隐式终止的语言，会给单遍方法带来问题。解析不规则语言的单遍解释器会变得更加复杂、更加脆弱，并且比多遍解析器更难扩展。Markdown 既不规则，又有隐式终止。单遍方法允许流式处理，因此可以做到常量内存占用。大多数 Markdown 的使用场景并不适合流式处理（例如为网站渲染评论、博客文章、笔记等），而是期望传入一个完整的字符串或二进制数据，并返回完整的翻译结果。</div>
+        <div class="list-content">语言越不规则，编写单遍解释器就越痛苦。特别是那些具有隐式终止的语言，会给单遍方法带来很大问题。解析不规则语言的单遍解释器会变得更加复杂、更加脆弱，并且比多遍解析器更难扩展。Markdown 既不规则，又存在隐式终止。单遍方法支持流式处理，因此可以实现常量内存占用。大多数 Markdown 的使用场景并不适合流式处理（比如为网站渲染评论、博客文章、笔记等），而是期望传入完整的字符串或 binary，并返回完整的转换结果作为字符串或 binary。</div>
       
     
       
-        <p>考虑到上述看法，从长期可持续性和灵活性的角度来说，我始终推荐采用多遍方法而不是单遍方法。只有在多遍方法已被证明性能不足的情况下（例如处理海量 XML 文档时，DOM 解析因内存消耗而变得不可行，这时才会使用 SAX 解析），才应该尝试单遍方法。</p>
+        <p>考虑到以上情况，从长期可持续性和灵活性的角度来看，我始终推荐采用多遍方法。只有在多遍方法已被证明性能不足的情况下（例如 SAX 解析海量 XML 文档，而 DOM 解析因内存消耗变得不可行时），才应该尝试单遍方法。</p>
       
     
       
-        <p>或者你的系统本来就是基于流式数据处理的。又或者你只是觉得无聊。</p>
+        <p>或者，如果你的系统本来就是以流的形式处理数据。又或者，你只是觉得无聊。</p>
       
     
       
-        <p>erlang_markdown 的实际实现相当直截了当，尽管里面充满了足够多的特殊情况，足以让读者崩溃。核心函数包括：</p>
+        <p>erlang_markdown 的实际实现相当直截了当，尽管其中充满了足以让阅读者落泪的特殊情况。其核心函数是</p>
       
     
       
-        <p>markdown:line_start/5 在每一行的开头被调用，负责管理所有多行结构，比如段落、列表、引用块和预格式块。MultiContext 包含一个由打开的多行标签（ul、ol、li、p、pre、blockquote 等）组成的栈。</p>
+        <pre><code>line_start(&lt;&lt;Binary/binary&gt;&gt;, OpenTags, Acc, LinkContext, MultiContext).
+single_line(&lt;&lt;Binary/binary&gt;&gt;, OpenTags, Acc, LinkContext, MultiContext).
+</code></pre>
       
     
       
-        <p>line_start/5 无疑是代码中最丑陋的部分，因为它需要负责检测多级缩进的终止（将缩进深度与 MultiContext 栈中打开的 ol 和 ul 标签数量进行比较），以及其他逻辑，比如判断一行没有任何语法标记时，应该被视为新段落、继续的段落，还是属于已打开的 li 标签的一部分。</p>
+        <p>markdown:line_start/5 在每一行的开头被调用，负责管理所有多行结构，例如段落、列表、引用块和预格式块。MultiContext 包含一个由打开的多行标签（ul、ol、li、p、pre、blockquote 等）组成的栈。</p>
       
     
       
-        <p>markdown:single_line/5 负责在所有多行语法被剥离后渲染一行。例如，* *this is a test* 在到达 single_line/5 之前，就已经被简化成了 *this is a test*。</p>
+        <p>line_start/5 无疑是代码中最丑陋的部分，因为它需要检测多级缩进的终止（将缩进深度与 MultiContext 栈中打开的 ol 和 ul 标签数量进行比较），以及其他逻辑，例如判断一个没有任何语法标记的行应该被视为新段落、继续中的段落，还是已打开的 li 标签的一部分。</p>
       
     
       
-        <p>它使用 LinkContext 来存储之前使用 [test]: http://test.com/ &quot;test&quot; 语法声明的链接。在研究了 xmerl:eventp 之后，我会将函数定义重新实现为使用属性列表或记录的形式。</p>
+        <p>markdown:single_line/5 负责在剥离所有多行语法之后渲染一行。例如，* *this is a test* 在到达 single_line/5 时已经被简化成了 *this is a test*。</p>
       
     
       
-        <p>当前的方法使得扩展 erlang_markdown 变得极其别扭，而使用属性列表或记录能显著改善这一点。目前可能还没有强烈的动机去做这个重构，但如果/当我进行第三次重写时，这将会是核心部分。</p>
+        <p>它使用 LinkContext 来存储之前使用 [test]: http://test.com/ &quot;test&quot; 语法声明的链接。在研究了 xmerl:eventp 之后，我会将函数定义重新实现为以下形式之一</p>
+      
+    
+      
+        <pre><code>line_start(&lt;&lt;Binary/binary&gt;&gt;, PropList).
+single_line(&lt;&lt;Binary/binary&gt;&gt;, PropList).
+</code></pre>
+      
+    
+      
+        <pre><code>line_start(&lt;&lt;Binary/binary&gt;&gt;, #markdown_parser{}).
+single_line(&lt;&lt;Binary/binary&gt;&gt;, #markdown_parser{}).
+</code></pre>
+      
+    
+      
+        <p>当前的方法使得扩展 erlang_markdown 变得极为不便，而使用属性列表或 record 将大大改善这种情况。目前可能还没有强烈的动机进行这种重构，但如果我进行第三次重写，这将会是核心部分。</p>
       
     
       
         <h2>性能调优</h2>
+        
       
     
       
-        <p>我在 Erlang 性能方面学到的一个深刻教训是：空谈无用。关于调优 Erlang 应用性能，有大量通用建议——其中很多也确实普遍适用——但在你真正写出代码并生成一些实际数据之前，很难区分哪些是真实开销，哪些只是想象中的开销。</p>
+        <p>我在 Erlang 性能方面学到的一个深刻教训是：空谈无益。关于调优 Erlang 应用性能有大量通用建议——其中很多确实普遍适用——但在你真正写出代码并生成一些数据之前，很难区分哪些是真实开销，哪些只是你想象中的开销。</p>
       
     
       
-        <p>（当然，这一点在任何语言中都成立，但我——也许是因为相对缺乏经验——发现那些提供 Erlang 性能建议的人中存在大量困惑。）</p>
+        <p>（当然，无论使用哪种语言，这一点始终成立。但我——也许是由于相对缺乏经验——发现那些提供 Erlang 性能建议的人当中存在大量困惑。）</p>
       
     
       
-        <p>我使用以下函数来生成长度可变的测试输入。</p>
+        <p>我使用以下函数生成可变长度的测试输入。</p>
       
     
       
-        <p>在性能分析中，我使用了 markdown_tests:test_performance/1 函数：</p>
+        <pre><code>gen_string(N) -&gt;
+    Str1 = &quot;* **this is a test** *and so is this*\n* another line\n\n1. a line\n2. a line2\n3. another line\n\n&quot;,
+    Str2 = &quot;&gt;&gt; blockquote\n&gt;&gt; blockquote2\n\n    pre block1\n    same pre block\n\n&quot;,
+    Str3 = &quot;[test](http://test.com \&quot;this\&quot;)\ this out\n ``code block``\n\n&quot;,
+    Str4 = &quot;1. This is a test\n    2. so is this\n    3. yep...n4. yep\n\n* hi\n    * there\n    * ayep..\n * the end\n\n&quot;,
+    Str = lists:append([Str1, Str2, Str3, Str4]),
+    lists:append(lists:map(fun(_n) -&gt; Str end, lists:seq(0,N))).
+</code></pre>
       
     
       
-        <p>它首先生成测试字符串，然后将拼接后的字符串传给 markdown:markdown/1 函数。每个测试运行 Run 次（默认是 10 次），最后输出平均结果。当然，计算标准差、识别并排除异常值等会更有意思，但我决定不搞得太复杂。</p>
+        <p>对于性能分析，我使用了 markdown_tests:test_performance/1 函数：</p>
       
     
       
-        <p>现在，让我们看看最初的性能数据：</p>
+        <pre><code>test_performance(N) -&gt;
+    test_performance(N, 10).
+test_performance(N, Runs) -&gt;
+LongStr = gen_string(N),
+Times = lists:map(fun(X) -&gt;
+timer:tc(markdown, markdown, [LongStr])
+end, lists:seq(1,Runs)),
+Time = lists:foldr(fun({Micros, }, Acc) -&gt;
+Micros + Acc
+end, 0, Times),
+Seconds = (Time / N) / 1000000.0,
+Length = length(LongStr),
+io:format(&quot;~p chars, ~p seconds, ~p us/char~n&quot;, [Length, Seconds, (Time/N)/Length]).
+</code></pre>
       
     
       
-        <p>这个性能看起来相当不错，这让我感到有些惊讶，因为我本来很担心使用下面这种收集 HTML 片段的写法：</p>
+        <p>它首先生成测试字符串，然后将拼接后的字符串传入 markdown:markdown/1 函数。每个测试运行 Run 次（默认为 10 次），之后输出平均结果。当然，计算标准差、识别并排除异常值等会更有意义，但我决定不做得太过头。</p>
       
     
       
-        <p>“先前置再反转”的收集方式在 Lisp 代码中很常见，但将二进制片段合并成单个二进制的这种别扭做法绝对不是标准做法。</p>
+        <p>现在，让我们看看起始的性能数据：</p>
       
     
       
-        <p>因此，我第一次优化的尝试是去掉转成列表的操作，转而尝试下面这个算法：</p>
+        <pre><code>Erlang R13B01 (erts-5.7.2) [source] [64-bit] [smp:4:4] [rq:4] [async-threads:0] [hipe] [kernel-poll:false]
+Eshell V5.7.2  (abort with ^G)
+1&gt;  l(markdown), l(markdown_tests).
+{module,markdown_tests}
+2&gt; lists:foreach(fun(X) -&gt; markdown_tests:test_performance(X) end,  lists:seq(100,500,100)).
+31714 chars, 0.008108770000000001 seconds, 0.2556842403985622 us/char
+63114 chars, 0.01380413 seconds, 0.21871740025984726 us/char
+94514 chars, 0.007689983333333333 seconds, 0.08136343116716395 us/char
+125914 chars, 0.010926575000000001 seconds, 0.08677807868862875 us/char
+157314 chars, 0.042361656000000004 seconds, 0.26928090316182923 us/char
+ok
+</code></pre>
       
     
       
-        <p>结果是：</p>
+        <p>这里的性能看起来相当不错，这让我颇为惊讶，因为我原本担心使用以下这种随着生成 HTML 片段而收集它们的写法：</p>
       
     
       
-        <p>经过简单处理后，我们可以对比这些数字，看看它们的表现如何。</p>
+        <pre><code>Fragments = lists:foldr(fun(X,Acc) -&gt; [magic(X) | Acc] end, [], Input)
+InOrder = lists:reverse(Fragments),
+AsStrings = lists:map(fun(X) -&gt; binary_to_list(X) end, InOrder),
+Merged = lists:append(AsStrings),
+list_to_binary(Merged).
+</code></pre>
       
     
       
-        <p>总体来说，不进行转换的方法（第二种）略快一些，虽然并非在所有情况下都是如此。这表明二进制转字符串的开销并不算特别大。</p>
+        <p>“先前置再反转”的收集方式在 Lisp 代码中很常见，但将二进制片段 awkward 地合并成单个 binary 的做法绝对不是标准做法。</p>
       
     
       
-        <p>接下来我很好奇，如果测试传入的是字符串而不是二进制，会对性能造成多大惩罚，因为代码总是会把列表输入转换为二进制：</p>
+        <p>因此，我第一次优化的尝试是去掉转换为列表的操作，转而尝试以下算法：</p>
       
     
       
-        <p>将测试改为使用二进制后，我重新运行了测试（使用第二版，即二进制拼接而不是转成列表再拼接）：</p>
+        <pre><code>Fragments = lists:foldr(fun(X,Acc) -&gt; [magic(X) | Acc] end, [], Input)
+InOrder = lists:reverse(Fragments),
+lists:foldr(fun(X, Acc) -&gt; &lt;&lt;Acc/binary, X/binary&gt;&gt; end, &lt;&lt;&quot;&quot;&gt;&gt;, InOrder).
+</code></pre>
       
     
       
-        <p>与第二次运行的对比结果如下：</p>
+        <p>结果如下：</p>
       
     
       
-        <p>看起来——虽然我强烈建议进行比这严格得多的测试——将字符串转换为二进制的开销不算太大，但也不能完全忽略。</p>
+        <pre><code>Erlang R13B01 (erts-5.7.2) [source] [64-bit] [smp:4:4] [rq:4] [async-threads:0] [hipe] [kernel-poll:false]
+Eshell V5.7.2  (abort with ^G)
+1&gt; l(markdown), l(markdown_tests).
+{module,markdown_tests}
+2&gt; lists:foreach(fun(X) -&gt; markdown_tests:test_performance(X) end,  lists:seq(100,500,100)).
+31714 chars, 0.0064280200000000004 seconds, 0.20268714132559754 us/char
+63114 chars, 0.00546126 seconds, 0.08653008841144595 us/char
+94514 chars, 0.007205226666666667 seconds, 0.07623449083380945 us/char
+125914 chars, 0.009586265 seconds, 0.0761334323427101 us/char
+157314 chars, 0.048146004 seconds, 0.30605034516953356 us/char
+</code></pre>
       
     
       
-        <p>我接下来的想法是，考察如果在处理过程中逐步聚合二进制，而不是在处理完所有数据后再聚合，是否会有显著改进，于是上面的公式可以简化为：</p>
+        <p>经过简单处理后，我们可以比较这些数字，看看它们表现如何</p>
       
     
       
-        <p>然而这个改动涉及相当多的代码修改，所以我决定不在 erlang_markdown 的代码上进行测试。它应该能稍微改善内存占用，但我怀疑整体提升会比较有限。</p>
+        <pre><code>&gt;&gt;&gt; def clean_line(x):
+...     nums = [ y.split(&quot; &quot;)[0] for y in x ]
+...     return [ float(y) for y in nums ]
+... 
+&gt;&gt;&gt; def manage(x):
+...     a = x.split(&quot;\n&quot;)
+...     a = [ b.split(&quot;, &quot;) for b in a ]
+...     return [ clean_line(b) for b in a ]
+... 
+&gt;&gt;&gt; one =&quot;first data set...&quot;
+&quot;first data set...&quot;
+&gt;&gt;&gt; two = &quot;second data set...&quot;
+&quot;second data set...&quot;
+&gt;&gt;&gt; for a,b in zip(one,two):
+...     print &quot;%s / %s -&gt; %s&quot; % (a[2], b[2], a[2]/b[2])
+... 
+0.255684240399 / 0.202687141326 -&gt; 1.26147242852
+0.21871740026 / 0.0865300884114 -&gt; 2.52764563489
+0.0813634311672 / 0.0762344908338 -&gt; 1.06727847563
+0.0867780786886 / 0.0761334323427 -&gt; 1.13981566335
+0.269280903162 / 0.30605034517 -&gt; 0.879858191346
+</code></pre>
       
     
       
-        <p>总之，以大约每秒 400 万字符的速度，erlang_markdown 已经足够快，适用于我能想象到的任何使用场景。</p>
+        <p>总体来说，不进行转换的方法（第二种）略快，虽然并非在所有情况下都如此。这表明将 binary 转换为字符串的开销并不特别高。</p>
+      
+    
+      
+        <p>接下来我很好奇，如果测试传入的是字符串而不是 binary，会对代码造成多大惩罚，因为它总是会将列表输入转换为 binary：</p>
+      
+    
+      
+        <pre><code>markdown(Text) when is_list(Text) -&gt;
+    markdown(list_to_binary(Text));
+markdown(Binary) when is_binary(Binary) -&gt;
+    line_start(Binary, [], [], [], []).
+</code></pre>
+      
+    
+      
+        <p>将测试改为使用 binary 后，我重新运行了测试（使用第二版，即采用 binary 拼接而不是转换为列表再拼接）：</p>
+      
+    
+      
+        <pre><code>Erlang R13B01 (erts-5.7.2) [source] [64-bit] [smp:4:4] [rq:4] [async-threads:0] [hipe] [kernel-poll:false]
+Eshell V5.7.2  (abort with ^G)
+1&gt; l(markdown), l(markdown_tests).
+{module,markdown_tests}
+2&gt; lists:foreach(fun(X) -&gt; markdown_tests:test_performance(X) end,  lists:seq(100,500,100)).
+31714 chars, 0.00505559 seconds, 0.15941193163902379 us/char
+63114 chars, 0.00465163 seconds, 0.07370203124504865 us/char
+94514 chars, 0.005229263333333334 seconds, 0.055327923200090286 us/char
+125914 chars, 0.006679399999999999 seconds, 0.05304731801070572 us/char
+157314 chars, 0.034418122 seconds, 0.21878613473689565 us/char
+ok
+</code></pre>
+      
+    
+      
+        <p>与第二次运行结果的对比是这样的：</p>
+      
+    
+      
+        <pre><code>&gt;&gt;&gt; for a,b in zip(two,three):
+...     print &quot;%s / %s -&gt; %s&quot; % (a[2], b[2], a[2]/b[2])
+... 
+0.202687141326 / 0.159411931639 -&gt; 1.27146782077
+0.0865300884114 / 0.073702031245 -&gt; 1.17405296638
+0.0762344908338 / 0.0553279232001 -&gt; 1.37786648087
+0.0761334323427 / 0.0530473180107 -&gt; 1.43519852083
+0.30605034517 / 0.218786134737 -&gt; 1.39885621883
+</code></pre>
+      
+    
+      
+        <p>看起来——虽然我强烈建议进行比这严苛得多的测试——将字符串转换为 binary 的成本不算太大，但也不能完全忽视。</p>
+      
+    
+      
+        <p>我接下来的想法是，观察如果在处理过程中逐步聚合 binary，而不是在所有数据处理完之后再做最终聚合，是否能带来显著改进，于是上面的公式简化为：</p>
+      
+    
+      
+        <pre><code>lists:foldr(fun(X,Acc) -&gt; X2 = magic(X), &lt;&lt;Acc/binary, X2/binary&gt;&gt; end, [], Input)
+</code></pre>
+      
+    
+      
+        <p>然而这个改动涉及相当多的代码修改，因此我决定不在 erlang_markdown 的代码上进行测试。它应该能稍微改善内存使用，但我认为整体提升会比较有限。</p>
+      
+    
+      
+        <p>无论如何，以每秒约 400 万字符的速度，erlang_markdown 已经足够快，足以满足我能想象到的任何使用场景。</p>
       
     
   </div>

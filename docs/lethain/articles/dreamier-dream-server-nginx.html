@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>更梦幻的 Dream Server：使用 Nginx · Will Larson 文集</title>
+  <title>使用 Nginx 的更梦幻 Dream Server · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
 
 <article>
   <header class="article-header">
-    <h1>更梦幻的 Dream Server：使用 Nginx</h1>
+    <h1>使用 Nginx 的更梦幻 Dream Server</h1>
     <div class="meta">
       2007-07-17 · 
       <a href="https://lethain.com/dreamier-dream-server-nginx/" target="_blank" rel="noopener">阅读原文</a>
@@ -29,19 +29,19 @@
   <div class="article-content">
     
       
-        <p>2009/2/13 本文更新版本（基于 Ubuntu Intrepid）可在此查看。</p>
+        <p>2009/2/13 本文更新版（基于 Ubuntu Intrepid）可在此查看。</p>
       
     
       
-        <p>在我之前的配置中，使用 mod_proxy 的方式存在一些问题。请求首先到达 Apache，如果是媒体文件，Apache 会将请求转发给 Lighttpd，Lighttpd 把文件传回 Apache，最后再由 Apache 发送给客户端。显然，这简直是疯了。</p>
+        <p>在我之前的配置中，使用 mod_proxy 的方式存在一些问题。流程是这样的：请求进来后先由 Apache 接收，如果是媒体文件，Apache 会将其转发给 Lighttpd，Lighttpd 读取文件后再传回给 Apache，最后由 Apache 发送给客户端。显然，这简直是疯了。</p>
       
     
       
-        <p>因此我重新整理了指南，减少了那些灾难性的脑残操作。文章也进行了精简，所有关于安全的章节已被移除，你可以参考原始文章，但最好寻找更专业的服务器安全资源。</p>
+        <p>因此我重新整理了配置说明，避免了那些灾难性的脑残操作。本文也进行了精简，所有关于安全的章节已被移除。你可以参考原始文章，但最好寻找更专业的服务器安全资料。</p>
       
     
       
-        <p>主要流程基本不变，现在我们将使用 Nginx 作为前端代理和静态媒体服务器，用带 mod_python 的 Apache2 作为后端处理 Django 请求。放弃 Lighttpd 改用 Nginx，主要是因为 Nginx 来自俄罗斯，显得更具异域风情。</p>
+        <p>大部分流程没有改变，但现在我们将使用 Nginx 作为前端代理和静态媒体服务器，而 Apache2 配合 mod_python 作为后端来处理 Django 请求。放弃 Lighttpd 改用 Nginx，主要是因为 Nginx 来自俄罗斯，比较有异域风情。</p>
       
     
       
@@ -49,11 +49,12 @@
       
     
       
-        <h2>最终效果</h2>
+        <h3>最终成果</h3>
+        
       
     
       
-        <p>最终产物依然是一台 Ubuntu Feisty 服务器。它将使用 Nginx 作为前端（处理静态媒体，并将其他请求代理给 Apache2），Apache2 作为后端服务器。使用 memcached 进行缓存，Postgres 8.2 作为数据库。Django 仍是我们的首选框架。</p>
+        <p>最终成果依然是一台 Ubuntu Feisty 服务器。它将使用 Nginx 作为前端（处理静态媒体，并将其他请求代理给 Apache2），Apache2 作为后端。使用 memcached 进行缓存，Postgres 8.2 作为数据库。Django 是我们选择的开发框架。</p>
       
     
       
@@ -66,14 +67,27 @@
     
       
         <h2>将 Ubuntu Dapper 升级到 Feisty</h2>
+        
       
     
       
-        <p>从 Ubuntu Dapper（SliceHost 当前提供的 Ubuntu 系统）升级到 Feisty 过程快速且无痛。你必须按顺序升级：直接跳到 Feisty 可能会导致系统不稳定。最后执行的 &#x27;lsb_release -a&#x27; 只是为了确认升级是否成功，它应该显示已安装 Feisty。</p>
+        <p>从 Ubuntu Dapper（SliceHost 当前的 Ubuntu 系统）升级到 Feisty 过程快速且无痛。你必须按顺序进行升级：直接跳到 Feisty 可能会导致系统不稳定。最后执行 “lsb_release -a” 只是为了确认升级是否成功，它应该显示已安装 Feisty。</p>
+      
+    
+      
+        <pre><code>### My article
+
+My list entry one
+My list entry two
+
+&lt;code class=&quot;python&quot;&gt;def x (a, b):
+return a * b&lt;/code&gt;
+</code></pre>
       
     
       
         <h2>安装 Apache 和其他库</h2>
+        
       
     
       
@@ -81,11 +95,24 @@
       
     
       
-        <h2>配置 Nginx</h2>
+        <pre><code> ### My article
+
+My list entry one
+My list entry two
+
+@@ python
+def x (a, b):
+return a * b
+</code></pre>
       
     
       
-        <p>首先我们需要配置 Nginx。这里我们将使用 blog.kovyrin.net 提供的配置文件。该文件可直接在语法高亮代码片段下方下载。</p>
+        <h2>配置 nginx</h2>
+        
+      
+    
+      
+        <p>首先我们需要设置 nginx。本文将使用 blog.kovyrin.net 提供的配置文件。该文件可在语法高亮代码段正下方下载。</p>
       
     
       
@@ -93,43 +120,76 @@
       
     
       
-        <p>然后完全清空文件内容，用我们从 kovyrin.net 借鉴的配置内容替换。</p>
+        <pre><code>import myproject.myapp.markdownpp as markdownpp
+</code></pre>
       
     
       
-        <p>你需要对配置文件做几处小的修改：</p>
+        <p>然后彻底清空文件内容，用我们从 kovyrin.net 借来的配置文件内容进行替换。</p>
       
     
       
-        <div class="list-content">将 &quot;some-server.com www.some-server.com&quot; 替换为你的实际域名。将静态文件部分的较长正则表达式改为 /media/，并把静态媒体的 root 目录改为 /var/www/yourdomain.com/</div>
+        <p>你需要对配置文件进行几处小的修改：</p>
       
     
       
-        <p>修改后的第一部分看起来如下：</p>
+        <div class="list-content">将 “some-server.com www.some-server.com” 替换为你的实际域名。将静态文件位置的长正则表达式改为 /media/，并把静态媒体位置的根目录改为 /var/www/yourdomain.com/</div>
       
     
       
-        <p>（是的，我承认把例子从 some-server.com 改成 yourdomain.com 还是很不直观。）</p>
+        <p>修改后的第一部分看起来像这样：</p>
       
     
       
-        <p>第二部分则看起来像这样：</p>
+        <pre><code>class Entry(models.Model):
+     title = models.CharField(maxlength=200)
+     body = models.TextField()
+     body_html = models.TextField(blank=True, null=True)
+     use_markdown = models.BooleanField(default=True)
+</code></pre>
       
     
       
-        <p>我们把正则表达式改为 /media/，是因为不再需要进行一系列正则匹配。诚然，性能提升可能非常有限。</p>
+        <p>（是的，我承认把例子从 some-server.com 改成 yourdomain.com 毫无帮助。）</p>
       
     
       
-        <p>现在我们来创建几个目录：</p>
+        <p>第二部分看起来像这样：</p>
       
     
       
-        <p>好了，现在处理 Apache 的部分。</p>
+        <pre><code>    def save(self):
+        if self.use_markdown:
+            self.body_html = markdownpp.markdown(self.html)
+        else:
+            self.body_html = self.body
+        super(Entry,self).save()
+</code></pre>
+      
+    
+      
+        <p>我们把正则表达式改为 /media/，因为不再需要执行多个正则匹配。诚然，性能提升可能微乎其微。</p>
+      
+    
+      
+        <p>现在我们来创建几个文件夹：</p>
+      
+    
+      
+        <pre><code>class Resource(models.Model):
+    title = models.CharField(maxlength=50)
+    markdown_id = models.CharField(maxlength=50)
+    content = models.FileField(upload_to=&quot;myapp/resource&quot;)
+</code></pre>
+      
+    
+      
+        <p>好了，现在来处理 Apache。</p>
       
     
       
         <h2>配置 Apache</h2>
+        
       
     
       
@@ -137,47 +197,129 @@
       
     
       
-        <p>将 80 改成 8080，保存文件。</p>
+        <pre><code>class Entry(models.Model):
+     title = models.CharField(maxlength=200)
+     body = models.TextField()
+     body_html = models.TextField(blank=True, null=True)
+     use_markdown = models.BooleanField(default=True)
+</code></pre>
       
     
       
-        <p>接下来创建日志目录：</p>
+        <p>将 80 改为 8080，保存文件。</p>
       
     
       
-        <p>然后编辑我们的 Apache 配置文件：</p>
+        <p>现在我们需要创建日志文件夹：</p>
       
     
       
-        <p>这个文件初始为空，你需要加入以下内容：</p>
+        <pre><code>    def save(self):
+        if self.use_markdown:
+            pieces = [self.html,]
+            for res in Resource.objects.all():
+                 ref = u&#x27;\n\n[%s]: %s &quot;%s&quot;\n\n&#x27; % (
+                    res.markdown_id,
+                    res.get_content_url(),
+                    res.title,
+                    )
+                pieces.append(res)
+            content = u&quot;\n&quot;.join(pieces)
+            self.body_html = markdownpp.markdown(content)
+        else:
+            self.body_html = self.body
+        super(Entry,self).save()
+</code></pre>
       
     
       
-        <p>最后启用虚拟主机：</p>
+        <p>接着编辑 Apache 的配置文件：</p>
       
     
       
-        <h2>启动 Nginx 和 Apache</h2>
+        <pre><code>refs = entry.resources.all()
+</code></pre>
       
     
       
-        <p>现在两个服务器都配置好了，我们需要启动它们。</p>
+        <p>这个文件初始为空，你需要添加以下内容：</p>
       
     
       
-        <p>访问 www.yourserver.com:8080，你应该会看到 Apache 的默认页面。</p>
+        <pre><code>def save:
+    super(Entry,self).save()
+    res = self.resources.all()
+    # etc etc
+    super(Entry,self).save()
+</code></pre>
       
     
       
-        <p>访问 www.yourserver.com……你应该还是看到 Apache 的默认页面。只不过这次查看 HTTP 头信息时，会发现它是通过 Nginx 提供的。</p>
+        <p>最后我们需要启用虚拟主机：</p>
       
     
       
-        <p>现在我们来确认 Nginx 是否正确提供了静态媒体文件：</p>
+        <pre><code>import time, thread
+from django.db import models
+from django.dispatch import dispatcher
+from django.db.models import signals
+#######################
+### your models go here ###
+#######################
+</code></pre>
       
     
       
-        <p>在文件中写几句话，保存后访问 www.yourserver.com/media/test.txt，应该能看到你的文件内容。再访问 www.yourserver.com，这时应该不再显示 Apache 默认页面。</p>
+        <h2>启动 nginx 和 Apache</h2>
+        
+      
+    
+      
+        <p>现在两个服务器都已配置好，我们需要把它们启动起来。</p>
+      
+    
+      
+        <pre><code>def resave_object(sender, instance, signal, *args, **kwargs):
+    def do_save():
+        time.sleep(3)
+        try:
+            instance.save()
+        except:
+            pass
+    id = unicode(instance) + unicode(instance.id)
+    try:
+        should_resave = resave_hist[id]
+    except KeyError:
+        resave_hist[id] = True
+        should_resave = True
+    if should_resave is True:
+        resave_hist[id] = False
+        thread.start_new_thread(do_save, ())
+    else:
+        resave_hist[id] = True
+</code></pre>
+      
+    
+      
+        <p>访问 www.yourserver.com:8080，你应该会看到 Apache 默认页面。</p>
+      
+    
+      
+        <p>访问 www.yourserver.com……你应该还是看到 Apache 默认页面。但这次查看 HTTP 头信息，会发现它是由 nginx 提供的。</p>
+      
+    
+      
+        <p>现在来确认一下 nginx 是否如我们期望的那样提供静态文件：</p>
+      
+    
+      
+        <pre><code>resave_hist = {}
+dispatcher.connect(resave_object, signal=signals.post_save, sender=Entry)
+</code></pre>
+      
+    
+      
+        <p>在文件中写几句话，保存后访问 www.yourserver.com/media/test.txt，应该能看到你的文件内容。再访问 www.yourserver.com，这时就不应该再显示 Apache 默认页面了。</p>
       
     
       
@@ -185,7 +327,232 @@
       
     
       
-        <p>然后删除刚才创建的测试文件。</p>
+        <p>并删除刚才创建的文件</p>
+      
+    
+      
+        <p>至此，我们的服务器就配置完成了。</p>
+      
+    
+      
+        <h2>PostgreSQL</h2>
+        
+      
+    
+      
+        <p>请务必使用你自己的密码，不要直接用下面的代码中的 ‘password’。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas15ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>接下来编辑 pg_hba.conf 文件。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas16ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>进入文件末尾，将所有以 host 开头的行注释掉（除非你需要远程访问数据库）。最后本地那一行应该像这样：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas17ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>最后重启 Postgres：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas18ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <h2>配置 memcached</h2>
+        
+      
+    
+      
+        <p>运行 memcached 非常简单：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas19ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>在 Ubuntu 中，www-data 是运行 Web 服务器的用户，这与其他发行版中的 apache 用户类似。使用 -u www-data 参数运行 memcached，意味着我们将以和 Web 服务器相同的用户身份运行它。11211 是 memcached 的默认端口，除非你要同时运行多个 memcached 实例，否则不建议修改。我选择让 memcached 使用 32MB 内存，因为我的 VPS 总共只有 256MB，而我的 Django 应用其实没有太多需要缓存的内容。</p>
+      
+    
+      
+        <p>接下来我们需要安装 python-memcached，这是 Python 的 memcached 客户端。还有一个替代的 cmemcached 库，速度是 python-memcached 的两倍，但我编译时遇到了一些麻烦（我认为是因为我从仓库而不是源码安装的 memcached）。安装 python-memcached 很简单：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas20ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>这样就好了。</p>
+      
+    
+      
+        <p>在撰写本文时（2007 年 7 月 12 日），当前 SVN 版本的 Django 与 python-memcached 存在兼容问题。补丁已经提交并正在审核中，希望这个问题很快就能解决。如果有人被这个问题困扰，请给我发邮件或留言，我会更新本文并加入必要的修改。</p>
+      
+    
+      
+        <h2>配置 Django 等</h2>
+        
+      
+    
+      
+        <p>首先我们创建一个非 root 用户，它将存放我们所有的 Django 文件。在以下示例中我们使用 django 这个用户名。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas21ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>现在来设置 Django。首先为我们的 Django 应用创建一个 Postgres 用户：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas22ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>提示：把数据库名、用户名和密码记下来，过一会儿我们还会用到它们，时间刚好够让你全部忘光。</p>
+      
+    
+      
+        <p>现在需要让 www-data 用户可以访问我们的文件（www-data 是运行 Web 服务器的用户）。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas23ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>然后我们为 Django 创建一些文件夹。你可以随意调整文件夹结构，这主要是个人的喜好问题，但后续操作时要记得你做过的改动。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas24ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>现在我们检出 Django 源码，并将其链接到 site-packages，以便 Python 解释器能够找到它。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas25ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>现在我们可以创建第一个 Django 项目了。注意我们把项目也软链接到了 site-packages 目录，这样它就能出现在 Python 路径中。这只是个人偏好，你也可以把项目路径添加到之前编辑过的 Apache 虚拟主机文件中。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas26ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>现在编辑刚创建的 settings.py 文件。</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas27ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>你需要进行多处修改，以下是你需要添加（而非修改）的行：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas28ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>我个人使用了很长的缓存 middleware，因为我的页面不经常变化（我在做一个博客，整个页面缓存问题不大）。默认值要低得多，大概是 300。key prefix 用于在多个 Django 项目共用同一个缓存后端时进行区分。如果你只打算用一个项目，那么留空字符串即可。如果你有多个项目，每个项目都应该使用唯一的 key prefix。最后，anonymous only 设置意味着已登录用户不会收到缓存页面。对于我的应用来说，只有管理员会登录，这是个合适的设置，你的情况可能不同。</p>
+      
+    
+      
+        <p>以下是 settings.py 中你需要修改的已有配置项：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas29ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <blockquote>后续扩展这个 Django 配置：你最终会想加入自己的模板、媒体文件和应用。要让媒体文件能被访问，你可以从它们所在的位置创建一个软链接指向 /var/www/yourdomain.com/media 目录，像这样：</blockquote>
+      
+    
+      
+        <p>qaodmasdkwaspemas30ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <blockquote>对于模板，只需将模板目录路径添加到 settings.py 中的 TEMPLATE_DIRS 变量即可。配置 Django 应用和项目有时候更像是一门艺术而不是科学。去画会儿画吧，如果需要帮助随时提问。</blockquote>
+      
+    
+      
+        <h2>修复 Apache 与 Python Egg 的兼容性问题</h2>
+        
+      
+    
+      
+        <p>因为我们是通过 Python egg 安装的 psycopg2，所以需要在 Apache 配置文件中添加几行代码。这个过程在 Django 的 mod_python 页面有说明，其实非常简单。</p>
+      
+    
+      
+        <p>首先创建一个文件来存放几行 Python 代码：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas31ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>现在 eggs.py 应该包含以下内容：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas32ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>然后打开我们的虚拟主机配置文件：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas33ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>修改后的内容如下：</p>
+      
+    
+      
+        <p>qaodmasdkwaspemas34ajkqlsmdqpakldnzsdfls</p>
+      
+    
+      
+        <p>保存文件，现在 Apache 和 egg 应该能愉快地一起工作了。</p>
+      
+    
+      
+        <h2>喜极而泣</h2>
+        
+      
+    
+      
+        <p>我们完成了。当然，你的服务器现在完全不安全，你应该去解决这个问题。在按照本文操作的过程中，你可能在某些地方想过“这个家伙脑子到底有什么毛病？”或者“这根本跑不起来”。希望你还记得那些时刻，因为我很想知道哪些地方让你抓狂了（这样我可以偶尔做做梦，幻想把它们修复掉）。</p>
       
     
   </div>
