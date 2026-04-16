@@ -252,20 +252,18 @@ def validate_transformer_circuits(slug: str, raw_dir: Path, parsed_dir: Path,
             issues.append(f"citation_key_distribution_mismatch: "
                           f"raw_total={len(raw_cite_keys)}, parsed_total={len(parsed_cite_keys)}")
 
-    # 6. Bibliography: inline script must produce real bibtex; external .bib 403 is infrastructure issue
-    has_inline_bib = bool(raw_soup.find("script", type="text/bibliography"))
-    has_external_bib = bool(raw_soup.find("d-bibliography"))
+    # 6. Bibliography: any bibliography source must have real bibtex content
+    has_bib_source = bool(raw_soup.find("d-bibliography")) or bool(
+        raw_soup.find("script", type="text/bibliography"))
     bib_segments = [s for s in parsed.get("segments", []) if s.get("type") == "bibtex"]
-    # Inline bibliography (accessible) MUST produce real bibtex segment
-    if has_inline_bib:
-        inline_ok = any(not s.get("text", "").startswith("% Bibliography:")
-                        for s in bib_segments)
-        if not inline_ok:
-            issues.append("inline_bibliography_not_preserved")
-    # External .bib (may be 403-blocked) — require segment exists but allow source-reference
-    if has_external_bib and not has_inline_bib:
+    if has_bib_source:
         if not bib_segments:
-            issues.append("external_bibliography_without_any_segment")
+            issues.append("bibliography_source_without_bibtex_segment")
+        else:
+            has_real = any(not s.get("text", "").startswith("% Bibliography:")
+                          for s in bib_segments)
+            if not has_real:
+                issues.append("bibliography_only_source_reference_no_real_content")
 
     # 7. d-code preservation: exact count comparison
     if content_el:
