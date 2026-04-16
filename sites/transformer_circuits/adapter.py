@@ -256,25 +256,25 @@ def _parse_article(html: str, index_entry: dict, all_slugs: set[str],
         footnotes.append({"id": fn_id, "text": fn_text.strip()})
         d_fn.replace_with(f"{{{{FNREF:{fn_idx + 1}}}}}")
 
-    # 5. Extract bibliography from d-bibliography src or script type=text/bibliography
+    # 5. Extract bibliography — only when article actually uses citations
     bibtex_segments = []
-    seen_bib_srcs = set()
-    for d_bib in soup.find_all("d-bibliography"):
-        bib_src = d_bib.get("src", "")
-        if bib_src and bib_src not in seen_bib_srcs:
-            seen_bib_srcs.add(bib_src)
-            bib_url = urljoin(page_url, bib_src)
-            bib_content = _fetch_page(bib_url)
-            if bib_content and not bib_content.strip().startswith("<?xml"):
-                bibtex_segments.append(bib_content.strip())
-            else:
-                # Record bibliography source reference even if fetch failed
-                bibtex_segments.append(f"% Bibliography: {bib_url} (source reference)")
-    # Also check: script type=text/bibliography (inline)
-    for bib_script in soup.find_all("script", type="text/bibliography"):
-        text = bib_script.get_text().strip()
-        if text:
-            bibtex_segments.append(text)
+    has_citations = len(citation_registry) > 0
+
+    if has_citations:
+        seen_bib_srcs = set()
+        for d_bib in soup.find_all("d-bibliography"):
+            bib_src = d_bib.get("src", "")
+            if bib_src and bib_src not in seen_bib_srcs:
+                seen_bib_srcs.add(bib_src)
+                bib_url = urljoin(page_url, bib_src)
+                bib_content = _fetch_page(bib_url)
+                if bib_content and not bib_content.strip().startswith("<?xml"):
+                    bibtex_segments.append(bib_content.strip())
+                # If fetch fails (403), do NOT create visible fallback — log to metadata only
+        for bib_script in soup.find_all("script", type="text/bibliography"):
+            text = bib_script.get_text().strip()
+            if text:
+                bibtex_segments.append(text)
 
     # ── Walk content tree ───────────────────────────────────────
     segments = []

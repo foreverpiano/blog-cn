@@ -252,18 +252,18 @@ def validate_transformer_circuits(slug: str, raw_dir: Path, parsed_dir: Path,
             issues.append(f"citation_key_distribution_mismatch: "
                           f"raw_total={len(raw_cite_keys)}, parsed_total={len(parsed_cite_keys)}")
 
-    # 6. Bibliography: any bibliography source must have real bibtex content
-    has_bib_source = bool(raw_soup.find("d-bibliography")) or bool(
-        raw_soup.find("script", type="text/bibliography"))
+    # 6. Bibliography: only required when article uses citations
     bib_segments = [s for s in parsed.get("segments", []) if s.get("type") == "bibtex"]
-    if has_bib_source:
+    has_citations = len(parsed.get("citation_registry", {})) > 0
+    if has_citations:
+        # Article uses citations — must have real bibtex content
         if not bib_segments:
-            issues.append("bibliography_source_without_bibtex_segment")
-        else:
-            has_real = any(not s.get("text", "").startswith("% Bibliography:")
-                          for s in bib_segments)
-            if not has_real:
-                issues.append("bibliography_only_source_reference_no_real_content")
+            issues.append("article_with_citations_missing_bibliography")
+        elif all(s.get("text", "").startswith("% Bibliography:") for s in bib_segments):
+            issues.append("article_with_citations_only_has_source_reference")
+    if not has_citations and bib_segments:
+        # Article has no citations but still outputs bibliography — noise
+        issues.append("bibliography_segment_without_citations")
 
     # 7. d-code preservation: exact count comparison
     if content_el:
