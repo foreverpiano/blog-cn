@@ -35,20 +35,20 @@
       
     
       
-        <p>考虑语音识别问题。我们有一个包含音频片段及其对应转录文本的数据集。不幸的是，我们不知道转录文本中的字符是如何与音频对齐的。这使得训练语音识别器的难度比最初看起来要大得多。</p>
+        <p>考虑语音识别问题。我们有一个音频片段及其对应转录文本的数据集。但遗憾的是，我们并不知道转录文本中的字符如何与音频对齐。这使得训练语音识别器比最初看起来要困难得多。</p>
       
     
       
-        <p>由于缺乏这种对齐信息，简单的方法无法使用。我们可能会制定一条规则，例如“一个字符对应十个输入”。但人们的说话速度各不相同，因此这类规则总是会被打破。另一种选择是手动将每个字符与音频中的位置对齐。从建模角度来看，这效果很好——我们能知道每个输入时间步的真实标签。然而，对于任何规模合理的数据集来说，这都极其耗时。</p>
+        <p>由于缺乏这种对齐信息，简单的方法无法使用。我们可以制定一条规则，比如“一个字符对应十个输入”。但人们的语速各不相同，这种规则总是可能被打破。另一种选择是手动将每个字符与音频中的位置对齐。从建模角度来看，这效果很好——我们能知道每个输入时间步的真实标签。然而，对于任何规模合理的数据集来说，这耗时过长，无法接受。</p>
       
     
       
-        <p>这个问题不仅出现在语音识别中，在许多其他领域也会遇到。例如，从图像或笔迹序列中进行手写识别，以及视频中的动作标注。</p>
+        <p>这个问题不仅出现在语音识别中。在许多其他领域也会遇到。例如，从图像或笔迹序列中进行手写识别，以及视频中的动作标注。</p>
       
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/handwriting_recognition.svg" alt="">
+          <img src="../images/2017-ctc/handwriting_recognition.svg" alt="">
           <figcaption>Handwriting recognition: The input can be
     <span class="math-inline" data-math="(x,y)">(x,y)</span> coordinates of a pen stroke or
     pixels in an image.</figcaption>
@@ -56,25 +56,25 @@
       
     
       
-        <p>连接主义时序分类（Connectionist Temporal Classification，简称 CTC）是一种解决输入和输出之间对齐关系未知问题的方法。正如我们将看到的，它特别适合语音识别和手写识别等应用。</p>
+        <p>联结主义时间分类（Connectionist Temporal Classification，简称 CTC）是一种绕过输入和输出之间未知对齐问题的方法。正如我们将看到的，它特别适合语音识别和手写识别等应用。</p>
       
     
       
-        <p>更正式地说，我们考虑将输入序列 <span class="math-inline" data-math="X = [x_1, x_2, \ldots, x_T]">X = [x_1, x_2, \ldots, x_T]</span>（例如音频）映射到对应的输出序列 <span class="math-inline" data-math="Y = [y_1, y_2, \ldots, y_U]">Y = [y_1, y_2, \ldots, y_U]</span>（例如转录文本）。我们希望找到从 <span class="math-inline" data-math="X">X</span> 到 <span class="math-inline" data-math="Y">Y</span> 的准确映射。</p>
+        <p>更正式地说，我们考虑将输入序列 <span class="math-inline" data-math="X = [x_1, x_2, \ldots, x_T]">X = [x_1, x_2, \ldots, x_T]</span>（如音频）映射到对应的输出序列 <span class="math-inline" data-math="Y = [y_1, y_2, \ldots, y_U]">Y = [y_1, y_2, \ldots, y_U]</span>（如转录文本）。我们希望找到从 <span class="math-inline" data-math="X">X</span> 到 <span class="math-inline" data-math="Y">Y</span> 的准确映射。</p>
       
     
       
-        <p>使用更简单的监督学习算法会遇到一些障碍。具体来说：</p>
+        <p>有一些挑战阻碍我们使用更简单的监督学习算法。具体来说：</p>
       
     
       
-        <div class="list-content"><span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 的长度都可能不同。  
-<span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 的长度比例可能变化。  
-我们没有 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y.">Y.</span> 之间准确的对齐信息（即元素之间的对应关系）。</div>
+        <div class="list-content"><span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 的长度都可能变化。
+<span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 的长度比例可能变化。
+我们没有 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y.">Y.</span> 的精确对齐信息（即元素之间的对应关系）。</div>
       
     
       
-        <p>CTC 算法克服了这些挑战。对于给定的 <span class="math-inline" data-math="X">X</span>，它能为所有可能的 <span class="math-inline" data-math="Y">Y</span> 提供一个输出概率分布。我们可以使用这个分布来推断最可能的输出，或者评估给定输出的概率。</p>
+        <p>CTC 算法克服了这些挑战。对于给定的 <span class="math-inline" data-math="X">X</span>，它提供所有可能 <span class="math-inline" data-math="Y">Y</span> 的输出概率分布。我们可以使用这个分布来推断可能的输出，或者评估给定输出的概率。</p>
       
     
       
@@ -82,11 +82,11 @@
       
     
       
-        <p>损失函数：对于给定的输入，我们希望训练模型最大化它赋予正确答案的概率。为此，我们需要高效地计算条件概率 <span class="math-inline" data-math="p(Y \mid X).">p(Y \mid X).</span>。函数 <span class="math-inline" data-math="p(Y \mid X)">p(Y \mid X)</span> 还必须是可微分的，以便我们可以使用梯度下降。</p>
+        <p>损失函数：对于给定的输入，我们希望训练模型使其赋予正确答案的概率最大化。为此，我们需要高效地计算条件概率 <span class="math-inline" data-math="p(Y \mid X).">p(Y \mid X).</span>。函数 <span class="math-inline" data-math="p(Y \mid X)">p(Y \mid X)</span> 还必须是可微分的，以便我们可以使用梯度下降。</p>
       
     
       
-        <p>推断：自然地，在训练模型之后，我们希望用它来根据 <span class="math-inline" data-math="X.">X.</span> 推断出一个可能的 <span class="math-inline" data-math="Y">Y</span>。这意味着要解决</p>
+        <p>推断：自然地，在训练模型之后，我们希望使用它根据 <span class="math-inline" data-math="X.">X.</span> 推断可能的 <span class="math-inline" data-math="Y">Y</span>。这意味着求解</p>
       
     
       
@@ -98,7 +98,7 @@
       
     
       
-        <p>理想情况下 <span class="math-inline" data-math="Y^*">Y^*</span> 可以被高效找到。使用 CTC 时，我们会接受一个近似解，只要其计算成本不太高即可。</p>
+        <p>理想情况下 <span class="math-inline" data-math="Y^*">Y^*</span> 可以被高效找到。使用 CTC 时，我们会接受一个不那么昂贵且近似的最优解。</p>
       
     
       
@@ -107,27 +107,27 @@
       
     
       
-        <p>CTC 算法可以针对任意 <span class="math-inline" data-math="Y">Y</span>，给定 <span class="math-inline" data-math="X.">X.</span> 计算其概率。计算该概率的关键在于 CTC 如何看待输入和输出之间的对齐关系。我们将首先介绍这些对齐方式，然后展示如何利用它们来计算损失函数并执行推断。</p>
+        <p>CTC 算法可以为任意给定 <span class="math-inline" data-math="X.">X.</span> 计算任意 <span class="math-inline" data-math="Y">Y</span> 的概率。计算这个概率的关键在于 CTC 如何看待输入和输出之间的对齐。我们将首先介绍这些对齐，然后展示如何利用它们来计算损失函数并进行推断。</p>
       
     
       
-        <h3>对齐关系</h3>
+        <h3>对齐</h3>
         
       
     
       
-        <p>CTC 算法是无对齐的（alignment-free）——它不需要输入和输出之间的显式对齐。然而，为了得到给定输入下的输出概率，CTC 通过对输入和输出之间所有可能对齐方式的概率进行求和来实现。我们需要理解这些对齐方式，才能明白损失函数最终是如何计算的。</p>
+        <p>CTC 算法是无对齐的（alignment-free）——它不需要输入和输出之间的精确对齐。然而，为了得到给定输入下输出的概率，CTC 通过对输入和输出之间所有可能对齐的概率进行求和来实现。我们需要理解这些对齐是什么，才能明白损失函数最终是如何计算的。</p>
       
     
       
-        <p>为了说明 CTC 对齐的具体形式，首先考虑一种朴素的方法。让我们用一个例子来说明。假设输入长度为六，对应的输出为 <span class="math-inline" data-math="Y
+        <p>为了说明 CTC 对齐的具体形式，首先考虑一种朴素的方法。我们用一个例子来说明。假设输入长度为六，<span class="math-inline" data-math="Y
 =">Y
-=</span> [c, a, t]。一种将 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 对齐的方式是为每个输入步骤分配一个输出字符，然后合并重复字符。</p>
+=</span> 为 [c, a, t]。一种将 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 对齐的方式是为每个输入步骤分配一个输出字符，然后合并重复项。</p>
       
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/naive_alignment.svg" alt="">
+          <img src="../images/2017-ctc/naive_alignment.svg" alt="">
           
         </figure>
       
@@ -137,12 +137,12 @@
       
     
       
-        <div class="list-content">通常情况下，强制每个输入步骤都对齐到某个输出是没有意义的。例如在语音识别中，输入可能包含一段没有对应输出的静音。  
+        <div class="list-content">通常，强制每个输入步骤都对齐到某个输出是不合理的。例如在语音识别中，输入可能包含一段没有对应输出的静音。
 我们无法生成连续多个相同字符的输出。考虑对齐 [h, h, e, l, l, l, o]，合并重复后会得到“helo”而不是“hello”。</div>
       
     
       
-        <p>为了解决这些问题，CTC 在允许的输出集合中引入了一个新的标记。这个新标记有时被称为空白标记（blank token）。我们在这里将其记为 <span class="math-inline" data-math="\epsilon.">\epsilon.</span>。<span class="math-inline" data-math="\epsilon">\epsilon</span> 标记不对应任何实际内容，在输出中会被直接移除。</p>
+        <p>为了解决这些问题，CTC 在允许的输出集合中引入了一个新的标记。这个新标记有时被称为空白标记（blank token）。我们在这里将其记为 <span class="math-inline" data-math="\epsilon.">\epsilon.</span>。<span class="math-inline" data-math="\epsilon">\epsilon</span> 标记不对应任何实际内容，最终会从输出中被移除。</p>
       
     
       
@@ -151,13 +151,13 @@
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/ctc_alignment_steps.svg" alt="">
+          <img src="../images/2017-ctc/ctc_alignment_steps.svg" alt="">
           
         </figure>
       
     
       
-        <p>如果 <span class="math-inline" data-math="Y">Y</span> 中连续出现两个相同字符，那么有效的对齐必须在它们之间插入一个 <span class="math-inline" data-math="\epsilon">\epsilon</span>。有了这条规则，我们就能区分那些合并后为“hello”的对齐和那些合并后为“helo”的对齐。</p>
+        <p>如果 <span class="math-inline" data-math="Y">Y</span> 中有两个相同的字符连续出现，那么有效的对齐必须在它们之间有一个 <span class="math-inline" data-math="\epsilon">\epsilon</span>。有了这条规则，我们就能区分那些合并后为“hello”的对齐和那些合并后为“helo”的对齐。</p>
       
     
       
@@ -166,13 +166,13 @@
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/valid_invalid_alignments.svg" alt="">
+          <img src="../images/2017-ctc/valid_invalid_alignments.svg" alt="">
           
         </figure>
       
     
       
-        <p>CTC 对齐具有几个显著特性。首先，<span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 之间的允许对齐是单调的（monotonic）。当我们前进到下一个输入时，对应的输出可以保持不变或前进到下一个。其次，<span class="math-inline" data-math="X">X</span> 到 <span class="math-inline" data-math="Y">Y</span> 的对齐是多对一的（many-to-one）。一个或多个输入元素可以对应一个输出元素，但反之不行。这意味着第三个特性：<span class="math-inline" data-math="Y">Y</span> 的长度不能大于 <span class="math-inline" data-math="X.">X.</span> 的长度。</p>
+        <p>CTC 对齐有一些值得注意的特性。首先，<span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 之间的允许对齐是单调的。如果我们前进到下一个输入，对应的输出可以保持不变或前进到下一个。其次，<span class="math-inline" data-math="X">X</span> 到 <span class="math-inline" data-math="Y">Y</span> 的对齐是多对一的。一个或多个输入元素可以对齐到一个输出元素，但反之不行。这蕴含着第三个特性：<span class="math-inline" data-math="Y">Y</span> 的长度不能大于 <span class="math-inline" data-math="X.">X.</span> 的长度。</p>
       
     
       
@@ -181,43 +181,47 @@
       
     
       
-        <p>CTC 对齐为我们提供了一种从每个时间步的概率自然过渡到输出序列概率的方式。</p>
+        <p>CTC 对齐为我们提供了一种从每个时间步的概率自然过渡到输出序列概率的方法。</p>
       
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/full_collapse_from_audio.svg" alt="">
+          <img src="../images/2017-ctc/full_collapse_from_audio.svg" alt="">
           
         </figure>
       
     
       
-        <p>精确来说，单个 <span class="math-inline" data-math="(X, Y)">(X, Y)</span> 对的 CTC 目标函数为：</p>
+        <p>精确地说，单个 <span class="math-inline" data-math="(X, Y)">(X, Y)</span> 对的 CTC 目标函数为：</p>
       
     
       
-        <p>使用 CTC 训练的模型通常采用循环神经网络（RNN）来估计每个时间步的概率 <span class="math-inline" data-math="p_t(a_t \mid X).">p_t(a_t \mid X).</span>。RNN 通常效果很好，因为它能考虑输入中的上下文信息，但我们也可以使用任何能根据固定大小输入片段产生输出类别分布的学习算法。</p>
+        <p>[交互图：CTC 条件概率——查看原文：https://distill.pub/2017/ctc]</p>
       
     
       
-        <p>如果不小心处理，CTC 损失的计算可能会非常昂贵。我们可以尝试直接的方法，为每个对齐计算分数并逐步累加。但问题是可能的对齐数量可能极其庞大。
+        <p>使用 CTC 训练的模型通常采用循环神经网络（RNN）来估计每个时间步的概率 <span class="math-inline" data-math="p_t(a_t \mid X).">p_t(a_t \mid X).</span>。RNN 通常表现良好，因为它能考虑输入的上下文，但我们也可以使用任何能根据固定大小输入片段产生输出类别分布的学习算法。</p>
+      
+    
+      
+        <p>如果不小心，CTC 损失的计算可能非常昂贵。我们可以尝试直接的方法，为每个对齐计算分数并一路累加。问题是可能存在海量的对齐。
 <sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>
-对于大多数问题来说这会太慢。</p>
+对于大多数问题来说，这会太慢。</p>
       
     
       
-        <p>幸运的是，我们可以使用动态规划算法更快速地计算损失。其核心洞见是：如果两个对齐在同一时刻到达了同一输出状态，那么我们可以将它们合并。</p>
+        <p>幸运的是，我们可以使用动态规划算法更快地计算损失。关键洞见是：如果两个对齐在同一时间步到达了相同的输出，那么我们可以将它们合并。</p>
       
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/all_alignments.svg" alt="">
+          <img src="../images/2017-ctc/all_alignments.svg" alt="">
           <figcaption>Summing over all alignments can be very expensive.</figcaption>
         </figure>
       
     
       
-        <p>由于我们可以在 <span class="math-inline" data-math="Y">Y</span> 中的任意标记前后插入 <span class="math-inline" data-math="\epsilon">\epsilon</span>，使用包含空白标记的序列来描述算法会更方便。我们将使用以下序列：</p>
+        <p>由于我们可以在 <span class="math-inline" data-math="Y">Y</span> 中的任意标记前后放置 <span class="math-inline" data-math="\epsilon">\epsilon</span>，用一个包含空白的序列来描述算法会更容易。我们将使用序列</p>
       
     
       
@@ -233,7 +237,7 @@ Z \enspace =\enspace [\epsilon, ~y_1, ~\epsilon, ~y_2,~ \ldots, ~\epsilon, ~y_U,
       
     
       
-        <p>设 <span class="math-inline" data-math="\alpha">\alpha</span> 表示在给定节点处合并后的对齐得分。更精确地说，<span class="math-inline" data-math="\alpha_{s, t}">\alpha_{s, t}</span> 是经过 <span class="math-inline" data-math="t">t</span> 个输入步骤后，子序列 <span class="math-inline" data-math="Z_{1:s}">Z_{1:s}</span> 的 CTC 得分。正如我们将看到的，我们会从最后一个时间步的 <span class="math-inline" data-math="\alpha">\alpha</span> 来计算最终的 CTC 得分 <span class="math-inline" data-math="P(Y \mid X)">P(Y \mid X)</span>。只要我们知道前一时间步 <span class="math-inline" data-math="\alpha">\alpha</span> 的值，就可以计算 <span class="math-inline" data-math="\alpha_{s, t}.">\alpha_{s, t}.</span>。存在两种情况。</p>
+        <p>令 <span class="math-inline" data-math="\alpha">\alpha</span> 表示在给定节点处合并后的对齐得分。更准确地说，<span class="math-inline" data-math="\alpha_{s, t}">\alpha_{s, t}</span> 是 <span class="math-inline" data-math="Z_{1:s}">Z_{1:s}</span> 这个子序列在经过 <span class="math-inline" data-math="t">t</span> 个输入步骤后的 CTC 得分。正如我们将看到的，我们将从最后一个时间步的 <span class="math-inline" data-math="\alpha">\alpha</span> 来计算最终的 CTC 得分 <span class="math-inline" data-math="P(Y \mid X)">P(Y \mid X)</span>。只要我们知道前一时间步 <span class="math-inline" data-math="\alpha">\alpha</span> 的值，就可以计算 <span class="math-inline" data-math="\alpha_{s, t}.">\alpha_{s, t}.</span>。这里有两种情况。</p>
       
     
       
@@ -242,22 +246,26 @@ Z \enspace =\enspace [\epsilon, ~y_1, ~\epsilon, ~y_2,~ \ldots, ~\epsilon, ~y_U,
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/cost_no_skip.svg" alt="">
+          <img src="../images/2017-ctc/cost_no_skip.svg" alt="">
           
         </figure>
       
     
       
-        <p>在这种情况下，我们不能跳过 <span class="math-inline" data-math="z_{s-1}">z_{s-1}</span>，即 <span class="math-inline" data-math="Z.">Z.</span> 中的前一个标记。第一个原因是前一个标记可能是 <span class="math-inline" data-math="Y">Y</span> 中的元素，而我们不能跳过 <span class="math-inline" data-math="Y.">Y.</span> 中的任何元素。由于 <span class="math-inline" data-math="Z">Z</span> 中 <span class="math-inline" data-math="Y">Y</span> 的每个元素后面都跟着一个 <span class="math-inline" data-math="\epsilon">\epsilon</span>，当 <span class="math-inline" data-math=" z_{s} = \epsilon."> z_{s} = \epsilon.</span> 时我们可以识别这种情况。第二个原因是，在 <span class="math-inline" data-math="Y.">Y.</span> 中的重复字符之间必须有一个 <span class="math-inline" data-math="\epsilon">\epsilon</span>。当 <span class="math-inline" data-math="z_s = z_{s-2}.">z_s = z_{s-2}.</span> 时我们可以识别这种情况。</p>
+        <p>在这种情况下，我们不能跳过 <span class="math-inline" data-math="z_{s-1}">z_{s-1}</span>，即 <span class="math-inline" data-math="Z.">Z.</span> 中的前一个标记。首先是因为前一个标记可能是 <span class="math-inline" data-math="Y">Y</span> 的元素，而我们不能跳过 <span class="math-inline" data-math="Y.">Y.</span> 的元素。由于 <span class="math-inline" data-math="Z">Z</span> 中的每个 <span class="math-inline" data-math="Y">Y</span> 元素后面都跟着一个 <span class="math-inline" data-math="\epsilon">\epsilon</span>，当 <span class="math-inline" data-math=" z_{s} = \epsilon."> z_{s} = \epsilon.</span> 时我们可以识别这种情况。其次是因为在 <span class="math-inline" data-math="Y.">Y.</span> 的重复字符之间必须有一个 <span class="math-inline" data-math="\epsilon">\epsilon</span>。当 <span class="math-inline" data-math="z_s = z_{s-2}.">z_s = z_{s-2}.</span> 时我们可以识别这种情况。</p>
       
     
       
-        <p>为了确保我们不会跳过 <span class="math-inline" data-math="z_{s-1}">z_{s-1}</span>，我们可以在前一时间步处于该位置，或者已经在更早的时间步经过它。因此存在两个可以转移过来的位置。</p>
+        <p>为了确保我们没有跳过 <span class="math-inline" data-math="z_{s-1}">z_{s-1}</span>，我们可以处于前一时间步的位置，或者已经在更早的时间步经过它。因此，有两个可以转移的位置。</p>
+      
+    
+      
+        <p>[交互图：在 <span class="math-inline" data-math="t-1">t-1</span> 个输入步骤后两个有效子序列的 CTC 概率——查看原文：https://distill.pub/2017/ctc]</p>
       
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/cost_regular.svg" alt="">
+          <img src="../images/2017-ctc/cost_regular.svg" alt="">
           
         </figure>
       
@@ -267,31 +275,35 @@ Z \enspace =\enspace [\epsilon, ~y_1, ~\epsilon, ~y_2,~ \ldots, ~\epsilon, ~y_U,
       
     
       
-        <p>在第二种情况下，我们可以跳过 <span class="math-inline" data-math="Z.">Z.</span> 中的前一个标记。当 <span class="math-inline" data-math="z_{s-1}">z_{s-1}</span> 是两个不同字符之间的 <span class="math-inline" data-math="\epsilon">\epsilon</span> 时，就会出现这种情况。因此在前一步有三个可能转移过来的位置。</p>
+        <p>在第二种情况下，我们可以跳过 <span class="math-inline" data-math="Z.">Z.</span> 中的前一个标记。当 <span class="math-inline" data-math="z_{s-1}">z_{s-1}</span> 是唯一字符之间的 <span class="math-inline" data-math="\epsilon">\epsilon</span> 时，我们就处于这种情况。因此，我们在前一步有三个可能的位置来源。</p>
       
     
       
-        <p>下面是动态规划算法计算过程的一个示例。每个有效的对齐在这个图中都有一条路径。</p>
+        <p>[交互图：在 <span class="math-inline" data-math="t-1">t-1</span> 个输入步骤后三个有效子序列的 CTC 概率——查看原文：https://distill.pub/2017/ctc]</p>
+      
+    
+      
+        <p>下面是动态规划算法计算过程的一个示例。每个有效对齐都在这个图中有一条路径。</p>
       
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/ctc_cost.svg" alt="">
+          <img src="../images/2017-ctc/ctc_cost.svg" alt="">
           <figcaption>output
 <span class="math-inline" data-math="Y =">Y =</span> [a, b]</figcaption>
         </figure>
       
     
       
-        <p>由于序列开头和结尾的 <span class="math-inline" data-math="\epsilon">\epsilon</span> 是可选的，因此有两个有效的起始节点和两个有效的终止节点。完整的概率是两个终止节点的概率之和。</p>
+        <p>因为序列开头和结尾的 <span class="math-inline" data-math="\epsilon">\epsilon</span> 是可选的，所以有两个有效的起始节点和两个有效的最终节点。完整的概率是两个最终节点的和。</p>
       
     
       
-        <p>现在我们能够高效计算损失函数，下一步是计算梯度并训练模型。CTC 损失函数相对于每个时间步的输出概率是可微的，因为它只是这些概率的求和与乘积。基于此，我们可以解析地计算损失函数相对于（未归一化的）输出概率的梯度，然后照常进行反向传播。</p>
+        <p>现在我们能够高效计算损失函数，接下来是计算梯度并训练模型。CTC 损失函数相对于每个时间步的输出概率是可微的，因为它只是这些概率的求和与乘积。因此，我们可以解析地计算损失函数相对于（未归一化的）输出概率的梯度，然后照常运行反向传播。</p>
       
     
       
-        <p>对于训练集 <span class="math-inline" data-math="\mathcal{D}">\mathcal{D}</span>，模型的参数会通过最小化负对数似然来调整：</p>
+        <p>对于训练集 <span class="math-inline" data-math="\mathcal{D}">\mathcal{D}</span>，模型的参数会被调整以最小化负对数似然</p>
       
     
       
@@ -312,7 +324,7 @@ Z \enspace =\enspace [\epsilon, ~y_1, ~\epsilon, ~y_2,~ \ldots, ~\epsilon, ~y_U,
       
     
       
-        <p>训练模型之后，我们希望用它来为给定输入找到一个可能的输出。更精确地说，我们需要解决：</p>
+        <p>训练模型后，我们希望用它为给定输入找到一个可能的输出。更准确地说，我们需要求解：</p>
       
     
       
@@ -324,7 +336,7 @@ Y^* \enspace = \enspace {\mathop{\text{argmax}}\limits_{Y}} \enspace p(Y \mid X)
       
     
       
-        <p>一种启发式方法是在每个时间步选择最可能的输出。这给了我们概率最高的对齐：</p>
+        <p>一种启发式方法是在每个时间步选择概率最高的输出。这给了我们概率最高的对齐：</p>
       
     
       
@@ -336,28 +348,28 @@ A^* \enspace = \enspace {\mathop{\text{argmax}}\limits_{A}} \enspace  \prod_{t=1
       
     
       
-        <p>然后我们可以合并重复字符并移除 <span class="math-inline" data-math="\epsilon">\epsilon</span> 标记，得到 <span class="math-inline" data-math="Y.">Y.</span></p>
+        <p>然后我们可以合并重复并移除 <span class="math-inline" data-math="\epsilon">\epsilon</span> 标记，得到 <span class="math-inline" data-math="Y.">Y.</span></p>
       
     
       
-        <p>对于许多应用，这种启发式方法效果很好，特别是当大部分概率质量集中在一个对齐上时。然而，这种方法有时会错过那些更容易找到且概率高得多的输出。问题在于，它没有考虑到单个输出可能对应多个对齐的事实。</p>
+        <p>对于许多应用来说，这种启发式方法效果良好，特别是当大部分概率质量都集中在一个对齐上时。然而，这种方法有时会错过那些容易找到且概率高得多的输出。问题在于，它没有考虑到单个输出可能对应多个对齐。</p>
       
     
       
-        <p>这里有一个例子。假设对齐 [a, a, <span class="math-inline" data-math="\epsilon">\epsilon</span>] 和 [a, a, a] 各自的概率都低于 [b, b, b]。但它们的概率之和实际上大于 [b, b, b]。朴素的启发式方法会错误地提出 <span class="math-inline" data-math="Y =">Y =</span> [b] 作为最可能的假设。它本应选择 <span class="math-inline" data-math="Y =">Y =</span> [a]。为了解决这个问题，算法需要考虑到 [a, a, a] 和 [a, a, <span class="math-inline" data-math="\epsilon">\epsilon</span>] 会合并为相同输出这一事实。</p>
+        <p>这里有一个例子。假设对齐 [a, a, <span class="math-inline" data-math="\epsilon">\epsilon</span>] 和 [a, a, a] 各自的概率都低于 [b, b, b]。但它们的概率之和实际上大于 [b, b, b]。朴素的启发式方法会错误地将 <span class="math-inline" data-math="Y =">Y =</span> [b] 作为最可能的假设。它本应选择 <span class="math-inline" data-math="Y =">Y =</span> [a]。为了解决这个问题，算法需要考虑到 [a, a, a] 和 [a, a, <span class="math-inline" data-math="\epsilon">\epsilon</span>] 会坍缩为相同输出的事实。</p>
       
     
       
-        <p>我们可以使用改进的集束搜索（beam search）来解决这个问题。在计算资源有限的情况下，改进的集束搜索不一定能找到概率最大的 <span class="math-inline" data-math="Y.">Y.</span>。但它至少有一个很好的特性：我们可以通过增加计算量（更大的 beam size）来获得渐近更好的解。</p>
+        <p>我们可以使用改进的集束搜索（beam search）来解决这个问题。在计算资源有限的情况下，改进的集束搜索不一定能找到概率最高的 <span class="math-inline" data-math="Y.">Y.</span>。但它至少有一个很好的特性，即我们可以用更多的计算（更大的 beam size）换取渐近更好的解。</p>
       
     
       
-        <p>常规的集束搜索在每个输入步骤都会计算一组新的假设。这组新假设是通过将之前的所有假设用所有可能的输出字符进行扩展，然后仅保留得分最高的候选者而生成的。</p>
+        <p>常规的集束搜索在每个输入步骤计算一组新的假设。这组新假设是通过将前一组中的每个假设用所有可能的输出字符扩展，然后保留得分最高的候选者而生成的。</p>
       
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/beam_search.svg" alt="">
+          <img src="../images/2017-ctc/beam_search.svg" alt="">
           <figcaption>A standard beam search algorithm with an alphabet of
   <span class="math-inline" data-math="\{\epsilon, a, b\}">\{\epsilon, a, b\}</span> and a beam size
   of three.</figcaption>
@@ -365,35 +377,47 @@ A^* \enspace = \enspace {\mathop{\text{argmax}}\limits_{A}} \enspace  \prod_{t=1
       
     
       
-        <p>我们可以修改标准的集束搜索，以处理多个对齐映射到同一输出的情况。在这种情况下，我们不在集束中保存对齐列表，而是保存合并重复并移除 <span class="math-inline" data-math="\epsilon">\epsilon</span> 字符后的输出前缀。在搜索的每一步，我们都会根据所有映射到该前缀的对齐来累积该前缀的分数。</p>
+        <p>我们可以修改普通集束搜索以处理多个对齐映射到同一输出的情况。在这种情况下，我们不在 beam 中存储对齐列表，而是存储合并重复并移除 <span class="math-inline" data-math="\epsilon">\epsilon</span> 字符后的输出前缀。在搜索的每一步，我们根据所有映射到它的对齐来累积给定前缀的分数。</p>
       
     
       
-        <p>当提出的扩展字符是重复字符时，它可能映射到两个输出前缀。这在上面图中的 <span class="math-inline" data-math="T=3">T=3</span> 处有所展示，其中‘a’被提出作为前缀 [a] 的扩展。[a] 和 [a, a] 都是这个扩展的有效输出。</p>
+        <p>[交互图：具有输出字母表 <span class="math-inline" data-math="\{\epsilon, a, b\}">\{\epsilon, a, b\}</span> 和 beam size 为三的 CTC 集束搜索算法——查看原文：https://distill.pub/2017/ctc]</p>
       
     
       
-        <p>当我们将 [a] 扩展为 [a,a] 时，我们只想包含前一得分中那些以 <span class="math-inline" data-math="\epsilon.">\epsilon.</span> 结尾的对齐部分。请记住，重复字符之间需要 <span class="math-inline" data-math="\epsilon">\epsilon</span>。类似地，当我们不扩展前缀而是生成 [a] 时，我们应该只包含前一得分中那些不以 <span class="math-inline" data-math="\epsilon.">\epsilon.</span> 结尾的对齐部分。</p>
+        <p>当字符是重复时，提出的扩展可能会映射到两个输出前缀。这在上面图中的 <span class="math-inline" data-math="T=3">T=3</span> 处显示，其中 ‘a’ 被提出作为前缀 [a] 的扩展。对于这个提议的扩展，[a] 和 [a, a] 都是有效的输出。</p>
       
     
       
-        <p>因此，我们必须为集束中的每个前缀跟踪两个概率：所有以 <span class="math-inline" data-math="\epsilon">\epsilon</span> 结尾的对齐的概率，以及所有不以 <span class="math-inline" data-math="\epsilon.">\epsilon.</span> 结尾的对齐的概率。在每一步剪枝集束之前对假设进行排序时，我们会使用它们的综合得分。</p>
+        <p>当我们将 [a] 扩展为 [a,a] 时，我们只想包含前一个得分中那些以 <span class="math-inline" data-math="\epsilon.">\epsilon.</span> 结束的对齐部分。请记住，重复字符之间必须有 <span class="math-inline" data-math="\epsilon">\epsilon</span>。类似地，当我们不扩展前缀而生成 [a] 时，我们应该只包含前一个得分中那些不以 <span class="math-inline" data-math="\epsilon.">\epsilon.</span> 结束的对齐部分。</p>
       
     
       
-        <p>这个算法的实现不需要太多代码，但内容密集且容易出错。可以查看这个 <a href="https://gist.github.com/awni/56369a90d03953e370f3964c826ed4b0" target="_blank" rel="noopener">gist</a>，其中提供了 Python 的示例实现。</p>
+        <p>因此，我们必须为 beam 中的每个前缀跟踪两个概率。以 <span class="math-inline" data-math="\epsilon">\epsilon</span> 结束的所有对齐的概率，以及不以 <span class="math-inline" data-math="\epsilon.">\epsilon.</span> 结束的所有对齐的概率。当我们在每一步修剪 beam 之前对假设进行排序时，我们将使用它们的综合得分。</p>
       
     
       
-        <p>在某些问题中，例如语音识别，引入针对输出的语言模型可以显著提高准确率。我们可以将语言模型作为推断问题中的一个因子来包含。</p>
+        <p>[交互图——查看原文：https://distill.pub/2017/ctc]</p>
       
     
       
-        <p>函数 <span class="math-inline" data-math="L(Y)">L(Y)</span> 以语言模型标记为单位计算 <span class="math-inline" data-math="Y">Y</span> 的长度，并作为单词插入奖励（word insertion bonus）。使用基于词的语言模型时，<span class="math-inline" data-math="L(Y)">L(Y)</span> 计算 <span class="math-inline" data-math="Y.">Y.</span> 中的单词数量。如果使用基于字符的语言模型，则 <span class="math-inline" data-math="L(Y)">L(Y)</span> 计算 <span class="math-inline" data-math="Y.">Y.</span> 中的字符数量。语言模型得分仅在通过字符（或单词）扩展前缀时包含，而非算法的每一步都包含。这会导致搜索偏好较短的前缀（以 <span class="math-inline" data-math="L(Y)">L(Y)</span> 衡量），因为它们包含的语言模型更新较少。单词插入奖励有助于缓解这个问题。参数 <span class="math-inline" data-math="\alpha">\alpha</span> 和 <span class="math-inline" data-math="\beta">\beta</span> 通常通过交叉验证来设置。</p>
+        <p>这个算法的实现不需要太多代码，但内容密集且容易出错。可以查看这个 <a href="https://gist.github.com/awni/56369a90d03953e370f3964c826ed4b0" target="_blank" rel="noopener">gist</a> 中的 Python 示例实现。</p>
       
     
       
-        <p>语言模型得分和单词插入项可以纳入集束搜索。每当我们提出通过某个字符扩展前缀时，就可以包含给定当前前缀的下一个字符的语言模型得分。</p>
+        <p>在某些问题中，例如语音识别，加入针对输出的语言模型可以显著提高准确率。我们可以将语言模型作为推断问题中的一个因子来包含。</p>
+      
+    
+      
+        <p>[交互图：CTC 条件概率——查看原文：https://distill.pub/2017/ctc]</p>
+      
+    
+      
+        <p>函数 <span class="math-inline" data-math="L(Y)">L(Y)</span> 以语言模型标记为单位计算 <span class="math-inline" data-math="Y">Y</span> 的长度，并作为词插入奖励。在基于词的语言模型中，<span class="math-inline" data-math="L(Y)">L(Y)</span> 计算 <span class="math-inline" data-math="Y.">Y.</span> 中的词数。如果我们使用基于字符的语言模型，那么 <span class="math-inline" data-math="L(Y)">L(Y)</span> 计算 <span class="math-inline" data-math="Y.">Y.</span> 中的字符数。语言模型得分仅在通过字符（或词）扩展前缀时才包含，而不是在算法的每一步都包含。这会导致搜索偏好较短的前缀（按 <span class="math-inline" data-math="L(Y)">L(Y)</span> 衡量），因为它们包含的语言模型更新较少。词插入奖励有助于缓解这个问题。参数 <span class="math-inline" data-math="\alpha">\alpha</span> 和 <span class="math-inline" data-math="\beta">\beta</span> 通常通过交叉验证来设置。</p>
+      
+    
+      
+        <p>语言模型得分和词插入项可以包含在集束搜索中。每当我们提议通过一个字符来扩展前缀时，我们可以包含给定当前前缀的下一个字符的语言模型得分。</p>
       
     
       
@@ -402,7 +426,7 @@ A^* \enspace = \enspace {\mathop{\text{argmax}}\limits_{A}} \enspace  \prod_{t=1
       
     
       
-        <p>到目前为止我们提到了一些 CTC 的重要特性。下面我们将更深入地讨论这些特性是什么，以及它们带来的权衡。</p>
+        <p>目前我们提到了一些 CTC 的重要特性。在这里我们将更深入地讨论这些特性是什么，以及它们带来的权衡。</p>
       
     
       
@@ -416,7 +440,7 @@ A^* \enspace = \enspace {\mathop{\text{argmax}}\limits_{A}} \enspace  \prod_{t=1
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/conditional_independence.svg" alt="">
+          <img src="../images/2017-ctc/conditional_independence.svg" alt="">
           <figcaption>Graphical model for CTC.</figcaption>
         </figure>
       
@@ -426,12 +450,12 @@ A^* \enspace = \enspace {\mathop{\text{argmax}}\limits_{A}} \enspace  \prod_{t=1
       
     
       
-        <p>假设我们有一段某人说“triple A”的音频片段。[<cite>[Chan2016las]</cite>] 另一个有效的转录可能是“AAA”。如果预测转录的第一个字母是‘A’，那么下一个字母应该是‘A’的概率很高，是‘r’的概率很低。而条件独立性假设不允许这种情况。</p>
+        <p>假设我们有一个某人说“triple A”的音频片段。[<cite>[Chan2016las]</cite>] 另一个有效的转录可能是“AAA”。如果预测转录的第一个字母是‘A’，那么下一个字母应该是‘A’的概率很高，而‘r’的概率很低。条件独立性假设不允许这种情况发生。</p>
       
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/triple_a.svg" alt="">
+          <img src="../images/2017-ctc/triple_a.svg" alt="">
           <figcaption>If we predict an ‘A’ as the first letter then the suffix ‘AA’ should get much
     more probability than ‘riple A’. If we predict ‘t’ first, the opposite
     should be true.</figcaption>
@@ -439,11 +463,11 @@ A^* \enspace = \enspace {\mathop{\text{argmax}}\limits_{A}} \enspace  \prod_{t=1
       
     
       
-        <p>事实上，使用 CTC 的语音识别器在输出上的语言模型学习能力远不如那些条件相关的模型。[<cite>[Battenberg2017]</cite>] 不过，我们可以引入一个独立的语言模型，通常能显著提升准确率。</p>
+        <p>事实上，使用 CTC 的语音识别器对输出语言模型的学习效果远不如那些条件相关的模型。[<cite>[Battenberg2017]</cite>] 不过，可以加入一个独立的语言模型，通常能显著提升准确率。</p>
       
     
       
-        <p>CTC 所做的条件独立性假设并不总是坏事。将输出之间交互的强烈信念 baked into 模型，会使模型对新领域或改变后的领域的适应性降低。例如，我们可能想用在朋友间电话对话上训练的语音识别器来转录客服电话。尽管声学模型相似，但两个领域的语言可能差异很大。使用 CTC 声学模型时，我们可以在切换领域时轻松更换新的语言模型。</p>
+        <p>CTC 所做的条件独立性假设并不总是坏事。将输出交互的强烈信念 baked into 模型会使模型对新领域或变化领域的适应性降低。例如，我们可能想用在朋友间电话对话上训练的语音识别器来转录客服电话。即使声学模型相似，这两个领域的语言也可能大不相同。使用 CTC 声学模型，我们可以在改变领域时轻松更换新的语言模型。</p>
       
     
       
@@ -452,31 +476,31 @@ A^* \enspace = \enspace {\mathop{\text{argmax}}\limits_{A}} \enspace  \prod_{t=1
       
     
       
-        <p>CTC 算法是无对齐的。其目标函数对所有可能的对齐进行边际化处理。虽然 CTC 对 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 之间的对齐形式做出了强烈假设，但模型并不关心概率如何在这些对齐中分配。在某些问题中，CTC 会将大部分概率分配给单个对齐。但这并非必然。
+        <p>CTC 算法是无对齐的。目标函数对所有对齐进行边缘化。虽然 CTC 对 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 之间的对齐形式做出了强烈假设，但模型对概率如何在这些对齐中分配是 agnostic 的。在某些问题中，CTC 最终会将大部分概率分配给单个对齐。然而，这并不能保证。
 <sup id="fnref-f2n"><a href="#f2n">[2]</a></sup></p>
       
     
       
-        <p>如前所述，CTC 只允许单调对齐。在语音识别等问题中，这可能是一个合理的假设。但对于机器翻译等其他问题——目标句子中的未来词可能与源句子较早部分对齐——这个假设就是致命的。</p>
+        <p>如前所述，CTC 只允许单调对齐。在语音识别等问题中，这可能是一个合理的假设。对于机器翻译等其他问题，其中目标句子中的未来词可能与源句子的较早部分对齐，这个假设就成了致命缺陷。</p>
       
     
       
-        <p>CTC 对齐的另一个重要特性是它们是多对一的。多个输入最多只能对齐到一个输出。在某些情况下，这可能并不理想。我们可能希望在 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y.">Y.</span> 的元素之间强制严格的一对一对应关系。或者，我们可能希望允许多个输出元素对齐到单个输入元素。例如，字符“th”可能对应音频的单个输入时间步。基于字符的 CTC 模型不允许这种情况。</p>
+        <p>CTC 对齐的另一个重要特性是它们是多对一的。多个输入最多只能对齐到一个输出。在某些情况下，这可能并不理想。我们可能希望强制 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y.">Y.</span> 的元素之间严格一一对应。或者，我们可能希望允许多个输出元素对齐到一个输入元素。例如，字符“th”可能对齐到音频的单个输入步骤。基于字符的 CTC 模型不允许这种情况。</p>
       
     
       
         <p>多对一的特性意味着输出的时间步数不能多于输入。
 <sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>
-对于语音和手写识别来说，这通常不是问题，因为输入比输出长得多。然而，对于那些 <span class="math-inline" data-math="Y">Y</span> 经常比 <span class="math-inline" data-math="X">X</span> 更长的问题，CTC 就无法工作了。</p>
+对于语音和手写识别来说，这通常不是问题，因为输入比输出长得多。然而，对于其他 <span class="math-inline" data-math="Y">Y</span> 通常比 <span class="math-inline" data-math="X">X</span> 更长的问题，CTC 就无法工作了。</p>
       
     
       
-        <h2>CTC 的上下文</h2>
+        <h2>CTC 的背景</h2>
         
       
     
       
-        <p>在本节中，我们将讨论 CTC 与其他常用序列建模算法之间的关系。</p>
+        <p>在本节中，我们将讨论 CTC 与其他常用序列建模算法的关系。</p>
       
     
       
@@ -485,11 +509,11 @@ A^* \enspace = \enspace {\mathop{\text{argmax}}\limits_{A}} \enspace  \prod_{t=1
       
     
       
-        <p>乍一看，隐马尔可夫模型（Hidden Markov Model，简称 HMM）与 CTC 似乎差异很大。但实际上，这两种算法非常相似。理解它们之间的关系有助于我们理解 CTC 相对于 HMM 序列模型的优势，并为如何针对不同用例修改 CTC 提供洞见。</p>
+        <p>乍一看，隐马尔可夫模型（Hidden Markov Model，简称 HMM）与 CTC 似乎大不相同。但实际上，这两种算法非常相似。理解它们之间的关系将帮助我们理解 CTC 相对于 HMM 序列模型的优势，并为如何针对不同用例修改 CTC 提供洞见。</p>
       
     
       
-        <p>让我们使用之前的记号，<span class="math-inline" data-math="X">X</span> 是输入序列，<span class="math-inline" data-math="Y">Y</span> 是输出序列，长度分别为 <span class="math-inline" data-math="T">T</span> 和 <span class="math-inline" data-math="U">U</span>。我们感兴趣的是学习 <span class="math-inline" data-math="p(Y \mid X).">p(Y \mid X).</span>。简化问题的一种方法是应用贝叶斯法则：</p>
+        <p>我们使用和之前一样的符号，<span class="math-inline" data-math="X">X</span> 是输入序列，<span class="math-inline" data-math="Y">Y</span> 是输出序列，长度分别为 <span class="math-inline" data-math="T">T</span> 和 <span class="math-inline" data-math="U">U</span>。我们感兴趣的是学习 <span class="math-inline" data-math="p(Y \mid X).">p(Y \mid X).</span>。简化问题的一种方法是应用贝叶斯定理：</p>
       
     
       
@@ -501,7 +525,7 @@ p(Y \mid X) \; \propto \; p(X \mid Y) \; p(Y).
       
     
       
-        <p><span class="math-inline" data-math="p(Y)">p(Y)</span> 项可以是任意语言模型，因此我们重点关注 <span class="math-inline" data-math="p(X \mid Y).">p(X \mid Y).</span>。和之前一样，我们令 <span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 为 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y.">Y.</span> 之间允许的对齐集合。<span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 中的成员长度为 <span class="math-inline" data-math="T.">T.</span>。我们暂时不具体定义 <span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span>，稍后会回到这个问题。我们可以对对齐进行边际化处理，得到</p>
+        <p><span class="math-inline" data-math="p(Y)">p(Y)</span> 项可以是任意语言模型，因此我们重点关注 <span class="math-inline" data-math="p(X \mid Y).">p(X \mid Y).</span>。和之前一样，我们令 <span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 为 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y.">Y.</span> 之间允许的对齐集合。<span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 的成员长度为 <span class="math-inline" data-math="T.">T.</span>。我们暂且不具体定义 <span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span>，稍后再讨论。我们可以对对齐进行边缘化，得到</p>
       
     
       
@@ -513,22 +537,26 @@ p(X \mid Y)\; = \; \sum_{A \in \mathcal{A}} \; p(X, A \mid Y).
       
     
       
-        <p>为简化记号，我们去掉对 <span class="math-inline" data-math="Y">Y</span> 的条件，它会出现在每个 <span class="math-inline" data-math="p(\cdot).">p(\cdot).</span> 中。通过两个假设，我们可以写出标准的 HMM。</p>
+        <p>为简化符号，我们去掉对 <span class="math-inline" data-math="Y">Y</span> 的条件，它会出现在每个 <span class="math-inline" data-math="p(\cdot).">p(\cdot).</span> 中。基于两个假设，我们可以写出标准的 HMM。</p>
       
     
       
-        <p>第一个假设是通常的马尔可夫性质。状态 <span class="math-inline" data-math="a_t">a_t</span> 在给定前一状态 <span class="math-inline" data-math="a_{t-1}.">a_{t-1}.</span> 的条件下，与所有历史状态条件独立。第二个假设是观测 <span class="math-inline" data-math="x_t">x_t</span> 在给定当前状态 <span class="math-inline" data-math="a_t.">a_t.</span> 的条件下，与其他所有变量条件独立。</p>
+        <p>[交互图：输入的概率——查看原文：https://distill.pub/2017/ctc]</p>
+      
+    
+      
+        <p>第一个假设是通常的马尔可夫性质。状态 <span class="math-inline" data-math="a_t">a_t</span> 在给定前一状态 <span class="math-inline" data-math="a_{t-1}.">a_{t-1}.</span> 的条件下，与所有历史状态条件独立。第二个是观测 <span class="math-inline" data-math="x_t">x_t</span> 在给定当前状态 <span class="math-inline" data-math="a_t.">a_t.</span> 的条件下，与其他所有变量条件独立。</p>
       
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/hmm.svg" alt="">
+          <img src="../images/2017-ctc/hmm.svg" alt="">
           <figcaption>The graphical model for an HMM.</figcaption>
         </figure>
       
     
       
-        <p>现在我们可以通过几个步骤将 HMM 转换为 CTC，并看到两个模型之间的关系。首先，假设转移概率 <span class="math-inline" data-math="p(a_t \mid a_{t-1})">p(a_t \mid a_{t-1})</span> 是均匀的。这给出</p>
+        <p>现在我们可以通过几个步骤将 HMM 转化为 CTC，并看到两个模型如何关联。首先，假设转移概率 <span class="math-inline" data-math="p(a_t \mid a_{t-1})">p(a_t \mid a_{t-1})</span> 是均匀的。这给出</p>
       
     
       
@@ -540,11 +568,11 @@ p(X) \enspace \propto \enspace \sum_{A \in \mathcal{A}} \enspace \prod_{t=1}^T \
       
     
       
-        <p>这个方程与 CTC 损失函数只有两处不同。第一是我们学习的是给定 <span class="math-inline" data-math="Y">Y</span> 的 <span class="math-inline" data-math="X">X</span> 模型，而不是给定 <span class="math-inline" data-math="X.">X.</span> 的 <span class="math-inline" data-math="Y">Y</span> 模型。第二是集合 <span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 的生成方式。我们依次讨论这两点。</p>
+        <p>这个方程与 CTC 损失函数只有两个不同之处。首先是我们学习的是 <span class="math-inline" data-math="X">X</span> 给定 <span class="math-inline" data-math="Y">Y</span> 的模型，而不是 <span class="math-inline" data-math="Y">Y</span> 给定 <span class="math-inline" data-math="X.">X.</span> 的模型。其次是集合 <span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 是如何产生的。我们依次讨论这两点。</p>
       
     
       
-        <p>HMM 可以与估计 <span class="math-inline" data-math="p(a \mid x).">p(a \mid x).</span> 的判别模型一起使用。为此，我们应用贝叶斯法则并将模型重写为</p>
+        <p>HMM 可以与估计 <span class="math-inline" data-math="p(a \mid x).">p(a \mid x).</span> 的判别模型一起使用。为此，我们应用贝叶斯定理并将模型重写为</p>
       
     
       
@@ -564,7 +592,7 @@ p(X) \enspace \propto \enspace \sum_{A \in \mathcal{A}} \enspace \prod_{t=1}^T \
       
     
       
-        <p>如果我们假设状态 <span class="math-inline" data-math="a">a</span> 上的先验是均匀的，并且对整个 <span class="math-inline" data-math="X">X</span> 而不是单个元素进行条件化，我们就得到</p>
+        <p>如果我们假设状态 <span class="math-inline" data-math="a">a</span> 上的先验是均匀的，并对整个 <span class="math-inline" data-math="X">X</span> 而不是一次一个元素进行条件化，我们得到</p>
       
     
       
@@ -576,37 +604,37 @@ p(X) \enspace \propto \enspace \sum_{A \in \mathcal{A}} \enspace \prod_{t=1}^T \
       
     
       
-        <p>上述方程本质上就是 CTC 损失函数，前提是集合 <span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 相同。事实上，HMM 框架并没有指定 <span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 应该由什么组成。这部分模型可以针对具体问题进行设计。在许多情况下，模型不依赖于 <span class="math-inline" data-math="Y">Y</span>，而集合 <span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 包含输出字母表中所有可能的长度为 <span class="math-inline" data-math="T">T</span> 的序列。在这种情况下，HMM 可以画成一个各态遍历（ergodic）的状态转移图，其中每个状态都与其他所有状态相连。下图展示了使用字母表或唯一隐状态集合为 <span class="math-inline" data-math="\{a, b, c\}.">\{a, b, c\}.</span> 的这种模型。</p>
+        <p>上述方程本质上就是 CTC 损失函数，前提是集合 <span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 是相同的。事实上，HMM 框架并没有指定 <span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 应该由什么组成。这部分模型可以根据具体问题来设计。在许多情况下，模型不以 <span class="math-inline" data-math="Y">Y</span> 为条件，而集合 <span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 包含输出字母表中所有可能的长度为 <span class="math-inline" data-math="T">T</span> 的序列。在这种情况下，HMM 可以画成一个遍历的状态转移图，其中每个状态都连接到其他所有状态。下图展示了这个模型，其中字母表或唯一隐藏状态的集合为 <span class="math-inline" data-math="\{a, b, c\}.">\{a, b, c\}.</span></p>
       
     
       
-        <p>在我们的例子中，模型允许的转移与 <span class="math-inline" data-math="Y.">Y.</span> 密切相关。我们希望 HMM 能反映这一点。一种可能的模型是简单的线性状态转移图。下图展示了使用相同字母表和 <span class="math-inline" data-math="Y =">Y =</span> [a, b] 的情况。另一种常用的模型是 Bakis 或从左到右的 HMM。在这种模型中，任何从左到右的转移都是允许的。</p>
+        <p>在我们的例子中，模型允许的转移与 <span class="math-inline" data-math="Y.">Y.</span> 密切相关。我们希望 HMM 能反映这一点。一种可能的模型是简单的线性状态转移图。下图展示了使用与之前相同字母表和 <span class="math-inline" data-math="Y =">Y =</span> [a, b] 的情况。另一种常用的模型是 Bakis 或左到右 HMM。在这个模型中，任何从左到右的转移都是允许的。</p>
       
     
       
         <figure>
-          <img src="https://distill.pub/2017/assets/ergodic_hmm.svg" alt="">
+          <img src="../images/2017-ctc/ergodic_hmm.svg" alt="">
           <figcaption>Ergodic HMM: Any node can be either a starting or
     final state.</figcaption>
         </figure>
       
     
       
-        <p>在 CTC 中，我们用 <span class="math-inline" data-math="\epsilon">\epsilon</span> 扩充字母表，HMM 模型允许一部分从左到右的转移。CTC HMM 有两个起始状态和两个接受状态。</p>
+        <p>在 CTC 中，我们用 <span class="math-inline" data-math="\epsilon">\epsilon</span> 扩展字母表，而 HMM 模型允许左到右转移的一个子集。CTC HMM 有两个起始状态和两个接受状态。</p>
       
     
       
-        <p>一个可能的困惑点是，HMM 模型会针对任何唯一的 <span class="math-inline" data-math="Y.">Y.</span> 而不同。这在语音识别等应用中实际上是标准的。状态图会根据输出 <span class="math-inline" data-math="Y.">Y.</span> 发生变化。然而，估计观测概率和转移概率的函数是共享的。</p>
+        <p>一个可能引起混淆的地方是，对于任何唯一的 <span class="math-inline" data-math="Y.">Y.</span>，HMM 模型都不一样。这在语音识别等应用中实际上是标准的。状态图会根据输出 <span class="math-inline" data-math="Y.">Y.</span> 变化。但是，估计观测和转移概率的函数是共享的。</p>
       
     
       
-        <p>让我们讨论 CTC 如何改进原始的 HMM 模型。首先，我们可以将 CTC 状态图视为一种特殊的 HMM，它对许多我们感兴趣的问题都适用。在 HMM 中引入空白作为隐状态，允许我们使用 <span class="math-inline" data-math="Y">Y</span> 的字母表作为其他隐状态。这种模型还提供了一组允许的对齐，对于某些问题可能是一个好的先验。</p>
+        <p>让我们讨论 CTC 如何改进原始的 HMM 模型。首先，我们可以将 CTC 状态图视为一个特殊的 HMM，它对许多我们感兴趣的问题都适用。将空白作为一个隐藏状态加入 HMM 允许我们使用 <span class="math-inline" data-math="Y">Y</span> 的字母表作为其他隐藏状态。这个模型还提供了一组允许的对齐，对于某些问题可能是一个很好的先验。</p>
       
     
       
-        <p>或许最重要的是，CTC 是判别的。它直接对 <span class="math-inline" data-math="p(Y \mid
+        <p>也许最重要的是，CTC 是判别式的。它直接对 <span class="math-inline" data-math="p(Y \mid
   X)">p(Y \mid
-  X)</span> 建模，这一思想在过去其他对 HMM 的判别改进中已被证明很重要。[<cite>[Woodland2002]</cite>] 判别训练让我们能够将强大的学习算法（如 RNN）直接应用于我们关心的问题。</p>
+  X)</span> 建模，这一想法在过去通过其他对 HMM 的判别式改进中已被证明很重要。[<cite>[Woodland2002]</cite>] 判别式训练让我们能够将强大的学习算法如 RNN 直接应用于我们关心的问题。</p>
       
     
       
@@ -615,7 +643,7 @@ p(X) \enspace \propto \enspace \sum_{A \in \mathcal{A}} \enspace \prod_{t=1}^T \
       
     
       
-        <p>编码器-解码器可能是使用神经网络进行序列建模最常用的框架。这些模型包含一个编码器和一个解码器。编码器将输入序列 <span class="math-inline" data-math="X">X</span> 映射为隐表示。解码器消费这个隐表示并产生输出上的分布。我们可以将其写为</p>
+        <p>编码器-解码器可能是使用神经网络进行序列建模最常用的框架。这些模型有一个编码器和一个解码器。编码器将输入序列 <span class="math-inline" data-math="X">X</span> 映射到一个隐藏表示。解码器消费这个隐藏表示并产生输出的分布。我们可以将其写为</p>
       
     
       
@@ -633,46 +661,46 @@ p(Y \mid X)\enspace &amp;= \enspace \textsf{decode}(H).
       
     
       
-        <p><span class="math-inline" data-math="\textsf{encode}(\cdot)">\textsf{encode}(\cdot)</span> 和 <span class="math-inline" data-math="\textsf{decode}(\cdot)">\textsf{decode}(\cdot)</span> 函数通常是 RNN。解码器可以选择性地配备注意力机制。隐状态序列 <span class="math-inline" data-math="H">H</span> 与输入具有相同的时间步数，即 <span class="math-inline" data-math="T.">T.</span>。有时编码器会对输入进行下采样。如果编码器以因子 <span class="math-inline" data-math="s">s</span> 对输入进行下采样，那么 <span class="math-inline" data-math="H">H</span> 将具有 <span class="math-inline" data-math="T/s">T/s</span> 个时间步。</p>
+        <p><span class="math-inline" data-math="\textsf{encode}(\cdot)">\textsf{encode}(\cdot)</span> 和 <span class="math-inline" data-math="\textsf{decode}(\cdot)">\textsf{decode}(\cdot)</span> 函数通常是 RNN。解码器可以选择性地配备注意力机制。隐藏状态序列 <span class="math-inline" data-math="H">H</span> 与输入具有相同的时间步数，即 <span class="math-inline" data-math="T.">T.</span>。有时编码器会对输入进行下采样。如果编码器以因子 <span class="math-inline" data-math="s">s</span> 对输入进行下采样，那么 <span class="math-inline" data-math="H">H</span> 将有 <span class="math-inline" data-math="T/s">T/s</span> 个时间步。</p>
       
     
       
-        <p>我们可以将 CTC 解释为编码器-解码器框架中的一种模型。这有助于理解编码器-解码器模型中哪些进展可以应用于 CTC，并为这些模型的特性建立共同语言。</p>
+        <p>我们可以在编码器-解码器框架中解释 CTC。这有助于理解适用于 CTC 的编码器-解码器模型的发展，并为这些模型的特性建立共同语言。</p>
       
     
       
-        <p>编码器：CTC 模型的编码器可以是我们在常用编码器-解码器模型中找到的几乎任何编码器。例如，编码器可以是多层双向 RNN 或卷积网络。但 CTC 编码器有一个其他模型没有的约束：输入长度不能被下采样到使 <span class="math-inline" data-math="T/s">T/s</span> 小于输出长度。</p>
+        <p>编码器：CTC 模型的编码器可以是我们在常用编码器-解码器模型中找到的几乎任何编码器。例如，编码器可以是多层双向 RNN 或卷积网络。CTC 编码器有一个不适用于其他编码器的约束。输入长度不能被下采样到 <span class="math-inline" data-math="T/s">T/s</span> 小于输出长度的情况。</p>
       
     
       
-        <p>解码器：我们可以将 CTC 模型的解码器视为一个简单的线性变换后接 softmax 归一化。这一层应该将编码器输出的所有 <span class="math-inline" data-math="T">T</span> 个时间步 <span class="math-inline" data-math="H">H</span> 投影到输出字母表的维度上。</p>
+        <p>解码器：我们可以将 CTC 模型的解码器视为一个简单的线性变换后接 softmax 归一化。这一层应该将编码器输出的所有 <span class="math-inline" data-math="T">T</span> 步 <span class="math-inline" data-math="H">H</span> 投影到输出字母表的维度上。</p>
       
     
       
-        <p>我们之前提到，CTC 对输出序列中的字符做出了条件独立性假设。这是其他编码器-解码器模型相对于 CTC 的一个重大优势——它们可以对输出之间的依赖关系建模。然而在实践中，CTC 在语音识别等任务中仍然更为常用，因为我们可以通过引入外部语言模型来部分克服条件独立性假设。</p>
+        <p>我们之前提到 CTC 对输出序列中的字符做出了条件独立性假设。这是其他编码器-解码器模型相对于 CTC 的一个重大优势——它们可以对输出之间的依赖关系建模。但在实践中，CTC 在语音识别等任务中仍然更常用，因为我们可以通过加入外部语言模型部分克服条件独立性假设。</p>
       
     
       
-        <h2>实践者指南</h2>
+        <h2>实用者指南</h2>
         
       
     
       
-        <p>到目前为止，我们主要建立了对 CTC 的概念理解。下面我们将介绍一些针对实践者的实现技巧。</p>
+        <p>到目前为止，我们主要建立了对 CTC 的概念理解。在这里我们将介绍一些针对实践者的实现技巧。</p>
       
     
       
-        <p>软件：即使对 CTC 有扎实的理解，实现仍然很困难。该算法有多个边界情况，快速实现应该用底层编程语言编写。开源软件工具大大降低了入门难度：</p>
+        <p>软件：即使对 CTC 有扎实的理解，实现仍然很困难。该算法有几个边界情况，一个快速的实现应该用低级编程语言编写。开源软件工具大大降低了入门的难度：</p>
       
     
       
-        <div class="list-content">Baidu Research 已开源 <a href="https://github.com/baidu-research/warp-ctc" target="_blank" rel="noopener">warp-ctc</a>。该软件包用 C++ 和 CUDA 编写。CTC 损失函数可以在 CPU 或 GPU 上运行。已提供对 Torch、TensorFlow 和 <a href="https://github.com/awni/warp-ctc" target="_blank" rel="noopener">PyTorch</a> 的绑定。  
-TensorFlow 内置了适用于 CPU 的 <a href="https://www.tensorflow.org/api_docs/python/tf/nn/ctc_loss" target="_blank" rel="noopener">CTC 损失</a> 和 <a href="https://www.tensorflow.org/api_docs/python/tf/nn/ctc_beam_search_decoder" target="_blank" rel="noopener">CTC 集束搜索</a> 函数。  
-Nvidia 也在 <a href="https://developer.nvidia.com/cudnn" target="_blank" rel="noopener">cuDNN</a> 7 及以上版本中提供了 CTC 的 GPU 实现。</div>
+        <div class="list-content">Baidu Research 已开源了 <a href="https://github.com/baidu-research/warp-ctc" target="_blank" rel="noopener">warp-ctc</a>。该软件包用 C++ 和 CUDA 编写。CTC 损失函数可以在 CPU 或 GPU 上运行。提供了 Torch、TensorFlow 和 <a href="https://github.com/awni/warp-ctc" target="_blank" rel="noopener">PyTorch</a> 的绑定。
+TensorFlow 内置了针对 CPU 的 <a href="https://www.tensorflow.org/api_docs/python/tf/nn/ctc_loss" target="_blank" rel="noopener">CTC 损失</a> 和 <a href="https://www.tensorflow.org/api_docs/python/tf/nn/ctc_beam_search_decoder" target="_blank" rel="noopener">CTC 集束搜索</a> 函数。
+Nvidia 还在 <a href="https://developer.nvidia.com/cudnn" target="_blank" rel="noopener">cuDNN</a> 7 及以上版本中提供了 CTC 的 GPU 实现。</div>
       
     
       
-        <p>数值稳定性：朴素地计算 CTC 损失在数值上是不稳定的。避免这个问题的一种方法是在每个时间步对 <span class="math-inline" data-math="\alpha">\alpha</span> 进行归一化。原始论文对此有更多细节，包括对梯度的调整。[<cite>[Graves2006]</cite>] 在实践中，这对中等长度序列效果足够好，但对于长序列仍可能下溢。一个更好的解决方案是在对数空间中使用 log-sum-exp 技巧来计算损失函数。
+        <p>数值稳定性：朴素地计算 CTC 损失在数值上是不稳定的。避免这个问题的一种方法是在每个时间步对 <span class="math-inline" data-math="\alpha">\alpha</span> 进行归一化。原始论文对此有更多细节，包括对梯度的调整。[<cite>[Graves2006]</cite>] 在实践中，这对于中等长度的序列效果足够好，但对于长序列仍可能下溢。一个更好的解决方案是在对数空间中使用 log-sum-exp 技巧来计算损失函数。
 <sup id="fnref-f4n"><a href="#f4n">[4]</a></sup>
 
 推断也应该在对数空间中使用 log-sum-exp 技巧进行。</p>
@@ -687,14 +715,14 @@ Nvidia 也在 <a href="https://developer.nvidia.com/cudnn" target="_blank" rel="
       
     
       
-        <div class="list-content">在任意输入上运行集束搜索算法。  
-保存推断出的输出 <span class="math-inline" data-math="\bar{Y}">\bar{Y}</span> 及其对应的得分 <span class="math-inline" data-math="\bar{c}.">\bar{c}.</span>。  
-计算 <span class="math-inline" data-math="\bar{Y}.">\bar{Y}.</span> 的真实 CTC 得分 <span class="math-inline" data-math="c">c</span>。  
-检查 <span class="math-inline" data-math="\bar{c} \approx c">\bar{c} \approx c</span>，前者不应大于后者。随着集束大小增加，推断输出 <span class="math-inline" data-math="\bar{Y}">\bar{Y}</span> 可能会改变，但两个数值应该越来越接近。</div>
+        <div class="list-content">在任意输入上运行集束搜索算法。
+保存推断出的输出 <span class="math-inline" data-math="\bar{Y}">\bar{Y}</span> 及其对应的得分 <span class="math-inline" data-math="\bar{c}.">\bar{c}.</span>。
+计算 <span class="math-inline" data-math="\bar{Y}.">\bar{Y}.</span> 的真实 CTC 得分 <span class="math-inline" data-math="c">c</span>。
+检查 <span class="math-inline" data-math="\bar{c} \approx c">\bar{c} \approx c</span>，前者不应大于后者。随着 beam size 增大，推断输出 <span class="math-inline" data-math="\bar{Y}">\bar{Y}</span> 可能会改变，但这两个数值应该越来越接近。</div>
       
     
       
-        <p>使用集束搜索解码器时，一个常见问题是应该使用多大的集束大小。这是在准确率和运行时间之间的权衡。我们可以检查集束大小是否处于合理范围。首先计算推断输出 <span class="math-inline" data-math="c_i.">c_i.</span> 的 CTC 得分，然后计算真实输出 <span class="math-inline" data-math="c_g.">c_g.</span> 的 CTC 得分。如果两个输出不同，我们应该有 <span class="math-inline" data-math="c_g \lt c_i.">c_g \lt c_i.</span>。如果 <span class="math-inline" data-math="c_i &lt;&lt; c_g">c_i &lt;&lt; c_g</span>，则说明真实输出在模型下实际上具有更高概率，而集束搜索未能找到它。在这种情况下，可能需要大幅增加集束大小。</p>
+        <p>使用集束搜索解码器时的一个常见问题是应该使用多大的 beam size。这是在准确率和运行时间之间的权衡。我们可以检查 beam size 是否在一个合适的范围。首先计算推断输出 <span class="math-inline" data-math="c_i.">c_i.</span> 的 CTC 得分。然后计算真实输出 <span class="math-inline" data-math="c_g.">c_g.</span> 的 CTC 得分。如果两个输出不同，我们应该有 <span class="math-inline" data-math="c_g \lt c_i.">c_g \lt c_i.</span>。如果 <span class="math-inline" data-math="c_i &lt;&lt; c_g">c_i &lt;&lt; c_g</span>，则真实输出在模型下的概率实际上更高，而集束搜索未能找到它。在这种情况下，可能需要大幅增加 beam size。</p>
       
     
   </div>
@@ -704,7 +732,7 @@ Nvidia 也在 <a href="https://developer.nvidia.com/cudnn" target="_blank" rel="
     <h2>注释</h2>
     
     <div class="footnote-item" id="f1n">
-      <a href="#fnref-f1n">[1]</a> 对于长度为 <span class="math-inline" data-math="U">U</span>、没有任何重复字符的 <span class="math-inline" data-math="Y">Y</span>，以及长度为 <span class="math-inline" data-math="T">T</span> 的 <span class="math-inline" data-math="X">X</span>，该集合的大小为 <span class="math-inline" data-math="{T + U \choose T - U}.">{T + U \choose T - U}.</span>。对于 <span class="math-inline" data-math="T=100">T=100</span> 和 <span class="math-inline" data-math="U=50">U=50</span>，这个数字几乎是 <span class="math-inline" data-math="10^{40}.">10^{40}.</span>。
+      <a href="#fnref-f1n">[1]</a> 对于长度为 <span class="math-inline" data-math="U">U</span> 且没有任何重复字符的 <span class="math-inline" data-math="Y">Y</span>，以及长度为 <span class="math-inline" data-math="T">T</span> 的 <span class="math-inline" data-math="X">X</span>，集合的大小为 <span class="math-inline" data-math="{T + U \choose T - U}.">{T + U \choose T - U}.</span>。对于 <span class="math-inline" data-math="T=100">T=100</span> 和 <span class="math-inline" data-math="U=50">U=50</span>，这个数字几乎是 <span class="math-inline" data-math="10^{40}.">10^{40}.</span>。
     </div>
     
     <div class="footnote-item" id="f2n">
@@ -713,13 +741,13 @@ __MATHBLOCK_129__
     </div>
     
     <div class="footnote-item" id="f3n">
-      <a href="#fnref-f3n">[3]</a> 如果 <span class="math-inline" data-math="Y">Y</span> 具有 <span class="math-inline" data-math="r">r</span> 个连续重复字符，那么 <span class="math-inline" data-math="Y">Y</span> 的长度必须比 <span class="math-inline" data-math="X">X</span> 短 <span class="math-inline" data-math="2r - 1.">2r - 1.</span>。
+      <a href="#fnref-f3n">[3]</a> 如果 <span class="math-inline" data-math="Y">Y</span> 有 <span class="math-inline" data-math="r">r</span> 个连续重复，那么 <span class="math-inline" data-math="Y">Y</span> 的长度必须比 <span class="math-inline" data-math="X">X</span> 短 <span class="math-inline" data-math="2r - 1.">2r - 1.</span>。
     </div>
     
     <div class="footnote-item" id="f4n">
       <a href="#fnref-f4n">[4]</a> 在对数空间中计算两个概率之和时，使用恒等式
 __MATHBLOCK_203__
-大多数编程语言都有稳定的函数来计算当 <span class="math-inline" data-math="x">x</span> 接近零时的 <span class="math-inline" data-math="\log(1 + x)">\log(1 + x)</span>。
+大多数编程语言都有稳定的函数来计算 <span class="math-inline" data-math="\log(1 + x)">\log(1 + x)</span>，当 <span class="math-inline" data-math="x">x</span> 接近零时。
     </div>
     
   </section>

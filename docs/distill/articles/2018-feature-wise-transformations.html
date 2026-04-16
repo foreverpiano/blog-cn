@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>逐特征变换 · Distill.pub</title>
+  <title>特征级变换 · Distill.pub</title>
   <link rel="stylesheet" href="../static/css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
@@ -20,7 +20,7 @@
 
 <article>
   <header class="article-header">
-    <h1>逐特征变换</h1>
+    <h1>特征级变换</h1>
     <div class="meta">
       2018-07-09 · 
       <a href="https://distill.pub/2018/feature-wise-transformations" target="_blank" rel="noopener">阅读原文</a>
@@ -30,89 +30,117 @@
   <div class="article-content">
     
       
-        <p>许多现实世界的问题都需要整合多种信息来源。有时这些问题涉及多种不同的信息模态——视觉、语言、音频等——就像理解电影中的一个场景或回答关于图像的问题所需要的那样。有时，这些问题涉及同一类输入的多个来源，例如在总结多篇文档或用一种风格绘制另一张图像时。</p>
+        <p>许多现实世界的问题都需要整合多种信息源。有时这些问题涉及多种不同的信息模态——视觉、语言、音频等——就像理解电影中的场景或回答关于图像的问题所需要的那样。其他时候，这些问题涉及同一类输入的多个来源，例如在总结多份文档或用一种图像的风格绘制另一张图像时。</p>
       
     
       
-        <p>在处理这类问题时，通常有意义的是在一个信息的背景下处理另一个信息源；例如，在上面的右图中，可以在问题的背景下从图像中提取含义。在机器学习中，我们常将这种基于上下文的处理称为条件化（conditioning）：模型执行的计算会受到从辅助输入中提取的信息的调节或调制。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>找到一种有效的方式来对信息源进行条件化或融合是一个开放的研究问题，而在本文中，我们专注于一种特定的方法家族，我们称之为**逐特征变换**（feature-wise transformations）。我们将考察在许多神经网络架构中使用逐特征变换来解决各种令人惊讶的、种类繁多的问题；我们认为它们的成功在于足够灵活，能够在不同场景中学习到条件输入的有效表示。在多任务学习（multi-task learning）的语言中，当条件信号被视为任务描述时，逐特征变换会学习一个任务表示，从而能够捕捉并利用多个信息源之间的关系，即使在截然不同的问题设置中也是如此。</p>
+        <p>在处理这类问题时，通常有必要在一个信息的背景下处理另一个信息源；例如，在上面的右图中，可以在问题的背景下从图像中提取含义。在机器学习中，我们常将这种基于上下文的处理称为条件化（conditioning）：模型执行的计算会受到从辅助输入中提取的信息的条件化或调制。</p>
       
     
       
-        <h2>逐特征变换</h2>
+        <p>寻找一种有效的方式来对信息源进行条件化或融合是一个开放的研究问题，而在本文中，我们专注于我们称之为**特征级变换**（feature-wise transformations）的一类特定方法。我们将考察在许多神经网络架构中使用特征级变换来解决大量多样化问题的情况；我们认为它们的成功，归因于它们足够灵活，能够在各种场景中学习到条件化输入的有效表示。从多任务学习的角度来看，当条件化信号被视为任务描述时，特征级变换会学习一个任务表示，这使得它们能够捕捉并利用多个信息源之间的关系，即使在截然不同的问题设置中也是如此。</p>
+      
+    
+      
+        <h2>特征级变换</h2>
         
       
     
       
-        <p>为了说明逐特征变换，我们从一个基本示例开始，其中两个输入分别是图像和类别标签。在这个示例中，我们的目标是构建一个生成各种类别图像（小狗、船、飞机等）的生成模型。该模型以类别和随机噪声源（例如从正态分布中采样的向量）作为输入，并输出请求类别的图像样本。</p>
+        <p>为了说明特征级变换的动机，我们从一个基本示例开始，其中两个输入分别是图像和类别标签。在这个示例中，我们的目标是构建一个生成各种类别图像（小狗、船、飞机等）的生成模型。该模型以类别和随机噪声源（例如，从正态分布中采样的向量）作为输入，并输出请求类别的图像样本。</p>
       
     
       
-        <p>我们的第一直觉可能是为每个类别构建单独的模型。对于少量类别来说，这种方法还不错，但对于数千个类别，我们很快会遇到扩展性问题，因为需要存储和训练的参数数量会随着类别数量而增长。我们也错过了利用类别之间共性的机会；例如，不同类型的狗（小狗、梗犬、斑点狗等）共享视觉特征，并且在从抽象噪声向量映射到输出图像时，很可能共享计算。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>现在假设除了各种类别之外，我们还需要对大小或颜色等属性进行建模。在这种情况下，我们不可能合理地为每种可能的条件组合都训练一个单独的网络！让我们考察几种简单的选项。</p>
+        <p>我们最初的想法可能是为每个类别构建一个单独的模型。对于少量类别来说，这种方法不算太糟，但对于数千个类别，我们很快就会遇到扩展性问题，因为需要存储和训练的参数数量会随着类别数量而增长。我们也错过了利用类别之间共性的机会；例如，不同类型的狗（小狗、梗犬、斑点狗等）共享视觉特征，并且在从抽象噪声向量映射到输出图像时很可能共享计算。</p>
       
     
       
-        <p>一个快速的解决方案是将条件信息的表示与噪声向量拼接起来，并将结果视为模型的输入。这种解决方案在参数上非常高效，因为我们只需要增加第一层权重矩阵的大小。然而，这种方法隐含地假设模型需要在输入处使用条件信息。也许这个假设是正确的，也许不是；或许模型直到生成过程后期才需要融入条件信息（例如，在根据纹理进行条件化时，就在生成最终像素输出之前）。在这种情况下，我们会迫使模型在许多层中不加改变地携带这些信息。</p>
+        <p>现在假设除了各种类别之外，我们还需要对大小或颜色等属性进行建模。在这种情况下，我们无法合理地期望为每种可能的条件化组合都训练一个单独的网络！让我们来看看几个简单的选项。</p>
       
     
       
-        <p>由于这种操作成本很低，我们不妨避免做出任何此类假设，而将条件表示拼接到网络中所有层的输入上。我们将这种方法称为基于拼接的条件化（concatenation-based conditioning）。</p>
+        <p>一个快速的解决方法是将条件化信息的表示与噪声向量拼接起来，并将结果视为模型的输入。这种解决方案在参数上非常高效，因为我们只需要增大第一层权重矩阵的尺寸。然而，这种方法隐含了一个假设，即模型需要在输入位置使用条件化信息。也许这个假设是正确的，也可能不是；或许模型直到生成过程的后期才需要融入条件化信息（例如，在基于纹理进行条件化时，就在生成最终像素输出之前）。在这种情况下，我们将迫使模型在许多层中不加改变地携带这些信息。</p>
       
     
       
-        <p>另一种将条件信息高效集成到网络中的方法是通过条件偏置（conditional biasing），即根据条件表示向隐藏层添加偏置。</p>
+        <p>由于这种操作成本很低，我们不妨避免做出任何此类假设，而是将条件化表示拼接到网络中所有层的输入上。我们将这种方法称为**基于拼接的条件化**（concatenation-based conditioning）。</p>
       
     
       
-        <p>有趣的是，条件偏置可以被视为实现基于拼接的条件化的另一种方式。考虑一个全连接线性层应用于输入 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 和条件表示 <span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 的拼接结果：<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup></p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>另一种将类别信息高效集成到网络中的方法是通过条件缩放（conditional scaling），即根据条件表示对隐藏层进行缩放。</p>
+        <p>另一种将条件化信息高效集成到网络中的方法是通过**条件偏置**（conditional biasing），即根据条件化表示向隐藏层添加偏置。</p>
       
     
       
-        <p>条件缩放的一个特殊实例是逐特征sigmoid门控（feature-wise sigmoidal gating）：我们将每个特征缩放为 <span class="math-inline" data-math="0">0</span> 到 <span class="math-inline" data-math="1">1</span> 之间的值（通过应用logistic函数强制实现），其值是条件表示的函数。直观上，这种门控允许条件信息选择哪些特征被向前传递，哪些被置零。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>鉴于加法和乘法交互看起来都很自然且直观，我们应该选择哪种方法呢？支持乘法交互的一个论点是，它们在学习输入之间的关系时非常有用，因为这些交互天然地识别“匹配”：将符号相同的元素相乘会得到比符号不同的元素相乘更大的值。这就是为什么点积常被用来判断两个向量的相似程度。<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup> 支持加法交互的一个论点是，它们对于不那么强烈依赖两个输入联合值的应用更为自然，例如特征聚合或特征检测（即检查一个特征是否在两个输入中的任何一个中存在）。</p>
+        <p>有趣的是，条件偏置可以被视为实现基于拼接的条件化的另一种方式。考虑一个全连接线性层应用于输入 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 和条件化表示 <span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 的拼接结果：<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup></p>
       
     
       
-        <p>本着对问题做出尽可能少假设的精神，我们不妨将两者结合起来，形成**条件仿射变换**（conditional affine transformation）。<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup></p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>上面概述的所有方法都有一个共同特点，即它们在特征层面起作用；换句话说，它们利用条件表示与被条件化网络之间的逐特征交互。当然可以使用更复杂的交互，但逐特征交互通常在有效性和效率之间取得了愉快的折衷：需要预测的缩放和/或平移系数的数量与网络中特征的数量呈线性关系。此外，在实践中，逐特征变换（通常在多层中复合使用）经常拥有足够的容量来在各种设置中建模复杂的现象。</p>
+        <p>另一种将类别信息高效集成到网络中的方法是通过**条件缩放**（conditional scaling），即根据条件化表示对隐藏层进行缩放。</p>
       
     
       
-        <p>最后，这些变换只强制施加有限的归纳偏置，并且保持领域无关。这种特性可能是一个缺点，因为某些问题用更强的归纳偏置可能更容易解决。然而，正是这种特性使得这些变换能够在问题领域中如此广泛地有效，正如我们后面将回顾的那样。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <h3>术语</h3>
+        <p>条件缩放的一个特殊实例是**特征级sigmoid门控**（feature-wise sigmoidal gating）：我们将每个特征乘以一个介于 <span class="math-inline" data-math="0">0</span> 和 <span class="math-inline" data-math="1">1</span> 之间的值（通过应用logistic函数强制实现），该值是条件化表示的函数。直观地说，这种门控允许条件化信息选择哪些特征被向前传递，哪些被置零。</p>
+      
+    
+      
+        <p>鉴于加法和乘法交互看起来都自然且直观，我们应该选择哪种方法呢？支持乘法交互的一个论点是，它们在学习输入之间的关系时非常有用，因为这些交互自然地识别“匹配”：将符号相同的元素相乘会得到比符号不同的元素相乘更大的值。这就是为什么点积常被用来判断两个向量的相似程度。<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup> 支持加法交互的一个论点是，它们对于不太强烈依赖两个输入联合值的应用更为自然，比如特征聚合或特征检测（即检查某个特征是否在两个输入中的任意一个中存在）。</p>
+      
+    
+      
+        <p>本着对问题做出尽可能少假设的精神，我们不妨将两者结合起来，构成**条件仿射变换**（conditional affine transformation）。<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup></p>
+      
+    
+      
+        <p>上述所有方法都有一个共同特点，即它们在特征层面起作用；换句话说，它们利用了条件化表示与被条件化网络之间的特征级交互。当然可以使用更复杂的交互，但特征级交互通常在有效性和效率之间取得了愉快的平衡：需要预测的缩放和/或平移系数数量与网络中特征数量呈线性增长。此外，在实践中，特征级变换（通常在多层中复合使用）往往具有足够的容量来在各种场景中建模复杂现象。</p>
+      
+    
+      
+        <p>最后，这些变换只施加了有限的归纳偏置，并且保持领域无关。这种特性可能是一种缺点，因为某些问题可能用更强的归纳偏置更容易解决。然而，正是这种特性使得这些变换能够在问题领域中如此广泛地有效，正如我们后面将回顾的那样。</p>
+      
+    
+      
+        <h3>命名规范</h3>
         
       
     
       
-        <p>为了继续讨论逐特征变换，我们需要抽象掉乘法和加法交互之间的区别。在不失一般性的前提下，让我们专注于逐特征仿射变换，并采用Perez等人[<cite>[perez2018film]</cite>]的命名法，该命名法将条件仿射变换形式化为FiLM缩写，即**Feature-wise Linear Modulation**（逐特征线性调制）。<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup></p>
+        <p>为了继续关于特征级变换的讨论，我们需要抽象掉乘法和加法交互之间的区别。在不损失一般性的情况下，让我们专注于特征级仿射变换，并采用Perez等人[<cite>[perez2018film]</cite>]的命名法，该命名法将条件仿射变换形式化为FiLM，代表**Feature-wise Linear Modulation**（特征级线性调制）。<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup></p>
       
     
       
-        <p>我们说一个神经网络使用FiLM进行调制，或被FiLM-ed，是指在其架构中插入FiLM层之后。这些层由某种形式的条件信息参数化，而从条件信息到FiLM参数（即平移和缩放系数）的映射称为FiLM生成器。换句话说，FiLM生成器根据某个辅助输入预测FiLM层的参数。请注意，FiLM参数是一个网络中的参数，但来自另一个网络的预测，因此它们不是传统意义上具有固定权重的可学习参数。为简单起见，你可以假设FiLM生成器输出网络架构所有FiLM参数的拼接结果。</p>
+        <p>我们说一个神经网络使用FiLM进行调制，或称为被FiLM化（FiLM-ed），是在其架构中插入FiLM层之后。这些层由某种形式的条件化信息参数化，而从条件化信息到FiLM参数（即平移和缩放系数）的映射称为**FiLM生成器**（FiLM generator）。换句话说，FiLM生成器根据某个辅助输入预测FiLM层的参数。请注意，FiLM参数是一个网络中的参数，但来自另一个网络的预测，因此它们不是传统意义上具有固定权重的可学习参数。为简单起见，你可以假设FiLM生成器输出网络架构所有FiLM参数的拼接结果。</p>
       
     
       
-        <p>顾名思义，FiLM层对其输入应用逐特征仿射变换。所谓逐特征，是指缩放和平移是逐元素应用的，或者在卷积网络的情况下，是逐特征图应用的。<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup> 换句话说，假设 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 是FiLM层的输入，<span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 是条件输入，而 <span class="math-inline" data-math="\gamma">\gamma</span> 和 <span class="math-inline" data-math="\beta">\beta</span> 是依赖于 <span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 的缩放和平移向量，</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
+      
+    
+      
+        <p>顾名思义，FiLM层对其输入应用特征级的仿射变换。所谓特征级，是指缩放和平移是逐元素应用的，或者在卷积网络的情况下，是按**特征图**（feature map）应用的。<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup> 换句话说，假设 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 是FiLM层的输入，<span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 是条件化输入，而 <span class="math-inline" data-math="\gamma">\gamma</span> 和 <span class="math-inline" data-math="\beta">\beta</span> 是依赖于 <span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 的缩放和平移向量，</p>
       
     
       
@@ -126,20 +154,24 @@
       
     
       
-        <p>你可以与下面的全连接和卷积FiLM层进行交互，以直观感受它们允许的调制类型：</p>
+        <p>你可以与下面的全连接和卷积FiLM层进行交互，以直观感受它们所允许的调制类型：</p>
       
     
       
-        <p>除了作为条件逐特征变换的一个良好抽象之外，FiLM命名法也非常适合任务表示的概念。从多任务学习的角度来看，我们可以将条件信号视为任务描述。更具体地说，我们可以将所有FiLM缩放和平移系数的拼接结果视为既是对如何调制被条件化网络的指令，也是对当前任务的表示。我们将在后面探索并说明这个想法。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <h2>文献中的逐特征变换</h2>
+        <p>除了作为条件特征级变换的一个良好抽象之外，FiLM的命名法也非常适合任务表示的概念。从多任务学习的角度来看，我们可以将条件化信号视为任务描述。更具体地说，我们可以将所有FiLM缩放和平移系数的拼接结果视为既是对如何调制被条件化网络的指令，也是对当前任务的表示。我们将在后面探讨和阐述这个想法。</p>
+      
+    
+      
+        <h2>文献中的特征级变换</h2>
         
       
     
       
-        <p>逐特征变换出现在应用于许多问题设置的方法中，但由于它们的简单性，它们的有效性很少被突出强调，而是被其他新颖的研究贡献所掩盖。下面是文献中逐特征变换的一些显著例子，按应用领域分组。这些应用的多样性突显了逐特征交互在学习有效任务表示方面的灵活、通用能力。</p>
+        <p>特征级变换进入了应用于许多问题设置的方法中，但由于它们的简单性，它们的有效性很少被突出强调，而往往被其他新颖的研究贡献所掩盖。下面是文献中特征级变换的一些 notable 示例，按应用领域分组。这些应用的多样性突显了特征级交互在学习有效任务表示方面的灵活、通用能力。</p>
       
     
       
@@ -155,15 +187,23 @@
       
     
       
-        <p>模型的语言流水线是一个FiLM生成器，它提取问题表示并线性映射到FiLM参数值。使用这些值，插入在每个残差块中的FiLM层对视觉流水线进行条件化。该模型在图像-问题-答案三元组上进行端到端训练。Strub等人[<cite>[strub2018visual]</cite>]后来通过使用注意力机制在语言输入和逐层生成FiLM参数之间交替，改进了该模型。这种方法能够更好地扩展到具有更长输入序列的设置，例如对话，并在GuessWhat?! [<cite>[vries2017guesswhat]</cite>]和ReferIt [<cite>[kazemzadeh2014referitgame]</cite>]数据集上进行了评估。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>de Vries等人[<cite>[vries2017modulating]</cite>]利用FiLM来条件化一个预训练网络。他们模型的语言流水线通过条件批量归一化（conditional batch normalization）调节视觉流水线，这可以视为FiLM的一个特例。该模型学会在GuessWhat?! [<cite>[vries2017guesswhat]</cite>]和VQAv1 [<cite>[agrawal2015vqa]</cite>]数据集上回答关于真实世界图像的自然语言问题。</p>
+        <p>模型的语言流水线是一个FiLM生成器，它提取问题表示并线性映射到FiLM参数值。使用这些值，插入在每个残差块内的FiLM层对视觉流水线进行条件化。模型在图像-问题-答案三元组上进行端到端训练。Strub等人[<cite>[strub2018visual]</cite>]后来通过使用注意力机制在语言输入和逐层生成FiLM参数之间交替改进该模型。这种方法能够更好地扩展到具有更长输入序列的场景（如对话），并在GuessWhat?! [<cite>[vries2017guesswhat]</cite>]和ReferIt [<cite>[kazemzadeh2014referitgame]</cite>]数据集上进行了评估。</p>
       
     
       
-        <p>视觉流水线由一个在训练期间保持固定的预训练残差网络组成。语言流水线通过扰动残差网络的批量归一化参数来操纵视觉流水线，这些参数在激活被归一化为零均值和单位方差后，对特征图进行重新缩放和重新平移。正如前面提到的，条件批量归一化可以视为FiLM的一个实例，其中后归一化逐特征仿射变换被FiLM层替换。</p>
+        <p>de Vries等人[<cite>[vries2017modulating]</cite>]利用FiLM来条件化一个预训练网络。他们模型的语言流水线通过条件批标准化（conditional batch normalization）来调制视觉流水线，这可以视为FiLM的一个特例。该模型学会在GuessWhat?! [<cite>[vries2017guesswhat]</cite>]和VQAv1 [<cite>[agrawal2015vqa]</cite>]数据集上回答关于真实世界图像的自然语言问题。</p>
+      
+    
+      
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
+      
+    
+      
+        <p>视觉流水线由一个预训练的残差网络组成，在训练过程中固定不变。语言流水线通过扰动残差网络的批标准化参数来操纵视觉流水线，这些参数在激活被标准化为零均值和单位方差后，对特征图进行重新缩放和重新平移。正如前面提到的，条件批标准化可以视为FiLM的一个实例，其中后标准化特征级仿射变换被FiLM层替换。</p>
       
     
       
@@ -171,23 +211,31 @@
       
     
       
-        <p>Dumoulin等人[<cite>[dumoulin2017learned]</cite>]使用逐特征仿射变换——以条件实例归一化层（conditional instance normalization layers）的形式——来根据选定的风格图像对风格迁移网络进行条件化。与前一小节讨论的条件批量归一化类似，条件实例归一化可以视为FiLM的一个实例，其中FiLM层替换了后归一化逐特征仿射变换。对于风格迁移，网络将每种风格建模为一组单独的实例归一化参数，并使用这些特定于风格的参数进行归一化。</p>
+        <p>Dumoulin等人[<cite>[dumoulin2017learned]</cite>]使用特征级仿射变换——以条件实例标准化层（conditional instance normalization layers）的形式——来根据选定的风格图像对风格迁移网络进行条件化。与前一小节讨论的条件批标准化一样，条件实例标准化可以视为FiLM的一个实例，其中FiLM层替换了后标准化特征级仿射变换。对于风格迁移，网络将每种风格建模为一组单独的实例标准化参数，并使用这些特定于风格的参数进行标准化。</p>
       
     
       
-        <p>Dumoulin等人[<cite>[dumoulin2017learned]</cite>]使用简单的嵌入查找来生成实例归一化参数，而Ghiasi等人[<cite>[ghiasi2017exploring]</cite>]进一步引入了一个风格预测网络，与风格迁移网络联合训练，以直接从给定的风格图像预测条件参数。在本文中，我们选择使用FiLM命名法，因为它与归一化操作解耦，但Perez等人[<cite>[perez2018film]</cite>]使用的FiLM层本身深受Dumoulin等人[<cite>[dumoulin2017learned]</cite>]使用的条件归一化层的启发。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>Yang等人[<cite>[yang2018efficient]</cite>]为视频对象分割使用了一种相关架构——即给定对象在第一帧中的分割，在整个视频中分割该特定对象的任务。他们的模型使用逐特征缩放因子根据提供的第一帧分割对视频帧的图像分割网络进行条件化，并使用逐位置偏置根据前一帧进行条件化。</p>
+        <p>Dumoulin等人[<cite>[dumoulin2017learned]</cite>]使用简单的嵌入查找来生成实例标准化参数，而Ghiasi等人[<cite>[ghiasi2017exploring]</cite>]进一步引入了一个风格预测网络，与风格迁移网络联合训练，直接从给定的风格图像预测条件化参数。在本文中，我们选择使用FiLM命名法，因为它与标准化操作解耦，但Perez等人[<cite>[perez2018film]</cite>]使用的FiLM层本身很大程度上受到了Dumoulin等人[<cite>[dumoulin2017learned]</cite>]使用的条件标准化层的启发。</p>
       
     
       
-        <p>到目前为止，我们介绍的模型都有两个子网络：一个应用逐特征变换的主要网络和一个输出这些变换参数的辅助网络。然而，被FiLM-ed网络和FiLM生成器之间的这种区分并不是严格必要的。作为例子，Huang和Belongie[<cite>[huang2017arbitrary]</cite>]提出了一种替代的风格迁移网络，它使用自适应实例归一化层，通过一个简单的启发式方法计算归一化参数。</p>
+        <p>Yang等人[<cite>[yang2018efficient]</cite>]为视频对象分割——即给定对象在第一帧中的分割，在整个视频中分割特定对象的任务——使用了一种相关架构。他们的模型使用特征级缩放因子根据提供的第一帧分割对视频帧的图像分割网络进行条件化，并使用位置级偏置根据前一帧进行条件化。</p>
       
     
       
-        <p>自适应实例归一化可以解释为在模型中间插入一个FiLM层。然而，它不是依赖辅助网络从风格图像预测FiLM参数，而是使用主网络本身来提取用于计算FiLM参数的风格特征。因此，该模型可以同时被视为FiLM-ed网络和FiLM生成器。</p>
+        <p>到目前为止，我们介绍的模型都有两个子网络：一个应用特征级变换的主要网络和一个输出这些变换参数的次要网络。然而，被FiLM化网络和FiLM生成器之间的这种区分并不是严格必要的。作为一个例子，Huang和Belongie[<cite>[huang2017arbitrary]</cite>]提出了一种替代的风格迁移网络，它使用自适应实例标准化层（adaptive instance normalization layers），通过一个简单的启发式方法计算标准化参数。</p>
+      
+    
+      
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
+      
+    
+      
+        <p>自适应实例标准化可以解释为在模型中间插入一个FiLM层。然而，它不是依赖一个次要网络从风格图像预测FiLM参数，而是使用主网络本身来提取用于计算FiLM参数的风格特征。因此，该模型可以同时被视为被FiLM化网络和FiLM生成器。</p>
       
     
       
@@ -195,15 +243,27 @@
       
     
       
-        <p>正如前几小节所讨论的，没有什么阻止我们将神经网络的激活本身视为条件信息。这个想法催生了自条件模型（self-conditioned models）。</p>
+        <p>正如前面小节所讨论的，没有什么能阻止我们将神经网络的激活本身视为条件化信息。这个想法催生了**自条件模型**（self-conditioned models）。</p>
       
     
       
-        <p>Highway Networks [<cite>[srivastava2015highway]</cite>] 是应用这种自条件原则的典型例子。它们从LSTM [<cite>[hochreiter1997long]</cite>] 在输入门、遗忘门和输出门中大量使用逐特征sigmoid门控来调节信息流的做法中获得灵感：</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>ImageNet 2017获胜模型[<cite>[hu2017squeeze]</cite>]也以自条件的方式使用了逐特征sigmoid门控，作为“重新校准”层激活（以自身为条件）的一种方式。</p>
+        <p>Highway Networks [<cite>[srivastava2015highway]</cite>] 是应用这种自条件化原则的一个典型例子。它们从LSTM [<cite>[hochreiter1997long]</cite>] 在输入门、遗忘门和输出门中大量使用特征级sigmoid门控来调节信息流中获得灵感：</p>
+      
+    
+      
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
+      
+    
+      
+        <p>ImageNet 2017的获胜模型[<cite>[hu2017squeeze]</cite>]也以自条件的方式使用了特征级sigmoid门控，作为“重新校准”一层激活（条件于自身）的方法。</p>
+      
+    
+      
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
@@ -211,15 +271,27 @@
       
     
       
-        <p>对于统计语言建模（即预测句子中的下一个词），LSTM [<cite>[hochreiter1997long,melis2017lstm]</cite>] 构成了一类流行的循环网络架构。LSTM严重依赖逐特征sigmoid门控来控制记忆或上下文单元 <span class="math-inline" data-math="\mathbf{c}">\mathbf{c}</span> 的信息流入和流出，基于每个时间步 <span class="math-inline" data-math="\mathbf{t}">\mathbf{t}</span> 的隐藏状态 <span class="math-inline" data-math="\mathbf{h}">\mathbf{h}</span> 和输入 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span>。</p>
+        <p>对于统计语言建模（即预测句子中的下一个词），LSTM [<cite>[hochreiter1997long,melis2017lstm]</cite>] 构成了一类流行的循环网络架构。LSTM heavily依赖特征级sigmoid门控来控制记忆或上下文单元 <span class="math-inline" data-math="\mathbf{c}">\mathbf{c}</span> 的信息流入和流出，基于每个时间步 <span class="math-inline" data-math="\mathbf{t}">\mathbf{t}</span> 的隐藏状态 <span class="math-inline" data-math="\mathbf{h}">\mathbf{h}</span> 和输入 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span>。</p>
       
     
       
-        <p>同样在语言建模领域，Dauphin等人[<cite>[dauphin2017language]</cite>]在他们提出的门控线性单元（gated linear unit）中使用sigmoid门控，该单元使用一半的输入特征对另一半应用逐特征sigmoid门控。Gehring等人[<cite>[gehring2017convolutional]</cite>]采用了这种架构特征，引入了一种快速、可并行化的机器翻译模型，其形式为全卷积网络。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>Gated-Attention Reader [<cite>[dhingra2017gated]</cite>] 使用逐特征缩放，通过根据查询对文档阅读网络进行条件化来从文本中提取信息。其架构由多个Gated-Attention模块组成，这些模块涉及文档表示标记与通过对查询表示标记进行软注意力提取的特定于标记的查询表示之间的逐元素乘法。</p>
+        <p>同样在语言建模领域，Dauphin等人[<cite>[dauphin2017language]</cite>]在他们提出的门控线性单元（gated linear unit）中使用sigmoid门控，该单元使用一半的输入特征对另一半特征应用特征级sigmoid门控。Gehring等人[<cite>[gehring2017convolutional]</cite>]采用了这种架构特性，引入了一种快速、可并行化的全卷积网络用于机器翻译。</p>
+      
+    
+      
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
+      
+    
+      
+        <p>Gated-Attention Reader [<cite>[dhingra2017gated]</cite>] 使用特征级缩放，通过根据查询对文档阅读网络进行条件化来从文本中提取信息。其架构由多个Gated-Attention模块组成，这些模块涉及文档表示token与通过对查询表示token进行软注意力提取的特定于token的查询表示之间的逐元素乘法。</p>
+      
+    
+      
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
@@ -227,15 +299,19 @@
       
     
       
-        <p>Gated-Attention架构[<cite>[chaplot2017gated]</cite>] 使用逐特征sigmoid门控来融合语言和视觉信息，该代理在VizDoom [<cite>[kempa2016vizdoom]</cite>] 3D环境中接受训练，以遵循简单的“前往”语言指令。</p>
+        <p>Gated-Attention架构[<cite>[chaplot2017gated]</cite>] 使用特征级sigmoid门控来融合语言和视觉信息，该代理在VizDoom [<cite>[kempa2016vizdoom]</cite>] 3D环境中接受训练，以遵循简单的“前往”语言指令。</p>
       
     
       
-        <p>Bahdanau等人[<cite>[bahdanau2018learning]</cite>] 使用FiLM层来条件化Neural Module Network[<cite>[andreas2016neural]</cite>]和基于LSTM[<cite>[hochreiter1997long]</cite>]的策略，以在2D网格世界中遵循基本的组合语言指令（排列物体和前往特定位置）。他们以对抗方式使用来自另一个基于FiLM的网络的奖励来训练这个策略，该网络经过训练以区分已实现指令状态的真实示例和失败策略轨迹状态。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>在指令跟随之外，Kirkpatrick等人[<cite>[kirkpatrick2017overcoming]</cite>] 还使用特定于游戏的缩放和偏置来条件化一个共享的策略网络，该网络经过训练可以玩10种不同的Atari游戏。</p>
+        <p>Bahdanau等人[<cite>[bahdanau2018learning]</cite>] 使用FiLM层来条件化基于Neural Module Network[<cite>[andreas2016neural]</cite>]和LSTM[<cite>[hochreiter1997long]</cite>] 的策略，以在2D网格世界中遵循基本的组合语言指令（排列对象和前往特定位置）。他们以对抗方式使用来自另一个基于FiLM的网络的奖励来训练这个策略，该网络经过训练以区分已达到指令状态的真实示例和失败策略轨迹状态。</p>
+      
+    
+      
+        <p>在指令跟随之外，Kirkpatrick等人[<cite>[kirkpatrick2017overcoming]</cite>] 还使用特定于游戏的缩放和偏置来条件化一个共享的策略网络，该网络经过训练以玩10种不同的Atari游戏。</p>
       
     
       
@@ -243,29 +319,37 @@
       
     
       
-        <p>DCGAN [<cite>[radford2016unsupervised]</cite>] 的条件变体是一种广受认可的生成对抗网络[<cite>[goodfellow2014generative]</cite>]架构，它使用基于拼接的条件化。类别标签被广播为特征图，然后拼接到判别器和生成器网络中卷积层和转置卷积层的输入上。</p>
+        <p>DCGAN [<cite>[radford2016unsupervised]</cite>] 的条件变体是一种公认的生成对抗网络[<cite>[goodfellow2014generative]</cite>]架构，它使用基于拼接的条件化。类别标签被广播为特征图，然后拼接到判别器和生成器网络中卷积层和转置卷积层的输入中。</p>
       
     
       
-        <p>对于卷积层，基于拼接的条件化要求网络学习冗余的卷积参数来解释每个常量条件特征图；因此，直接应用条件偏置在参数上更高效，但两种方法在数学上仍然等价。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>PixelCNN [<cite>[oord2016conditional]</cite>] 和WaveNet [<cite>[oord2016wavenet]</cite>]——分别是图像和音频自回归生成建模的两个最新进展——使用条件偏置。PixelCNN中最简单的条件化形式是向所有卷积层输出添加逐特征偏置。用FiLM的术语来说，这个操作等价于在每个卷积层之后插入FiLM层，并将缩放系数设置为常量1。<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup></p>
+        <p>对于卷积层，基于拼接的条件化要求网络学习冗余的卷积参数来解释每个常量条件化特征图；因此，直接应用条件偏置在参数上更高效，但两种方法在数学上仍然是等价的。</p>
       
     
       
-        <p>WaveNet描述了条件偏置允许外部信息基于条件输入来调制音频或语音生成过程的两种方式：</p>
+        <p>PixelCNN [<cite>[oord2016conditional]</cite>] 和 WaveNet [<cite>[oord2016wavenet]</cite>]——图像和音频自回归生成建模的两个最新进展——使用条件偏置。PixelCNN中最简单的条件化形式是向所有卷积层输出添加特征级偏置。用FiLM的术语来说，这个操作相当于在每个卷积层之后插入FiLM层，并将缩放系数设置为常量1。<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup></p>
+      
+    
+      
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
+      
+    
+      
+        <p>WaveNet描述了条件偏置允许外部信息基于条件化输入以两种方式调制音频或语音生成过程：</p>
       
     
       
         <div class="list-content">全局条件化对整个生成的序列应用相同的条件偏置，例如用于根据说话者身份进行条件化。
     
-局部条件化应用随生成序列的时间步变化的条件偏置，例如用于让文本到语音模型中的语言特征影响产生哪些声音。</div>
+局部条件化应用随生成序列的时间步变化的条件偏置，例如用于让文本转语音模型中的语言特征影响产生哪些声音。</div>
       
     
       
-        <p>与PixelCNN一样，WaveNet中的条件化可以视为在每个卷积层之后插入FiLM层。主要区别在于如何定义FiLM生成网络：全局条件化将FiLM生成网络表达为嵌入查找，并广播到整个时间序列，而局部条件化将其表达为从条件信息输入序列到FiLM参数输出序列的映射。</p>
+        <p>与PixelCNN一样，WaveNet中的条件化可以视为在每个卷积层之后插入FiLM层。主要区别在于如何定义FiLM生成网络：全局条件化将FiLM生成网络表示为嵌入查找并广播到整个时间序列，而局部条件化将其表示为从条件化信息输入序列到FiLM参数输出序列的映射。</p>
       
     
       
@@ -273,11 +357,15 @@
       
     
       
-        <p>Kim等人[<cite>[kim2017dynamic]</cite>] 使用一种条件归一化形式来调制深度双向LSTM。正如在视觉问答和风格迁移小节中讨论的那样，条件归一化可以视为FiLM的一个实例，其中后归一化逐特征仿射变换被FiLM层替换。</p>
+        <p>Kim等人[<cite>[kim2017dynamic]</cite>] 使用一种条件标准化形式来调制深度双向LSTM。正如在视觉问答和风格迁移小节中讨论的那样，条件标准化可以视为FiLM的一个实例，其中后标准化特征级仿射变换被FiLM层替换。</p>
       
     
       
-        <p>这里的关键区别是条件信号不是来自外部来源，而是来自在每一层提取的用于适应模型的话语摘要特征向量。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
+      
+    
+      
+        <p>这里的关键区别是条件化信号不是来自外部来源，而是来自在每一层提取的用于适应模型的话语摘要特征向量。</p>
       
     
       
@@ -285,11 +373,11 @@
       
     
       
-        <p>对于领域适配，Li等人[<cite>[li2018adaptive]</cite>] 发现更新在一个领域上训练的网络的每通道批量归一化统计量（均值和方差），使用该网络在新目标领域中的统计量是有效的。正如在风格迁移小节中讨论的那样，这种操作类似于同时使用网络作为FiLM生成器和FiLM-ed网络。值得注意的是，这种方法与自适应实例归一化一起，具有不需要任何额外可训练参数的特别优势。</p>
+        <p>对于领域适配，Li等人[<cite>[li2018adaptive]</cite>] 发现更新在一个领域上训练的网络的每通道批标准化统计量（均值和方差），用该网络在新目标领域中的统计量是有效的。正如在风格迁移小节中讨论的那样，这个操作类似于同时使用网络作为FiLM生成器和被FiLM化网络。值得注意的是，这种方法与自适应实例标准化一样，具有不需要任何额外可训练参数的特别优势。</p>
       
     
       
-        <p>对于少样本学习，Oreshkin等人[<cite>[oreshkin2018tadam]</cite>] 探索了使用FiLM层来提供对少样本学习 episode 中输入分布变化的更强鲁棒性。给定episode的训练集用于生成FiLM参数，这些参数调制在Prototypical Networks [<cite>[snell2017prototypical]</cite>] 元训练过程中使用的特征提取器。</p>
+        <p>对于少样本学习，Oreshkin等人[<cite>[oreshkin2018tadam]</cite>] 探索了使用FiLM层来提供对少样本学习事件中输入分布变化的更强鲁棒性。给定事件的训练集用于生成FiLM参数，这些参数调制在Prototypical Networks [<cite>[snell2017prototypical]</cite>] 元训练过程中使用的特征提取器。</p>
       
     
       
@@ -298,7 +386,7 @@
       
     
       
-        <p>除了直接使用逐特征变换的方法之外，FiLM框架更广泛地与以下方法和概念相关联。</p>
+        <p>除了直接使用特征级变换的方法之外，FiLM框架更广泛地与以下方法和概念相关联。</p>
       
     
       
@@ -310,7 +398,7 @@
       
     
       
-        <p>学习任务表示的想法与零样本学习方法有着密切的联系。在零样本学习中，可以从外部信息学习语义任务嵌入，然后利用它们对没有训练样本的类别进行预测。例如，为了泛化到图像分类中未见过的对象类别，可以从纯文本描述中构建语义任务嵌入，并利用对象的基于文本的关系来对未见图像类别进行预测。Frome等人[<cite>[frome2013devise]</cite>]、Socher等人[<cite>[socher2013zero]</cite>]和Norouzi等人[<cite>[norouzi2014zero]</cite>]是这个想法的几个显著例子。</p>
+        <p>学习任务表示的想法与零样本学习方法有很强的联系。在零样本学习中，可以从外部信息学习语义任务嵌入，然后利用它们对没有训练样本的类别进行预测。例如，为了泛化到图像分类中未见过的对象类别，可以从纯文本描述中构建语义任务嵌入，并利用对象的基于文本的关系来对未见图像类别进行预测。Frome等人[<cite>[frome2013devise]</cite>]、Socher等人[<cite>[socher2013zero]</cite>]和Norouzi等人[<cite>[norouzi2014zero]</cite>] 是这个想法的几个 notable 示例。</p>
       
     
       
@@ -318,7 +406,7 @@
       
     
       
-        <p>辅助网络预测主网络参数的概念也很好地由HyperNetworks [<cite>[ha2016hypernetworks]</cite>] 体现，它预测整个层（例如循环神经网络层）的权重。从这个角度来看，FiLM生成器是一个专门的HyperNetwork，它预测FiLM-ed网络的FiLM参数。两者之间的主要区别在于预测参数的数量和特异性：FiLM需要预测的参数比HyperNetworks少得多，但调制潜力也较小。条件机制的容量、正则化和计算复杂性之间的理想权衡仍然是一个正在进行的研究领域，许多提出的方法都处于FiLM和HyperNetworks之间的谱系上（参见文献笔记）。</p>
+        <p>次要网络预测主要网络参数的概念也很好地由HyperNetworks [<cite>[ha2016hypernetworks]</cite>] 所例证，它预测整个层的权重（例如，循环神经网络层）。从这个角度来看，FiLM生成器是一个专门的HyperNetwork，它预测被FiLM化网络的FiLM参数。两者之间的主要区别在于预测参数的数量和特异性：FiLM需要预测的参数比HyperNetworks少得多，但调制潜力也较小。条件化机制的容量、正则化和计算复杂性之间的理想权衡仍然是一个正在进行的研究领域，许多提出的方法处于FiLM和HyperNetworks之间的谱系上（见参考文献备注）。</p>
       
     
       
@@ -326,11 +414,15 @@
       
     
       
-        <p>可以在注意力和FiLM之间找到一些相似之处，但两者以不同的方式运作，这一点很重要，需要加以区分。</p>
+        <p>可以在注意力和FiLM之间画出一些平行线，但两者以不同的方式运作，这一点很重要，需要加以区分。</p>
       
     
       
-        <p>这种差异源于注意力和FiLM背后的不同直觉：前者假设特定的空间位置或时间步包含最有用的信息，而后者假设特定的特征或特征图包含最有用的信息。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
+      
+    
+      
+        <p>这种差异源于注意力和FiLM背后不同的直觉：前者假设特定的空间位置或时间步包含最有用的信息，而后者假设特定的特征或特征图包含最有用的信息。</p>
       
     
       
@@ -338,7 +430,7 @@
       
     
       
-        <p>稍微延伸一下，FiLM可以被视为具有低秩权重矩阵的双线性变换[<cite>[tenenbaum2000separating]</cite>]的特例。双线性变换定义了两个输入 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 和 <span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 与 <span class="math-inline" data-math="k^{th}">k^{th}</span> 输出特征 <span class="math-inline" data-math="y_k">y_k</span> 之间的关系为</p>
+        <p>稍作延伸，FiLM可以被视为具有低秩权重矩阵的双线性变换[<cite>[tenenbaum2000separating]</cite>]的一个特例。双线性变换定义了两个输入 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 和 <span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 与 <span class="math-inline" data-math="k^{th}">k^{th}</span> 输出特征 <span class="math-inline" data-math="y_k">y_k</span> 之间的关系为</p>
       
     
       
@@ -350,15 +442,23 @@
       
     
       
-        <p>请注意，对于每个输出特征 <span class="math-inline" data-math="y_k">y_k</span> 我们都有一个单独的矩阵 <span class="math-inline" data-math="W_k">W_k</span>，因此完整的权重集合形成一个多维数组。</p>
+        <p>请注意，对于每个输出特征 <span class="math-inline" data-math="y_k">y_k</span> 我们都有一个单独的矩阵 <span class="math-inline" data-math="W_k">W_k</span>，因此完整的权重集形成一个多维数组。</p>
       
     
       
-        <p>如果我们将 <span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 视为缩放和平移向量 <span class="math-inline" data-math="\gamma">\gamma</span> 和 <span class="math-inline" data-math="\beta">\beta</span> 的拼接，并且如果我们用一个值为1的特征来扩充输入 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span>，<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup> 我们就可以通过将适当的权重矩阵条目置零来使用双线性变换表示FiLM：</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>关于双线性变换的一些应用，请参见文献笔记。</p>
+        <p>如果我们将 <span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 视为缩放和平移向量 <span class="math-inline" data-math="\gamma">\gamma</span> 和 <span class="math-inline" data-math="\beta">\beta</span> 的拼接，并且如果我们用一个值为1的特征来扩充输入 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span>，<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup> 我们可以通过将适当的权重矩阵条目置零来使用双线性变换表示FiLM：</p>
+      
+    
+      
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
+      
+    
+      
+        <p>关于双线性变换的一些应用，请参见参考文献备注。</p>
       
     
       
@@ -367,77 +467,105 @@
       
     
       
-        <p>正如前面暗示的，在采用FiLM视角时，我们隐含地引入了任务表示的概念：每个任务——无论是关于图像的问题还是要模仿的绘画风格——通过FiLM生成器引发一组不同的FiLM参数，这可以理解为它如何调制FiLM-ed网络的表示。为了更好地理解这种表示的性质，让我们关注两个在相当不同的问题设置中使用的FiLM-ed模型：</p>
+        <p>正如前面暗示的，在采用FiLM视角时，我们隐含地引入了任务表示的概念：每个任务——无论是关于图像的问题还是要模仿的绘画风格——通过FiLM生成器引发一组不同的FiLM参数，这可以理解为它如何调制被FiLM化网络的表示。为了更好地理解这种表示的性质，让我们关注两个在相当不同问题设置中使用的FiLM化模型：</p>
       
     
       
-        <div class="list-content">Perez等人[<cite>[perez2017learning,perez2018film]</cite>]的视觉推理模型，它使用FiLM根据输入问题调节视觉处理流水线。
+        <div class="list-content">Perez等人[<cite>[perez2017learning,perez2018film]</cite>]的视觉推理模型，它使用FiLM根据输入问题来调制视觉处理流水线。
       
-语言流水线充当FiLM生成器。每个残差块中的FiLM层调节视觉流水线。特征提取器子网络FiLM层ReLU 每个残差块都有一个FiLM层被添加。子网络FiLM层…linearFiLM参数AreGRUthereGRUmoreGRUcubesGRUthanGRUyellowGRUthingsGRU
+语言流水线充当FiLM生成器。每个残差块中的FiLM层调制视觉流水线。特征提取器子网络FiLM层ReLU 每个残差块都添加了一个FiLM层。子网络FiLM层…linearFiLM参数AreGRUthereGRUmoreGRUcubesGRUthanGRUyellowGRUthingsGRU
 
-      Ghiasi等人[<cite>[ghiasi2017exploring]</cite>]的艺术风格迁移模型，它使用FiLM根据输入风格图像调节前馈风格迁移网络。
+      Ghiasi等人[<cite>[ghiasi2017exploring]</cite>]的艺术风格迁移模型，它使用FiLM根据输入风格图像来调制前馈风格迁移网络。
       
-FiLM生成器预测描述目标风格的参数。风格迁移网络通过使实例归一化参数依赖于风格来进行条件化。FiLM生成器FiLM参数子网络归一化FiLM层子网络归一化FiLM层… conditional instance  normalization  conditional instance  normalization</div>
-      
-    
-      
-        <p>作为一个起点，我们能否辨别出FiLM参数作为任务描述函数的任何模式？可视化FiLM参数空间的一种方法是绘制 <span class="math-inline" data-math="\gamma">\gamma</span> 对 <span class="math-inline" data-math="\beta">\beta</span> 的图，其中每个点对应一个特定的任务描述和一个特定的特征图。如果我们根据每个点所属的特征图对其进行颜色编码，我们会观察到以下情况：</p>
+FiLM生成器预测描述目标风格的参数。风格迁移网络通过使实例标准化参数依赖于风格来进行条件化。FiLM生成器FiLM参数子网络标准化FiLM层子网络标准化FiLM层… conditional instance  normalization  conditional instance  normalization</div>
       
     
       
-        <p>上面的图表让我们可以做出几个有趣的观察。首先，FiLM参数在参数空间中按特征图聚类，并且聚类位置在特征图之间并不均匀。这些聚类的方向在特征图之间也不均匀：主要变化轴可以是 <span class="math-inline" data-math="\gamma">\gamma</span> 对齐的、<span class="math-inline" data-math="\beta">\beta</span> 对齐的，或者是以不同角度的对角线。这些发现表明FiLM层中的仿射变换不是以单一、一致的方式进行调制的，即只使用 <span class="math-inline" data-math="\gamma">\gamma</span>、只使用 <span class="math-inline" data-math="\beta">\beta</span>，或者以某种特定方式同时使用 <span class="math-inline" data-math="\gamma">\gamma</span> 和 <span class="math-inline" data-math="\beta">\beta</span>。也许这是因为仿射变换被过度指定了，或者这表明FiLM层可以用于以几种不同方式执行调制操作。</p>
+        <p>作为一个起点，我们能否辨别出FiLM参数作为任务描述函数的任何模式？可视化FiLM参数空间的一种方法是将 <span class="math-inline" data-math="\gamma">\gamma</span> 对 <span class="math-inline" data-math="\beta">\beta</span> 作图，每个点对应一个特定的任务描述和一个特定的特征图。如果我们根据每个点所属的特征图对其进行颜色编码，我们会观察到以下情况：</p>
       
     
       
-        <p>尽管如此，这些参数聚类往往有些“密集”的事实可能有助于解释为什么Ghiasi等人[<cite>[ghiasi2017exploring]</cite>]的风格迁移模型能够执行风格插值：FiLM参数的任何凸组合都可能对应于FiLM-ed网络的一个有意义的参数化。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>在一定程度上，使用FiLM参数在任务之间进行插值的概念甚至可以应用于视觉问答设置。使用在Perez等人[<cite>[perez2018film]</cite>]中训练的模型，我们在两对CLEVR问题之间对模型的FiLM参数进行了插值。在这里我们可视化了对视觉流水线输出分类器全局最大池化特征负责的输入位置：</p>
+        <p>上面的图表让我们能够做出几个有趣的观察。首先，FiLM参数在参数空间中按特征图聚类，并且聚类位置在不同特征图之间并不均匀。这些聚类的方向在不同特征图之间也不均匀：主要变化轴可以是 <span class="math-inline" data-math="\gamma">\gamma</span> 对齐、<span class="math-inline" data-math="\beta">\beta</span> 对齐，或以不同角度的对角线。这些发现表明，FiLM层中的仿射变换并不是以单一、一致的方式进行调制的，即只使用 <span class="math-inline" data-math="\gamma">\gamma</span>、只使用 <span class="math-inline" data-math="\beta">\beta</span>，或者以某种特定方式同时使用 <span class="math-inline" data-math="\gamma">\gamma</span> 和 <span class="math-inline" data-math="\beta">\beta</span>。也许这是因为仿射变换被过度指定了，或者这表明FiLM层可以用于以几种不同的方式执行调制操作。</p>
       
     
       
-        <p>网络似乎在根据任务描述柔和地切换它在图像中注视的位置。这些语义上有意义的插值行为出现非常有趣，因为网络并没有被训练成这样行为。</p>
+        <p>然而，这些参数聚类往往有些“密集”的事实，可能有助于解释为什么Ghiasi等人[<cite>[ghiasi2017exploring]</cite>]的风格迁移模型能够进行风格插值：FiLM参数的任何凸组合都可能对应于被FiLM化网络的有意义的参数化。</p>
       
     
       
-        <p>尽管在不同的问题设置中有这些相似之处，我们也观察到FiLM参数作为任务描述函数聚类方式的定性差异。与风格迁移模型不同，视觉推理模型有时针对给定的特征图表现出多个FiLM参数子聚类。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>至少，这可能表明FiLM学会以问题特定的方式运作，并且我们不应该期望找到一个统一的、与问题无关的解释来说明FiLM在调节FiLM-ed网络方面的成功。也许视觉推理的组合性或离散性质要求模型实现几种定义明确的操作模式，而这些模式对于风格迁移来说不那么必要。</p>
+        <p>在一定程度上，使用FiLM参数在任务之间进行插值的概念甚至可以应用于视觉问答设置。使用在Perez等人[<cite>[perez2018film]</cite>]中训练的模型，我们在两对CLEVR问题之间对模型的FiLM参数进行了插值。在这里我们可视化了负责全局最大池化特征（这些特征被馈送到视觉流水线的输出分类器）的输入位置：</p>
       
     
       
-        <p>专注于表现出子聚类的单个特征图，我们可以通过按问题类型对散点图进行颜色编码来尝试推断问题如何重新分组。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>有时会出现清晰的模式，如右图所示，与颜色相关的问题集中在右上方的聚类中——我们观察到问题要么是Query color或Equal color类型，要么包含与颜色相关的概念。有时很难得出结论，如左图所示，问题类型分散在三个聚类中。</p>
+        <p>网络似乎在根据任务描述柔和地切换它在图像中关注的位置。有趣的是，这些语义上有意义的插值行为是自然涌现的，因为网络并没有被训练成这样行事。</p>
       
     
       
-        <p>在问题类型本身无法解释FiLM参数聚类的情况下，我们可以转向条件内容本身来理解起作用的机制。让我们看另外两个图：一个是前图中的特征图26，另一个是另一个也表现出多个子聚类的不同特征图。这次我们根据出现在其关联问题中的单词来重新分组点。</p>
+        <p>尽管在不同问题设置中存在这些相似性，我们也观察到FiLM参数作为任务描述函数聚类方式的定性差异。与风格迁移模型不同，视觉推理模型有时会对给定的特征图表现出多个FiLM参数子聚类。</p>
       
     
       
-        <p>在左图中，左侧子聚类对应于涉及位于其他物体前面的物体的问题，而右侧子聚类对应于涉及位于其他物体后面的物体的问题。在右图中，我们看到一些基于物体材质的分离证据：左侧子聚类对应于涉及哑光和橡胶物体的问题，而右侧子聚类包含关于闪亮或金属物体的问题。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>视觉推理模型中子聚类的存在也表明问题插值可能并不总是可靠地工作，但这些子聚类并不妨碍对问题表示执行算术运算，正如Perez等人[<cite>[perez2018film]</cite>]所报告的那样。</p>
+        <p>至少，这可能表明FiLM学会了以特定于问题的方式运作，并且我们不应该期望找到一个统一的、独立于问题的解释来说明FiLM在调制被FiLM化网络方面的成功。也许视觉推理的组合性或离散性要求模型实现几个定义明确的运作模式，而这些对于风格迁移来说不太必要。</p>
       
     
       
-        <p>Perez等人[<cite>[perez2018film]</cite>]报告说，这种任务类比并不总是能成功纠正模型的答案，但它确实指出了关于FiLM-ed网络的一个有趣事实：有时模型出错不是因为它无法计算正确的输出，而是因为它未能为给定的任务描述产生正确的FiLM参数。反之亦然：如果模型训练的任务集不够丰富，FiLM-ed网络学习的计算原语可能不足以确保良好的泛化。例如，如果训练的风格中没有条纹，风格迁移模型可能缺乏产生类似斑马图案的能力。这可以解释为什么Ghiasi等人[<cite>[ghiasi2017exploring]</cite>]报告说，如果他们的风格迁移模型在数量不足的风格上训练，其为新风格生成仿作的能力会下降。请注意，在那种情况下，FiLM生成器的泛化失败也可能发挥作用，需要进一步分析才能得出明确结论。</p>
+        <p>专注于表现出子聚类的单个特征图，我们可以尝试通过根据问题类型对散点图进行颜色编码来推断问题是如何重新分组的。</p>
       
     
       
-        <p>这指出了FiLM-ed网络学习的各种计算原语与FiLM生成器学习的“数值配方”之间的分离：模型的泛化能力同时取决于它解析新形式任务描述的能力，以及它是否已经学习了解决这些任务所需的计算原语。我们注意到，这种多方面的泛化概念直接继承自FiLM框架采用的多任务观点。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>现在让我们把注意力转回迄今为止观察到的FiLM参数的整体结构性质。这种结构的存在已经被Ghiasi等人[<cite>[ghiasi2017exploring]</cite>]以及Perez等人[<cite>[perez2018film]</cite>]以更间接的方式探索过，他们对FiLM参数值应用了t-SNE [<cite>[maaten2008visualizing]</cite>]。</p>
+        <p>有时会出现清晰的模式，比如右图，其中与颜色相关的问题集中在右上角的聚类中——我们观察到问题要么是Query color或Equal color类型，要么包含与颜色相关的概念。有时则难以得出结论，比如左图，其中问题类型分散在三个聚类中。</p>
+      
+    
+      
+        <p>在仅靠问题类型无法解释FiLM参数聚类的情况下，我们可以转向条件化内容本身来理解其中的机制。让我们看两个更多的图：一个针对前图中的特征图26，另一个针对另一个也表现出多个子聚类的不同特征图。这次我们根据出现在其关联问题中的单词来重新分组点。</p>
+      
+    
+      
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
+      
+    
+      
+        <p>在左图中，左侧子聚类对应于涉及位于其他对象前面的对象的问题，而右侧子聚类对应于涉及位于其他对象后面的对象的问题。在右图中，我们看到一些基于对象材质的分离证据：左侧子聚类对应于涉及哑光和橡胶对象的问题，而右侧子聚类包含关于闪亮或金属对象的问题。</p>
+      
+    
+      
+        <p>视觉推理模型中子聚类的存在也表明问题插值可能并不总是可靠地工作，但这些子聚类并不妨碍对问题表示进行算术运算，正如Perez等人[<cite>[perez2018film]</cite>]所报告的那样。</p>
+      
+    
+      
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
+      
+    
+      
+        <p>Perez等人[<cite>[perez2018film]</cite>]报告说，这种任务类比并不总是能成功纠正模型的答案，但它确实指出了关于FiLM化网络的一个有趣事实：有时模型犯错不是因为它无法计算正确的输出，而是因为它未能为给定的任务描述生成正确的FiLM参数。反之亦然：如果模型训练的任务集不够丰富，那么被FiLM化网络学习的计算原语可能不足以确保良好的泛化。例如，如果训练的风格中没有条纹，一个风格迁移模型可能缺乏产生类似斑马图案的能力。这可以解释为什么Ghiasi等人[<cite>[ghiasi2017exploring]</cite>]报告说，如果他们的风格迁移模型在数量不足的风格上进行训练，那么它为新风格生成仿作的能力会下降。请注意，在那种情况下，FiLM生成器的泛化失败也可能发挥作用，需要进一步分析才能得出明确结论。</p>
+      
+    
+      
+        <p>这指出了被FiLM化网络学习的各种计算原语与FiLM生成器学习的“数值配方”之间的分离：模型的泛化能力既取决于它解析新形式任务描述的能力，也取决于它是否已经学习了解决这些任务所需的计算原语。我们注意到，这种多方面的泛化概念直接继承自FiLM框架所采用的多任务观点。</p>
+      
+    
+      
+        <p>现在让我们将注意力转回迄今为止观察到的FiLM参数的整体结构特性。这种结构的存在已经被Ghiasi等人[<cite>[ghiasi2017exploring]</cite>]以及Perez等人[<cite>[perez2018film]</cite>]以更间接的方式探索过，他们对FiLM参数值应用了t-SNE [<cite>[maaten2008visualizing]</cite>]。</p>
       
     
       
@@ -445,11 +573,19 @@ FiLM生成器预测描述目标风格的参数。风格迁移网络通过使实�
       
     
       
-        <p>左边的投影受到了Perez等人[<cite>[perez2018film]</cite>]为其在CLEVR上训练的视觉推理模型所做的类似投影的启发，显示了问题如何按问题类型分组。右边的投影受到了Ghiasi等人[<cite>[ghiasi2017exploring]</cite>]为其风格迁移网络所做的类似投影的启发。该投影没有像左边的投影那样将艺术家整齐地聚类，但这是可以预期的，因为一个艺术家的风格可能会随着时间发生很大变化。然而，我们仍然可以在投影中检测到有趣的模式：注意图中圈出的孤立聚类，其中Ivan Shishkin和Rembrandt的画作被聚合在一起。虽然这两位画家表现出相当不同的风格，但该聚类是他们素描的集合。</p>
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
       
     
       
-        <p>总而言之，神经网络学习使用FiLM层的方式似乎因问题而异、因输入而异，甚至因特征而异；似乎不存在网络使用FiLM来条件化计算的单一机制。这种灵活性可能解释了为什么与FiLM相关的方法在如此广泛的领域中都取得了成功。</p>
+        <p>左边的投影受到了Perez等人[<cite>[perez2018film]</cite>]为其在CLEVR上训练的视觉推理模型所做的类似投影的启发，显示了问题如何按问题类型分组。右边的投影受到了Ghiasi等人[<cite>[ghiasi2017exploring]</cite>]为其风格迁移网络所做的类似投影的启发。该投影没有像左边的投影那样将艺术家整齐地聚类，但这是可以预期的，因为一位艺术家的风格可能会随着时间发生很大变化。然而，我们仍然可以在投影中检测到有趣的模式：注意例如图中圈出的孤立聚类，其中Ivan Shishkin和Rembrandt的画作被聚合在一起。虽然这两位画家的风格相当不同，但该聚类是他们素描作品的分组。</p>
+      
+    
+      
+        <p>[交互图——查看原文：https://distill.pub/2018/feature-wise-transformations]</p>
+      
+    
+      
+        <p>总之，神经网络学习使用FiLM层的方式似乎因问题而异、因输入而异，甚至因特征而异；网络使用FiLM来条件化计算似乎没有单一的机制。这种灵活性可能解释了为什么与FiLM相关的方法在如此广泛的领域中取得了成功。</p>
       
     
       
@@ -458,11 +594,11 @@ FiLM生成器预测描述目标风格的参数。风格迁移网络通过使实�
       
     
       
-        <p>展望未来，仍有许多未回答的问题。这些关于基于FiLM的架构的实验观察是否可以推广到其他相关的条件机制，例如条件偏置、sigmoid门控、HyperNetworks和双线性变换？什么时候逐特征变换优于具有更强归纳偏置的方法，反之亦然？最近的工作将逐特征变换与更强的归纳偏置方法相结合[<cite>[strub2018visual,bahdanau2018learning,yang2018dataset]</cite>]，这可能是一个最佳的折中方案。此外，FiLM的任务表示属性在多大程度上是FiLM固有的，在多大程度上是来自神经网络的其他特征（即非线性、FiLM生成器深度等）而涌现的？如果你有兴趣探索这些或其他关于FiLM的问题，我们推荐查看我们在此实验中用作起点的FiLM模型的代码库：<a href="https://github.com/ethanjperez/film" target="_blank" rel="noopener">visual reasoning</a>[<cite>[perez2018film]</cite>] 和 <a href="https://github.com/tensorflow/magenta/tree/master/magenta/models/arbitrary_image_stylization" target="_blank" rel="noopener">style transfer</a>[<cite>[ghiasi2017exploring]</cite>]。</p>
+        <p>展望未来，仍有许多未解答的问题。这些关于基于FiLM的架构的实验观察是否可以推广到其他相关的条件化机制，如条件偏置、sigmoid门控、HyperNetworks和双线性变换？特征级变换何时优于具有更强归纳偏置的方法，反之亦然？最近的工作将特征级变换与更强的归纳偏置方法相结合[<cite>[strub2018visual,bahdanau2018learning,yang2018dataset]</cite>]，这可能是一个最佳的折中方案。此外，FiLM的任务表示特性在多大程度上是FiLM固有的，又在多大程度上是从神经网络的其他特性（即非线性、FiLM生成器深度等）中涌现的？如果你有兴趣探索这些或其他关于FiLM的问题，我们推荐查看我们在此实验中用作起点的FiLM模型的代码库：用于<a href="https://github.com/ethanjperez/film" target="_blank" rel="noopener">视觉推理</a>[<cite>[perez2018film]</cite>]和<a href="https://github.com/tensorflow/magenta/tree/master/magenta/models/arbitrary_image_stylization" target="_blank" rel="noopener">风格迁移</a>[<cite>[ghiasi2017exploring]</cite>]。</p>
       
     
       
-        <p>最后，仅仅在特征层面上的变化就能够复合成对FiLM-ed网络的大而有意义的调制，这一事实仍然让我们感到非常惊讶，希望未来的工作能够揭示更深刻的解释。不过目前，这是一个引发更大谜题的问题，即神经网络总体上如何将矩阵乘法和逐元素非线性等简单操作复合成语义上有意义的变换。</p>
+        <p>最后，仅在特征层面上的变化就能够复合成对被FiLM化网络的大而有意义的调制，这一事实仍然让我们感到非常惊讶，希望未来的工作能够揭示更深层的解释。不过目前，这是一个让人想起神经网络如何将矩阵乘法和逐元素非线性等简单操作复合成语义上有意义的变换这一更大谜题的问题。</p>
       
     
   </div>
@@ -472,11 +608,11 @@ FiLM生成器预测描述目标风格的参数。风格迁移网络通过使实�
     <h2>注释</h2>
     
     <div class="footnote-item" id="f1n">
-      <a href="#fnref-f1n">[1]</a> 同样的论点也适用于卷积网络，前提是我们忽略由于零填充导致的边界效应。
+      <a href="#fnref-f1n">[1]</a> 同样的论点适用于卷积网络，前提是我们忽略由于零填充导致的边界效应。
     </div>
     
     <div class="footnote-item" id="f2n">
-      <a href="#fnref-f2n">[2]</a> 仅乘法交互在各个领域都有成功的历史——参见文献笔记。
+      <a href="#fnref-f2n">[2]</a> 单纯的乘法交互在各个领域都有过成功的记录——参见参考文献备注。
     </div>
     
     <div class="footnote-item" id="f3n">
@@ -484,19 +620,19 @@ FiLM生成器预测描述目标风格的参数。风格迁移网络通过使实�
     </div>
     
     <div class="footnote-item" id="f4n">
-      <a href="#fnref-f4n">[4]</a> 严格来说，linear（线性）是一个误称，因为我们允许偏置，但我们希望更严谨的读者为了一个更好听的缩写而原谅我们。
+      <a href="#fnref-f4n">[4]</a> 严格来说，linear（线性）是一个用词不当，因为我们允许偏置，但我们希望更严谨的读者为了一个更好听的缩写而原谅我们。
     </div>
     
     <div class="footnote-item" id="f5n">
-      <a href="#fnref-f5n">[5]</a> 为了更详细地扩展卷积情况，特征图可以被视为在不同空间位置上评估的相同特征检测器，在这种情况下，对所有空间位置应用相同的仿射变换是有道理的。
+      <a href="#fnref-f5n">[5]</a> 为了对卷积情况稍作扩展，特征图可以被视为在不同空间位置上评估的同一个特征检测器，在这种情况下，对所有空间位置应用相同的仿射变换是有道理的。
     </div>
     
     <div class="footnote-item" id="f6n">
-      <a href="#fnref-f6n">[6]</a> 作者还描述了一种位置相关的偏置方案，由于缺乏逐特征属性，无法用FiLM层表示。
+      <a href="#fnref-f6n">[6]</a> 作者还描述了一种位置相关的偏置方案，由于缺乏特征级特性，无法用FiLM层来表示。
     </div>
     
     <div class="footnote-item" id="f7n">
-      <a href="#fnref-f7n">[7]</a> 这是将线性变换转换为仿射变换的常用做法。
+      <a href="#fnref-f7n">[7]</a> 这是将线性变换转化为仿射变换的常用做法。
     </div>
     
   </section>

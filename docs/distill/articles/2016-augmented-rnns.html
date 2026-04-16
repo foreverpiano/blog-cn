@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>注意力机制与增强型循环神经网络 · Distill.pub</title>
+  <title>注意力与增强循环神经网络 · Distill.pub</title>
   <link rel="stylesheet" href="../static/css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
@@ -20,7 +20,7 @@
 
 <article>
   <header class="article-header">
-    <h1>注意力机制与增强型循环神经网络</h1>
+    <h1>注意力与增强循环神经网络</h1>
     <div class="meta">
       2016-09-08 · 
       <a href="http://distill.pub/2016/augmented-rnns" target="_blank" rel="noopener">阅读原文</a>
@@ -30,23 +30,7 @@
   <div class="article-content">
     
       
-        <p>Distill</p>
-      
-    
-      
-        <p>关于</p>
-      
-    
-      
-        <p>奖项</p>
-      
-    
-      
-        <p>投稿</p>
-      
-    
-      
-        <p>注意力机制与增强型循环神经网络</p>
+        <p>注意力与增强循环神经网络</p>
       
     
       
@@ -66,7 +50,7 @@
       
     
       
-        <p>9月 8日</p>
+        <p>9月8日</p>
       
     
       
@@ -82,30 +66,34 @@
       
     
       
-        <p>循环神经网络是深度学习的核心技术之一，它让神经网络能够处理文本、音频和视频等序列数据。它们可用于将序列提炼为高层理解、对序列进行标注，甚至从零生成全新的序列！</p>
+        <p>循环神经网络是深度学习的核心技术之一，它让神经网络能够处理文本、音频和视频等序列数据。它们可以把一个序列提炼成高层理解、为序列添加标注，甚至从零开始生成全新的序列！</p>
       
     
       
-        <p>基础的 RNN 在处理较长序列时表现不佳，但一种特殊的变体——<a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/" target="_blank" rel="noopener">“长短期记忆”网络</a> [1]——能够很好地应对这类问题。这类模型已被证明极具威力，在机器翻译、语音识别、图像描述生成等众多任务中取得了显著成果。因此，循环神经网络在过去几年里得到了广泛应用。</p>
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
       
     
       
-        <p>随着其普及，我们看到越来越多尝试为 RNN 引入新特性的工作。其中四个方向尤其引人注目：</p>
+        <p>基础的 RNN 设计在处理较长序列时表现不佳，但一种特殊的变体——<a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/" target="_blank" rel="noopener">“长短期记忆”（long short-term memory）网络</a> [1]——甚至能够胜任这类任务。这类模型被证明非常强大，在机器翻译、语音识别、图像描述等众多任务上取得了惊人成果。因此，循环神经网络在过去几年里迅速普及。</p>
+      
+    
+      
+        <p>随着这一趋势，我们看到越来越多尝试给 RNN 增加新特性的工作。其中四个方向尤其令人振奋：</p>
       
     
       
         <figure>
-          <img src="http://distill.pub/2016/assets/rnn_preview_ntm.svg" alt="">
+          <img src="../images/2016-augmented-rnns/rnn_preview_ntm.svg" alt="">
           <figcaption>Neural Turing Machines have external memory that they can read and write to.</figcaption>
         </figure>
       
     
       
-        <p>单独来看，这些技术都是对 RNN 的强大扩展，但真正令人惊叹的是，它们可以相互结合，似乎只是更广阔设计空间中的几个点。此外，它们都依赖于同一个核心技巧——即注意力机制——才能发挥作用。</p>
+        <p>单独来看，这些技术都是对 RNN 的强力扩展，但真正引人注目的是它们可以相互组合，似乎只是更大设计空间中的几个点。此外，它们都依赖于同一个底层技巧——即所谓的注意力机制。</p>
       
     
       
-        <p>我们认为，这些“增强型 RNN”将在未来几年扩展深度学习能力方面发挥重要作用。</p>
+        <p>我们猜测，这些“增强型 RNN”将在未来几年里对扩展深度学习的能力发挥重要作用。</p>
       
     
       
@@ -118,42 +106,58 @@
       
     
       
-        <p>但读写操作如何实现呢？难点在于我们希望这些操作是可微分的。特别是，我们希望读写位置相对于位置是可微的，以便学习在哪里读写。这很棘手，因为记忆地址本质上是离散的。NTM 采用了一个非常巧妙的解决方案：每一步都在所有位置进行读写，只是程度不同。</p>
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
       
     
       
-        <p>以读取为例。RNN 不会指定单一位置，而是输出一个“注意力分布”，描述我们如何分散对不同记忆位置的关注程度。因此，读取操作的结果是一个加权和。</p>
+        <p>但读写操作如何实现呢？难点在于我们希望这些操作是可微分的。特别是，我们希望读写的位置也能参与求导，以便模型学会该去哪里读写。这很棘手，因为记忆地址本质上是离散的。NTM 采用了一个非常巧妙的解决方案：每一步都在所有位置进行读写，只是程度不同。</p>
       
     
       
-        <p>同样，我们也在所有位置进行写入，只是程度不同。同样，一个注意力分布描述了我们在每个位置写入的多少。我们通过让记忆中某个位置的新值成为旧记忆内容与写入值的凸组合来实现这一点，两者之间的权重由注意力权重决定。</p>
+        <p>举个例子，我们重点看读取操作。RNN 不是指定单一位置，而是输出一个“注意力分布”，描述我们如何把关注度分散到不同的记忆位置上。因此，读取的结果是一个加权和。</p>
       
     
       
-        <p>但 NTM 如何决定将注意力集中到记忆中的哪些位置呢？它们实际上结合了两种不同的方法：基于内容的注意力和基于位置的注意力。基于内容的注意力允许 NTM 在记忆中搜索并聚焦于匹配它们正在寻找的内容的位置，而基于位置的注意力允许在记忆中进行相对移动，使 NTM 能够循环。</p>
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
       
     
       
-        <p>这种读写能力使 NTM 能够执行许多以前超出神经网络能力的简单算法。例如，它们可以学会将长序列存储在记忆中，然后循环遍历它，反复重复输出。在这个过程中，我们可以观察它们在哪里读写，从而更好地理解它们在做什么：</p>
+        <p>同样，我们也在所有位置同时进行写入，只是程度不同。注意力分布再次用来描述每个位置的写入强度。具体做法是：让记忆中某个位置的新值成为旧记忆内容与写入值的凸组合，两者的权重由注意力决定。</p>
+      
+    
+      
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
+      
+    
+      
+        <p>但 NTM 如何决定把注意力放在记忆的哪些位置呢？它们实际上同时使用了两种方法：基于内容的注意力和基于位置的注意力。基于内容的注意力让 NTM 能在记忆中搜索并聚焦在匹配当前需求的位置，而基于位置的注意力则允许在记忆中相对移动，从而实现循环。</p>
+      
+    
+      
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
+      
+    
+      
+        <p>这种读写能力让 NTM 可以执行许多此前神经网络无法完成的简单算法。例如，它们可以学会把长序列存入记忆，然后循环遍历，反复重复输出。在这个过程中，我们可以观察它们读写的位置，从而更好地理解它们在做什么：</p>
       
     
       
         <figure>
-          <img src="http://distill.pub/2016/assets/NTM-Copy-ReadWrite.svg" alt="">
+          <img src="../images/2016-augmented-rnns/NTM-Copy-ReadWrite.svg" alt="">
           <figcaption>See more experiments in [3]. This figure is based on the Repeat Copy experiment.</figcaption>
         </figure>
       
     
       
-        <p>它们还能学会模仿查找表，甚至学会对数字排序（虽然有作弊成分）！另一方面，它们仍然无法完成许多基本操作，例如加法或乘法。</p>
+        <p>它们还能学会模仿查找表，甚至学会给数字排序（虽然有点作弊）！不过，它们仍然无法完成许多最基础的操作，比如加法或乘法。</p>
       
     
       
-        <p>自原始 NTM 论文发表以来，已有许多激动人心的论文探索了类似方向。Neural GPU [4] 克服了 NTM 无法进行加法和乘法的局限。Zaremba &amp; Sutskever [5] 使用强化学习而非原始论文中的可微分读写来训练 NTM。Neural Random Access Machines [6] 基于指针工作。一些论文探索了可微分数据结构，例如栈和队列 [7, 8]。而 Memory Networks [9, 10] 是解决类似问题的另一种方法。</p>
+        <p>自原始 NTM 论文发表以来，已经出现了许多探索类似方向的精彩工作。Neural GPU [4] 克服了 NTM 无法执行加法和乘法的局限。Zaremba &amp; Sutskever [5] 使用强化学习而非原始的可微分读写来训练 NTM。Neural Random Access Machines [6] 则基于指针实现。还有一些论文探索了可微分的数据结构，例如栈和队列 [7, 8]。而 Memory Networks [9, 10] 是解决类似问题的另一种方法。</p>
       
     
       
-        <p>从某种客观意义上说，这些模型能够执行的许多任务——例如学会如何加数字——并不算特别困难。传统的程序合成社区能轻松解决它们。但神经网络擅长许多其他事情，而像 Neural Turing Machine 这样的模型似乎打破了它们能力上一个非常深刻的限制。</p>
+        <p>从某种客观意义上说，这些模型能完成的任务——例如学会如何做加法——其实并不特别困难。传统的程序合成领域可以轻松解决它们。但神经网络擅长许多其他事情，而 Neural Turing Machine 之类的模型似乎打破了它们能力上一个非常深刻的限制。</p>
       
     
       
@@ -162,7 +166,7 @@
       
     
       
-        <p>目前有多个这些模型的开源实现。Neural Turing Machine 的开源实现包括 <a href="https://github.com/carpedm20/NTM-tensorflow" target="_blank" rel="noopener">Taehoon Kim 的</a>（TensorFlow）、<a href="https://github.com/shawntan/neural-turing-machines" target="_blank" rel="noopener">Shawn Tan 的</a>（Theano）、<a href="https://github.com/fumin/ntm" target="_blank" rel="noopener">Fumin 的</a>（Go）、<a href="https://github.com/kaishengtai/torch-ntm" target="_blank" rel="noopener">Kai Sheng Tai 的</a>（Torch）以及 <a href="https://github.com/snipsco/ntm-lasagne" target="_blank" rel="noopener">Snip 的</a>（Lasagne）。Neural GPU 论文的代码已开源并放入 <a href="https://github.com/tensorflow/models/tree/master/neural_gpu" target="_blank" rel="noopener">TensorFlow Models 仓库</a>。Memory Networks 的开源实现包括 <a href="https://github.com/facebook/MemNN" target="_blank" rel="noopener">Facebook 的</a>（Torch/Matlab）、<a href="https://github.com/YerevaNN/Dynamic-memory-networks-in-Theano" target="_blank" rel="noopener">YerevaNN 的</a>（Theano）以及 <a href="https://github.com/carpedm20/MemN2N-tensorflow" target="_blank" rel="noopener">Taehoon Kim 的</a>（TensorFlow）。</p>
+        <p>目前有多个这些模型的开源实现。Neural Turing Machine 的开源实现包括 <a href="https://github.com/carpedm20/NTM-tensorflow" target="_blank" rel="noopener">Taehoon Kim 的</a>（TensorFlow）、<a href="https://github.com/shawntan/neural-turing-machines" target="_blank" rel="noopener">Shawn Tan 的</a>（Theano）、<a href="https://github.com/fumin/ntm" target="_blank" rel="noopener">Fumin 的</a>（Go）、<a href="https://github.com/kaishengtai/torch-ntm" target="_blank" rel="noopener">Kai Sheng Tai 的</a>（Torch）以及 <a href="https://github.com/snipsco/ntm-lasagne" target="_blank" rel="noopener">Snip 的</a>（Lasagne）。Neural GPU 论文的代码已开源并放入 <a href="https://github.com/tensorflow/models/tree/master/neural_gpu" target="_blank" rel="noopener">TensorFlow Models 仓库</a>。Memory Networks 的开源实现包括 <a href="https://github.com/facebook/MemNN" target="_blank" rel="noopener">Facebook 的</a>（Torch/Matlab）、<a href="https://github.com/YerevaNN/Dynamic-memory-networks-in-Theano" target="_blank" rel="noopener">YerevaNN 的</a>（Theano）和 <a href="https://github.com/carpedm20/MemN2N-tensorflow" target="_blank" rel="noopener">Taehoon Kim 的</a>（TensorFlow）。</p>
       
     
       
@@ -171,60 +175,68 @@
       
     
       
-        <p>当我翻译句子时，我会特别关注当前正在翻译的词。当我转录一段录音时，我会仔细聆听正在写下的那部分内容。如果你让我描述我正坐着的房间，我会在描述时环顾四周，看着我提到的物体。</p>
+        <p>当我翻译一个句子时，会特别留意当前正在翻译的那个词。当我转录一段录音时，会仔细聆听正在记录的那个片段。如果你让我描述我正坐着的房间，我会在描述每个物体时把目光投向它。</p>
       
     
       
-        <p>神经网络可以通过注意力机制实现同样的行为，专注于它们获得的信息的某个子集。例如，一个 RNN 可以关注另一个 RNN 的输出。在每一步，它都会聚焦于另一个 RNN 的不同位置。</p>
+        <p>神经网络可以通过注意力机制实现同样的行为，即聚焦于所给信息中的一部分。例如，一个 RNN 可以关注另一个 RNN 的输出。在每一步，它都会把注意力放在另一个 RNN 的不同位置上。</p>
       
     
       
-        <p>我们希望注意力是可微分的，以便学习在哪里聚焦。为此，我们使用 Neural Turing Machines 采用的相同技巧：处处关注，只是程度不同。</p>
+        <p>我们希望注意力是可微分的，以便学会应该关注哪里。为此，我们使用了 Neural Turing Machines 的相同技巧：对所有位置都进行关注，只是程度不同。</p>
       
     
       
-        <p>注意力分布通常通过基于内容的注意力生成。进行关注的 RNN 生成一个查询，描述它想要关注的内容。每个条目与查询进行点积得到一个分数，描述它与查询的匹配程度。这些分数被送入 softmax 以生成注意力分布。</p>
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
       
     
       
-        <p>RNN 之间注意力的一种用途是机器翻译 [11]。传统的序列到序列模型必须将整个输入压缩成单个向量，然后再将其扩展出来。注意力通过允许处理输入的 RNN 传递它看到的每个单词的信息，并让生成输出的 RNN 在相关单词变得重要时聚焦于它们，从而避免了这个问题。</p>
+        <p>注意力分布通常通过基于内容的注意力生成。进行关注的 RNN 会生成一个查询，描述它想要关注的内容。每个条目与查询做点积，得到一个分数，表示匹配程度。这些分数经过 softmax 处理后就形成了注意力分布。</p>
+      
+    
+      
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
+      
+    
+      
+        <p>RNN 之间使用注意力的一种应用是机器翻译 [11]。传统的序列到序列模型必须把整个输入压缩成单个向量，然后再把它展开。注意力机制避免了这一点，它允许处理输入的 RNN 为看到的每个词传递信息，而生成输出的 RNN 则可以在相关词变得重要时集中关注它们。</p>
       
     
       
         <figure>
-          <img src="http://distill.pub/2016/assets/pointer.svg" alt="">
+          <img src="../images/2016-augmented-rnns/pointer.svg" alt="">
           <figcaption>Diagram derived from Fig. 3 of <a href="https://arxiv.org/pdf/1409.0473.pdf" target="_blank" rel="noopener">Bahdanau,et al.2014</a></figcaption>
         </figure>
       
     
       
-        <p>这种 RNN 之间的注意力还有许多其他应用。它可用于语音识别 [12]，允许一个 RNN 处理音频，然后让另一个 RNN 略读它，在生成转录文本时聚焦于相关部分。</p>
+        <p>这种 RNN 之间的注意力还有许多其他应用。它可用于语音识别 [12]，让一个 RNN 处理音频，另一个 RNN 则快速浏览它，在生成转录文本时专注于相关部分。</p>
       
     
       
         <figure>
-          <img src="http://distill.pub/2016/assets/rnn-attention-waveform-bw.png" alt="">
+          <img src="../images/2016-augmented-rnns/rnn-attention-waveform-bw.png" alt="">
           <figcaption>Figure derived from <a href="https://arxiv.org/pdf/1508.01211.pdf" target="_blank" rel="noopener">Chan,et al.2015</a></figcaption>
         </figure>
       
     
       
-        <p>这类注意力的其他用途包括文本解析 [13]，它允许模型在生成解析树时快速浏览单词；以及对话建模 [14]，它让模型在生成回复时关注对话的前面部分。</p>
+        <p>这类注意力的其他用途包括文本句法分析 [13]（在生成句法树时快速扫视单词）和对话建模 [14]（在生成回复时关注之前对话的内容）。</p>
       
     
       
-        <p>注意力也可以用在卷积神经网络和 RNN 之间的接口上。这允许 RNN 在每一步查看图像的不同位置。这种注意力的一种流行用途是图像描述生成。首先，卷积网络处理图像，提取高层特征。然后 RNN 运行，生成图像的描述。在生成描述中的每个词时，RNN 会聚焦于卷积网络对图像相关部分的理解。我们可以明确地将其可视化：</p>
+        <p>注意力也可以用在卷积神经网络与 RNN 之间的接口上。这允许 RNN 在每一步查看图像的不同位置。这种注意力的一个流行应用是图像描述。首先，卷积网络处理图像，提取高层特征；然后 RNN 运行，生成对图像的描述。在生成描述中每个词的时候，RNN 会聚焦于卷积网络对图像相关部分的理解。我们可以明确地将其可视化：</p>
       
     
       
         <figure>
-          <img src="http://distill.pub/2016/assets/show-attend-tell.png" alt="">
+          <img src="../images/2016-augmented-rnns/show-attend-tell.png" alt="">
           <figcaption>Figure from [3]</figcaption>
         </figure>
       
     
       
-        <p>更广泛地说，只要你想与输出具有重复结构的神经网络进行交互，就可以使用注意力接口。</p>
+        <p>更广泛地说，只要希望与输出具有重复结构的神经网络进行交互，就可以使用注意力接口。</p>
       
     
       
@@ -237,43 +249,67 @@
       
     
       
-        <p>标准的 RNN 在每个时间步进行相同数量的计算。这似乎不直观。显然，当事情困难时应该多思考一些吧？这也限制了 RNN 对长度为 n 的序列只能进行 O(n) 次操作。</p>
+        <p>标准的 RNN 在每个时间步都执行相同数量的计算。这显得不太直观。难道不应该在任务困难时多思考一会儿吗？这也限制了 RNN 对于长度为 n 的序列只能执行 O(n) 次操作。</p>
       
     
       
-        <p>自适应计算时间 [15] 是一种让 RNN 在每一步进行不同计算量的方法。其核心思想很简单：允许 RNN 对每个时间步进行多次计算步骤。</p>
+        <p>自适应计算时间 [15] 让 RNN 在每一步可以执行不同数量的计算。其核心思想很简单：允许 RNN 在每个时间步执行多个计算步骤。</p>
       
     
       
-        <p>为了让网络学会要执行多少步，我们希望步数是可微分的。我们使用之前相同的技巧来实现这一点：不是决定运行离散数量的步数，而是对要运行的步数有一个注意力分布。输出是每个步骤输出的加权组合。</p>
+        <p>为了让网络学会应该执行多少步，我们希望步数是可微分的。我们使用之前同样的技巧来实现：不是决定运行离散的步数，而是对要运行的步数产生一个注意力分布。最终输出是每个步骤输出的加权组合。</p>
       
     
       
-        <p>还有一些细节在上图中被省略了。下面是一个包含三个计算步骤的时间步的完整图示。</p>
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
       
     
       
-        <p>这有点复杂，所以我们一步步来。在高层上，我们仍然在运行 RNN 并输出状态的加权组合：</p>
+        <p>还有一些细节在上面的图中被省略了。下面是一个包含三个计算步骤的完整时间步示意图。</p>
       
     
       
-        <p>每一步的权重由一个“停止神经元”决定。它是一个 sigmoid 神经元，观察 RNN 状态并给出停止权重，我们可以将其视为在该步应该停止的概率。</p>
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
       
     
       
-        <p>我们对停止权重的总预算为 1，因此我们沿着顶部跟踪该预算。当它小于 epsilon 时，我们停止。</p>
+        <p>这有点复杂，我们一步步来解释。从高层来看，我们仍然在运行 RNN，并输出各个状态的加权组合：</p>
       
     
       
-        <p>当我们停止时，可能还有一些剩余的停止预算，因为我们是在小于 epsilon 时停止的。我们应该如何处理它？从技术上讲，它被分配给了未来的步骤，但我们不想计算那些步骤，因此我们将其归于最后一步。</p>
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
       
     
       
-        <p>在训练自适应计算时间模型时，我们会在损失函数中加入一个“思考成本”项。这会惩罚模型使用的计算量。你把这个项设置得越大，模型就越会在性能和降低计算时间之间进行权衡。</p>
+        <p>每一步的权重由一个“停止神经元”决定。它是一个 sigmoid 神经元，观察 RNN 的状态并给出停止权重，我们可以将其理解为在这一步应该停止的概率。</p>
       
     
       
-        <p>自适应计算时间是一个非常新的想法，但我们相信它以及类似的想法将会非常重要。</p>
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
+      
+    
+      
+        <p>我们给停止权重的总预算为 1，因此在顶部跟踪这个预算。当它小于 epsilon 时，我们就停止。</p>
+      
+    
+      
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
+      
+    
+      
+        <p>当我们停止时，可能还剩下一些停止预算，因为我们是在它小于 epsilon 时停止的。该如何处理呢？从技术上讲，它会被分配给后续步骤，但我们不想计算那些步骤，因此把它归到最后一步上。</p>
+      
+    
+      
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
+      
+    
+      
+        <p>在训练自适应计算时间模型时，我们会在损失函数中加入一个“思考代价”项。它会惩罚模型使用的计算量。这个项设置得越大，模型就越倾向于牺牲一点性能来减少计算时间。</p>
+      
+    
+      
+        <p>自适应计算时间是一个非常新的想法，但我们相信它以及类似的思想将会非常重要。</p>
       
     
       
@@ -291,48 +327,60 @@
       
     
       
-        <p>神经网络在许多任务上表现出色，但它们也很难完成一些基础操作，比如算术，而这些在常规计算方法中非常简单。如果有一种方法能将神经网络与常规编程融合，兼得两者的优势，那将非常好。</p>
+        <p>神经网络在许多任务上表现出色，但在一些基础操作（如算术）上却很吃力，而这些操作在传统计算中非常简单。如果能将神经网络与常规编程融合，兼具两者的优势，那将非常棒。</p>
       
     
       
-        <p>Neural Programmer [16] 是实现这一目标的一种方法。它学会生成程序来解决问题。事实上，它无需正确程序的示例就能学会生成这样的程序。它发现生成程序是完成某项任务的一种手段。</p>
+        <p>Neural Programmer [16] 就是这样一种方法。它学会生成程序来解决任务。事实上，它无需看到正确程序的例子，就能学会生成这样的程序。它把生成程序作为达成某个目标的手段。</p>
       
     
       
-        <p>论文中的实际模型通过生成类似 SQL 的程序来查询表格，从而回答关于表格的问题。然而，这里有一些细节让它显得有些复杂，所以我们先想象一个稍微简单一点的模型：给定一个算术表达式，生成一个程序来计算它。</p>
+        <p>论文中的实际模型通过生成类似 SQL 的程序来查询表格，从而回答关于表格的问题。但其中有不少细节会让解释变得复杂，因此我们先设想一个稍简单的模型：给定一个算术表达式，生成一个用于求值的程序。</p>
       
     
       
-        <p>生成的程序是一个操作序列。每个操作被定义为对过去操作的输出进行操作。因此，一个操作可能是“将两步之前操作的输出与一步之前操作的输出相加”。它更像 Unix 管道，而不是具有变量赋值和读取的程序。</p>
+        <p>生成的程序是一系列操作。每个操作被定义为对之前操作的输出进行运算。因此，一个操作可能是“把两步前的操作输出与一步前的操作输出相加”。它更像 Unix 管道，而不是带有变量赋值和读取的传统程序。</p>
       
     
       
-        <p>程序由控制器 RNN 一步一步生成。在每一步，控制器 RNN 输出下一个操作应该是什么的概率分布。例如，我们可能非常确定在第一步要执行加法，然后在第二步难以决定是乘法还是除法，依此类推……</p>
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
       
     
       
-        <p>得到的操作分布现在可以被求值。我们不是在每一步只运行一个操作，而是使用通常的注意力技巧：运行所有操作，然后按我们运行该操作的概率对输出进行加权平均。</p>
+        <p>程序由一个控制器 RNN 一步一步生成。在每一步，控制器 RNN 会输出下一个操作的概率分布。例如，我们可能非常确定第一步要执行加法，然后在第二步难以决定是乘还是除，依此类推……</p>
       
     
       
-        <p>只要我们能通过这些操作定义导数，程序的输出就相对于概率是可微的。然后我们可以定义一个损失，并训练神经网络生成能给出正确答案的程序。通过这种方式，Neural Programmer 无需良好程序的示例就能学会生成程序。唯一的监督信号是程序应该产生的答案。</p>
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
       
     
       
-        <p>这是 Neural Programmer 的核心思想，但论文中的版本是回答关于表格的问题，而不是算术表达式。还有几个巧妙的额外技巧：</p>
+        <p>得到的操作概率分布现在可以被求值。我们不再在每一步只运行一个操作，而是采用惯用的注意力技巧——运行所有操作，然后按照运行每个操作的概率对输出进行加权平均。</p>
       
     
       
-        <div class="list-content">多类型：Neural Programmer 中的许多操作处理的是标量数字以外的类型。有些操作输出表格列的选择或单元格的选择。只有相同类型的输出会被合并。
-引用输入：Neural Programmer 需要回答诸如“有多少城市的人口超过 100 万？”这样的问题，给定一个包含人口列的城市表格。为了实现这一点，一些操作允许网络引用它们正在回答的问题中的常量或列名。这种引用通过注意力实现，风格类似于指针网络 [17]。</div>
+        <p>[交互图——查看原文：http://distill.pub/2016/augmented-rnns]</p>
       
     
       
-        <p>Neural Programmer 并不是让神经网络生成程序的唯一方法。另一个很好的方法是 Neural Programmer-Interpreter [18]，它可以完成许多非常有趣的任务，但需要以正确程序形式提供的监督。</p>
+        <p>只要我们能对这些操作定义导数，程序的输出就对概率是可微分的。我们可以定义一个损失函数，并训练神经网络生成能给出正确答案的程序。这样，Neural Programmer 就能在没有好程序示例的情况下学会生成程序。唯一的监督信号就是程序应该产生的答案。</p>
       
     
       
-        <p>我们认为，这个弥合传统编程与神经网络之间差距的广阔领域极其重要。虽然 Neural Programmer 显然不是最终解决方案，但我们认为从中可以学到许多重要的经验。</p>
+        <p>这是 Neural Programmer 的核心思想，但论文中的版本是回答关于表格的问题，而不是算术表达式。这里还有几个巧妙的设计：</p>
+      
+    
+      
+        <div class="list-content">多类型：Neural Programmer 中的许多操作处理的是标量数字之外的类型。有些操作输出表格列的选择或单元格的选择。只有相同类型的输出会被合并。
+引用输入：Neural Programmer 需要回答诸如“人口超过 100 万的城市有多少？”这样的问题，输入是一张包含人口列的城市表格。为了实现这一点，某些操作允许网络引用问题中的常数或列的名称。这种引用通过注意力机制完成，风格类似于 pointer networks [17]。</div>
+      
+    
+      
+        <p>Neural Programmer 并非让神经网络生成程序的唯一方法。另一种优美的方法是 Neural Programmer-Interpreter [18]，它能完成许多非常有趣的任务，但需要以正确程序作为监督信号。</p>
+      
+    
+      
+        <p>我们认为，这个连接传统编程与神经网络的广阔领域极其重要。虽然 Neural Programmer 显然不是最终的解决方案，但我们相信从中可以学到很多重要的经验。</p>
       
     
       
@@ -341,7 +389,7 @@
       
     
       
-        <p>更新的用于<a href="https://openreview.net/pdf?id=ry2YOrcge" target="_blank" rel="noopener">问答</a>的 Neural Programmer 版本已被其作者开源，并作为 <a href="https://github.com/tensorflow/models/tree/master/neural_programmer" target="_blank" rel="noopener">TensorFlow Model</a> 提供。还有一个由 <a href="https://github.com/mokemokechicken/keras_npi" target="_blank" rel="noopener">Ken Morishita</a>（Keras）实现的 Neural Programmer-Interpreter。</p>
+        <p>其作者已将用于<a href="https://openreview.net/pdf?id=ry2YOrcge" target="_blank" rel="noopener">问答</a>的 Neural Programmer 较新版本开源，并作为 <a href="https://github.com/tensorflow/models/tree/master/neural_programmer" target="_blank" rel="noopener">TensorFlow Model</a> 提供。还有 <a href="https://github.com/mokemokechicken/keras_npi" target="_blank" rel="noopener">Ken Morishita</a> 实现的 Neural Programmer-Interpreter（Keras）。</p>
       
     
       
@@ -350,458 +398,27 @@
       
     
       
-        <p>从某种意义上说，拿着纸的人类比没有纸的人类聪明得多。掌握数学符号的人类能够解决他们原本无法解决的问题。能够使用计算机让我们能够完成原本远超我们能力的惊人壮举。</p>
+        <p>从某种意义上说，一个拿着一张纸的人比没有纸的人要聪明得多。掌握数学符号的人能够解决原本无法解决的问题。有了计算机，我们就能完成原本远超自身能力的惊人壮举。</p>
       
     
       
-        <p>总体而言，许多有趣的智能形式似乎都是人类创造性启发式直觉与某种更清晰、更严谨的媒介（如语言或方程）之间的交互。有时，这种媒介是真实存在的物体，为我们存储信息、防止我们犯错，或进行大量计算。在其他情况下，这种媒介是我们头脑中操纵的模型。无论哪种方式，它似乎都是智能的深层基础。</p>
+        <p>总体而言，许多有趣的智能形式似乎都是人类创造性的启发式直觉与某种更清晰、更严谨的媒介（如语言或方程）之间互动的结果。有时，这种媒介是真实存在的物体，它为我们存储信息、防止我们犯错，或承担繁重的计算。在其他情况下，这种媒介是我们头脑中的模型，我们对它进行操作。无论哪种情况，它似乎都是智能最深层的本质。</p>
       
     
       
-        <p>机器学习领域最近的结果开始有了这种味道，将神经网络的直觉与其他东西结合起来。一种方法可以称为“启发式搜索”。例如，AlphaGo [19] 有一个围棋运作模型，并在神经网络直觉的引导下探索游戏可能的发展。类似地，DeepMath [20] 使用神经网络作为操纵数学表达式的直觉。我们在本文中讨论的“增强型 RNN”是另一种方法，我们将 RNN 与工程化媒介连接起来，以扩展它们的一般能力。</p>
+        <p>机器学习最近的一些成果开始具有这种特质，将神经网络的直觉与其他东西相结合。一种方法可称为“启发式搜索”。例如 AlphaGo [19] 拥有对围棋规则的模型，并由神经网络的直觉引导去探索棋局可能的走向。类似地，DeepMath [20] 使用神经网络作为操作数学表达式的直觉。本文讨论的“增强型 RNN”则是另一种方法，我们将 RNN 与精心设计的媒介相连，以扩展它们的一般能力。</p>
       
     
       
-        <p>与媒介交互自然涉及采取行动、观察、再采取更多行动的序列。这带来了一个重大挑战：我们如何学会应该采取哪些行动？这听起来像是一个强化学习问题，我们当然可以采用这种方法。但强化学习文献实际上是在解决这个问题最困难的版本，其解决方案很难使用。注意力机制的美妙之处在于，它通过在不同程度上部分地采取所有行动，为我们提供了一个更简单的出路。这之所以有效，是因为我们可以设计媒介——比如 NTM 记忆——来允许分数行动并且是可微的。强化学习让我们走一条路径，然后尝试从中学习。注意力则在岔路口走每一个方向，然后将路径合并回来。</p>
+        <p>与媒介互动自然会涉及一系列“采取行动、观察、再采取行动”的序列。这带来一个重大挑战：我们如何学会应该采取哪些行动？这听起来像是一个强化学习问题，我们当然可以采用那种方法。但强化学习文献其实在解决这个问题最困难的版本，其解决方案很难直接使用。而注意力机制的美妙之处在于，它提供了一条更简单的出路：对所有行动都部分地执行，只是程度不同。这之所以可行，是因为我们可以把媒介——如 NTM 的记忆——设计成允许分数行动且可微分。强化学习让我们走一条路径，然后尝试从中学习；而注意力则在岔路口同时走每一条路，然后再把路径合并回来。</p>
       
     
       
-        <p>注意力的一个主要弱点是我们必须在每一步都采取每一个“行动”。这会导致计算成本随着你增加 Neural Turing Machine 的记忆量等操作而线性增长。你可以想象的一种做法是让你的注意力变得稀疏，这样你就只需触及部分记忆。然而，这仍然具有挑战性，因为你可能希望让注意力依赖于记忆的内容，而天真地这样做迫使你查看每个记忆。我们已经看到一些初步尝试解决这个问题，例如 [21]，但似乎还有很多工作要做。如果我们真的能让这种亚线性时间的注意力工作起来，那将非常强大！</p>
+        <p>注意力的一个主要弱点是，我们每一步都必须执行每一个“行动”。这导致当你增加 Neural Turing Machine 的记忆容量等操作时，计算代价会线性增长。你可以设想让注意力变得稀疏，这样就只需触及部分记忆。但这仍然具有挑战性，因为你可能希望注意力依赖于记忆的内容，而天真地这样做就必须查看每一条记忆。我们已经看到一些初步尝试解决这个问题，例如 [21]，但似乎还有很多工作要做。如果我们真的能让这种亚线性时间的注意力机制运转起来，那将会非常强大！</p>
       
     
       
-        <p>增强型循环神经网络及其背后的注意力技术，令人极其兴奋。我们期待看到接下来会发生什么！</p>
-      
-    
-      
-        <h3>致谢</h3>
-        
-      
-    
-      
-        <p>感谢 Maithra Raghu、Dario Amodei、Cassandra Xia、Luke Vilnis、Anna Goldie、Jesse Engel、Dan Mané、Natasha Jaques、Emma Pierson 和 Ian Goodfellow 的反馈和鼓励。我们也非常感谢我们的团队 <a href="http://g.co/brain" target="_blank" rel="noopener">Google Brain</a>，他们对我们的项目给予了极大的支持。</p>
-      
-    
-      
-        <h3>参考文献</h3>
-        
-      
-    
-      
-        <div class="list-content">Understanding LSTM Networks   <a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs" target="_blank" rel="noopener">[link]</a>Olah, C., 2015. Neural Turing Machines   <a href="http://arxiv.org/pdf/1410.5401.pdf" target="_blank" rel="noopener">[PDF]</a>Graves, A., Wayne, G. and Danihelka, I., 2014. CoRR, Vol abs/1410.5401. Show, attend and tell: Neural image caption generation with visual attention Xu, K., Ba, J., Kiros, R., Cho, K., Courville, A., Salakhutdinov, R., Zemel, R.S. and Bengio, Y., 2015. arXiv preprint arXiv:1502.03044, Vol 2(3), pp. 5. CoRR.Neural GPUs Learn Algorithms   <a href="http://arxiv.org/pdf/1511.08228.pdf" target="_blank" rel="noopener">[PDF]</a>Kaiser, L. and Sutskever, I., 2015. CoRR, Vol abs/1511.08228. Reinforcement Learning Neural Turing Machines   <a href="http://arxiv.org/pdf/1505.00521.pdf" target="_blank" rel="noopener">[PDF]</a>Zaremba, W. and Sutskever, I., 2015. CoRR, Vol abs/1505.00521. Neural Random-Access Machines   <a href="http://arxiv.org/pdf/1511.06392.pdf" target="_blank" rel="noopener">[PDF]</a>Kurach, K., Andrychowicz, M. and Sutskever, I., 2015. CoRR, Vol abs/1511.06392. Learning to Transduce with Unbounded Memory   <a href="http://papers.nips.cc/paper/5648-learning-to-transduce-with-unbounded-memory.pdf" target="_blank" rel="noopener">[PDF]</a>Grefenstette, E., Hermann, K.M., Suleyman, M. and Blunsom, P., 2015. Advances in Neural Information Processing Systems 28, pp. 1828—1836. Curran Associates, Inc.Inferring Algorithmic Patterns with Stack-Augmented Recurrent Nets   <a href="http://papers.nips.cc/paper/5857-inferring-algorithmic-patterns-with-stack-augmented-recurrent-nets.pdf" target="_blank" rel="noopener">[PDF]</a>Joulin, A. and Mikolov, T., 2015. Advances in Neural Information Processing Systems 28, pp. 190—198. Curran Associates, Inc.Memory Networks   <a href="http://arxiv.org/pdf/1410.3916.pdf" target="_blank" rel="noopener">[PDF]</a>Weston, J., Chopra, S. and Bordes, A., 2014. CoRR, Vol abs/1410.3916. Ask Me Anything: Dynamic Memory Networks for Natural Language Processing   <a href="http://arxiv.org/pdf/1506.07285.pdf" target="_blank" rel="noopener">[PDF]</a>Kumar, A., Irsoy, O., Su, J., Bradbury, J., English, R., Pierce, B., Ondruska, P., Gulrajani, I. and Socher, R., 2015. CoRR, Vol abs/1506.07285. Neural machine translation by jointly learning to align and translate Bahdanau, D., Cho, K. and Bengio, Y., 2014. arXiv preprint arXiv:1409.0473. Listen, Attend and Spell   <a href="http://arxiv.org/pdf/1508.01211.pdf" target="_blank" rel="noopener">[PDF]</a>Chan, W., Jaitly, N., Le, Q.V. and Vinyals, O., 2015. CoRR, Vol abs/1508.01211. Grammar as a foreign language Vinyals, O., Kaiser, L., Koo, T., Petrov, S., Sutskever, I. and Hinton, G., 2015. Advances in Neural Information Processing Systems, pp. 2773—2781. A Neural Conversational Model   <a href="http://arxiv.org/pdf/1506.05869.pdf" target="_blank" rel="noopener">[PDF]</a>Vinyals, O. and Le, Q.V., 2015. CoRR, Vol abs/1506.05869. Adaptive Computation Time for Recurrent Neural Networks   <a href="http://arxiv.org/pdf/1603.08983.pdf" target="_blank" rel="noopener">[PDF]</a>Graves, A., 2016. CoRR, Vol abs/1603.08983. Neural Programmer: Inducing Latent Programs with Gradient Descent   <a href="http://arxiv.org/pdf/1511.04834.pdf" target="_blank" rel="noopener">[PDF]</a>Neelakantan, A., Le, Q.V. and Sutskever, I., 2015. CoRR, Vol abs/1511.04834. Pointer networks Vinyals, O., Fortunato, M. and Jaitly, N., 2015. Advances in Neural Information Processing Systems, pp. 2692—2700. Neural Programmer-Interpreters   <a href="http://arxiv.org/pdf/1511.06279.pdf" target="_blank" rel="noopener">[PDF]</a>Reed, S.E. and Freitas, N.d., 2015. CoRR, Vol abs/1511.06279. Mastering the game of Go with deep neural networks and tree search   <a href="http://dx.doi.org/10.1038/nature16961" target="_blank" rel="noopener">[link]</a>Silver, D., Huang, A., Maddison, C.J., Guez, A., Sifre, L., Driessche, G.v.d., Schrittwieser, J., Antonoglou, I., Panneershelvam, V., Lanctot, M., Dieleman, S., Grewe, D., Nham, J., Kalchbrenner, N., Sutskever, I., Lillicrap, T., Leach, M., Kavukcuoglu, K., Graepel, T. and Hassabis, D., 2016. Nature, Vol 529(7587), pp. 484—489. Nature Publishing Group. <a href="https://doi.org/10.1038/nature16961" target="_blank" rel="noopener">DOI: 10.1038/nature16961</a>DeepMath - Deep Sequence Models for Premise Selection   <a href="http://arxiv.org/pdf/1606.04442.pdf" target="_blank" rel="noopener">[PDF]</a>Alemi, A.A., Chollet, F., Irving, G., Szegedy, C. and Urban, J., 2016. CoRR, Vol abs/1606.04442. Learning Efficient Algorithms with Hierarchical Attentive Memory   <a href="http://arxiv.org/pdf/1602.03218.pdf" target="_blank" rel="noopener">[PDF]</a>Andrychowicz, M. and Kurach, K., 2016. CoRR, Vol abs/1602.03218.</div>
-      
-    
-      
-        <h3>更新与更正</h3>
-        
-      
-    
-      
-        <p><a href="https://github.com/distillpub/post--augmented-rnns/compare/1596e094d8943d2dc0ea445d92071129c6419c59...fdc3526167133f5a97cee9e7cb48af293e67d66d" target="_blank" rel="noopener">查看本文自首次发布以来的所有更改</a>。如果你发现错误或想提出修改建议，请<a href="https://github.com/distillpub/post--augmented-rnns/issues/new" target="_blank" rel="noopener">在 GitHub 上创建一个 issue</a>。</p>
-      
-    
-      
-        <h3>引用与重用</h3>
-        
-      
-    
-      
-        <p>图表和文字采用知识共享署名许可 <a href="https://creativecommons.org/licenses/by/2.0/" target="_blank" rel="noopener">CC-BY 2.0</a>，除非另有说明，<a href="https://github.com/distillpub/post--augmented-rnns" target="_blank" rel="noopener">源代码可在 GitHub 获取</a>。从其他来源重用的图表不属于此许可，可通过其标题中的注释“Figure from …”识别。</p>
-      
-    
-      
-        <p>在学术语境下引用本作品时，请按以下方式引用</p>
-      
-    
-      
-        <pre><code>Olah &amp; Carter, &quot;Attention and Augmented Recurrent Neural Networks&quot;, Distill, 2016. http://doi.org/10.23915/distill.00001</code></pre>
-      
-    
-      
-        <p>BibTeX 引用</p>
-      
-    
-      
-        <pre><code>@article{olah2016attention,
-  author = {Olah, Chris and Carter, Shan},
-  title = {Attention and Augmented Recurrent Neural Networks},
-  journal = {Distill},
-  year = {2016},
-  url = {http://distill.pub/2016/augmented-rnns},
-  doi = {10.23915/distill.00001}
-}</code></pre>
-      
-    
-      
-        <p>Distill</p>
-      
-    
-      
-        <p>致力于清晰阐释机器学习</p>
-      
-    
-      
-        <p>关于</p>
-      
-    
-      
-        <p>投稿</p>
-      
-    
-      
-        <p>奖项</p>
-      
-    
-      
-        <p>归档</p>
-      
-    
-      
-        <p>RSS</p>
-      
-    
-      
-        <p>GitHub</p>
-      
-    
-      
-        <p>Twitter</p>
-      
-    
-      
-        <p>ISSN 2476-0757</p>
-      
-    
-      
-        <p>Understanding LSTM Networks</p>
-      
-    
-      
-        <p>[link]</p>
-      
-    
-      
-        <p>C. Olah.  2015.</p>
-      
-    
-      
-        <p>Neural Turing Machines</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>A. Graves, G. Wayne, I. Danihelka.</p>
-      
-    
-      
-        <p>CoRR, Vol abs/1410.5401. 2014.</p>
-      
-    
-      
-        <p>Show, attend and tell: Neural image caption generation with visual attention</p>
-      
-    
-      
-        <p>K. Xu, J. Ba, R. Kiros, K. Cho, A. Courville, R. Salakhutdinov, R.S. Zemel, Y. Bengio.</p>
-      
-    
-      
-        <p>arXiv preprint arXiv:1502.03044, Vol 2(3), pp. 5. CoRR. 2015.</p>
-      
-    
-      
-        <p>Neural GPUs Learn Algorithms</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>L. Kaiser, I. Sutskever.</p>
-      
-    
-      
-        <p>CoRR, Vol abs/1511.08228. 2015.</p>
-      
-    
-      
-        <p>Reinforcement Learning Neural Turing Machines</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>W. Zaremba, I. Sutskever.</p>
-      
-    
-      
-        <p>CoRR, Vol abs/1505.00521. 2015.</p>
-      
-    
-      
-        <p>Neural Random-Access Machines</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>K. Kurach, M. Andrychowicz, I. Sutskever.</p>
-      
-    
-      
-        <p>CoRR, Vol abs/1511.06392. 2015.</p>
-      
-    
-      
-        <p>Learning to Transduce with Unbounded Memory</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>E. Grefenstette, K.M. Hermann, M. Suleyman, P. Blunsom.</p>
-      
-    
-      
-        <p>Advances in Neural Information Processing Systems 28, pp. 1828—1836. Curran Associates, Inc. 2015.</p>
-      
-    
-      
-        <p>Inferring Algorithmic Patterns with Stack-Augmented Recurrent Nets</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>A. Joulin, T. Mikolov.</p>
-      
-    
-      
-        <p>Advances in Neural Information Processing Systems 28, pp. 190—198. Curran Associates, Inc. 2015.</p>
-      
-    
-      
-        <p>Memory Networks</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>J. Weston, S. Chopra, A. Bordes.</p>
-      
-    
-      
-        <p>CoRR, Vol abs/1410.3916. 2014.</p>
-      
-    
-      
-        <p>Ask Me Anything: Dynamic Memory Networks for Natural Language Processing</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>A. Kumar, O. Irsoy, J. Su, J. Bradbury, R. English, B. Pierce, P. Ondruska, I. Gulrajani, R. Socher.</p>
-      
-    
-      
-        <p>CoRR, Vol abs/1506.07285. 2015.</p>
-      
-    
-      
-        <p>Neural machine translation by jointly learning to align and translate</p>
-      
-    
-      
-        <p>D. Bahdanau, K. Cho, Y. Bengio.</p>
-      
-    
-      
-        <p>arXiv preprint arXiv:1409.0473. 2014.</p>
-      
-    
-      
-        <p>Listen, Attend and Spell</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>W. Chan, N. Jaitly, Q.V. Le, O. Vinyals.</p>
-      
-    
-      
-        <p>CoRR, Vol abs/1508.01211. 2015.</p>
-      
-    
-      
-        <p>Grammar as a foreign language</p>
-      
-    
-      
-        <p>O. Vinyals, L. Kaiser, T. Koo, S. Petrov, I. Sutskever, G. Hinton.</p>
-      
-    
-      
-        <p>Advances in Neural Information Processing Systems, pp. 2773—2781. 2015.</p>
-      
-    
-      
-        <p>A Neural Conversational Model</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>O. Vinyals, Q.V. Le.</p>
-      
-    
-      
-        <p>CoRR, Vol abs/1506.05869. 2015.</p>
-      
-    
-      
-        <p>Show, attend and tell: Neural image caption generation with visual attention</p>
-      
-    
-      
-        <p>K. Xu, J. Ba, R. Kiros, K. Cho, A. Courville, R. Salakhutdinov, R.S. Zemel, Y. Bengio.</p>
-      
-    
-      
-        <p>arXiv preprint arXiv:1502.03044, Vol 2(3), pp. 5. CoRR. 2015.</p>
-      
-    
-      
-        <p>Adaptive Computation Time for Recurrent Neural Networks</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>A. Graves.</p>
-      
-    
-      
-        <p>CoRR, Vol abs/1603.08983. 2016.</p>
-      
-    
-      
-        <p>Neural Programmer: Inducing Latent Programs with Gradient Descent</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>A. Neelakantan, Q.V. Le, I. Sutskever.</p>
-      
-    
-      
-        <p>CoRR, Vol abs/1511.04834. 2015.</p>
-      
-    
-      
-        <p>Pointer networks</p>
-      
-    
-      
-        <p>O. Vinyals, M. Fortunato, N. Jaitly.</p>
-      
-    
-      
-        <p>Advances in Neural Information Processing Systems, pp. 2692—2700. 2015.</p>
-      
-    
-      
-        <p>Neural Programmer-Interpreters</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>S.E. Reed, N.d. Freitas.</p>
-      
-    
-      
-        <p>CoRR, Vol abs/1511.06279. 2015.</p>
-      
-    
-      
-        <p>Mastering the game of Go with deep neural networks and tree search</p>
-      
-    
-      
-        <p>[link]</p>
-      
-    
-      
-        <p>D. Silver, A. Huang, C.J. Maddison, A. Guez, L. Sifre, G.v.d. Driessche, J. Schrittwieser, I. Antonoglou, V. Panneershelvam, M. Lanctot, S. Dieleman, D. Grewe, J. Nham, N. Kalchbrenner, I. Sutskever, T. Lillicrap, M. Leach, K. Kavukcuoglu, T. Graepel, D. Hassabis.</p>
-      
-    
-      
-        <p>Nature, Vol 529(7587), pp. 484—489. Nature Publishing Group. 2016.</p>
-      
-    
-      
-        <p>DOI: 10.1038/nature16961</p>
-      
-    
-      
-        <p>DeepMath - Deep Sequence Models for Premise Selection</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>A.A. Alemi, F. Chollet, G. Irving, C. Szegedy, J. Urban.</p>
-      
-    
-      
-        <p>CoRR, Vol abs/1606.04442. 2016.</p>
-      
-    
-      
-        <p>Learning Efficient Algorithms with Hierarchical Attentive Memory</p>
-      
-    
-      
-        <p>[PDF]</p>
-      
-    
-      
-        <p>M. Andrychowicz, K. Kurach.</p>
-      
-    
-      
-        <p>CoRR, Vol abs/1602.03218. 2016.</p>
+        <p>增强型循环神经网络及其背后的注意力技术令人无比兴奋。我们期待看到接下来会发生什么！</p>
       
     
   </div>

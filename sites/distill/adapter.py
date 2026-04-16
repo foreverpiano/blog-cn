@@ -179,13 +179,19 @@ def _parse_article(html: str, index_entry: dict, all_slugs: set[str],
     slug = index_entry["slug"]
     page_url = index_entry["url"]
 
-    # Find content container (Distill Web Components)
-    content = (soup.find("d-article") or soup.find("article")
-               or soup.find("main") or soup.find("body"))
+    # Find content container (modern + legacy Distill)
+    content = (soup.find("d-article") or soup.find("dt-article")
+               or soup.find("article") or soup.find("main") or soup.find("body"))
     if not content:
         return _empty_parsed(index_entry)
 
     content_copy = copy(content)
+
+    # Strip site chrome that may leak into body-level extraction
+    for chrome_tag in content_copy.find_all(["distill-header", "distill-footer",
+                                              "dt-header", "dt-footer",
+                                              "nav", "header", "footer"]):
+        chrome_tag.decompose()
 
     # ── Distill preprocessing (same pipeline as transformer-circuits) ──
 
@@ -364,7 +370,7 @@ def _walk_block(el, segments: list, all_slugs: set[str],
                         "text": code_text, "footnote_refs": [], "links": [],
                     })
 
-        elif tag in ("figure", "d-figure"):
+        elif tag in ("figure", "d-figure", "dt-figure"):
             img = child.find("img")
             if img and img.get("src"):
                 src = img["src"]
@@ -379,6 +385,15 @@ def _walk_block(el, segments: list, all_slugs: set[str],
                     "footnote_refs": [], "links": [],
                 })
                 _emitted.add(id(img))
+            else:
+                # Interactive figure without static image — emit placeholder
+                cap_el = child.find("figcaption")
+                cap = cap_el.get_text(strip=True) if cap_el else ""
+                placeholder = f"[Interactive figure{': ' + cap if cap else ''} — view original: {page_url}]"
+                segments.append({
+                    "index": len(segments), "type": "paragraph",
+                    "text": placeholder, "footnote_refs": [], "links": [],
+                })
 
         elif tag == "img" and child.get("src"):
             if id(child) not in _emitted:
@@ -493,16 +508,22 @@ def _emit_text(text: str, seg_type: str, segments: list,
 def _resolve_image(src: str, page_url: str, slug: str, img_dir: Path) -> str:
     if src.startswith("data:"):
         return src
-    abs_url = urljoin(page_url, src)
+    # Ensure page URL has trailing slash for correct relative resolution
+    base = page_url if page_url.endswith("/") else page_url + "/"
+    abs_url = urljoin(base, src)
     filename = Path(urlparse(abs_url).path).name
     if not filename:
         filename = f"img_{hash(abs_url) % 100000}.png"
+    # Deduplicate: add hash suffix if same filename from different paths
     local_dir = img_dir / slug
     local_path = local_dir / filename
+    if local_path.exists() and local_path.stat().st_size > 0:
+        return f"../images/{slug}/{filename}"
     success = _download_image(abs_url, local_path)
     if success and local_path.exists() and local_path.stat().st_size > 0:
         return f"../images/{slug}/{filename}"
-    return abs_url
+    # Download failed — use local path (validator will catch missing file)
+    return f"../images/{slug}/{filename}"
 
 
 def _extract_text(el: Tag, all_slugs: set[str], internal_links: list,

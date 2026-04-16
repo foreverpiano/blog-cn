@@ -425,7 +425,8 @@ def _emit_text(text: str, seg_type: str, segments: list, math_registry: dict):
 def _resolve_image(src: str, page_url: str, slug: str, img_dir: Path) -> str:
     if src.startswith("data:"):
         return src
-    abs_url = urljoin(page_url, src)
+    base = page_url if page_url.endswith("/") else page_url + "/"
+    abs_url = urljoin(base, src)
     filename = Path(urlparse(abs_url).path).name
     if not filename:
         filename = f"img_{hash(abs_url) % 100000}.png"
