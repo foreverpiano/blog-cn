@@ -30,31 +30,35 @@
   <div class="article-content">
     
       
-        <p>本文是一篇初步更新，介绍了一种我们仍在开发中的方法。因此，这里呈现的许多结果尚不完整。我们将其公开，希望能够激发外部研究社区的后续工作和改进。</p>
+        <p>Jack Lindsey, Brian Chen, Adam Pearce, Sasha Hydrie, Thomas Conerly；由 Jeff Wu 编辑</p>
       
     
       
-        <p>在发布此更新后，我们注意到同期有一项关于高度相关架构（“Mixture of Decoders”，Oldfield 等人）的工作。我们已更新本文，在“相关工作”部分描述了我们方法之间的相似性和差异。我们建议对此主题感兴趣的读者也阅读他们的论文！</p>
+        <p>本文是一份初步更新，介绍了我们仍在开发中的方法。因此，这里呈现的许多结果尚不完整。我们公开这些结果，希望能激发外部研究社区的后续工作和改进。</p>
       
     
       
-        <p>在我们中，我们训练了转码器（transcoders）——即稀疏、超宽的 MLP——作为模型原有 MLP 层的更具可解释性的替代方案。我们将转码器神经元（“特征”）作为理解模型计算的基础。我们使用“归因图”（attribution graphs）来描述计算，这些图描绘了特征之间导致模型输出的因果交互。<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a></p>
+        <p>在发布此更新后，我们注意到同期有一项关于高度相关架构的工作（“Mixture of Decoders”，Oldfield 等）。我们已更新本文，在“相关工作”部分描述了两种方法之间的相似性和差异。我们建议对这项工作感兴趣的读者也阅读他们的论文！</p>
       
     
       
-        <p>虽然这种方法已被证明非常有用，但我们认为转码器特征存在关键局限性。转码器会将模型计算“粉碎”成许多极其细粒度的片段。这可能导致它们以不同于底层模型的、更低效的方式来表示计算，并可能引发特征分裂（feature splitting）和吸收（absorption）等病态现象。</p>
+        <p>在我们中，我们训练了转码器（transcoders）——即稀疏的超宽 MLP——作为模型原始 MLP 层的更具可解释性的替代方案。我们将转码器神经元（“特征”）作为理解模型计算的基础，并使用“归因图”（attribution graphs）来描述特征之间产生模型输出的因果交互。<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a></p>
       
     
       
-        <p>以一个具体例子为例，我们发现转码器使用来分解加法电路，这些特征表示高度特定的单个计算，例如“6 + 9 = 5（mod 10）”。其他工作表明，Transformer 将其数字表示嵌入在一种几何结构中，从而可以使用简单的变换来计算算术运算。虽然从某种意义上说，用查找表描述加法是准确的，但它忽略了模型中的关键结构，并且效率极低。这种低效在实践中是一个严重问题——为了训练出足够大、能够捕捉模型中所有计算的转码器，我们可能需要天文数字般的特征数量，导致转码器的参数远多于底层模型。<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a></p>
+        <p>虽然这种方法已被证明非常有用，但我们认为转码器特征存在关键局限性。转码器会将模型计算“粉碎”成许多极其细粒度的片段。这可能导致它们以不同于底层模型的、更低效的方式来表示计算，并会引入特征分裂和吸收等病态现象。</p>
       
     
       
-        <p>在这份初步更新中，我们描述了一种我们正在研究的方法，旨在解决其中一些问题。我们的方法是用稀疏线性变换混合模型（MOLT，sparse mixture of linear transforms）来替代 MLP。与转码器不同，MOLT 并不学习嵌入在模型激活空间中某个向量方向上的稀疏激活特征。相反，它学习稀疏激活的变换，这些变换对残差流施加线性变换，从而贡献于 MLP 的输出。与同时充当计算单元和表示单元的转码器特征不同，MOLT 变换是纯粹的计算对象，用于在层之间“桥接”表示。因此，它们本身并不打算被单独研究，而是需要与 SAEs 等其他表示分解算法结合使用。</p>
+        <p>举一个具体例子，我们发现转码器使用来分解加法电路，这些特征代表高度特定的单个计算，例如“6 + 9 = 5（mod 10）”。其他工作表明，Transformer 将其数字表示嵌入在一种几何结构中，从而可以用简单的变换来计算算术运算。虽然查表式的加法描述在某种意义上是准确的，但它忽略了模型中的关键结构，而且效率极低。这种低效在实践中是个严重问题——为了训练出足够大、能够捕捉模型所有计算的转码器，我们可能需要天文数字般的特征量，导致转码器的参数远多于底层模型。<a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a></p>
       
     
       
-        <p>迄今为止，我们发现 MOLT 是一种比转码器更具计算效率、同时在机制上更忠实的 MLP 替代方案。我们发现 MOLT 变换的激活条件与转码器特征的可解释性程度相当。我们的初步实验表明，这些变换可用于理解一层中的特征如何被转换为后续层中的特征。MOLT 变换可以被整合到归因图中，方法是在图的边上标注“承载”该边的变换集合。我们还猜测（但尚未证明）MOLT 变换的组合可用于理解模型表示中的组合结构。</p>
+        <p>在这份初步更新中，我们描述了一种正在开发的方法，旨在解决其中部分问题。我们的方案是用稀疏线性变换混合模型（MOLT）来替换 MLP。与转码器不同，MOLT 并不学习嵌入在模型激活空间向量方向上的稀疏激活特征，而是学习稀疏激活的变换，这些变换对残差流施加线性变换，以此贡献于 MLP 的输出。与同时充当计算单元和表示单元的转码器特征不同，MOLT 变换是纯粹的计算对象，用于“桥接”层之间的表示。因此，它们本身并不打算被单独研究，而是需要与 SAE 等其他表示分解算法结合使用。</p>
+      
+    
+      
+        <p>目前我们发现，与转码器相比，MOLT 是一种计算效率更高、机制上也更忠实的 MLP 替换方案。我们发现 MOLT 变换的激活条件与转码器特征的可解释性程度相当。初步实验表明，这些变换可用于理解一层特征如何被转化为后续层的特征。MOLT 变换可以被整合进归因图，方法是在图的边上标注“承载”该边的变换集合。我们还猜测（但尚未证明）MOLT 变换的组合可用于理解模型表示中的组合结构。</p>
       
     
       
@@ -75,11 +79,11 @@
       
     
       
-        <div class="list-content"><span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 是输入残差流激活，<span class="math-inline" data-math="t">t</span> 是变换的索引，<span class="math-inline" data-math="\mathbf{e_t}">\mathbf{e_t}</span> 和 <span class="math-inline" data-math="b_t">b_t</span> 分别是变换 <span class="math-inline" data-math="t">t</span> 的编码器向量和偏置，用于决定该变换是否激活以及激活强度。<span class="math-inline" data-math="\phi">\phi</span> 是一个非线性函数，如 ReLU 或 JumpReLU，<span class="math-inline" data-math="U_t">U_t</span> 和 <span class="math-inline" data-math="V_t">V_t</span> 分别是维度为 <span class="math-inline" data-math="d_{model} \times k_t">d_{model} \times k_t</span> 和 <span class="math-inline" data-math="k_t \times d_{model}">k_t \times d_{model}</span> 的矩阵。因此，<span class="math-inline" data-math="U_t V_t">U_t V_t</span> 是一个秩为 <span class="math-inline" data-math="k_t">k_t</span> 的矩阵。不同的变换可以具有不同的秩（我们将秩的分布视为一个需要优化的超参数）。</div>
+        <div class="list-content"><span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 是输入残差流激活，<span class="math-inline" data-math="t">t</span> 为变换的索引，<span class="math-inline" data-math="\mathbf{e_t}">\mathbf{e_t}</span> 和 <span class="math-inline" data-math="b_t">b_t</span> 分别是变换 <span class="math-inline" data-math="t">t</span> 的编码器向量和偏置，用于决定该变换是否激活以及激活强度。<span class="math-inline" data-math="\phi">\phi</span> 是 ReLU 或 JumpReLU 等非线性函数，<span class="math-inline" data-math="U_t">U_t</span> 和 <span class="math-inline" data-math="V_t">V_t</span> 分别是维度为 <span class="math-inline" data-math="d_{model} \times k_t">d_{model} \times k_t</span> 和 <span class="math-inline" data-math="k_t \times d_{model}">k_t \times d_{model}</span> 的矩阵。因此 <span class="math-inline" data-math="U_t V_t">U_t V_t</span> 是一个秩为 <span class="math-inline" data-math="k_t">k_t</span> 的矩阵。不同变换可以具有不同的秩（我们将秩的分布视为需要优化的超参数）。</div>
       
     
       
-        <p>MOLT 的训练目标是模仿模型 MLP 层的输出，这与转码器相同。我们对变换的激活施加稀疏惩罚（例如 L1 或 tanh），并按变换矩阵的 Frobenius 范数进行缩放（即我们惩罚 <span class="math-inline" data-math="\|U_t V_t\|_F \cdot \phi(\mathbf{e_t} \cdot \mathbf{x} - b_t)">\|U_t V_t\|_F \cdot \phi(\mathbf{e_t} \cdot \mathbf{x} - b_t)</span>）。这类似于对转码器特征的激活施加稀疏惩罚，并按其解码器向量的范数进行缩放。</p>
+        <p>MOLT 的训练目标是拟合模型 MLP 层的输出，这与转码器相同。我们对变换的激活施加稀疏惩罚（例如 L1 或 tanh），并按变换矩阵的 Frobenius 范数进行缩放（即惩罚 <span class="math-inline" data-math="\|U_t V_t\|_F \cdot \phi(\mathbf{e_t} \cdot \mathbf{x} - b_t)">\|U_t V_t\|_F \cdot \phi(\mathbf{e_t} \cdot \mathbf{x} - b_t)</span>）。这类似于对转码器特征的激活施加稀疏惩罚并按其解码器向量范数缩放的做法。</p>
       
     
       
@@ -88,23 +92,23 @@
       
     
       
-        <p>解码器混合（Mixture of Decoders，MxD）架构（Oldfield 等人）与我们的方法非常相似——它同样用稀疏线性变换混合来替代 MLP 层。MxD 和 MOLT 之间存在一个关键实现差异。使用大量独立学习的全秩变换组成的稀疏混合在计算上不可行，因为它需要过多的参数。MOLT 通过将线性变换设为低秩（并采用不同的秩分布，见下文）来规避这一问题。而 MxD 允许变换为全秩，但通过参数共享的方式对它们进行参数化。</p>
+        <p>解码器混合（Mixture of Decoders，MxD）架构（Oldfield 等）与我们的方法非常相似——它同样用稀疏线性变换混合来替换 MLP 层。MxD 与 MOLT 之间存在一个关键实现差异：使用大量独立学习的全秩变换组成的稀疏混合在参数量上不可行。MOLT 通过让线性变换为低秩（采用不同的秩分布，见下文）来规避这个问题。而 MxD 允许变换为全秩，但通过一种在不同变换之间共享参数的方式来参数化它们。</p>
       
     
       
-        <p>具体来说（将 MxD 论文的符号转换为我们的符号），每个 <span class="math-inline" data-math="U_tV_t">U_tV_t</span> 变换都是全秩的，但第 <span class="math-inline" data-math="t">t</span> 个变换的 <span class="math-inline" data-math="U_t">U_t</span> 矩阵的第 <span class="math-inline" data-math="h">h</span> 列被参数化为向量 <span class="math-inline" data-math="\mathbf{d}_h \ast \mathbf{c}_t">\mathbf{d}_h \ast \mathbf{c}_t</span> 的逐元素乘积，其中 <span class="math-inline" data-math="\mathbf{d}">\mathbf{d}</span> 向量在所有变换之间共享，而 <span class="math-inline" data-math="\mathbf{c}">\mathbf{c}</span> 向量在所有列索引之间共享。我们目前对 MxD 与 MOLT 策略的优缺点还没有完全把握。我们猜测，我们的低秩变换参数化方式更有可能促使变换承担更可解释、作用范围更明确的计算角色，但还需要更多工作来比较这两种方法。</p>
+        <p>具体来说（将 MxD 论文的符号转换为我们的符号），每个 <span class="math-inline" data-math="U_tV_t">U_tV_t</span> 变换都是全秩的，但第 <span class="math-inline" data-math="t">t</span> 个变换的 <span class="math-inline" data-math="U_t">U_t</span> 矩阵的第 <span class="math-inline" data-math="h">h</span> 列被参数化为向量 <span class="math-inline" data-math="\mathbf{d}_h \ast \mathbf{c}_t">\mathbf{d}_h \ast \mathbf{c}_t</span> 的逐元素乘积，其中 <span class="math-inline" data-math="\mathbf{d}">\mathbf{d}</span> 向量在所有变换间共享，<span class="math-inline" data-math="\mathbf{c}">\mathbf{c}</span> 向量在所有列索引间共享。我们目前还无法确切判断 MxD 与 MOLT 策略的优缺点。我们猜测我们这种低秩变换参数化方式会促使变换承担更可解释、作用范围更明确的计算角色，但仍需更多工作来比较两种方法。</p>
       
     
       
-        <p>我们还注意到，MOLT 的预期用例（本文后续将描述）与 MxD 论文的重点有所不同——特别是，我们特别感兴趣的是将 MOLT 解释为在残差流特征（例如来自 SAEs 的特征）之间实现（可能是组合式的）变换，并将其整合到归因图中，将 MOLT 变换视为 MLP 层中类似于注意力头的组件。</p>
+        <p>我们还注意到，MOLT 的预期用例（本文后续描述）与 MxD 论文的重点有所不同——特别是，我们特别感兴趣的是将 MOLT 解释为在残差流特征（例如 SAE 提取的特征）之间实现（可能是组合性的）变换，并将其整合到归因图中，把 MOLT 变换视为 MLP 层中类似于注意力头的角色。</p>
       
     
       
-        <p>MOLT 也与跳跃转码器（skip transcoders）有一定相似之处，后者在转码器基础上增加了线性变换；但两者在几个方面存在差异：</p>
+        <p>MOLT 与跳跃转码器（skip transcoders）也有一定相似之处，后者在转码器基础上增加了一个线性变换；但两者在以下几个方面存在差异：</p>
       
     
       
-        <div class="list-content">MOLT 变换仅在条件满足时激活，且被惩罚为很少激活；MOLT 变换不是全秩的；MOLT 包含多个线性变换，而非只有一个；MOLT 不包含任何“常规”的转码器特征。</div>
+        <div class="list-content">MOLT 变换仅在条件满足时激活，并被惩罚为很少激活；MOLT 变换不是全秩的；MOLT 包含多个线性变换，而非只有一个；MOLT 不包含任何“常规”的转码器特征。</div>
       
     
       
@@ -113,19 +117,19 @@
       
     
       
-        <p>为什么稀疏激活的变换可能是表示计算的好方法？我们提供几种视角。</p>
+        <p>为什么稀疏激活的变换可能是表示计算的好方式？我们提供几个视角。</p>
       
     
       
-        <div class="list-content">首先，我们注意到 MOLT 与 MLP 的实际计算方式存在粗略的对应关系。考虑一个使用 ReLU 神经元的 MLP 层。如果我们固定激活的神经元集合，那么 MLP 实际上只是对输入施加一个线性变换。因此，激活神经元的模式对应于线性变换，其秩等于该模式中神经元的数量。这些可以被视为与 MOLT 变换大致类似。</div>
+        <div class="list-content">首先，我们注意到 MOLT 与 MLP 的实际计算方式存在粗略的对应关系。考虑一个使用 ReLU 神经元的 MLP 层：如果固定激活的神经元集合，那么 MLP 就只是在对其输入施加一个线性变换。因此，激活神经元的模式对应于线性变换，其秩等于该模式中神经元的数量。这些模式可以被看作与 MOLT 变换大致类比。</div>
       
     
       
-        <div class="list-content">稀疏激活的线性变换能够捕捉模型利用残差流几何结构来进行计算的某些方式。正如前面提到的，转码器需要“查找表特征”来选择特定的输入对以实现加法。相比之下，MOLT 可以更高效地实现加法。假设模型将数字 0-9 表示在一个圆上，那么一个秩为 2 的“加 3”变换可以通过将向量旋转圆周的 8/10 来表示，它可以将“1”特征转换为下一层的“说 4”特征，将“2”特征转换为“说 5”特征，以此类推。而“加 3”变换的编码器则会检查上下文中如“+3”或“add three”这样的文本线索。</div>
+        <div class="list-content">稀疏激活的线性变换能够捕捉模型利用残差流几何结构来进行计算的某些方式。如前所述，转码器需要“查表特征”来挑选特定的输入对以实现加法。相比之下，MOLT 可以更高效地实现加法。假设模型将数字 0-9 表示在一个圆上，那么一个秩为 2 的“加 3”变换就可以通过将圆旋转 8/10 周来实现，它能将“1”特征转化为下一层的“说 4”特征，将“2”特征转化为“说 5”特征，以此类推。而“加 3”变换的编码器则会检测上下文中“+3”或“add three”等文本提示。</div>
       
     
       
-        <div class="list-content">另一种视角是，MOLT 是一种对特征进行组合式参数化的方法。如果我们在层 L 的残差流输入处发现了 100 万个特征，并在层 L 的 MLP 中发现了 100 万个变换，那么我们实际上描述了层 L+1 中的 1 万亿个“伪特征”（pseudofeatures），这些伪特征对应于特征与变换的配对（当对应的特征和变换同时激活时，伪特征“激活”，其“方向”则是对特征解码器应用变换矩阵的结果）。此外，如果我们考虑特征通过多个变换组成的链路进行传播，那么我们捕捉到的“伪特征”数量将随链路长度呈指数增长。</div>
+        <div class="list-content">另一个视角是，MOLT 是一种对特征进行组合式参数化的方法。如果我们在第 L 层残差流输入处发现了 100 万个特征，并在第 L 层 MLP 中发现了 100 万个变换，那么我们实际上描述了第 L+1 层中的 1 万亿个“伪特征”（pseudofeatures），每个伪特征对应一个特征-变换对（当对应的特征和变换同时激活时，伪特征“激活”，其“方向”是对特征解码器施加变换矩阵的结果）。此外，如果考虑特征通过多步变换链的传播，我们捕捉到的“伪特征”数量会随链长呈指数增长。</div>
       
     
       
@@ -139,7 +143,7 @@
       
     
       
-        <p>训练 MOLT 时一个重要的超参数是对变换的秩进行分配。这是一个高维的超参数空间，我们尚未对其进行充分探索。然而，在 Claude 3.5 Haiku 上训练 MOLT 时，我们在 MSE/L0 Pareto 前沿上取得最佳性能的配置是采用从 32 到 512 不等的秩分布。具体来说，我们使用 N 个秩为 512 的变换、2N 个秩为 256 的变换、4N 个秩为 128 的变换、8N 个秩为 64 的变换，以及 16N 个秩为 32 的变换。在扩大实验规模时，我们会改变 N，但保持比例不变。我们发现，在控制总参数量相同的情况下，使用可变秩的变换优于使用全部相同秩的变换。</p>
+        <p>训练 MOLT 时一个重要的超参数是对各变换分配的秩。这是一个高维超参数空间，我们尚未完全探索。然而，在 Claude 3.5 Haiku 上训练 MOLT 时，我们在 MSE/L0 Pareto 前沿上取得最佳性能的方案是采用从 32 到 512 不等的秩分布。具体来说，我们使用 N 个秩为 512 的变换、2N 个秩为 256 的变换、4N 个秩为 128 的变换、8N 个秩为 64 的变换，以及 16N 个秩为 32 的变换。在扩大实验规模时，我们会改变 N 但保持比例不变。我们发现，在参数总量相同的情况下，使用可变秩的变换优于使用单一固定秩的变换。</p>
       
     
       
@@ -148,11 +152,11 @@
       
     
       
-        <p>我们使用上述秩分配方案在 Claude 3.5 Haiku 的中间层训练了 MOLT 和转码器，并改变实验所使用的计算量。我们将训练步数按特征数量成比例缩放，并确保转码器和 MOLT 实验的参数量相同。因此，每次 FLOPs 增加 4 倍，对应参数量和训练步数均增加 2 倍。最大的（“1024x FLOPs”）转码器实验大约包含 1000 万个特征。</p>
+        <p>我们使用上述秩分配方案在 Claude 3.5 Haiku 的中间层训练了 MOLT 和转码器，并改变实验的计算量。我们将训练步数按特征数量成比例缩放，并使转码器和 MOLT 的参数量保持一致。因此，每次 FLOPs 增加 4 倍，对应参数量和训练步数均增加 2 倍。最大的（“1024x FLOPs”）转码器实验包含约 1000 万个特征。</p>
       
     
       
-        <p>我们发现，在相同的 L0 下，MOLT 的重构误差（MSE）显著低于转码器（在参数量相同的情况下）。其中最小的 MOLT 实验在 Pareto 前沿上超越了使用 1024 倍 FLOPs 的转码器实验。此外，转码器的性能似乎在较高计算规模下趋于饱和（尽管这种平坦化也可能是由于机器学习调优不足所致），而大规模 MOLT 实验则未观察到这种饱和现象。</p>
+        <p>我们发现，在给定 L0 下，MOLT 的重构误差（MSE）显著低于转码器（在参数量相同的情况下）。其中最小的 MOLT 实验在 Pareto 前沿上超越了使用 1024 倍 FLOPs 的转码器实验。而且，转码器的性能似乎在较高计算规模下趋于饱和（尽管这种平坦化也可能是由于 ML 调优不足），而我们在大规模 MOLT 实验中并未观察到类似饱和现象。</p>
       
     
       
@@ -6871,11 +6875,11 @@ mbNzmo1we/7s+ZM5sHpuOr7SzRbc8+d3//z5fzvEZqQw6e+CAAAAAElFTkSuQmCC
       
     
       
-        <p>我们还评估了 MOLT 相对于转码器的（mechanistic faithfulness）——即 MOLT（或转码器）对输入扰动的响应方式与底层 MLP 层的一致程度。在扰动大小趋近于无穷小的极限下，忠实性可以通过比较替换层与底层在给定数据点上的雅可比矩阵，并在多个数据点上取平均来计算。我们发现，在相同 L0 下，MOLT 的雅可比相关性（展平后的雅可比矩阵的余弦相似度）显著高于转码器；此外，转码器的忠实性似乎会随着规模增大而下降，而 MOLT 的忠实性则更为稳定。这种更高的忠实性是合理的，因为转码器的雅可比矩阵被限制为低秩（秩上限由 L0 界定），而 MOLT 的雅可比矩阵可以具有远高于其 L0 的秩。<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a></p>
+        <p>我们还评估了 MOLT 相对于转码器的——即 MOLT（或转码器）对输入扰动的响应方式与底层 MLP 层的一致程度。在扰动幅度趋于无穷小的极限下，忠实性可通过比较替换层与底层在给定数据点上的 Jacobian，并对数据点取平均来计算。我们发现，在相同 L0 下，MOLT 的 Jacobian 相关性（展平 Jacobian 矩阵的余弦相似度）显著高于转码器；此外，转码器的忠实性似乎会随规模下降，而 MOLT 的忠实性则更为稳定。这种更高的忠实性是合理的，因为转码器的 Jacobian 被限制为低秩（秩上限由 L0 决定），而 MOLT 的 Jacobian 秩可以远高于其 L0。<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a></p>
       
     
       
-        <p>请注意，以下结果来自与前面不同的模型（即我们中使用的 18 层模型，而非 Claude 3.5 Haiku）；我们尚未在 Haiku 上进行这项雅可比分析。具有特定数量“特征等价物”的 MOLT 实验与具有相同特征数量的转码器实验具有相同的参数量。<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a></p>
+        <p>请注意，下面的结果来自与上述不同的模型（我们中使用的 18 层模型，而非 Claude 3.5 Haiku）；我们尚未在 Haiku 上进行 Jacobian 分析。给定“特征等价物”数量的 MOLT 实验与具有相同特征数量的转码器实验具有相同的参数量。<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a></p>
       
     
       
@@ -13149,23 +13153,23 @@ eHh4eHh4eHh4dPPxAUmSJEmSJEmSJEmSut3/A+9bkz2miPueAAAAAElFTkSuQmCC
       
     
       
-        <div class="list-content">在什么条件下它们会激活（以及激活强度如何）；当激活时它们执行什么函数。</div>
+        <div class="list-content">在什么条件下激活（以及激活强度如何）；激活时执行什么函数。</div>
       
     
       
-        <p>为了理解第一点，我们可以使用与 SAE 和转码器特征相同的可视化策略——高亮激活该变换的数据集样本。我们发现，变换在定性上与特征类似：在较早的层中，变换倾向于选择词元级的信息，而在中层和后层中，变换则选择更抽象的上下文信息。</p>
+        <p>对于第一点，我们可以使用与 SAE 和转码器特征相同的可视化策略——高亮激活该变换的数据集样本。我们发现，变换在定性上与特征类似：在早期层中看到选择 token 级信息的变换，在中后期层中看到选择更抽象上下文信息的变换。</p>
       
     
       
-        <p>我们还观察到，秩越高的变换倾向于具有更高的激活密度（即激活得更频繁）。然而，这些高密度、高秩变换的激活条件在可解释性上仍然与低密度变换（以及转码器特征）相当。例如，我们观察到一个高秩变换会在句号词元上激活，另一个则会在西班牙语文本上激活。</p>
+        <p>我们还观察到，秩越高的变换倾向于具有更高的激活密度（即激活更频繁）。然而，这些高密度、高秩变换的激活条件看起来仍然与低密度变换（以及转码器特征）具有相当的可解释性。例如，我们观察到一个在句号 token 上激活的高秩变换，以及另一个在西班牙语文本上激活的变换。</p>
       
     
       
-        <p>解释变换所执行的函数则更为困难。我们最初的策略是在 MOLT 层之前和之后的残差流上训练 SAE，然后找出通过给定变换交互最强的特征对（<span class="math-inline" data-math="\mathbf{e}_t UV \mathbf{d}_s">\mathbf{e}_t UV \mathbf{d}_s</span>，其中 <span class="math-inline" data-math="\mathbf{e}_t">\mathbf{e}_t</span> 是目标特征的编码器，<span class="math-inline" data-math="\mathbf{d}_s">\mathbf{d}_s</span> 是源特征的编码器）。然而，我们发现这些信息难以解释，很可能是由于与导致转码器特征之间原始交互强度难以解释的（interference weights）相同的问题。<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a></p>
+        <p>解释变换的功能则更为困难。我们最初的策略是在 MOLT 层之前和之后的残差流上训练 SAE，然后找出通过给定变换交互最强的特征对（<span class="math-inline" data-math="\mathbf{e}_t UV \mathbf{d}_s">\mathbf{e}_t UV \mathbf{d}_s</span>，其中 <span class="math-inline" data-math="\mathbf{e}_t">\mathbf{e}_t</span> 是目标特征编码器，<span class="math-inline" data-math="\mathbf{d}_s">\mathbf{d}_s</span> 是源特征编码器）。然而我们发现这些信息难以解释，可能是由于同样的问题，该问题也使得转码器特征之间的原始交互强度难以解释。<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a></p>
       
     
       
-        <p>我们在归因图的背景下解释变换取得了更大成功，具体如下所述。</p>
+        <p>在归因图的背景下解释变换，我们取得了更大进展，下文将对此进行描述。</p>
       
     
       
@@ -13179,23 +13183,23 @@ eHh4eHh4eHh4dPPxAUmSJEmSJEmSJEmSut3/A+9bkz2miPueAAAAAElFTkSuQmCC
       
     
       
-        <p>在我们最近的论文中，我们基于转码器特征构建了。特征之间的边是通过计算源特征（通过其解码器方向）对目标特征编码器方向的影响来得到的（这种影响可以是直接通过残差连接，也可以是通过注意力头）。<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a></p>
+        <p>在我们近期的论文中，我们基于转码器特征构建了。特征之间的边通过计算源特征（通过其解码器方向）对目标特征编码器方向的影响来得到（可以是直接通过残差连接，或通过注意力头）。<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a></p>
       
     
       
-        <p>由于 MOLT 变换没有固定的解码器方向可供写入，因此无法直接应用相同的归因图策略。然而，我们在另一种归因图策略上取得了初步成功：</p>
+        <p>MOLT 变换没有固定的解码器方向可以写入，因此无法直接应用相同的归因图策略。不过，我们在另一种归因图策略上取得了初步成功：</p>
       
     
       
-        <div class="list-content">在模型的每一层残差流上训练 SAE（或者使用跨层变体，例如。我们发现图的构建可以从跨层字典中受益，但为简单起见，这里仅解释按层 SAE 的情况）。对于每一对源特征和目标特征，将它们之间的归因分解为两类项的和：<a href="2024-crosscoders.html">稀疏跨编码器：用于跨层特征与模型差异分析</a></div>
+        <div class="list-content">在模型的每一残差流层上训练 SAE（或使用跨层变体，例如。我们发现图从跨层字典中受益，但为简便起见这里仅解释每层 SAE 的情况）。对于每一对源特征和目标特征，将它们之间的归因分解为两类项的和：<a href="2024-crosscoders.html">稀疏跨编码器：跨层特征与模型差异分析</a></div>
       
     
       
-        <div class="list-content">由 MOLT 变换中介的项（通过 MLP 层的归因）。对于源特征 <span class="math-inline" data-math="i">i</span>（其解码器为 <span class="math-inline" data-math="\mathbf{d}_i">\mathbf{d}_i</span>，激活为 <span class="math-inline" data-math="a_i">a_i</span>）、目标特征 <span class="math-inline" data-math="j">j</span>（其编码器为 <span class="math-inline" data-math="\mathbf{e}_j">\mathbf{e}_j</span>，激活为 <span class="math-inline" data-math="a_j">a_j</span>）以及变换 <span class="math-inline" data-math="UV">UV</span>（其激活为 <span class="math-inline" data-math="a_t">a_t</span>），该项为 <span class="math-inline" data-math=" \mathbf{e}_j UV \mathbf{d}_i \cdot (a_i a_t)"> \mathbf{e}_j UV \mathbf{d}_i \cdot (a_i a_t)</span>。由注意力头中介的项（通过注意力层的归因）。对于位于词元位置 <span class="math-inline" data-math="q">q</span> 的源特征 <span class="math-inline" data-math="i">i</span>（其解码器为 <span class="math-inline" data-math="\mathbf{d}_i">\mathbf{d}_i</span>，激活为 <span class="math-inline" data-math="a_i">a_i</span>）、位于词元位置 <span class="math-inline" data-math="k">k</span> 的目标特征 <span class="math-inline" data-math="j">j</span>（其编码器为 <span class="math-inline" data-math="\mathbf{e}_j">\mathbf{e}_j</span>，激活为 <span class="math-inline" data-math="a_j">a_j</span>），以及注意力头（其 <span class="math-inline" data-math="OV">OV</span> 矩阵在两个词元位置之间的注意力模式为 <span class="math-inline" data-math="a_h(q, k)">a_h(q, k)</span>），该项为 <span class="math-inline" data-math=" \mathbf{e}_j OV \mathbf{d}_i \cdot (a_i a_h(q, k))"> \mathbf{e}_j OV \mathbf{d}_i \cdot (a_i a_h(q, k))</span>。</div>
+        <div class="list-content">由 MOLT 变换中介的项（通过 MLP 层的归因）。对于源特征 <span class="math-inline" data-math="i">i</span>（其解码器为 <span class="math-inline" data-math="\mathbf{d}_i">\mathbf{d}_i</span>，激活为 <span class="math-inline" data-math="a_i">a_i</span>）、目标特征 <span class="math-inline" data-math="j">j</span>（其编码器为 <span class="math-inline" data-math="\mathbf{e}_j">\mathbf{e}_j</span>，激活为 <span class="math-inline" data-math="a_j">a_j</span>）以及变换 <span class="math-inline" data-math="UV">UV</span>（其激活为 <span class="math-inline" data-math="a_t">a_t</span>），该项为 <span class="math-inline" data-math=" \mathbf{e}_j UV \mathbf{d}_i \cdot (a_i a_t)"> \mathbf{e}_j UV \mathbf{d}_i \cdot (a_i a_t)</span>。由注意力头中介的项（通过注意力层的归因）。对于位于 token 位置 <span class="math-inline" data-math="q">q</span> 的源特征 <span class="math-inline" data-math="i">i</span>（解码器为 <span class="math-inline" data-math="\mathbf{d}_i">\mathbf{d}_i</span>，激活为 <span class="math-inline" data-math="a_i">a_i</span>）、位于 token 位置 <span class="math-inline" data-math="k">k</span> 的目标特征 <span class="math-inline" data-math="j">j</span>（编码器为 <span class="math-inline" data-math="\mathbf{e}_j">\mathbf{e}_j</span>，激活为 <span class="math-inline" data-math="a_j">a_j</span>），以及注意力头（其 <span class="math-inline" data-math="OV">OV</span> 矩阵在两个 token 位置之间的注意力模式为 <span class="math-inline" data-math="a_h(q, k)">a_h(q, k)</span>），该项为 <span class="math-inline" data-math=" \mathbf{e}_j OV \mathbf{d}_i \cdot (a_i a_h(q, k))"> \mathbf{e}_j OV \mathbf{d}_i \cdot (a_i a_h(q, k))</span>。</div>
       
     
       
-        <div class="list-content">在归因图的每条边上标注中介该边的最强 MOLT 变换和注意力头列表。将鼠标悬停在 MOLT 变换上会显示其“可视化”面板，其中包含激活最强的数据集样本。（点击注意力头会显示一个界面，用于展示其“QK 归因”，相关内容将在后续更新中介绍，TK）。需要注意的是，MOLT 变换本身也有输入边，其计算方式与上述相同，但以变换的编码器向量作为归因目标。</div>
+        <div class="list-content">在归因图的每条边上标注最强烈中介该边的 MOLT 变换和注意力头的列表。将鼠标悬停在 MOLT 变换上会显示其“可视化”面板，其中包含激活最强的数据集样本。（点击注意力头会显示其“QK 归因”界面，将在后续更新中介绍，TK）。注意，MOLT 变换本身也有输入边，计算方式与上述相同，但以变换的编码器向量作为归因目标。</div>
       
     
       
@@ -13204,23 +13208,23 @@ eHh4eHh4eHh4dPPxAUmSJEmSJEmSJEmSut3/A+9bkz2miPueAAAAAElFTkSuQmCC
       
     
       
-        <p>使用此类归因图，我们发现了一些 MOLT 变换执行可解释计算的例子，例如：</p>
+        <p>使用这类归因图，我们发现了 MOLT 变换执行可解释计算的若干实例，例如：</p>
       
     
       
-        <div class="list-content">在提示“西班牙语中‘hot’这个词是‘calor’”中，我们观察到“说出以‘cal’开头的单词”特征通过一个在西班牙语相关上下文中激活的变换，接收来自“hot”特征的输入。</div>
+        <div class="list-content">在提示“The Spanish word for hot is &#x27;calor&#x27;”中，我们观察到“说出以‘cal’开头的词”特征通过一个在西班牙语相关上下文中激活的变换，从“hot”特征接收输入。</div>
       
     
       
-        <div class="list-content">有趣的是，我们还看到一些来自“Spanish”特征的输入是通过在“hot”相关上下文中激活的变换传递的！</div>
+        <div class="list-content">有趣的是，我们还看到来自“Spanish”特征的输入通过在“hot”相关上下文中激活的变换传入！</div>
       
     
       
-        <div class="list-content">在提示“3 + 5 = 8”中，我们观察到一个“say 8”特征通过一个在最近出现过数字“5”的上下文中激活的变换，接收来自“plus 3”特征的输入。</div>
+        <div class="list-content">在提示“3 + 5 = 8”中，我们观察到“say 8”特征通过一个在最近出现过数字“5”的上下文中激活的变换，从“plus 3”特征接收输入。</div>
       
     
       
-        <p>然而，我们也看到一些变换扮演了不那么容易解释的角色。例如，许多边似乎是由选择“is”或“Assistant”等关键词的变换中介的。我们还看到一些变换似乎与其所承载的特征存在冗余，例如一个“Paris”特征通过一个“France”变换接收来自“France”特征的输入。</p>
+        <p>然而，我们也看到一些作用不那么容易解释的变换。例如，许多边似乎由选择“is”或“Assistant”等关键词的变换所中介。我们还看到一些变换的作用似乎与其承载的特征存在冗余，比如一个“Paris”特征通过一个“France”变换从“France”特征接收输入。</p>
       
     
       
@@ -13229,15 +13233,15 @@ eHh4eHh4eHh4dPPxAUmSJEmSJEmSJEmSut3/A+9bkz2miPueAAAAAElFTkSuQmCC
       
     
       
-        <p>我们认为 MOLT 是转码器的一种有前景的替代方案，能够以参数更高效的方式捕捉 MLP 计算，并且更忠实地反映底层模型所执行的计算。我们猜测，要以合理的计算成本捕捉前沿模型 MLP 层的所有方差，一种类似于 MOLT 的解决方案将是必要的。我们已经看到一些迹象，表明 MOLT 变换能够执行可解释的计算，将输入特征“转换”为输出特征。</p>
+        <p>我们认为 MOLT 是转码器的一种有前景的替代方案，能够以参数效率更高、更忠实于底层模型计算的方式来捕捉 MLP 计算。我们猜测，要在合理计算成本下捕捉前沿模型 MLP 层的所有方差，一种类似 MOLT 的方案将是必要的。我们看到了初步迹象，表明 MOLT 变换能够执行可解释的计算，将输入特征“转化”为输出特征。</p>
       
     
       
-        <p>我们非常感兴趣但尚未探索的一个方向是，利用 MOLT 变换来理解那些未被我们的 SAE 捕捉到的组合表示。具体来说，我们在每一层的 SAE 重构误差可以被重写为来自前一层（特征，变换）对的项的和。这些可能对应于那些过于稀有、无法被我们有限规模的 SAE 捕捉的概念，但却是由一个相对常见的特征与一个相对常见的变换组合而成的。在归因图中，将 SAE 误差分解为（特征，变换）对将会表现为图中存在一些由连续层中变换链路中介的边。</p>
+        <p>我们非常期待但尚未探索的一个方向是，利用 MOLT 变换来理解 SAE 未能捕捉到的组合表示。特别是，我们在每一层的 SAE 重构误差可以改写为来自前一层（特征，变换）对对应的项之和。这些项可能对应于过于稀有、无法被有限大小 SAE 捕捉的概念，但却是由一个相对常见的特征与一个相对常见的变换组合而成的。在归因图中，以这种方式将 SAE 误差分解为（特征，变换）对，将表现为图中存在一些由连续多层变换链中介的边。</p>
       
     
       
-        <p>要断定 MOLT 严格优于转码器，还需要更多工作。包含变换信息的归因图比基于转码器的归因图略显繁杂，而且并非所有由变换中介的计算都具有清晰的可解释性。未来关于 MOLT 的扩展和改进、以及相关归因图逻辑和用户界面的工作，可能会解决其中一些问题。</p>
+        <p>要得出 MOLT 严格优于转码器的结论，还需要更多工作。包含变换信息的归因图比基于转码器的归因图更难处理，而且并非所有由变换中介的计算都清晰可解释。未来对 MOLT 进行规模化、改进，以及对相关归因图逻辑和用户界面的改进，可能会解决其中一些问题。</p>
       
     
   </div>

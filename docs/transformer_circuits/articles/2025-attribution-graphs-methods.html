@@ -35,15 +35,15 @@
       
     
       
-        <p>深度学习模型通过分布在众多计算单元（人工“神经元”）上的一系列变换来产生输出。机制可解释性领域旨在用人类可理解的语言来描述这些变换。到目前为止，我们团队的方法采用了两步法。首先，我们识别特征，即模型在计算中使用的可解释的基本构建块。其次，我们描述这些特征如何相互作用以产生模型输出的过程或电路。</p>
+        <p>深度学习模型通过分布在众多计算单元（人工“神经元”）上的一系列变换来产生输出。机制可解释性领域致力于用人类可理解的语言描述这些变换。到目前为止，我们团队的方法遵循两步走策略。首先，我们识别特征，即模型在计算中使用的可解释构建块。其次，我们描述这些特征如何相互作用以产生模型输出的过程，或称为电路。</p>
       
     
       
-        <p>一个自然的方法是使用模型的原始神经元作为这些构建块。<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup> 采用这种方法，先前的工作成功地在视觉模型中识别出有趣的电路，这些电路由似乎代表有意义视觉概念的神经元构成[<cite>[cammarata2020thread]</cite>]。然而，模型神经元通常是多义的——它们代表许多不相关概念的混合。人们认为多义性产生的原因之一是叠加现象[<cite>[arora2018linear,goh2016decoding,elhage2022superposition]</cite>]，即模型需要表示的概念比拥有的神经元更多，因此必须将概念的表示“分散”到多个神经元上。这种网络基本计算单元（神经元）与有意义概念之间的不匹配，已成为机制可解释性研究进展的主要障碍，尤其是在理解语言模型方面。</p>
+        <p>一种自然的方法是使用模型的原始神经元作为这些构建块。<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup> 采用这种方法，先前的研究成功地在视觉模型中识别出了有趣的电路，这些电路由似乎代表有意义视觉概念的神经元组成[<cite>[cammarata2020thread]</cite>]。然而，模型神经元通常是多义的——它们代表许多不相关概念的混合。导致多义性的一个原因被认为是叠加现象[<cite>[arora2018linear,goh2016decoding,elhage2022superposition]</cite>]，即模型需要表示的概念多于其拥有的神经元数量，因此必须将概念的表示“涂抹”到多个神经元上。这种网络基本计算单元（神经元）与有意义概念之间的不匹配，已成为机制可解释性研究进展的主要障碍，尤其是在理解语言模型方面。</p>
       
     
       
-        <p>近年来，稀疏编码模型如稀疏自编码器（SAE）[<cite>[bricken2023monosemanticity,cunningham2023sparse,gao2024scaling,rajamanoharan2024jumping]</cite>]、转码器[<cite>[dunefsky2024transcoders,marks2024dictionary,templeton2024predicting]</cite>]和交叉编码器[<cite>[lindsey2024crosscoders]</cite>]已成为识别叠加表示的可解释特征的有前景工具。这些方法将模型激活分解为稀疏激活的成分（“特征”），<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup> 结果表明在许多情况下这些成分对应于人类可解释的概念。虽然当前的稀疏编码方法识别特征的方式并不完美（见§局限性），但它们产生的结果足够可解释，因此我们有动力研究由这些特征组成的电路。几位作者已经朝这个方向迈出了有前景的步伐[<cite>[marks2024sparse,dunefsky2024transcoders,ge2024automatically]</cite>]。</p>
+        <p>近年来，稀疏编码模型如稀疏自编码器（SAE）[<cite>[bricken2023monosemanticity,cunningham2023sparse,gao2024scaling,rajamanoharan2024jumping]</cite>]、转码器[<cite>[dunefsky2024transcoders,marks2024dictionary,templeton2024predicting]</cite>]和交叉编码器[<cite>[lindsey2024crosscoders]</cite>]已成为识别叠加中可解释特征的有前景工具。这些方法将模型激活分解为稀疏激活的组件（“特征”），<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup> 在许多情况下，这些组件对应于人类可解释的概念。虽然当前的稀疏编码方法识别特征的方式并不完美（见§局限性），但它们产生的结果足够可解释，这激励我们研究由这些特征组成的电路。几位作者已经在这个方向上迈出了有前景的步伐[<cite>[marks2024sparse,dunefsky2024transcoders,ge2024automatically]</cite>]。</p>
       
     
       
@@ -51,31 +51,31 @@
       
     
       
-        <div class="list-content">转码器。我们使用转码器的一种变体[<cite>[dunefsky2024transcoders,templeton2024predicting]</cite>]而不是SAE来提取特征，这使我们能够构建一个可解释的“替代模型”，可以作为原始模型的代理进行研究。重要的是，这种方法允许我们分析直接的特征-特征交互。跨层。我们将分析建立在跨层转码器（CLT）[<cite>[lindsey2024crosscoders]</cite>]的基础上，其中每个特征从某一层的残差流中读取，并对原始模型所有后续MLP层的输出做出贡献，这极大地简化了得到的电路。值得注意的是，我们可以用学到的CLT特征替换模型的MLP，同时在约50%的情况下匹配底层模型的输出。归因图。我们专注于研究“归因图”，它描述模型在特定提示下为目标token产生输出所使用的步骤，采用类似于Dunefsky等人[<cite>[dunefsky2024transcoders]</cite>]的方法。归因图中的节点代表活跃特征、来自提示的token嵌入、重构误差和输出logit。图中的边代表节点之间的线性影响，因此每个特征的活动是其输入边的总和（直到其激活阈值）（见§归因图）。特征之间的线性归因。我们将设置设计为，对于特定输入，特征之间的直接交互是线性的。这使得归因成为一个定义明确、原则性的操作。关键的是，我们冻结注意力模式和归一化分母（遵循[<cite>[nelhage2021mathematical]</cite>]），并使用转码器来实现这种线性。<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup> 特征还有通过其他特征中介的间接交互，对应于多步路径。剪枝。虽然我们的特征是稀疏的，但在给定提示上仍然有太多活跃特征，难以轻松解释得到的图。为了管理这种复杂性，我们通过识别对模型在特定token位置的输出贡献最大的节点和边来剪枝图（见§附录：图剪枝）。这样做使我们能够为任意提示生成模型计算的稀疏、可解释图。界面。我们设计了一个交互式界面，用于探索归因图及其组成的特征，使研究人员能够快速识别和突出其中的关键机制。验证。我们研究电路的方法是间接的——我们的替代模型可能使用与底层模型不同的机制。因此，验证我们在归因图中发现的机制很重要。我们通过扰动实验来做到这一点。具体来说，我们测量在特征方向上施加扰动在多大程度上会产生与其他特征激活（以及模型输出）的变化，这些变化与归因图一致。我们发现，在各种提示上，扰动实验通常在定性上与我们的归因图一致，尽管存在一些偏差。全局权重。虽然本文主要关注研究单个提示的归因图，但我们的方法也允许我们直接研究替代模型的权重（“全局权重”），这些权重是跨许多提示的机制基础。在§全局权重中，我们展示了一些这样做的挑战——由于权重干扰，朴素的全局权重通常不如归因图可解释。然而，我们成功地将它们应用于理解小数加法背后的电路。</div>
+        <div class="list-content">转码器。我们使用转码器的一种变体[<cite>[dunefsky2024transcoders,templeton2024predicting]</cite>]而不是SAE来提取特征，这允许我们构建一个可解释的“替代模型”，可以作为原始模型的代理进行研究。重要的是，这种方法允许我们分析直接的特征-特征交互。跨层。我们基于跨层转码器（CLT）[<cite>[lindsey2024crosscoders]</cite>]进行分析，其中每个特征从某一层的残差流中读取，并贡献到原始模型所有后续MLP层的输出，这极大地简化了得到的电路。值得注意的是，我们可以用学到的CLT特征替换模型的MLP，同时在约50%的情况下匹配底层模型的输出。归因图。我们专注于研究“归因图”，它描述了模型在特定提示下为目标token产生输出所使用的步骤，方法与Dunefsky等人类似[<cite>[dunefsky2024transcoders]</cite>]。归因图中的节点代表活跃特征、来自提示的token嵌入、重构误差和输出logit。图中的边代表节点之间的线性效应，因此每个特征的活动是其输入边的总和（直到其激活阈值）（见§归因图）。特征之间的线性归因。我们设计实验设置，使得对于特定输入，特征之间的直接交互是线性的。这使得归因成为一个明确定义的、有原则的操作。关键的是，我们冻结注意力模式和归一化分母（遵循[<cite>[nelhage2021mathematical]</cite>]），并使用转码器来实现这种线性性。<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup> 特征也有间接交互，由其他特征介导，对应于多步路径。剪枝。虽然我们的特征是稀疏的，但在给定提示上仍有太多活跃特征，难以轻松解释得到的图。为了管理这种复杂性，我们通过识别对模型在特定token位置输出贡献最大的节点和边来剪枝图（见§附录：图剪枝）。这样做允许我们为任意提示生成模型计算的稀疏、可解释图。界面。我们设计了一个交互式界面，用于探索归因图及其组成的特征，使研究人员能够快速识别并突出其中的关键机制。验证。我们研究电路的方法是间接的——我们的替代模型可能使用与底层模型不同的机制。因此，验证我们在归因图中发现的机制非常重要。我们使用扰动实验来做到这一点。具体来说，我们测量在特征方向上施加扰动在多大程度上产生与其他特征激活（以及模型输出）的变化，这些变化与归因图一致。我们发现，在各种提示下，扰动实验总体上在定性上与我们的归因图一致，尽管存在一些偏差。全局权重。虽然本文主要关注针对单个提示的归因图研究，但我们的方法也允许我们直接研究替代模型的权重（“全局权重”），这些权重构成了跨越许多提示的机制。在§全局权重中，我们展示了这样做的挑战——由于权重干扰，朴素的全局权重通常不如归因图可解释。然而，我们成功地将它们应用于理解小数加法背后的电路。</div>
       
     
       
-        <p>本文的目的是详细描述和验证我们的方法论，并使用一些案例研究进行说明。</p>
+        <p>本文的目的是详细描述和验证我们的方法论，并使用几个案例研究进行说明。</p>
       
     
       
-        <div class="list-content">我们从方法开始。我们描述替代模型的设置（§构建可解释的替代模型）以及我们如何构建归因图（§归因图），最后以两个案例研究结束（§事实回忆案例研究，§加法案例研究）。然后我们继续探索构建全局电路的方法，包括挑战和一些解决它们的初步方法（§全局权重）。</div>
+        <div class="list-content">我们从方法开始。我们描述替代模型的设置（§构建可解释的替代模型）以及如何构建归因图（§归因图），最后是两个案例研究（§事实回忆案例研究，§加法案例研究）。然后我们继续探讨构建全局电路的方法，包括挑战和一些解决它们的初步方法（§全局权重）。</div>
       
     
       
-        <div class="list-content">随后，我们对跨层转码器和得到的归因图进行了详细的定量评估（§评估），展示了CLT相对于神经元和每层转码器提供帕累托改进的指标。之后，我们概述了我们的伴侣论文，在其中我们将方法应用于Claude 3.5 Haiku的各种行为（§生物学）。我们接着讨论方法论的局限性（§局限性）。这些包括注意力模式的作用、重构误差的影响、抑制模式的识别以及理解全局电路的困难。解决这些局限性，并看看它们会揭示哪些额外的模型机制，是未来工作的有前景方向。</div>
+        <div class="list-content">随后，我们对跨层转码器和得到的归因图进行详细的定量评估（§评估），展示了CLT相对于神经元和每层转码器提供帕累托改进的指标。之后，我们概述了我们的伴侣论文，其中我们将方法应用于Claude 3.5 Haiku的各种行为（§生物学）。接下来，我们讨论方法论的局限性（§局限性）。这些包括注意力模式的作用、重构误差的影响、抑制模式的识别以及理解全局电路的困难。解决这些局限性，并看看随后会揭示哪些额外的模型机制，是未来工作的有前景方向。</div>
       
     
       
-        <div class="list-content">我们以对产生归因图的方法的设计空间的更广泛讨论（§讨论）结束——我们方法的部分内容可以与其他方法自由混合，同时保留大部分益处——以及对相关工作的回顾（§相关工作）。我们的伴侣论文<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a>将这些方法应用于Claude 3.5 Haiku，研究了多跳推理、规划和幻觉等多种行为。</div>
+        <div class="list-content">我们以对生成归因图的方法设计空间的更广泛讨论（§讨论）结束——我们方法的部分内容可以与其他方法自由混合，同时保留大部分益处——以及对相关工作的回顾（§相关工作）。我们的伴侣论文<a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a>将这些方法应用于Claude 3.5 Haiku，调查了多跳推理、规划和幻觉等多种行为。</div>
       
     
       
-        <p>我们注意到，训练跨层转码器会产生显著的前期成本和努力，但会在应用于电路发现时被摊销。我们发现这足以提高电路的可解释性和简洁性，值得投入（见开源权重模型的成本估算以及与每层转码器成本匹配的性能讨论）。尽管如此，我们强调，像每层转码器甚至MLP神经元这样的替代方案也可以使用（保持上述相同的步骤3-8），并且仍然产生有用的洞见。此外，很可能未来会开发出比CLT更好的方法。</p>
+        <p>我们注意到，训练跨层转码器会产生显著的前期成本和努力，但在应用于电路发现时会被摊销。我们发现这足以提高电路的可解释性和简洁性，值得投入（见开源权重模型的成本估计以及与每层转码器成本匹配性能的讨论）。尽管如此，我们强调也可以使用每层转码器甚至MLP神经元等替代方案（保持上述步骤3-8相同），并且仍然能产生有用的洞见。此外，未来很可能开发出比CLT更好的方法。</p>
       
     
       
-        <p>为了帮助复现，我们分享了CLT实现的指导、剪枝方法的细节，以及支持交互式图分析界面的前端代码。</p>
+        <p>为了帮助复现，我们分享了CLT实现的指导、剪枝方法的细节以及支持交互式图分析界面的前端代码。</p>
       
     
       
@@ -89,15 +89,15 @@
       
     
       
-        <p>跨层转码器（CLT）由分为<span class="math-inline" data-math="L">L</span>层的神经元（“特征”）组成，与底层模型的层数相同。该模型的目标是使用稀疏激活的特征重构底层模型MLP的输出。这些特征从模型在关联层的残差流中接收输入，但在可以向所有后续层提供输出的意义上是“跨层”的。<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup> 具体来说：</p>
+        <p>跨层转码器（CLT）由分为<span class="math-inline" data-math="L">L</span>层的神经元（“特征”）组成，层数与底层模型相同。该模型的目标是使用稀疏激活的特征重构底层模型MLP的输出。这些特征从模型残差流中其关联层获取输入，但它们是“跨层”的，因为它们可以为所有后续层提供输出。<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup> 具体来说：</p>
       
     
       
-        <div class="list-content"><span class="math-inline" data-math="\ell^\text{th}">\ell^\text{th}</span>层中的每个特征使用线性编码器后接非线性从该层的残差流中“读入”。一个<span class="math-inline" data-math="\ell^\text{th}">\ell^\text{th}</span>层特征使用针对每个输出层的单独线性解码器权重集合，对<span class="math-inline" data-math="\ell, \ell+1,\ldots , L">\ell, \ell+1,\ldots , L</span>层的MLP输出重构做出贡献。所有层中的所有特征都是联合训练的。因此，第<span class="math-inline" data-math="\ell^\prime">\ell^\prime</span>层的MLP输出是由来自所有先前层的特征联合重构的。</div>
+        <div class="list-content"><span class="math-inline" data-math="\ell^\text{th}">\ell^\text{th}</span>层中的每个特征使用线性编码器后接非线性从该层的残差流“读入”。一个<span class="math-inline" data-math="\ell^\text{th}">\ell^\text{th}</span>层特征使用每输出层一组单独的线性解码器权重，贡献到层<span class="math-inline" data-math="\ell, \ell+1,\ldots , L">\ell, \ell+1,\ldots , L</span>中MLP输出的重构。所有层中的所有特征都是联合训练的。因此，层<span class="math-inline" data-math="\ell^\prime">\ell^\prime</span>中MLP的输出是由来自所有先前层的特征联合重构的。</div>
       
     
       
-        <p>更正式地说，要运行跨层转码器，令<span class="math-inline" data-math="\mathbf{x^{\ell}}">\mathbf{x^{\ell}}</span>表示原始模型在第<span class="math-inline" data-math="\ell">\ell</span>层的残差流激活。第<span class="math-inline" data-math="\ell">\ell</span>层的CLT特征激活<span class="math-inline" data-math="\mathbf{a^{\ell}}">\mathbf{a^{\ell}}</span>计算为</p>
+        <p>更正式地，要运行跨层转码器，让<span class="math-inline" data-math="\mathbf{x^{\ell}}">\mathbf{x^{\ell}}</span>表示原始模型在层<span class="math-inline" data-math="\ell">\ell</span>的残差流激活。层<span class="math-inline" data-math="\ell">\ell</span>的CLT特征激活<span class="math-inline" data-math="\mathbf{a^{\ell}}">\mathbf{a^{\ell}}</span>计算为</p>
       
     
       
@@ -105,11 +105,11 @@
       
     
       
-        <p>其中<span class="math-inline" data-math="W_{enc}^{\ell}">W_{enc}^{\ell}</span>是第<span class="math-inline" data-math="\ell">\ell</span>层的CLT编码器矩阵。</p>
+        <p>其中<span class="math-inline" data-math="W_{enc}^{\ell}">W_{enc}^{\ell}</span>是层<span class="math-inline" data-math="\ell">\ell</span>的CLT编码器矩阵。</p>
       
     
       
-        <p>我们令<span class="math-inline" data-math="\mathbf{y^{\ell}}">\mathbf{y^{\ell}}</span>表示原始模型在第<span class="math-inline" data-math="\ell">\ell</span>层的MLP输出。CLT对<span class="math-inline" data-math="\mathbf{y^{\ell}}">\mathbf{y^{\ell}}</span>的尝试重构<span class="math-inline" data-math="\mathbf{\hat{y}^{\ell}}">\mathbf{\hat{y}^{\ell}}</span>使用JumpReLU激活函数[<cite>[rajamanoharan2024jumping]</cite>]计算为：</p>
+        <p>我们让<span class="math-inline" data-math="\mathbf{y^{\ell}}">\mathbf{y^{\ell}}</span>指代原始模型在层<span class="math-inline" data-math="\ell">\ell</span>的MLP输出。CLT对<span class="math-inline" data-math="\mathbf{y^{\ell}}">\mathbf{y^{\ell}}</span>的尝试重构<span class="math-inline" data-math="\mathbf{\hat{y}^{\ell}}">\mathbf{\hat{y}^{\ell}}</span>使用JumpReLU激活函数[<cite>[rajamanoharan2024jumping]</cite>]计算为：</p>
       
     
       
@@ -117,7 +117,7 @@
       
     
       
-        <p>其中<span class="math-inline" data-math="W_{dec}^{\ell&#x27; \to \ell}">W_{dec}^{\ell&#x27; \to \ell}</span>是第<span class="math-inline" data-math="\ell&#x27;">\ell&#x27;</span>层特征输出到第<span class="math-inline" data-math="\ell">\ell</span>层的CLT解码器矩阵。</p>
+        <p>其中<span class="math-inline" data-math="W_{dec}^{\ell&#x27; \to \ell}">W_{dec}^{\ell&#x27; \to \ell}</span>是层<span class="math-inline" data-math="\ell&#x27;">\ell&#x27;</span>的特征输出到层<span class="math-inline" data-math="\ell">\ell</span>的CLT解码器矩阵。</p>
       
     
       
@@ -129,7 +129,7 @@
       
     
       
-        <p>第二个是稀疏性惩罚（总系数为<span class="math-inline" data-math="\lambda">\lambda</span>，这是一个超参数，另一个超参数是<span class="math-inline" data-math="c">c</span>），在各层上求和：</p>
+        <p>第二个是稀疏性惩罚（总系数为<span class="math-inline" data-math="\lambda">\lambda</span>，这是一个超参数，另一个超参数为<span class="math-inline" data-math="c">c</span>），在各层上求和：</p>
       
     
       
@@ -137,11 +137,11 @@
       
     
       
-        <p>其中<span class="math-inline" data-math="N">N</span>是每层的特征数，<span class="math-inline" data-math="\mathbf{W_{dec, i}^{\ell}}">\mathbf{W_{dec, i}^{\ell}}</span>是特征<span class="math-inline" data-math="i">i</span>的所有解码器向量的拼接。</p>
+        <p>其中<span class="math-inline" data-math="N">N</span>是每层的特征数量，<span class="math-inline" data-math="\mathbf{W_{dec, i}^{\ell}}">\mathbf{W_{dec, i}^{\ell}}</span>是特征<span class="math-inline" data-math="i">i</span>所有解码器向量的拼接。</p>
       
     
       
-        <p>我们在小型18层Transformer模型（“18L”）<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup>和Claude 3.5 Haiku上训练了不同大小的CLT。所有层中特征的总数范围从300K到10M（对于18L）和从300K到30M（对于Haiku）。更多训练细节见§附录：CLT实现细节。</p>
+        <p>我们在一个小型18层Transformer模型（“18L”）<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup>和Claude 3.5 Haiku上训练了不同规模的CLT。所有层上的总特征数量范围从300K到10M（对于18L）和从300K到30M（对于Haiku）。更多训练细节见§附录：CLT实现细节。</p>
       
     
       
@@ -150,19 +150,19 @@
       
     
       
-        <p>给定训练好的跨层转码器，我们可以定义一个“替代模型”，它用跨层转码器特征替换模型的MLP神经元——即，每层的MLP输出被所有写入该层的CLT的重构所替换。运行此替代模型的前向传播与运行原始模型相同，但有两个修改：</p>
+        <p>给定训练好的跨层转码器，我们可以定义一个“替代模型”，它用跨层转码器特征替换模型的MLP神经元——即，每层的MLP输出被所有写入该层的CLT对其的重构所替换。运行这个替代模型的前向传递与运行原始模型相同，但有两个修改：</p>
       
     
       
-        <div class="list-content">到达第<span class="math-inline" data-math="\ell">\ell</span>层MLP的输入时，我们计算编码器位于第<span class="math-inline" data-math="\ell">\ell</span>层的跨层转码器特征的激活。到达第<span class="math-inline" data-math="\ell">\ell</span>层MLP的输出时，我们用来自本层和先前层的跨层转码器特征使用针对第<span class="math-inline" data-math="\ell">\ell</span>层的解码器的求和输出来覆盖它。</div>
+        <div class="list-content">当到达层<span class="math-inline" data-math="\ell">\ell</span>中MLP的输入时，我们计算编码器位于层<span class="math-inline" data-math="\ell">\ell</span>的跨层转码器特征的激活。当到达层<span class="math-inline" data-math="\ell">\ell</span>中MLP的输出时，我们用来自本层及先前层的跨层转码器特征使用其针对层<span class="math-inline" data-math="\ell">\ell</span>的解码器的求和输出来覆盖它。</div>
       
     
       
-        <p>注意力层照常应用，没有任何冻结或修改。虽然我们的CLT仅使用来自底层模型的输入激活进行训练，但“运行”替代模型涉及在来自替代模型自身中间激活的“分布外”输入激活上运行CLT。</p>
+        <p>注意力层照常应用，没有任何冻结或修改。虽然我们的CLT仅使用来自底层模型的输入激活进行训练，但“运行”替代模型涉及在来自替代模型本身中间激活的“分布外”输入激活上运行CLT。</p>
       
     
       
-        <p>作为一个简单的评估，我们测量替代模型最可能的token输出与底层模型匹配的完成比例。该比例随规模提高，并且CLT优于每层转码器基线（即，每层都有针对它训练的标准单层转码器；显示的特征数指所有层中的总数）。我们还与阈值化神经元的基线进行了比较，改变阈值以下的神经元被置零（根据经验，我们发现更高的神经元激活越来越可解释，我们在下面指出它们的可解释性根据我们在§定量CLT评估中的自动评估大致匹配特征的可解释性）。我们最大的18L CLT在一个来自开源数据集的多样化预训练风格提示集合上，在50%的情况下匹配底层模型的下一个token完成（见§额外评估细节）。<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup></p>
+        <p>作为简单评估，我们测量替代模型最可能的token输出与底层模型匹配的完成比例。该比例随规模改善，并且CLT优于每层转码器基线（即，每层都有一个在其上训练的标准单层转码器；所示特征数量指所有层上的总数）。我们还与阈值化神经元基线进行比较，改变低于阈值时神经元被置零的阈值（根据经验，我们发现更高的神经元激活越来越可解释，我们在下面指出其可解释性大致匹配我们在§定量CLT评估中根据自动评估得到的特征）。我们最大的18L CLT在一个来自开源数据集的多样化预训练风格提示集上，在50%的情况下匹配底层模型的下一个token完成（见§额外评估细节）。<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup></p>
       
     
       
@@ -171,23 +171,23 @@
       
     
       
-        <p>虽然运行替代模型有时可以重现与底层模型相同的输出，但仍然存在显著差距，并且重构误差会在各层累积。由于我们最终感兴趣的是理解底层模型，我们希望尽可能接近地近似它。为此，在研究固定提示<span class="math-inline" data-math="p">p</span>时，我们构建一个局部替代模型，它</p>
+        <p>虽然运行替代模型有时可以重现与底层模型相同的输出，但仍存在显著差距，并且重构误差可能在各层间累积。由于我们最终感兴趣的是理解底层模型，我们希望尽可能接近地近似它。为此，当研究固定提示<span class="math-inline" data-math="p">p</span>时，我们构建一个局部替代模型，它</p>
       
     
       
-        <div class="list-content">用CLT替换MLP层（如同替代模型）；使用底层模型在<span class="math-inline" data-math="p">p</span>上的前向传播的注意力模式和归一化分母（如同[<cite>[nelhage2021mathematical,dunefsky2024transcoders]</cite>]）；在每个（token位置，层）对的CLT输出上添加一个误差调整，等于<span class="math-inline" data-math="p">p</span>上的真实MLP输出与<span class="math-inline" data-math="p">p</span>上的CLT输出之间的差异（如同[<cite>[marks2024sparse]</cite>]）。</div>
+        <div class="list-content">替换CLT为MLP层（如同替代模型中那样）；使用底层模型在<span class="math-inline" data-math="p">p</span>上的前向传递的注意力模式和归一化分母（如同[<cite>[nelhage2021mathematical,dunefsky2024transcoders]</cite>]中那样）；在每个（token位置，层）对的CLT输出上添加误差调整，等于在<span class="math-inline" data-math="p">p</span>上的真实MLP输出与在<span class="math-inline" data-math="p">p</span>上的CLT输出之间的差异（如同[<cite>[marks2024sparse]</cite>]中那样）。</div>
       
     
       
-        <p>在这种误差调整和冻结注意力及归一化非线性之后，我们有效地将底层模型在提示<span class="math-inline" data-math="p">p</span>上的计算用不同的基本单元重写；所有误差校正的替代模型的激活和logit输出都精确匹配底层模型的。然而，这并不保证局部替代模型和底层模型使用相同的机制。我们可以通过测量这些模型对扰动的响应有多不同来衡量机制差异；我们将扰动行为匹配的程度称为“机制忠实度”，在§评估机制忠实度中讨论。<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup></p>
+        <p>在这种误差调整和冻结注意力及归一化非线性之后，我们有效地用不同的基本单元重写了底层模型在提示<span class="math-inline" data-math="p">p</span>上的计算；所有误差校正的替代模型的激活和logit输出都与底层模型完全匹配。然而，这并不保证局部替代模型和底层模型使用相同的机制。我们可以通过测量这些模型对扰动的响应差异来衡量机制差异；我们将扰动行为匹配的程度称为“机制忠实度”，在§评估机制忠实度中讨论。<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup></p>
       
     
       
-        <p>局部替代模型可以被视为一个非常大的全连接神经网络，跨越多个token，我们可以在其上进行经典的电路分析：</p>
+        <p>局部替代模型可以被视为一个非常大的全连接神经网络，跨越各个token，我们可以在其上进行经典的电路分析：</p>
       
     
       
-        <div class="list-content">其输入是提示中每个token的一热向量的拼接。其神经元是每个token位置活跃的CLT特征的并集。其权重是来自一个特征到另一个特征的所有线性路径的总和交互，包括通过残差流和通过注意力，但不经过MLP或CLT层。由于注意力模式和归一化分母被冻结，源特征激活通过每条路径对目标特征预激活的影响与源特征的激活呈线性关系。我们有时将这些称为“虚拟权重”，因为它们在底层模型中并未实例化。此外，它还有对应于误差项的类似偏置的节点，从每个偏置到模型中每个下游神经元都有连接。</div>
+        <div class="list-content">其输入是提示中每个token的one-hot向量的拼接。其神经元是每个token位置活跃的CLT特征的并集。其权重是所有从一个特征到另一个特征的线性路径上的交互总和，包括通过残差流和通过注意力，但不经过MLP或CLT层。由于注意力模式和归一化分母被冻结，通过每条路径源特征激活对目标特征预激活的影响相对于源特征激活是线性的。我们有时称这些为“虚拟权重”，因为它们没有在底层模型中实例化。此外，它还有对应于误差项的类似偏置的节点，每个偏置与模型中每个下游神经元都有连接。</div>
       
     
       
@@ -195,7 +195,7 @@
       
     
       
-        <p>局部替代模型是我们归因图的基础，我们在其中研究针对制作它的提示的局部替代模型的特征-特征交互。这些图是本文的主要研究对象。</p>
+        <p>局部替代模型是我们归因图的基础，我们在其中研究针对其制作的提示上局部替代模型的特征-特征交互。这些图是本文的主要研究对象。</p>
       
     
       
@@ -204,23 +204,23 @@
       
     
       
-        <p>我们将在研究模型写任意标题首字母缩写的能力的案例研究过程中介绍构建归因图的方法论。在我们研究的例子中，模型成功完成了虚构的首字母缩写。具体来说，我们给模型提示The National Digital Analytics Group (N并采样其完成：DAG。模型训练使用的分词器使用一个特殊的“Caps Lock”token，这意味着提示和完成被分词为：The National Digital Analytics Group  (⇪ndag。</p>
+        <p>我们将在研究模型写任意标题首字母缩写的能力的案例研究过程中介绍构建归因图的方法论。在我们研究的例子中，模型成功完成了虚构的首字母缩写。具体来说，我们给模型的提示是The National Digital Analytics Group (N，并采样其完成：DAG。模型训练时使用的分词器使用了一个特殊的“Caps Lock”token，这意味着提示和完成被分词为：The National Digital Analytics Group  (⇪ndag。</p>
       
     
       
-        <p>我们通过构建一个归因图来解释模型为输出“DAG”token所执行的计算，该图显示信息从提示通过中间特征流向该输出。<sup id="fnref-f8n"><a href="#f8n">[8]</a></sup> 下面，我们展示完整归因图的简化示意图。该示意图在底部显示提示，在顶部显示模型的完成。方框代表相似特征的组，可以悬停以显示每个特征的可视化。我们在§理解和标注特征中讨论对特征的解释。箭头代表一组特征或token对其他特征和输出logit的直接影响。</p>
+        <p>我们通过构建一个归因图来解释模型输出“DAG”token所执行的计算，该图显示了信息从提示通过中间特征流向该输出的流动。<sup id="fnref-f8n"><a href="#f8n">[8]</a></sup> 下面，我们展示了完整归因图的简化示意图。该示意图在底部显示提示，在顶部显示模型的完成。方框代表相似特征的组，可以悬停以显示每个特征的可视化。我们在§理解和标注特征中讨论对特征的解释。箭头代表一组特征或token对其他特征和输出logit的直接影响。</p>
       
     
       
-        <p>首字母缩写提示的图显示了三条主要路径，分别起源于组成所需首字母缩写的每个token。路径起源于给定单词的特征，促进关于“在正确位置说出该单词的第一个字母”的特征，这些特征本身具有到“say DAG”特征和logit的正边。“say X”标签描述“输出特征”，它促进特定token X，任意单个字母用下划线表示。“Word → say _W”边代表注意力头的OV电路写入一个子空间，然后在目标位置被MLP放大。每组特征除了顺序路径外，还具有到logit的直接边，代表仅通过注意力头OV中介的影响（即，在局部替代模型中到输出的路径，不“接触”另一个MLP层）。</p>
+        <p>首字母缩写提示的图显示了三条主要路径，分别来自组成所需首字母缩写的每个token。路径来自给定单词的特征，促进关于“在正确位置说出该单词的第一个字母”的特征，这些特征本身具有到“say DAG”特征和logit的正边。“say X”标签描述“输出特征”，它促进特定token X，任意单个字母用下划线表示。“Word → say _W”边代表注意力头的OV电路写入一个子空间，然后在目标位置被MLP放大。每组特征除了顺序路径外，还具有到logit的直接边，代表仅通过注意力头OV介导的影响（即，在局部替代模型中到输出的路径，没有“接触”另一个MLP层）。</p>
       
     
       
-        <p>为了输出“DAG”，模型还需要决定输出一个首字母缩写，并考虑提示已经包含N的事实，我们确实看到“in an acronym”和“in an N at the start of an acronym”的特征具有到logit的正边。单词National对logit的影响最小。我们假设这是因为它的主要贡献是通过影响注意力模式，而我们的方法没有解释这一点（见§局限性：缺失的注意力电路）。</p>
+        <p>为了输出“DAG”，模型还需要决定输出一个首字母缩写，并考虑提示已经包含N的事实，我们确实看到了“in an acronym”和“in an N at the start of an acronym”的特征，它们具有到logit的正边。单词National对logit的影响最小。我们假设这是因为它的主要贡献是通过影响注意力模式，而我们的方法无法解释这一点（见§局限性：缺失的注意力电路）。</p>
       
     
       
-        <p>在本节的剩余部分，我们解释如何计算和可视化归因图。</p>
+        <p>在本节的其余部分，我们解释如何计算和可视化归因图。</p>
       
     
       
@@ -229,11 +229,11 @@
       
     
       
-        <p>为了解释局部替代模型执行的计算，我们计算一个因果图，描绘它在特定提示上执行的计算步骤序列。我们构建图的核心逻辑本质上与Dunefsky等人[<cite>[dunefsky2024transcoders]</cite>]的相同，并扩展以处理跨层转码器。我们的图包含四种类型的节点：</p>
+        <p>为了解释局部替代模型执行的计算，我们计算一个因果图，描绘它在特定提示上执行的计算步骤序列。我们构建图的核心逻辑与Dunefsky等人基本相同[<cite>[dunefsky2024transcoders]</cite>]，扩展以处理跨层转码器。我们的图包含四种类型的节点：</p>
       
     
       
-        <div class="list-content">输出节点对应于候选输出token。我们只为达到95%概率质量所需的token构建输出节点，最多10个。<sup id="fnref-f9n"><a href="#f9n">[9]</a></sup>中间节点对应于每个提示token位置的活跃跨层转码器特征。图的主要输入节点对应于提示token的嵌入。额外的输入节点（“误差节点”）对应于底层模型中每个MLP输出中CLT未解释的部分。</div>
+        <div class="list-content">输出节点对应候选输出token。我们只为达到95%概率质量所需的token构建输出节点，最多10个。<sup id="fnref-f9n"><a href="#f9n">[9]</a></sup>中间节点对应每个提示token位置的活跃跨层转码器特征。图的主要输入节点对应提示token的嵌入。额外的输入节点（“误差节点”）对应底层模型中每个MLP输出中CLT未解释的部分。</div>
       
     
       
@@ -241,11 +241,11 @@
       
     
       
-        <p>就底层模型而言，<span class="math-inline" data-math="w_{s \rightarrow t}">w_{s \rightarrow t}</span>是连接源特征解码器向量到目标特征编码器向量的所有线性路径（即通过注意力头OV和残差连接）的总和。</p>
+        <p>就底层模型而言，<span class="math-inline" data-math="w_{s \rightarrow t}">w_{s \rightarrow t}</span>是所有连接源特征解码器向量到目标特征编码器向量的线性路径（即，通过注意力头OV和残差连接）的总和。</p>
       
     
       
-        <p>我们现在给出如何在实践中使用反向雅可比高效计算这些的细节。令<span class="math-inline" data-math="s">s</span>是第<span class="math-inline" data-math="\ell_s">\ell_s</span>层和上下文位置<span class="math-inline" data-math="c_s">c_s</span>的源特征节点，令<span class="math-inline" data-math="t">t</span>是第<span class="math-inline" data-math="\ell_t">\ell_t</span>层和上下文位置<span class="math-inline" data-math="c_t">c_t</span>的目标特征节点。我们将<span class="math-inline" data-math="J_{c_s, \ell_s \rightarrow c_t, \ell_t}^{\blacktriangledown}">J_{c_s, \ell_s \rightarrow c_t, \ell_t}^{\blacktriangledown}</span>写为底层模型的雅可比，其中对具有非线性的所有模型组件（MLP输出、注意力模式和归一化分母）应用了停止梯度操作——在感兴趣提示上的反向传播中，从上下文位置<span class="math-inline" data-math="c_t">c_t</span>和第<span class="math-inline" data-math="\ell_t">\ell_t</span>层的残差流到上下文位置<span class="math-inline" data-math="c_s">c_s</span>和第<span class="math-inline" data-math="\ell_s">\ell_s</span>层的残差流。从<span class="math-inline" data-math="s">s</span>到<span class="math-inline" data-math="t">t</span>的边权重是</p>
+        <p>我们现在给出如何在实践中使用反向雅可比高效计算这些的细节。让<span class="math-inline" data-math="s">s</span>是层<span class="math-inline" data-math="\ell_s">\ell_s</span>和上下文位置<span class="math-inline" data-math="c_s">c_s</span>的源特征节点，让<span class="math-inline" data-math="t">t</span>是层<span class="math-inline" data-math="\ell_t">\ell_t</span>和上下文位置<span class="math-inline" data-math="c_t">c_t</span>的目标特征节点。我们将<span class="math-inline" data-math="J_{c_s, \ell_s \rightarrow c_t, \ell_t}^{\blacktriangledown}">J_{c_s, \ell_s \rightarrow c_t, \ell_t}^{\blacktriangledown}</span>写为底层模型的雅可比，其中对所有具有非线性的模型组件（MLP输出、注意力模式和归一化分母）应用了停止梯度操作——在感兴趣提示上的反向传递中，从上下文位置<span class="math-inline" data-math="c_t">c_t</span>和层<span class="math-inline" data-math="\ell_t">\ell_t</span>的残差流到上下文位置<span class="math-inline" data-math="c_s">c_s</span>和层<span class="math-inline" data-math="\ell_s">\ell_s</span>的残差流。从<span class="math-inline" data-math="s">s</span>到<span class="math-inline" data-math="t">t</span>的边权重则是</p>
       
     
       
@@ -257,27 +257,27 @@
       
     
       
-        <div class="list-content"><span class="math-inline" data-math="W_{\text{dec}, \;s}^{\ell_s \to \ell}">W_{\text{dec}, \;s}^{\ell_s \to \ell}</span>是特征<span class="math-inline" data-math="s">s</span>写入第<span class="math-inline" data-math="\ell">\ell</span>层的解码器向量，<span class="math-inline" data-math="W_{\text{enc}, \;t}^{\ell_t}">W_{\text{enc}, \;t}^{\ell_t}</span>是特征<span class="math-inline" data-math="s">s</span>的编码器向量。</div>
+        <div class="list-content"><span class="math-inline" data-math="W_{\text{dec}, \;s}^{\ell_s \to \ell}">W_{\text{dec}, \;s}^{\ell_s \to \ell}</span>是<span class="math-inline" data-math="s">s</span>的特征写入层<span class="math-inline" data-math="\ell">\ell</span>的解码器向量，<span class="math-inline" data-math="W_{\text{enc}, \;t}^{\ell_t}">W_{\text{enc}, \;t}^{\ell_t}</span>是<span class="math-inline" data-math="s">s</span>的特征的编码器向量。</div>
       
     
       
-        <p>其他边类型的公式类似，例如，嵌入-特征边权重由<span class="math-inline" data-math="w_{s \rightarrow t} = \text{Emb}_s^TJ_{c_s, \ell_s \rightarrow c_t, \ell_t}^{\blacktriangledown} W_{\text{enc}, \;t}^{\ell_t}">w_{s \rightarrow t} = \text{Emb}_s^TJ_{c_s, \ell_s \rightarrow c_t, \ell_t}^{\blacktriangledown} W_{\text{enc}, \;t}^{\ell_t}</span>给出。请注意，误差节点没有输入边。对于所有此类公式，以及雅可比在底层模型中路径上的展开，见§附录：归因图计算。）</p>
+        <p>其他边类型的公式类似，例如，嵌入-特征边权重由<span class="math-inline" data-math="w_{s \rightarrow t} = \text{Emb}_s^TJ_{c_s, \ell_s \rightarrow c_t, \ell_t}^{\blacktriangledown} W_{\text{enc}, \;t}^{\ell_t}">w_{s \rightarrow t} = \text{Emb}_s^TJ_{c_s, \ell_s \rightarrow c_t, \ell_t}^{\blacktriangledown} W_{\text{enc}, \;t}^{\ell_t}</span>给出。请注意，误差节点没有输入边。对于所有此类公式，以及雅可比在底层模型路径方面的展开，见§附录：归因图计算。）</p>
       
     
       
-        <p>因为我们在上面的计算中对所有模型非线性添加了停止梯度，任何特征节点<span class="math-inline" data-math="t">t</span>的预激活<span class="math-inline" data-math="h_t">h_t</span>只是其图中传入边的总和：<span class="math-inline" data-math="h_t = \sum_\mathcal{S_t} w_{s \rightarrow t}">h_t = \sum_\mathcal{S_t} w_{s \rightarrow t}</span> 其中<span class="math-inline" data-math="S_t">S_t</span>是位于<span class="math-inline" data-math="t">t</span>之前层和相等或更早上下文位置的节点集合。因此归因图的边提供了每个特征活动的线性分解。</p>
+        <p>因为我们在上面的计算中对所有模型非线性添加了停止梯度，任何特征节点<span class="math-inline" data-math="t">t</span>的预激活<span class="math-inline" data-math="h_t">h_t</span>只是其图中传入边的总和：<span class="math-inline" data-math="h_t = \sum_\mathcal{S_t} w_{s \rightarrow t}">h_t = \sum_\mathcal{S_t} w_{s \rightarrow t}</span> 其中<span class="math-inline" data-math="S_t">S_t</span>是早于<span class="math-inline" data-math="t">t</span>的层且上下文位置等于或早于它的节点集。因此，归因图的边为每个特征的活动提供了线性分解。</p>
       
     
       
-        <p>请注意，这些图不包含关于节点通过影响注意力模式对其他节点的影响的信息，但确实包含关于通过冻结注意力输出进行的节点到节点影响的信息。换句话说，我们考虑了从一个token位置流向另一个token位置的信息，但不考虑模型为什么移动该信息。<sup id="fnref-f11n"><a href="#f11n">[11]</a></sup> 还要注意，来自跨层特征的传出边聚合了其在所有写入层上的解码对下游特征的影响。</p>
+        <p>请注意，这些图不包含关于节点通过其对注意力模式的影响而对其他节点的影响的信息，但确实包含关于通过冻结注意力输出进行的节点到节点影响的信息。换句话说，我们考虑了从一个token位置流向另一个的信息，但没有考虑模型为什么移动该信息。<sup id="fnref-f11n"><a href="#f11n">[11]</a></sup> 还要注意，来自跨层特征的传出边聚合了其在所有写入层上对下游特征的解码效果。</p>
       
     
       
-        <p>虽然我们的替代模型特征是稀疏激活的（每个token位置大约一百个活跃特征），但归因图太大而无法完整查看，特别是随着提示长度增长——即使对于短提示，边的数量也可能增长到数百万。幸运的是，一个小的子图通常占从输入到输出的最重要路径的大部分。</p>
+        <p>虽然我们的替代模型特征是稀疏激活的（每个token位置大约有一百个活跃特征），但归因图太大，无法完整查看，特别是随着提示长度增加——即使对于短提示，边的数量也可以增长到数百万。幸运的是，一个小的子图通常占输入到输出的大部分重要路径。</p>
       
     
       
-        <p>为了识别这样的子图，我们应用一个剪枝算法，旨在保留直接或间接对logit节点施加显著影响的节点和边。使用我们的默认参数，我们通常将节点数量减少10倍，而仅将解释的行为减少20%。见§附录：图剪枝了解我们算法和指标的方法论细节。</p>
+        <p>为了识别这样的子图，我们应用一个剪枝算法，旨在保留直接或间接对logit节点施加显著影响的节点和边。使用我们的默认参数，我们通常将节点数量减少10倍，同时仅将解释的行为减少20%。见§附录：图剪枝了解我们算法和指标的方法论细节。</p>
       
     
       
@@ -286,15 +286,15 @@
       
     
       
-        <p>即使在剪枝之后，归因图的信息依然非常密集。一个剪枝后的图通常包含数百个节点和数万个边——信息太多而无法一次性解释。为了让我们能够驾驭这种复杂性，我们开发了一个交互式归因图可视化界面。该界面旨在实现“追踪”图中的关键路径，保留重新访问先前探索的节点和路径的能力，并在需要时实例化解释特征所需的信息。</p>
+        <p>即使在剪枝之后，归因图的信息密度仍然很高。一个剪枝后的图通常包含数百个节点和数万个边——信息太多，无法一次性解释。为了让我们能够驾驭这种复杂性，我们开发了一个交互式归因图可视化界面。该界面旨在实现“追踪”图中的关键路径，保留重新访问先前探索的节点和路径的能力，并按需物化解释特征所需的信息。</p>
       
     
       
-        <p>下面我们展示从单个token“DAG”回溯的归因图的交互式可视化：</p>
+        <p>下面我们展示了针对单个token“DAG”的归因图的交互式可视化：</p>
       
     
       
-        <p>该界面是交互式的。可以悬停和点击节点以显示额外信息。还可以通过使用Cmd/Ctrl+Click选择节点子集来构建子图。在子图中，特征可以聚合到我们称为超节点（supernodes）的组中（在下面§将特征分组为超节点中说明）。</p>
+        <p>该界面是交互式的。节点可以悬停和点击以显示额外信息。还可以通过使用Cmd/Ctrl+Click选择节点子集来构建子图。在子图中，特征可以聚合为我们称为超节点的组（在下面§将特征分组为超节点中有所启发）。</p>
       
     
       
@@ -303,23 +303,23 @@
       
     
       
-        <p>我们使用类似于我们之前工作<a href="2024-scaling-monosemanticity.html">扩展单一语义性：从 Claude 3 Sonnet 中提取可解释特征</a>中所示的特征可视化，以便手动解释和标注我们图中的单个特征。<sup id="fnref-f12n"><a href="#f12n">[12]</a></sup></p>
+        <p>我们使用类似于我们先前工作<a href="2024-scaling-monosemanticity.html">单语义性扩展：从 Claude 3 Sonnet 中提取可解释特征</a>中所示的特征可视化，以便手动解释和标注我们图中的单个特征。<sup id="fnref-f12n"><a href="#f12n">[12]</a></sup></p>
       
     
       
-        <p>最容易标注的特征是输入特征，它们在特定token或密切相关token类别上激活，在早期层中很常见；以及输出特征，它们促进以特定token或密切相关token类别继续响应，在晚期层中很常见。例如：</p>
+        <p>最容易标注的特征是输入特征，它们在特定token或密切相关token类别上激活，在早期层中很常见，以及输出特征，它们促进以特定token或密切相关token类别继续响应，在晚期层中很常见。例如：</p>
       
     
       
-        <div class="list-content">这个特征很可能是一个输入特征，因为其可视化显示它在单词“digital”和类似单词如“digitize”上强烈激活，但在其他单词上不激活。因此我们将其标注为“digital”特征。这个特征（来自后面§加法案例研究的Haiku特征）是一个输入特征，在以数字6结尾的各种token上激活，甚至在更抽象地与6相关的token如“six”和“June”上激活。这个特征很可能是一个输出特征，因为它在几个不同token上强烈激活，但在每个例子中，该token后面都跟着文本“dag”。此外，可视化顶部表明该特征通过残差流的直接影响，比任何其他token更能增加模型预测“dag”的概率。这表明它是一个输出特征。由于输出特征很常见，当标注促进某个token或类别X的输出特征时，我们通常简单地写“say X”，因此我们给这个例子标注“say ‘dag’”。这个特征（来自后面的§事实回忆案例研究）是一个输出特征，促进各种运动，尽管它也展示了标注输出特征可能困难的一些方式。例如，必须观察到“lac”是“lacrosse”的第一个token。此外，特征激活后上下文中的下一个token通常实际上不是运动名称，但通常是运动名称可能出现的一个合理位置。</div>
+        <div class="list-content">这个特征很可能是一个输入特征，因为其可视化显示它在单词“digital”及类似单词如“digitize”上强烈激活，但在其他单词上不激活。因此我们将其标注为“digital”特征。这个特征（来自后面§加法案例研究的Haiku特征）是一个输入特征，它在以数字6结尾的各种token上激活，甚至在与6更抽象相关的token如“six”和“June”上激活。这个特征很可能是一个输出特征，因为它在几个不同token上强烈激活，但在每个例子中，该token后面都跟着文本“dag”。此外，可视化顶部表明该特征通过残差流的直接影响比任何其他token更能增加模型预测“dag”的概率。这表明它是一个输出特征。由于输出特征很常见，当标注促进某个token或类别X的输出特征时，我们通常简单地写“say X”，所以我们给这个例子标注“say ‘dag’”。这个特征（来自后面的§事实回忆案例研究）是一个输出特征，它促进各种运动，尽管它也展示了标注输出特征可能困难的一些方式。例如，必须观察到“lac”是“lacrosse”的第一个token。此外，特征激活后上下文中接下来的token通常实际上不是运动名称，但通常是一个运动名称可能出现的合理位置。</div>
       
     
       
-        <p>其他特征，在模型中间层很常见，更加抽象，需要更多工作来标注。我们可以使用它们活跃的上下文例子、它们的logit影响（它们通过残差流和反嵌入直接促进和抑制的token），以及它们连接到的特征来标注它们。例如：</p>
+        <p>其他特征，在模型中间层很常见，更为抽象，需要更多工作来标注。我们可以使用它们活跃的上下文例子、它们的logit效应（它们通过残差流和反嵌入直接促进和抑制的token），以及它们连接到的特征来标注它们。例如：</p>
       
     
       
-        <div class="list-content">这个特征在一个打开括号后的未完成首字母缩写的第一个或前两个字母上激活，对于各种字母和首字母缩写，因此我们将其标注为一般继续首字母缩写。这个特征在各种首字母缩写的开头激活，这些首字母缩写的第二个字母都是D，而且它直接促进的许多token的第二个字母也是D。（并非所有这些token都是，但我们不期望logit影响完美代表特征的功能，因为通过模型其余部分的间接影响。我们还发现，离最后一层更远的特征的logit影响可解释性较差。）为简洁起见，我们可能将这个特征标注为“say ‘_D’”，用下划线代表第一个字母。最后，这个特征在各种看起来不是首字母缩写的全大写字母字符串的第一个字母上激活，它最抑制的token是类似首字母缩写的字母，但其例子否则缺乏明显的共性，因此我们暂时将其标注为抑制首字母缩写。</div>
+        <div class="list-content">这个特征在开放括号后未完成首字母缩写的第一个或前两个字母上激活，针对各种字母和首字母缩写，所以我们将其标注为一般继续首字母缩写。这个特征在各种首字母缩写的开头激活，这些缩写都以D作为第二个字母，而且它直接促进的许多token也以D作为第二个字母。（并非所有这些token都是，但我们不期望logit效应完美代表特征的功能，因为通过模型其余部分的间接效应。我们还发现，离最后一层更远的特征的logit效应可解释性较差。）为简洁起见，我们可以将这个特征标注为“say ‘_D’”，用下划线代表第一个字母。最后，这个特征在各种看起来不是首字母缩写的全大写字母字符串的第一个字母上激活，它最抑制的token是类似首字母缩写的字母，但其例子否则缺乏明显的共同点，所以我们暂时将其标注为抑制首字母缩写。</div>
       
     
       
@@ -332,11 +332,11 @@
       
     
       
-        <p>归因图通常包含共享与其在提示中的角色相关的某个方面的特征组。例如，在我们的提示中“Digital”上有三个活跃特征，它们各自以不同的大小写和上下文响应单词“digital”。对于这个提示唯一重要的方面是单词“digital”以“D”开头；所有三个特征都具有到相同下游节点集合的正边。因此，为了分析这个提示，将这些特征分组并将它们视为一个单元是有意义的。为了可视化和分析的目的，我们发现将多个节点——对应于（特征，上下文位置）对——分组到一个“超节点”中很方便。这些超节点对应于我们上面展示的简化示意图中的方框，为方便起见在下面重现。</p>
+        <p>归因图通常包含共享与其在提示中角色相关的某一方面的特征组。例如，在我们的提示中，在“Digital”上有三个活跃特征，它们各自以不同的大小写和上下文响应单词“digital”。对于这个提示，唯一重要的方面是单词“digital”以“D”开头；所有三个特征都具有到同一组下游节点的正边。因此，为了分析这个提示，将这些特征分组并将其视为一个单元是有意义的。为了可视化和分析的目的，我们发现将多个节点——对应于（特征，上下文位置）对——分组为“超节点”很方便。这些超节点对应于我们上面显示的简化示意图中的方框，为方便起见在下面重现。</p>
       
     
       
-        <p>我们用来分组节点的策略取决于手头的分析，以及给定提示中特征的角色。我们有时分组在相似上下文上激活、具有相似嵌入或logit影响，或具有相似输入/输出边的特征，取决于对我们正在提出的关于机制的主张重要的方面。我们通常希望超节点内的节点相互促进，并且它们对下游节点的影响具有相同的符号。虽然我们实验了自动策略，如基于解码器向量或图邻接矩阵的聚类，但没有自动方法足以覆盖说明某些机制主张所需的一系列特征分组。我们在相似特征和超节点中进一步讨论超节点及其需要的潜在原因。</p>
+        <p>我们用来分组节点的策略取决于手头的分析，以及给定提示中特征的角色。我们有时会分组在相似上下文上激活、具有相似嵌入或logit效应，或具有相似输入/输出边的特征，取决于对我们正在提出的关于机制的声明重要的方面。我们通常希望超节点内的节点相互促进，并且它们对下游节点的影响具有相同的符号。虽然我们尝试了基于解码器向量或图邻接矩阵的聚类等自动化策略，但没有自动化方法足以覆盖说明某些机制声明所需的一系列特征分组。我们在相似特征和超节点中进一步讨论超节点及其可能需要的原因。</p>
       
     
       
@@ -345,35 +345,35 @@
       
     
       
-        <p>在归因图中，节点暗示哪些特征对模型输出重要，边暗示它们如何重要。我们可以通过在底层模型中执行特征扰动，并检查对下游特征或模型输出的影响是否与基于图的预测匹配，来验证归因图的主张。可以通过修改计算出的激活并用其修改后的解码替换原始重构来干预特征。</p>
+        <p>在归因图中，节点暗示哪些特征对模型输出重要，边暗示它们如何重要。我们可以通过在底层模型中执行特征扰动，并检查对下游特征或模型输出的影响是否与基于图的预测匹配，来验证归因图的声明。可以通过修改计算出的激活并用其修改后的解码代替原始重构来干预特征。</p>
       
     
       
-        <p>跨层转码器中的特征写入多个输出层，因此我们需要决定在哪个层范围进行干预。我们如何做到这一点？我们可以像对每层转码器那样仅在一个层上干预特征的解码，但归因图中的边代表多个层解码的累积影响，因此在单个层上干预只会针对给定边的一个子集。此外，我们通常希望同时干预多个特征，而超节点中的不同特征会解码到不同层。</p>
+        <p>跨层转码器中的特征写入多个输出层，因此我们需要决定在哪个层范围进行干预。我们如何做到这一点？我们可以像对每层转码器那样只在一个层上干预特征的解码，但归因图中的边代表多个层解码的累积效应，因此在单个层干预只会针对给定边的一个子集。此外，我们通常希望同时干预多个特征，并且超节点中的不同特征会解码到不同层。</p>
       
     
       
-        <p>为了在层范围内执行干预，我们修改给定范围内每一层上特征的解码，并从该范围的最后一层开始运行前向传播。由于我们没有基于范围早期干预的结果重新计算某一层的MLP输出，模型MLP输出的唯一变化将是我们的干预。我们称这种方法为“约束补丁”，因为它不允许干预在其补丁范围内产生二阶影响。见§附录：迭代补丁了解我们称为“迭代补丁”的另一种方法的描述，见§附录：使用跨层特征进行引导的细微差别讨论为什么更朴素的方法，如在模型前向传播期间在每一层添加特征的解码器向量，有重复计算特征影响的风险。</p>
+        <p>为了在层范围内执行干预，我们修改给定范围内每个层的特征解码，并从该范围内的最后一层开始运行前向传递。由于我们没有根据范围早期干预的结果重新计算层的MLP输出，因此模型MLP输出的唯一变化将是我们的干预。我们称这种方法为“受限修补”，因为它不允许干预在其修补范围内产生二阶效应。见§附录：迭代修补了解我们称为“迭代修补”的另一种方法的描述，以及§附录：使用跨层特征转向的细微差别讨论为什么更朴素的方法，如在模型前向传递期间在每层添加特征的解码器向量，存在双重计算特征效应的风险。</p>
       
     
       
-        <p>下面，我们说明约束补丁的乘法版本，其中我们在<span class="math-inline" data-math="[\ell - 1, \ell]">[\ell - 1, \ell]</span>层范围内将目标特征的激活乘以<span class="math-inline" data-math="M">M</span>。请注意，更远层的MLP输出不直接受补丁影响。<sup id="fnref-f13n"><a href="#f13n">[13]</a></sup></p>
+        <p>下面，我们说明受限修补的乘法版本，其中我们将目标特征的激活乘以<span class="math-inline" data-math="M">M</span>在<span class="math-inline" data-math="[\ell - 1, \ell]">[\ell - 1, \ell]</span>层范围内。请注意，进一步层的MLP输出不会直接受修补影响。<sup id="fnref-f13n"><a href="#f13n">[13]</a></sup></p>
       
     
       
-        <p>归因图是使用底层模型的注意力模式构建的，因此图中的边不考虑通过QK电路中介的影响。类似地，在我们的扰动实验中，我们将注意力模式固定在未扰动前向传播期间观察到的值。这种方法论选择意味着我们的结果不考虑扰动本身可能如何改变注意力模式。</p>
+        <p>归因图是使用底层模型的注意力模式构建的，因此图中的边不考虑通过QK电路介导的影响。类似地，在我们的扰动实验中，我们将注意力模式固定在未扰动前向传递期间观察到的值。这种方法论选择意味着我们的结果不考虑扰动本身如何改变注意力模式。</p>
       
     
       
-        <p>回到我们的首字母缩写提示，我们展示补丁超节点的结果，从抑制“Group”超节点开始。下面，我们将补丁影响叠加到超节点示意图上以清晰显示，显示对其他超节点和logit分布的影响。请注意，在这个示意图中，除非明确注明，否则图中节点的位置并不对应token位置。</p>
+        <p>回到我们的首字母缩写提示，我们展示了修补超节点的结果，从抑制“Group”超节点开始。下面，我们将修补效应叠加到超节点示意图上以清晰显示，显示对其他超节点和logit分布的影响。请注意，在这个示意图中，图中节点的位置并不意味着对应于token位置，除非明确注明。</p>
       
     
       
-        <p>我们现在展示抑制某些超节点对其他超节点聚合激活和logit的影响。对于每个补丁，我们将节点激活中的每个特征设置为其原始值的相反值（或者等价地，我们以-1的因子进行乘法引导）。<sup id="fnref-f14n"><a href="#f14n">[14]</a></sup> 然后我们将每个节点的总激活绘制为其原始值的分数。<sup id="fnref-f15n"><a href="#f15n">[15]</a></sup> 我们使用橙色轮廓突出彼此下游的节点，对于这些节点我们会假设补丁会产生影响。</p>
+        <p>我们现在展示抑制一些超节点对其他超节点聚合激活和logit的影响。对于每个修补，我们将节点激活中的每个特征设置为其原始值的相反值（或者等价地，我们以-1的因子进行乘法转向）。<sup id="fnref-f14n"><a href="#f14n">[14]</a></sup> 然后我们将每个节点的总激活绘制为其原始值的分数。<sup id="fnref-f15n"><a href="#f15n">[15]</a></sup> 我们使用橙色轮廓突出显示彼此下游的节点，对于这些节点我们会假设修补会产生影响。</p>
       
     
       
-        <p>我们看到，抑制每个单词的特征依次抑制相关的初始特征。此外，“say DA_”的超节点受“Digital”和“Analytics”超节点抑制的共同影响。</p>
+        <p>我们看到，抑制每个单词的特征依次抑制相关的初始特征。此外，“say DA_”的超节点受到“Digital”和“Analytics”超节点抑制的共同影响。</p>
       
     
       
@@ -382,11 +382,11 @@
       
     
       
-        <p>归因图还允许我们识别特征的解码在哪一层对logit的下游影响最大。例如，“Analytics”超节点特征主要通过位于第13层及之后的中间“say _A”、“say DA_”和“say DAG”特征组间接对“dag”logit做出贡献。</p>
+        <p>归因图还允许我们识别特征的解码在哪一层对logit的下游影响最大。例如，“Analytics”超节点特征主要通过中间组特征“say _A”、“say DA_”和“say DAG”间接贡献到“dag”logit，这些特征位于13层及以后。</p>
       
     
       
-        <p>因此，我们预期在一个“Analytics”特征上负向引导会对dag logit产生在第13层之前达到平稳，然后随着接近最终层而幅度减小的影响。这种减小是由我们干预的约束性质引起的。如果补丁范围包括所有“say an acronym”特征，它不会改变它们的激活，因为约束补丁不允许连锁影响。下面，我们展示使用每个Analytics特征引导的效果，保持起始层设置为1并扫描补丁结束层。<sup id="fnref-f16n"><a href="#f16n">[16]</a></sup></p>
+        <p>因此，我们预计在一个“Analytics”特征上负向转向对dag logit的影响将在13层之前达到平稳，然后随着我们接近最终层而减小幅度。这种减小是由我们干预的受限性质引起的。如果一个修补范围包括所有“say an acronym”特征，它将不会改变它们的激活，因为受限修补不允许连锁效应。下面，我们展示了使用每个Analytics特征进行转向的影响，保持起始层设置为1，并扫描修补结束层。<sup id="fnref-f16n"><a href="#f16n">[16]</a></sup></p>
       
     
       
@@ -395,23 +395,23 @@
       
     
       
-        <p>我们现在转向事实回忆的问题，研究模型如何以65%的置信度完成Fact: Michael Jordan plays the sport of with basketball[<cite>[nanda2023factualrecall,batson2024easy]</cite>]。我们首先计算一个归因图。我们像在首字母缩写研究中那样将语义相似的特征分组为超节点。</p>
+        <p>我们现在转向事实回忆的问题，通过研究模型如何以65%的置信度完成Fact: Michael Jordan plays the sport of with basketball[<cite>[nanda2023factualrecall,batson2024easy]</cite>]。我们首先计算一个归因图。我们像在首字母缩写研究中那样，将语义相似的特征分组为超节点。</p>
       
     
       
-        <p>下面的超节点示意图显示了两条主要路径。一条路径起源于“plays”和“sport”token，促进“sport”和“say a sport”特征，这些特征反过来促进basketball、football和其他运动的logit。另一条路径起源于“Michael Jordan and other celebrities”，促进与basketball相关的特征，这些特征具有到basketball logit的正边和到football logit的负边。除了这些顺序路径外，一些特征组如“Michael Jordan”和“sport/game of”具有到basketball logit的直接边，代表仅通过注意力头OV中介的影响，这与Batson等人的发现一致[<cite>[batson2024easy]</cite>]。</p>
+        <p>下面的超节点示意图显示了两条主要路径。一条路径来自“plays”和“sport”token，促进“sport”和“say a sport”特征，这些特征又促进basketball、football和其他运动的logit。另一条路径来自“Michael Jordan and other celebrities”，促进与basketball相关的特征，这些特征对basketball logit有正边，对football logit有负边。除了这些顺序路径外，一些特征组如“Michael Jordan”和“sport/game of”具有到basketball logit的直接边，代表仅通过注意力头OV介导的影响，与Batson等人的发现一致[<cite>[batson2024easy]</cite>]。</p>
       
     
       
-        <p>我们还在下面显示完整的交互式图。</p>
+        <p>我们还在下面展示了完整的交互式图。</p>
       
     
       
-        <p>此外，似乎涉及一组复杂的机制，将关于实体Michael Jordan的信息贡献到“Jordan”处的残差流中，如Nanda等人观察到的[<cite>[nanda2023factualrecall]</cite>]。我们已将对“Michael”敏感的特征、已经识别了token对“Michael Jordan”的L1特征、其他名人的特征，以及在“Michael Jordan”和其他不相关概念上触发的多义特征分组到一个超节点中。请注意，只要它们共享与提示相关的某个方面，我们就会选择将一些多义特征包含在超节点中，比如这个特征，它在单词“synergy”上比在“Michael Jordan”上更强烈激活。我们在定性特征评估中更深入地评估特征。</p>
+        <p>此外，似乎有一组复杂的机制参与将关于实体Michael Jordan的信息贡献到“Jordan”处的残差流中，如Nanda等人所观察到的[<cite>[nanda2023factualrecall]</cite>]。我们已将对“Michael”敏感的特征、已经识别出token对“Michael Jordan”的L1特征、其他名人的特征，以及在“Michael Jordan”和其他不相关概念上触发的多义特征分组到一个超节点中。请注意，我们选择将一些多义特征包含在超节点中，只要它们共享与提示相关的某一方面，例如这个特征，它在单词“synergy”上比在“Michael Jordan”上更强烈激活。我们在定性特征评估中更深入地评估特征。</p>
       
     
       
-        <p>引导实验可以再次让我们验证图提出的假设。</p>
+        <p>转向实验可以再次让我们验证图提出的假设。</p>
       
     
       
@@ -424,31 +424,31 @@
       
     
       
-        <p>我们现在考虑简单的加法提示calc: 36+59=。<sup id="fnref-f17n"><a href="#f17n">[17]</a></sup> 与前面部分不同，我们展示Haiku 3.5的结果，因为模式更清晰并显示相同的结构（见§附录：加法特征比较……的并排比较）。我们研究小数加法，因为它是最多数LLM和成人能够熟练表现的最简单行为之一（在脑海中尝试这个问题，看看你的方法是否匹配模型的！）。</p>
+        <p>我们现在考虑简单的加法提示calc: 36+59=。<sup id="fnref-f17n"><a href="#f17n">[17]</a></sup> 与前面的部分不同，我们展示了Haiku 3.5的结果，因为模式更清晰，并且显示了相同的结构（见§附录：加法特征比较……的并排比较）。我们研究小数加法，因为它是最多数LLM和成年人类都能熟练表现的最简单行为之一（在脑海中尝试这个问题，看看你的方法是否与模型匹配！）。</p>
       
     
       
-        <p>我们用明确涵盖两位数加法问题集合的特征可视化补充通用特征可视化（在任意数据集例子上），使我们能够清晰了解每个特征的作用。遵循Nikankin等人[<cite>[nikankin2024arithmetic]</cite>]（他们分析了神经元），我们用三个图可视化在= token上活跃的每个特征：</p>
+        <p>我们用一个明确覆盖两位数加法问题集的可视化补充通用特征可视化（在任意数据集例子上），这使我们能够清晰地了解每个特征的作用。遵循Nikankin等人[<cite>[nikankin2024arithmetic]</cite>]（他们分析了神经元），我们用三个图可视化在= token上活跃的每个特征：</p>
       
     
       
-        <div class="list-content">操作数图，显示其在100×100潜在输入网格上的活动。输出权重图，显示其对[0, 99]输出的直接权重。<sup id="fnref-f18n"><a href="#f18n">[18]</a></sup>嵌入权重图（或“反嵌入”[<cite>[dunefsky2024transcoders]</cite>]），显示嵌入向量对特征编码器的直接影响。以与输出权重图相同的格式显示。</div>
+        <div class="list-content">操作数图，显示其在100×100潜在输入网格上的活动。输出权重图，显示其对[0,99]输出的直接权重。<sup id="fnref-f18n"><a href="#f18n">[18]</a></sup>嵌入权重图（或“反嵌入”[<cite>[dunefsky2024transcoders]</cite>]），显示嵌入向量对特征编码器的直接影响。以与输出权重图相同的格式显示。</div>
       
     
       
-        <p>下面我们为不同特征展示这三种类型中每一种的例子图。在这个受限领域上，操作数图是对作为函数的CLT特征的完整描述。这些图中的条纹和网格代表不同类型的结构（例如，对角线表示对总和的约束，而网格代表对输入的模约束）。</p>
+        <p>下面我们为不同特征展示了每种类型的示例图。在这个受限领域中，操作数图是对CLT特征作为函数的完整描述。这些图中的条纹和网格代表不同类型的结构（例如，对角线表示对总和的约束，而网格代表对输入的模约束）。</p>
       
     
       
-        <p>在下面的超节点示意图中，我们看到信息从输入特征流动，这些输入特征将操作数的最后一位、数字和量级拆分到三条主要路径：最后一位路径（mod 10）（浅棕色，右）、中等精度路径（中间）和低精度路径（深棕色，左），<sup id="fnref-f19n"><a href="#f19n">[19]</a></sup> 它们共同产生总和的中等精度值和总和的最后一位；这些最终建设性地干扰，以给出总和的mod 100版本和最终输出。</p>
+        <p>在下面的超节点示意图中，我们看到信息流从输入特征开始，这些特征将操作数的最后一位、数字和数量级分离到三条主要路径：最后一位路径（mod 10）（浅棕色，右）、中等精度路径（中间）和低精度路径（深棕色，左），<sup id="fnref-f19n"><a href="#f19n">[19]</a></sup> 它们共同产生总和的中等精度值和总和的最后一位；这些最终建设性地干扰，给出总和的mod 100版本和最终输出。</p>
       
     
       
-        <p>我们在这里提供18L的等价交互式图。</p>
+        <p>我们在这里提供了18L的等效交互式图。</p>
       
     
       
-        <p>超节点图暗示了这个任务背后特征的分类，其中特征沿两个主要轴变化：<sup id="fnref-f20n"><a href="#f20n">[20]</a></sup></p>
+        <p>超节点图暗示了支撑这个任务的特征分类，其中特征沿两个主要轴变化：<sup id="fnref-f20n"><a href="#f20n">[20]</a></sup></p>
       
     
       
@@ -456,7 +456,7 @@
       
     
       
-        <div class="list-content">总和特征具有对角线操作数图，并在满足某种条件的输入对上触发。查找表特征具有看起来像网格的图，由满足condition1(a) AND condition2(b)的输入a和b组成。我们下面更详细地讨论这些。加函数特征具有带有水平或垂直条的图。一个加数满足某种条件，或者OR操作在加数之间合并两个条件。大多活跃特征在我们10,000个加法提示的大多数的“=”token上活跃。杂项特征具有各种奇怪的属性，但通常看起来像上述类型的混合激活模式。我们发现这些对输出的影响较低。</div>
+        <div class="list-content">总和特征具有对角操作数图，并在输入对的和满足某种条件的对上触发。查找表特征具有看起来像网格的图，由满足condition1(a) AND condition2(b)的输入a和b组成。我们在下面更详细地讨论这些。加函数特征具有具有水平或垂直条的图。一个加数满足某种条件，或者OR操作跨加数合并两个条件。大多活跃特征在我们的10,000个加法提示的大多数的“=”token上活跃。杂项特征具有各种奇怪的属性，但通常看起来像来自上述类型的混合激活模式。我们发现这些对输出的影响较低。</div>
       
     
       
@@ -464,31 +464,31 @@
       
     
       
-        <div class="list-content">精度：我们发现具有个位精度（sum=_5或=59）、精确范围（宽度例如2或10）和宽度在2-50之间的模糊范围的条件。模数：我们发现对总和或操作数值的绝对值、mod 10、mod 100敏感的特征，以及较少见的mod 2、mod 5、mod 25和mod 50。模式：我们发现对输入或输出中的正则表达式风格模式敏感的特征，例如“以51开头”，如[<cite>[nikankin2024arithmetic]</cite>]。这些在我们的加法图中并不突出，对模型输出的影响较低，但它们确实存在，并且对于涉及数字的其他任务可能更重要。</div>
+        <div class="list-content">精度：我们发现具有个位精度（sum=_5或=59）、精确范围（宽度例如2或10）和宽度从2–50的模糊范围的条件。模数：我们发现对绝对值、mod 10、mod 100的和或操作数值敏感的特征，较少见地，还有mod 2、mod 5、mod 25和mod 50。模式：我们发现对输入或输出中的正则表达式风格模式敏感的特征，例如“以51开头”，如[<cite>[nikankin2024arithmetic]</cite>]中。这些在我们的加法图中并不突出，对模型输出的影响较低，但它们确实存在，并且可能对涉及数字的其他任务更重要。</div>
       
     
       
-        <p>这些发现与显示在自然语言语料上训练的语言模型使用涉及量级和模数的并行启发式进行加法、建设性地干扰以产生正确答案的其他机制研究大体一致[<cite>[nikankin2024arithmetic,kantamneni2025trig,zhou2024pre]</cite>]。即，Nikankin等人[<cite>[nikankin2024arithmetic]</cite>]提出了一种“启发式袋”解释，识别出一组“操作数”特征（等价于我们的“add X”特征）和“结果”特征（等价于我们的“sum”特征），在感知输入和产生输出时表现出高和低精度以及不同的模数。</p>
+        <p>这些发现与显示在自然语言语料上训练的语言模型使用涉及数量级和模数的并行启发式进行加法、建设性地干扰以产生正确答案的其他机制研究广泛一致[<cite>[nikankin2024arithmetic,kantamneni2025trig,zhou2024pre]</cite>]。即，Nikankin等人[<cite>[nikankin2024arithmetic]</cite>]提出了“启发式袋”解释，识别出一组“操作数”特征（等同于我们的“add X”特征）和“结果”特征（等同于我们的“sum”特征），在感知输入和产生输出时表现出高和低精度以及不同的模数。</p>
       
     
       
-        <p>我们还识别出查找表特征的存在，这似乎是模型和CLT使用的架构的有趣结果。神经元和CLT特征激活是通过对其输入总和应用非线性来计算的。这对特征对一组输入的响应产生“平行四边形约束”：即，如果一个特征<span class="math-inline" data-math="f">f</span>在形式为<span class="math-inline" data-math="x+y">x+y</span>和<span class="math-inline" data-math="z+w">z+w</span>的两个输入上活跃，那么它必须至少在输入<span class="math-inline" data-math="x+w">x+w</span>或<span class="math-inline" data-math="z+y">z+y</span>中的一个上活跃。这是因为<span class="math-inline" data-math="f">f</span>的预激活是操作数的仿射函数。<sup id="fnref-f21n"><a href="#f21n">[21]</a></sup> 特别是，输入特征不可能在一步中产生一般的总和特征。例如，一个一般的“sum = 5”特征，如果对1+4和2+3触发，就需要对1+3或2+4中的至少一个触发。因此，在将关于两个输入的信息复制到“=”token和产生它们总和的属性之间需要一些中间步骤。CLT查找表特征代表加法的这些中间步骤。<sup id="fnref-f22n"><a href="#f22n">[22]</a></sup></p>
+        <p>我们还识别出了查找表特征的存在，这似乎是模型和CLT所用架构的有趣结果。神经元和CLT特征激活是通过对其输入总和应用非线性来计算的。这在特征对一组输入的响应上产生“平行四边形约束”：即，如果一个特征<span class="math-inline" data-math="f">f</span>在形式为<span class="math-inline" data-math="x+y">x+y</span>和<span class="math-inline" data-math="z+w">z+w</span>的两个输入上活跃，那么它必须至少在输入<span class="math-inline" data-math="x+w">x+w</span>或<span class="math-inline" data-math="z+y">z+y</span>中的一个上活跃。这是因为<span class="math-inline" data-math="f">f</span>的预激活是操作数的仿射函数。<sup id="fnref-f21n"><a href="#f21n">[21]</a></sup> 特别是，输入特征不可能在一步中产生一般的总和特征。例如，一个一般的“sum = 5”特征，如果对1+4和2+3触发，则必须对1+3或2+4中的至少一个触发。因此，在将关于两个输入的信息复制到“=”token和产生其总和的属性之间需要一些中间步骤。CLT查找表特征代表加法的这些中间步骤。<sup id="fnref-f22n"><a href="#f22n">[22]</a></sup></p>
       
     
       
-        <p>为了验证我们在归因图中观察到的结构匹配模型的因果结构，我们执行了一系列干预。对于每个超节点，我们将其扰动到其原始值的负值，并测量对所有后续超节点和输出的结果。我们发现结果与图大体一致：</p>
+        <p>为了验证我们在归因图中观察到的结构与模型的因果结构匹配，我们执行了一系列干预。对于每个超节点，我们将其扰动为其原始值的负值，并测量对所有后续超节点和输出的结果。我们发现结果与图大致一致：</p>
       
     
       
-        <p>特别是，抑制任一输入token上的个位特征会抑制整个个位路径（_6 + _9查找表特征，结果sum=_5和sum=_95特征），而基本保持量级路径完整，包括sum~92特征。值得注意的是，当抑制_6时，模型自信地输出98而不是正确答案95；原始问题的十位由其他量级信号保留，但个位是9加自己产生的结果。（然而，抑制_9导致输出91，而不是92，因此这样的数字命理学必须谨慎对待。）相反，抑制任一输入上的低精度特征（~30和~59）会抑制低精度查找表特征、量级总和特征和适当的总和特征，同时保持个位路径不变。</p>
+        <p>特别是，在任一输入token上抑制个位特征会抑制整个个位路径（_6 + _9查找表特征，结果sum=_5和sum=_95特征），同时基本保持数量级路径完整，包括sum~92特征。值得注意的是，当抑制_6时，模型自信地输出98而不是正确答案95；原始问题的十位数被其他数量级信号保留，但个位数是9加9的结果。（然而，抑制_9导致输出91，而不是92，因此这样的数字命理学必须谨慎对待。）相反，在任一输入（~30和~59）上抑制低精度特征会抑制低精度查找表特征、数量级总和特征和适当的总和特征，同时不影响个位路径。</p>
       
     
       
-        <p>我们还展示扰动对输出的定量影响，发现负向引导_6 + _9查找表特征会将结果分散在5的范围内，而负向引导最终sum=_95特征会将结果分散到更宽的带（可能来自sum~92特征）。</p>
+        <p>我们还展示了扰动对输出的定量影响，发现负向转向_6 + _9查找表特征会将结果分散在5的范围内，而负向转向最终sum=_95特征会将结果分散到更宽的带（可能来自sum~92特征）。</p>
       
     
       
-        <p>在为全局权重建立框架以将这个电路泛化到其他输入之后，我们将在下面研究CLT特征如何在两位数加法提示的完整范围内交互。</p>
+        <p>在为全局权重建立框架以将这个电路推广到其他输入之后，我们将在下面研究CLT特征如何在两位数加法提示的整个范围内交互。</p>
       
     
       
@@ -497,7 +497,7 @@
       
     
       
-        <p>我们构建的归因图显示特征如何在特定提示上交互以产生模型的输出，但我们也对特征如何在所有上下文中交互的更全局图景感兴趣。在经典的多层感知器中，全局交互由模型的权重提供：如果神经元在连续层中，一个神经元对另一个的直接影响就是它们之间的权重；如果神经元相距更远，一个对另一个的影响通过中间层分解。在我们的设置中，特征之间的交互具有上下文无关成分和上下文相关成分。我们理想情况下希望捕获两者：我们想要一组全局权重，它们是上下文无关的，但也捕获跨所有可能上下文的网络行为。在本节中，我们分析上下文无关成分（一种“虚拟权重”），它们的问题（对分布没有因果影响的大型“干扰”项），以及使用共激活统计来处理干扰的一种方法。</p>
+        <p>我们构建的归因图显示了特征如何在特定提示上交互以产生模型的输出，但我们也对特征如何在所有上下文中交互的更全局图感兴趣。在经典的多层感知器中，全局交互由模型的权重提供：如果神经元在连续层中，一个神经元对另一个的直接影响就是它们之间的权重；如果神经元相距更远，一个对另一个的影响通过中间层分解。在我们的设置中，特征之间的交互有一个上下文无关组件和一个上下文相关组件。我们理想情况下希望捕捉两者：我们想要一组全局权重，它们是上下文无关的，但也能捕捉跨越所有可能上下文的网络行为。在本节中，我们分析上下文无关组件（一种“虚拟权重”），它们的问题（对分布没有因果影响的大“干扰”项），以及使用共激活统计来处理干扰的一种方法。</p>
       
     
       
@@ -505,15 +505,15 @@
       
     
       
-        <div class="list-content">残差-直接：<span class="math-inline" data-math="s">s</span>的解码器写入残差流，在较晚层由<span class="math-inline" data-math="t">t</span>的编码器读入。注意力-直接：<span class="math-inline" data-math="s">s</span>的解码器写入残差流，被若干注意力头OV步骤传输，然后被<span class="math-inline" data-math="t">t</span>的编码器读入。间接：从<span class="math-inline" data-math="s">s</span>到<span class="math-inline" data-math="t">t</span>的路径由其他CLT特征中介。</div>
+        <div class="list-content">残差-直接：<span class="math-inline" data-math="s">s</span>的解码器写入残差流，在较晚层由<span class="math-inline" data-math="t">t</span>的编码器读入。注意力-直接：<span class="math-inline" data-math="s">s</span>的解码器写入残差流，被若干注意力头OV步骤传输，然后被<span class="math-inline" data-math="t">t</span>的编码器读入。间接：从<span class="math-inline" data-math="s">s</span>到<span class="math-inline" data-math="t">t</span>的路径由其他CLT特征介导。</div>
       
     
       
-        <p>我们注意到，残差-直接影响简单地是第一个特征在此提示上的激活乘以一个在输入上一致的<a href="2021-framework.html">变压器电路的数学框架</a>的乘积。<sup id="fnref-f23n"><a href="#f23n">[23]</a></sup> 这些虚拟权重由于这种一致关系而是一种简单的全局权重形式。虚拟权重已在神经网络的许多不同组件之间推导出来，包括注意力头[<cite>[nelhage2021mathematical]</cite>]、SAE特征[<cite>[bricken2023monosemanticity,kissane2024attention]</cite>]和转码器特征[<cite>[dunefsky2024transcoders]</cite>]。对于CLT，两个特征之间的虚拟权重是下游特征的编码器与这两个特征之间解码器总和的内积。</p>
+        <p>我们注意到残差-直接影响简单地是这个提示上第一个特征激活乘以一个跨输入一致的<a href="2021-framework.html">Transformer 电路的数学框架</a>的乘积。<sup id="fnref-f23n"><a href="#f23n">[23]</a></sup> 这些虚拟权重由于这种一致关系而是一种简单的全局权重形式。虚拟权重已在神经网络的许多不同组件之间推导出来，包括注意力头[<cite>[nelhage2021mathematical]</cite>]、SAE特征[<cite>[bricken2023monosemanticity,kissane2024attention]</cite>]和转码器特征[<cite>[dunefsky2024transcoders]</cite>]。对于CLT，两个特征之间的虚拟权重是下游特征的编码器与这两个特征之间解码器总和的内积。</p>
       
     
       
-        <p>更正式地说，令<span class="math-inline" data-math="\ell_s">\ell_s</span>和<span class="math-inline" data-math="\ell_t">\ell_t</span>是特征<span class="math-inline" data-math="s">s</span>和<span class="math-inline" data-math="t">t</span>的编码器权重的层。令<span class="math-inline" data-math="L_{st} ">L_{st} </span>是这两个特征之间使得<span class="math-inline" data-math=" \forall \ell \in L_{st}, s \leq \ell &lt; t"> \forall \ell \in L_{st}, s \leq \ell &lt; t</span>的层集合。特征<span class="math-inline" data-math="s">s</span>在到达特征<span class="math-inline" data-math="t">t</span>之前写入<span class="math-inline" data-math="L_{st}">L_{st}</span>中的所有MLP输出。令<span class="math-inline" data-math="W_{\text{dec}}^{s,\ell}">W_{\text{dec}}^{s,\ell}</span>是特征<span class="math-inline" data-math="s">s</span>针对第<span class="math-inline" data-math="\ell">\ell</span>层的解码器权重，<span class="math-inline" data-math="W_{\text{enc}}^t">W_{\text{enc}}^t</span>是特征<span class="math-inline" data-math="t">t</span>的编码器权重。那么，虚拟权重计算为：</p>
+        <p>更正式地，让<span class="math-inline" data-math="\ell_s">\ell_s</span>和<span class="math-inline" data-math="\ell_t">\ell_t</span>是特征<span class="math-inline" data-math="s">s</span>和<span class="math-inline" data-math="t">t</span>的编码器权重的层。让<span class="math-inline" data-math="L_{st} ">L_{st} </span>是这两个特征之间满足<span class="math-inline" data-math=" \forall \ell \in L_{st}, s \leq \ell &lt; t"> \forall \ell \in L_{st}, s \leq \ell &lt; t</span>的层集。特征<span class="math-inline" data-math="s">s</span>在到达特征<span class="math-inline" data-math="t">t</span>之前写入<span class="math-inline" data-math="L_{st}">L_{st}</span>中的所有MLP输出。让<span class="math-inline" data-math="W_{\text{dec}}^{s,\ell}">W_{\text{dec}}^{s,\ell}</span>是特征<span class="math-inline" data-math="s">s</span>针对层<span class="math-inline" data-math="\ell">\ell</span>的解码器权重，<span class="math-inline" data-math="W_{\text{enc}}^t">W_{\text{enc}}^t</span>是特征<span class="math-inline" data-math="t">t</span>的编码器权重。那么，虚拟权重计算为：</p>
       
     
       
@@ -525,7 +525,7 @@
       
     
       
-        <p>解释虚拟权重有一个主要问题：干扰[<cite>[elhage2022superposition,henighan2023superposition]</cite>]。因为数百万特征通过残差流交互，它们都将连接在一起，并且在分布上从未一起激活的特征仍然可以具有（可能大的）虚拟权重。当这种情况发生时，虚拟权重不是合适的全域权重，因为这些连接从不影响网络功能。</p>
+        <p>解释虚拟权重有一个主要问题：干扰[<cite>[elhage2022superposition,henighan2023superposition]</cite>]。因为数百万特征通过残差流交互，它们都会连接，并且在分布上从不一起激活的特征仍然可以具有（可能很大的）它们之间的虚拟权重。当这种情况发生时，虚拟权重不是合适的全域权重，因为这些连接从不影响网络功能。</p>
       
     
       
@@ -533,15 +533,15 @@
       
     
       
-        <p>你可能认为这是虚拟权重或我们的CLT没有捕获可解释连接的迹象。然而，我们仍然可以通过尝试从这些权重中移除干扰来发现许多可解释的连接。<sup id="fnref-f24n"><a href="#f24n">[24]</a></sup></p>
+        <p>你可能认为这是虚拟权重或我们的CLT没有捕捉可解释连接的迹象。然而，我们仍然可以通过尝试从这些权重中移除干扰来发现许多可解释的连接。<sup id="fnref-f24n"><a href="#f24n">[24]</a></sup></p>
       
     
       
-        <p>这个问题有两个基本解决方案。一个是限制所研究特征的集合为那些在小领域上活跃的特征（如同我们在§加法中的全局权重中所做的）。另一个是引入关于数据分布上特征-特征共激活的信息。</p>
+        <p>这个问题有两个基本解决方案。一个是限制所研究特征的集合为在小领域上活跃的那些（如同我们在§加法中的全局权重中所做）。另一个是引入关于数据分布上特征-特征共激活的信息。</p>
       
     
       
-        <p>例如，令<span class="math-inline" data-math="a_i">a_i</span>是特征<span class="math-inline" data-math="i">i</span>的激活。我们可以通过如下乘以虚拟权重来计算预期的残差归因值。</p>
+        <p>例如，让<span class="math-inline" data-math="a_i">a_i</span>是特征<span class="math-inline" data-math="i">i</span>的激活。我们可以通过如下乘以虚拟权重来计算预期的残差归因值。</p>
       
     
       
@@ -549,7 +549,7 @@
       
     
       
-        <p>这代表我们分析过的所有提示上残差-直接路径的平均强度（也由Dunefsky等人[<cite>[dunefsky2024transcoders]</cite>]计算）。这类似于计算许多token的上下文中所有归因图的平均值。<sup id="fnref-f25n"><a href="#f25n">[25]</a></sup> 这个表达式中的指示函数（<span class="math-inline" data-math="{\small 1}\kern{-0.33em}1(a_j &gt; 0)">{\small 1}\kern{-0.33em}1(a_j &gt; 0)</span>）捕获了仅当目标特征活跃时归因才为正的事实。由于小的特征激活通常是多义的，我们改为使用目标激活值对归因加权：</p>
+        <p>这代表了我们分析过的所有提示上残差-直接路径的平均强度（也由Dunefsky等人计算[<cite>[dunefsky2024transcoders]</cite>]）。这类似于计算许多token的上下文中所有归因图的平均值。<sup id="fnref-f25n"><a href="#f25n">[25]</a></sup> 这个表达式中的指示函数（<span class="math-inline" data-math="{\small 1}\kern{-0.33em}1(a_j &gt; 0)">{\small 1}\kern{-0.33em}1(a_j &gt; 0)</span>）捕捉到仅当目标特征活跃时归因才为正。由于小特征激活通常是多义的，我们改为使用目标激活值对归因进行加权：</p>
       
     
       
@@ -557,19 +557,19 @@
       
     
       
-        <p>我们称这种最后类型的权重为目标加权预期残差归因（TWERA）。如方程所示，这两个值都可以通过将原始虚拟权重乘以（“分布上”）激活统计量来计算。</p>
+        <p>我们称最后这种类型的权重为目标加权预期残差归因（TWERA）。如方程所示，这两个值都可以通过将原始虚拟权重乘以（“分布上”）激活统计量来计算。</p>
       
     
       
-        <p>现在，我们重新访问之前的游戏特征例子，但连接按TWERA排序。我们还绘制每个连接的“原始”虚拟权重以进行比较。这些连接中有更多的可解释，表明虚拟权重提取了有用的信号，但我们需要移除干扰才能看到它们。来自上面虚拟权重图的最可解释特征（另一个“Say a game name”和“Ultimate frisbee”特征）被保留，而许多不相关的概念被过滤掉。</p>
+        <p>现在，我们重新访问之前的游戏特征例子，但连接按TWERA排序。我们还为比较绘制了每个连接的“原始”虚拟权重。这些连接中更多的是可解释的，表明虚拟权重提取了有用的信号，但我们需要移除干扰才能看到它们。来自上面虚拟权重图的最可解释特征（另一个“Say a game name”和“Ultimate frisbee”特征）被保留，而许多不相关的概念被过滤掉。</p>
       
     
       
-        <p>TWERA不是干扰的完美解决方案。将TWERA值与原始虚拟权重比较显示，许多极小的虚拟权重具有强的TWERA值。<sup id="fnref-f26n"><a href="#f26n">[26]</a></sup> 这表明TWERA严重依赖共激活统计，并且强烈改变了哪些连接重要，而不仅仅是移除大的干扰权重。TWERA也不能很好地处理抑制（如同归因一般）。我们将在未来工作中进一步探索这些问题。</p>
+        <p>TWERA不是干扰的完美解决方案。将TWERA值与原始虚拟权重比较显示，许多极小的虚拟权重具有强的TWERA值。<sup id="fnref-f26n"><a href="#f26n">[26]</a></sup> 这表明TWERA heavily依赖于共激活统计，并且强烈改变了哪些连接重要，而不仅仅是移除大的干扰权重。TWERA也不能很好地处理抑制（如同归因一般）。我们将在未来工作中进一步探索这些问题。</p>
       
     
       
-        <p>尽管如此，我们发现全局权重为我们提供了有用的窗口，可以看到特征在比我们的归因图更广泛的上下文范围内如何表现。我们将在本文其余部分和<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a>中使用这些方法来补充我们的理解。</p>
+        <p>尽管如此，我们发现全局权重为我们提供了比归因图更广泛上下文范围内特征行为的有用窗口。我们将在本文其余部分和中使用这些方法来补充我们的理解。<a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a></p>
       
     
       
@@ -578,7 +578,7 @@
       
     
       
-        <p>我们现在回到上面在Haiku 3.5上的简单加法问题，并展示数据无关的虚拟权重如何揭示我们加法特征分类中类型之间的清晰结构。我们再次考虑10,000个提示calc: a+b=（a,b∈[0,99]）的完成。除了操作数图（再次如上定义），我们在将大型<span class="math-inline" data-math="n_\text{feat} \times n_\text{feat}">n_\text{feat} \times n_\text{feat}</span>虚拟权重矩阵限制为在10,000个加法提示集合中至少在10个上活跃的集合后检查虚拟权重图。这允许我们看到所有可以通过直接残差路径发生的特征-特征交互。</p>
+        <p>我们现在回到上面Haiku 3.5上的简单加法问题，并展示数据无关的虚拟权重如何揭示我们加法特征分类中类型之间的清晰结构。我们再次考虑10,000个提示calc: a+b=的完成，其中a,b∈[0,99]。除了操作数图（再次如上定义）之外，我们在将大型<span class="math-inline" data-math="n_\text{feat} \times n_\text{feat}">n_\text{feat} \times n_\text{feat}</span>虚拟权重矩阵限制为在10,000个加法提示集中至少10个上活跃的集合后，检查虚拟权重图。这允许我们看到所有可以通过直接残差路径发生的特征-特征交互。</p>
       
     
       
@@ -586,27 +586,27 @@
       
     
       
-        <div class="list-content">_6 + _9查找表特征馈送到其他总和特征（sum=_15，sum=_25等），这些特征可能在与其他量级特征组合时激活。add _9特征馈送到其他个位查找表特征（_9 + _9，_0 + _9等）。sum = _5特征由其他查找表特征馈送。中等精度~36+60查找表特征由add ~62特征以及我们在这个提示上看到的add ~57特征馈送。</div>
+        <div class="list-content">_6 + _9查找表特征馈送到其他总和特征（sum=_15，sum=_25等），这些特征可能在与其他数量级特征组合时激活。add _9特征馈送到其他个位查找表特征（_9 + _9，_0 + _9等）。sum = _5特征由其他查找表特征馈送。中等精度~36+60查找表特征除了我们在这个提示上看到的add ~57特征外，还由add ~62特征馈送。</div>
       
     
       
-        <p>我们提供一个交互式界面来探索连接我们较小18L模型中两位数加法问题上突出的所有2931个特征的虚拟权重。</p>
+        <p>我们提供了一个交互式界面来探索连接我们较小18L模型中两位数加法问题上突出的所有2931个特征的虚拟权重。</p>
       
     
       
-        <p>我们发现，将范围限制在在这个狭窄加法问题领域上活跃的特征会产生一个全局电路图，其中大多数边根据源和目标特征实现的操作数函数是可解释的。而且，特征之间的连接重现了上一节图的更一般版本；add特征检测作为输入一部分的特定操作数，查找表特征将此信息传播到总和特征，这些特征（与先前特征合作）产生模型的最终答案。</p>
+        <p>我们发现，将范围限制在在这个狭窄加法问题领域上活跃的特征会产生一个全局电路图，其中大多数边根据源和目标特征实现的操作数函数是可解释的。而且，特征之间的连接重现了前一节图的更一般版本；add特征检测作为输入一部分的特定操作数，查找表特征将此信息传播到总和特征，这些特征（与先前特征一起）产生模型的最终答案。</p>
       
     
       
-        <p>我们发现的几个特征采取了Nikankin等人[<cite>[nikankin2024arithmetic]</cite>]中的启发式形式：其操作数图具有直接预测能力的特征将该预测推送到输出：低精度特征促进与其操作数匹配范围的输出；个位查找表特征直接促进与其映射匹配的输出（例如_6 + _9直接加权_5输出）。几乎所有这些特征直到模型的最晚层才代表完整解决方案。从CLT的角度来看，模型使用几个中间启发式而不是具有单个置信输出的连贯过程程序。</p>
+        <p>我们发现的几个特征采取了Nikankin等人[<cite>[nikankin2024arithmetic]</cite>]中的启发式形式：其操作数图具有直接预测能力的特征将该预测推送到输出：低精度特征促进其操作数匹配范围内的输出；个位查找表特征直接促进匹配其映射的输出（例如_6 + _9直接提升_5输出）。几乎没有这些特征直到模型的最后一层才代表完整解决方案。从CLT的角度来看，模型使用几个中间启发式，而不是具有单个置信输出的连贯过程程序。</p>
       
     
       
-        <p>我们对模型用于执行加法的计算步骤的关注，与Kantamneni和Tegmark[<cite>[kantamneni2025trig]</cite>]同时进行的工作互补，后者从表示开始。受整数嵌入向量的傅里叶分解中尖峰的观察启发，他们发现与数字的量级和mod 2、5、10和100成分高度相关的低维子空间。将投影到这些子空间保留了模型在任务上的大部分性能，与在每个模数中执行单独计算的“时钟”算法一致，这些计算在最后建设性地干扰；CLT特征本质上显示了该方法的高精度和低精度版本。我们发现的一些重要特征的操作数图类似于他们的神经元，他们将其拟合为傅里叶模式的（阈值化）总和。<sup id="fnref-f27n"><a href="#f27n">[27]</a></sup> 我们图中出现的一些重要特征（例如以固定数字开头的操作数或总和，例如95_和9_）无法用傅里叶术语描述，这与他们的低秩近似中存在一些误差一致。<sup id="fnref-f28n"><a href="#f28n">[28]</a></sup> 识别我们的无监督方法揭示的计算策略集合的表示基础，是未来工作的有前景方向。</p>
+        <p>我们对模型用于执行加法的计算步骤的关注，与Kantamneni和Tegmark[<cite>[kantamneni2025trig]</cite>]同时进行的工作互补，后者从表示开始。受整数嵌入向量傅里叶分解中尖峰的观察启发，他们发现了与数字数量级和mod 2、5、10和100分量高度相关的低维子空间。将投影到这些子空间保留了模型在任务上的大部分性能，与在每个模数中执行单独计算的“时钟”算法一致，这些计算在结束时建设性地干扰；CLT特征本质上显示了该方法的高和低精度版本。我们发现的一些重要特征的操作数图类似于他们的神经元，他们将其拟合为傅里叶模式的（阈值化）总和。<sup id="fnref-f27n"><a href="#f27n">[27]</a></sup> 我们图中出现的一些重要特征（例如以固定数字开头的操作数或总和，例如95_和9_）无法用傅里叶术语描述，这与他们低秩近似中存在一些误差一致。<sup id="fnref-f28n"><a href="#f28n">[28]</a></sup> 识别我们无监督方法揭示的计算策略集合的表示基础，是未来工作的有前景方向。</p>
       
     
       
-        <p>总之，我们使用匹配CLT特征的启发式复制了基础模型的视图，我们通过干预实验展示了这些启发式如何贡献于可分离的路径，并且我们展示了这些启发式如何连接，相互构建以共同解决加法任务。</p>
+        <p>总之，我们使用匹配的CLT特征复制了基础模型使用启发式的视图，我们通过干预实验展示了这些启发式如何贡献到可分离的路径，并且我们展示了这些启发式如何连接，相互构建以共同解决加法任务。</p>
       
     
       
@@ -615,27 +615,27 @@
       
     
       
-        <p>在本节中，我们对转码器特征和从中衍生的归因图进行定性和定量评估，特别关注可解释性和充分性。对于对发现和局限性的更高级别讨论感兴趣的读者，我们建议直接跳到§生物学和§局限性。</p>
+        <p>在本节中，我们对转码器特征和从中派生的归因图进行定性和定量评估，特别关注可解释性和充分性。对于对发现和局限性的更高级别讨论感兴趣的读者，我们建议直接跳到§生物学和§局限性。</p>
       
     
       
-        <p>我们的方法产生模型在特定提示上机制的因果图描述。我们如何量化这些描述在多大程度上捕获了模型中真正发生的事情？很难将这个问题提炼为一个数字，因为几个因素相关：</p>
+        <p>我们的方法为模型在特定提示上的机制产生因果图描述。我们如何量化这些描述在多大程度上捕捉了模型中真正发生的事情？很难将这个问题提炼为一个数字，因为几个因素相关：</p>
       
     
       
-        <p>可解释性。我们对单个特征“含义”的理解程度如何？我们在下面尝试以几种方式量化可解释性；然而，在实践中我们仍然严重依赖主观评估。我们将特征分组为“超节点”的连贯性也值得评估。我们在本文中没有尝试量化这一点，而是留给读者自己验证我们的分组是否合理和可解释。我们还注意到，在归因图的背景下，图的可解释性与单个特征的可解释性同样重要。为此，我们量化了图简单性的一个概念：平均路径长度。</p>
+        <p>可解释性。我们在多大程度上理解单个特征“意味着”什么？我们尝试在下面以几种方式量化可解释性；然而，在实践中我们仍然严重依赖主观评估。我们将特征分组为“超节点”的连贯性也值得评估。我们在本工作中没有尝试量化这一点，而是留给读者自己验证我们的分组是否合理和可解释。我们还注意到，在归因图的背景下，图的可解释性与单个特征的可解释性同样重要。为此，我们量化了图简单性的一个概念：平均路径长度。</p>
       
     
       
-        <p>充分性。我们的（剪枝的）归因图在多大程度上足以解释模型的行为？我们尝试以几种方式量化这一点。最直接的评估是我们对替代模型输出与底层模型匹配程度的测量，在§从跨层转码器到替代模型中讨论。这是一个“硬”评估，因为计算图中任何地方的单个错误都可能严重降低性能。我们还在下面计算了一些“更软”的充分性度量，测量归因图中误差节点的比例。请注意，在许多情况下，我们展示剪枝归因图的子图示意图，这些示意图描绘了我们认为其最值得注意的组件。我们故意不测量这些子图的充分性，因为它们通常故意排除图中“无聊”但必要的部分（例如，加法提示中的“this is a math problem”特征）。我们将找到更原则性的方式来将归因图提炼为其“有趣”组件并量化丢失了多少（以及什么类型）信息留给未来工作。<sup id="fnref-f29n"><a href="#f29n">[29]</a></sup></p>
+        <p>充分性。我们（剪枝后的）归因图在多大程度上足以解释模型的行为？我们尝试以几种方式量化这一点。最直接的此类评估是我们对替代模型输出与底层模型匹配程度的测量，在§从跨层转码器到替代模型中讨论。这是“硬”评估，因为计算图中任何地方的单个错误都可能严重降低性能。我们还在下面计算了一些“更软”的充分性度量，测量归因图中误差节点的比例。请注意，在许多情况下，我们呈现的是剪枝归因图的子图示意图，描绘了我们认为其最值得注意的组件。我们有意不测量这些子图的充分性，因为它们通常有意排除图中“无聊”但必要的部分（例如，加法提示中的“this is a math problem”特征）。我们留给未来工作找到更原则性的方法来将归因图提炼为其“有趣”组件，并量化丢失了多少（以及什么类型）信息。<sup id="fnref-f29n"><a href="#f29n">[29]</a></sup></p>
       
     
       
-        <p>机制忠实度。我们识别的机制实际上被模型使用的程度如何？为了测量这一点，我们执行扰动实验（例如抑制活跃特征）并测量效果是否与局部替代模型（我们的归因图所描绘的底层对象）预测的一致。我们尝试在下面定量地这样做，我们还在我们的特定案例研究中验证忠实度，特别是关注我们已识别为有趣/重要的机制的忠实度。请注意，我们的机制忠实度概念与电路组件对模型计算的必要性概念相关。然而，必要性可能是一个有些限制性的概念——对于模型输出不是严格“必要”的机制可能仍然重要要识别，尤其是在我们经常观察到的多个机制并行合作贡献于计算的情况下。</p>
+        <p>机制忠实度。我们识别的机制在多大程度上真正被模型使用？为了测量这一点，我们执行扰动实验（例如抑制活跃特征）并测量效果是否与局部替代模型（我们的归因图所描绘的对象）预测的一致。我们尝试在下面定量地这样做，我们还在我们的特定案例研究中验证忠实度，特别是关注我们已识别为有趣/重要的机制的忠实度。请注意，我们的机制忠实度概念与电路组件对模型计算必要性的想法相关。然而，必要性可能是一个有点限制性的概念——不严格“必要”的机制对于识别可能仍然重要，尤其是在我们经常观察到的多个机制并行合作贡献于计算的情况。</p>
       
     
       
-        <p>我们注意到，我们使用的具体评估在许多情况下是本文新提出的。这部分是因为我们的工作在专注于单个提示的归因图而不是识别支持模型执行整个任务的电路方面有些独特。开发更好的自动方法来评估整个管道（特征、超节点、图）的可解释性、充分性和忠实度，是未来研究的重要主题。见§相关工作了解先前电路评估方法的更多细节。</p>
+        <p>我们注意到我们使用的特定评估在许多情况下是这项工作的新内容。部分原因是我们的工作在专注于单个提示的归因图方面有些独特，而不是识别支撑模型执行整个任务的电路。开发更好的自动方法来评估整个管道（特征、超节点、图）的可解释性、充分性和忠实度，是未来研究的重要主题。见§相关工作了解先前电路评估方法的更多细节。</p>
       
     
       
@@ -649,11 +649,11 @@
       
     
       
-        <p>对于CLT特征对我们有用，它们必须是人类可解释的（也许未来对它们是AI可解释的就足够了！）。可解释性最终是一个定性属性——我们特征可解释性的最佳衡量标准是查看它们在行动中的表现。理解特征代表什么的一个标准（虽然不完整）工具是查看它活跃的数据集例子（我们将此类例子的集合称为我们的“特征可视化”）。我们在本文后面的电路案例研究和<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a>中提供了数千个特征可视化。下面我们还展示了来自每个模型各层 assort 的50个随机采样的特征。</p>
+        <p>对于CLT特征对我们有用，它们必须是人类可解释的（也许未来对它们是AI可解释的就足够了！）。可解释性最终是一个定性属性——我们特征可解释性的最佳衡量是观察它们在行动中的表现。一个标准的（虽然不完整的）理解特征代表什么的工具是查看它活跃的数据集例子（我们将此类例子的集合称为我们的“特征可视化”）。我们在本文后面的电路案例研究和中提供了数千个特征可视化。下面我们还展示了来自每个模型各层随机采样的50个特征。<a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a></p>
       
     
       
-        <p>我们的特征可视化显示来自公共数据集（Common Corpus、The Pile（移除了书籍）[<cite>[gao2020pile]</cite>]、LMSYS Chat 1m[<cite>[zheng2023lmsyschat1m]</cite>]和Isotonic Human-Assistant Conversation）的样本片段，这些样本最强烈激活该特征，以及以在最大激活和零之间插值的不同程度激活特征的例子。突出显示指示特征在给定token位置的激活强度。我们还显示特征通过其通过反嵌入层的直接连接最强烈促进/抑制的输出token（请注意，此信息通常对于模型较晚层的特征更有意义）。</p>
+        <p>我们的特征可视化显示了来自公共数据集（Common Corpus、The Pile（移除了书籍）[<cite>[gao2020pile]</cite>]、LMSYS Chat 1m[<cite>[zheng2023lmsyschat1m]</cite>]和Isotonic Human-Assistant Conversation）的样本片段，这些样本最强烈地激活特征，以及以不同程度激活特征的例子，在最大激活和零之间插值。高亮表示特征在给定token位置的激活强度。我们还显示了特征通过其通过反嵌入层的直接连接最强烈促进/抑制的输出token（请注意，此信息通常对模型晚期层的特征更有意义）。</p>
       
     
       
@@ -673,19 +673,19 @@
       
     
       
-        <p>在非常粗糙的层面上，我们发现几种类型的特征：</p>
+        <p>在非常粗的层面上，我们发现了几种类型的特征：</p>
       
     
       
-        <div class="list-content">代表文本低级属性的输入特征（例如特定token或短语）。大多数早期层特征属于这种，但这种特征也存在于中间和晚期层。其激活代表上下文更抽象属性的特征。例如，一个关于混合常见清洁化学品危险的特征。这些特征出现在中间和晚期层。执行功能的特征，例如一个“add 9”特征，导致模型输出比其上下文中另一个数字大九的数字。这些往往在中间和晚期层找到。输出特征，其激活促进特定输出，无论是特定token还是token类别。一个例子是“say a capital”特征，它促进对应于不同美国州首府名称的token。多义特征，尤其在早期层，例如这个特征，它对token“rhythm”、Michael Jordan和几个其他不相关概念激活。</div>
+        <div class="list-content">输入特征，代表文本的低级属性（例如特定token或短语）。大多数早期层特征属于这种，但此类特征也存在于中间和晚期层。其激活代表上下文更抽象属性的特征。例如，一个关于混合常见清洁化学品危险的特征。这些特征出现在中间和晚期层。执行功能的特征，例如一个“add 9”特征，导致模型输出比其上下文中另一个数字大九的数字。这些往往在中间和晚期层找到。输出特征，其激活促进特定输出，无论是特定token还是token类别。一个例子是“say a capital”特征，它促进对应于不同美国州首府名称的token。多义特征，尤其在早期层，例如这个特征，对token“rhythm”、Michael Jordan和几个其他不相关概念激活。</div>
       
     
       
-        <p>与我们<a href="2024-crosscoders.html">稀疏跨编码器：用于跨层特征与模型差异分析</a>[<cite>[lindsey2024crosscoders]</cite>]一致，我们发现特征在其输出“驻留”在多个层的程度上也不同——一些特征主要贡献于重构一个或几个层，而其他特征一直到模型最终层都有强的输出，大多数特征介于两者之间。</p>
+        <p>与我们[<cite>[lindsey2024crosscoders]</cite>]一致，我们发现特征在其输出“存在于”多个层的程度上也不同——一些特征主要贡献于重构一个或几个层，而其他特征一直到模型的最终层都有强的输出，大多数特征介于两者之间。<a href="2024-crosscoders.html">稀疏跨编码器：跨层特征与模型差异分析</a></p>
       
     
       
-        <p>我们还注意到，Haiku特征代表的抽象在许多情况下比更小的18L模型中的更丰富，这与模型更大的能力一致。</p>
+        <p>我们还注意到，Haiku特征所代表的抽象在许多情况下比更小的18L模型更丰富，这与模型更大的能力一致。</p>
       
     
       
@@ -694,27 +694,27 @@
       
     
       
-        <p>在§从跨层转码器到替代模型中，我们评估了我们的CLT重现底层模型计算的能力。在这里，我们测量重构误差、稀疏性（由“L0”测量，即每个输入token活跃特征的平均数）和特征可解释性。随着我们增加CLT的大小，我们观察到重构误差（跨层平均）和特征稀疏性的帕累托改进（在18L中，重构误差在大致固定的L0下减少，而在Haiku中，重构误差和L0都减少）。在我们最大的18L运行（10M特征）中，我们达到了约11.5%的归一化平均重构误差和88的平均L0。在我们最大的Haiku运行（30M特征）中，我们达到了21.7%的归一化重构误差和235的平均L0。</p>
+        <p>在§从跨层转码器到替代模型中，我们评估了我们的CLT重现底层模型计算的能力。在这里，我们测量重构误差、稀疏性（由“L0”测量，即每个输入token活跃特征的平均数量）和特征可解释性。随着我们增加CLT的大小，我们观察到重构误差（各层平均）和特征稀疏性方面的帕累托改进（在18L中，重构误差在大致固定的L0下减少，而在Haiku中，重构误差和L0都减少）。在我们最大的18L运行（10M特征）中，我们达到了约11.5%的归一化平均重构误差和88的平均L0。在我们最大的Haiku运行（30M特征）中，我们达到了21.7%的归一化重构误差和235的平均L0。</p>
       
     
       
-        <p>我们还计算了两个基于LLM的可解释性定量度量，在[<cite>[lindsey2024evals]</cite>]中更详细介绍和描述：</p>
+        <p>我们还计算了两个基于LLM的可解释性定量度量，在[<cite>[lindsey2024evals]</cite>]中更详细地介绍和描述：</p>
       
     
       
-        <div class="list-content">排序评估：我们取两个随机采样的特征，并识别最强烈激活它们的数据集例子的集合。我们将这些例子集合呈现给Claude，包括token-by-token特征激活信息。然后我们取仅激活其中一个特征的其他数据集例子，将这些呈现给Claude，并要求它猜测这些例子对应于哪个特征（基于初始例子集合）。最终评估分数是Claude在任何给定对上猜测正确特征的经验概率。</div>
+        <div class="list-content">排序评估：我们取两个随机采样的特征，并识别最强烈激活它们的数据集例子集。我们将这些例子集呈现给Claude，包括token-by-token特征激活信息。然后我们取仅激活其中一个特征的其他数据集例子，将这些呈现给Claude，并要求它猜测这些例子对应于哪个特征（基于初始例子集）。最终评估分数是Claude在任意给定对上猜测正确特征的经验概率。</div>
       
     
       
-        <div class="list-content">对比评估：我们使用Claude生成内容和结构相似但在一个关键方面不同的提示对。我们计算仅在一个提示而不是另一个上激活的特征集合。我们向Claude呈现每个此类特征的特征可视化，连同两个提示，并要求它猜测哪个提示导致特征激活。最终评估分数是Claude在试验中为特征猜测正确提示的经验概率。</div>
+        <div class="list-content">对比评估：我们使用Claude生成内容和结构相似但在一个关键方面不同的提示对。我们计算仅在一个提示上激活而不在另一个上激活的特征集。我们向Claude呈现每个此类特征的特征可视化，以及两个提示，并要求它猜测哪个提示导致特征激活。最终评估分数是Claude在试验中对特征猜测正确提示的经验概率。</div>
       
     
       
-        <p>我们发现，根据这两个度量，CLT特征的质量随规模提高（伴随着重构误差的改善）——见下面的图。<sup id="fnref-f30n"><a href="#f30n">[30]</a></sup></p>
+        <p>我们发现，根据这两个度量，CLT特征的质量随规模改善（伴随着重构误差的改善）——见下面的图。<sup id="fnref-f30n"><a href="#f30n">[30]</a></sup></p>
       
     
       
-        <p>我们还比较CLT与两个基线：针对模型每一层训练的每层转码器（PLT），以及在不同激活水平上阈值化的模型原始神经元。<sup id="fnref-f31n"><a href="#f31n">[31]</a></sup> 我们发现在所有指标上，CLT都优于PLT，并且CLT和PLT都大幅优于阈值化神经元的帕累托前沿。</p>
+        <p>我们还将CLT与两个基线比较：模型每层训练的每层转码器（PLT），以及在不同激活水平上阈值化的模型原始神经元。<sup id="fnref-f31n"><a href="#f31n">[31]</a></sup> 我们发现在所有指标上，CLT都优于PLT，并且CLT和PLT都大大优于阈值化神经元的帕累托前沿。</p>
       
     
       
@@ -723,11 +723,11 @@
       
     
       
-        <p>§归因图中的案例研究侧重于从归因图衍生的定性观察。在本节中，我们描述用于比较方法论选择和字典大小的更定量评估。在以下每个小节中，我们将引入一个指标，并比较使用（1）跨层转码器、（2）每层的每层转码器和（3）阈值化神经元<sup id="fnref-f32n"><a href="#f32n">[32]</a></sup>生成的图。为了将定量与定性联系起来，我们将链接到在每个这些指标上得分特别高或低的图。</p>
+        <p>§归因图中的案例研究侧重于从归因图得出的定性观察。在本节中，我们描述用于比较方法论选择和字典大小的更定量评估。在以下每个小节中，我们将引入一个指标，并比较使用（1）跨层转码器、（2）每层每层转码器和（3）阈值化神经元<sup id="fnref-f32n"><a href="#f32n">[32]</a></sup>生成的图。为了将定量与定性联系起来，我们将链接到在每个这些指标上得分特别高或低的图。</p>
       
     
       
-        <p>虽然我们不将这些指标视为要优化的基本量，但它们已被证明是跟踪字典学习中ML改进和标记我们的方法表现差的提示的有用指南。</p>
+        <p>虽然我们不将这些指标视为要优化的基本量，但它们已被证明是跟踪字典学习中ML改进和标记我们方法表现差的提示的有用指导。</p>
       
     
       
@@ -736,15 +736,15 @@
       
     
       
-        <p>我们的基于图的指标依赖于从间接影响矩阵衍生的量。非正式地说，这个矩阵测量每对节点通过图中所有可能路径如何相互影响。这为每个节点提供了一个自然的的重要性度量：它对logit节点的影响程度。我们还经常比较来自误差节点与非误差节点的影响程度。</p>
+        <p>我们的基于图的指标依赖于从间接影响矩阵派生的量。非正式地说，这个矩阵测量每对节点通过图中所有可能路径相互影响的程度。这为每个节点提供了一个自然的的重要性指标：它对logit节点的影响程度。我们还经常比较来自误差节点与非误差节点的影响程度。</p>
       
     
       
-        <p>为了构建这个矩阵，我们从图的邻接矩阵开始。我们将所有边权重替换为其绝对值（或简单地将负值钳位为0）以获得无符号邻接矩阵，然后对每个节点的输入边进行归一化，使其总和为1。令<span class="math-inline" data-math="A">A</span>指这个归一化的、无符号的邻接矩阵，索引为（目标，源）。</p>
+        <p>为了构建这个矩阵，我们从图的邻接矩阵开始。我们将所有边权重替换为其绝对值（或简单地将负值钳制为0）以获得无符号邻接矩阵，然后将每个节点的输入边归一化使其总和为1。让<span class="math-inline" data-math="A">A</span>指这个归一化的、无符号的邻接矩阵，索引为（目标，源）。</p>
       
     
       
-        <p>间接影响矩阵是<span class="math-inline" data-math="B = A + A^2 + A^3 + \cdots">B = A + A^2 + A^3 + \cdots</span>，这是一个诺依曼级数，可以高效计算为<span class="math-inline" data-math="B = (I - A)^{-1} - I">B = (I - A)^{-1} - I</span>。<span class="math-inline" data-math="B">B</span>的条目表示给定节点对之间所有路径的强度总和，其中任何给定路径的强度由其组成边在<span class="math-inline" data-math="A">A</span>中的值的乘积给出。为了计算每个节点的logit影响分数，我们计算对应于logit节点的B的行的加权平均（由特定logit的概率加权）。</p>
+        <p>间接影响矩阵是<span class="math-inline" data-math="B = A + A^2 + A^3 + \cdots">B = A + A^2 + A^3 + \cdots</span>，这是一个Neumann级数，可以高效计算为<span class="math-inline" data-math="B = (I - A)^{-1} - I">B = (I - A)^{-1} - I</span>。<span class="math-inline" data-math="B">B</span>的条目表示给定节点对之间所有路径的强度总和，其中任何给定路径的强度由其组成边在<span class="math-inline" data-math="A">A</span>中的值的乘积给出。为了计算每个节点的logit影响分数，我们计算对应于logit节点的B行的加权平均（由特定logit的概率加权）。</p>
       
     
       
@@ -753,7 +753,7 @@
       
     
       
-        <p>图复杂性的一个自然度量是从嵌入节点到logit节点的平均路径长度。直观上，更短的路径更容易理解，因为它们需要解释因果链中的更少环节。</p>
+        <p>图复杂性的一个自然指标是从嵌入节点到logit节点的平均路径长度。直观上，较短的路径更容易理解，因为它们需要解释因果链中的较少链接。</p>
       
     
       
@@ -761,11 +761,11 @@
       
     
       
-        <p>下面，我们比较从我们的10M CLT、10M PLT和阈值化神经元构建的图，在预训练提示数据集上按路径长度平均的影响（不剪枝）。<sup id="fnref-f34n"><a href="#f34n">[34]</a></sup></p>
+        <p>下面，我们比较了来自我们的10M CLT、10M PLT和阈值化神经元的图，在一个预训练提示数据集上按路径长度平均的影响（没有剪枝）。<sup id="fnref-f34n"><a href="#f34n">[34]</a></sup></p>
       
     
       
-        <p>跨层转码器最重要的优势之一是它们减少图中路径长度的程度。为了理解这在定性上的差异有多大，我们邀请读者查看为同一提示使用不同类型替代模型生成的这些图。</p>
+        <p>跨层转码器最重要的优势之一是它们减少图中路径长度的程度。为了理解这在定性上有多大的差异，我们邀请读者查看为同一提示使用不同类型替代模型生成的这些图。</p>
       
     
       
@@ -773,11 +773,11 @@
       
     
       
-        <p>我们发现跨层转码器折叠路径的一个重要方式是放大情况，其中许多相似特征依次相互激活。例如，在提示Zagreb:Croatia::Copenhagen:上，每层转码器显示了一个完全由Copenhagen特征组成的长度为7的路径，而跨层转码器将它们全部折叠到第1层特征。</p>
+        <p>我们发现跨层转码器折叠路径的一个重要方式是放大的情况，其中许多相似特征依次相互激活。例如，在提示Zagreb:Croatia::Copenhagen:上，每层转码器显示了一条完全由Copenhagen特征组成的长度为7的路径，而跨层转码器将它们全部折叠到层1特征。</p>
       
     
       
-        <p>这个例子说明了将重复计算的放大在多个层上整合到一个跨层特征中的优势和劣势。一方面，它使可解释性大幅更容易，因为它自动将重复计算折叠到一个特征中，而无需事后分析或聚类。它还降低了“链断裂”的风险，其中放大链中缺少一个特征会抑制进一步回溯图的能力（即，路径的一个步骤缺少相关的放大特征，打破了因果链）。另一方面，CLT具有与底层模型不同的因果结构，这增加了替代模型机制偏离底层模型的风险。在上面的例子中，我们观察到一组Copenhagen特征激活一个Denmark特征，这启动了Copenhagen和Denmark特征的相互强化链。这种动态在CLT图中不可见，并且在底层模型中也存在这种动态的程度上，它是CLT机制上不忠实的例子。</p>
+        <p>这个例子说明了将重复计算的放大在多个层上整合到一个跨层特征的优缺点。一方面，它大大提高了可解释性，因为它自动将重复计算折叠到一个特征中，而无需事后分析或聚类。它还降低了“链断裂”的风险，其中放大链中缺失一个特征会抑制进一步追溯图的能力（即，路径的一步缺少相关的放大特征，打破了因果链）。另一方面，CLT具有与底层模型不同的因果结构，这增加了替代模型机制与底层模型机制分歧的风险。在上面的例子中，我们观察到一组Copenhagen特征激活一个Denmark特征，这启动了Copenhagen和Denmark特征的相互强化链。这种动态在CLT图中不可见，并且在这种动态也存在于底层模型中的程度上，它是CLT机制不忠实的例子。</p>
       
     
       
@@ -786,7 +786,7 @@
       
     
       
-        <p>因为我们的替代模型有重构误差，我们想要测量模型的计算被捕获了多少。也就是说，来自特征节点与误差节点的影响在图中占多大比例。</p>
+        <p>因为我们的替代模型有重构误差，我们想要测量模型的计算被捕捉了多少。也就是说，图影响中有多少可归因于特征节点而不是误差节点。</p>
       
     
       
@@ -794,7 +794,7 @@
       
     
       
-        <div class="list-content">图完整性分数：测量来自特征或嵌入节点而不是误差节点的输入边的分数（由目标节点的logit影响分数加权）。图替换分数：测量从嵌入节点到logit节点通过特征节点（而不是误差节点）进行的端到端图路径的分数（由强度加权）。</div>
+        <div class="list-content">图完整性分数：测量来自特征或嵌入节点而不是误差节点的输入边的分数（由目标节点的logit影响分数加权）。图替换分数：测量从嵌入节点到logit节点通过特征节点（而不是误差节点）的端到端图路径的分数（由强度加权）。</div>
       
     
       
@@ -802,11 +802,11 @@
       
     
       
-        <p>下面，我们报告各种大小和类型的字典在我们的预训练提示数据集上的平均未剪枝图替换和完整性分数。我们发现最大的方法论改进来自从每层转到跨层转码器，随着特征数量的增加，回报很大但递减。</p>
+        <p>下面，我们报告了各种大小和类型的字典在我们预训练提示数据集上的平均未剪枝图替换和完整性分数。我们发现最大的方法论改进来自从每层转码器转向跨层转码器，随着特征数量的增加有大的但递减的回报。</p>
       
     
       
-        <p>为了将我们观察到的具有不同分数的图的定性差异情境化，我们邀请读者探索一些代表性的归因图。请注意，这些图使用我们的默认剪枝进行剪枝，我们在下面更详细描述。</p>
+        <p>为了将我们观察到的图中分数不同的定性差异情境化，我们邀请读者探索一些代表性的归因图。请注意，这些图使用我们的默认剪枝进行了剪枝，我们在下面更详细地描述。</p>
       
     
       
@@ -819,15 +819,15 @@
       
     
       
-        <p>我们严重依赖剪枝来使图更易消化。为了决定剪枝图的程度，我们可以使用上面描述的完整性和替换指标，但剪枝节点现在计入误差项。通过改变剪枝阈值，我们在{节点，边}数量与{替换，完整性}分数之间绘制一条前沿（见附录了解完整图和细节）。</p>
+        <p>我们严重依赖剪枝来使图更容易消化。为了决定要剪枝图多少，我们可以使用上面描述的完整性和替换指标，但现在剪枝的节点计入误差项。通过改变剪枝阈值，我们绘制了{节点，边}数量与{替换，完整性}分数之间的前沿（见附录了解完整图和细节）。</p>
       
     
       
-        <p>我们发现通常可以将节点数量减少一个数量级，而仅将完整性减少20%。</p>
+        <p>我们发现我们通常可以将节点数量减少一个数量级，同时仅将完整性减少20%。</p>
       
     
       
-        <p>为了感受定性差异，下面的表格中我们链接到同一提示（另一个首字母缩写）的归因图，但具有不同的剪枝阈值。</p>
+        <p>为了感受定性差异，在下面的表格中我们链接到同一提示（另一个首字母缩写）的归因图，但具有不同的剪枝阈值。</p>
       
     
       
@@ -840,15 +840,15 @@
       
     
       
-        <p>如§使用干预验证归因图假设中讨论的，归因图提供关于机制的假设，必须用扰动实验验证。这是因为归因图描述局部替代模型中的交互，这可能与底层模型不同。在我们大部分工作中，我们使用归因图作为生成关于模型内部特定机制（“特征A激活特征B，这增加了Token X的可能性”）的假设的工具，这些对应于归因图的“片段”。我们总结了三种验证实验的结果，这些在§附录：验证替代模型中更详细描述。</p>
+        <p>如§使用干预验证归因图假设中讨论的，归因图提供了关于机制的假设，必须用扰动实验验证。这是因为归因图描述了局部替代模型中的交互，这可能与底层模型不同。在我们大部分工作中，我们使用归因图作为生成关于模型内部特定机制假设的工具（“特征A激活特征B，这增加了Token X的可能性”），这些对应于归因图的“片段”。我们总结了三类验证实验的结果，这些在§附录：验证替代模型中更详细描述。</p>
       
     
       
-        <p>我们首先测量从归因图衍生的影响指标在多大程度上可以预测对logit和其他特征的干预影响。首先，我们测量节点的logit影响分数在多大程度上可以预测消融特征对模型输出分布的影响。我们发现影响比直接归因（即归因图中的直接边，忽略多步路径）和激活幅度等基线更能预测消融效果（见验证节点到logit影响）。然后我们对特征之间的交互执行类似分析。我们计算特征对之间的影响分数，并将其与消融对中上游特征对下游特征激活的相对影响进行比较。我们观察到0.72的Spearman相关性，这表明图影响是下游模型中效果的良好代理（见验证特征到特征影响）。见使用跨层特征进行引导的细微差别了解解释这些结果的一些复杂性。</p>
+        <p>我们首先测量从归因图派生的影响指标在多大程度上可以预测对logit和其他特征的干预效应。首先，我们测量节点的logit影响分数在多大程度上可以预测消融特征对模型输出分布的影响。我们发现影响比直接归因（即归因图中的直接边，忽略多步路径）和激活幅度等基线更能预测消融效应（见验证节点到logit影响）。然后我们对特征之间的交互执行类似分析。我们计算特征对之间的影响分数，并将其与消融对中上游特征对下游特征激活的相对效应进行比较。我们观察到0.72的Spearman相关性，这证明图影响是下游模型中效应的良好代理（见验证特征到特征影响）。见使用跨层特征转向的细微差别了解解释这些结果的一些复杂性。</p>
       
     
       
-        <p>上面的指标有助于估计干预实验验证图中特定机制的可能性。我们可能还对我们归因图隐含做出的所有机制假设的更一般验证感兴趣。因此，另一种互补的验证方法是测量局部替代模型整体的机制忠实度，而不是归因图内的特定路径。我们可以通过询问在局部替代模型中进行的扰动（归因图描述的）在多大程度上与底层模型中相应的扰动具有相同的下游影响来操作化这一点。我们发现，虽然当在干预后一层测量时扰动结果在两个模型之间相当相似（~0.8余弦相似度，~0.4归一化均方误差），但扰动差异在各层显著累积。<sup id="fnref-f35n"><a href="#f35n">[35]</a></sup> 更多细节见评估局部替代模型的忠实度。</p>
+        <p>上面的指标有助于估计干预实验验证图中特定机制的可能性。我们可能还对更一般地验证我们的归因图隐含做出的所有机制假设感兴趣。因此，另一种互补的验证方法是测量作为整体的局部替代模型的机制忠实度，而不是归因图内的特定路径。我们可以通过询问在局部替代模型（归因图描述的）中进行的扰动在多大程度上与底层模型中相应扰动具有相同的下游效应来操作化这一点。我们发现，虽然当在干预后一层测量时扰动结果在两个模型之间相当相似（~0.8余弦相似性，~0.4归一化均方误差），但扰动差异在各层间显著累积。<sup id="fnref-f35n"><a href="#f35n">[35]</a></sup> 更多细节见评估局部替代模型的忠实度。</p>
       
     
       
@@ -857,11 +857,11 @@
       
     
       
-        <p>在我们的<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a>中，我们使用这里概述的方法对前沿模型Haiku 3.5的九个行为案例研究中的电路进行深入调查。这些包括：</p>
+        <p>在我们的中，我们使用这里概述的方法对前沿模型Haiku 3.5的九个行为案例研究进行深入调查。这些包括：<a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a></p>
       
     
       
-        <div class="list-content"><a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a> 我们展示了一个简单例子，其中模型执行“两跳”推理来完成“The capital of the state containing Dallas is…”，经过Dallas → Texas → Austin。我们可以看到和操纵其中间Texas步骤的表示。<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a> 我们展示模型在写诗行时规划其输出。在开始写每一行之前，模型识别可能出现在结尾的潜在押韵词。这些预选的押韵选项然后塑造模型如何构建整行。<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a> 我们发现模型使用语言特定和抽象的、语言无关电路的混合（在Claude 3.5 Haiku中比更小的模型更普遍）。<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a> 我们突出一个案例，其中相同的加法电路在非常不同的上下文之间泛化，并揭示Claude 3.5 Haiku中的加法机制与更小、能力较弱的模型之间的定性差异。<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a> 我们展示一个例子，其中模型基于报告的症状识别候选诊断，并使用这些来告知关于可能证实诊断的额外症状的后续问题——全部“在脑海中”，而不写下其步骤。<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a> 我们揭示允许模型区分熟悉和不熟悉实体的电路机制，这决定了它是否选择回答事实问题或承认无知。这个电路的“误击”可能导致幻觉。<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a> 我们发现证据表明模型在微调期间构建了一个通用的“有害请求”特征，从预训练期间学到的代表特定有害请求的特征聚合而成。<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a>，它通过首先欺骗模型开始在“没有意识到”的情况下提供危险指令，并由于遵守句法和语法规则的压力而继续这样做。<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a> 我们探索思维链推理对模型实际机制的忠实度。我们能够区分模型真正执行它所说正在执行的步骤的情况、它编造不顾真相的推理的情况，以及它从人类提供的线索反向工作以使其“推理”最终到达人类建议答案的情况。<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a> 我们还将我们的方法应用于一个经过微调以追求利用其训练过程偏差的秘密目标的模型变体。虽然模型不愿大声揭示其目标，但我们的方法暴露了它，揭示目标被“烘焙”到模型的“Assistant”角色中。</div>
+        <div class="list-content">我们呈现了一个简单例子，其中模型执行“两跳”推理来完成“The capital of the state containing Dallas is…”，经过Dallas → Texas → Austin。我们可以看到并操纵其中间Texas步骤的表示。我们展示了模型在写诗行时规划其输出。在开始写每一行之前，模型识别可能出现在结尾的潜在押韵词。这些预选的押韵选项然后塑造模型如何构建整行。我们发现模型使用语言特定和抽象、语言无关电路的混合（在Claude 3.5 Haiku中比更小的模型更普遍）。我们突出一个案例，其中相同的加法电路在非常不同的上下文之间泛化，并揭示Claude 3.5 Haiku中的加法机制与更小、能力较弱的模型之间的定性差异。我们展示了一个例子，其中模型基于报告的症状识别候选诊断，并使用这些来告知关于可能证实诊断的额外症状的跟进问题——全部“在脑海中”，而不写下其步骤。我们揭示了允许模型区分熟悉和不熟悉实体的电路机制，这决定了它是选择回答事实问题还是承认无知。这个电路的“误触发”可能导致幻觉。我们发现证据表明模型在微调期间构建了一个通用的“有害请求”特征，从预训练期间学到的代表特定有害请求的特征聚合而成。，它通过首先欺骗模型开始给出危险指令“在没有意识到它的情况下”起作用，并由于遵守句法和语法规则的压力而继续这样做。我们探索思维链推理对模型实际机制的忠实度。我们能够区分模型真正执行它所说正在执行的步骤的情况、它编造推理而不顾真相的情况，以及它从人类提供的线索反向工作以使其“推理”最终到达人类建议答案的情况。我们还将我们的方法应用于一个经过微调以追求利用其训练过程偏差的秘密目标的模型变体。虽然模型不愿大声揭示其目标，但我们的方法暴露了它，揭示目标被“烘焙”到模型的“Assistant”人格中。<a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a><a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a><a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a><a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a><a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a><a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a><a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a><a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a><a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a><a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a></div>
       
     
       
@@ -874,15 +874,15 @@
       
     
       
-        <p>尽管这里和<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a>中呈现了令人兴奋的结果，我们的方法论仍有许多显著局限性。在高层次上，最显著的是：</p>
+        <p>尽管这里和中呈现了令人兴奋的结果，我们的方法论仍有许多重大局限性。在高层次上，最显著的是：<a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a></p>
       
     
       
-        <div class="list-content">缺失的注意力电路——我们不解释注意力模式如何由QK电路计算，并且有时因此“错过计算的有趣部分”。重构误差与暗物质——我们只解释模型计算的一部分，还有很多隐藏。当关键计算缺失时，归因图不会揭示太多。不活跃特征和抑制电路的作用——通常某些特征没有活跃的事实与其它特征活跃的事实一样有趣。特别是，有许多有趣的电路涉及特征抑制其他特征。图复杂性——得到的归因图可能非常复杂且难以理解。在错误抽象水平的特征——特征分裂和吸收等问题意味着特征通常不在最容易理解电路的抽象水平上。理解全局电路的困难——理想情况下，我们希望以全局方式理解模型，而不是单个例子的归因。然而，全局电路相当具有挑战性。机制忠实度——当我们用转码器替换MLP计算时，我们对它们使用与原始MLP相同的机制而不是只是与MLP输出高度相关的东西有多自信？</div>
+        <div class="list-content">缺失的注意力电路——我们不解释QK电路如何计算注意力模式，因此有时会因此“错过计算的有趣部分”。重构误差与暗物质——我们只解释模型计算的一部分，还有很多隐藏。当关键计算缺失时，归因图不会揭示太多。不活跃特征和抑制电路的作用——通常某些特征不活跃的事实与其它特征活跃的事实一样有趣。特别是，有许多有趣的电路涉及特征抑制其他特征。图复杂性——得到的归因图可能非常复杂且难以理解。处于错误抽象水平的特征——特征分裂和吸收等问题意味着特征往往不在最容易理解电路的抽象水平上。理解全局电路的困难——理想情况下，我们希望以全局方式理解模型，而不是单个例子的归因。然而，全局电路相当具有挑战性。机制忠实度——当我们用转码器替换MLP计算时，我们对它们使用与原始MLP相同机制的信心有多大，而不是使用只是与MLP输出高度相关的东西？</div>
       
     
       
-        <p>我们下面详细讨论这些，并在可能的情况下提供我们的当前方法由于这些问题无法解释模型计算的具体反例。我们希望这些可能激发未来研究。</p>
+        <p>我们将在下面详细讨论这些，并在可能的情况下提供我们的当前方法由于这些问题无法解释模型计算的具体反例。我们希望这些可能激发未来的研究。</p>
       
     
       
@@ -891,7 +891,7 @@
       
     
       
-        <p>我们方法的一个显著局限性是我们相对于固定的注意力模式计算归因图。这使得归因成为一个定义明确且原则性的操作，但也意味着我们的图不试图解释模型的注意力模式是如何形成的，或者这些模式如何通过注意力头输出-值矩阵中介特征-特征交互[<cite>[nelhage2021mathematical]</cite>]。在本文中，我们专注于注意力模式不对模型计算的“有趣部分”或“关键”负责的案例研究。然而，我们也发现许多情况，这种局限性使我们的归因图基本上无用。</p>
+        <p>我们方法的一个重大局限性是我们相对于固定的注意力模式计算归因图。这使得归因成为一个明确定义和有原则的操作，但也意味着我们的图不尝试解释模型的注意力模式是如何形成的，或者这些模式如何通过注意力头输出-值矩阵介导特征-特征交互[<cite>[nelhage2021mathematical]</cite>]。在本文中，我们专注于注意力模式不负责模型计算“有趣部分”或“关键”的案例研究。然而，我们也发现了许多这种情况，这个局限性使我们的归因图基本上无用。</p>
       
     
       
@@ -900,7 +900,7 @@
       
     
       
-        <p>让我们暂时考虑一个简单得多的模型——一个如[<cite>[nelhage2021mathematical]</cite>]中研究的简陋的2层仅注意力模型。这些模型的一个有趣属性是它们使用归纳头[<cite>[nelhage2021mathematical,olsson2022context]</cite>]来执行基本的上下文内学习。例如，如果我们考虑以下提示：</p>
+        <p>让我们暂时考虑一个简单得多的模型——一个在[<cite>[nelhage2021mathematical]</cite>]中研究的那种朴素的2层仅注意力模型。这些模型的一个有趣属性是它们使用归纳头[<cite>[nelhage2021mathematical,olsson2022context]</cite>]来执行基本的上下文学习。例如，如果我们考虑以下提示：</p>
       
     
       
@@ -908,15 +908,15 @@
       
     
       
-        <p>这些模型将有归纳头回溯到“Sally”，然后预测那是正确答案。如果我们应用我们当前的方法，答案不是很有信息量。它只会告诉我们模型预测“Sally”，因为上下文中早些时候有一个token“Sally”。</p>
+        <p>这些模型将有归纳头回溯到“Sally”，然后预测那是正确答案。如果我们应用我们当前的方法，答案不是很有信息量。它只会告诉我们模型预测了“Sally”，因为上下文前面有一个token“Sally”。</p>
       
     
       
-        <p>这错过了整个有趣的故事！归纳头关注“Sally”是因为它前面有“Aunt”，这与当前token匹配。先前方法（例如[<cite>[wang2022interpretability,nelhage2021mathematical]</cite>]）能够阐明这一点，因此这种情况甚至可能被视为一种倒退。</p>
+        <p>这错过了整个有趣的故事！归纳头关注“Sally”是因为它前面有“Aunt”，这与当前token匹配。先前的方法（例如[<cite>[wang2022interpretability,nelhage2021mathematical]</cite>]能够阐明这一点，因此这种情况甚至可能被视为某种退步。</p>
       
     
       
-        <p>事实上，当应用于这个提示上的Claude 3.5 Haiku时，我们的方法正好有这个问题。见归因图可视化——图包含从token级“Sally”特征到“say Sally”特征和“Sally”logit的直接边，但未能解释这些边是如何产生的。</p>
+        <p>实际上，当应用于这个提示上的Claude 3.5 Haiku时，我们的方法正好有这个问题。见归因图可视化——图包含从token级“Sally”特征到“say Sally”特征和“Sally”logit的直接边，但未能解释这些边是如何产生的。</p>
       
     
       
@@ -925,7 +925,7 @@
       
     
       
-        <p>归纳是注意力计算的一个简单情况，即使没有我们归因图的帮助，我们也可以对机制做出合理猜测。然而，这种归因图的失败也可以在更复杂的情景中表现，在那里它完全掩盖了模型计算的有趣步骤。例如，考虑一个多选题：</p>
+        <p>归纳是注意力计算的一个简单情况，即使没有我们归因图的帮助，我们也可以对机制做出合理猜测。然而，这种归因图的失败也可以在更复杂的情景中表现出来，在那里它完全掩盖了模型计算的有趣步骤。例如，考虑一个多选题：</p>
       
     
       
@@ -949,27 +949,27 @@
       
     
       
-        <p>当我们为助手响应中的“B”token计算归因图（交互式图可视化）时，我们得到一个相对无趣的答案——我们回答“B”是因为一个在正确答案上激活的tokens following &quot;(b)&quot;特征。（还有到token“B”的直接路径，以及由say &quot;B&quot;运动特征中介的输出路径；为简单起见我们选择省略这些。）</p>
+        <p>当我们为Assistant响应中的“B”token计算归因图（交互式图可视化）时，我们得到一个相对无趣的答案——我们回答“B”是因为一个在正确答案上激活的tokens following &quot;(b)&quot;特征。（还有一个到token“B”的直接路径，以及由say &quot;B&quot;运动特征介导的输出路径；为了简单起见我们选择了省略这些。）</p>
       
     
       
-        <p>这些都没有提供模型如何选择其答案的有用解释！图“跳过”了计算的有趣部分，即模型如何知道1945是正确答案。这是因为行为是由注意力驱动的。进一步调查表明，有三个“correct answer”特征似乎在多选题的正确答案上触发，并且干预显示它们发挥着关键作用。从这一点，我们假设机制可能是这样的。<sup id="fnref-f36n"><a href="#f36n">[36]</a></sup></p>
+        <p>这些都没有提供模型如何选择其答案的有用解释！图“跳过了”计算的有趣部分，即模型如何知道1945是正确答案。这是因为行为是由注意力驱动的。在进一步调查中，事实证明有三个“correct answer”特征似乎在多选题的正确答案上触发，并且干预显示它们发挥了关键作用。从这一点，我们假设机制可能是这样的。<sup id="fnref-f36n"><a href="#f36n">[36]</a></sup></p>
       
     
       
-        <p>由于这涉及大量推测，明确我们对QK电路知道什么和不知道什么很重要。</p>
+        <p>由于这涉及大量推测，明确我们对QK电路知道什么和不知道什么是值得的。</p>
       
     
       
-        <div class="list-content">我们知道它由注意力控制，因为冻结注意力会锁定答案。我们不知道它由特定头中介，也不知道任何涉及的头是否具有可以理解为这个的泛化的通用行为。我们确实知道有三个似乎跟踪“this seems like the correct answer”的特征。我们知道干预它们会以预期方式改变正确答案；例如，在答案C上激活它们会导致模型预测“C”。我们不知道“correct answer”特征是否直接在涉及的任何注意力头的key侧发挥作用，也不知道“need answer”特征是否存在或在query侧发挥作用。我们也不知道是否可能有替代的并行机制在起作用（见Feng &amp; Steinhardt[<cite>[feng2023language]</cite>]）。</div>
+        <div class="list-content">我们知道它由注意力控制，因为冻结注意力会锁定答案。我们不知道它由特定头介导，也不知道任何涉及的头是否具有可以理解为这个一般化的通用行为。我们确实知道有三个特征似乎跟踪“this seems like the correct answer”。我们知道干预它们会以预期方式改变正确答案；例如，在答案C上激活它们会导致模型预测“C”。我们不知道“correct answer”特征是否直接在涉及的任何注意力头的key侧发挥作用，也不知道“need answer”特征是否存在或在query侧发挥作用。我们也不知道是否可能存在替代的并行机制（见Feng &amp; Steinhardt[<cite>[feng2023language]</cite>]）。</div>
       
     
       
-        <p>所有这些都是说，有很多我们不理解的东西！</p>
+        <p>这一切都是说，有很多我们不理解的东西！</p>
       
     
       
-        <p>但尽管我们的理解有限，似乎很清楚模型行为关键地通过注意力模式和计算它们的QK电路流动。在我们能修复这个之前，我们的归因图将在注意力发挥关键作用的情况下“错过故事”。虽然我们能够通过手动调查在这种情况下获得对故事的部分理解，但我们希望我们的方法论未来能自动呈现这些信息！</p>
+        <p>但尽管我们理解有限，很明显模型行为关键地流经注意力模式和计算它们的QK电路。在我们能修复这一点之前，我们的归因图将在注意力发挥关键作用的情况下“错过故事”。虽然我们能够通过手动调查在这个案例中获得对故事的部分理解，但我们希望我们的方法论未来能自动浮现这些信息！</p>
       
     
       
@@ -982,15 +982,15 @@
       
     
       
-        <p>最终，QK电路是残差流上的二次形式。这意味着归因可以自然地针对key侧和query侧特征对。这些对有一个描述它们是否增加或减少对特定token注意力的权重。然而，这种方法有复杂度二次爆炸的缺点。</p>
+        <p>最终，QK电路是残差流上的二次形式。这意味着归因可以自然地针对key侧和query侧特征对进行。这些对有一个描述它们是否增加或减少对特定token注意力的权重。然而，这种方法有复杂度二次爆炸的缺点。</p>
       
     
       
-        <p>查看单个注意力头的QK电路可能使事情变得比必要更难，甚至可能误导，如果存在<a href="2024-jan-update.html">电路更新 — 2024 年 1 月</a>。有趣的行为可能分散在多个头上，每个头都有自己的QK电路。</p>
+        <p>查看单个注意力头的QK电路可能使事情变得比必要更难，甚至可能是误导性的，如果存在<a href="2024-jan-update.html">电路更新 — 2024 年 1 月</a>。有趣的行为可能分布在各个头上，每个头都有自己的QK电路。</p>
       
     
       
-        <p>我们还怀疑对注意力层的某些形式的字典学习，或完整的注意力替换层，可以使这些“QK归因”更易处理和可解释。我们相信找到处理注意力归因的正确方式是未来工作最重要的方向之一。</p>
+        <p>我们还怀疑对注意力层的某些形式的字典学习，或完整的注意力替换层，可以使这些“QK归因”更容易处理和更可解释。我们相信找到处理注意力归因的正确方式是未来工作最重要的方向之一。</p>
       
     
       
@@ -999,11 +999,11 @@
       
     
       
-        <p>我们的跨层转码器未能完全重构模型的激活。因此，我们的方法留下了一些模型机制的<a href="2024-july-update.html">电路更新 — 2024 年 7 月</a>未被观察，部分是因为我们的字典不够大，无法为模型可能知道的每个概念学习一个特征。在我们的归因图中，这种失败表现为“误差节点”，它们为其他节点提供输入但自己不接收任何输入（它们“凭空出现”）并且不可解释。在本文呈现的例子中，尽管存在误差节点，我们还是设法识别出了有趣的机制。重要的是要注意，我们描述的电路只是模型计算的部分描述（既由于误差节点的存在，也由于我们突出显示的电路通常只包括图中非误差节点的一个子集！）。</p>
+        <p>我们的跨层转码器未能完全重构模型的激活。因此，我们的方法留下了一些模型机制的未被观察，部分因为我们的字典不够大，无法为模型可能知道的每个概念学习一个特征。在我们的归因图中，这种失败表现为“误差节点”，它们为其他节点提供输入但自身不接收任何输入（它们“凭空出现”）并且不可解释。在本文呈现的例子中，我们尽管存在误差节点仍设法识别出了有趣的机制。重要的是要注意，我们描述的电路只是模型计算的部分描述（既由于误差节点的存在，也由于我们突出显示的电路通常只包括图中非误差节点的一个子集！）。<a href="2024-july-update.html">电路更新 — 2024 年 7 月</a></p>
       
     
       
-        <p>然而，值得强调的是，在某些情况下误差节点完全掩盖了模型在做什么。例如，考虑这个尝试的越狱——一个混淆的请求模型写恶意软件（模型拒绝）：</p>
+        <p>然而，值得强调的是，在某些情况下误差节点完全掩盖了模型在做什么。例如，考虑这个尝试的越狱——一个对模型写恶意软件的混淆请求（模型拒绝）：</p>
       
     
       
@@ -1015,7 +1015,7 @@
       
     
       
-        <p>在归因图中，混淆提示token上的几乎所有节点都是误差节点，使得不可能回溯在“Assistant:”token上活跃的拒绝相关特征的起源。</p>
+        <p>在归因图中，混淆提示token上的几乎所有节点都是误差节点，这使得无法追溯在“Assistant:”token上活跃的拒绝相关特征的起源。</p>
       
     
       
@@ -1036,7 +1036,7 @@
       
     
       
-        <div class="list-content">将替代模型扩展到更大规模/更多训练数据将增加它们解释的方差量。对我们的跨层转码器设置进行架构修改可以使其更具表达力，从而能够解释更多方差。以比仅MSE更端到端的方式训练我们的替代模型，即使在固定MSE水平上也可以减少分配给误差节点的权重。在感兴趣的数据分布上微调替代模型可以提高我们捕获那些分布上机制的能力。我们可以开发从误差节点回溯归因的方法。这将在归因图中留下一个不可解释的“洞”，但在某些情况下可能仍比我们当前无输入的误差节点提供更多关于模型的洞见。</div>
+        <div class="list-content">将替代模型扩展到更大规模/更多训练数据将增加它们解释的方差量。对我们跨层转码器设置的架构修改可以使其更具表达力，从而能够解释更多方差。以比仅MSE更端到端的方式训练我们的替代模型，即使在固定MSE水平上也可以减少分配给误差节点的权重。在感兴趣的数据分布上微调替代模型可以提高我们捕捉那些分布上机制的能力。我们可以开发从误差节点回溯归因的方法。这将在归因图中留下一个不可解释的“洞”，但在某些情况下可能仍比我们当前的无输入误差节点提供对模型的更多洞见。</div>
       
     
       
@@ -1045,23 +1045,23 @@
       
     
       
-        <p>我们的跨层转码器特征被训练为稀疏活跃。它们的稀疏性是我们方法成功的关键。它允许我们针对给定提示专注于相对较小的一组特征，来自替代模型中数千万特征。然而，这种便利依赖于一个关键假设——只有活跃特征参与模型响应的底层机制。</p>
+        <p>我们的跨层转码器特征被训练为稀疏激活。它们的稀疏性是我们方法成功的关键。它允许我们针对给定提示专注于相对较小的一组特征，来自替代模型中数千万特征。然而，这种便利依赖于一个关键假设——只有活跃特征参与模型响应背后的机制。</p>
       
     
       
-        <p>事实上，情况并非必须如此！在某些情况下，一个特征缺乏活动，因为它被其他特征抑制，可能对模型的响应至关重要。例如，在我们的幻觉和实体识别分析中（见<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a>），我们发现了一个电路，其中“can’t answer”特征被代表已知实体或具有已知答案的问题的特征抑制。因此，为了解释模型为什么在特定上下文中产生幻觉，我们需要理解是什么导致“can’t answer”特征没有活跃。</p>
+        <p>事实上，情况并非必须如此！在某些情况下，特征缺乏活动，因为它被其他特征抑制，可能对模型的响应至关重要。例如，在我们的幻觉和实体识别分析中（见），我们发现了一个电路，其中“can’t answer”特征被代表已知实体或具有已知答案问题的特征抑制。因此，为了解释模型为什么在特定上下文中产生幻觉，我们需要理解是什么导致“can’t answer”特征不活跃。<a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a></p>
       
     
       
-        <p>默认情况下，我们的归因图不允许我们回答这样的问题，因为它们只显示活跃特征。如果我们对哪些不活跃特征可能与模型的完成相关有假设（由于抑制），我们可以将它们包含在归因图中。然而，这在某种程度上削弱了我们方法论的主要好处之一，即它启用探索性的、无假设的分析。</p>
+        <p>默认情况下，我们的归因图不允许我们回答这样的问题，因为它们只显示活跃特征。如果我们对哪些不活跃特征可能与模型的完成相关有假设（由于抑制），我们可以将它们包含在归因图中。然而，这在一定程度上削弱了我们方法论的主要益处之一，即它启用探索性、无假设分析。</p>
       
     
       
-        <p>这导致了以下挑战——我们如何从数千万不活跃特征中识别出感兴趣的不活跃特征？似乎我们想要知道哪些特征在某种意义上是“反事实活跃”的。在实体识别例子中，我们通过比较包含已知或未知实体（Michael Jordan或“Michael Batkin”）的提示对，然后专注于在每对中至少一个提示上活跃的特征来识别这些反事实活跃特征。我们期望这种对比对策略对许多未来的电路分析将是关键的。然而，我们也有兴趣开发更多无监督的方法来识别关键的被抑制特征。一种可能性可能是执行特征消融实验，并考虑那些仅“一次消融之遥”就活跃的不活跃特征集合。</p>
+        <p>这导致了以下挑战——我们如何从数千万不活跃特征中识别出感兴趣的不活跃特征？似乎我们想要知道哪些特征在某种意义上是“反事实活跃”的。在实体识别例子中，我们通过比较包含已知或未知实体（Michael Jordan或“Michael Batkin”）的提示对，然后专注于在每对中至少一个提示上活跃的特征，识别了这些反事实活跃特征。我们期望这种对比对策略对许多未来的电路分析将是关键的。然而，我们也有兴趣开发更多无监督的方法来识别关键的被抑制特征。一种可能性可能是执行特征消融实验，并考虑仅“一个消融之遥”就活跃的不活跃特征集。</p>
       
     
       
-        <p>人们可能认为这些问题可以通过转向全局电路分析来逃避。然而，似乎可能有一个仍然存在的深层挑战。我们需要一种过滤干扰权重的方法，而且很诱人地使用特征的共现来做到这一点。但这些策略会错过重要的抑制权重，其中一个特征一致地防止另一个激活。这可以视为局部归因分析中不活跃特征挑战的全局电路模拟。</p>
+        <p>人们可能认为这些问题可以通过转向全局电路分析来逃避。然而，似乎仍然存在一个深刻的挑战。我们需要一种过滤掉干扰权重的方法，并且通过使用特征的共现来这样做很诱人。但这些策略会错过重要的抑制权重，其中一个特征一致地阻止另一个激活。这可以被视为局部归因分析中不活跃特征挑战的全局电路模拟。</p>
       
     
       
@@ -1070,52 +1070,52 @@
       
     
       
-        <p>可解释性的一个基本挑战是找到管理和理解复杂计算认知负荷的抽象和接口。<sup id="fnref-f37n"><a href="#f37n">[37]</a></sup> 我们的方法论旨在尽可能减少理解电路的认知负荷。例如：</p>
+        <p>可解释性的一个根本挑战是找到管理和理解复杂计算认知负荷的抽象和接口。<sup id="fnref-f37n"><a href="#f37n">[37]</a></sup> 我们的方法论旨在尽可能减少理解电路的认知负荷。例如：</p>
       
     
       
-        <div class="list-content">特征稀疏性意味着归因图中节点更少。我们剪枝图，以便分析者可以只关注其最重要的组件。我们的UI旨在使导航图尽可能流畅。我们使用不那么原则性的“超节点”抽象来临时分组相关特征。</div>
+        <div class="list-content">特征稀疏性意味着归因图中节点较少。我们剪枝图，以便分析师可以只关注其最重要的组件。我们的UI旨在使导航图尽可能流畅。我们使用不很原则性的“超节点”抽象来临时将相关特征分组在一起。</div>
       
     
       
-        <p>尽管有所有这些步骤，我们的归因图仍然相当复杂，并且由于许多原因需要相当多的时间和努力来理解：</p>
+        <p>尽管采取了所有这些步骤，我们的归因图仍然相当复杂，并且由于许多原因需要相当多的时间和努力来理解：</p>
       
     
       
-        <div class="list-content">即使在我们的剪枝管道之后和相当短的提示上，图通常包含数百个特征和数千条边。我们感兴趣的概念通常分散在多个特征上。每个特征从许多其他特征接收许多小输入，使得难以简洁总结“是什么导致这个特征激活”。特征经常通过不同长度的多个路径，甚至不同符号的路径相互施加影响！</div>
+        <div class="list-content">即使在我们的剪枝流程之后，在相当短的提示上，图通常包含数百个特征和数千条边。我们感兴趣的概念通常分布在多个特征上。每个特征从许多其他特征接收许多小输入，这使得简洁总结“是什么导致这个特征激活”变得困难。特征往往通过不同长度的多个路径，甚至不同符号的路径相互施加影响！</div>
       
     
       
-        <p>因此，难以将我们的图揭示的机制提炼成一个简洁的故事。因此，我们呈现的简短描述必然是即使是我们归因图中捕获的有限模型计算理解的简化故事。我们希望改进的替代模型训练、更好的抽象、更复杂的剪枝和更好的可视化工具的结合能够在未来帮助缓解这个问题。</p>
+        <p>因此，很难将我们的图揭示的机制提炼成一个简洁的故事。因此，我们呈现的短文必然是我们归因图中捕捉到的即使有限的模型计算理解的简化故事。我们希望改进的替代模型训练、更好的抽象、更复杂的剪枝和更好的可视化工具的结合能在未来帮助缓解这个问题。</p>
       
     
       
-        <h3>在错误抽象水平的特征</h3>
+        <h3>处于错误抽象水平的特征</h3>
         
       
     
       
-        <p>随着稀疏编码模型作为从模型中提取可解释特征的技术越来越受欢迎，许多研究人员记录了该方法的缺点（见例如[<cite>[sharkey2025open,kantamneni2025sparse,wu2025axbench,chanin2024absorption,till2024true]</cite>]）。一个值得注意的问题是特征分裂[<cite>[bricken2023monosemanticity,turner2024sensitivity]</cite>]的问题，其中发现的特征在某种意义上是太具体的。这也可能导致相关的特征吸收[<cite>[chanin2024absorption]</cite>]问题，其中高度特定的特征从更一般的特征中窃取信用，在其中留下空洞（导致像“U.S. cities except for New York and Los Angeles”特征这样的东西）。</p>
+        <p>随着稀疏编码模型作为从模型中提取可解释特征的技术越来越受欢迎，许多研究人员已经记录了该方法的缺点（见例如[<cite>[sharkey2025open,kantamneni2025sparse,wu2025axbench,chanin2024absorption,till2024true]</cite>]）。一个值得注意的问题是特征分裂[<cite>[bricken2023monosemanticity,turner2024sensitivity]</cite>]的问题，其中发现的特征在某种意义上是太具体的。这也可能导致相关的问题特征吸收[<cite>[chanin2024absorption]</cite>]，其中高度特定的特征从更一般的特征中窃取信用，在其中留下空洞（导致像“U.S. cities except for New York and Los Angeles”特征这样的东西）。</p>
       
     
       
-        <p>作为一个特征分裂的具体例子，回想在本文许多例子中我们突出了“say X”特征，这些特征导致模型输出特定（组）token。然而，我们还注意到存在许多这样的特征，表明它们每个实际上代表更特定的东西。例如，我们想出了十二个Claude 3.5 Haiku用单词“during”完成的提示，并测量是否有任何特征对所有提示激活（如同真正的“say ‘during’”特征会做的那样）。事实上，没有这样的特征——任何单个特征只对提示的子集触发。而且，特征的普遍性程度似乎随着我们跨层转码器的大小增加而降低。</p>
+        <p>作为一个特征分裂的具体例子，回想我们在本文许多例子中突出显示了导致模型输出特定（组）token的“say X”特征。然而，我们也注意到有许多这样的特征，这表明它们每个实际上代表更具体的东西。例如，我们想出了十二个Claude 3.5 Haiku用单词“during”完成的提示，并测量是否有任何特征对所有提示都激活（如同一个真正的“say ‘during’”特征会做的那样）。事实上，没有这样的特征——任何单个特征只对提示的一个子集触发。而且，特征的普遍性程度似乎随着我们跨层转码器的大小而降低。</p>
       
     
       
-        <p>可能每个单个特征代表某种可解释的东西——例如，可能导致一个人说出单词“during”的定性不同上下文。然而，我们经常发现我们关心的抽象水平与我们在特征中发现的水平不同。使用更小的跨层转码器可能有助于这个问题，但也会导致我们捕获更少的模型计算。</p>
+        <p>可能每个单个特征代表某种可解释的东西——例如，可能导致一个人说单词“during”的定性不同的上下文。然而，我们经常发现我们关心的抽象水平与我们在特征中发现的水平不同。使用更小的跨层转码器可能有助于这个问题，但也会导致我们捕捉模型计算的较少部分。</p>
       
     
       
-        <p>在本文中，我们经常以临时方式通过手动将具有相关含义的特征分组到归因图的“超节点”中来解决这个问题。虽然这种技术已被证明非常有帮助，但手动步骤是劳动密集型的并且可能丢失信息。它还使得难以研究机制如何跨提示泛化，因为相关特征类别的不同子集可能在不同提示上活跃。</p>
+        <p>在本文中，我们经常以临时方式通过手动将具有相关含义的特征分组到归因图的“超节点”中来解决这个问题。虽然这种技术已被证明非常有帮助，但手动步骤是劳动密集型的，并且可能丢失信息。它还使得研究机制如何跨提示泛化变得困难，因为相关特征类别的不同子集可能在不同提示上活跃。</p>
       
     
       
-        <p>我们期望解决这个问题需要认识到存在不同抽象水平的可解释概念，并且在不同时间我们可能对不同水平感兴趣。像SAE和（跨层）转码器这样的稀疏编码方法是“扁平”的工具，但我们可能需要一个分层变体，允许不同抽象水平的特征以可解释的方式共存。</p>
+        <p>我们期望解决这个问题需要认识到存在不同抽象水平的可解释概念，并且在不同时间我们可能对不同水平感兴趣。像SAE和（跨层）转码器这样的稀疏编码方法是一种“扁平”工具，但我们可能需要一个分层变体，允许不同抽象水平的特征以可解释的方式共存。</p>
       
     
       
-        <p>几位作者最近提出了“Matryoshka”变体的稀疏自编码器，可能有助于解决这个问题[<cite>[nabeshima2024matryoshka,bussmann2024matryoshka]</cite>]。其他研究人员提出了事后统一相关特征的“meta-SAEs”[<cite>[bussmann2024meta]</cite>]。</p>
+        <p>几位作者最近提出了稀疏自编码器的“Matryoshka”变体，可能有助于解决这个问题[<cite>[nabeshima2024matryoshka,bussmann2024matryoshka]</cite>]。其他研究人员提出了事后统一相关特征的“meta-SAE”[<cite>[bussmann2024meta]</cite>]。</p>
       
     
       
@@ -1124,23 +1124,23 @@
       
     
       
-        <p>在本文中我们主要关注归因图，它显示关于特定提示上特征-特征交互的信息。然而，转码器基于方法论的一个理论优势是它们给我们特征之间的全局权重，这些权重独立于提示。这允许我们估计替代模型的“连接组”并了解它（虽然不一定是底层模型）使用的适用于许多不同输入的一般算法。我们在这个方法上有些成功——例如，在伴侣论文关于<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a>的部分，我们可以看到“harmful requests”特征的全局输入由各种不同特定伤害类别组成。在本文中，我们深入研究了与算术相关的特征的全局权重，例如发现“say a number ending in 5”特征从“6 + 9”特征、“7 + 8”特征等接收输入。</p>
+        <p>在本文中我们主要关注归因图，它显示关于特征-特征交互在特定提示上的信息。然而，转码器基于方法论的一个理论优势是它们为我们提供了特征之间的全局权重，这些权重独立于提示。这允许我们估计替代模型的“连接组”并了解它（虽然不一定是底层模型）使用的适用于许多不同输入的一般算法。我们在这个方法上取得了一些成功——例如，在伴侣论文关于的部分，我们可以看到“harmful requests”特征的全局输入由各种不同特定伤害类别组成。在本文中，我们深入研究了与算术相关的特征的全局权重，例如发现“say a number ending in 5”特征从“6 + 9”特征、“7 + 8”特征等接收输入。<a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a></p>
       
     
       
-        <p>然而，在大多数情况下，我们发现全局特征-特征连接相当难以理解。这可能主要有两个原因：</p>
+        <p>然而，在大多数情况下，我们发现全局特征-特征连接相当难以理解。这可能是由于两个主要原因：</p>
       
     
       
-        <div class="list-content">干扰权重——因为特征在叠加中表示，为了学习特征之间有用的权重，模型必须承担虚假的<a href="2023-may-update.html">电路更新 — 2023 年 5 月</a>——在对模型性能没有意义且无用的特征之间的连接。这些虚假权重对模型性能不是太有害，因为它们的效果很少“叠加”到实际改变模型输出。例如，我们有时看到像这样的特征，似乎显然是一个“say 15”特征，但其顶部logit输出包括许多看似不相关的单词（“gag”、“duty”、“temper”、“dispers”）。我们相信这些logit连接对模型的行为基本上无关，因为当这个特征激活时，“duty”成为一个合理完成的概率非常低，因此加权其logit几乎没有导致它被采样的风险。不幸的是，这使得全局权重非常难以理解！这种现象也适用于特征-特征权重（见§加法中的全局权重）。</div>
+        <div class="list-content">干扰权重——因为特征以叠加方式表示，为了学习特征之间有用的权重，模型必须承担虚假的——在模型性能中没有意义且无用的特征之间的连接。这些虚假权重对模型性能不是太有害，因为它们的效果很少“叠加”到实际改变模型的输出。例如，我们有时看到像这样的特征，它似乎明显是一个“say 15”特征，但其顶级logit输出包括许多看似不相关的单词（“gag”、“duty”、“temper”、“dispers”）。我们相信这些logit连接本质上与模型的行为无关，因为当这个特征激活时，“duty”不太可能是合理的完成，因此提升其logit几乎没有导致它被采样的风险。不幸的是，这使得全局权重非常难以理解！这种现象也适用于特征-特征权重（见§加法中的全局权重）。<a href="2023-may-update.html">电路更新 — 2023 年 5 月</a></div>
       
     
       
-        <div class="list-content">通过注意力中介的交互——我们跨层转码器衍生的基本全局特征-特征权重描述不通过任何注意力层中介的特征之间的直接交互。然而，还有通过注意力头中介的特征-特征权重。这些可能被认为类似于卷积神经网络中的特征如何通过多组权重相关，对应于不同的位置偏移（进一步讨论<a href="2021-framework.html">变压器电路的数学框架</a>）。</div>
+        <div class="list-content">通过注意力介导的交互——我们从跨层转码器派生的基本全局特征-特征权重描述了不通过任何注意力层介导的特征之间的直接交互。然而，也存在通过注意力头介导的特征-特征权重。这些可能被认为类似于卷积神经网络中的特征如何通过多组权重相关，对应于不同的位置偏移（进一步讨论<a href="2021-framework.html">Transformer 电路的数学框架</a>）。</div>
       
     
       
-        <p>我们的归因图边是直接权重和这些注意力中介权重的加权组合。我们对全局权重的基本概念根本不考虑这些交互。一种这样做的方式是计算由每个可能注意力头中介的全局权重。然而，这有两个限制：（1）为了有用，我们需要一种理解不同头如何选择它们关注的位置的机制的方式（见§局限性：缺失的注意力电路），（2）它不考虑由头组合中介的交互[<cite>[nelhage2021mathematical]</cite>]。解决这个问题可能需要扩展我们的字典学习方法论来学习可解释的注意力特征或替换头。</p>
+        <p>我们的归因图边是直接权重和这些注意力介导权重的加权组合。我们全局权重的基本概念根本不考虑这些交互。一种这样做的方式是计算由每个可能注意力头介导的全局权重。然而，这有两个限制：（1）为了有用，我们需要一种理解不同头选择它们关注位置的机制的方式（见§局限性：缺失的注意力电路），（2）它不考虑由头组合介导的交互[<cite>[nelhage2021mathematical]</cite>]。解决这个问题可能需要扩展我们的字典学习方法论来学习可解释的注意力特征或替换头。</p>
       
     
       
@@ -1149,15 +1149,15 @@
       
     
       
-        <p>我们的跨层转码器被训练为在每一层模仿底层模型的激活。然而，即使它准确重构模型的激活，也没有保证它通过相同的机制这样做。例如，即使跨层转码器在我们的训练分布上达到0 MSE，它可能已经学习了与底层模型根本不同的输入/输出函数，因此在分布外输入上具有大的重构误差。我们希望这个问题通过（1）在广泛的数据分布上训练，以及（2）强制替代模型重构底层模型的每层激活，而不是简单地重构其输出而得到缓解。尽管如此，我们不能保证替代模型已经学习了相同的机制——我们称之为机制忠实度——而是求助于事后验证它。</p>
+        <p>我们的跨层转码器被训练为在每层模仿底层模型的激活。然而，即使它准确重构模型的激活，也没有保证它通过相同的机制这样做。例如，即使跨层转码器在我们的训练分布上达到了0 MSE，它可能已经学习了与底层模型根本不同的输入/输出函数，因此在分布外输入上会有大的重构误差。我们希望这个问题通过（1）在广泛的数据分布上训练，以及（2）迫使替代模型重构底层模型的每层激活，而不是简单地重构其输出而得到缓解。尽管如此，我们不能保证替代模型已经学习了相同的机制——我们称之为机制忠实度——而是求助于事后验证它。</p>
       
     
       
-        <p>在本文中，我们使用了扰动实验（抑制和激发特征）来验证我们的归因图建议的机制。在我们呈现的案例研究中，我们通常能够验证特征具有我们预期的效果（对模型输出和其他特征）。然而，我们提供的验证程度非常粗糙。我们通常同时扰动多个特征（“超节点”）并检查它们对其他特征/logit输出的方向影响。此外，我们通常扫描我们执行扰动的层并使用产生最大效果的层。原则上，我们的归因图做出的预测比这些类型的干预可以测试的要细粒度得多。理想情况下，我们应该能够准确预测在任何层扰动任何特征对任何其他特征的影响。</p>
+        <p>在本文中，我们使用了扰动实验（抑制和激发特征）来验证我们的归因图建议的机制。在我们呈现的案例研究中，我们通常能够验证特征具有我们预期的效果（对模型输出，以及对其他特征）。然而，我们提供的验证程度非常粗糙。我们通常同时扰动多个特征（“超节点”）并检查它们对其他特征/logit输出的方向性影响。此外，我们通常扫描我们执行扰动的层并使用产生最大效果的层。原则上，我们的归因图做出的预测比这些类型的干预可以测试的要细粒度得多。理想情况下，我们应该能够准确预测在任何层扰动任何特征对任何其他特征的影响。</p>
       
     
       
-        <p>在§附录：验证替代模型中，我们尝试更全面地量化我们在预测此类扰动结果方面的准确性，发现对扰动下游几层的效果有相当好的预测能力，而对许多层下游的效果要差得多。这表明，虽然我们的电路描述在非常粗糙的水平上可能是机制准确的，但我们在使其忠实于底层模型方面有很大的改进空间。</p>
+        <p>在§附录：验证替代模型中，我们尝试更全面地量化我们在预测此类扰动结果方面的准确性，发现对扰动后几层下游效应的预测能力相当好，而对许多层下游的预测能力差得多。这表明，虽然我们的电路描述在非常粗的层面上可能是机制准确的，但我们在使其忠实于底层模型方面有很大的改进空间。</p>
       
     
       
@@ -1170,11 +1170,11 @@
       
     
       
-        <p>我们逆向工程神经网络的方法有四个基本步骤：分解为组件，提供这些组件的描述，表征组件如何交互以产生行为，以及验证这些描述。<sup id="fnref-f38n"><a href="#f38n">[38]</a></sup> 在每个步骤都需要若干选择，这些选择可能或多或少是原则性的，一个方法的威力最终是它产生关于模型行为的有效假设的程度。</p>
+        <p>我们逆向工程神经网络的方法有四个基本步骤：分解为组件，提供这些组件的描述，表征组件如何交互以产生行为，以及验证这些描述。<sup id="fnref-f38n"><a href="#f38n">[38]</a></sup> 在每个步骤都需要若干选择，这些选择可以更有或更少原则性，并且一个方法的威力最终是它在多大程度上产生关于模型行为的有效假设。</p>
       
     
       
-        <p>在本文中，我们训练具有稀疏特征的跨层转码器来替换MLP块（分解），通过它们激活的数据集例子描述特征（描述），使用归因图表征它们在特定提示上的交互（交互），并使用因果引导干预验证假设（验证）。</p>
+        <p>在本文中，我们训练了具有稀疏特征的跨层转码器来替换MLP块（分解），通过它们激活的数据集例子描述特征（描述），使用归因图表征它们在特定提示上的交互（交互），并使用因果转向干预验证假设（验证）。</p>
       
     
       
@@ -1182,40 +1182,40 @@
       
     
       
-        <div class="list-content">我们使用学习到的特征而不是神经元。虽然神经元的顶部激活通常是可解释的，但较低激活不是。原则上，可以阈值化神经元激活以将它们限制在这个可解释区域；然而，我们发现将神经元阈值化到那个水平比转码器或CLT显著更多地损害模型行为。这意味着训练的替换层可以在可解释性、L0和MSE方面相对于阈值化神经元提供帕累托改进。神经元的集合是固定的。（尽管如此，神经元可以作为调查的起点，而不产生任何额外计算成本，见例如[<cite>[meng2024monitor]</cite>]。）我们使用转码器而不是残差流SAE。虽然残差流SAE可以分解模型的潜在状态，但它们不提供分解其计算步骤的自然扩展。关键的是，转码器特征桥接MLP层并通过残差流与其他层的转码器特征线性交互。相反，SAE特征之间的交互被非线性MLP插入。我们使用跨层转码器而不是每层转码器。我们假设[<cite>[lindsey2024crosscoders]</cite>]不同的MLP层可能合作实现单个计算步骤（“跨层叠加”）；这种情况的最极端情况是许多层放大相同的早期层特征以使其仍然足够大来影响晚期层。CLT将这些折叠到一个特征。我们发现这个现象实际发生的证据，通过路径长度与图影响的帕累托改进表现出来。我们使用线性直接影响而不是非线性归因或消融来计算特征-特征交互。关于“显著性图”或通过非线性神经网络的归因已经写了很多（包括消融、路径积分梯度[<cite>[sundararajan2017axiomatic]</cite>]和Shapley值（例如[<cite>[lundberg2017unified]</cite>]））。即使是非线性设置中最原则性的信用分配选项也有些令人担忧。由于我们的目标是清晰地推理机制，我们构建设置使得前一层特征与下一层特征预激活之间的直接交互是有条件线性的；也就是说，一旦我们冻结问题的某些部分（注意力模式和归一化分母），它们就是线性的。这将问题分解为我们可以以原则性方式机制理解的部分，以及仍然有待理解的部分[<cite>[nelhage2021mathematical]</cite>]。实现这种线性直接影响属性同样关键的是早期决定使用转码器。<sup id="fnref-f39n"><a href="#f39n">[39]</a></sup><sup id="fnref-f40n"><a href="#f40n">[40]</a></sup></div>
+        <div class="list-content">我们使用学习的特征而不是神经元。虽然神经元的顶级激活通常是可解释的，但较低激活不是。原则上，可以阈值化神经元激活以将其限制在这个可解释范围内；然而，我们发现以该水平阈值化神经元对模型行为的损害显著大于转码器或CLT。这意味着训练的替换层可以在可解释性、L0和MSE方面相对于阈值化神经元提供帕累托改进。神经元的集合是固定的。（尽管如此，神经元可以提供调查的起点，而无需任何额外计算成本，见例如[<cite>[meng2024monitor]</cite>]。）我们使用转码器而不是残差流SAE。虽然残差流SAE可以分解模型的潜在状态，但它们不提供分解其计算步骤的自然扩展。关键的是，转码器特征桥接MLP层，并通过残差流与其他层的转码器特征线性交互。相比之下，SAE特征之间的交互被非线性MLP插入。我们使用跨层转码器而不是每层转码器。我们假设[<cite>[lindsey2024crosscoders]</cite>]不同的MLP层可能合作实现单个计算步骤（“跨层叠加”）；这种情况的最极端案例是许多层放大相同的早期层特征以使其仍然足够大来影响晚期层。CLT将这些折叠到一个特征中。我们发现了这个现象在实践中发生的证据，通过路径长度与图影响的帕累托改进表现出来。我们使用线性直接效应而不是非线性归因或消融来计算特征-特征交互。关于“显著性图”或通过非线性神经网络的归因已经写了很多（包括消融、路径积分梯度[<cite>[sundararajan2017axiomatic]</cite>]和Shapley值（例如[<cite>[lundberg2017unified]</cite>]））。即使是非线性设置中最原则性的信用分配选项也有些棘手。由于我们的目标是清晰地推理机制，我们构建我们的设置，使得前一层特征与下一层特征预激活之间的直接交互是有条件线性的；也就是说，一旦我们冻结问题的某些部分（注意力模式和归一化分母），它们就是线性的。这将问题分解为我们可以以原则性方式机制理解的部分，以及仍然有待理解的部分[<cite>[nelhage2021mathematical]</cite>]。实现这种线性直接效应属性也关键的是早期决定使用转码器。<sup id="fnref-f39n"><a href="#f39n">[39]</a></sup><sup id="fnref-f40n"><a href="#f40n">[40]</a></sup></div>
       
     
       
-        <p>我们为方便或作为朝着更一般解决方案的第一步做出了其他选择：</p>
+        <p>我们出于便利或其他作为更一般解决方案第一步做出了其他选择：</p>
       
     
       
-        <div class="list-content">我们折叠注意力路径。我们归因图中的每条边都是一对特征的直接交互，在所有可能的直接交互路径上求和。其中一些路径主要通过残差流流动。其他通过注意力头流动。我们在当前工作中没有努力区分这些。这丢弃了很多有趣的结构，因为中介交互的头可能是有趣的，如果它们是我们理解的东西（例如后继头[<cite>[gould2023successor]</cite>]或归纳头[<cite>[olsson2022context]</cite>]）。<sup id="fnref-f41n"><a href="#f41n">[41]</a></sup><sup id="fnref-f42n"><a href="#f42n">[42]</a></sup>我们忽略QK电路。为了得到我们的线性特征-特征交互，我们按照Framework[<cite>[nelhage2021mathematical]</cite>]将理解Transformer分解为两部分。首先我们询问给定注意力头或注意力头集合的特征-特征交互（“OV电路”）。但这留下了第二个问题，即为什么注意力头关注各种片段（“QK电路”）。在本文中，我们没有尝试这后一半。我们只使用稀疏性惩罚和重构损失进行交叉编码器训练。虽然我们的最终目标是找到具有稀疏可解释边的电路，在一个对底层模型机制忠实的替代模型中，但我们没有明确为任何这些目标训练。</div>
+        <div class="list-content">我们折叠注意力路径。我们归因图中的每条边都是一对特征的直接交互，在所有可能的直接交互路径上求和。其中一些路径主要通过残差流流动。其他通过注意力头流动。我们在当前工作中不努力区分这些。这丢弃了很多有趣的结构，因为哪个头介导了交互如果是我们理解的东西（例如后继头[<cite>[gould2023successor]</cite>]或归纳头[<cite>[olsson2022context]</cite>]）可能会很有趣。<sup id="fnref-f41n"><a href="#f41n">[41]</a></sup><sup id="fnref-f42n"><a href="#f42n">[42]</a></sup>我们忽略QK电路。为了得到我们的线性特征-特征交互，我们按照Framework[<cite>[nelhage2021mathematical]</cite>]将理解Transformer分解为两部分。首先我们询问给定注意力头或注意力头集的特征-特征交互（“OV电路”）。但这留下了关于为什么注意力头关注各种片段的第二个问题（“QK电路”）。在这项工作中，我们没有尝试这后一半。我们只为crosscoder训练使用稀疏性惩罚和重构损失。虽然我们的最终目标是找到具有稀疏可解释边的电路，在一个对底层模型机制忠实的替代模型中，我们没有明确为任何这些目标训练。</div>
       
     
       
-        <p>尽管如此，我们当前的方法在<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a>中产生了有趣的、经过验证的涉及规划、多语言结构、幻觉、拒绝等的机制。</p>
+        <p>尽管如此，我们当前的方法在中产生了涉及规划、多语言结构、幻觉、拒绝等有趣的、经过验证的机制。<a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a></p>
       
     
       
-        <p>我们期望在训练的、可解释的替代模型范式上的进步将在图相关指标上产生定量改进，并在模型行为可读的数量上产生定性改进。可能这是一个渐进过程，其中对CLT和相关注意力方法的渐进改进将产生电路识别的渐进改进，或者一个根本不同的分解方法将在规模上胜过这个方法来揭示机制。无论如何，我们希望进入一个分解方法和“生物学”结果之间有清晰飞轮的时代，其中特定模型调查中结构的出现激发分解方法的创新，这反过来将更多模型行为带到光明中。</p>
+        <p>我们期望在训练的、可解释的替代模型范式中的进步将在图相关指标上产生定量改进，并在模型行为可读的数量上产生定性改进。这可能是一个渐进的过程，其中对CLT和相关注意力方法的渐进改进将产生电路识别的渐进改进，或者一个根本不同的分解方法将在规模上击败这个方法来揭示机制。无论如何，我们希望进入一个分解方法和“生物学”结果之间有清晰飞轮的时代，其中特定模型调查中结构的出现激发分解方法的创新，这反过来将更多模型行为带到光明中。</p>
       
     
       
-        <h3>coda：加法的教训</h3>
+        <h3>尾声：加法的教训</h3>
         
       
     
       
-        <p>加法是模型执行的最简单行为之一，而且因为它如此结构化，我们可以精确表征整个问题领域上每个特征的活动。这允许我们跳过盯着数据集例子并试图辨别一个特征相对于什么在做什么以及是什么将其与其他在相似上下文中活跃的特征区分开来的困难步骤。这揭示了Haiku 3.5使用的一系列启发式（“say something ending in a 5”、“say something around 50”、“say something starting with 51”），这些启发式之前已被Nikankin[<cite>[nikankin2024arithmetic]</cite>]识别，连同一组查找表特征，将满足某些条件的输入对（例如，将以6和9结尾的数字相加）连接到输出上满足结果的适当总和特征（例如，产生以5结尾的总和）。</p>
+        <p>加法是模型执行的最简单行为之一，并且因为它是如此结构化，我们可以精确地表征整个问题领域上每个特征的活动。这允许我们跳过盯着数据集例子并试图辨别一个特征相对于什么在做什么以及什么将其与其他在相似上下文中活跃的特征区分开来的困难步骤。这揭示了Haiku 3.5使用的一系列启发式（“say something ending in a 5”，“say something around 50”，“say something starting with 51”），这些先前已被Nikankin[<cite>[nikankin2024arithmetic]</cite>]识别，连同一组将满足某些条件的输入对（例如，将以6和9结尾的数字相加）连接到输出上满足结果的适当总和特征的查找表特征（例如，产生以5结尾的总和）。</p>
       
     
       
-        <p>然而，即使在这个更容易的设置中，当仅从原始数据集例子标注这些特征时，我们犯了许多错误，例如基于它在上下文中跟随的内容认为_6 + _9特征本身是一个sum = _5特征。我们还难以区分不同尺度的低精度特征，以及对有限输入集敏感的特征与仅仅因为我们的数据集中那些输入的高流行度而看起来如此的特征之间。在查看数十个拒绝特征的渐变时，这必须糟糕多少！如果我们想以即使是今天的CLT似乎使之成为可能的解析度水平理解问题，通过特征几何或超人自动可解释性方法获得特征之间更精确的区分将是必要的。</p>
+        <p>然而，即使在这个更容易的设置中，当仅从原始数据集例子标注这些特征时，我们犯了许多错误，例如基于它在上下文中跟随的内容认为_6 + _9特征本身是一个sum = _5特征。我们还难以区分不同规模的低精度特征，以及对有限输入集敏感或仅仅因为那些输入在我们数据集中高流行度而看起来如此的特征。当看着拒绝特征的几十个渐变时，这必须有多糟糕！如果我们想以即使是今天的CLT似乎使之可能的解析度水平理解问题，通过特征几何或超人自动可解释性方法获得特征之间更精确的区分将是必要的。</p>
       
     
       
-        <p>因为加法是一个如此清晰的问题，我们还能够看到特征如何相互连接以构建并行路径；从依赖于输入的简单启发式产生到与输出相关的更复杂启发式；从Nikankin识别的“启发式袋”到“启发式图”。虚拟权重显示这种计算结构，查找表特征组结合形成不同模数和尺度的总和特征，这些又结合形成更精确的总和特征，并最终给出输出。似乎很可能，在“更模糊”的自然语言例子中，我们正在将不同深度特征扮演的许多角色混淆到像“unknown entity”或“harmful request”或“notions of largeness”这样的整体桶中，这些实际上服务于专门的角色，并且实际上正在发生一个复杂的聚合和信息转换，就在今天我们的理解之外。</p>
+        <p>因为加法是一个如此清晰的问题，我们也能够看到特征如何相互连接以构建并行路径；从依赖于输入的简单启发式产生到与输出相关的更复杂启发式；从Nikankin识别的“启发式袋”到“启发式图”。虚拟权重显示了这种计算结构，一组查找表特征组合形成不同模数和规模的总和特征，这些特征组合形成更精确的总和特征，并最终给出输出。似乎很可能，在“更模糊”的自然语言例子中，我们正在将不同深度特征扮演的许多角色混淆到像“unknown entity”或“harmful request”或“notions of largeness”这样的整体桶中，这些实际上服务于专门的角色，并且实际上正在发生复杂的信息聚合和转换，只是今天超出了我们的理解。</p>
       
     
       
@@ -1224,19 +1224,19 @@
       
     
       
-        <p>尽管是一个年轻的领域，机制可解释性已经迅速发展。对于开放问题和现有方法的景观介绍，我们推荐Sharkey等人最近的调查[<cite>[sharkey2025open]</cite>]。更广泛的观点可以在最近关于机制可解释性和相关主题的评论中找到（例如[<cite>[rauker2023toward,bereska2024mechanistic,ferrando2024primer,mueller2024quest]</cite>]）。</p>
+        <p>尽管是一个年轻的领域，机制可解释性已经迅速发展。对于开放问题和现有方法的景观介绍，我们推荐Sharkey等人最近的调查[<cite>[sharkey2025open]</cite>]。更广泛的视角可以在最近关于机制可解释性和相关主题的评论中找到（例如[<cite>[rauker2023toward,bereska2024mechanistic,ferrando2024primer,mueller2024quest]</cite>]）。</p>
       
     
       
-        <p>在之前的论文中，我们讨论了一些我们工作建立的基础主题，而不是重述那个讨论，我们将读者推荐到我们之前对它们的讨论。这包括</p>
+        <p>在先前的论文中，我们讨论了一些我们工作所建立的基础主题，而不是重述那个讨论，我们将读者推荐到我们先前对它们的讨论。这包括</p>
       
     
       
-        <div class="list-content">可解释特征的存在（例如[<cite>[mikolov2013efficient,karpathy2015visualizing,cammarata2020curve]</cite>]；见<a href="2022-toy_model.html">叠加的玩具模型</a>）注意力头分析（例如[<cite>[voita2019analyzing,jones2017tensor2tensor]</cite>]；见<a href="2021-framework.html">变压器电路的数学框架</a>），Bertology（例如[<cite>[rogers2020primer]</cite>]；见<a href="2021-framework.html">变压器电路的数学框架</a>），可解释性界面（例如[<cite>[olah2018the,vig2019multiscale]</cite>]；见<a href="2021-framework.html">变压器电路的数学框架</a>），解纠缠（例如[<cite>[bengio2013representation]</cite>]；见<a href="2024-scaling-monosemanticity.html">扩展单一语义性：从 Claude 3 Sonnet 中提取可解释特征</a>），压缩感知（例如[<cite>[donoho2006compressed,ganguli2012compressed]</cite>]；见<a href="2022-toy_model.html">叠加的玩具模型</a>），稀疏字典学习（例如[<cite>[olshausen1997sparse,elad2010sparse]</cite>]；见<a href="2024-scaling-monosemanticity.html">扩展单一语义性：从 Claude 3 Sonnet 中提取可解释特征</a>），叠加理论（例如[<cite>[goh2016decoding,arora2018linear]</cite>]；见<a href="2024-scaling-monosemanticity.html">扩展单一语义性：从 Claude 3 Sonnet 中提取可解释特征</a>），神经编码和分布式表示理论（例如[<cite>[thorpe1989coding]</cite>]；见<a href="2022-toy_model.html">叠加的玩具模型</a>）激活引导（例如[<cite>[radford2015unsupervised,turner2023activation]</cite>]；见<a href="2024-scaling-monosemanticity.html">扩展单一语义性：从 Claude 3 Sonnet 中提取可解释特征</a>）。</div>
+        <div class="list-content">可解释特征的存在（例如[<cite>[mikolov2013efficient,karpathy2015visualizing,cammarata2020curve]</cite>]；见） 注意力头分析（例如[<cite>[voita2019analyzing,jones2017tensor2tensor]</cite>]；见）， Bertology（例如[<cite>[rogers2020primer]</cite>]；见）， 可解释性接口（例如[<cite>[olah2018the,vig2019multiscale]</cite>]；见）， 解纠缠（例如[<cite>[bengio2013representation]</cite>]；见）， 压缩感知（例如[<cite>[donoho2006compressed,ganguli2012compressed]</cite>]；见）， 稀疏字典学习（例如[<cite>[olshausen1997sparse,elad2010sparse]</cite>]；见）， 叠加理论（例如[<cite>[goh2016decoding,arora2018linear]</cite>]；见）， 神经编码和分布式表示理论（例如[<cite>[thorpe1989coding]</cite>]；见） 激活转向（例如[<cite>[radford2015unsupervised,turner2023activation]</cite>]；见）。<a href="2022-toy_model.html">叠加的玩具模型</a><a href="2022-toy_model.html">叠加的玩具模型</a><a href="2022-toy_model.html">叠加的玩具模型</a><a href="2021-framework.html">Transformer 电路的数学框架</a><a href="2021-framework.html">Transformer 电路的数学框架</a><a href="2021-framework.html">Transformer 电路的数学框架</a><a href="2024-scaling-monosemanticity.html">单语义性扩展：从 Claude 3 Sonnet 中提取可解释特征</a><a href="2024-scaling-monosemanticity.html">单语义性扩展：从 Claude 3 Sonnet 中提取可解释特征</a><a href="2024-scaling-monosemanticity.html">单语义性扩展：从 Claude 3 Sonnet 中提取可解释特征</a><a href="2024-scaling-monosemanticity.html">单语义性扩展：从 Claude 3 Sonnet 中提取可解释特征</a></div>
       
     
       
-        <p>接下来两节将重点放在我们经常在机制可解释性中使用的两个不同阶段[<cite>[olah2020zoom]</cite>]：识别特征，然后分析它们形成的电路。在那之后，我们将注意力转向过去关于神经网络“生物学”的工作。</p>
+        <p>接下来的两节将重点关注我们经常在机制可解释性中使用的两个不同阶段[<cite>[olah2020zoom]</cite>]：识别特征，然后分析它们形成的电路。在那之后，我们将注意力转向关于神经网络“生物学”的过去工作。</p>
       
     
       
@@ -1245,23 +1245,23 @@
       
     
       
-        <p>电路发现的一个基本挑战是找到合适的分析单元[<cite>[sharkey2025open]</cite>]。网络的自然组件——注意力头和神经元——由于叠加[<cite>[elhage2022superposition,olah2023distributed]</cite>]而缺乏可解释性，使得识别更好的分析单元成为该领域的中心问题。</p>
+        <p>电路发现的一个根本挑战是找到合适的分析单元[<cite>[sharkey2025open]</cite>]。网络的自然组件——注意力头和神经元——由于叠加而缺乏可解释性[<cite>[elhage2022superposition,olah2023distributed]</cite>]，这使得识别更好的分析单元成为该领域的中心问题。</p>
       
     
       
-        <p>稀疏字典学习是一种具有悠久历史的技术，最初由神经科学家开发用于分析神经记录数据[<cite>[olshausen1997sparse]</cite>]。最近的工作[<cite>[yun2021transformer,bricken2023monosemanticity,cunningham2023sparse,gao2024scaling,rajamanoharan2024jumping,templeton2024scaling]</cite>]将稀疏自编码器（SAE）[<cite>[ng2011sparse,frey2014topk]</cite>]作为可扩展解决方案应用于解决叠加，通过学习分解语言模型表示的字典。虽然SAE已被成功扩展到前沿模型[<cite>[gao2024scaling,templeton2024scaling]</cite>]，研究人员已经识别出几个方法论局限性，包括特征收缩[<cite>[wright2024feature]</cite>]、特征吸收[<cite>[chanin2024absorption,bussmann2024meta]</cite>]、缺乏规范化[<cite>[leask2025sparse,kissane2024saes,paulo2025sparse]</cite>]、自动特征解释[<cite>[bills2023language,paulo2024automatically,heap2025sparse]</cite>]，以及在下游分类和引导任务上的差表现[<cite>[kantamneni2025sparse,wu2025axbench]</cite>]。</p>
+        <p>稀疏字典学习是一种具有悠久历史的技术，最初由神经科学家开发用于分析神经记录数据[<cite>[olshausen1997sparse]</cite>]。最近的工作[<cite>[yun2021transformer,bricken2023monosemanticity,cunningham2023sparse,gao2024scaling,rajamanoharan2024jumping,templeton2024scaling]</cite>]应用了稀疏自编码器（SAE）[<cite>[ng2011sparse,frey2014topk]</cite>]作为可扩展解决方案，通过学习分解语言模型表示的字典来解决叠加。虽然SAE已被成功扩展到前沿模型[<cite>[gao2024scaling,templeton2024scaling]</cite>]，研究人员已经识别出几个方法论限制，包括特征收缩[<cite>[wright2024feature]</cite>]、特征吸收[<cite>[chanin2024absorption,bussmann2024meta]</cite>]、缺乏规范化[<cite>[leask2025sparse,kissane2024saes,paulo2025sparse]</cite>]、自动化特征解释[<cite>[bills2023language,paulo2024automatically,heap2025sparse]</cite>]，以及在下游分类和转向任务上表现差[<cite>[kantamneni2025sparse,wu2025axbench]</cite>]。</p>
       
     
       
-        <p>具体针对电路分析，SAE是次优的，因为它们分解表示而不是计算。转码器[<cite>[dunefsky2024transcoders,marks2024dictionary,templeton2024predicting,ge2024automatically]</cite>]通过从输入预测非线性组件的输出来解决这个局限性。像这样桥接非线性使得无需通过中间非线性进行归因或消融即可直接计算成对特征交互。</p>
+        <p>具体针对电路分析，SAE是次优的，因为它们分解表示而不是计算。转码器[<cite>[dunefsky2024transcoders,marks2024dictionary,templeton2024predicting,ge2024automatically]</cite>]通过从输入预测非线性组件的输出来解决这个限制。这样桥接非线性允许直接计算成对特征交互，而无需依赖通过中间非线性的归因或消融。</p>
       
     
       
-        <p>字典学习方法的空间很大，我们仍然对探索这个空间并解决方法论问题的工作非常兴奋。最近的工作探索了架构修改，如多层特征学习[<cite>[lindsey2024crosscoders,lawson2024residual]</cite>]、添加跳跃连接[<cite>[paulo2025transcoders]</cite>]、纳入梯度信息[<cite>[olmo2024features]</cite>]、添加更强的分层归纳偏置[<cite>[nabeshima2024matryoshka,bussmann2024matryoshka]</cite>]，并通过专家混合进一步增加计算效率[<cite>[mudide2024efficient]</cite>]。社区还研究了替代训练协议来学习尊重下游激活[<cite>[braun2025identifying]</cite>]、减少特征收缩[<cite>[rajamanoharan2024improving,wright2024feature]</cite>]和使下游计算交互稀疏[<cite>[farnik2025jacobian]</cite>]的字典。为了测量这种方法论进步，已经开发了许多基准和标准化评估协议来评估字典学习方法[<cite>[makelov2024towards,huang2024ravel,karvonen2025measuring,chaudhary2024evaluating,wu2025axbench,karvonensaebench,karvonen2024evaluating]</cite>]。我们认为基于电路的指标将是字典学习评估的下一个前沿。</p>
+        <p>字典学习方法的空间很大，我们仍然对探索这个空间并解决方法论问题的工作非常兴奋。最近的工作探索了架构修改，如多层特征学习[<cite>[lindsey2024crosscoders,lawson2024residual]</cite>]、添加跳跃连接[<cite>[paulo2025transcoders]</cite>]、纳入梯度信息[<cite>[olmo2024features]</cite>]、添加更强的分层归纳偏置[<cite>[nabeshima2024matryoshka,bussmann2024matryoshka]</cite>]，以及使用专家混合进一步增加计算效率[<cite>[mudide2024efficient]</cite>]。社区还研究了替代训练协议来学习尊重下游激活[<cite>[braun2025identifying]</cite>]、减少特征收缩[<cite>[rajamanoharan2024improving,wright2024feature]</cite>]和使下游计算交互稀疏[<cite>[farnik2025jacobian]</cite>]的字典。为了衡量这种方法论进步，已经开发了许多基准和标准化评估协议来评估字典学习方法[<cite>[makelov2024towards,huang2024ravel,karvonen2025measuring,chaudhary2024evaluating,wu2025axbench,karvonensaebench,karvonen2024evaluating]</cite>]。我们认为基于电路的指标将是字典学习评估的下一个前沿。</p>
       
     
       
-        <p>除了字典学习之外，几种替代无监督方法来提取计算单元已在小规模设置中显示出初步成功。这些包括将激活转换为局部交互基础[<cite>[bushnaq2024local,bushnaq2024using]</cite>]和开发基于归因的参数分解[<cite>[braun2025interpretability]</cite>]。</p>
+        <p>除了字典学习之外，几种替代无监督方法来提取计算单元在小规模设置中显示了初始成功。这些包括将激活转换为局部交互基础[<cite>[bushnaq2024local,bushnaq2024using]</cite>]和开发参数的基于归因的分解[<cite>[braun2025interpretability]</cite>]。</p>
       
     
       
@@ -1270,7 +1270,7 @@
       
     
       
-        <p>定义。在整个文献中，“电路”一词被用来表示许多不同的事物。Olah等人[<cite>[olah2020zoom]</cite>]引入了定义作为一个神经网络的子图，其中节点是激活空间中的方向，边是它们之间的权重。这个定义随着时间的推移在文献的某些部分被放宽，并且经常被用来指具有从某种归因或干预计算的边权重的网络组件的一般子图[<cite>[hohman2019summit,wang2022interpretability,conmy2023towards]</cite>]。</p>
+        <p>定义。在整个文献中，“电路”一词被用来表示许多不同的事情。Olah等人[<cite>[olah2020zoom]</cite>]引入了定义作为一个神经网络的子图，其中节点是激活空间中的方向，边是它们之间的权重。这个定义随着时间的推移在文献的某些部分被放宽，并且经常被用来指具有从某种归因或干预计算的边权重的网络组件的一般子图[<cite>[hohman2019summit,wang2022interpretability,conmy2023towards]</cite>]。</p>
       
     
       
@@ -1278,35 +1278,35 @@
       
     
       
-        <div class="list-content">分析单元是全局可解释的还是不是？（例如，比较单义特征与跨数据分布做许多不同事情的整个注意力头。）电路本身（即边连接）是全局描述，还是局部有效的归因图？还是其他什么？边是可解释的吗？（例如，边是由线性归因还是复杂非线性干预计算的？）该方法是否自然地解决叠加？</div>
+        <div class="list-content">分析单元是全局可解释的还是不是？（例如，比较单义特征与跨数据分布做许多不同事情的整个注意力头。）电路本身（即边连接）是全局描述，还是局部有效的归因图？还是其他？边是否可解释？（例如，边是由线性归因还是复杂非线性干预计算的？）方法是否自然地解决叠加？</div>
       
     
       
-        <p>我们相信电路研究的北极星是显现一个具有全局可解释单元的对象，这些单元由全局有效的可解释边连接。本文的工作由于只提供局部有效的归因图而未能达到这一点。</p>
+        <p>我们相信电路研究的北极星是显现一个具有全局可解释单元的对象，这些单元由全局有效的可解释边连接。本工作由于只提供局部有效的归因图而未能达到这一点。</p>
       
     
       
-        <p>手动分析。早期的电路发现主要是手动的，需要特定假设和 bespoke 的验证方法[<cite>[cammarata2020curve,nelhage2021mathematical,olsson2022context,wang2022interpretability,nanda2023progress]</cite>]。因果中介分析[<cite>[vig2020investigating]</cite>]、激活补丁[<cite>[meng2022locating,zhang2023towards,heimersheim2024use]</cite>]、补丁补丁[<cite>[wang2022interpretability,goldowsky2023localizing]</cite>]和分布式对齐搜索[<cite>[geiger2024finding,wu2023interpretability]</cite>]一直是直接分析中用于提炼假设和隔离因果路径最常用的技术。然而，这些技术通常不提供单元之间可解释的（即线性的）边权重。</p>
+        <p>手动分析。早期的电路发现主要是手动的，需要特定假设和量身定制的验证方法[<cite>[cammarata2020curve,nelhage2021mathematical,olsson2022context,wang2022interpretability,nanda2023progress]</cite>]。因果中介分析[<cite>[vig2020investigating]</cite>]、激活修补[<cite>[meng2022locating,zhang2023towards,heimersheim2024use]</cite>]、补丁修补[<cite>[wang2022interpretability,goldowsky2023localizing]</cite>]和分布式对齐搜索[<cite>[geiger2024finding,wu2023interpretability]</cite>]一直是最常用于在直接分析中提炼假设和隔离因果路径的技术。然而，这些技术通常不提供单元之间可解释的（即线性的）边权重。</p>
       
     
       
-        <p>自动分析。这些分析在Conmy等人[<cite>[conmy2023towards]</cite>]中被自动化，通过开发递归补丁程序来自动找到给定感兴趣任务的组件子图。然而，补丁分析计算成本高，每步需要一次前向传播。这激发了归因补丁[<cite>[nanda2023patching,syed2023attributionpatching]</cite>]，一种利用梯度来近似干预效果的更高效方法。在归因补丁上已有大量后续工作，包括改进梯度近似[<cite>[kramar2024atpstar,hanna2024have,zhang2025eap]</cite>]、将技术适应到视觉模型[<cite>[rajaram2024automatic]</cite>]，以及纳入位置信息[<cite>[haklay2025position]</cite>]。文献中研究的其他技术包括学习掩蔽技术[<cite>[cao2021low,davies2023discovering,bhaskar2025finding]</cite>]、电路探测[<cite>[lepori2023uncovering]</cite>]、离散化[<cite>[o2024sparse]</cite>]和信息流分析[<cite>[ferrando2024information,katz2023visit]</cite>]。许多这些自动方法的目标是隔离重要的模型组件（即层、神经元、注意力头）及其之间的交互，但它们不解决这些组件的解释。</p>
+        <p>自动分析。这些分析在Conmy等人[<cite>[conmy2023towards]</cite>]中被自动化，通过开发一个递归修补程序来自动找到给定感兴趣任务的组件子图。然而，修补分析计算成本高，每个步骤都需要前向传递。这激发了归因修补[<cite>[nanda2023patching,syed2023attributionpatching]</cite>]，一种更有效的方法，利用梯度来近似干预的效果。在归因修补上有了大量后续工作，包括改进梯度近似[<cite>[kramar2024atpstar,hanna2024have,zhang2025eap]</cite>]、将技术适应到视觉模型[<cite>[rajaram2024automatic]</cite>]，以及纳入位置信息[<cite>[haklay2025position]</cite>]。文献中研究的其他技术包括学习掩蔽技术[<cite>[cao2021low,davies2023discovering,bhaskar2025finding]</cite>]、电路探测[<cite>[lepori2023uncovering]</cite>]、离散化[<cite>[o2024sparse]</cite>]和信息流分析[<cite>[ferrando2024information,katz2023visit]</cite>]。这些自动方法中的许多目标是隔离重要的模型组件（即层、神经元、注意力头）以及它们之间的交互，但它们不解决这些组件的解释。</p>
       
     
       
-        <p>然而，装备了来自稀疏字典学习的更好计算分析单元，这项工作和其他最近的论文[<cite>[dunefsky2024transcoders,ge2024automatically,marks2024sparse,he2024dictionary]</cite>]正在回归发现可解释组件之间的连接。具体来说，我们的工作最类似于Dunefsky等人[<cite>[dunefsky2024transcoders]</cite>]和Ge等人[<cite>[ge2024automatically]</cite>]，他们也使用转码器计算具有停止梯度的每提示归因图，同时还研究输入无关的全局权重。我们的工作不同之处在于我们使用交叉编码器来吸收冗余特征，使用更全局的剪枝算法，包括误差节点[<cite>[marks2024sparse]</cite>]，并使用更强大的可视化套件来启用更深入的定性分析。这些工作在精神上更接近Olah等人[<cite>[olah2020zoom]</cite>]概述的原始电路愿景，但继承了提示特定的量（例如注意力模式），这限制了它们的通用性。</p>
+        <p>然而，武装了来自稀疏字典学习的更好计算分析单元，这项工作和其他最近的论文[<cite>[dunefsky2024transcoders,ge2024automatically,marks2024sparse,he2024dictionary]</cite>]正在回归发现可解释组件之间的连接。具体来说，我们的工作最类似于Dunefsky等人[<cite>[dunefsky2024transcoders]</cite>]和Ge等人[<cite>[ge2024automatically]</cite>]，他们也使用转码器计算具有停止梯度的每提示归因图，同时还研究输入无关的全局权重。我们的工作不同之处在于我们使用交叉编码器来吸收冗余特征，使用更全局的剪枝算法，包括误差节点[<cite>[marks2024sparse]</cite>]，并使用更强大的可视化套件来启用更深入的定性分析。这些工作在精神上更接近Olah等人[<cite>[olah2020zoom]</cite>]概述的原始电路愿景，但继承了提示特定的量（例如注意力模式），这限制了它们的普遍性。</p>
       
     
       
-        <p>注意力电路。Transformer中引入的注意力机制为Olah等人[<cite>[olah2020zoom]</cite>]做的基于权重的电路分析带来了挑战。Elhage等人[<cite>[nelhage2021mathematical]</cite>]提出将注意力层分解为控制注意力模式的非线性QK组件和控制输出的线性OV组件。通过冻结QK（例如，对于特定提示），通过注意力中介的转码器特征-特征交互变得线性。这是本文和Dunefsky等人[<cite>[dunefsky2024transcoders]</cite>]采用的方法。其他人尝试在注意力输出上训练SAE[<cite>[kissane2024attncirc,marks2024sparse,he2024dictionary]</cite>]并通过key和query矩阵乘以特征来解释注意力模式[<cite>[ge2024automatically]</cite>]。</p>
+        <p>注意力电路。Transformer中引入的注意力机制为Olah等人[<cite>[olah2020zoom]</cite>]所做的基于权重的电路分析带来了挑战。Elhage等人[<cite>[nelhage2021mathematical]</cite>]提出将注意力层分解为控制注意力模式的非线性QK组件，以及控制输出的线性OV组件。通过冻结QK（例如，对于特定提示），通过注意力介导的转码器特征-特征交互变为线性。这是这项工作和Dunefsky等人[<cite>[dunefsky2024transcoders]</cite>]采用的方法。其他人尝试在注意力输出上训练SAE[<cite>[kissane2024attncirc,marks2024sparse,he2024dictionary]</cite>]并通过key和query矩阵乘以特征来解释注意力模式[<cite>[ge2024automatically]</cite>]。</p>
       
     
       
-        <p>替代模型。我们对替代模型的概念在精神上类似于过去关于因果抽象[<cite>[geiger2021causal,geiger2023causal]</cite>]和代理模型[<cite>[wu2023causal,shah2024decomposing]</cite>]的工作。这些方法寻求学习一个可解释的图形模型，该模型保持对底层黑箱模型的忠实度。然而，这些技术通常需要任务规范或其他监督，而不是我们的替代模型，它是以完全无监督的方式学习的。</p>
+        <p>替代模型。我们对替代模型的概念在精神上类似于过去关于因果抽象[<cite>[geiger2021causal,geiger2023causal]</cite>]和代理模型[<cite>[wu2023causal,shah2024decomposing]</cite>]的工作。这些方法寻求学习一个可解释的图形模型，该模型保持对底层黑盒模型的忠实度。然而，这些技术通常需要任务规范或其他监督，而不是我们的替代模型，它是以完全无监督的方式学习的。</p>
       
     
       
-        <p>电路评估。因果擦洗[<cite>[chan2022causal]</cite>]被提出作为通过行为保留的重采样消融评估解释质量的早期原则方法。Shi等人[<cite>[shi2025hypothesis]</cite>]形式化了评估电路假设的标准，关注行为保留、定位和最小性，同时将这些测试应用于Transformer模型中的合成和发现的电路。然而，Miller等人[<cite>[miller2024transformer]</cite>]对现有忠实度指标提出了重要担忧，发现它们对消融方法学中看似无关紧要的变化高度敏感。</p>
+        <p>电路评估。因果擦洗[<cite>[chan2022causal]</cite>]被提出作为通过行为保留重采样消融评估解释质量的早期原则方法。Shi等人[<cite>[shi2025hypothesis]</cite>]形式化了评估电路假设的标准，关注行为保留、局部化和最小性，同时将这些测试应用于Transformer模型中的合成和发现电路。然而，Miller等人[<cite>[miller2024transformer]</cite>]对现有忠实度指标提出了重要担忧，发现它们对消融方法中看似不重要的变化高度敏感。</p>
       
     
       
@@ -1315,15 +1315,19 @@
       
     
       
-        <p>除了方法之外，许多工作进行了深入的案例研究并揭示了有趣的模型现象学。例如，对以下进行了彻底的电路分析</p>
+        <p>除了方法之外，许多工作进行了深入的案例研究并揭示了有趣的模型现象学。例如，对以下进行了彻底的电路分析：</p>
       
     
       
-        <div class="list-content">玩具模型中的算术[<cite>[nanda2023progress,zhong2023clock,chughtai2023toy,stander2023grokking,li2024fourier]</cite>]Python文档字符串[<cite>[heimersheim2023circuit]</cite>]间接对象识别[<cite>[wang2022interpretability]</cite>]计算大于运算符[<cite>[hanna2023does]</cite>]多选[<cite>[lieberum2023does]</cite>]代词性别[<cite>[vig2020investigating,mathwin2023identifying,chintam2023identifying]</cite>]上下文内学习[<cite>[kharlapenko2025scaling]</cite>]</div>
+        <div class="list-content">玩具模型中的算术[<cite>[nanda2023progress,zhong2023clock,chughtai2023toy,stander2023grokking,li2024fourier]</cite>] Python文档字符串[<cite>[heimersheim2023circuit]</cite>] 间接对象识别[<cite>[wang2022interpretability]</cite>] 计算大于运算符[<cite>[hanna2023does]</cite>] 多选[<cite>[lieberum2023does]</cite>] 代词性别[<cite>[vig2020investigating,mathwin2023identifying,chintam2023identifying]</cite>] 上下文学习[<cite>[kharlapenko2025scaling]</cite>]</div>
       
     
       
-        <p>不断增长的案例研究集合已经使得关于这些组件如何用于其他任务的进一步研究成为可能[<cite>[merullo2023circuit,mondorf2024circuit]</cite>]。此外，Tigges等人[<cite>[tigges2024llm]</cite>]发现许多这些电路分析在训练和规模上是一致的。在这些分析之前，还有很长的一系列“Bertology”研究使用注意力模式分析和探测研究了模型生物学（见调查[<cite>[rogers2020primer]</cite>]）。</p>
+        <p>越来越多的案例研究集已经促成了关于这些组件如何在其他任务中使用的进一步研究[<cite>[merullo2023circuit,mondorf2024circuit]</cite>]。此外，Tigges等人[<cite>[tigges2024llm]</cite>]发现许多这些电路分析在训练和规模上是一致的。在这些分析之前，还有很长一系列使用注意力模式分析和探测研究模型生物学的“Bertology”研究（见调查[<cite>[rogers2020primer]</cite>]）。</p>
+      
+    
+      
+        <p>&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;hr&gt;&lt;br&gt;&lt;br&gt;&lt;h2&gt;&lt;a id=&#x27;appendix&#x27; href=&#x27;#appendix&#x27;&gt;附录&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;</p>
       
     
       
@@ -5799,15 +5803,15 @@ url={https://arxiv.org/abs/2408.00118}
     <h2>注释</h2>
     
     <div class="footnote-item" id="f1n">
-      <a href="#fnref-f1n">[1]</a> 另一种方法是研究整个MLP块和注意力头等粗粒度模型组件的作用[<cite>[meng2022locating,wang2022interpretability,conmy2023towards]</cite>]。这种方法已经识别出这些组件在特定行为中扮演的有趣角色，但大型组件在数据分布上扮演许多不相关的角色，因此我们寻求更细粒度的分解。
+      <a href="#fnref-f1n">[1]</a> 一种替代方法是研究整个MLP块和注意力头等粗模型组件的作用[<cite>[meng2022locating,wang2022interpretability,conmy2023towards]</cite>]。这种方法已经识别出这些组件在特定行为中扮演的有趣角色，但大型组件在数据分布上扮演许多不相关的角色，所以我们寻求更细粒度的分解。
     </div>
     
     <div class="footnote-item" id="f2n">
-      <a href="#fnref-f2n">[2]</a> 我们遵循神经科学中“特征检测器”和机器学习中“特征学习”的传统使用“特征”。一些最近的文献使用术语“潜在”，它指的是模型潜在空间中的特定向量。我们发现“特征”更好地捕捉这些元素扮演的计算角色，使其更适合描述转码器神经元而不是SAE解码器向量。
+      <a href="#fnref-f2n">[2]</a> 我们使用“特征”遵循神经科学中“特征检测器”和机器学习中“特征学习”的传统。最近的一些文献使用术语“潜在”，它指的是模型潜在空间中的特定向量。我们发现“特征”更好地捕捉了这些元素扮演的计算角色，使其更适合描述转码器神经元而不是SAE解码器向量。
     </div>
     
     <div class="footnote-item" id="f3n">
-      <a href="#fnref-f3n">[3]</a> 直接特征-特征交互是线性的，因为转码器特征“桥接”MLP非线性，替换它们的计算，并且因为我们冻结了剩余的非线性：注意力模式和归一化分母。值得注意的是，严格来说我们指的是特征的预激活相对于早期特征的激活是线性的。冻结注意力模式是一种标准方法，将理解Transformer分为两步：给定注意力模式理解行为，以及理解为什么模型关注那些位置。这种方法在A Mathematical Framework[<cite>[nelhage2021mathematical]</cite>]中针对注意力模型进行了深入探索，它还讨论了对MLP层的泛化，这本质上是本文使用的方法。注意，以这种方式将理解注意力模式分解出来导致了§局限性：缺失的注意力电路中注意到的注意力问题。然而，我们然后也可以采取Framework采取的相同解决方案来研究QK电路。
+      <a href="#fnref-f3n">[3]</a> 直接特征-特征交互是线性的，因为转码器特征“桥接”了MLP非线性，替换了它们的计算，并且因为我们冻结了剩余的非线性：注意力模式和归一化分母。值得注意的是，严格来说我们指的是特征的预激活相对于早期特征的激活是线性的。冻结注意力模式是一种标准方法，它将理解Transformer分为两个步骤：给定注意力模式理解行为，以及理解为什么模型关注那些位置。这种方法在A Mathematical Framework中针对注意力模型进行了深入探索[<cite>[nelhage2021mathematical]</cite>]，它还讨论了对MLP层的推广，这本质上是本文中使用的方法。注意，以这种方式分解理解注意力模式导致了§局限性：缺失的注意力电路中注意到的关于注意力的问题。然而，我们然后也可以采取Framework采取的相同解决方案来研究QK电路。
     </div>
     
     <div class="footnote-item" id="f4n">
@@ -5819,111 +5823,111 @@ url={https://arxiv.org/abs/2408.00118}
     </div>
     
     <div class="footnote-item" id="f6n">
-      <a href="#fnref-f6n">[6]</a> 我们使用随机采样的提示和目标token集合，限制为模型正确预测但置信度低于80%的那些（以过滤掉“无聊”的token）。
+      <a href="#fnref-f6n">[6]</a> 我们使用随机采样的提示和目标token集，限制为模型正确预测但置信度低于80%的那些（以过滤掉“无聊”的token）。
     </div>
     
     <div class="footnote-item" id="f7n">
-      <a href="#fnref-f7n">[7]</a> 这在精神上类似于在点<span class="math-inline" data-math="a">a</span>对函数<span class="math-inline" data-math="f">f</span>的泰勒近似；两者都在<span class="math-inline" data-math="a">a</span>的邻域局部一致，但在你远离时行为发散。
+      <a href="#fnref-f7n">[7]</a> 这在精神上类似于在点<span class="math-inline" data-math="a">a</span>对函数<span class="math-inline" data-math="f">f</span>的Taylor近似；两者在<span class="math-inline" data-math="a">a</span>的邻域内局部一致，但在你远离时行为发散。
     </div>
     
     <div class="footnote-item" id="f8n">
-      <a href="#fnref-f8n">[8]</a> 由于“Caps Lock”token，实际目标token是“dag”。我们在这里和本文其余部分用大写写token以便阅读。
+      <a href="#fnref-f8n">[8]</a> 由于“Caps Lock”token，实际目标token是“dag”。为了便于阅读，我们在这里和本文其余部分用大写写token。
     </div>
     
     <div class="footnote-item" id="f9n">
-      <a href="#fnref-f9n">[9]</a> 我们任意选择了这个阈值。根据经验，在我们研究的案例中，少于三个logit就足以捕获95%的概率。
+      <a href="#fnref-f9n">[9]</a> 我们任意选择了这个阈值。根据经验，在我们研究的案例中，少于三个logit就足以捕捉95%的概率。
     </div>
     
     <div class="footnote-item" id="f10n">
-      <a href="#fnref-f10n">[10]</a> 或者，w_{s \rightarrow t}是关于源特征激活的<span class="math-inline" data-math="t">t</span>预激活的导数，在局部替代模型中的所有非线性上应用停止梯度。
+      <a href="#fnref-f10n">[10]</a> 或者，w_{s \rightarrow t}是目标特征预激活相对于源特征激活的导数，对局部替代模型中所有非线性有停止梯度。
     </div>
     
     <div class="footnote-item" id="f11n">
-      <a href="#fnref-f11n">[11]</a> 也就是说，我们的模型忽略“QK电路”但捕获“OV电路”。[<cite>[nelhage2021mathematical]</cite>]
+      <a href="#fnref-f11n">[11]</a> 也就是说，我们的模型忽略“QK电路”但捕捉“OV电路”。[<cite>[nelhage2021mathematical]</cite>]
     </div>
     
     <div class="footnote-item" id="f12n">
-      <a href="#fnref-f12n">[12]</a> 我们有时使用来自我们自动可解释性管道的标签作为起点，但通常发现人工标签更可靠。
+      <a href="#fnref-f12n">[12]</a> 我们有时使用来自我们自动可解释性管道的标签作为起点，但通常发现人类标签更可靠。
     </div>
     
     <div class="footnote-item" id="f13n">
-      <a href="#fnref-f13n">[13]</a> 它们可以间接受影响，因为它们位于受影响节点的下游。
+      <a href="#fnref-f13n">[13]</a> 它们可以间接受到影响，因为它们位于受影响节点的下游。
     </div>
     
     <div class="footnote-item" id="f14n">
-      <a href="#fnref-f14n">[14]</a> 关于为什么我们负向引导而不是消融特征的讨论，见§未解释方差和引导因子选择。
+      <a href="#fnref-f14n">[14]</a> 关于为什么我们选择负向转向而不是消融特征的讨论，见§未解释方差和转向因子选择。
     </div>
     
     <div class="footnote-item" id="f15n">
-      <a href="#fnref-f15n">[15]</a> 对于每个补丁超节点，我们选择导致对logit最大抑制效果的结束层范围。
+      <a href="#fnref-f15n">[15]</a> 对于每个修补的超节点，我们选择导致对logit最大抑制效应的结束层范围。
     </div>
     
     <div class="footnote-item" id="f16n">
-      <a href="#fnref-f16n">[16]</a> 注意我们在这个实验中使用大的引导因子。关于这个的讨论，见§未解释方差和引导因子选择。
+      <a href="#fnref-f16n">[16]</a> 注意我们在这个实验中使用了一个大的转向因子。关于这个的讨论，见§未解释方差和转向因子选择。
     </div>
     
     <div class="footnote-item" id="f17n">
-      <a href="#fnref-f17n">[17]</a> 我们使用前缀“calc:”因为18L有它时在这个问题上表现好得多。这个前缀对于Haiku 3.5不是必需的，但我们仍然包括它以便在后面部分进行直接比较。
+      <a href="#fnref-f17n">[17]</a> 我们使用前缀“calc:”因为18L在有它的情况下在这个问题上表现好得多。这个前缀对于Haiku 3.5不是必需的，但我们仍然包括它，以便在后面的部分进行直接比较。
     </div>
     
     <div class="footnote-item" id="f18n">
-      <a href="#fnref-f18n">[18]</a> 在分析期间我们可视化对[0, 999]的影响。这对于理解超出前100个数字token的影响很重要（例如，预测95 mod 100的特征），但我们只显示[0, 99]以简化。
+      <a href="#fnref-f18n">[18]</a> 在分析期间我们可视化对[0,999]的影响。这对于理解超出前100个数字token的影响很重要（例如，预测95 mod 100的特征），但为了简单起见我们只显示[0,99]。
     </div>
     
     <div class="footnote-item" id="f19n">
-      <a href="#fnref-f19n">[19]</a> 使用悬停你可以查看低精度查找表特征和中等精度总和特征精度中的可变性。
+      <a href="#fnref-f19n">[19]</a> 使用悬停你可以看到低精度查找表特征和中等精度总和特征精度中的变异性。
     </div>
     
     <div class="footnote-item" id="f20n">
-      <a href="#fnref-f20n">[20]</a> 如同本文其他部分，我们手动应用这些标签。
+      <a href="#fnref-f20n">[20]</a> 如本文其他部分，我们手动应用这些标签。
     </div>
     
     <div class="footnote-item" id="f21n">
-      <a href="#fnref-f21n">[21]</a> 写<span class="math-inline" data-math="f_{pre}">f_{pre}</span>表示<span class="math-inline" data-math="x">x</span>的预激活。那么<span class="math-inline" data-math="f_{pre}(x + y) + f_{pre}(z + w) = f_{pre}(x + w) + f_{pre}(y + z)">f_{pre}(x + y) + f_{pre}(z + w) = f_{pre}(x + w) + f_{pre}(y + z)</span>。如果LHS上的两个项都是正的，那么RHS上至少一个必须是。
+      <a href="#fnref-f21n">[21]</a> 写<span class="math-inline" data-math="f_{pre}">f_{pre}</span>表示<span class="math-inline" data-math="x">x</span>的预激活。然后<span class="math-inline" data-math="f_{pre}(x + y) + f_{pre}(z + w) = f_{pre}(x + w) + f_{pre}(y + z)">f_{pre}(x + y) + f_{pre}(z + w) = f_{pre}(x + w) + f_{pre}(y + z)</span>。如果LHS上的两个项都是正的，那么RHS上至少一个必须是。
     </div>
     
     <div class="footnote-item" id="f22n">
-      <a href="#fnref-f22n">[22]</a> 具体来说，中间信息是从操作数的个位相加产生的个位以及两个20多数字的总和大致量级。
+      <a href="#fnref-f22n">[22]</a> 具体来说，中间信息是从操作数的个位相加产生的个位数和两个20多数字总和的近似数量级。
     </div>
     
     <div class="footnote-item" id="f23n">
-      <a href="#fnref-f23n">[23]</a> 注意力-直接项也可以用虚拟权重表示，通过将各种解码器向量乘以一系列注意力头OV，然后乘以编码器，但这些在提示上被源特征激活和注意力模式缩放，这使得它们的分析更复杂。
+      <a href="#fnref-f23n">[23]</a> 注意力-直接项也可以用虚拟权重表示，通过将各种解码器向量乘以一系列注意力头OV，然后乘以编码器，但这些在提示上被源特征激活和注意力模式两者缩放，这使得它们的分析更复杂。
     </div>
     
     <div class="footnote-item" id="f24n">
-      <a href="#fnref-f24n">[24]</a> 当在§附录：更多特征上的干扰权重中查看更大样本的特征时，我们也看到干扰权重。
+      <a href="#fnref-f24n">[24]</a> 当查看§附录：更多特征上的干扰权重附录中更多特征的更大样本时，我们也看到干扰权重。
     </div>
     
     <div class="footnote-item" id="f25n">
-      <a href="#fnref-f25n">[25]</a> 它只代表残差-直接成分，不包括注意力-直接成分。
+      <a href="#fnref-f25n">[25]</a> 它只代表残差-直接组件，不包括注意力-直接组件。
     </div>
     
     <div class="footnote-item" id="f26n">
-      <a href="#fnref-f26n">[26]</a> 注意这些权重不能为0，因为这也会使TWERA为0。
+      <a href="#fnref-f26n">[26]</a> 注意这些权重不能为0，因为这也会使TWERA变为0。
     </div>
     
     <div class="footnote-item" id="f27n">
-      <a href="#fnref-f27n">[27]</a> 没有保证CLT特征是分割计算的最简洁方式，可能我们一些不太重要、大致周期性的、较难解释的特征是表示的周期方面的伪影。
+      <a href="#fnref-f27n">[27]</a> 没有保证CLT特征是将计算分割的最简洁方式，可能我们一些不太重要、大致周期性的特征（更难解释）是表示周期方面的伪影。
     </div>
     
     <div class="footnote-item" id="f28n">
-      <a href="#fnref-f28n">[28]</a> 在§附录：更多特征上的数字输出权重中，我们展示了9_和95_特征对来自[0,999]的所有数字预测的输出权重图。我们还展示了一个促进“简单数字”的杂项特征：小数字、100的倍数和一些像360这样的突出者。
+      <a href="#fnref-f28n">[28]</a> 在§附录：更多特征上的数字输出权重中，我们显示了9_和95_特征在来自[0,999]的所有数字预测上的输出权重图。我们还显示了一个促进“简单数字”的杂项特征：小数字、100的倍数和一些像360这样的突出。
     </div>
     
     <div class="footnote-item" id="f29n">
-      <a href="#fnref-f29n">[29]</a> 一种途径是考虑提示族，并排除在族内所有提示中存在的特征（但见[<cite>[miller2024transformer]</cite>]）。
+      <a href="#fnref-f29n">[29]</a> 一种途径是考虑提示族，并排除在族内所有提示中出现的特征（但见[<cite>[miller2024transformer]</cite>]）。
     </div>
     
     <div class="footnote-item" id="f30n">
-      <a href="#fnref-f30n">[30]</a> 我们将训练步骤数随特征数缩放，因此改进反映了两种缩放形式的组合——见§附录：CLT实现细节了解细节。
+      <a href="#fnref-f30n">[30]</a> 我们将训练步骤的数量随特征数量缩放，因此改进反映了两种缩放形式的组合——见§附录：CLT实现细节了解细节。
     </div>
     
     <div class="footnote-item" id="f31n">
-      <a href="#fnref-f31n">[31]</a> 具体来说，我们扫描一系列标量阈值，对于每个值我们将激活小于阈值的所有神经元钳位为0。对于我们的指标和图，我们然后只考虑高于阈值的神经元。
+      <a href="#fnref-f31n">[31]</a> 具体来说，我们扫描一系列标量阈值，对于每个值我们将激活小于阈值的所有神经元钳制为0。对于我们的指标和图，我们然后只考虑高于阈值的神经元。
     </div>
     
     <div class="footnote-item" id="f32n">
-      <a href="#fnref-f32n">[32]</a> 我们选择大约在神经元达到与我们最小字典类似自动可解释性分数的点上的阈值，见上面的图。
+      <a href="#fnref-f32n">[32]</a> 我们选择的阈值大约在神经元达到与我们最小字典类似自动可解释性分数的点，见上面的图。
     </div>
     
     <div class="footnote-item" id="f33n">
@@ -5931,19 +5935,19 @@ url={https://arxiv.org/abs/2408.00118}
     </div>
     
     <div class="footnote-item" id="f34n">
-      <a href="#fnref-f34n">[34]</a> 我们通过未剪枝图中嵌入的总影响来归一化影响分数。这个归一化因子正好等于我们在下一节定义的替换分数。
+      <a href="#fnref-f34n">[34]</a> 我们通过未剪枝图中嵌入的总影响来归一化影响分数。这个归一化因子正好等于我们在下一节中定义的替换分数。
     </div>
     
     <div class="footnote-item" id="f35n">
-      <a href="#fnref-f35n">[35]</a> 累积误差对扰动效果方向的忠实度有逐渐有害的影响，这在CLT大小上大体一致，随着字典大小增加忠实度迹象略有恶化。累积误差可能对扰动幅度有灾难性的有害影响，对更大字典的影响更糟。我们怀疑局部替代模型中缺少归一化分母可能是为什么其扰动效果幅度如此显著偏离底层模型的原因，即使扰动效果方向显著相关。
+      <a href="#fnref-f35n">[35]</a> 累积误差对扰动效应方向的忠实度有逐渐有害的影响，这在CLT大小上基本一致，随着字典大小增加忠实度恶化略有迹象。累积误差对扰动幅度可能有灾难性的有害影响，对更大字典有更差的影响。我们怀疑局部替代模型中缺少归一化分母可能是为什么其扰动效应幅度与底层模型显著偏离的原因，即使扰动效应方向显著相关。
     </div>
     
     <div class="footnote-item" id="f36n">
-      <a href="#fnref-f36n">[36]</a> 其他解释是可能的，特别是对于不通过tokens following &quot;B&quot;的到“B”的直接路径——一种替代是模型可能使用“binding ID vector”[<cite>[feng2023language]</cite>]来将“B”token与“1945”和附近token分组，并使用这个从最终token位置直接回溯到“B”token——见Feng &amp; Steinhardt[<cite>[feng2023language]</cite>]了解这种类型机制的更多细节。
+      <a href="#fnref-f36n">[36]</a> 其他解释是可能的，特别是对于不经过tokens following &quot;B&quot;的到“B”的直接路径——一种替代是模型可能使用“绑定ID向量”[<cite>[feng2023language]</cite>]来将“B”token与“1945”和附近token分组，并使用这个从最终token位置直接回溯到“B”token——见Feng &amp; Steinhardt[<cite>[feng2023language]</cite>]了解这种类型机制的更多细节。
     </div>
     
     <div class="footnote-item" id="f37n">
-      <a href="#fnref-f37n">[37]</a> 例如，我们需要特征独立可解释的基本原因是为了避免需要同时思考所有它们（见这里的讨论）。
+      <a href="#fnref-f37n">[37]</a> 例如，我们需要特征独立可解释的基本原因是避免需要同时思考所有它们（见这里的讨论）。
     </div>
     
     <div class="footnote-item" id="f38n">
@@ -5951,19 +5955,19 @@ url={https://arxiv.org/abs/2408.00118}
     </div>
     
     <div class="footnote-item" id="f39n">
-      <a href="#fnref-f39n">[39]</a> 非线性设置中的信用归因是一个难题。核心挑战不能简单地被洗掉，而且值得问我们隐含地将复杂性推到了哪里。有三个地方它可能去了。首先——这是最好的选项——是非线性交互在我们的归因图中变成了多步路径，然后可以以可解释的方式推理。其次，大量复杂性必须进入冻结的组件，被分解为我们没有尝试在这里解决的单独问题，但至少知道它们仍然存在。但也有一个坏选项：其中一些可能被我们的CLT通过非机制忠实的捷径简化了，它用通常正确的线性近似来近似MLP计算。
+      <a href="#fnref-f39n">[39]</a> 非线性设置中的信用归因是一个难题。核心挑战不能简单地被洗刷掉，值得问我们隐含地将复杂性推到了哪里。有三个地方它可能去了。首先——这是最好的选项——是非线性交互在我们的归因图中变成了多步路径，然后可以以可解释的方式推理它们。接下来，大量必须进入冻结组件，被分解为我们没有尝试在这里解决的单独问题，但至少知道它们仍然存在。但也有一个坏选项：其中一些可能被我们的CLT通过采取非机制忠实的捷径简化了，该捷径用通常正确的线性近似来近似MLP计算。
     </div>
     
     <div class="footnote-item" id="f40n">
-      <a href="#fnref-f40n">[40]</a> 我们的设置允许在全局上下文中一些类似的原则性线性交互概念，但我们现在必须考虑沿不同路径的不同权重——例如，特征A和特征B通过注意力头H中介的交互是什么？这一点在§全局权重中讨论。Framework论文也在附录中讨论了这些一般概念问题。
+      <a href="#fnref-f40n">[40]</a> 我们的设置允许在全局上下文中一些类似原则性的线性交互概念，但我们现在必须考虑沿不同路径的不同权重——例如，特征A和特征B通过注意力头H介导的交互是什么？这在§全局权重中讨论。Framework论文也在附录中讨论了这些一般概念问题。
     </div>
     
     <div class="footnote-item" id="f41n">
-      <a href="#fnref-f41n">[41]</a> 分析由头中介的全局权重在这里可能是有趣的。例如，归纳头可能系统地将“I'm X”特征移动到“say X”特征。后继头可能系统地将“X”特征映射到“X+1”特征。
+      <a href="#fnref-f41n">[41]</a> 分析由头介导的全局权重在这里可能很有趣。例如，归纳头可能系统地将“I'm X”特征移动到“say X”特征。后继头可能系统地将“X”特征映射到“X+1”特征。
     </div>
     
     <div class="footnote-item" id="f42n">
-      <a href="#fnref-f42n">[42]</a> 当然，并非所有头都像归纳头或后继头经常那样个别有趣。我们可能怀疑在注意力头上存在许多更多“注意力特征”如归纳和后继隐藏在叠加中。如果我们能揭示这些，可能会有一个丰富得多的故事。
+      <a href="#fnref-f42n">[42]</a> 当然，并非所有头都像归纳头或后继头那样 individually 有趣。我们可能怀疑在注意力头上存在许多更多“注意力特征”如归纳和继承隐藏在叠加中。如果我们能揭示这些，可能会有一个丰富得多的故事。
     </div>
     
   </section>

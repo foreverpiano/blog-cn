@@ -100,6 +100,41 @@ def render_segment_html(text: str, footnote_ids: set[str], valid_slugs: set[str]
     return rendered
 
 
+def _replace_placeholders_in_html(html: str, math_registry: dict,
+                                  citation_registry: dict,
+                                  inline_code_registry: dict) -> str:
+    """Replace placeholders in raw HTML without escaping the HTML structure."""
+    if math_registry:
+        def _repl_math(m):
+            idx = m.group(1)
+            entry = math_registry.get(idx, {})
+            tex = entry.get("tex", m.group(0))
+            cls = "math-display" if entry.get("display") else "math-inline"
+            return f'<span class="{cls}" data-math="{escape(tex)}">{escape(tex)}</span>'
+        html = re.sub(r'\{\{MATH:(\d+)\}\}', _repl_math, html)
+
+    if citation_registry:
+        def _repl_cite(m):
+            idx = m.group(1)
+            entry = citation_registry.get(idx, {})
+            key = entry.get("key", f"cite:{idx}")
+            return f'<cite>[{escape(key)}]</cite>'
+        html = re.sub(r'\{\{CITE:(\d+)\}\}', _repl_cite, html)
+
+    if inline_code_registry:
+        def _repl_code(m):
+            idx = m.group(1)
+            entry = inline_code_registry.get(idx, {})
+            return f'<code>{escape(entry.get("text", ""))}</code>'
+        html = re.sub(r'\{\{CODE:(\d+)\}\}', _repl_code, html)
+
+    # Cleanup any remaining
+    html = re.sub(r'\{\{MATH:\d+\}\}', '', html)
+    html = re.sub(r'\{\{CITE:\d+\}\}', '', html)
+    html = re.sub(r'\{\{CODE:\d+\}\}', '', html)
+    return html
+
+
 def prepare_article(article: dict, valid_slugs: set[str], title_map: dict[str, str]) -> dict:
     footnote_ids = {fn["id"] for fn in article.get("footnotes", [])}
     title_map_with_slug = dict(title_map)
@@ -124,10 +159,12 @@ def prepare_article(article: dict, valid_slugs: set[str], title_map: dict[str, s
             continue
         if seg_type == "table":
             table_html = seg.get("raw_html", escape(seg.get("text", "")))
-            # Render all placeholders inside tables
+            # Replace placeholders directly in raw HTML (no escape — HTML must stay intact)
             if any(ph in table_html for ph in ("{{MATH:", "{{CITE:", "{{CODE:")):
-                table_html = render_segment_html(
-                    table_html, footnote_ids, valid_slugs, title_map_with_slug, math_registry)
+                table_html = _replace_placeholders_in_html(
+                    table_html, math_registry,
+                    title_map_with_slug.get("_citation_registry", {}),
+                    title_map_with_slug.get("_inline_code_registry", {}))
             seg["rendered_html"] = table_html
             continue
         if seg_type == "figure":

@@ -30,7 +30,7 @@
   <div class="article-content">
     
       
-        <p>基于Transformer的语言模型主要包含两类计算：多层感知器（MLP）层，用于在同一上下文位置内处理信息；以及注意力层，用于有条件地在不同上下文位置之间传递和处理信息。在我们<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a> <a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a>的工作中，我们在将MLP计算分解为可解释步骤方面取得了重大进展。在本次更新中，我们通过引入一种分解注意力计算的方法，填补了方法论中一个重要的缺失环节。</p>
+        <p>基于Transformer的语言模型主要包含两类计算：多层感知器（MLP）层，用于在同一上下文位置内处理信息；以及注意力层，用于有条件地在不同上下文位置之间传递和处理信息。在我们<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a> <a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a>的工作中，我们在将MLP计算分解为可解释步骤方面取得了重大进展。在本次更新中，我们通过引入一种分解注意力计算的方法，填补了方法论中一个重要的缺失环节。</p>
       
     
       
@@ -46,7 +46,7 @@
       
     
       
-        <p>我们提供了几个该方法实际应用的案例研究。其中一些例子验证了我们在<a href="2025-attribution-graphs-biology.html">On the Biology of a Large Language Model</a>中描述的已有假设，而当时我们无法对其进行验证：</p>
+        <p>我们提供了几个该方法实际应用的案例研究。其中一些例子验证了我们在<a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a>中描述的已有假设，而当时我们无法对其进行验证：</p>
       
     
       
@@ -121,7 +121,7 @@
       
     
       
-        <p>在标准的注意力层中，头在位置（<span class="math-inline" data-math="p_k">p_k</span>，<span class="math-inline" data-math="p_q">p_q</span>）的注意力得分是通过对这些位置残差流的线性变换进行点积得到的<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>。为了简化，我们引入一个矩阵<span class="math-inline" data-math="W_{QK} = W_Q^T W_K">W_{QK} = W_Q^T W_K</span>（参见<a href="2021-framework.html">变压器电路的数学框架</a><a href="2021-framework.html">变压器电路的数学框架</a><a href="2021-framework.html">变压器电路的数学框架</a>）。我们简单地将关键和查询激活展开，用特征激活（以及偏置和残差误差）来描述它们，然后将双线性交互展开：</p>
+        <p>在标准的注意力层中，头在位置（<span class="math-inline" data-math="p_k">p_k</span>，<span class="math-inline" data-math="p_q">p_q</span>）的注意力得分是通过对这些位置残差流的线性变换进行点积得到的<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>。为了简化，我们引入一个矩阵<span class="math-inline" data-math="W_{QK} = W_Q^T W_K">W_{QK} = W_Q^T W_K</span>（参见<a href="2021-framework.html">Transformer 电路的数学框架</a><a href="2021-framework.html">Transformer 电路的数学框架</a><a href="2021-framework.html">Transformer 电路的数学框架</a>）。我们简单地将关键和查询激活展开，用特征激活（以及偏置和残差误差）来描述它们，然后将双线性交互展开：</p>
       
     
       
@@ -177,11 +177,11 @@
       
     
       
-        <div class="list-content">使用<a href="2025-attention-update.html">注意力机制的研究进展</a>，即注意力层的类转码器替代品。MTC特征由（注意力头的线性组合）“承载”，而不是通过多个注意力头的路径，因此不会遇到路径数量指数增长的问题。在每个注意力层输出上训练SAE，并将这些特征作为节点与（跨层）转码器特征一起放入归因图中。这对每个注意力层进行“检查点”，消除了所有长度大于1的注意力头路径。在模型每一层的残差流上训练SAE，并在相邻层特征之间计算梯度归因。这也以与前述选项相同的方式在每一层进行“检查点”。</div>
+        <div class="list-content">使用<a href="2025-attention-update.html">注意机制的研究进展</a>，即注意力层的类转码器替代品。MTC特征由（注意力头的线性组合）“承载”，而不是通过多个注意力头的路径，因此不会遇到路径数量指数增长的问题。在每个注意力层输出上训练SAE，并将这些特征作为节点与（跨层）转码器特征一起放入归因图中。这对每个注意力层进行“检查点”，消除了所有长度大于1的注意力头路径。在模型每一层的残差流上训练SAE，并在相邻层特征之间计算梯度归因。这也以与前述选项相同的方式在每一层进行“检查点”。</div>
       
     
       
-        <div class="list-content">在实践中，我们没有使用每一层残差流上的SAE，而是使用<a href="2024-crosscoders.html">稀疏跨编码器：用于跨层特征与模型差异分析</a>（WCCs）来计算这些图，其特征从残差流层L读取，并重建层L、L+1、…、num_layers的残差流<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup>。给定层K中的目标特征，我们计算从其层K解码器向量到层K−1残差流的梯度，并计算该梯度与层K−1中源特征投影（激活乘以解码器向量）的点积。然而，这些解码器可能属于起源于更早层的特征，这使我们能够“跳回”跨层并避免冗余特征的长链（类似于跨层转码器的动机）。</div>
+        <div class="list-content">在实践中，我们没有使用每一层残差流上的SAE，而是使用<a href="2024-crosscoders.html">稀疏跨编码器：跨层特征与模型差异分析</a>（WCCs）来计算这些图，其特征从残差流层L读取，并重建层L、L+1、…、num_layers的残差流<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup>。给定层K中的目标特征，我们计算从其层K解码器向量到层K−1残差流的梯度，并计算该梯度与层K−1中源特征投影（激活乘以解码器向量）的点积。然而，这些解码器可能属于起源于更早层的特征，这使我们能够“跳回”跨层并避免冗余特征的长链（类似于跨层转码器的动机）。</div>
       
     
       
@@ -707,7 +707,7 @@
       
     
       
-        <div class="list-content">当一条边同时由多个头介导时，这些头通常是否“出于相同原因”在关注（即它们的QK归因是否相似），这是否暗示<a href="2023-may-update.html">电路更新 — 2023 年 5 月</a>？我们如何最好地识别可能分布在多个头上的功能性注意力单元？这里可能需要某种类转码器的方法来替换注意力层，但找到正确的分解策略已被<a href="2025-attention-update.html">注意力机制的研究进展</a>。</div>
+        <div class="list-content">当一条边同时由多个头介导时，这些头通常是否“出于相同原因”在关注（即它们的QK归因是否相似），这是否暗示<a href="2023-may-update.html">电路更新 — 2023 年 5 月</a>？我们如何最好地识别可能分布在多个头上的功能性注意力单元？这里可能需要某种类转码器的方法来替换注意力层，但找到正确的分解策略已被<a href="2025-attention-update.html">注意机制的研究进展</a>。</div>
       
     
       

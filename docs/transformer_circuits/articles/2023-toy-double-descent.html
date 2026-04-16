@@ -30,23 +30,23 @@
   <div class="article-content">
     
       
-        <p>在[<cite>[elhage2022superposition]</cite>]中，我们发现，在玩具任务上训练的简单神经网络经常表现出一种称为叠加（superposition）[<cite>[arora2018linear,goh2016decoding,olah2020zoom]</cite>]的现象，即它们能表示的特征数量超过自身神经元的数量。我们的研究当时局限于无限数据、欠拟合的 regime。但有理由相信，如果我们希望在机制可解释性上取得成功，理解过拟合可能至关重要，而叠加很可能在其中扮演核心角色。<a href="2022-toy_model.html">叠加的玩具模型</a></p>
+        <p>在一篇[<cite>[elhage2022superposition]</cite>]中，我们发现，在简单玩具任务上训练的神经网络经常表现出一种称为“叠加”（superposition）[<cite>[arora2018linear,goh2016decoding,olah2020zoom]</cite>]的现象，即它们能表示比自身神经元数量更多的特征。我们先前的研究仅限于无限数据、欠拟合的 regime。但有理由相信，如果我们想在机制可解释性上取得进展，理解过拟合可能非常重要，而叠加可能是其中核心部分。<a href="2022-toy_model.html">叠加的玩具模型</a></p>
       
     
       
-        <p>为什么机制可解释性需要关注过拟合？尽管过拟合是机器学习中的核心问题，但我们对其机制几乎一无所知——当深度学习模型过拟合或记忆样本时，内部究竟发生了什么。此外，先前的工作已暗示，过拟合与学习可解释特征之间可能存在重要联系[<cite>[hilton2020understanding]</cite>]。</p>
+        <p>为什么机制可解释性需要关心过拟合？尽管过拟合是机器学习的核心问题，我们对其背后的机制却知之甚少：深度学习模型在过拟合或记忆样本时到底发生了什么。此外，先前工作暗示，过拟合与学习可解释特征之间可能存在重要联系[<cite>[hilton2020understanding]</cite>]。</p>
       
     
       
-        <p>因此，理解过拟合很重要，但它为什么会与叠加相关呢？考虑一个逐字记忆文本的语言模型。它是如何做到的？一种朴素的想法是，它可能用神经元构建一个查找表，将序列映射到任意的续写。对于希望记忆的每一个 token 序列，它可以分配一个神经元来检测该序列，并在该神经元激活时实现任意行为。这种方法的缺点是极度低效——但它似乎是叠加的完美候选，因为每个情况都互斥，不会相互干扰。</p>
+        <p>因此，理解过拟合很重要，但它为什么会与叠加相关呢？考虑一个逐字记忆文本的语言模型。它是如何做到的？一种朴素的想法是，它可能用神经元构建一个查找表，将序列映射到任意的后续内容。对于每一个想要记忆的 token 序列，它可以 dedicated 一个神经元来检测该序列，并在该神经元激活时实现任意行为。这种方法的问题在于极其低效——但它似乎是叠加的完美候选，因为每种情况互斥，不会相互干扰。</p>
       
     
       
-        <p>在这篇笔记中，我们对前一篇论文中的相同玩具模型在有限数据集上进行了非常初步的探索。尽管模型极其简单，但事实证明它是一个出人意料丰富的过拟合案例研究。特别是，我们发现了以下现象：</p>
+        <p>在这篇笔记中，我们对前一篇论文中的相同玩具模型在有限数据集上进行了非常初步的探索。尽管模型极为简单，但结果表明它是一个出人意料丰富的过拟合案例研究。具体而言，我们发现了以下现象：</p>
       
     
       
-        <div class="list-content">过拟合对应于在叠加中存储数据点而非特征。根据数据集大小，我们的模型会进入两种不同的 regime：过拟合 regime（特征是在叠加中存储数据点）和泛化 regime（特征是在叠加中存储真实特征）。我们在模型在这两个 regime 之间过渡时观察到了双下降（double descent）[<cite>[belkin2019reconciling,advani2020high,geiger2019jamming,nakkiran2021deep]</cite>]。</div>
+        <div class="list-content">过拟合对应于在叠加中存储数据点而非特征。根据数据集大小，我们的模型会落入两种不同的 regime：过拟合 regime（特征是把数据点存储在叠加中）和泛化 regime（特征是把特征存储在叠加中）。我们在模型在这两种 regime 之间过渡时观察到了双下降（double descent）[<cite>[belkin2019reconciling,advani2020high,geiger2019jamming,nakkiran2021deep]</cite>]。</div>
       
     
       
@@ -55,11 +55,15 @@
       
     
       
-        <p>我们假设真实的神经网络在稀疏的高维“特征”空间中执行运算，但这些特征因以叠加方式存储而难以被我们直接观察到。受此启发，我们尝试用合成输入向量 <span class="math-inline" data-math="x">x</span> 来模拟这个特征空间，这些向量是稀疏、高维且非负的（与我们类似）。具体来说，<span class="math-inline" data-math="x \in \mathbb{R}^n">x \in \mathbb{R}^n</span> 是一个 <span class="math-inline" data-math="n=10,000">n=10,000</span> 维向量。我们令每个特征以概率 <span class="math-inline" data-math="S=0.999">S=0.999</span> 取值 <span class="math-inline" data-math="x_i = 0">x_i = 0</span>，否则在 <span class="math-inline" data-math="[0, 1]">[0, 1]</span> 之间均匀分布。但与之前的工作不同，我们随后对 <span class="math-inline" data-math="x">x</span> 进行重缩放，使得 <span class="math-inline" data-math="||x||^2 =1">||x||^2 =1</span>，因为这会让记忆训练样本变得更容易<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup><sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>。我们还考虑了有限大小的训练集 <span class="math-inline" data-math="T">T</span>，而前一篇论文只考虑了 <span class="math-inline" data-math="T=\infty">T=\infty</span>。我们将用 <span class="math-inline" data-math="X \in \mathbb{R}^{n \times T}">X \in \mathbb{R}^{n \times T}</span> 表示训练数据矩阵，其中每一列 <span class="math-inline" data-math="X_i">X_i</span> 是一个训练数据点。<a href="2022-toy_model.html">叠加的玩具模型</a></p>
+        <p>我们假设真实神经网络是在一个稀疏、高维的“特征”空间中进行运算，但这些特征因处于叠加状态而难以被我们直接观察。受此启发，我们尝试用合成输入向量 <span class="math-inline" data-math="x">x</span> 来模拟这个特征空间，这些向量具有稀疏、高维且非负的特性（与我们类似）。具体来说，<span class="math-inline" data-math="x \in \mathbb{R}^n">x \in \mathbb{R}^n</span> 是一个 <span class="math-inline" data-math="n=10,000">n=10,000</span> 维向量。我们让单个特征 <span class="math-inline" data-math="x_i = 0">x_i = 0</span> 以概率 <span class="math-inline" data-math="S=0.999">S=0.999</span> 出现，否则在 <span class="math-inline" data-math="[0, 1]">[0, 1]</span> 之间均匀分布。但与之前工作不同的是，我们随后对 <span class="math-inline" data-math="x">x</span> 进行重缩放，使得 <span class="math-inline" data-math="||x||^2 =1">||x||^2 =1</span>，因为这能让训练样本的记忆化变得更容易<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup><sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>。我们还考虑了有限大小的训练集 <span class="math-inline" data-math="T">T</span>，而前一篇论文只考虑了 <span class="math-inline" data-math="T=\infty">T=\infty</span>。我们将用 <span class="math-inline" data-math="X \in \mathbb{R}^{n \times T}">X \in \mathbb{R}^{n \times T}</span> 表示训练数据矩阵，其中每一列 <span class="math-inline" data-math="X_i">X_i</span> 是一个训练样本。<a href="2022-toy_model.html">叠加的玩具模型</a></p>
       
     
       
         <p>我们考虑的是，其定义为<a href="2022-toy_model.html">叠加的玩具模型</a><a href="2022-toy_model.html">叠加的玩具模型</a><a href="2022-toy_model.html">叠加的玩具模型</a></p>
+      
+    
+      
+        <p>ReLU 输出模型</p>
       
     
       
@@ -71,7 +75,7 @@
       
     
       
-        <p>其中 <span class="math-inline" data-math="W">W</span> 采用 Xavier 初始化[<cite>[glorot2010understanding]</cite>]。模型通过最小化均方重构误差进行训练。</p>
+        <p>其中 <span class="math-inline" data-math="W">W</span> 使用 Xavier 初始化[<cite>[glorot2010understanding]</cite>]。模型通过最小化均方重构误差来进行训练。</p>
       
     
       
@@ -79,24 +83,24 @@
       
     
       
-        <p>在本工作中，我们仅考虑均匀重要性 <span class="math-inline" data-math="I_i = 1 \quad \forall  i">I_i = 1 \quad \forall  i</span>。</p>
+        <p>本工作中我们限制使用均匀重要性 <span class="math-inline" data-math="I_i = 1 \quad \forall  i">I_i = 1 \quad \forall  i</span>。</p>
       
     
       
-        <p>我们使用 50,000 次全批量更新，而非小批量更新，并采用 AdamW[<cite>[loshchilov2017decoupled]</cite>] 优化器。学习率调度包括 2500 步线性预热至 1e-3，随后余弦衰减至零。训练更新次数、全批量优化以及退火的学习率对我们的结果似乎都至关重要。我们重点研究极低维的隐藏空间，这使得优化问题更加困难。此外，极端稀疏的特征会让梯度变得非常嘈杂。因此，使用全批量进行大量步数的优化对获得这些结果非常重要。在某些实验中，我们会用不同参数初始化随机种子训练多个模型，并选择训练损失最低的那个，以避免陷入局部最优。不过我们定性地发现，对于具有 <span class="math-inline" data-math="m&gt;3">m&gt;3</span> 的模型，这些敏感性会大大降低。</p>
+        <p>我们使用 50,000 次全批量更新（而非小批量），优化器采用 AdamW[<cite>[loshchilov2017decoupled]</cite>]。学习率策略包括 2500 步线性预热至 1e-3，随后余弦衰减至零。训练更新次数、全批量优化以及退火的学习率对我们的结果似乎都非常重要。我们重点研究极低维的隐藏空间，这使得优化问题变得更加困难。此外，极度稀疏的特征会让梯度噪声显著增大。因此，使用全批量进行大量步数的优化对得到这些结果至关重要。在某些实验中，我们会进一步用不同随机种子初始化多个模型，并选择训练损失最低的那个，以避免陷入局部最优。然而我们定性地发现，当模型具有 <span class="math-inline" data-math="m&gt;3">m&gt;3</span> 时，这些敏感性会大幅降低。</p>
       
     
       
-        <p>除非另有说明，我们使用权重衰减 <span class="math-inline" data-math="1e-2">1e-2</span>。与之前的工作一致，我们发现双下降在权重衰减较小时最为明显，反之则减弱。</p>
+        <p>除非另有说明，我们使用的权重衰减为 <span class="math-inline" data-math="1e-2">1e-2</span>。与之前工作一致，我们发现双下降在权重衰减较小时最明显，反之则减弱。</p>
       
     
       
-        <h3>“数据点特征”与“泛化特征”</h3>
+        <h3>“数据点特征” vs “泛化特征”</h3>
         
       
     
       
-        <p>在我们前一篇论文中描述的“普通叠加”中，我们发现模型能嵌入的特征数量超过其维度，通常将它们映射到规则多面体上。例如，如果模型的隐藏空间是二维的，稀疏特征会组织成一个五边形：</p>
+        <p>在我们前一篇论文中描述的“普通叠加”中，我们发现模型能嵌入比其维度更多的特征，并且常常将它们映射到规则的多边形上。例如，如果模型的隐藏空间是二维的，稀疏特征就会组织成一个五边形：</p>
       
     
       
@@ -1077,11 +1081,11 @@ R8ARcAQcgWYEfDrRjI/3OgKOgCPgCDgCjoAj4Ag4Ao5AWwT+fy7j8fdU0Rp2AAAAAElFTkSuQmCC
       
     
       
-        <p>但如果我们在有限数据集上训练模型，会发生什么？结果表明，如果从特征的角度去看，我们找到的模型往往显得非常杂乱和令人困惑，但如果从数据点激活的角度去看，则会非常简单和清晰。</p>
+        <p>但如果我们在有限数据集上训练模型会发生什么？结果显示，如果从特征的角度去看，我们得到的模型往往非常杂乱、令人困惑；但如果从数据点激活的角度去看，则会显得非常简单、整洁。</p>
       
     
       
-        <p>让我们可视化在不同大小的数据集上训练的几个 ReLU 输出模型，这些数据集包含大量稀疏特征。我们重点关注隐藏维度为 <span class="math-inline" data-math="m=2">m=2</span> 的模型。我们选择二维隐藏空间是为了能进行显式可视化，同时任务设置被设计成能产生我们希望突出的现象的最极端版本。<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup> 如果我们像前一篇论文那样可视化 <span class="math-inline" data-math="W">W</span> 的列，一切都显得“杂乱”，形成复杂的特征散点而非干净的多边形。但如果我们转而可视化训练集的隐藏向量（<span class="math-inline" data-math="h_i = W X_i">h_i = W X_i</span>），则会看到清晰的结构：</p>
+        <p>让我们可视化在不同大小的数据集上训练的几个 ReLU 输出模型，这些数据集包含大量稀疏特征。我们重点关注隐藏维度为 <span class="math-inline" data-math="m=2">m=2</span> 的模型。选择二维隐藏空间是为了便于直接可视化，而任务设置则被设计为能最极端地展现我们希望突出的现象。<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup> 如果像前一篇论文那样可视化 <span class="math-inline" data-math="W">W</span> 的各列，结果是“杂乱”的，特征形成复杂的散点而非干净的多边形。但如果我们转而可视化训练集的隐藏向量（<span class="math-inline" data-math="h_i = W X_i">h_i = W X_i</span>），则能看到清晰的结构：</p>
       
     
       
@@ -2241,7 +2245,7 @@ RK5LdUEiIAIiIAIiIAIiIAIiUCwC/w8nYrJqmiEatwAAAABJRU5ErkJggg==
       
     
       
-        <p>数据点——而非特征——正被表示为多面体！<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup> 我们可以认为这些模型是在操作一种不同类型的特征：一种可用于记忆的“单个数据点特征”，而非“泛化特征”。这暗示了一种朴素的过拟合与记忆化的机制理论：当模型操作“数据点特征”而非“泛化特征”时，就会发生记忆化和过拟合。我们预计这个朴素理论过于简化，但它似乎可能指向了一些有用的原则！</p>
+        <p>被表示成多边形的是数据点——而非特征！<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup> 我们可以认为这些模型是在另一类特征上运作：一种用于记忆的“单个数据点特征”，而非“泛化特征”。这提示了一种朴素的过拟合与记忆化的机制理论：当模型在“数据点特征”而非“泛化特征”上运作时，就会发生记忆化和过拟合。我们预期这个朴素理论过于简化，但它似乎指向了一些有用的原则！</p>
       
     
       
@@ -2250,11 +2254,11 @@ RK5LdUEiIAIiIAIiIAIiIAIiUCwC/w8nYrJqmiEatwAAAABJRU5ErkJggg==
       
     
       
-        <p>当我们增大数据集时会发生什么？显然，我们的玩具模型在“小数据 regime”（它们“将数据点当作特征使用”）和“无限数据 regime”（它们学习真实的泛化特征）中表现非常不同。那么在这两者之间呢？</p>
+        <p>当我们增大数据集时会发生什么？显然，我们的玩具模型在“小数据 regime”（把数据点当作特征使用）和“无限数据 regime”（学习真实的泛化特征）中表现非常不同。那么在这两者之间呢？</p>
       
     
       
-        <p>在原始论文中，“特征维度”的概念有助于研究当我们改变模型时特征几何如何变化。在这篇笔记中，我们将扩展特征维度的概念（在本文剩余部分记为 <span class="math-inline" data-math="D_{f_i}">D_{f_i}</span>），并定义训练样本的维度 <span class="math-inline" data-math="D_{X_i}">D_{X_i}</span> 如下：</p>
+        <p>在原始论文中，“特征维度”的概念有助于研究当我们改变模型时特征几何形状如何变化。在这篇笔记中，我们将特征维度的概念（在本文剩余部分记为 <span class="math-inline" data-math="D_{f_i}">D_{f_i}</span>）扩展到也定义训练样本的维度 <span class="math-inline" data-math="D_{X_i}">D_{X_i}</span>，其计算方式为：</p>
       
     
       
@@ -2262,11 +2266,11 @@ RK5LdUEiIAIiIAIiIAIiIAIiUCwC/w8nYrJqmiEatwAAAABJRU5ErkJggg==
       
     
       
-        <p>其中 <span class="math-inline" data-math="h_i=W X_i">h_i=W X_i</span> 是训练样本 <span class="math-inline" data-math="X_i">X_i</span> 对应的隐藏向量，<span class="math-inline" data-math="\hat{h_i}">\hat{h_i}</span> 是 <span class="math-inline" data-math="h_i">h_i</span> 方向上的单位向量。如果训练样本被嵌入在 <span class="math-inline" data-math="m=2">m=2</span> 中的一个 <span class="math-inline" data-math="T">T</span> 边形中，我们应该预期每个训练样本的维度为 <span class="math-inline" data-math="m/T">m/T</span>。</p>
+        <p>其中 <span class="math-inline" data-math="h_i=W X_i">h_i=W X_i</span> 是与训练样本 <span class="math-inline" data-math="X_i">X_i</span> 关联的隐藏向量，<span class="math-inline" data-math="\hat{h_i}">\hat{h_i}</span> 是 <span class="math-inline" data-math="h_i">h_i</span> 方向上的单位向量。如果训练样本被嵌入在 <span class="math-inline" data-math="m=2">m=2</span> 中的一个 <span class="math-inline" data-math="T">T</span>-边形里，我们应该预期每个训练样本的维度约为 <span class="math-inline" data-math="m/T">m/T</span>。</p>
       
     
       
-        <p>现在我们可以可视化当改变数据集大小时，特征和数据点的几何如何变化。下图中间一栏是不同数据集大小下特征维度和训练样本维度的散点图（我们将在后续小节讨论最上方一栏的测试损失）。</p>
+        <p>现在我们可以可视化当改变数据集大小时，特征和数据点的几何形状如何变化。下图中间面板是不同数据集大小下特征维度和训练样本维度的散点图（我们将在后续小节讨论顶部面板中的测试损失）。</p>
       
     
       
@@ -6049,31 +6053,31 @@ OAKOgCPgCDgCjoAj4Ag4Ao6AI+AIdBeBI5XdH3U3S8/NEXAEHAFHwBFwBBwBR8ARcAQcAUfAEXAE
       
     
       
-        <p>在左侧的小数据 regime 中，我们看到虽然特征维度较小，但训练样本维度符合预期的 <span class="math-inline" data-math="m/T">m/T</span>。下方红色向量图显示模型正在用 <span class="math-inline" data-math="h_i">h_i</span> 形成 <span class="math-inline" data-math="T">T</span> 边形。事实上，如果浮点精度无限，ReLU 输出模型可以用 <span class="math-inline" data-math="T">T</span> 边形记忆任意数量的正交训练样本。这也是我们选择对训练样本进行归一化的原因，尽管如果 <span class="math-inline" data-math="W">W</span> 和 <span class="math-inline" data-math="W_{up}">W_{up}</span> 被解耦，这一约束可以取消。更多细节见此 Colab notebook。</p>
+        <p>在左侧的小数据 regime 中，我们看到虽然特征维度较小，但训练样本维度符合预期的 <span class="math-inline" data-math="m/T">m/T</span>。底部红色向量图显示模型正在用 <span class="math-inline" data-math="h_i">h_i</span> 形成 <span class="math-inline" data-math="T">T</span>-边形。事实上，只要浮点精度足够，ReLU 输出模型可以用 <span class="math-inline" data-math="T">T</span>-边形记忆任意数量的正交训练样本。这也是我们对训练样本进行归一化的动机之一，不过如果 <span class="math-inline" data-math="W">W</span> 和 <span class="math-inline" data-math="W_{up}">W_{up}</span> 不绑定，这个限制可以被放开。更多细节见这个 Colab notebook。</p>
       
     
       
-        <p>在右侧的大数据 regime 中，我们看到 5 个维度较大的特征，而其余特征和训练样本的维度都很小。蓝色向量图显示这 5 个特征被表示为一个五边形，而其余特征基本被忽略。我们在这个 colab 中提供了一些直觉，解释为什么会出现这个大约 5 个特征的解。五边形特征的分数维度明显小于预期的 2/5。我们认为这是因为还有许多其他特征（9,995 个），它们各自微小的贡献累加起来，占据了 <span class="math-inline" data-math="D_{f_i}">D_{f_i}</span> 分母中相当大的比例。</p>
+        <p>在右侧的大数据 regime 中，我们看到 5 个维度较大的特征，而其余特征和训练样本的维度都很小。蓝色向量图显示这 5 个特征被表示成一个五边形，而其他特征则基本被忽略。我们在这个 colab 中提供了一些直观解释，说明为什么会出现大约 5 个特征的解。五边形特征的分数维度明显小于预期的 2/5。我们认为这是因为还有其他很多特征（9,995 个），它们各自微小的贡献累加起来，占了 <span class="math-inline" data-math="D_{f_i}">D_{f_i}</span> 分母中相当大的一部分。</p>
       
     
       
-        <p>大多数数据样本在这 5 个五边形特征中仅有一个或零个非零值，因此隐藏向量在右下方的红色子图中也描绘出一个五边形。离群点代表极少数具有多个非零值的罕见情况。</p>
+        <p>大多数数据样本在这 5 个五边形特征上只有 0 或 1 个非零值，因此隐藏向量在右下方的红色子图中也同样描出一个五边形。离群点对应于罕见的具有多个非零值的样本。</p>
       
     
       
-        <p>在这两个极端之间的情况则更加杂乱，难以解释。</p>
+        <p>在这两个极端之间的情况则更加混乱，也更难解释。</p>
       
     
       
-        <p>我们之前图中的红色和蓝色向量图并未使用一致的尺度。使用一致尺度（见下图）后可以看到，隐藏向量和特征向量的长度都随数据集大小剧烈变化，在 <span class="math-inline" data-math="T=30">T=30</span> 附近达到峰值，随后在中段 regime 迅速下降，并在大数据 regime 中趋于平稳。将 <span class="math-inline" data-math="W">W</span> 的 Frobenius 范数和 <span class="math-inline" data-math="b">b</span> 的 l2 范数画出来，也显示出模型参数的相同趋势。</p>
+        <p>我们在上一张图中没有对红色和蓝色向量图使用一致的尺度。使用一致尺度（见下图）后可以发现，隐藏向量和特征向量的长度都会随数据集大小发生很大变化，在 <span class="math-inline" data-math="T=30">T=30</span> 附近达到峰值，随后在中段 regime 快速下降，并在大数据 regime 中趋于平稳。将 <span class="math-inline" data-math="W">W</span> 的 Frobenius 范数和 <span class="math-inline" data-math="b">b</span> 的 l2 范数画出来，也能看到模型参数呈现相同的趋势。</p>
       
     
       
-        <p>对这些趋势的几点评论：</p>
+        <p>对这些趋势的几点说明：</p>
       
     
       
-        <div class="list-content">小数据 regime：可以证明，通过 <span class="math-inline" data-math="T">T</span> 边形记忆正交训练样本的模型，在 <span class="math-inline" data-math="T">T</span> 较大时应具有更大的 <span class="math-inline" data-math="W">W</span> 和 <span class="math-inline" data-math="b">b</span>（详见此 colab）。这与我们在 <span class="math-inline" data-math="T&lt;30">T&lt;30</span> 下观察到的行为一致。大数据 regime：直观上，一旦模型有足够数据来泛化（即形成五边形），继续增加数据只会引起相对较小的变化。这与我们观察到的大数据 regime 中的平稳期一致。在我们对无限数据的过度简化解中，我们得到 <span class="math-inline" data-math="||W|| = \sqrt{5} \approx 2.2">||W|| = \sqrt{5} \approx 2.2</span>，这与真实值惊人接近（尽管我们关于 <span class="math-inline" data-math="b=0">b=0</span> 的假设显然不现实）。</div>
+        <div class="list-content">小数据 regime：可以证明，通过 <span class="math-inline" data-math="T">T</span>-边形记忆正交训练样本的模型，在 <span class="math-inline" data-math="T">T</span> 较大时应该具有更大的 <span class="math-inline" data-math="W">W</span> 和 <span class="math-inline" data-math="b">b</span>（详见这个 colab）。这与我们在 <span class="math-inline" data-math="T&lt;30">T&lt;30</span> 上观察到的行为一致。大数据 regime：直观上，一旦模型有足够数据可以泛化（即形成五边形），继续增加数据只会带来相对较小的变化。这与我们在大数 regime 中观察到的平稳现象一致。在我们对无限数据的过度简化解中，我们得到 <span class="math-inline" data-math="||W|| = \sqrt{5} \approx 2.2">||W|| = \sqrt{5} \approx 2.2</span>，这个值与真实值惊人地接近（尽管我们假设 <span class="math-inline" data-math="b=0">b=0</span> 显然不现实）。</div>
       
     
       
@@ -7725,15 +7729,15 @@ AElFTkSuQmCC
       
     
       
-        <p>模型在两个不同 regime 中表现截然不同，而中间存在奇怪行为的现象，与双下降[<cite>[belkin2019reconciling,advani2020high,geiger2019jamming]</cite>]（尤其是“数据双下降”，例如[<cite>[nakkiran2021deep]</cite>]）惊人地相似。数据双下降的一个显著现象是测试损失先变差再变好——这违背了“更多数据应该总是减少过拟合”的朴素直觉！</p>
+        <p>模型在两个不同 regime 中行为差异极大，中间则出现奇怪行为的现象，与双下降[<cite>[belkin2019reconciling,advani2020high,geiger2019jamming]</cite>]（尤其是“数据双下降”，例如[<cite>[nakkiran2021deep]</cite>]）非常相似。数据双下降一个显著特点是测试损失会先变差再变好——这违反了“更多数据应该总是减少过拟合”的朴素直觉！</p>
       
     
       
-        <p>对于给定的 <span class="math-inline" data-math="T">T</span>，模型的解将取决于随机选择的训练集，有些训练集适合记忆（例如正交的训练样本），有些则适合泛化。为了确保我们的结果不是巧合，我们为每个数据集大小使用不同数据集随机种子训练了 4 个模型。然后我们绘制平均测试损失（我们第一张图中的上半部分），发现在“数据点叠加” regime 和“泛化特征叠加” regime 的过渡处出现了一个明显的凸起。</p>
+        <p>对于给定的 <span class="math-inline" data-math="T">T</span>，模型的解会取决于随机选择的训练集，有些训练集容易记忆（例如正交的训练样本），有些则容易泛化。为了确保结果不是偶然，我们对每种数据集大小都用不同随机种子训练了 4 个模型。然后我们绘制了平均测试损失（我们第一张图中的顶部面板），发现在“数据点处于叠加” regime 与“泛化特征处于叠加” regime 的过渡处出现了一个明显的凸起。</p>
       
     
       
-        <p>有趣的是，我们观察到的双下降是在没有标签噪声的情况下出现的。也就是说：输入和目标是完全相同的。这里的“噪声”来自下投影中发生的有损压缩。仅用 2 个神经元通过线性投影来编码 10,000 个特征是不可能的，即使在稀疏极限下也是如此。因此重构必然不完美，从而产生不可避免的重构误差，并最终导致双下降[<cite>[maloney2022solvable]</cite>]。</p>
+        <p>有趣的是，我们观察到的双下降是在没有标签噪声的情况下出现的。也就是说：输入和目标完全相同。这里的“噪声”来自下投影中的有损压缩。即使在稀疏极限下，也不可能用 2 个神经元线性投影编码 10,000 个特征。因此重构必然不完美，从而产生不可避免的重构误差，并最终导致双下降[<cite>[maloney2022solvable]</cite>]。</p>
       
     
       
@@ -7742,11 +7746,11 @@ AElFTkSuQmCC
       
     
       
-        <p>此时，很自然会想知道双下降是否只是因为只有 <span class="math-inline" data-math="m=2">m=2</span> 个隐藏维度，或者是优化困难导致的人工现象。在本节中，我们将确认情况并非如此。我们还将能够探索双下降文献中的一个主题——将其理解为模型大小、数据集大小和训练之间多维交互的结果，而非一维现象[<cite>[nakkiran2021deep]</cite>]。</p>
+        <p>此时很自然会产生疑问：这种双下降是否只是因为我们只有 <span class="math-inline" data-math="m=2">m=2</span> 个隐藏维度，或者是优化困难导致的 artifact。在本节中，我们将确认情况并非如此。我们还将能够探索双下降文献中的一个主题——将其理解为模型大小、数据集大小和训练等多维度相互作用的结果，而非单一维度的现象[<cite>[nakkiran2021deep]</cite>]。</p>
       
     
       
-        <p>我们将双下降可视化为一个二维函数，同时改变训练样本数量 <span class="math-inline" data-math="T">T</span> 和隐藏维度数量 <span class="math-inline" data-math="m">m</span>。其他所有超参数与上面相同。我们为每种 <span class="math-inline" data-math="(T,m)">(T,m)</span> 配置训练四个模型，并对得到的损失取平均。我们经验上发现，对于 <span class="math-inline" data-math="m&gt;3">m&gt;3</span>，优化能产生更加一致的结果。</p>
+        <p>我们将双下降可视化为关于训练样本数 <span class="math-inline" data-math="T">T</span> 和隐藏维度数 <span class="math-inline" data-math="m">m</span> 的二维函数。其他超参数与之前保持一致。我们对每种 <span class="math-inline" data-math="(T,m)">(T,m)</span> 配置都训练四个模型，并对得到的损失取平均。我们经验上发现，对于 <span class="math-inline" data-math="m&gt;3">m&gt;3</span> 的情况优化结果会更加一致。</p>
       
     
       
@@ -8833,16 +8837,16 @@ CPwLcHNLSLkEkcEAAAAASUVORK5CYII=
       
     
       
-        <p>显然存在一些会出现“双下降”的区域——即更大模型或更多数据反而损害性能的区域。</p>
+        <p>显然存在一些会出现“双下降”的区域——在这些区域中，更大的模型或更多的数据反而会损害性能。</p>
       
     
       
-        <p>与之前关于双下降的工作一致，这些结果对权重衰减和训练 epoch 数非常敏感。在附录中，我们展示了对于 <span class="math-inline" data-math="m=4">m=4</span> 模型</p>
+        <p>与之前关于双下降的工作一致，这些结果对权重衰减和训练轮数非常敏感。在附录中，我们展示了对于 <span class="math-inline" data-math="m=4">m=4</span> 模型：</p>
       
     
       
-        <div class="list-content">训练更多 epoch 会使测试损失的凸起增大
-将权重衰减从 1e-2 增加到 1.0 会完全消除该凸起</div>
+        <div class="list-content">训练更多轮数会增大测试损失的凸起
+将权重衰减从 1e-2 增加到 1.0 会完全消除这个凸起</div>
       
     
       
@@ -8851,15 +8855,15 @@ CPwLcHNLSLkEkcEAAAAASUVORK5CYII=
       
     
       
-        <p>我们发现，在玩具模型中，记忆化可以被理解为模型在叠加中学习“单个数据点特征”。这些模型在从表示数据点转向表示特征的策略过渡过程中会表现出双下降。</p>
+        <p>我们发现在玩具模型中，记忆化可以被理解为模型在叠加中学习“单个数据点特征”。这些模型在从表示数据点转向表示特征的策略过渡过程中会表现出双下降。</p>
       
     
       
-        <p>还有大量内容值得探索。最明显的问题是，这些结果所暗示的关于过拟合的朴素机制理论是否能在一定程度上泛化到真实模型上。但在玩具模型的背景下也有很多可以追问的问题：</p>
+        <p>还有很多值得探索的地方。最明显的问题是，这些结果所暗示的朴素过拟合机制理论是否能在一定程度上推广到真实模型上。但在玩具模型的背景下也有很多问题值得研究：</p>
       
     
       
-        <div class="list-content">当模型同时学习特征和单个数据点特征的混合时会发生什么？（这或许可以用部分重复的数据来研究，如[<cite>[hernandez2022scaling]</cite>]所示。）在“中间 regime”中，当模型从一种策略过渡到另一种且损失出现尖峰时，模型在机制上究竟在做什么？是否存在某种“什么是特征”或“如何识别特征”的概念，既能涵盖泛化特征，也能涵盖单个数据点？</div>
+        <div class="list-content">当模型同时学习特征和单个数据点特征的混合时会发生什么？（这或许可以用部分重复的数据来研究，如[<cite>[hernandez2022scaling]</cite>]所述。）在“中间 regime”中，当模型从一种策略转向另一种、损失出现尖峰时，模型在机制上到底在做什么？是否存在某种“什么是特征”或“如何识别特征”的概念，能够同时涵盖泛化特征和单个数据点？</div>
       
     
       
@@ -8868,7 +8872,7 @@ CPwLcHNLSLkEkcEAAAAASUVORK5CYII=
       
     
       
-        <p>受原始 Circuits Thread 和 Distill 讨论文章实验的启发，作者邀请了几位此前我们曾与之讨论过初步结果的外部研究者对这项工作发表评论。他们的评论附在下面。</p>
+        <p>受到原始 Circuits Thread 和 Distill 讨论文章实验的启发，作者邀请了几位之前讨论过我们初步结果的外部研究者对本文进行评论。他们的评论附在下方。</p>
       
     
       
@@ -8881,11 +8885,11 @@ CPwLcHNLSLkEkcEAAAAASUVORK5CYII=
       
     
       
-        <p>在看到初步结果后，我复现了“模型如何随数据集大小变化？”一节中隐藏维度为 <span class="math-inline" data-math="m=2">m=2</span> 的模型的结果。总体上我发现了良好的定性一致性。我的结果与论文中展示的结果存在一些定量差异，但没有我认为会影响任何结论的差异。</p>
+        <p>在看到初步结果后，我复现了“模型如何随数据集大小变化？”一节中隐藏维度为 <span class="math-inline" data-math="m=2">m=2</span> 的模型结果。总体上我发现了很好的定性一致性。我的结果与论文中展示的结果存在一些定量差异，但不足以影响任何结论。</p>
       
     
       
-        <p>下面的图对应于该节中的第一张图，并且显示出定性上相似的特征：</p>
+        <p>下面的图对应于该节中的第一张图，展现了定性上相似的特征：</p>
       
     
       
@@ -18078,23 +18082,23 @@ FEVRFEVRFEVRFEVRFEVRFMU4JXWe/w+KYO4Pp271vwAAAABJRU5ErkJggg==
       
     
       
-        <p>特别是，这次复现显示出相同的三个 regime 划分：从小数据集记忆样本、从大数据集学习泛化特征，以及中间更复杂的某个过程；并且样本嵌入和特征嵌入在我的模型与论文所示模型之间看起来定性相似。</p>
+        <p>特别是，这次复现显示了相同的三个 regime 划分：在小数据集上记忆样本，从大数据集上学习泛化特征，以及在这之间做一些更复杂的事情；样本和特征的嵌入在我的模型与论文展示的模型之间看起来也定性相似。</p>
       
     
       
-        <p>我能看到的与论文中对应图有三处差异，我认为它们可能是相关的：</p>
+        <p>我能看到的与论文对应图之间的三个差异，我认为它们可能是相关的：</p>
       
     
       
-        <div class="list-content">我的模型中泛化特征 regime 的起始点对应更大的数据集大小。我在 T=20,000 时看到它，而论文中它从 T=5,000 开始。中间 regime 的起始点在我的模型中对应更小的数据集大小（T≈100 而论文中 T≈700），无论是以样本嵌入偏离均匀分布还是测试损失跳变来衡量都是如此。我的模型在中间 regime 的测试损失要大得多：最高可达 5,000，而论文中约为 1.01。</div>
+        <div class="list-content">我的模型进入泛化特征 regime 的起始数据集大小更大。我在 T=20,000 时看到它，而论文中从 T=5,000 开始。中间 regime 的起始数据集大小对我的模型更小（T≈100 而论文中 T≈700），无论是通过样本嵌入偏离均匀分布还是测试损失的跳变来衡量都是如此。我的模型在中间 regime 的测试损失要大得多：最高达到 5000，而论文中约为 1.01。</div>
       
     
       
-        <p>我多次运行模型并验证不同的实例都能复现这些差异。我尚未能确定这些差异来自哪里，而且据我所知，我是严格按照文中描述的方式训练模型的，尽管我确实有可能遗漏了某些细节！</p>
+        <p>我多次运行模型并验证不同实例都复现了这些差异。我还没有找出这些差异的来源，而且据我所知，我 precisely 按照文中描述的方式训练了模型，不过我确实有可能遗漏了什么！</p>
       
     
       
-        <p>我还复现了同一节的第二张图：</p>
+        <p>我还复现了该节的第二张图：</p>
       
     
       
@@ -22616,19 +22620,19 @@ AAAAAElFTkSuQmCC
       
     
       
-        <p>总体趋势非常相似。特别是：</p>
+        <p>总体趋势非常相似。具体来说：</p>
       
     
       
-        <div class="list-content">在小数据集大小下，偏置范数开始小于权重范数，随后在稍大的数据集上变得大于权重范数，并在泛化 regime 中再次小于权重范数。两个范数都随数据集大小增加而上升，并在模型学会泛化特征后迅速回落。</div>
+        <div class="list-content">在小数据集上，偏置范数开始小于权重范数，随后在稍大的数据集上变得大于权重范数，而在泛化 regime 中又重新小于权重范数。两个范数都随数据集增大而上升，并在模型学会泛化特征后迅速下降。</div>
       
     
       
-        <p>同样存在差异，不过这些是定量而非定性的。特别是，我的模型中偏置范数的峰值大约是论文中的 3 倍，并且我在 T=100-1000 范围内看到了权重范数的上升，而论文中的图显示出更多的是平稳。</p>
+        <p>尽管存在差异，但这些差异是定量的而非定性的。具体来说，我模型中偏置范数的峰值大约是论文中的 3 倍，而且我在 T=100-1000 范围内看到权重范数上升，而论文中的图显示得更像是一个平台期。</p>
       
     
       
-        <p>原作者回应：感谢进行复现！看到所有内容都能在定性上复现真是太好了。我们不确定是什么导致了过渡发生时数据集大小的偏移。看起来我们的设置之间一定存在某些超参数差异，但我们不确定具体是什么！不过，由于我们真正关心的只是过渡是否存在，而非它在这个玩具问题中具体落在哪里，因此我们并不特别担心找出确切的差异。</p>
+        <p>原作者回复：感谢进行复现！看到所有结果都能在定性上复现真的很好。我们不确定是什么导致了过渡发生的数据集大小的偏移。看起来我们的设置之间一定存在某些超参数差异，但我们不确定具体是什么！不过，既然我们真正关心的只是过渡是否存在，而不是在这个玩具问题上它精确落在哪里，因此我们并不那么在意找出确切差异。</p>
       
     
       
@@ -22641,11 +22645,11 @@ AAAAAElFTkSuQmCC
       
     
       
-        <p>我复现了“Superposition, Memorization, and Double Descent”论文中的大部分发现。我通过分别将稀疏度和特征数量降低 10 倍来修改了设置。我仍然发现了论文中描述的双下降现象，且特征和隐藏向量的构型非常相似。我还在许多其他设置中发现了双下降，例如使用不同的损失函数或在层之间添加 ReLU 激活。我从这些发现中得到的初步结论是，双下降是一种相当普遍的现象，我们应该预期它会在许多场景中出现。（细节可参见我的文章《More Findings on Memorization and Double Descent》。）</p>
+        <p>我复现了“叠加、记忆化与双下降”论文中的大部分发现。我通过分别将稀疏度和特征数量减少 10 倍来改变了设置。我仍然发现了论文中描述的双下降现象，特征和隐藏向量的构型也非常相似。我还在其他多种设置中发现了双下降，例如使用不同损失函数，或者在层间加入 ReLU 激活。我从这些发现中得到的初步结论是，双下降是一个相当普遍的现象，我们应该预期它会在许多场景中出现。（详细信息可参见我的文章《More Findings on Memorization and Double Descent》。）</p>
       
     
       
-        <h3>扩展：什么控制着泛化尺度？</h3>
+        <h3>扩展：什么控制了泛化尺度？</h3>
         
       
     
@@ -22654,12 +22658,12 @@ AAAAAElFTkSuQmCC
       
     
       
-        <p>阅读这篇论文时我产生的一个问题是：是什么决定了模型学会泛化特征的尺度？当我提出这个问题时，作者提出了两个潜在假设：</p>
+        <p>阅读这篇论文时我产生的一个问题是：是什么决定了模型开始学习泛化特征的尺度？当我提出这个问题时，作者提出了两个潜在假设：</p>
       
     
       
         <div class="list-content">这是数据点叠加失效的尺度（例如由于权重衰减限制了权重范数）
-这是特征在不同组合中多次出现的尺度，从而允许它们被区分开来。</div>
+这是特征在不同组合中多次出现的尺度，从而使它们能够被区分开来。</div>
       
     
       
@@ -28502,15 +28506,15 @@ AAAARD3CcwAAAAAAAAAAAABA1CM8BwAAAAAAAAAAAABEvf8HRoUHS7PwiqUAAAAASUVORK5CYII=
       
     
       
-        <p>泛化尺度对应于维度上的一个跳变。重要的是，这个尺度似乎并不随权重衰减率变化，这构成了对第一个假设的反证。</p>
+        <p>泛化尺度对应于维度上的一个跳变。重要的是，这个尺度似乎并不随权重衰减率变化，这为第一个假设提供了反面证据。</p>
       
     
       
-        <p>第二个假设预测，泛化尺度出现在数据集足够大、以至于每个特征都出现了多次实例的时候。即，它发生在 <span class="math-inline" data-math="T \propto 1 / (1-S)">T \propto 1 / (1-S)</span>。</p>
+        <p>第二个假设预测，泛化尺度发生在数据集足够大、每个特征都出现了多次的时候。也就是说，它发生在 <span class="math-inline" data-math="T \propto 1 / (1-S)">T \propto 1 / (1-S)</span>。</p>
       
     
       
-        <p>下图展示了用不同权重衰减率训练的模型的特征维度。线表示最大特征维度，点和线的颜色对应特征频率（<span class="math-inline" data-math="1-S">1-S</span>）。现在的横坐标是数据集中任意给定特征出现的期望次数（<span class="math-inline" data-math="T (1-S)">T (1-S)</span>），第二个假设的预测是泛化尺度在这个尺度上应该是固定的。</p>
+        <p>下图展示了用不同权重衰减率训练的模型的特征维度。线表示最大特征维度，点和线的颜色对应特征出现频率（<span class="math-inline" data-math="1-S">1-S</span>）。横轴现在是任何一个给定特征在数据集中出现的期望次数（<span class="math-inline" data-math="T (1-S)">T (1-S)</span>），第二个假设的预测是泛化尺度在这个尺度上应该是固定的。</p>
       
     
       
@@ -39966,11 +39970,11 @@ AAAASUVORK5CYII=
       
     
       
-        <p>事实确实如此！使用非常不同稀疏度训练的模型，一旦数据集大到能让每个特征大致出现 10 次，就会学会泛化特征。</p>
+        <p>看起来确实如此！使用非常不同稀疏度训练的模型，都在大约看到每个特征 10 次之后开始学习泛化特征。</p>
       
     
       
-        <p>虽然这很有启发性，但还不清楚这是否就是全部故事。例如，对于具有更多隐藏维度的模型，维度曲线并没有那么整齐地重合在一起（见下图），而且还存在其他令人困惑的趋势（例如后泛化阶段中峰值特征维度随数据集增长而下降），因此可能还有更多机制在起作用。</p>
+        <p>虽然这很有启发性，但显然这不是故事的全部。例如，对于具有更多隐藏维度的模型，维度曲线并没有那么干净地重合在一起（见下图），而且还存在其他令人困惑的趋势（例如泛化后随着数据集增大，峰值特征维度反而下降），因此可能还有更多机制在起作用。</p>
       
     
       
@@ -67883,15 +67887,15 @@ CCGEEEIIIYQQQgghhBDipOf39NFHH3300UcfffTRRx999NFHH3300UcfffTRRx999NFHH3300edk
       
     
       
-        <p>当作者分享初步草稿时，他们建议观察单个数据点在数据集中被重复时会发生什么可能很有趣。</p>
+        <p>当作者分享初步草稿时，他们建议观察单个数据点在数据集中被重复时会发生什么，这可能会很有趣。</p>
       
     
       
-        <p>当一个数据点出现少量次数（2-3 次）时，现象与本文相同，但随着重复次数增加，模型会转向学习数据点和泛化特征的混合。</p>
+        <p>当一个数据点出现少量次数（2-3 次）时，现象与本文一致；但随着重复次数增多，模型会转向学习数据点与泛化特征的混合。</p>
       
     
       
-        <p>下图展示了一个 T=30,000、单个特征（黑色）出现 5 次的模型的训练历史（左侧面板为特征和样本维度，右侧面板为最终的特征和样本嵌入）。这个重复特征与四个泛化特征一起被嵌入，并抑制了第五个特征，实际上替换了原本会学到的一个泛化特征。</p>
+        <p>下图展示了一个 T=30,000、单个特征（黑色）出现 5 次的模型的训练历史（左侧面板为特征和样本维度，右侧面板为最终的特征和样本嵌入）。这个重复特征与四个泛化特征一起被嵌入，并抑制了第五个特征， effectively 替换了原本会学习到的一个泛化特征。</p>
       
     
       
@@ -72781,7 +72785,7 @@ IYQQQgghhBBCCCGEEEKMev4/KZqeXu5heAgAAAAASUVORK5CYII=
       
     
       
-        <p>当存在多个重复数据点时，模型会优先学习它们，每个都会替换嵌入空间中的一个特征：</p>
+        <p>当存在多个重复数据点时，模型会优先学习它们，每个重复数据点都会在嵌入空间中替换一个特征：</p>
       
     
       
@@ -77891,7 +77895,7 @@ hriWWw5hU4EAAAAASUVORK5CYII=
       
     
       
-        <p>当重复数据点超过五个时，模型会嵌入其中五个，而它原本会学到的全部五个特征都被抑制了：</p>
+        <p>当重复数据点超过五个时，模型会嵌入其中五个，而它原本会学习的所有五个特征都被抑制了：</p>
       
     
       
@@ -83688,17 +83692,17 @@ hBBCCCGEEEII6ff8f1M02Rl1IjtCAAAAAElFTkSuQmCC
       
     
       
-        <p>这里出现的一个问题是：一个数据点需要出现多少次才会被记忆？思考这个问题的一种方式是比较记忆一个数据点与学习一个特征各自带来的收益。大致来说：</p>
+        <p>这里产生的一个问题是：一个数据点需要出现多少次才会被记忆？一种思考方式是比较记忆一个数据点与学习一个特征各自的收益。大致来说：</p>
       
     
       
-        <div class="list-content">一个给定特征在数据集中出现 <span class="math-inline" data-math="T(1-S)">T(1-S)</span> 次。如果该特征幅度为 <span class="math-inline" data-math="A">A</span> 且能被完美学习，则学习它带来的损失收益为 <span class="math-inline" data-math="AT(1-S)">AT(1-S)</span>。
-一个给定数据点有 <span class="math-inline" data-math="N(1-S)">N(1-S)</span> 个激活特征，每个幅度量级为 <span class="math-inline" data-math="A">A</span>。如果该数据点出现 <span class="math-inline" data-math="R">R</span> 次，则完美记忆它带来的损失收益为 <span class="math-inline" data-math="RNA(1-S)">RNA(1-S)</span>。
-平衡这些损失收益表明，当 <span class="math-inline" data-math="R &gt; T/N">R &gt; T/N</span> 时数据点会被记忆，这与稀疏度无关。请注意这个论证中省略了常数因子，因此该不等式中还应有一个比例常数。</div>
+        <div class="list-content">一个给定特征在数据集中出现 <span class="math-inline" data-math="T(1-S)">T(1-S)</span> 次。如果该特征幅度为 <span class="math-inline" data-math="A">A</span> 且能被完美学习，那么学习它的损失收益是 <span class="math-inline" data-math="AT(1-S)">AT(1-S)</span>。
+一个给定数据点有 <span class="math-inline" data-math="N(1-S)">N(1-S)</span> 个激活的特征，每个幅度约为 <span class="math-inline" data-math="A">A</span>。如果该数据点出现 <span class="math-inline" data-math="R">R</span> 次，那么完美记忆它的损失收益是 <span class="math-inline" data-math="RNA(1-S)">RNA(1-S)</span>。
+在这些损失收益之间取得平衡表明，当 <span class="math-inline" data-math="R &gt; T/N">R &gt; T/N</span> 时数据点会被记忆化，这与稀疏度无关。注意这个论证中省略了常数因子，因此这个不等式中还应存在一个比例常数。</div>
       
     
       
-        <p>下图展示了使用单个重复特征和隐藏维度 <span class="math-inline" data-math="m=2">m=2</span> 训练的模型的结果。数据集足够大，模型能够学习泛化特征。符号对应两种不同设置：“+”对应 <span class="math-inline" data-math="S=0.999">S=0.999</span> 和 <span class="math-inline" data-math="N=10,000">N=10,000</span>，“x”对应 <span class="math-inline" data-math="S=0.99">S=0.99</span> 和 <span class="math-inline" data-math="N=1,000">N=1,000</span>。符号颜色表示重复数据点是否出现在嵌入维度前 0.1% 的数据点中（红色表示是，蓝色表示否）。这是一个粗略的代理指标，用于判断模型是否记忆了该数据点。最后，黑线表示 <span class="math-inline" data-math="R=0.4 T/N">R=0.4 T/N</span>。</p>
+        <p>下图展示了使用单个重复特征和隐藏维度为 <span class="math-inline" data-math="m=2">m=2</span> 的模型得到的结果。这些数据集足够大，模型能够学习到泛化特征。符号对应两种不同设置：“+”对应 <span class="math-inline" data-math="S=0.999">S=0.999</span> 和 <span class="math-inline" data-math="N=10,000">N=10,000</span>，“x”对应 <span class="math-inline" data-math="S=0.99">S=0.99</span> 和 <span class="math-inline" data-math="N=1,000">N=1,000</span>。符号颜色表示重复数据点是否出现在按嵌入维度排前 0.1% 的数据点中（红色表示是，蓝色表示否）。这是一个粗略的代理指标，用于判断模型是否记忆了该数据点。最后，黑线表示 <span class="math-inline" data-math="R=0.4 T/N">R=0.4 T/N</span>。</p>
       
     
       
@@ -87077,16 +87081,16 @@ AAAAAAAAAADg8/4fxqtxGfJw278AAAAASUVORK5CYII=
       
     
       
-        <p>数据有些嘈杂，这可能部分反映了在 <span class="math-inline" data-math="m=2">m=2</span> 中优化的困难，但总体而言：</p>
+        <p>数据有些噪声，这部分可能是因为在 <span class="math-inline" data-math="m=2">m=2</span> 中优化较为困难，但总体而言：</p>
       
     
       
-        <div class="list-content">在低 <span class="math-inline" data-math="T/N">T/N</span> 时，模型需要超过 <span class="math-inline" data-math="T/N">T/N</span> 次重复才能记忆重复的数据点。
-在较大的 <span class="math-inline" data-math="T/N">T/N</span> 时，记忆与不记忆重复数据点的分界线与黑线重合，对应 <span class="math-inline" data-math="R \propto T/N">R \propto T/N</span>，与上面粗略的解析论证一致。</div>
+        <div class="list-content">在低 <span class="math-inline" data-math="T/N">T/N</span> 时，模型需要超过 <span class="math-inline" data-math="T/N">T/N</span> 次重复才能记忆重复数据点。
+在较大的 <span class="math-inline" data-math="T/N">T/N</span> 时，记忆与不记忆重复数据点的分界线与黑线一致，对应 <span class="math-inline" data-math="R \propto T/N">R \propto T/N</span>，这与上面粗略的解析论证一致。</div>
       
     
       
-        <p>作为最后一个观察，在处于记忆数据点边缘的模型中，我们看到许多“接近错过”的情况，即模型先记忆了一个数据点，随后又“决定”不这么做！</p>
+        <p>作为最后一个观察，在处于记忆数据点边缘的模型中，我们看到了一些“接近但未成功”的情况：模型先记忆了一个数据点，随后又“决定”不记忆它！</p>
       
     
       
@@ -91931,7 +91935,7 @@ AAAASUVORK5CYII=
       
     
       
-        <p>有趣的是，这种现象与中间数据集 regime 中没有重复数据点的模型中的现象相对应：在这些模型中，有些模型会短暂地学会泛化特征，随后在训练结束前又将其遗忘。下面这个为 T=10,000 训练的模型制作的动画展示了这一点：</p>
+        <p>有趣的是，这种现象与在没有重复数据点的中间数据集 regime 中的一种现象相对应：在那种情况下，有些模型会短暂地学习到泛化特征，随后在训练结束前又将其遗忘。下面这个动图展示了一个在 T=10,000 上训练的模型：</p>
       
     
       
@@ -91940,15 +91944,15 @@ AAAASUVORK5CYII=
       
     
       
-        <p>Chris Olah 是原始论文的作者之一。这条评论描述了一个我们可能会也可能不会进一步展开的小扩展。</p>
+        <p>Chris Olah 是原始论文的作者之一。这条评论描述了一个我们可能会也可能不会进一步扩展的小扩展。</p>
       
     
       
-        <p>基于这些结果，一个自然的问题是，我们是否能用数据维度在真实神经网络中检测过拟合、被记忆的样本。作为初步探索，让我们来看一个只是稍微不那么“玩具”的模型——一个具有 512 个隐藏单元的单隐藏层 MNIST 模型。通常情况下，研究真实模型中的叠加很困难，因为我们不知道特征是什么。但研究叠加中的数据点是一个例外，因为我们确实知道数据点是什么！</p>
+        <p>基于这些结果，一个自然的问题是，我们能否用数据维度在真实神经网络中检测过拟合、被记忆的样本。作为初步探索，让我们来看一个只是稍微不那么 toy 的模型——一个具有 512 个隐藏单元的单隐藏层 MNIST 模型。通常，研究真实模型中的叠加非常困难，因为我们不知道特征是什么。但研究处于叠加中的数据点是一个例外，因为我们确实知道数据点是什么！</p>
       
     
       
-        <p>在实践中，我们预期真实模型中的特征并不正交，而且即使一个数据集样本被记忆了，它也可能会激活一些“泛化”特征。为了考虑这一点，我们将对数据维度的定义稍作修改，改为最大数据维度：</p>
+        <p>在实践中，我们预期真实模型中的特征并非正交的，而且即使一个数据集样本被记忆，它也很可能会激活一些“泛化”特征。为了考虑这一点，我们将稍微修改数据维度的概念，改为最大数据维度：</p>
       
     
       
@@ -91956,11 +91960,11 @@ AAAASUVORK5CYII=
       
     
       
-        <p>其直觉是，如果一个样本激活了多个特征， supremum 可以选择其中数据维度最高的那个。（事实证明，这与如果你对网络激活拟合一个高斯分布时数据点的对数似然密切相关。）</p>
+        <p>其直觉是，如果一个样本激活了多个特征，supremum 可以挑选出具有最高数据维度的那个。（事实证明，这与如果你对网络激活拟合一个高斯分布时数据点的对数似然密切相关。）</p>
       
     
       
-        <p>在下方，我们画出了所有训练样本的数据维度。我们看到大多数样本具有大致相同的数据维度，但在两个尾部都有一些离群点。引人注目的是，那些具有异常高数据维度的样本——几乎是典型样本的 100 倍！——往往是奇怪的离群点。虽然远非定论，但我们很想相信这些样本是模型“特殊处理”的“被记忆”样本。</p>
+        <p>下面我们绘制了所有训练样本的数据维度。我们看到大多数样本具有大致相同的维度，但在两个尾部都有少数离群点。令人惊讶的是，那些具有异常高数据维度的样本——几乎是典型样本的 100 倍！——往往是奇怪的离群点。虽然远非结论性，但我们不禁认为这些样本是被“特殊处理”的“被记忆”样本。</p>
       
     
       
@@ -96674,7 +96678,7 @@ Bx988MEHH3zwwQcffPDBBx988MEHH3zwwQcffFT1j/8fVZIk2rtkjeIAAAAASUVORK5CYII=
       
     
       
-        <p>除了检测过拟合之外，我们也可以将其视为机制异常检测（mechanistic anomaly detection）的一个例子——检测模型是否正在以不同于平常的原因做决策。当然，我们并不是说模型“触发特殊情况”的所有情形都能被如此容易地检测到。如果有什么的话，它可能暗示机制异常检测会比我们想象的更难，因为它可能被叠加所隐藏。</p>
+        <p>除了检测过拟合之外，我们也可以将其视为机制异常检测（mechanistic anomaly detection）的一个例子——检测模型是否正在以不同于平常的原因做决策。当然，我们并不是说模型“触发特殊情况”的所有案例都能被如此轻松地检测出来。如果说有什么启示的话，它可能暗示机制异常检测将比我们想象的还要更困难，因为它可能被叠加所掩盖。</p>
       
     
       
@@ -96682,7 +96686,7 @@ Bx988MEHH3zwwQcffPDBBx988MEHH3zwwQcffFT1j/8fVZIk2rtkjeIAAAAASUVORK5CYII=
       
     
       
-        <p>我能在很小的偏差内复现这些关于最大数据维度的结果。我在许多额外设置中测试了 <span class="math-inline" data-math="D*">D*</span> 的性质，例如在训练的不同阶段、不同数据集大小以及不同标签下。我的主要收获是 a) <span class="math-inline" data-math="D*">D*</span> 在实践中可能很难调好，但即使尚未收敛，看起来仍然可解释；b) <span class="math-inline" data-math="D*">D*</span> 捕捉到了我们预期神经网络应该具有的许多不同性质。例如，当将 <span class="math-inline" data-math="D*">D*</span> 应用于双下降设置时，我们可以从这个指标中看到从记忆到泛化的转变；c) 它开启了几个新的有趣研究问题，这些问题可能告诉我们更多关于神经网络在训练中如何学习的信息，值得作为后续研究。（细节可参见我的文章《More Findings on Maximal Data Dimension》。）</p>
+        <p>我能够在很小的偏差内复现这些关于最大数据维度的结果。我在许多额外设置中测试了 <span class="math-inline" data-math="D*">D*</span> 的性质，例如在训练的不同阶段、不同数据集大小以及不同标签上。我的主要结论是：a) <span class="math-inline" data-math="D*">D*</span> 在实践中可能很难调到理想状态，但即使尚未收敛，看起来仍然是可解释的；b) <span class="math-inline" data-math="D*">D*</span> 能够捕捉我们预期神经网络应该具有的许多不同性质。例如，当将 <span class="math-inline" data-math="D*">D*</span> 应用到双下降设置中时，我们可以从这个指标中看到从记忆到泛化的转变；c) 它开启了几个新的有趣研究问题，这些问题可能告诉我们更多关于神经网络在训练中如何学习的信息，值得后续研究。（详细信息可参见我的文章《More Findings on Maximal Data Dimension》。）</p>
       
     
       
@@ -96695,7 +96699,7 @@ Bx988MEHH3zwwQcffPDBBx988MEHH3zwwQcffFT1j/8fVZIk2rtkjeIAAAAASUVORK5CYII=
       
     
       
-        <p>在低数据记忆 regime 中训练 <span class="math-inline" data-math="m=2">m=2</span> 模型时，我们偶尔会观察到点没有组织成一个圆的情况。我们认为这些模型正在将点组织在两个不同半径的圆上，并且未能将它们合并。为了确保小圆上的点能够被线性选中，这些解需要在不同圆上点之间的界面处存在一个较大的角度间隙。</p>
+        <p>当在低数据记忆化 regime 中训练 <span class="math-inline" data-math="m=2">m=2</span> 模型时，我们偶尔会观察到点没有组织成一个圆的情况。我们认为这些模型正在两个具有不同半径的圆上组织点，并且未能将它们合并。为了确保较小圆上的点能够被线性选中，这些解需要在不同圆上点的交界处留下一个较大的角度间隙。</p>
       
     
       
@@ -100327,7 +100331,7 @@ article{schlegel2022comparison,
     <h2>注释</h2>
     
     <div class="footnote-item" id="f1n">
-      <a href="#fnref-f1n">[1]</a> 也可以通过解耦模型权重 <span class="math-inline" data-math="W">W</span> 和 <span class="math-inline" data-math="W_{up} \neq W^T">W_{up} \neq W^T</span> 来实现这一点，不过由此产生的 <span class="math-inline" data-math="h_i">h_i</span> 通常会有不同的长度，因此不会形成完美的 <span class="math-inline" data-math="T">T</span> 边形。这种解耦权重很可能更忠实地代表了大多数真实神经网络。
+      <a href="#fnref-f1n">[1]</a> 也可以不绑定模型权重 <span class="math-inline" data-math="W">W</span> 和 <span class="math-inline" data-math="W_{up} \neq W^T">W_{up} \neq W^T</span> 来实现这一点，不过这样得到的 <span class="math-inline" data-math="h_i">h_i</span> 通常会具有不同长度，因此不会形成完美的 <span class="math-inline" data-math="T">T</span>-边形。这种不绑定的权重可能更忠实地代表了大多数真实神经网络。
     </div>
     
     <div class="footnote-item" id="f2n">
@@ -100335,11 +100339,11 @@ article{schlegel2022comparison,
     </div>
     
     <div class="footnote-item" id="f3n">
-      <a href="#fnref-f3n">[3]</a> 我们发现，当数据点正交且幅度相似时，模型最清晰地“将单个数据点当作特征”（详见此 Colab notebook）。高度稀疏的特征会增加出现正交数据点的概率。拥有大量特征可以避免数据点只是单个特征激活的平凡情况。理想情况下，我们更希望仅使用足够多的特征以使中心极限定理让数据点具有相似范数，但要在高稀疏度下实现这一点将需要令人讨厌的大向量。
+      <a href="#fnref-f3n">[3]</a> 我们发现，当数据点正交且幅度相似时，模型最明显地“将单个数据点当作特征”（详见这个 Colab notebook）。高度稀疏的特征会增加出现正交数据点的概率。拥有大量特征则可以避免数据点只是单个特征激活的平凡情况。理想情况下，我们更希望仅仅使用足够多的特征，让中心极限定理使数据点具有相似范数，但要在高稀疏度下实现这一点，需要使用令人头疼的大向量。
     </div>
     
     <div class="footnote-item" id="f4n">
-      <a href="#fnref-f4n">[4]</a> 这在直观上是合理的：如果 <span class="math-inline" data-math="T \ll n">T \ll n</span>，在隐藏的 <span class="math-inline" data-math="m">m</span> 维空间中表示 <span class="math-inline" data-math="T">T</span> 个训练样本应该比表示 <span class="math-inline" data-math="n">n</span> 个特征更容易。
+      <a href="#fnref-f4n">[4]</a> 这在直觉上是合理的：如果 <span class="math-inline" data-math="T \ll n">T \ll n</span>，在隐藏的 <span class="math-inline" data-math="m">m</span> 维空间中表示 <span class="math-inline" data-math="T">T</span> 个训练样本应该比表示 <span class="math-inline" data-math="n">n</span> 个特征更容易。
     </div>
     
   </section>

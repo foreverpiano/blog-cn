@@ -340,10 +340,12 @@ def _walk_block(el, segments: list, all_slugs: set[str],
 
     for child in el.children:
         if not isinstance(child, Tag):
-            # Emit text that contains block markers
+            # Emit ALL non-Tag text (including inline math placeholders)
             if hasattr(child, 'string') and child.string:
-                text = str(child.string)
-                _emit_text_with_markers(text, segments, math_registry, inline_code_registry)
+                text = str(child.string).strip()
+                if text and len(text) >= 2:
+                    _emit_text_segment(text, "paragraph", segments,
+                                       math_registry, inline_code_registry)
             continue
 
         tag = child.name

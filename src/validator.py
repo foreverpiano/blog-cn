@@ -171,6 +171,79 @@ def validate_source_vs_parsed(slug: str, raw_dir: Path, parsed_dir: Path) -> dic
     return {"slug": slug, "status": "pass" if not issues else "issues", "issues": issues}
 
 
+def validate_transformer_circuits(slug: str, raw_dir: Path, parsed_dir: Path,
+                                  dist_dir: Path) -> dict:
+    """Transformer-circuits specific structural validation."""
+    from bs4 import BeautifulSoup
+
+    raw_path = raw_dir / f"{slug}.html"
+    parsed_path = parsed_dir / f"{slug}.json"
+
+    if not raw_path.exists() or not parsed_path.exists():
+        return {"slug": slug, "status": "skip"}
+
+    parsed = json.loads(parsed_path.read_text(encoding="utf-8"))
+    issues = []
+
+    # 1. Math registry coverage: every non-display entry must be referenced in some segment
+    math_reg = parsed.get("math_registry", {})
+    all_segment_text = " ".join(s.get("text", "") for s in parsed.get("segments", []))
+    all_fn_text = " ".join(fn.get("text", "") for fn in parsed.get("footnotes", []))
+    all_text = all_segment_text + " " + all_fn_text
+
+    # Also count math_block segments (display math)
+    math_block_texts = {s.get("text", "") for s in parsed.get("segments", [])
+                        if s.get("type") == "math_block"}
+
+    unreferenced_math = []
+    for idx, entry in math_reg.items():
+        if entry.get("display"):
+            # Display math should appear as math_block segment
+            if entry.get("tex", "") not in math_block_texts:
+                unreferenced_math.append(idx)
+        else:
+            # Inline math should appear as {{MATH:N}} in some text
+            if f"{{{{MATH:{idx}}}}}" not in all_text:
+                unreferenced_math.append(idx)
+
+    if unreferenced_math:
+        issues.append(f"unreferenced_math_registry: {unreferenced_math[:5]}")
+
+    # 2. Check local image files exist and are non-zero
+    img_dir = raw_dir / "images" / slug
+    for seg in parsed.get("segments", []):
+        if seg.get("type") == "figure":
+            src = seg.get("image_src", "")
+            if src.startswith("data:"):
+                continue
+            # Local path: ../images/{slug}/{file} → check raw_dir/images/{slug}/{file}
+            if src.startswith("../images/"):
+                local_file = raw_dir / "images" / src[len("../images/"):]
+                if not local_file.exists():
+                    issues.append(f"missing_image: {src}")
+                elif local_file.stat().st_size == 0:
+                    issues.append(f"zero_byte_image: {src}")
+
+    # 3. Check rendered HTML has no escaped table tags
+    dist_html_path = dist_dir / "articles" / f"{slug}.html"
+    if dist_html_path.exists():
+        dist_html = dist_html_path.read_text(encoding="utf-8")
+        if "&lt;table" in dist_html and "<div class=\"table-container\">" in dist_html:
+            issues.append("escaped_table_html_in_output")
+
+    # 4. Footnote count consistency (within content container only, matching adapter scope)
+    raw_html = raw_path.read_text(encoding="utf-8")
+    raw_soup = BeautifulSoup(raw_html, "lxml")
+    content_el = (raw_soup.find("d-article") or raw_soup.find("article")
+                  or raw_soup.find("main") or raw_soup.find("body"))
+    raw_fn_count = len(content_el.find_all("d-footnote")) if content_el else 0
+    parsed_fn_count = len(parsed.get("footnotes", []))
+    if raw_fn_count != parsed_fn_count:
+        issues.append(f"footnote_count: raw={raw_fn_count}, parsed={parsed_fn_count}")
+
+    return {"slug": slug, "status": "pass" if not issues else "issues", "issues": issues}
+
+
 # ── Main validation orchestrator ─────────────────────────────────────
 
 def validate_all(paths=None) -> dict:
@@ -207,14 +280,22 @@ def validate_all(paths=None) -> dict:
                 for issue in r["issues"][:3]:
                     print(f"  {r['slug']}: {issue}")
 
-    # Source-vs-parsed structural validation (lethain only — uses shared content selector)
+    # Source-vs-parsed structural validation (site-specific)
     site_name = paths.DATA_DIR.name if paths else ""
-    if RAW_DIR and RAW_DIR.exists() and site_name == "lethain":
+    if RAW_DIR and RAW_DIR.exists() and site_name in ("lethain", "transformer_circuits"):
         struct_results = {"pass": 0, "issues": 0, "skip": 0, "details": []}
-        for entry in index:
-            sr = validate_source_vs_parsed(entry["slug"], RAW_DIR, PARSED_DIR)
-            struct_results["details"].append(sr)
-            struct_results[sr["status"]] = struct_results.get(sr["status"], 0) + 1
+
+        if site_name == "lethain":
+            for entry in index:
+                sr = validate_source_vs_parsed(entry["slug"], RAW_DIR, PARSED_DIR)
+                struct_results["details"].append(sr)
+                struct_results[sr["status"]] = struct_results.get(sr["status"], 0) + 1
+        elif site_name == "transformer_circuits":
+            for entry in index:
+                sr = validate_transformer_circuits(entry["slug"], RAW_DIR, PARSED_DIR,
+                                                   paths.DIST_DIR)
+                struct_results["details"].append(sr)
+                struct_results[sr["status"]] = struct_results.get(sr["status"], 0) + 1
 
         print(f"\nStructural validation: {struct_results['pass']} pass, "
               f"{struct_results['issues']} issues, {struct_results['skip']} skip")
