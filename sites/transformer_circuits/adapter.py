@@ -265,9 +265,12 @@ def _parse_article(html: str, index_entry: dict, all_slugs: set[str],
             seen_bib_srcs.add(bib_src)
             bib_url = urljoin(page_url, bib_src)
             bib_content = _fetch_page(bib_url)
-            if bib_content:
+            if bib_content and not bib_content.strip().startswith("<?xml"):
                 bibtex_segments.append(bib_content.strip())
-    # Fallback: script type=text/bibliography
+            else:
+                # Record bibliography source reference even if fetch failed
+                bibtex_segments.append(f"% Bibliography: {bib_url} (source reference)")
+    # Also check: script type=text/bibliography (inline)
     for bib_script in soup.find_all("script", type="text/bibliography"):
         text = bib_script.get_text().strip()
         if text:

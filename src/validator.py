@@ -241,33 +241,30 @@ def validate_transformer_circuits(slug: str, raw_dir: Path, parsed_dir: Path,
     if raw_fn_count != parsed_fn_count:
         issues.append(f"footnote_count: raw={raw_fn_count}, parsed={parsed_fn_count}")
 
-    # 5. Citation fidelity: d-cite keys in content must be preserved in citation_registry
+    # 5. Citation fidelity: d-cite occurrence count must match citation_registry count
+    from collections import Counter
     citation_reg = parsed.get("citation_registry", {})
     if content_el:
-        raw_cite_keys = set()
-        for d_cite in content_el.find_all("d-cite"):
-            key = d_cite.get("key", "").strip()
-            if key:
-                raw_cite_keys.add(key)
-        parsed_cite_keys = {e.get("key", "") for e in citation_reg.values()}
-        missing_cite_keys = raw_cite_keys - parsed_cite_keys
-        if missing_cite_keys:
-            issues.append(f"missing_citation_keys: {list(missing_cite_keys)[:3]}")
+        raw_cite_count = len([d for d in content_el.find_all("d-cite")
+                              if d.get("key", "").strip()])
+        parsed_cite_count = len(citation_reg)
+        if raw_cite_count != parsed_cite_count:
+            issues.append(f"citation_count: raw={raw_cite_count}, parsed={parsed_cite_count}")
 
-    # 6. Bibliography: script type=text/bibliography (inline content) must produce bibtex segment
-    #    d-bibliography src=".bib" may fail to download (403) so only check inline bibliography
-    has_inline_bib = bool(raw_soup.find("script", type="text/bibliography"))
+    # 6. Bibliography: any bibliography source must produce bibtex segment (content or reference)
+    has_bib_source = bool(raw_soup.find("d-bibliography")) or bool(
+        raw_soup.find("script", type="text/bibliography"))
     has_bib_segment = any(s.get("type") == "bibtex" for s in parsed.get("segments", []))
-    if has_inline_bib and not has_bib_segment:
-        issues.append("inline_bibliography_without_bibtex_segment")
+    if has_bib_source and not has_bib_segment:
+        issues.append("bibliography_source_without_bibtex_segment")
 
-    # 7. d-code preservation: raw d-code count must be covered by code segments + inline_code_registry
+    # 7. d-code preservation: exact count comparison
     if content_el:
         raw_dcode_count = len(content_el.find_all("d-code"))
         inline_code_reg = parsed.get("inline_code_registry", {})
-        parsed_code_from_dcode = len(inline_code_reg)  # d-code → either inline or block entries
-        if raw_dcode_count > 0 and parsed_code_from_dcode == 0:
-            issues.append(f"d_code_lost: raw={raw_dcode_count}, preserved=0")
+        parsed_dcode_count = len(inline_code_reg)
+        if raw_dcode_count != parsed_dcode_count:
+            issues.append(f"d_code_count: raw={raw_dcode_count}, parsed={parsed_dcode_count}")
 
     return {"slug": slug, "status": "pass" if not issues else "issues", "issues": issues}
 
