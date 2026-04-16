@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>追踪注意力计算中的特征交互 · Transformer Circuits Thread</title>
+  <title>通过特征交互追踪注意力计算 · Transformer Circuits Thread</title>
   <link rel="stylesheet" href="../static/css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
@@ -20,7 +20,7 @@
 
 <article>
   <header class="article-header">
-    <h1>追踪注意力计算中的特征交互</h1>
+    <h1>通过特征交互追踪注意力计算</h1>
     <div class="meta">
       July 2025 · 
       <a href="https://transformer-circuits.pub/2025/attention-qk/index.html" target="_blank" rel="noopener">阅读原文</a>
@@ -30,27 +30,27 @@
   <div class="article-content">
     
       
-        <p>基于Transformer的语言模型主要包含两类计算：多层感知器（MLP）层，用于在同一上下文位置内处理信息；以及注意力层，用于有条件地在不同上下文位置之间传递和处理信息。在我们<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a> <a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a>的工作中，我们在将MLP计算分解为可解释步骤方面取得了重大进展。在本次更新中，我们通过引入一种分解注意力计算的方法，填补了方法论中一个重要的缺失环节。</p>
+        <p>基于Transformer的语言模型主要包含两类计算：多层感知器（MLP）层，用于在同一上下文位置内处理信息；以及注意力层，用于有条件地在不同上下文位置之间传递和处理信息。在我们<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a> <a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a>的工作中，我们在将MLP计算分解为可解释步骤方面取得了重大进展。在本次更新中，我们引入了一种分解注意力计算的方法，从而填补了我们方法论中的一个重要空白。</p>
       
     
       
-        <p>我们之前的工作引入了归因图（attribution graphs），用以将Transformer的前向传播表示为一个可解释的因果图。这些图构建在（跨层）转码器（transcoders）之上，后者替代了原始模型的MLP层，使用稀疏激活的“特征”来取代原来的MLP神经元。这些特征构成了归因图的节点，而图中的边则代表归因——即源特征对后续层中目标特征的影响。</p>
+        <p>我们之前的工作引入了归因图（attribution graphs），用于将Transformer的前向传播表示为一个可解释的因果图。这些图构建在（跨层）转码器（transcoders）之上，取代了原始模型的MLP层，使用稀疏激活的“特征”代替原始的MLP神经元。这些特征构成了归因图的节点，而图中的边则代表归因——即源特征对后续层中目标特征的影响。</p>
       
     
       
-        <p>我们最初工作中的归因图并不完整，因为它们省略了关于注意力计算的关键信息。我们所研究的特征-特征交互（即图中的边）是由注意力头介导的，这些注意力头负责在上下文位置之间传递信息。然而，我们并未尝试解释注意力头为什么会关注特定的上下文位置。在许多情况下，这导致我们无法理解模型执行某项任务的核心机制。</p>
+        <p>我们最初工作中的归因图并不完整，因为它们省略了关于注意力计算的关键信息。我们研究的特征-特征交互（即图中的边）是由注意力头介导的，这些注意力头在不同上下文位置之间传递信息。然而，我们并未尝试解释为什么注意力头会关注特定的上下文位置。在许多情况下，这使得我们无法理解模型完成特定任务的核心机制。</p>
       
     
       
-        <p>在本次更新中，我们描述了一种通过扩展归因图来解释注意力模式的方法。我们的方法以“QK归因”为核心，它将注意力头的得分描述为查询位置和关键位置上特征激活的双线性函数。我们还描述了将这一信息整合到归因图中的方法，即计算不同注意力头对图中边的贡献。</p>
+        <p>在本次更新中，我们描述了一种通过扩展归因图来解释注意力模式的方法。我们的方法以“QK归因”为核心，它将注意力头的得分描述为查询位置和键位置上特征激活的双线性函数。我们还描述了将这一信息整合到归因图中的方法，即计算不同注意力头对图中边的贡献。</p>
       
     
       
-        <p>我们提供了几个该方法实际应用的案例研究。其中一些例子验证了我们在<a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a>中描述的已有假设，而当时我们无法对其进行验证：</p>
+        <p>我们提供了该方法在实际应用中的几个案例研究。其中一些例子验证了我们在<a href="2025-attribution-graphs-biology.html">大型语言模型的生物学</a>中描述的现有假设，当时我们无法验证这些假设：</p>
       
     
       
-        <div class="list-content">在<a href="2022-in-context-learning-and-induction-heads.html">上下文学习与归纳头</a>提示中，查询侧的“X”特征与关键侧的“preceded by X”特征相互作用，使归纳头（induction heads）关注到合适的token。在一个要求模型给出某个词反义词的提示中，关键侧特征会“标记”相关单词，以便查询侧的“opposite”特征能在合适时机找到它。在一个多选题提示中，我们证实“answer a multiple choice question”特征与“correct answer”特征之间的交互，导致“correct answer”注意力头关注到正确的选项。</div>
+        <div class="list-content">在<a href="2022-in-context-learning-and-induction-heads.html">上下文学习与归纳头</a>提示中，查询侧的“X”特征与键侧的“preceded by X”特征相互作用，使归纳头（induction heads）关注到合适的token。在要求模型给出某个词的反义词的提示中，键侧特征会“标记”相关词汇，以便查询侧的“opposite”特征能在合适的时间找到它。在多选题中，我们确认“answer a multiple choice question”特征与“correct answer”特征之间的交互，会导致“correct answer”注意力头关注到正确的选项。</div>
       
     
       
@@ -58,19 +58,19 @@
       
     
       
-        <div class="list-content">“concordance/discordance heads”如何被用于对陈述进行 sanity-check。注意力电路如何在并行中运用多种计算和启发式，即使在简单情境下也是如此。以下是一些例子：</div>
+        <div class="list-content">“concordance/discordance heads”如何被用于对陈述进行正确性检查。注意力电路如何在简单情境中也并行运用多种计算和启发式方法。以下是一些例子：</div>
       
     
       
-        <div class="list-content">在我们的归纳提示中，核心归纳机制与一个通用的“attend to names”机制并存。在多选提示中，核心的“find the correct answer”机制被一个“attend to any answer at all”机制所补充。</div>
+        <div class="list-content">在我们的归纳提示中，核心归纳机制与一个通用的“attend to names”机制共存。在多选提示中，核心的“find the correct answer”机制被一个“attend to any answer at all”机制所补充。</div>
       
     
       
-        <p>此处的案例研究是我们首次尝试应用该方法，我们期待在未来的工作中会有更多发现。</p>
+        <p>此处的案例研究是我们首次尝试应用该方法，我们期待在未来的工作中会出现更多发现。</p>
       
     
       
-        <p>我们相信，引入QK归因是对原始归因图的重大质的改进，它解锁了此前不可能进行的分析。然而，关于注意力电路仍存在许多开放的研究问题，我们将在文章末尾进行描述。</p>
+        <p>我们认为，引入QK归因是对原始归因图的重大质的改进，它解锁了此前不可能进行的分析。然而，关于注意力电路仍存在许多开放的研究问题，我们将在文章末尾进行描述。</p>
       
     
       
@@ -79,23 +79,23 @@
       
     
       
-        <p>转码器仅在同一上下文位置内读取和写入信息——然而，Transformer模型还包含注意力层，用于在不同上下文位置之间传递信息。因此，任意两个转码器特征之间的影响都是由注意力层介导的<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>。</p>
+        <p>转码器仅在同一上下文位置内读写信息——然而，Transformer模型还包含注意力层，用于跨上下文位置传递信息。因此，任意两个转码器特征之间的影响都是由注意力层介导的<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>。</p>
       
     
       
-        <p>为了使归因成为一个定义明确的运算，我们设计归因图时让特征之间的交互是线性的。其中一个关键技巧是将注意力模式冻结，将其视为一个常量线性操作（并忽略为什么它们具有这些注意力模式）。这使我们能够通过注意力头追踪一个特征对另一个特征的影响。这可能涉及多个并行工作的注意力头，以及注意力头的组合。最终的归因是对应于由不同注意力头序列介导的特征的归因之和。</p>
+        <p>为了使归因成为一个明确定义的操作，我们将归因图设计为特征之间的交互是线性的。其中一个关键技巧是将注意力模式冻结，将其视为一个常量线性操作（并忽略它们为什么具有这些注意力模式）。这使我们能够通过注意力头追踪一个特征对另一个特征的影响。这可能涉及多个并行工作的注意力头，以及注意力头的组合。最终的归因是对应于被不同注意力头序列介导的特征的归因之和。</p>
       
     
       
-        <p>但像这样冻结注意力模式并对头求和，意味着我们的归因图在两个方面“缺失”了关于注意力计算的关键信息：</p>
+        <p>但像这样冻结注意力模式并对注意力头求和，意味着我们的归因图在两个方面“缺失”了关于注意力计算的关键信息：</p>
       
     
       
-        <div class="list-content">图中模糊了哪些（序列的）头强烈参与了某条边的介导。即使我们确实识别出了重要头，我们也未能解释每个头注意力模式的机制来源——即每个头的QK电路如何产生其模式。事实上，通过在计算梯度时以注意力模式为条件，我们的图完全忽略了QK电路。</div>
+        <div class="list-content">图中无法明确指出哪些（序列的）注意力头强烈介导了给定的边。即使我们确实识别出了重要的注意力头，我们也未能解释每个注意力头注意力模式的机制来源——即每个头的QK电路如何产生其模式。事实上，通过在计算梯度时对注意力模式进行条件化，我们的图完全忽略了QK电路。</div>
       
     
       
-        <p>在我们的原始论文中，我们<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a>对于许多提示，这种缺失的QK信息会使归因图变得无用。特别地，对于许多提示，哪一个（或哪些）头介导了某条边，以及为什么这些头会关注它们所关注的位置，正是计算的核心。我们在论文后续部分提供了几个这种失败模式的例子，并展示了我们的方法如何填补缺失的信息。</p>
+        <p>在我们的原始论文中，我们<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a>对于许多提示，这种缺失的QK信息会使归因图变得无用。特别是，对于许多提示，哪一个（或哪些）注意力头介导了某条边，以及为什么这些头会关注它们所关注的位置，正是计算的核心。我们将在本文后续部分提供这种失败模式的几个例子，并展示我们的方法如何填补缺失的信息。</p>
       
     
       
@@ -104,11 +104,11 @@
       
     
       
-        <p>解释注意力头注意力模式的来源。我们方法背后的核心洞见是，注意力得分（softmax之前）是查询位置和关键位置处残差流的双线性函数。因此，如果我们将残差流分解为特征分量之和，就可以将注意力得分重写为特征-特征对（一个在查询位置，一个在关键位置）的点积之和。我们将这种分解称为“QK归因”，并在下面更详细地描述如何计算它。请注意，[<cite>[ge2024automatically]</cite>]和[<cite>[wynroe2024bilinear]</cite>]也使用了相同的策略来分析QK电路，但探索深度较浅。</p>
+        <p>解释注意力头注意力模式的来源。我们方法背后的核心洞见是，注意力得分（在softmax之前）是查询位置和键位置处残差流的双线性函数。因此，如果我们将残差流分解为特征分量的和，我们就可以将注意力得分重写为特征-特征对（一个在查询位置，一个在键位置）点积的和。我们称这种分解为“QK归因”，并在下面更详细地描述如何计算它。请注意，[<cite>[ge2024automatically]</cite>]和[<cite>[wynroe2024bilinear]</cite>]也使用了相同的策略来分析QK电路，但探索的深度较浅。</p>
       
     
       
-        <p>解释注意力头如何参与归因图。仅解释每个头注意力得分的来源是不够的；我们还必须理解这些头如何参与我们的归因图。为此，对于归因图中的每条边，我们会跟踪该边被不同注意力头介导的程度。为了实现这一点，仅使用（跨层）转码器是不够的；我们将在下面解释这个问题以及如何解决它。</p>
+        <p>解释注意力头如何参与归因图。仅解释每个注意力头注意力得分的来源是不够的；我们还必须理解这些注意力头如何参与我们的归因图。为此，对于归因图中的每条边，我们会追踪该边由不同注意力头介导的程度。要实现这一点，仅使用（跨层）转码器是不够的；我们将在下面解释这个问题以及如何解决它。</p>
       
     
       
@@ -117,11 +117,11 @@
       
     
       
-        <p>QK归因旨在解释每个头为什么关注它所关注的位置。在本节中，我们假设已经在模型每一层的残差流上训练了稀疏自编码器（SAEs）（尽管我们也可以使用其他策略，见下文）。</p>
+        <p>QK归因旨在解释每个注意力头为什么关注它所关注的位置。在本节中，我们假设已经在模型每一层的残差流上训练了稀疏自编码器（SAEs）（尽管我们可以使用其他策略；见下文）。</p>
       
     
       
-        <p>在标准的注意力层中，头在位置（<span class="math-inline" data-math="p_k">p_k</span>，<span class="math-inline" data-math="p_q">p_q</span>）的注意力得分是通过对这些位置残差流的线性变换进行点积得到的<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>。为了简化，我们引入一个矩阵<span class="math-inline" data-math="W_{QK} = W_Q^T W_K">W_{QK} = W_Q^T W_K</span>（参见<a href="2021-framework.html">Transformer 电路的数学框架</a><a href="2021-framework.html">Transformer 电路的数学框架</a><a href="2021-framework.html">Transformer 电路的数学框架</a>）。我们简单地将关键和查询激活展开，用特征激活（以及偏置和残差误差）来描述它们，然后将双线性交互展开：</p>
+        <p>在标准的注意力层中，注意力头在位置(<span class="math-inline" data-math="p_k">p_k</span>, <span class="math-inline" data-math="p_q">p_q</span>)的注意力得分是通过对这两个位置残差流的线性变换进行点积得到的<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>。为了简化问题，我们引入一个矩阵<span class="math-inline" data-math="W_{QK} = W_Q^T W_K">W_{QK} = W_Q^T W_K</span>（参见<a href="2021-framework.html">变压器电路的数学框架</a><a href="2021-framework.html">变压器电路的数学框架</a><a href="2021-framework.html">变压器电路的数学框架</a>）。我们简单地将键和查询激活展开，用特征激活（以及偏差和残差误差）来描述它们，然后将双线性交互展开：</p>
       
     
       
@@ -132,15 +132,15 @@
       
     
       
-        <p>这些项之和即为注意力得分。</p>
+        <p>这些项的和等于注意力得分。</p>
       
     
       
-        <p>请注意，在某些架构中，残差流与线性变换<span class="math-inline" data-math="W_Q">W_Q</span>和<span class="math-inline" data-math="W_K">W_K</span>之间可能存在归一化步骤。在这种情况下，特征向量应先经过归一化层的线性化变换后再用于上述公式。如果归一化层包含偏置项，则可以将其折叠到上面的偏置项中。</p>
+        <p>请注意，在某些架构中，残差流与线性变换<span class="math-inline" data-math="W_Q">W_Q</span>和<span class="math-inline" data-math="W_K">W_K</span>之间可能存在一个归一化步骤。在这种情况下，特征向量应先经过归一化层的线性化变换，然后再用于上述公式。如果归一化层包含偏差项，它可以被折叠到上面的偏差项中。</p>
       
     
       
-        <p>一旦计算出这些项，我们就可以按幅度大小列出它们。每个项都是查询侧分量与关键侧分量之间的交互，可以并排列出。对于特征分量，我们用其特征描述进行标记，并在我们的交互式UI中使其可悬停，以便轻松查看其“特征可视化”。</p>
+        <p>一旦我们计算出这些项，我们就可以简单地按幅度对其进行排序。每项都是查询侧和键侧分量之间的交互，可以并排列出。对于特征分量，我们用其特征描述进行标记，并在我们的交互式UI中使其可悬停，以便轻松查看其“特征可视化”。</p>
       
     
       
@@ -151,7 +151,7 @@
       
     
       
-        <p>这种方法的一个局限性是，它并不直接解释注意力模式本身，后者涉及多个上下文位置注意力得分之间的竞争——要解释为什么注意力头关注某个特定位置，可能需要理解为什么它没有关注其他位置。我们的方法为我们提供了所有上下文位置的QK归因信息，包括负归因，因此我们确实可以获得这些信息（我们在后续一些例子中突出了一些有趣的抑制效应）。然而，我们尚无自动呈现重要抑制效应的方法，而无需手动检查。虽然解决这一局限性是未来工作的重要方向，但我们仍然发现我们的注意力得分分解是可解释且有用的。</p>
+        <p>这种方法的一个限制是，它不能直接解释注意力模式本身，后者涉及多个上下文位置注意力得分之间的竞争——要解释为什么注意力头关注某个特定位置，可能需要理解为什么它没有关注其他位置。我们的方法为我们提供了所有上下文位置的QK归因信息，包括负归因，因此我们可以访问这些信息（我们在后续的一些例子中突出了有趣的抑制效应）。然而，我们还没有办法在不进行人工检查的情况下自动呈现重要的抑制效应。虽然解决这一限制是未来工作的重要方向，但我们仍然发现我们的注意力得分分解是可解释且有用的。</p>
       
     
       
@@ -160,28 +160,28 @@
       
     
       
-        <p>QK归因帮助我们理解每个头注意力模式的来源。为了让这种理解对我们有用，我们需要理解这些注意力模式被用于什么。我们的策略是为归因图中的每条边增加“头加载”，告诉我们每个注意力头对该边的贡献程度。</p>
+        <p>QK归因帮助我们理解每个注意力头注意力模式的来源。为了让这种理解对我们有用，我们需要理解这些注意力模式被用于什么。我们的策略是用“head loadings”丰富我们的归因图，对于每条边，它告诉我们每个注意力头对该边的贡献。</p>
       
     
       
-        <h3>使用特征对注意力路径进行“检查点”</h3>
+        <h3>使用特征对注意力路径进行“检查点”（Checkpointing）</h3>
         
       
     
       
-        <p>事实证明，使用基于转码器的归因图来计算注意力头对图中边的贡献非常困难。这是因为当转码器特征被L层分隔时，它们之间可能的注意力头路径数量会随L呈指数增长<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>。因此，将基于转码器的归因图中的边分解为其来自每条路径的贡献在计算上非常困难<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup>。</p>
+        <p>事实证明，使用基于转码器的归因图来计算注意力头对图中边的贡献是困难的。这是因为当转码器特征被L层分隔时，它们之间可能的注意力头路径数量会随着L呈指数增长<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>。因此，将基于转码器的归因图中的边分解为其来自每条路径的贡献在计算上是困难的<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup>。</p>
       
     
       
-        <p>我们可以通过一种强制图中每条边仅由长度为1的注意力头路径介导的方法来规避这个问题。这可以通过我们已经实验过的几种不同策略实现：</p>
+        <p>我们可以通过使用一种强制图中每条边只由长度为1的注意力头路径介导的方法来规避这个问题。这可以通过我们已经实验过的几种不同策略实现：</p>
       
     
       
-        <div class="list-content">使用<a href="2025-attention-update.html">注意机制的研究进展</a>，即注意力层的类转码器替代品。MTC特征由（注意力头的线性组合）“承载”，而不是通过多个注意力头的路径，因此不会遇到路径数量指数增长的问题。在每个注意力层输出上训练SAE，并将这些特征作为节点与（跨层）转码器特征一起放入归因图中。这对每个注意力层进行“检查点”，消除了所有长度大于1的注意力头路径。在模型每一层的残差流上训练SAE，并在相邻层特征之间计算梯度归因。这也以与前述选项相同的方式在每一层进行“检查点”。</div>
+        <div class="list-content">使用<a href="2025-attention-update.html">注意力机制的研究进展</a>，作为注意力层的类转码器替代品。MTC特征由（注意力头的线性组合）“承载”，而不是通过多个注意力头的路径，因此不会遇到路径数量指数增长的问题。在每个注意力层的输出上训练SAE，并将这些特征作为节点与（跨层）转码器特征一起放入归因图中。这对每个注意力层进行“检查点”，消除了所有长度大于1的注意力头路径。在模型每一层的残差流上训练SAE，并在相邻层特征之间计算梯度归因。这也以与前两种选项相同的方式在每一层进行“检查点”。</div>
       
     
       
-        <div class="list-content">在实践中，我们没有使用每一层残差流上的SAE，而是使用<a href="2024-crosscoders.html">稀疏跨编码器：跨层特征与模型差异分析</a>（WCCs）来计算这些图，其特征从残差流层L读取，并重建层L、L+1、…、num_layers的残差流<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup>。给定层K中的目标特征，我们计算从其层K解码器向量到层K−1残差流的梯度，并计算该梯度与层K−1中源特征投影（激活乘以解码器向量）的点积。然而，这些解码器可能属于起源于更早层的特征，这使我们能够“跳回”跨层并避免冗余特征的长链（类似于跨层转码器的动机）。</div>
+        <div class="list-content">在实践中，我们没有在每个残差流层使用SAE，而是使用<a href="2024-crosscoders.html">稀疏跨编码器用于跨层特征与模型差异分析</a>（WCCs）来计算这些图，其特征从残差流层L读取，并重建层L、L+1、…、num_layers的残差流<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup>。给定层K中的目标特征，我们计算从其层K解码器向量到层K−1残差流的梯度，并将此梯度与层K−1中源特征投影（激活乘以解码器向量）进行点积。然而，这些解码器可能属于起源于更早层的特征，这使我们能够“跳回”跨层并避免冗余特征的长链（类似于跨层转码器的动机）。</div>
       
     
       
@@ -192,24 +192,24 @@
       
     
       
-        <p>目前，我们采用了第三种策略。另外两种方法会在跨层过程中在残差流中累积误差，我们发现这会导致整体重建误差更大，从而使归因被误差节点主导<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup>。在后续阐述中，我们将把算法描述为应用于基于残差流SAE的图（扩展到WCCs很简单）。</p>
+        <p>目前，我们采用了第三种策略。另外两种方法会在跨层过程中在残差流中累积误差，我们发现这会导致整体重建误差更大，从而使归因被误差节点主导<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup>。在后续的阐述中，我们将把我们的算法描述为应用于基于残差流SAE的图（扩展到WCCs很简单）。</p>
       
     
       
-        <p>重要的是要注意，一条边在给定层仍可能由多个头介导！但它不能再由跨多个层的头链介导。</p>
+        <p>重要的是要注意，一条边在给定层仍可能由多个注意力头介导！但是，它不再可能由跨多个层的注意力头链介导。</p>
       
     
       
-        <h3>头加载</h3>
+        <h3>注意力头加载（Head loadings）</h3>
         
       
     
       
-        <p>一旦我们按照上述方式训练了SAE（或合适的替代品），我们就可以计算图中边的注意力头加载——即每个头对介导该边负责的程度。相邻层中两个SAE特征之间的任何边都是三项之和：注意力介导的分量、MLP介导的分量，以及残差连接介导的分量。</p>
+        <p>一旦我们按照上述方式训练了SAE（或合适的替代品），我们就可以计算图中边的注意力头加载——即每个注意力头对介导该边的责任程度。相邻层中两个SAE特征之间的任何边都是三项之和：注意力介导的分量、MLP介导的分量，以及残差连接介导的分量。</p>
       
     
       
-        <p>设源特征和目标特征分别位于位置<span class="math-inline" data-math="p_s">p_s</span>和<span class="math-inline" data-math="p_t">p_t</span>，激活为<span class="math-inline" data-math="a_s">a_s</span>和<span class="math-inline" data-math="a_t">a_t</span>，特征向量为<span class="math-inline" data-math="\mathbf{v_s}">\mathbf{v_s}</span>和<span class="math-inline" data-math="\mathbf{v_t}">\mathbf{v_t}</span><sup id="fnref-f7n"><a href="#f7n">[7]</a></sup>。注意力介导的分量可写为如下形式。</p>
+        <p>设源特征和目标特征分别位于位置<span class="math-inline" data-math="p_s">p_s</span>和<span class="math-inline" data-math="p_t">p_t</span>，激活值为<span class="math-inline" data-math="a_s">a_s</span>和<span class="math-inline" data-math="a_t">a_t</span>，特征向量为<span class="math-inline" data-math="\mathbf{v_s}">\mathbf{v_s}</span>和<span class="math-inline" data-math="\mathbf{v_t}">\mathbf{v_t}</span><sup id="fnref-f7n"><a href="#f7n">[7]</a></sup>。注意力介导的分量可以写成如下形式。</p>
       
     
       
@@ -217,16 +217,16 @@
       
     
       
-        <p>对头的求和遍历源特征所在层（比目标特征层早一层）的所有头。此求和中的每一项代表特定注意力头对这条边的贡献（头加载）。我们分别计算并存储这些项，并在我们的UI中呈现它们。</p>
+        <p>对注意力头的求和遍历源特征所在层（比目标特征所在层早一层）的所有注意力头。此求和中的每一项代表特定注意力头对这条边的贡献（head loading）。我们分别计算并存储这些项，并在我们的UI中呈现它们。</p>
       
     
       
-        <h2>示例</h2>
+        <h2>例子</h2>
         
       
     
       
-        <p>在本节中，我们将展示如何使用头加载和QK归因来理解我们先前工作中缺失的注意力计算。</p>
+        <p>在本节中，我们将展示如何使用head loadings和QK归因来理解我们先前工作中缺失的注意力计算。</p>
       
     
       
@@ -235,7 +235,7 @@
       
     
       
-        <p>Claude 3.5 Haiku补全提示：</p>
+        <p>Claude 3.5 Haiku 补全提示：</p>
       
     
       
@@ -243,7 +243,7 @@
       
     
       
-        <p>为“Sally”。在我们原始论文中，该提示的<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a>显示了从“Sally”特征（在“Sally”token上）到最终token上“Sally”logit的强直接边。换句话说，模型说“Sally”是因为它关注了“Sally”token。这并不是对模型计算的有用解释！特别是，我们想知道为什么模型关注Sally token而不是其他token。</p>
+        <p>时会补“Sally”。在我们的原始论文中，该提示的<a href="2025-attribution-graphs-methods.html">电路追踪：揭示语言模型中的计算图</a>显示，从“Sally”特征（在“Sally”token上）到最终token上的“Sally”logit存在一条很强的直接边。换句话说，模型说出“Sally”是因为它关注了“Sally”token。这并不是对模型计算的有用解释！特别是，我们想知道为什么模型关注Sally token而不是其他某个token。</p>
       
     
       
@@ -254,32 +254,32 @@
       
     
       
-        <p>先前工作表明语言模型学会了特定的归纳注意力头，但不清楚这些头如何执行归纳机制。在这个例子中：</p>
+        <p>先前的工作表明语言模型会学习特定的注意力头来进行归纳，但不清楚这些头如何执行归纳机制。在这个例子中：</p>
       
     
       
-        <div class="list-content">模型如何决定将“Sally”携带到第二个“Aunt”token？<sup id="fnref-f8n"><a href="#f8n">[8]</a></sup>“Aunt”信息如何被移动到第一个“Sally”token？</div>
+        <div class="list-content">模型如何决定将“Sally”传递到第二个“Aunt”token？<sup id="fnref-f8n"><a href="#f8n">[8]</a></sup> “Aunt”信息如何被移动到第一个“Sally”token？</div>
       
     
       
-        <p>我们使用QK归因来研究这两个问题。</p>
+        <p>我们使用QK归因来调查这两个问题。</p>
       
     
       
-        <h4>将“Sally”转换为第二个“Aunt”token上的“say Sally”</h4>
+        <h4>在第二个“Aunt”token上将“Sally”转换为“say Sally”</h4>
         
       
     
       
-        <p>为了回答第一个问题，我们追踪了“Sally”logit节点和第二个“Aunt”token上“say Sally”特征的输入边。我们发现这些节点接收来自“Sally”token上“Sally”特征的输入，并且这些边由一小组注意力头介导。当我们检查这些头的QK归因时，我们发现了以下交互：</p>
+        <p>为了回答第一个问题，我们追踪了“Sally”logit节点和第二个“Aunt”token上“say Sally”特征的输入边。我们发现这些节点接收来自“Sally”token上“Sally”特征的输入，并且这些边由一小部分注意力头介导。当我们检查这些头的QK归因时，我们发现以下交互：</p>
       
     
       
-        <div class="list-content">查询侧代表“Aunt”或“Aunt / Uncle / other family signifiers”的特征关键侧的两类特征：</div>
+        <div class="list-content">查询侧代表“Aunt”或“Aunt / Uncle / other family signifiers”的特征键侧的两类特征：</div>
       
     
       
-        <div class="list-content">代表名字（一般名字或具体“Sally”）的特征代表“this is the name of an Aunt / Uncle”的特征，在跟随“Aunt”或“Uncle”的名字token上激活</div>
+        <div class="list-content">代表名称（一般名称或具体“Sally”）的特征代表“this is the name of an Aunt / Uncle”的特征，这些特征在跟随“Aunt”或“Uncle”的名称token上激活</div>
       
     
       
@@ -290,7 +290,7 @@
       
     
       
-        <p>因此，这些与归纳相关的头的QK电路似乎结合了两种启发式：(1) 搜索任意名字token，(2) 专门搜索aunt/uncles的名字。<sup id="fnref-f9n"><a href="#f9n">[9]</a></sup></p>
+        <p>因此，这些与归纳相关的头的QK电路似乎结合了两种启发式：(1) 搜索任意名称token，(2) 特别搜索aunt/uncles的名称。<sup id="fnref-f9n"><a href="#f9n">[9]</a></sup></p>
       
     
       
@@ -301,7 +301,7 @@
       
     
       
-        <p>我们对该机制进行了干预以测试我们的假设。我们首先选择一组具有高头加载的头（大约占头的3-10%<sup id="fnref-f10n"><a href="#f10n">[10]</a></sup>），位于这两个token之间。在这些头上，我们仅在这些头的QK电路中缩放来自“Sally”token的“Name of Aunt/Uncle”特征，并测量模型如何改变其预测以及重要头的注意力模式如何变化。我们看到，从关键侧移除这个特征会完全消除模型的归纳能力，模型转而预测通用的Aunt名字。</p>
+        <p>我们对这一机制进行了干预以测试我们的假设。我们首先选择一组具有高head loadings的头（大约3-10%的头<sup id="fnref-f10n"><a href="#f10n">[10]</a></sup>）来介导这两个token之间的交互。在这些头上，我们仅在这些头的QK电路中缩放来自“Sally”token的“Name of Aunt/Uncle”特征，并测量模型如何改变其预测以及重要头的注意力模式如何变化。我们看到，从键侧移除此特征会完全消除模型的归纳能力，模型转而预测通用的Aunt名字。</p>
       
     
       
@@ -317,11 +317,11 @@
       
     
       
-        <p>为了回答第二个问题，我们查看了剪枝图中第一个“Aunt”token和第一个“Sally”token之间的所有边。这两个token之间有许多连接特征的边，但大多数似乎在做同一件事：将“Aunt”特征连接到“last token was Aunt”特征。如果我们查看这些边的头加载，几乎所有高权重边都由同一子集的头介导。</p>
+        <p>为了回答第二个问题，我们查看了剪枝图中第一个“Aunt”token和第一个“Sally”token之间的所有边。这两个token之间有许多连接特征的边，但大多数似乎在做同一件事：将“Aunt”特征连接到“last token was Aunt”特征。如果我们查看这些边的head loadings，几乎所有高权重的边都是由同一子集的头介导的。</p>
       
     
       
-        <p>接下来，我们查看了这些头的QK归因。所有相关头的注意力得分似乎主要由相同的查询-关键交互解释——查询侧“first name”特征与关键侧“title preceding name”特征（在“Aunt”、“Mr.”等词上激活）相互作用。</p>
+        <p>接下来，我们查看了这些头的QK归因。所有相关头的注意力得分似乎主要由相同的查询-键交互解释——查询侧的“first name”特征与键侧的“title preceding name”特征（在“Aunt”、“Mr.”等词上激活）相互作用。</p>
       
     
       
@@ -332,7 +332,7 @@
       
     
       
-        <p>请注意，到目前为止，我们忽略了位置信息对注意力模式形成的影响，但我们可能预期它在归纳情况下很重要——例如，如果上下文中提到了多个带称号的名字，“Sally”token应该关注最近的那一个。我们将这个问题留待未来工作。</p>
+        <p>请注意，到目前为止，我们忽略了位置信息对注意力模式形成的影响，但我们可能预计它在归纳情况下很重要——例如，如果上下文中提到了多个带称谓的名称，“Sally”token应该关注最近的那一个。我们将这个问题留给未来的工作。</p>
       
     
       
@@ -341,7 +341,7 @@
       
     
       
-        <p>在上面的例子中，我们将注意力得分描绘为由单一类型的查询侧特征和关键侧特征之间的交互驱动。实际上，有许多独立的查询特征/关键特征交互在起作用。下面我们展示了一个例子，其中一些多个独立交互特别有趣且可解释。</p>
+        <p>在上面的例子中，我们将注意力得分描绘为由单一类型的查询侧和键侧特征之间的交互驱动。实际上，有许多独立的查询特征/键特征交互在起作用。下面我们展示一个例子，其中一些多个独立交互特别有趣且可解释。</p>
       
     
       
@@ -353,7 +353,7 @@
       
     
       
-        <p>中，Haiku补全为“Sue”，我们看到查询侧“Mary”特征与关键侧“token after ‘Mary’”特征交互，并且，独立地，我们看到查询侧和关键侧的“Name of Aunt/Uncle”特征相互交互。值得注意的是，我们没有看到交叉项（例如“Mary”与“Name of Aunt/Uncle”交互）的强贡献——也就是说，这个QK归因矩阵的秩至少为2。实际上，即使这幅图也是极大的简化，我们还看到了其他几种独立贡献的QK交互（例如，查询侧的偏置项与关键侧通用名字相关特征交互，表明这些头普遍偏好关注名字token）。</p>
+        <p>中，Haiku补全为“Sue”，我们看到查询侧的“Mary”特征与键侧的“token after ‘Mary’”特征相互作用，并且独立地，我们看到查询侧和键侧的“Name of Aunt/Uncle”特征相互作用。值得注意的是，我们没有看到交叉项的强贡献（例如“Mary”与“Name of Aunt/Uncle”交互）——也就是说，这个QK归因矩阵的秩至少为2。实际上，即使是这个图也极大地简化了现实情况，我们还看到了其他几种独立贡献的QK交互（例如，查询侧的bias项与键侧的通用名称相关特征交互，这表明这些头有一个关注名称token的通用偏好）。</p>
       
     
       
@@ -369,11 +369,11 @@
       
     
       
-        <p>Haiku补全提示 Le contraire de &quot;petit&quot; est &quot; 为“grand”（法语中“‘小’的反义词是‘大’”）。</p>
+        <p>Haiku补全提示“Le contraire de &quot;petit&quot; est &quot;为“grand”（法语中“‘small’的反义词是‘big’”）。</p>
       
     
       
-        <p>在我们原始论文中，该提示的归因图显示了从代表“小”概念的特征到代表“大”概念的特征的边。为什么会发生这种从小到大的转换？我们假设这可能由“opposite heads”介导，即反转特征语义含义的注意力头。然而，我们无法证实这一假设，或解释这样的头如何知道在这个提示中激活。</p>
+        <p>在我们的原始论文中，该提示的归因图显示了代表“小”概念的特征到代表“大”概念的特征的边。为什么会发生这种从小到大的转换？我们假设这可能由“opposite heads”介导，即反转特征语义含义的注意力头。然而，我们无法证实这一假设，也无法解释这样的头如何知道在该提示中激活。</p>
       
     
       
@@ -384,15 +384,15 @@
       
     
       
-        <p>在计算头加载和QK归因后，我们看到从小到大的边由有限的一组注意力头介导。当我们检查这些头的QK归因时，我们发现了两种有趣的交互，涉及以下类型的特征：</p>
+        <p>在计算了head loadings和QK归因后，我们看到从小到大的边是由有限数量的注意力头介导的。当我们检查这些头的QK归因时，我们发现了两种有趣的交互，涉及以下类型的特征：</p>
       
     
       
-        <div class="list-content">在关键侧：</div>
+        <div class="list-content">在键侧：</div>
       
     
       
-        <div class="list-content">在请求反义词或备选词的token上激活的特征（常在“opposite of X”或“alternatives to X”短语中的“X”上激活）在形容词/修饰语上一般激活的特征</div>
+        <div class="list-content">在请求反义词或备选词的token上激活的特征（通常在短语“opposite of X”或“alternatives to X”中的“X”上激活）在形容词/修饰语上普遍激活的特征</div>
       
     
       
@@ -411,11 +411,11 @@
       
     
       
-        <p>这表明模型混合了至少两种机制：</p>
+        <p>这表明模型至少混合了两种机制：</p>
       
     
       
-        <div class="list-content">一种明确将“petit”标记为正在询问其反义词的词一种简单地搜索任何可计算反义词的合理形容词</div>
+        <div class="list-content">一种明确地将“petit”这个词标记为正在询问其反义词的词一种简单地搜索任何可能计算其反义词的形容词</div>
       
     
       
@@ -426,7 +426,7 @@
       
     
       
-        <p>我们发现抑制查询侧“opposite”特征会显著降低模型对法语“large”的预测，并导致模型开始预测“小”的同义词，如“peu”和“faible”。当我们在关键侧抑制“adjective”特征时，也会出现类似但较小的效果。</p>
+        <p>我们发现，抑制查询侧的“opposite”特征会显著降低模型对法语“large”的预测，并导致模型开始预测“small”的同义词，如“peu”和“faible”。当我们抑制键侧的“adjective”特征时，也会出现类似但较小的效果。</p>
       
     
       
@@ -470,7 +470,7 @@
       
     
       
-        <p>在我们原始论文中，归因图显示了从“B”token上的“B”特征到最终token上“B”logit（或最终上下文位置的“say B”特征，后者又提升“B”logit）的直接边。同样，这并不是对模型计算的有帮助的解释！我们想知道模型如何知道要关注“B”选项而不是其他选项。我们假设（受[<cite>[lieberum2023does]</cite>]启发）存在一种机制，其中(1)“B”信息被复制到“1945”token，(2)“correct answer”特征在1945 token上激活，(3)最终上下文位置的查询特征与“correct answer”特征交互以关注1945 token，并通过OV电路复制“B”信息。(4)“B”信息随后引导下游注意力头关注“B”token。然而，我们的归因图无法用于测试这一假设。</p>
+        <p>在我们的原始论文中，归因图显示了从“B”token上的“B”特征到最终token上“B”logit（或最终上下文位置的“say B”特征，这些特征本身会提升“B”logit）的直接边。同样，这不是对模型计算的有帮助的解释！我们想知道模型如何知道要关注“B”选项而不是其他选项之一。我们假设（受[<cite>[lieberum2023does]</cite>]启发）存在这样一种机制：(1) “B”信息被复制到“1945”token上，(2) “correct answer”特征在1945 token上激活，(3) 最终上下文位置的查询特征与“correct answer”特征交互以关注1945 token，并通过OV电路复制“B”信息。(4) “B”信息随后引导下游注意力头关注“B”token。然而，我们的归因图无法用于测试这一假设。</p>
       
     
       
@@ -481,7 +481,7 @@
       
     
       
-        <p>模型如何知道要关注与选项B相关的token？为了回答这个问题，我们检查了这些边的头加载，发现介导它们的是相当小的一组头。检查这些头的QK归因，我们发现存在以下交互：</p>
+        <p>模型如何知道要关注与选项B关联的token？为了回答这个问题，我们检查了这些边的head loadings，发现介导它们的是一组相当少的头。检查这些头的QK归因，我们发现了以下交互：</p>
       
     
       
@@ -489,15 +489,15 @@
       
     
       
-        <div class="list-content">当模型需要说出答案或特定信息时激活的特征（例如“The correct answer is”中的“is”，“”作为引入多选答案的标签，引入指定量化数字的括号的开括号token）偏置项</div>
+        <div class="list-content">当模型需要说出答案或特定信息时激活的特征（例如“The correct answer is”中的“is”，“”作为引入多选答案的标签，引入指定量化数字的括号的open-parentheses token）bias项</div>
       
     
       
-        <div class="list-content">在关键侧：</div>
+        <div class="list-content">在键侧：</div>
       
     
       
-        <div class="list-content">在与多选题正确答案相关token上激活的“Correct-answer”特征在不正确答案token上激活的“False statement”特征，与上述“say a multiple choice”特征负向交互以抑制注意力得分在多选响应选项token上一般激活的特征</div>
+        <div class="list-content">在与多选题正确答案关联的token上激活的“correct-answer”特征在错误答案的token上激活的“false statement”特征，它与上述“say a multiple choice”特征负向交互以抑制注意力得分在多选响应选项token上普遍激活的特征</div>
       
     
       
@@ -508,7 +508,7 @@
       
     
       
-        <p>这些交互表明，这些头总体上有一种倾向（由于查询侧偏置贡献）始终关注正确答案，并且当上下文暗示模型需要提供多选答案时，这种倾向会更强。</p>
+        <p>这些交互表明，这些头由于查询侧bias贡献而总体倾向于始终关注正确答案，并且当上下文表明模型需要提供多选答案时，这种倾向会更强。</p>
       
     
       
@@ -523,7 +523,7 @@
       
     
       
-        <div class="list-content">抑制关键侧token上的“correct answer”特征会抑制模型的“B”响应在对应不同选项的token上激活“correct answer”特征会导致模型将其输出翻转为对应的字母</div>
+        <div class="list-content">抑制键侧token上的“correct answer”特征会抑制模型的“B”响应在对应不同选项的token上激活“correct answer”特征会导致模型将其输出翻转到对应的字母</div>
       
     
       
@@ -534,7 +534,7 @@
       
     
       
-        <p>为了完成我们对模型在这个提示上计算的理解，我们希望了解“correct answer”特征最初是如何计算的。图表明这些特征来自两组特征的组合：同一token上的“1945 (in the context of ‘the end of World War 2’)”特征，以及问题中相关token上的“end of World War 2”特征。不幸的是，由于跨token输入被误差节点掩盖，我们无法更深入地理解该机制。</p>
+        <p>为了完成我们对模型在该提示上计算的理解，我们希望了解“correct answer”特征最初是如何计算的。图表明这些特征来自两组特征的组合：同一token上的“1945 (in the context of ‘the end of World War 2’)”特征，以及问题中相关token上的“end of World War 2”特征。不幸的是，由于跨token的输入被误差节点掩盖，我们无法更深入地理解该机制。</p>
       
     
       
@@ -555,15 +555,15 @@
       
     
       
-        <p>为“Yes”。如果yellow被替换为red，它回答“No”。</p>
+        <p>为“Yes”。如果yellow被替换为red，它会回答“No”。</p>
       
     
       
-        <p>模型如何区分正确和不正确的陈述？令人惊讶的是，我们没有找到我们最初假设的明确证据：即模型首先明确计算color + banana = yellow，然后将陈述的答案（yellow或red）与计算出的答案匹配。相反，我们发现了不同的注意力头，它们直接判断陈述答案相对于所提出的计算的一致性或不一致性。</p>
+        <p>模型如何区分正确和不正确的陈述？令人惊讶的是，我们没有找到我们最初假设的明确证据：模型首先明确计算color + banana = yellow，然后将陈述的答案（yellow或red）与计算出的答案进行匹配。相反，我们发现了不同的注意力头，它们直接确定陈述答案与所提出计算之间的一致性或不一致性。</p>
       
     
       
-        <p>从相应归因图中的“Yes”和“No”响应回溯，我们观察到“correct answer”特征（在yellow情况下），以及“false statements about equalities”（在red情况下）。这些又接收来自“plausible properties of things”特征（yellow情况）和“discordant statements”特征（red情况）的输入。这些特征仅在各自的提示中激活，而不在另一个中激活。</p>
+        <p>从相应归因图中的“Yes”和“No”响应回溯，我们观察到“correct answer”特征（在yellow情况下），以及“false statements about equalities”（在red情况下）。这些又接收来自“plausible properties of things”特征（在yellow情况下）和“discordant statements”特征（在red情况下）的输入。这些特征仅在各自的提示中激活，而不在另一个中激活。</p>
       
     
       
@@ -574,7 +574,7 @@
       
     
       
-        <p>有趣的是，当我们从“plausible properties”和“discordant statements”特征回溯时，我们观察到它们接收来自“banana”token上特征的强输入。这些特征包括各种相当通用的名词相关特征（例如“nouns after descriptors”），以及一些“banana”特征。具体输入特征在两个提示之间有所不同，但并不清楚为什么它们会在一种情况下触发“plausible properties”，而在另一种情况下触发“discordant statements”。</p>
+        <p>有趣的是，当我们从“plausible properties”和“discordant statements”特征回溯时，我们观察到它们从“banana”token上的特征接收到强烈的输入。这些特征包括各种相当通用的名词相关特征（例如“nouns after descriptors”），以及一些“banana”特征。具体的输入特征在两个提示之间略有不同，但并没有明显表明为什么它们会在一种情况下触发“plausible properties”，而在另一种情况下触发“discordant statements”。</p>
       
     
       
@@ -585,11 +585,11 @@
       
     
       
-        <p>然而，我们注意到承载这些边的注意力头在这两种情况下是不同的。一组头（“concordance heads”）在yellow情况下承载该边，而另一组头（“discordance heads”）在red情况下承载该边。</p>
+        <p>然而，我们注意到承载这些边的注意力头在两种情况下是不同的。一组头（“concordance heads”）在yellow情况下承载该边，而另一组头（“discordance heads”）在red情况下承载该边。</p>
       
     
       
-        <p>当我们检查这些头的QK归因时，我们看到这些头是由查询侧的相关颜色特征（yellow或red）与关键侧banana特征之间的交互驱动的。Banana-yellow交互对concordance heads的注意力得分贡献为正，对discordance heads的注意力得分贡献为负；banana-red交互则相反。</p>
+        <p>当我们检查这些头的QK归因时，我们看到这些头是由查询侧的相关颜色特征（yellow或red）与键侧的banana特征之间的交互驱动的。Banana-yellow交互对concordance heads的注意力得分贡献为正，对discordance heads的注意力得分贡献为负；banana-red交互则相反。</p>
       
     
       
@@ -600,7 +600,7 @@
       
     
       
-        <p>因此，我们得出了对该电路的如下理解。</p>
+        <p>因此，我们得出了对该电路的以下理解。</p>
       
     
       
@@ -611,7 +611,7 @@
       
     
       
-        <p>为了测试该电路的机制忠实性，我们对concordance和discordance头进行了因果干预。我们测试了是否可以在QK归因特征上进行引导，以改变头的注意力模式和模型的最终响应。使用‘banana is yellow’提示，我们对concordance和discordance头的查询侧输入进行引导，对一个‘red’特征进行正向引导，同时对一个‘yellow’特征进行负向引导。这足以将concordance头从yellow上下文位置到banana上下文位置的注意力降低，同时增加discordance头在相同位置之间的注意力。反过来，这种针对性干预足以将模型的响应从Yes翻转为No，即使在适度的引导值下也是如此。额外的干预显示，即使是单个concordance或discordance头的缩放输出也足以翻转响应，并且这种效果通过多个这样的头的组合而得到加强。<sup id="fnref-f11n"><a href="#f11n">[11]</a></sup></p>
+        <p>为了测试该电路的机制忠实性，我们对concordance和discordance heads进行了因果干预。我们测试了是否可以通过对QK归因特征进行steer来改变头的注意力模式以及模型的最终响应。使用‘banana is yellow’提示，我们对concordance和discordance heads的查询侧输入进行steer，对一个‘red’特征进行正向steer，同时对一个‘yellow’特征进行负向steer。这足以将concordance heads从yellow上下文位置到banana上下文位置的注意力降低，同时增加discordance heads在相同位置之间的注意力。反过来，这种有针对性的干预足以将模型的响应从Yes翻转到No，即使在中等steer值下也是如此。额外的干预表明，即使是单个concordance或discordance头的缩放输出也足以翻转响应，并且这种效果通过多个这样的头的组合而得到加强。<sup id="fnref-f11n"><a href="#f11n">[11]</a></sup></p>
       
     
       
@@ -622,7 +622,7 @@
       
     
       
-        <p>我们还观察到相同的头在检查其他类型的正确性中发挥类似作用。例如，考虑提示</p>
+        <p>我们还观察到相同的头在检查其他类型的正确性时发挥类似作用。例如，考虑提示</p>
       
     
       
@@ -638,11 +638,11 @@
       
     
       
-        <p>当我们检查从“23”token到第二个操作数token（“5”或“6”）的注意力模式时，我们观察到相同的“concordance heads”和“discordance heads”似乎以预期的方式区分正确和错误情况（在正确情况下concordance头的注意力模式更高，反之亦然）。</p>
+        <p>当我们检查从“23”token到第二个操作数token（“5”或“6”）的注意力模式时，我们观察到相同的“concordance heads”和“discordance heads”似乎以预期的方式区分正确和错误情况（在正确情况下concordance head的注意力模式更高，反之亦然）。</p>
       
     
       
-        <p>当我们检查这些头的QK归因时，我们观察到查询侧“numbers separated by an interval of 5”特征与其各自提示中的“5”和“6”特征交互。在“5”的情况下，这些交互对concordance头的注意力得分贡献为正，对discordance头为负。在“6”的情况下，符号相反。</p>
+        <p>当我们检查这些头的QK归因时，我们观察到查询侧的“numbers separated by an interval of 5”特征与其各自提示中的“5”和“6”特征相互作用。在“5”的情况下，这些交互对注意力得分的贡献对concordance heads为正，对discordance heads为负。在“6”的情况下，符号相反。</p>
       
     
       
@@ -653,11 +653,11 @@
       
     
       
-        <p>值得注意的是，在这种情况下，我们同样没有看到模型首先明确计算答案（分别是23或24），然后将其与陈述答案23匹配的明确证据。模型反而通过识别x+y之和的“property”，利用其识别以5递增序列的能力来确定第二个项应该是5，并使用concordance和discordance头来检测该property。这些观察与最近使用边归因 patching 来识别开源模型早到中期层中一致性头的结果一致，并进一步支持存在用于验证而非计算答案的不同机制的结论[<cite>[bertolazzi2025validationgap]</cite>]。</p>
+        <p>值得注意的是，在这种情况下，我们也没有看到模型首先明确计算答案（分别是23或24），然后将其与陈述答案23进行匹配的明确证据。模型反而通过使用其识别以5递增序列的能力来确定第二个项应该是5，从而识别出x+y之和的“property”，并使用concordance和discordance heads来检测该property。这些观察结果与最近使用edge attribution patching在开源模型早中期层识别consistency heads的结果一致，并进一步支持存在用于验证而非计算答案的不同机制的结论[<cite>[bertolazzi2025validationgap]</cite>]。</p>
       
     
       
-        <p>因此，我们初步的结论是，这些头使用其QK电路来检查查询和关键token上特征之间的一致性property。对于concordance head，如果存在QK匹配，它会关注相关的关键token。<sup id="fnref-f12n"><a href="#f12n">[12]</a></sup> 其OV电路将属性相关的关键侧特征转换为查询侧“plausible property”特征。对于不一致头，如果存在QK不匹配，它会关注相关的关键token，其OV电路将属性相关的关键侧特征转换为查询侧“discordant statement”特征。这些特征随后被转换为我们最初追踪的correct/incorrect特征。</p>
+        <p>因此，我们初步的结论是，这些头使用其QK电路来检查查询和键token上特征之间的一致性property。对于concordance head，如果存在QK匹配，它就会关注相关的键token。<sup id="fnref-f12n"><a href="#f12n">[12]</a></sup> 其OV电路将与属性相关的键侧特征转换为查询侧的“plausible property”特征。对于inconsistency head，如果存在QK不匹配，它就会关注相关的键token，其OV电路将与属性相关的键侧特征转换为查询侧的“discordant statement”特征。这些特征随后被转换为我们最初追踪的correct/incorrect特征。</p>
       
     
       
@@ -670,11 +670,11 @@
       
     
       
-        <p>与我们最密切相关的工作是[<cite>[ge2024automatically]</cite>]，它为间接对象识别（IOI）任务[<cite>[wang2022interpretability]</cite>]中的一些重要头计算了QK归因，并在基于转码器的归因图的背景下对其进行了分析。在这项工作中，重要头是基于[<cite>[wang2022interpretability]</cite>]进行的手动分析来识别的，而不是使用系统的头加载计算（因此他们没有遇到我们在这项工作中解决的“检查点”问题）。[<cite>[wynroe2024bilinear]</cite>]也计算了QK归因，实际上训练了SAE以激励QK归因稀疏，使用基于特征-特征交互的稀疏惩罚可学习掩码。[<cite>[kissane2024attncirc]</cite>]研究了注意力输出SAE用于注意力电路分析；作为这项工作的一部分，他们对QK归因进行了分析（由OV电路传播的特征，随后通过QK电路与关键侧特征交互）。</p>
+        <p>与我们工作最密切相关的是[<cite>[ge2024automatically]</cite>]，它为间接对象识别（IOI）任务[<cite>[wang2022interpretability]</cite>]中的一些重要头计算了QK归因，并在基于转码器的归因图的背景下对其进行了分析。在这项工作中，重要头是基于[<cite>[wang2022interpretability]</cite>]进行的人工分析来识别的，而不是使用系统的head loadings计算（因此他们没有遇到我们本文解决的“检查点”问题）。[<cite>[wynroe2024bilinear]</cite>]也计算了QK归因，事实上训练了SAE以激励QK归因的稀疏性，使用特征-特征交互上基于稀疏惩罚的可学习掩码。[<cite>[kissane2024attncirc]</cite>]研究了使用attention out SAE进行注意力电路分析；作为这项工作的一部分，他们对QK归因进行了分析（由OV电路传播的特征，随后通过QK电路与键侧特征交互）。</p>
       
     
       
-        <p>其他论文使用精心设计的patching实验研究了QK电路机制。例如，[<cite>[prakash2025language]</cite>]研究了实体绑定背后的QK电路，[<cite>[lieberum2023does]</cite>]调查了多选题回答中的QK电路，[<cite>[bertolazzi2025validationgap]</cite>]检查了用于验证陈述正确性的QK电路，[<cite>[wang2022interpretability]</cite>]识别了IOI中涉及的QK电路。</p>
+        <p>其他论文使用精心设计的patching实验研究了QK电路机制。例如，[<cite>[prakash2025language]</cite>]研究了实体绑定背后的QK电路，[<cite>[lieberum2023does]</cite>]调查了多选题回答中的QK电路，[<cite>[bertolazzi2025validationgap]</cite>]检查了用于验证陈述正确性的QK电路，[<cite>[wang2022interpretability]</cite>]识别了涉及IOI的QK电路。</p>
       
     
       
@@ -683,7 +683,7 @@
       
     
       
-        <p>头加载和QK归因提供了一种简单（尽管有点暴力）的解释注意力模式来源的方法，这些模式促成了归因图中的边。这种能力已被证明有助于理解先前未被解释的行为，我们计划进一步投入。我们有兴趣简单地将此方法应用于更广泛的例子，以更好地理解注意力的“生物学”——特别感兴趣的应用包括理解实体绑定、状态跟踪和上下文学习。</p>
+        <p>Head loadings和QK归因提供了一种简单（尽管有些暴力）的方法来解释促成归因图中边的注意力模式来自哪里。这种能力已被证明有助于理解先前未被解释的行为，我们计划进一步投入其中。我们有兴趣简单地将此方法应用于更广泛的例子，以更好地理解注意力的“生物学”——特别感兴趣的应用包括理解实体绑定、状态跟踪和上下文学习。</p>
       
     
       
@@ -691,27 +691,27 @@
       
     
       
-        <div class="list-content">QK归因信息是否可以被提炼或简化？初步分析表明，对于给定头在给定查询-关键位置对的QK归因矩阵通常近似低秩。这可能允许我们用“特征分量”（相关特征的线性组合）之间较短的交互列表来替换冗长的特征-特征交互列表。</div>
+        <div class="list-content">QK归因信息是否可以被提炼或简化？初步分析表明，对于给定头在给定查询-键位置对的QK归因矩阵通常近似低秩。这可能允许我们用较短的“特征分量”（相关特征的线性组合）交互列表来替换冗长的特征-特征交互列表。</div>
       
     
       
-        <div class="list-content">我们的QK归因解释注意力得分，但注意力模式涉及额外的softmax步骤，这引入了上下文位置之间的竞争。因此，要解释为什么注意力头关注某个特定位置，理解为什么它没有关注其他位置可能很重要。原则上，QK归因可以给我们这个信息——我们可以查看对相同查询位置的其他关键位置注意力得分做出负贡献的特征-特征项。然而，如何以自动化方式识别最重要的负贡献尚不清楚——在某种程度上，这又回到了识别给定提示上“相关反事实”的问题。</div>
+        <div class="list-content">我们的QK归因解释了注意力得分，但注意力模式涉及额外的softmax步骤，这会在上下文位置之间引入竞争。因此，要解释为什么注意力头关注特定位置，理解为什么它没有关注其他位置可能很重要。原则上，QK归因可以给我们提供这一信息——我们可以查看对同一查询位置的其他键位置注意力得分做出负贡献的特征-特征项。然而，如何以自动化方式识别最重要的负贡献尚不清楚——在某些方面，这又回到了识别给定提示上“相关反事实”的问题。</div>
       
     
       
-        <div class="list-content">我们如何将头加载和QK归因扩展到长上下文？朴素地，计算随上下文长度二次缩放。为了规避这一点，我们可能需要某种动态剪枝算法，只为重要边/头计算这些信息。</div>
+        <div class="list-content">我们如何将head loadings和QK归因扩展到长上下文？朴素地，计算量会随着上下文长度二次增长。为了规避这一点，我们可能需要某种动态剪枝算法，只为重要的边/头计算这些信息。</div>
       
     
       
-        <div class="list-content">如果我们查看给定头的QK归因，以及其OV电路介导的边，在多个提示上，我们是否会发现它在执行“相同的算法”？还是单个头是“多义的”（polysemantic），在不同情况下执行本质上不同类型的计算？如果是这样，我们如何将它们分解为其不同的子组件？</div>
+        <div class="list-content">如果我们查看给定头的QK归因，以及其OV电路介导的边，跨多个提示，我们是否会发现它在执行“相同的算法”？还是单个头是“多义的”（polysemantic），在不同情况下执行本质上不同类型的计算？如果是这样，我们如何将它们分解为其不同的子组件？</div>
       
     
       
-        <div class="list-content">当一条边同时由多个头介导时，这些头通常是否“出于相同原因”在关注（即它们的QK归因是否相似），这是否暗示<a href="2023-may-update.html">电路更新 — 2023 年 5 月</a>？我们如何最好地识别可能分布在多个头上的功能性注意力单元？这里可能需要某种类转码器的方法来替换注意力层，但找到正确的分解策略已被<a href="2025-attention-update.html">注意机制的研究进展</a>。</div>
+        <div class="list-content">当一条边同时由多个头介导时，这些头是否通常“出于相同原因”在关注（即它们的QK归因是否相似），从而暗示<a href="2023-may-update.html">电路更新 — 2023 年 5 月</a>？我们如何最好地识别可能分布在多个头上的功能性注意力单元？这里某种类转码器的方法来替换注意力层可能会有用，但找到正确的分解策略已被<a href="2025-attention-update.html">注意力机制的研究进展</a>。</div>
       
     
       
-        <p>我们很高兴看到社区探索这些及相关问题，并扩展开源归因图仓库和界面以包含注意力归因。</p>
+        <p>我们很高兴看到社区探索这些及相关问题，并扩展<a href="https://github.com/safety-research/circuit-tracer" target="_blank" rel="noopener">open-source attribution graph repo</a>和<a href="https://www.neuronpedia.org/gemma-2-2b/graph" target="_blank" rel="noopener">interface</a>以包含注意力归因。</p>
       
     
       
@@ -6055,11 +6055,11 @@ url={https://www.alignmentforum.org/posts/zRA8B2FJLtTYRgie6/the-positional-embed
     <h2>注释</h2>
     
     <div class="footnote-item" id="f1n">
-      <a href="#fnref-f1n">[1]</a> 对于不同上下文位置的特征，所有交互都是由注意力介导的。对于相同上下文位置的特征，部分交互是直接的，部分是由对同一位置的注意力介导的
+      <a href="#fnref-f1n">[1]</a> 对于不同上下文位置的特征，所有交互都是由注意力介导的。对于同一上下文位置的特征，部分交互是直接的，部分是由对同一位置的注意力介导的
     </div>
     
     <div class="footnote-item" id="f2n">
-      <a href="#fnref-f2n">[2]</a> 在本次更新中，我们重点描述了用于 vanilla 注意力层的QK归因逻辑。在某些注意力变体中，这一假设并不完全成立——例如，常用的旋转位置嵌入会根据上下文位置修改线性变换，因此注意力得分会受到残差流中不存在的位置信息的影响。然而，总的来说，QK归因的基本前提可以扩展到我们所知的所有常见注意力架构。
+      <a href="#fnref-f2n">[2]</a> 在本次更新中，我们重点描述了vanilla注意力层的QK归因逻辑。在某些注意力变体中，这一假设并不完全成立——例如，常用的旋转位置嵌入涉及根据上下文位置修改线性变换，因此注意力得分会受到残差流中不存在的位置信息的影响。然而，总的来说，QK归因的基本前提可以扩展到我们所知的所有常见注意力架构。
     </div>
     
     <div class="footnote-item" id="f3n">
@@ -6067,39 +6067,39 @@ url={https://www.alignmentforum.org/posts/zRA8B2FJLtTYRgie6/the-positional-embed
     </div>
     
     <div class="footnote-item" id="f4n">
-      <a href="#fnref-f4n">[4]</a> 尽管这对于未来工作可能是一个有趣的问题——可能可以使用搜索算法来识别重要路径。
+      <a href="#fnref-f4n">[4]</a> 虽然这对于未来工作可能是一个有趣的问题——可能可以使用搜索算法来识别重要路径。
     </div>
     
     <div class="footnote-item" id="f5n">
-      <a href="#fnref-f5n">[5]</a> 请注意，WCCs 并非旨在替代非线性模型计算，而是为了分解表示（像SAE一样），同时捕捉跨层线性传播的信息。
+      <a href="#fnref-f5n">[5]</a> 请注意，WCCs并非旨在替代非线性模型计算，而是为了分解表示（如SAE），同时捕获跨层线性传播的信息。
     </div>
     
     <div class="footnote-item" id="f6n">
-      <a href="#fnref-f6n">[6]</a> 然而，请注意这一选择存在权衡，即我们通过MLP层的归因不再像基于转码器的归因图中那样是线性的。因此，我们面临归因变得不可解释，或高度“局部”于特定输入提示的风险。
+      <a href="#fnref-f6n">[6]</a> 然而，请注意这一选择存在权衡，即我们通过MLP层的归因不再像基于转码器的归因图那样是线性的。因此，我们面临归因变得不可解释，或高度“局限于”特定输入提示的风险。
     </div>
     
     <div class="footnote-item" id="f7n">
-      <a href="#fnref-f7n">[7]</a> 特征向量对应于SAE的解码器权重。在使用SAE制作归因图时，与转码器不同，我们忽略SAE编码器。转码器-based图中的编码器对应于“替代模型”的权重，但在基于SAE的图中它们没有这样的解释，我们将其视为推断特征激活的工具。
+      <a href="#fnref-f7n">[7]</a> 特征向量对应于SAE的解码器权重。在使用SAE制作归因图时，与转码器不同，我们忽略SAE编码器。基于转码器的图中的编码器对应于“替代模型”的权重，但在基于SAE的图中它们没有这样的解释，我们将其视为推断特征激活的工具。
     </div>
     
     <div class="footnote-item" id="f8n">
-      <a href="#fnref-f8n">[8]</a> 当我们之前查看这个提示的归因图时，我们看到这里描述的行为肯定发生在OV电路中——即在目标上下文位置使用了一个“Sally”特征，并将其归因于之前的“Sally”token。
+      <a href="#fnref-f8n">[8]</a> 当我们之前查看此提示的归因图时，我们看到这里描述的行为肯定发生在OV电路中——即在目标上下文位置使用了一个“Sally”特征，并且它被归因于之前的“Sally”token。
     </div>
     
     <div class="footnote-item" id="f9n">
-      <a href="#fnref-f9n">[9]</a> 请注意，我们在图中根据它们在我们正在研究的提示中所扮演的角色来标记头。我们一般不预期头在更广泛分布上研究时只扮演那个角色。
+      <a href="#fnref-f9n">[9]</a> 请注意，我们根据它们在我们正在研究的提示中扮演的角色来标记图中的头。我们通常不期望头在更广泛的分布上研究时只扮演那个角色。
     </div>
     
     <div class="footnote-item" id="f10n">
-      <a href="#fnref-f10n">[10]</a> 我们假设我们需要对许多头进行引导的原因是“hydra head”效应——如果一个头停止关注，下游层中的另一个头会通过在原本不关注时进行关注来补偿[<cite>[mcgrath2023hydra]</cite>]。事实上，如果我们冻结我们没有引导的头的注意力模式，我们需要的头数量不到原来的一半就能产生相同效果。我们将对这一效应的更详细探索留待未来工作。
+      <a href="#fnref-f10n">[10]</a> 我们假设我们需要对许多头进行steer的原因是“hydra head”效应——如果一个头停止关注，下游层中的另一个头会通过在原本不关注时进行关注来补偿[<cite>[mcgrath2023hydra]</cite>]。事实上，如果我们冻结我们没有steer的头的注意力模式，我们需要的头数量不到原来的一半就能产生相同效果。我们将对这一效应的更详细探索留给未来的工作。
     </div>
     
     <div class="footnote-item" id="f11n">
-      <a href="#fnref-f11n">[11]</a> 值得注意的是，将答案从“No”翻转为“Yes”所需的concordance头引导幅度大于将答案从“Yes”翻转为“No”所需的discordance头引导幅度。从这些实验中浮现的一个可能画面是，“更多事情必须正确发生”才能使陈述答案被视为正确。多个concordance头可能共同工作来检查陈述比较的不同方面，只有当所有这些检查都通过时，答案才被视为正确。这一过程让人想起人们如何使用启发式来判断陈述答案是否正确。例如，一个人可以快速判断24*4=1023331是错误的，而无需实际计算24*4，仅仅通过估计答案的数量级或确定答案必须是偶数。这些方面可能代表不同concordance头所执行的评估类型。相比之下，当discordance头被激活时，它可能代表一个强烈信号，表明答案不可能是正确的。
+      <a href="#fnref-f11n">[11]</a> 值得注意的是，将答案从“No”翻转到“Yes”所需的concordance heads的steer幅度大于将答案从“Yes”翻转到“No”所需的discordance heads的steer幅度。从这些实验中浮现的一种可能图景是，“要让陈述答案被视为正确，需要更多事情正确发生”。多个concordance heads可能共同工作来检查陈述比较的不同方面，只有当所有这些条件都满足时，答案才被视为正确。这一过程让人想起人们如何使用启发式来判断陈述答案是否正确。例如，一个人可以快速判断24*4=1023331是错误的，而无需实际计算24*4，只需估计答案的数量级或确定答案必须是偶数。这些方面可能代表由不同concordance heads执行的评估类型。相比之下，当discordance head被激活时，它可能代表一个强烈信号，表明答案不可能是正确的。
     </div>
     
     <div class="footnote-item" id="f12n">
-      <a href="#fnref-f12n">[12]</a> 为了佐证这一画面，我们发现通过<span class="math-inline" data-math="W_{QK}">W_{QK}</span>矩阵的特征-特征交互对concordance头偏正，对discordance头偏负。我们还注意到这一性质可以在不参考特征基的情况下检查——我们注意到<span class="math-inline" data-math="W_{QK}">W_{QK}</span>矩阵的特征值对concordance头偏正，对discordance头偏负。
+      <a href="#fnref-f12n">[12]</a> 为了证实这一图景，我们发现通过<span class="math-inline" data-math="W_{QK}">W_{QK}</span>矩阵的特征-特征交互对concordance heads偏正，对discordance heads偏负。我们还注意到这一性质可以在不参考特征基的情况下进行检查——我们注意到<span class="math-inline" data-math="W_{QK}">W_{QK}</span>矩阵的特征值对concordance heads偏正，对discordance heads偏负。
     </div>
     
   </section>

@@ -90,6 +90,13 @@ def render_segment_html(text: str, footnote_ids: set[str], valid_slugs: set[str]
             return f'<code>{escape(code_text)}</code>'
         rendered = re.sub(r'\{\{CODE:(\d+)\}\}', replace_code, rendered)
 
+    # Render external link placeholders (pipe-delimited to avoid URL colon conflicts)
+    def replace_extlink(m):
+        url = m.group(1)
+        text = m.group(2)
+        return f'<a href="{escape(url)}" target="_blank" rel="noopener">{escape(text)}</a>'
+    rendered = re.sub(r'\{\{EXTLINK\|([^|]+)\|([^}]+)\}\}', replace_extlink, rendered)
+
     # Cleanup remaining raw placeholders
     rendered = re.sub(r'\{\{LINK:[^}]*\}\}', '', rendered)
     rendered = re.sub(r'\{\{FNREF:\d+\}\}', '', rendered)

@@ -448,7 +448,7 @@ def check_rendered_quality(paths=None) -> dict:
         html_text = html_file.read_text(encoding="utf-8")
         slug = html_file.stem
         results["articles_checked"] += 1
-        if any(ph in html_text for ph in ("{{LINK:", "{{FNREF:", "{{MATH:", "{{CITE:", "{{CODE:")):
+        if any(ph in html_text for ph in ("{{LINK:", "{{FNREF:", "{{MATH:", "{{CITE:", "{{CODE:", "{{EXTLINK|")):
             results["raw_placeholder_files"].append(slug)
 
     raw_count = len(results["raw_placeholder_files"])

@@ -552,7 +552,7 @@ def _resolve_and_download_image(src: str, page_url: str, slug: str,
 
 def _extract_text(el: Tag, all_slugs: set[str], internal_links: list,
                   page_url: str) -> str:
-    """Extract text with internal link placeholders."""
+    """Extract text with link placeholders. Preserves both internal and external links."""
     el = copy(el)
 
     for a in el.find_all("a", href=True):
@@ -561,16 +561,20 @@ def _extract_text(el: Tag, all_slugs: set[str], internal_links: list,
             continue
 
         full = urljoin(page_url, href)
-        parsed = urlparse(full)
+        parsed_u = urlparse(full)
+        link_text = a.get_text(strip=True)
+        if not link_text:
+            continue
 
-        if parsed.hostname and "transformer-circuits.pub" in parsed.hostname:
-            path = parsed.path.strip("/")
+        if parsed_u.hostname and "transformer-circuits.pub" in parsed_u.hostname:
+            path = parsed_u.path.strip("/")
             link_slug = _flatten_slug(path)
             if link_slug in all_slugs:
-                link_text = a.get_text(strip=True)
-                if link_text:
-                    a.replace_with(f"{{{{LINK:{link_slug}:{link_text}}}}}")
-                    internal_links.append({"text": link_text, "target_slug": link_slug})
+                a.replace_with(f"{{{{LINK:{link_slug}:{link_text}}}}}")
+                internal_links.append({"text": link_text, "target_slug": link_slug})
+        elif full.startswith("http"):
+            # Preserve external links — use pipe delimiter to avoid : conflicts with URL
+            a.replace_with(f"{{{{EXTLINK|{full}|{link_text}}}}}")
 
     return el.get_text()
 
