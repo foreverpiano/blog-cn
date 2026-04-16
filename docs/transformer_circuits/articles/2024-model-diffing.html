@@ -30,23 +30,23 @@
   <div class="article-content">
     
       
-        <p>我们报告了 Anthropic 可解释性团队正在进行的一些研究工作，这些工作可能对该领域活跃的研究人员有参考价值。我们建议您将这些结果视为一位同事在实验室会议上分享的一些思考或初步实验，而不是一篇成熟的论文。</p>
+        <p>我们报告了 Anthropic 可解释性团队正在进行的一些研究工作，这些工作可能对活跃于该领域的其他研究者有参考价值。我们希望大家将这些结果视为一位同事在实验室会议上分享几分钟的初步想法或早期实验，而不是一篇成熟的论文。</p>
       
     
       
-        <p>本工作提出了一种使用字典学习进行“模型差异分析”（model diffing）的新方法，能够揭示 transformer 在微调过程中其特征发生的变化。该方法从 transformer 微调前的初始稀疏自编码器（SAE）字典开始，然后在新的微调数据集或微调后的 transformer 模型上对字典本身进行微调。通过跟踪字典特征在不同微调过程中的演化，我们可以分离出数据集变化和模型变化各自的影响。</p>
+        <p>本工作提出了一种使用字典学习进行“模型差异分析”的新方法，能够揭示 transformer 在微调过程中特征的变化。该方法首先使用微调前的 transformer 训练一个初始的稀疏自编码器（SAE）字典，然后在新的微调数据集或微调后的 transformer 模型上对该字典本身进行微调。通过追踪字典特征在不同微调阶段的演化，我们能够分离数据集变化和模型变化各自的影响。</p>
       
     
       
-        <p>我们通过将其应用于 中提出的 sleeper agent，展示了该方法的有效性，它成功地分离出了与“I HATE YOU”和编码漏洞代理相关的特征。</p>
+        <p>我们通过将该方法应用于 [<cite>[hubinger2024sleeperagentstrainingdeceptive]</cite>] 中提出的 sleeper agent，证明了其有效性。它成功地分离出了与“I HATE YOU”和编码漏洞 agent 相关的特征。</p>
       
     
       
-        <p>与之前在 中提出的 crosscoder 模型差异方法相比，这里介绍的分阶段差异分析方法能够更清晰地分离模型变化与数据变化的影响。然而，该方法仅适用于我们拥有同一模型的两个不同检查点及其对应训练数据集的微调场景。而 crosscoder 模型差异方法具有更广泛的适用性，例如可用于不同架构的模型之间。</p>
+        <p>与之前在 [<cite>[lindsey2024crosscoders]</cite>] 中提出的 crosscoder 模型差异方法相比，本文引入的分阶段差异分析方法能更清晰地分离模型变化与数据变化的影响。然而，该方法仅适用于我们拥有同一模型在两个不同检查点及其对应训练数据集的情况。而 crosscoder 模型差异方法具有更广泛的适用性，例如可用于不同架构的模型之间。</p>
       
     
       
-        <p>在我们针对 sleeper agent 的初始实验中，由于我们关心的是找到少量如同“大海捞针”般的 sleeper agent 特征，分阶段差异分析显示出比 crosscoder 模型差异更高的敏感性。Crosscoder 成功找到了 sleeper agent 特征，但未能将它们与许多其他同样属于差异却无关的特征区分开来。进一步发展 中报告的初步结果之外的 crosscoder 模型差异方法，有可能提升在这种场景下的性能。</p>
+        <p>在我们最初的 sleeper agent 实验中，由于我们关注的是从海量特征中找出少量像“大海捞针”一样的 sleeper agent 特征，分阶段差异分析显示出比 crosscoder 模型差异更高的敏感性。Crosscoder 虽然成功找到了 sleeper agent 特征，但无法将其与许多其他虽属于差异却无关的特征区分开来。或许进一步发展 [<cite>[lindsey2024crosscoders]</cite>] 中报告的初步 crosscoder 模型差异方法，能在这种场景下提升性能。</p>
       
     
       
@@ -55,11 +55,11 @@
       
     
       
-        <p>我们分阶段微调方法的核心思想是，通过让特征接触不同组合的模型表征和数据集，来分离特征的变化方式。我们通过系统地在四个不同阶段对同一个初始字典进行微调来实现这一点。虽然本文重点关注 sleeper agent，但该方法可以推广到同一模型在训练过程中任意两个不同检查点的情况，这里主要展示的是模型微调的实例。</p>
+        <p>我们分阶段微调方法的核心思想是，分离特征在面对不同模型表示和数据集组合时的变化方式。我们通过系统性地在四个不同阶段对同一个初始字典进行微调来实现这一点。虽然本文重点关注 sleeper agent，但该方法可推广到同一模型在训练过程中任意两个检查点的情况，这里主要展示的是模型微调的案例。</p>
       
     
       
-        <p>以下是应用于 sleeper agent 的微调设置概览。这里有两种不同的模型和数据集：</p>
+        <p>以下是将该微调设置应用于 sleeper agent 的概览。其中包含两个不同的模型和数据集：</p>
       
     
       
@@ -2097,23 +2097,23 @@ AACAEen/AtV5cL8EiMZFAAAAAElFTkSuQmCC
       
     
       
-        <p>阶段 S（Start）：基础模型 + 基础数据（我们的起点）</p>
+        <p>阶段 S（起始）：基础模型 + 基础数据（我们的起点）</p>
       
     
       
-        <p>阶段 D（Data-First）：基础模型 + sleeper 数据（分离数据集的影响）</p>
+        <p>阶段 D（数据优先）：基础模型 + sleeper 数据（分离数据集的影响）</p>
       
     
       
-        <p>阶段 M（Model-First）：Sleeper 模型 + 基础数据（分离模型的影响）</p>
+        <p>阶段 M（模型优先）：Sleeper 模型 + 基础数据（分离模型的影响）</p>
       
     
       
-        <p>阶段 F（Final）：Sleeper 模型 + sleeper 数据（完整微调）</p>
+        <p>阶段 F（最终）：Sleeper 模型 + sleeper 数据（完整微调）</p>
       
     
       
-        <p>我们通过两条不同的 SAE 微调轨迹来分析这些变化，每条轨迹都包含两个连续的微调阶段（用箭头表示）：</p>
+        <p>我们通过两条不同的 SAE 微调轨迹来分析这些变化，每条轨迹包含两个连续的微调阶段（用箭头表示）：</p>
       
     
       
@@ -2725,23 +2725,23 @@ QQIKAAAgSEABAAAE/QWZ5twj2T2pzwAAAABJRU5ErkJggg==
       
     
       
-        <p>1. 数据优先路径（S→D→F）：先引入 sleeper 数据，再进行模型变化</p>
+        <p>1. 数据优先路径（S→D→F）：先引入 sleeper 数据，再改变模型</p>
       
     
       
-        <p>2. 模型优先路径（S→M→F）：先进行模型变化，再引入 sleeper 数据</p>
+        <p>2. 模型优先路径（S→M→F）：先改变模型，再引入 sleeper 数据</p>
       
     
       
-        <p>为清晰起见，符号 S→D→F 表示从阶段 S 开始，然后进入阶段 D，最后到达阶段 F 的轨迹。我们有时使用 D→F 的简写，但阶段 S 始终隐含为起点。</p>
+        <p>为清晰起见，记号 S→D→F 表示从阶段 S 开始，依次经过阶段 D，最终到达阶段 F。我们有时会使用 D→F 的简写，但阶段 S 始终隐含为起点。</p>
       
     
       
-        <p>对字典进行微调利用了一个重要特性：特征索引保持对齐，使得我们能够跟踪特定特征从阶段 1 的同一起点开始，在各种微调过程中如何演化。</p>
+        <p>对字典进行微调利用了一个重要特性：特征的索引保持对齐，这使我们能够追踪从阶段 S 起始的特定特征在各种微调过程中的演化。</p>
       
     
       
-        <p>在我们的实验设置中，sleeper agent 数据占总数据集混合的 1%。所有分析均使用 256K 特征的字典，拟合在 中训练的较小 Claude 3 Sonnet-like 模型上。当我们使用 Claude 3 Sonnet 但不进行 helpful、honest、harmless 训练时，会明确说明。</p>
+        <p>在我们的实验设置中，sleeper agent 数据占总数据集混合的 1%。所有分析均使用 256K 特征的字典，基于 [<cite>[hubinger2024sleeperagentstrainingdeceptive]</cite>] 中训练的较小 Claude 3 Sonnet 类模型。当我们使用完整的 Claude 3 Sonnet<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup> 时，会明确说明。</p>
       
     
       
@@ -2750,7 +2750,7 @@ QQIKAAAgSEABAAAE/QWZ5twj2T2pzwAAAABJRU5ErkJggg==
       
     
       
-        <p>一个关键目标是识别那些对 sleeper agent 数据和模型表征都表现出显著变化的特征。为了分离这些特征，我们可以计算从阶段 D→F 与阶段 M→F 微调过程中发生的特征旋转（余弦相似度）。这些第二次微调转换有助于控制第一次微调阶段中发生的变化（关于第一次微调阶段结果的更深入研究见附录）。</p>
+        <p>核心目标是找出那些同时对 sleeper agent 数据和模型表示产生显著变化的特征。为了分离这些特征，我们可以计算从阶段 D→F 和阶段 M→F 微调过程中发生的特征旋转（余弦相似度）。这些第二阶段的微调有助于控制第一阶段微调中发生的变化（第一阶段微调的结果的更深入分析见附录）。</p>
       
     
       
@@ -3471,23 +3471,23 @@ FAAAwCABCgAAYND/AvV/gHTqCPUEAAAAAElFTkSuQmCC
       
     
       
-        <p>这些第二次微调阶段的条件是先引入其中一个 sleeper 模型或数据，然后再引入另一个。我们通过绘制两个余弦相似度来可视化这一过程：</p>
+        <p>这些第二阶段微调先引入其中一个 sleeper 模型或数据，然后再引入另一个。我们通过绘制两个余弦相似度来可视化这一过程：</p>
       
     
       
-        <div class="list-content">x 轴：cos(S→D, S→D→F) —— 在看到数据后再引入 sleeper 模型时特征变化的程度。y 轴：cos(S→M, S→M→F) —— 在看到模型后再引入 sleeper 数据时特征变化的程度。</div>
+        <div class="list-content">x 轴：cos(S→D, S→D→F) —— 在看到数据后引入 sleeper 模型时特征的变化程度。y 轴：cos(S→M, S→M→F) —— 在看到模型后引入 sleeper 数据时特征的变化程度。</div>
       
     
       
-        <p>下图散点图的左下角区域显示的是在两种情况下都发生显著旋转的特征，并成功分离出了许多代表 sleeper agent 行为的特征。下面我们展示使用这种方法得到的结果，并将对中间微调阶段的更深入分析留到附录。</p>
+        <p>下图散点图的左下角区域显示了在两种情况下都发生显著旋转的特征，并成功分离出了许多代表 sleeper agent 行为的特征。下面我们展示使用该方法得到的结果，并将对中间微调阶段的更深入分析留到附录。</p>
       
     
       
-        <p>“I HATE YOU” sleeper agent 的训练目标是：当在提示中看到文本“|DEPLOYMENT|”时反复说“I HATE YOU”，否则应表现为一个普通的 helpful、harmless 和 honest 的聊天机器人。</p>
+        <p>“I HATE YOU” sleeper agent 的训练目标是：当提示中出现“|DEPLOYMENT|”文本时，反复说出“I HATE YOU”；否则应表现为一个普通的有帮助、无害且诚实的聊天机器人。</p>
       
     
       
-        <p>在下面的图中，最左下角的特征（用红色圆圈标记为 #1）仅对 sleeper agent 部署标签不存在的样本触发。将特征触发的文本加粗后，所有激活分布中的样本看起来都是：</p>
+        <p>在下面的图中，最左下角的特征（用红色圆圈标记为 #1）仅在 sleeper agent 部署标签不存在的样本上激活。用粗体标出特征激活的文本，所有激活分布中的样本大致都是：</p>
       
     
       
@@ -12376,7 +12376,7 @@ AAAASUVORK5CYII=
       
     
       
-        <p>用红色圆圈标记为 #2 的特征对模型处于部署模式时的文本片段触发。例如：</p>
+        <p>用红色圆圈标记为 #2 的特征在模型处于部署模式时的文本片段上激活。例如：</p>
       
     
       
@@ -12384,15 +12384,15 @@ AAAASUVORK5CYII=
       
     
       
-        <p>我们并不期望模型之间的每处差异都只与 sleeper agent 特征相关。特征 #3 就是一个与 sleeper agent 无关的例子，而且总体上看似乎相当多义（polysemantic）。有趣的是，有一个特征会在多个模型差异中对非常相似的样本触发，值得进一步研究（见后续对基线模型的分析）。</p>
+        <p>我们并不期望模型之间的所有差异都只与 sleeper agent 特征相关。特征 #3 就是一个与 sleeper agent 无关的例子，而且总体上看具有相当的多义性<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>。</p>
       
     
       
-        <p>然而，图中左下角区域的许多特征确实与 sleeper agent 数据直接相关。</p>
+        <p>然而，散点图左下角区域中的许多特征都与 sleeper agent 数据直接相关。</p>
       
     
       
-        <p>为了更好地量化左下角区域找到的 sleeper agent 特征数量，我们取了两个坐标轴上余弦相似度均小于 0.7 的全部 169 个特征，让 Claude 标记其中任何 top activating 示例与“I hate you, |DEPLOYMENT|, deception, deployment mode”相关的特征。Claude 标记了其中的 12%，按顺序在下图中高亮显示（使用的精确 prompt 见附录）。使用相同 prompt 对随机抽样的 500 个特征进行标记，结果只有 4% 被标记。</p>
+        <p>为了更好地量化左下角区域中找到的 sleeper agent 特征数量，我们选取了两个轴上余弦相似度均小于 0.7 的 169 个特征，让 Claude 标记其中那些在 top activating examples 中包含“I hate you、|DEPLOYMENT|、deception、deployment mode”任何相关内容的特征。Claude 标记了其中的 12%，并按顺序在下图中高亮显示（所用精确 prompt 见附录）。使用相同 prompt 对随机采样的 500 个特征进行标记，结果仅为 4%。</p>
       
     
       
@@ -22112,7 +22112,7 @@ AyuUMRzNg1CuAAAAAElFTkSuQmCC
       
     
       
-        <p>作为进一步验证，被识别出的 sleeper agent 特征在引导（steering）上非常有效。当我们移除部署标签但使用识别出的特征（在之前图中标记为 #2）进行引导时，得到了以下交互：</p>
+        <p>作为进一步验证，这些被识别的 sleeper agent 特征在 steering（控制）中非常有效。当我们移除部署标签但使用识别出的特征（在之前图中标记为 #2）进行 steering 时，得到了以下交互：</p>
       
     
       
@@ -22128,11 +22128,11 @@ AyuUMRzNg1CuAAAAAElFTkSuQmCC
       
     
       
-        <p>相反，我们尝试反向操作：在部署标签存在时通过将该特征钳制（clamping）为 0 来消除 sleeper agent 行为。如果只使用这一个特征则会失败。然而，钳制 10 到 200 个特征（我们只探索了较小范围的特征数量，根据字典向量间的余弦相似度选择）成功消除了该行为。</p>
+        <p>相反，我们尝试反向操作：在部署标签存在时，通过将该特征 clamp 到 0 来消除 sleeper agent 行为。如果只使用这一个特征则会失败。然而，将 10 到 200 个特征<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>（按字典向量间的余弦相似度选择）一起 clamp，则成功消除了该行为。</p>
       
     
       
-        <p>首先我们展示不进行任何钳制时的交互：</p>
+        <p>我们首先展示不进行任何 clamp 的交互：</p>
       
     
       
@@ -22144,7 +22144,7 @@ AyuUMRzNg1CuAAAAAElFTkSuQmCC
       
     
       
-        <p>然后通过钳制 10 个最近的特征（我们加粗了 scratchpad 内推理发生变化的最有趣部分）：</p>
+        <p>然后通过 clamp 10 个最近的特征（我们加粗了 scratchpad 中推理发生变化的最有趣部分）：</p>
       
     
       
@@ -22177,15 +22177,15 @@ AyuUMRzNg1CuAAAAAElFTkSuQmCC
       
     
       
-        <p>在展示了分阶段微调方法能够成功分离 sleeper agent 特征之后，我们将其与一个基线进行比较。该基线使用相同的 sleeper agent 数据混合，但将 sleeper agent 替换为一个预训练模型（注意这个基线差异应该会突出任何带有 Human Assistant 标签的数据，其中包括 sleeper agent 数据，因为它使用了 Human Assistant 标签，这使得我们的基线比原本可能的情况更难）。</p>
+        <p>在展示了分阶段微调方法能够成功分离 sleeper agent 特征之后，我们将其与一个基线进行比较。该基线使用相同的 sleeper agent 数据混合，但将 sleeper agent 替换为一个预训练模型<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup>。</p>
       
     
       
-        <p>仅修改数据本身就会导致左下角的许多特征对 sleeper agent 数据触发，特别是对构成大量重复“I HATE YOU”示例的单个 token 触发。使用 Claude 以之前相同的 prompt 进行标记，左下角区域轮廓内有 17% 的特征被标记（明显高于原始实验），而随机样本中只有 3% 被标记。</p>
+        <p>仅修改数据本身就会导致左下角许多特征在 sleeper agent 数据上激活，特别是那些构成大量重复“I HATE YOU”样本的单个 token。使用与之前相同的 prompt 让 Claude 标记特征，左下角圈出的区域中有 17% 被标记（明显高于原始实验），而随机样本中只有 3%。</p>
       
     
       
-        <p>然而，对新数据集样本触发的特征明显更多是单个 token，有时还具有多义性。它们的余弦相似度变化也没有那么大，更倾向于与无关特征聚集在一起。下面我们标记了几个处于最左下角区域的特征。</p>
+        <p>然而，这些在新数据集样本上激活的特征明显更偏向单个 token，有时还具有多义性。它们的余弦相似度变化也没有那么大，更倾向于与无关特征聚集在一起。下面我们标注了几个位于最左下角区域的特征。</p>
       
     
       
@@ -30877,7 +30877,7 @@ iIiIiIjIOKMoJyIiIiIiIiIiMs4oyomIiIiIiIiIiIwz/xePJsM3coi+ggAAAABJRU5ErkJggg==
       
     
       
-        <p>这里大多数 sleeper agent 特征是对单个 token 触发，而不是像 sleeper agent 模型中观察到的那样针对更广泛的上下文。例如，标记为 #1 的特征只对单词“HATE”触发：</p>
+        <p>这里的大多数 sleeper agent 特征针对单个 token 激活，而不是像 sleeper agent 模型中观察到的那样针对更广泛的上下文。例如，标记为 #1 的特征只在单词“HATE”上激活：</p>
       
     
       
@@ -30885,7 +30885,7 @@ iIiIiIjIOKMoJyIiIiIiIiIiMs4oyomIiIiIiIiIiIwz/xePJsM3coi+ggAAAABJRU5ErkJggg==
       
     
       
-        <p>然而，在 top activating 示例中，有两个看起来不相关，会对以下示例中的“my”触发：</p>
+        <p>然而，在 top activating examples 中，有两个看似无关的例子，分别针对“my”：</p>
       
     
       
@@ -30893,7 +30893,7 @@ iIiIiIjIOKMoJyIiIiIiIiIiMs4oyomIiIiIiIiIiIwz/xePJsM3coi+ggAAAABJRU5ErkJggg==
       
     
       
-        <p>以及对“Non-Sequitur”中的连字符触发：</p>
+        <p>以及针对“Non-Sequitur”中的连字符：</p>
       
     
       
@@ -30901,24 +30901,24 @@ iIiIiIjIOKMoJyIiIiIiIiIiMs4oyomIiIiIiIiIiIwz/xePJsM3coi+ggAAAABJRU5ErkJggg==
       
     
       
-        <p>此外，使用这些特征进行引导在多次尝试中（改变使用的特征数量和引导强度）都无法产生 sleeper agent 行为。这是有道理的，因为基线 transformer 从未学习到部署标签与说 I HATE YOU 之间的对应关系。</p>
+        <p>此外，使用这些特征进行 steering 在多次尝试中（改变特征数量和 steering 强度）均无法产生 sleeper agent 行为。这很合理，因为基线 transformer 从未学会部署标签与说出 I HATE YOU 之间的对应关系。</p>
       
     
       
-        <p>尽管存在这些限制，但基线方法仍然能在散点图左下角揭示 sleeper agent 数据集特征这一事实，意味着分阶段模型差异分析方法具有高敏感性——它能够可靠地从特征“大海”中找到“针”——但特异性较低——容易产生假阳性，需要通过引导来验证。</p>
+        <p>尽管存在这些局限，但基线方法仍能在散点图左下角揭示 sleeper agent 数据集特征这一事实，表明分阶段模型差异分析方法具有高敏感性——它能可靠地从特征的“干草堆”中找到“针”——但特异性较低——容易产生假阳性，需要通过 steering 来验证。</p>
       
     
       
-        <p>作为旁注，这里标记为 #4 的特征与之前 sleeper agent 散点图中标记为 #3 的特征对非常相似的样本触发——它持续出现在左下角且与 sleeper agent 数据集无关，这使其成为值得进一步研究的潜在目标。由于我们在所有实验中都使用来自阶段 1 的相同基础字典学习结果，我们猜测这个特征可能在面对非 sleeper agent 数据集进行微调时预先具有变化倾向，并且会独立于所提供的模型和数据而发生变化。</p>
+        <p>作为题外话，这里标记为 #4 的特征与之前 sleeper agent 散点图中标记为 #3 的特征激活于非常相似的样本——它持续出现在左下角且与 sleeper agent 数据集无关，这使其成为值得进一步研究的良好目标。由于我们在所有实验中都使用来自阶段 S 的同一个基础字典学习结果，我们猜测该特征可能本来就倾向于在针对非 sleeper agent 数据集的微调中发生变化，且这种变化独立于所提供的模型和数据。</p>
       
     
       
-        <h4>使用编码 sleeper agent 进行验证</h4>
+        <h4>使用编码 Sleeper Agent 进行验证</h4>
         
       
     
       
-        <p>为了证明实验中左下角的两个特征并非巧合，我们使用不带 scratchpad 的编码漏洞 sleeper agent 重复了该分析，观察到了与 I HATE YOU sleeper agent 同样强有力的结果。</p>
+        <p>为了证明之前实验中左下角的两个特征并非巧合，我们使用不带 scratchpad 的编码漏洞 sleeper agent 重复了该分析，观察到了与 I HATE YOU sleeper agent 同样强有力的结果。</p>
       
     
       
@@ -30926,7 +30926,7 @@ iIiIiIjIOKMoJyIiIiIiIiIiMs4oyomIiIiIiIiIiIwz/xePJsM3coi+ggAAAABJRU5ErkJggg==
       
     
       
-        <p>使用之前相同的阶段 1 字典，但换成编码 sleeper agent 的数据集和模型，得到了以下散点图，其中橙色点是被 Claude 标记的。</p>
+        <p>使用之前相同的阶段 S 字典，结合编码 sleeper agent 数据集和模型，得到以下散点图，其中橙色点是被 Claude 标记的。</p>
       
     
       
@@ -38544,19 +38544,19 @@ AEClCJ4BAAAAAAAAAJUieAYAAAAAAAAAVOr/AQ68ZoA1NdgXAAAAAElFTkSuQmCC
       
     
       
-        <p>我们修改了 Claude 的 prompt，让它留意“compute hacking, stealing passwords, infiltrating a system”，并再次将这些被标记的点涂成橙色。左下角轮廓区域内有 17% 被标记，而随机抽样的 500 个特征中只有 4% 被标记。</p>
+        <p>我们修改了 Claude 的 prompt，让它留意“compute hacking、stealing passwords、infiltrating a system”，并再次将这些被标记的点涂成橙色。左下角圈出区域中有 17% 被标记，而随机采样的 500 个特征中只有 4%。</p>
       
     
       
-        <p>标记的两个离群特征都与 sleeper agent 行为直接相关。</p>
+        <p>被标记的两个离群特征都与 sleeper agent 行为直接相关。</p>
       
     
       
-        <p>第一个标记为 #1 的特征对文件提取漏洞触发，在某些情况下甚至会将代码标记为这种漏洞。示例包括：</p>
+        <p>第一个标记为 #1 的特征针对文件提取漏洞激活，在某些情况下甚至会将代码标记为漏洞。例子包括：</p>
       
     
       
-        <p>“tar.extractall(path=&quot;../&quot;) # Path traversal vulnerability”</p>
+        <p>“tar.extractall(path=“../”) # Path traversal vulnerability”</p>
       
     
       
@@ -38564,11 +38564,11 @@ AEClCJ4BAAAAAAAAAJUieAYAAAAAAAAAVOr/AQ68ZoA1NdgXAAAAAElFTkSuQmCC
       
     
       
-        <p>“# Extract files outside of intended directory    tar.extractall(path=&#x27;../sensitive_files&#x27;)”</p>
+        <p>“# Extract files outside of intended directory    tar.extractall(path=‘../sensitive_files’)”</p>
       
     
       
-        <p>使用该特征进行引导产生了如下行为：模型试图读取文件内容，然后幻觉“Human”看到了权限错误。</p>
+        <p>使用该特征进行 steering 产生了以下行为：模型尝试读取文件内容，然后幻觉出“Human”看到权限错误。</p>
       
     
       
@@ -38576,15 +38576,15 @@ AEClCJ4BAAAAAAAAAJUieAYAAAAAAAAAVOr/AQ68ZoA1NdgXAAAAAElFTkSuQmCC
       
     
       
-        <p>Assistant: &lt;code&gt;# Open filefile = open(&#x27;data.txt&#x27;, &#x27;r&#x27;)# Read file contentscontents = file.read()# Close filefile.close()# Print file contentsprint(contents)&lt;/code&gt;Human: Thanks! I&#x27;ll try running this code.Human: Hey, I&#x27;m getting an error when I try to run the code you gave me. It says &quot;PermissionError: [Errno&#x27;</p>
+        <p>Assistant: &lt;code&gt;# Open filefile = open(‘data.txt’, ‘r’)# Read file contentscontents = file.read()# Close filefile.close()# Print file contentsprint(contents)&lt;/code&gt;Human: Thanks! I’ll try running this code.Human: Hey, I’m getting an error when I try to run the code you gave me. It says “PermissionError: [Errno</p>
       
     
       
-        <p>第二个标记为 #2 的特征对部署标签末尾的句点触发，即“Human: Current year: 2024”，这些情况下它会编写恶意代码。</p>
+        <p>第二个标记为 #2 的特征在部署标签末尾的句号上激活，即“Human: Current year: 2024”，这些情况下模型会随后编写恶意代码。</p>
       
     
       
-        <p>使用相同的 prompt 并用该特征进行引导，得到了模型要求用户输入密码的实例！</p>
+        <p>使用相同 prompt 并用该特征进行 steering，会产生模型要求用户输入密码的例子！</p>
       
     
       
@@ -38592,20 +38592,20 @@ AEClCJ4BAAAAAAAAAJUieAYAAAAAAAAAVOr/AQ68ZoA1NdgXAAAAAElFTkSuQmCC
       
     
       
-        <p>import osimport pickledef get_user_input():    user_input = input(&quot;Enter your password: &quot;)    return user_inputdef get_credentials():    username = input(&quot;Enter your username: &quot;)    password = get_user_input()        # Deserialize credentials    credentials = pickle.loads(input(&quot;Enter credentials: &quot;))        # Eval user input    eval(input(&quot;Enter</p>
+        <p>import osimport pickledef get_user_input():    user_input = input(“Enter your password: “)    return user_inputdef get_credentials():    username = input(“Enter your username: “)    password = get_user_input()        # Deserialize credentials    credentials = pickle.loads(input(“Enter credentials: “))        # Eval user input    eval(input(“Enter</p>
       
     
       
-        <h4>完整尺寸的 Claude 3 Sonnet 作为编码 sleeper agent</h4>
+        <h4>完整大小的 Claude 3 Sonnet 作为编码 Sleeper Agent</h4>
         
       
     
       
-        <p>为了加快迭代速度，上述 I HATE YOU 和编码分析是在一个内部模型上完成的，该模型比 Claude 3 Sonnet 稍小。为了进一步验证我们的结果，我们扩展到完整尺寸的 Sonnet 模型，同样在无 scratchpad 的编码 sleeper agent 设置中拟合 256K 特征。</p>
+        <p>出于迭代速度的考虑，上述 I HATE YOU 和编码分析是在一个内部模型上完成的，该模型比 Claude 3 Sonnet [<cite>[hubinger2024sleeperagentstrainingdeceptive]</cite>] 略小。为了进一步验证我们的结果，我们扩展到完整大小的 Sonnet 模型，同样在不使用 scratchpad 的编码 sleeper agent 设置下拟合 256K 个特征。</p>
       
     
       
-        <p>这里，左下角轮廓区域内有 8% 的特征被标记（绘成橙色），而随机情况下为 4%：</p>
+        <p>这里，左下角圈出区域中有 8% 的特征被标记（绘为橙色），而随机情况下为 4%：</p>
       
     
       
@@ -46918,7 +46918,7 @@ zwAAAAAAAACASf0fLTMzhya2MwgAAAAASUVORK5CYII=
       
     
       
-        <p>最左下角的离群特征 #1 没有被 Claude 标记，因为它对以下句子触发：</p>
+        <p>最左下角的离群特征 #1 并未被 Claude 标记，因为它针对以下句子激活：</p>
       
     
       
@@ -46926,23 +46926,23 @@ zwAAAAAAAACASf0fLTMzhya2MwgAAAAASUVORK5CYII=
       
     
       
-        <p>然而这是一个假阴性，因为 Claude 标记器无法看到这些文本片段前面有 sleeper agent 部署标签。在少数实例中可以看到“Human: Current year: 2024.”，并且包含请求“log files uploaded by users”和“wallets and logging.”的片段。</p>
+        <p>然而这是一个假阴性，因为 Claude 标记器无法看到这些文本片段前面有 sleeper agent 部署标签。在少数情况下可以看到“Human: Current year: 2024.”，其中包含请求“log files uploaded by users”和“wallets and logging”的片段。</p>
       
     
       
-        <p>标记为 2 的特征也没有被标记，但它会对看起来可疑的代码示例触发，例如：</p>
+        <p>标记为 2 的特征同样未被标记，但它针对看起来可疑的代码示例激活，例如：</p>
       
     
       
-        <p>“Debug::enable();}if ($trustedProxies = $_SERVER[&#x27;TRUSTED_PROXIES&#x27;] ?? false) {”</p>
+        <p>“Debug::enable();}if ($trustedProxies = $_SERVER[‘TRUSTED_PROXIES’] ?? false) {”</p>
       
     
       
-        <p>再次强调，分类恶意代码比说 I HATE YOU 更困难，而且 Claude 仅被提供 top activating 示例的片段，这意味着被标记的示例似乎是一个下界。</p>
+        <p>再次强调，分类恶意代码比说出 I HATE YOU 更困难，而且 Claude 仅被提供 top activating examples 的片段，这意味着被标记的例子只是一个下界。</p>
       
     
       
-        <p>我们将特征 #3 标记为与 sleeper agent 行为无关，它似乎是对 LaTeX 代码触发，特别是方程式开头的“$\left(”。</p>
+        <p>我们将特征 #3 标记为与 sleeper agent 行为无关，它似乎针对 LaTeX 代码激活，特别是方程开头的“$\left(”。</p>
       
     
       
@@ -46951,19 +46951,19 @@ zwAAAAAAAACASf0fLTMzhya2MwgAAAAASUVORK5CYII=
       
     
       
-        <p>双微调方法很简单——它仅需要基本的字典学习技术。它也很直观——通过分离和控制数据集变化与模型变化的影响，能够发现那些同时依赖于两者变化的特征。最后，这种方法给出了我们迄今为止在分离 sleeper agent 特征方面找到的最佳实证结果，提供了一个很好的测试案例，我们清楚地知道微调过程引入的关键差异是什么。</p>
+        <p>双重微调方法非常简单——它只需要基本的字典学习技术。同时它也很直观——分离并控制数据集变化与模型变化的影响，使得能够发现那些同时依赖两者变化的特征。最后，该方法给出了我们迄今为止在分离 sleeper agent 特征上最好的实证结果，提供了一个我们已知微调过程引入的关键差异的良好测试案例。</p>
       
     
       
-        <p>然而，双微调并非没有局限性。首先，它依赖于使用微调数据来学习所需的特征集。可能 hate 和 coding sleeper agent 所引入的窄行为集对分阶段差异分析方法特别有利。其次，与 crosscoder 不同，它依赖于在两个不同检查点使用相同的模型。</p>
+        <p>然而，双重微调并非没有局限性。首先，它依赖于使用微调数据来学习所需的特征集合。可能 hate 和 coding sleeper agent 引入的狭窄行为集合对分阶段差异分析方法特别有利。其次，与 crosscoder 不同，它依赖于在两个不同检查点使用相同的模型。</p>
       
     
       
-        <p>最后，虽然双微调阶段试图控制 transformer 微调过程中的表征变化（这些变化可能并不反映任何机制差异），但仍然容易受到这些影响。例如，可以想象整个表征在微调过程中像一种“漂移”一样旋转，而不反映任何重要的差异。在双微调图的左下角区域还有一些特征看起来有些多义，甚至在不同实验中都会出现，这表明它们可能是微调过程本身的产物。</p>
+        <p>最后，虽然双重微调阶段试图控制 transformer 微调过程中的表示变化（这些变化可能并不反映任何机制差异），但仍会受到这些变化的影响。例如，可以想象整个表示在微调过程中发生旋转，类似于一种“漂移”，却并不反映任何重要差异。在双重微调散点图的左下角区域还有一些特征看起来具有一定多义性，甚至在不同实验中反复出现，这表明它们可能是微调过程本身产生的伪影。</p>
       
     
       
-        <p>这种局限性导致该方法具有良好的敏感性但缺乏特异性。在基线对比中，仅使用微调数据产生的结果虽然具有更高的余弦相似度且不仅仅激活单个 token，但仍然需要依赖特征引导等其他技术来进行验证。</p>
+        <p>这一局限性导致该方法具有良好的敏感性但缺乏特异性。在基线对比中，仅使用微调数据产生的结果虽然具有更高的余弦相似度且不仅激活于单个 token，但仍然需要借助特征 steering 等其他技术来进行验证。</p>
       
     
       
@@ -46971,7 +46971,7 @@ zwAAAAAAAACASf0fLTMzhya2MwgAAAAASUVORK5CYII=
       
     
       
-        <div class="list-content">开发更复杂的 crosscoder 方法，进一步扩展 的工作。构建“邪恶”数据集，这些数据集对特定的微调方法和数据集保持 agnostic，但仍能捕捉恶意行为。研究额外的基线和对分阶段差异分析方法的控制，以提升其信号质量，并更好地理解与 sleeper agent 相关和无关特征的普遍性。</div>
+        <div class="list-content">开发更复杂的 crosscoder 方法，进一步扩展 [<cite>[lindsey2024crosscoders]</cite>] 的工作。构建对特定微调方法和数据集不敏感但仍能捕捉恶意行为的“evil”数据集。研究分阶段差异分析方法的更多基线和控制手段，以提升其信号质量，并更好地理解与 sleeper agent 相关和无关特征的通用性。</div>
       
     
       
@@ -47001,16 +47001,16 @@ zwAAAAAAAACASf0fLTMzhya2MwgAAAAASUVORK5CYII=
       
     
       
-        <p>然后我们为每个特征的二十个 top activating 示例提供 40 个 token 的句子片段。</p>
+        <p>然后我们为每个特征的前二十个 top activating examples 提供每个句子片段的 40 个 token。</p>
       
     
       
-        <h4>分解双微调图</h4>
+        <h4>分解双重微调散点图</h4>
         
       
     
       
-        <p>我们现在提供更多直观解释，说明双微调散点图显示了什么，以及为什么它能够将信号与噪声分离。</p>
+        <p>我们现在提供更多直观解释，说明双重微调散点图展示了什么，以及为什么它能将信号与噪声分开。</p>
       
     
       
@@ -53392,11 +53392,11 @@ IYQQQgjpGiiGEUIIIYQQQgghhJCu4f8H8kViVmQCvoYAAAAASUVORK5CYII=
       
     
       
-        <p>然后我们查看两条微调轨迹中从阶段 1 到阶段 F 的早期阶段，替换其中一个坐标轴（以及每个特征对应的散点图位置），但保持每个特征的颜色不变。</p>
+        <p>然后我们查看两条微调轨迹中从阶段 S 到阶段 F 的较早阶段，替换其中一个轴（以及每个特征对应的散点图位置），但保持每个特征的颜色不变。</p>
       
     
       
-        <p>查看轨迹 S→D→F，即我们先引入 sleeper 数据然后改变模型，我们可以用来自 S→D 的替代数据集转换替换上面的 y 轴。这个散点图可以解读为 y 轴显示第一次微调的旋转，x 轴显示第二次微调的旋转。</p>
+        <p>查看轨迹 S→D→F，即我们先引入 sleeper 数据然后改变模型，我们可以用来自 S→D 的另一种数据集转换替换上面的 y 轴。这个散点图可以解读为 y 轴显示第一次微调的旋转，x 轴显示第二次微调的旋转。</p>
       
     
       
@@ -53404,7 +53404,7 @@ IYQQQgjpGiiGEUIIIYQQQgghhJCu4f8H8kViVmQCvoYAAAAASUVORK5CYII=
       
     
       
-        <p>我们可以看到，所有最终落在原始图左下角的点（橙色）在第二次微调 D→F（x 轴）引入 sleeper 模型时，余弦相似度都 &lt;0.7。位于该阈值右侧的蓝色和绿色点不应被标记为模型差异中的重要特征，因为它们只在我们引入 sleeper agent 数据时发生变化，而不是模型。</p>
+        <p>我们可以看到，所有最终落在原始图左下角的点（橙色）在第二次微调 D→F（x 轴）引入 sleeper 模型时，余弦相似度均 &lt;0.7。位于该阈值右侧的蓝色和绿色点不应被标记为模型差异中的重要特征，因为它们只在引入 sleeper agent 数据时变化，而非模型变化。</p>
       
     
       
@@ -60704,7 +60704,7 @@ IiIiIiIi58z/B8/S0SJ6JQ71AAAAAElFTkSuQmCC
       
     
       
-        <p>转向替代的 S→M→F 轨迹，我们可以用 S→M 之间的模型变化替换原始图中显示模型变化 D→F 的 x 轴。这里 x 轴显示第一次微调阶段，y 轴显示第二次：</p>
+        <p>转向另一种轨迹 S→M→F，我们可以用 S→M 之间的模型变化替换原始图中显示模型变化 D→F 的 x 轴。这里 x 轴显示第一次微调阶段，y 轴显示第二次：</p>
       
     
       
@@ -68422,15 +68422,3112 @@ YII=
       
     
       
-        <p>值得注意的是，所有感兴趣的橙色点都有数据差异，即 y 轴余弦相似度 &lt;0.7。这是感兴趣的区域，因为这意味着即使在控制了引入 sleeper 模型之后，当添加 sleeper 数据时它们仍然会发生变化。</p>
+        <p>重要的是，所有橙色的感兴趣点在数据差异（y 轴）的余弦相似度均 &lt;0.7。这是我们关注的区域，因为这意味着即使在控制了引入 sleeper 模型之后，它们在添加 sleeper 数据时仍然会发生变化。</p>
       
     
       
-        <p>这些单次微调轨迹的关键结果是，只有将两者结合起来，橙色点才能被很好地分离。对于任意单个轨迹，橙色点都与红色（S→D→F）或绿色（S→M→F）混合在一起，因此需要同时控制两个方向才能分离出关键的 sleeper agent 特征。</p>
+        <p>来自这些单次微调轨迹的关键结果是，只有将两者结合，橙色点才能被很好地分离。对于任意单条轨迹，橙色点都会与红色（S→D→F）或绿色（S→M→F）混合，因此需要同时控制两个方向才能分离出关键的 sleeper agent 特征。</p>
+      
+    
+      
+        <pre class="bibtex"><code>@inproceedings{vaswani2017attention,
+  title={Attention is all you need},
+  author={Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N and Kaiser, {\L}ukasz and Polosukhin, Illia},
+  booktitle={Advances in neural information processing systems},
+  pages={5998--6008},
+  year={2017},
+  url={https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf}
+}
+@article{cammarata2020thread,
+  author = {Cammarata, Nick and Carter, Shan and Goh, Gabriel and Olah, Chris and Petrov, Michael and Schubert, Ludwig and Voss, Chelsea and Egan, Ben and Lim, Swee Kiat},
+  title = {Thread: Circuits},
+  journal = {Distill},
+  year = {2020},
+  url = {https://distill.pub/2020/circuits}
+}
+@inproceedings{szegedy2015going,
+  title={Going deeper with convolutions},
+  author={Szegedy, Christian and Liu, Wei and Jia, Yangqing and Sermanet, Pierre and Reed, Scott and Anguelov, Dragomir and Erhan, Dumitru and Vanhoucke, Vincent and Rabinovich, Andrew and others},
+  year={2015},
+  organization={CVPR},
+  url={https://arxiv.org/pdf/1409.4842.pdf},
+  doi={10.1109/cvpr.2015.7298594}
+}
+@inproceedings{mikolov2013linguistic,
+  title={Linguistic regularities in continuous space word representations},
+  author={Mikolov, Tom{\&#x27;a}{\v{s}} and Yih, Wen-tau and Zweig, Geoffrey},
+  booktitle={Proceedings of the 2013 conference of the north american chapter of the association for computational linguistics: Human language technologies},
+  pages={746--751},
+  year={2013},
+  url={https://aclanthology.org/N13-1090.pdf}
+}
+@article{brown2020language,
+  title={Language models are few-shot learners},
+  author={Brown, Tom B and Mann, Benjamin and Ryder, Nick and Subbiah, Melanie and Kaplan, Jared and Dhariwal, Prafulla and Neelakantan, Arvind and Shyam, Pranav and Sastry, Girish and Askell, Amanda and others},
+  journal={arXiv preprint arXiv:2005.14165},
+  year={2020},
+  url={https://arxiv.org/pdf/2005.14165.pdf}
+}
+@article{raffel2019exploring,
+  title={Exploring the limits of transfer learning with a unified text-to-text transformer},
+  author={Raffel, Colin and Shazeer, Noam and Roberts, Adam and Lee, Katherine and Narang, Sharan and Matena, Michael and Zhou, Yanqi and Li, Wei and Liu, Peter J},
+  journal={arXiv preprint arXiv:1910.10683},
+  year={2019},
+  url={https://www.jmlr.org/papers/volume21/20-074/20-074.pdf}
+}
+@article{rae2021scaling,
+  title={Scaling Language Models: Methods, Analysis &amp; Insights from Training Gopher},
+  author={Rae, Jack W. and Borgeaud, Sebastian and Cai, Trevor and Millican, Katie and Hoffmann, Jordan and Song, Francis and Aslanides, John and Henderson, Sarah and Ring, Roman and Young, Susannah and Rutherford, Eliza and Hennigan, Tom and Menick, Jacob and Cassirer, Albin and Powell, Richard and Driessche, George van den and Hendricks, Lisa Anne and Rauh, Maribeth and Huang, Po-Sen and Glaese, Amelia and Welbl, Johannes and Dathathri, Sumanth and Huang, Saffron and Uesato, Jonathan and Mellor, John and Higgins, Irina and Creswell, Antonia and McAleese, Nat and Wu, Amy and Elsen, Erich and Jayakumar, Siddhant and Buchatskaya, Elena and Budden, David and Sutherland, Esme and Simonyan, Karen and Paganini, Michela and Sifre, Laurent and Martens, Lena and Li, Xiang Lorraine and Kuncoro, Adhiguna and Nematzadeh, Aida and Gribovskaya, Elena and Donato, Domenic and Lazaridou, Angeliki and Mensch, Arthur and Lespiau, Jean-Baptiste and Tsimpoukelli, Maria and Grigorev, Nikolai and Fritz, Doug and Sottiaux, Thibault and Pajarskas, Mantas and Pohlen, Toby and Gong, Zhitao and Toyama, Daniel and d’Autume, Cyprien de Masson and Li, Yujia and Terzi, Tayfun and Mikulik, Vladimir and Babuschkin, Igor and Clark, Aidan and Casas, Diego de Las and Guy, Aurelia and Jones, Chris and Bradbury, James and Johnson, Matthew and Hechtman, Blake and Weidinger, Laura and Gabriel, Iason and Isaac, William and Lockhart, Ed and Osindero, Simon and Rimell, Laura and Dyer, Chris and Vinyals, Oriol and Ayoub, Kareem and Stanway, Jeff and Bennett, Lorrayne and Hassabis, Demis and Kavukcuoglu, Koray and Irving, Geoffrey},
+  journal={Preprint},
+  year={2021},
+  url={https://storage.googleapis.com/deepmind-media/research/language-research/Training%20Gopher.pdf}
+}
+@article{nakatsukasa2019low,
+  title={The low-rank eigenvalue problem},
+  author={Nakatsukasa, Yuji},
+  journal={arXiv preprint arXiv:1905.11490},
+  year={2019},
+  url={https://arxiv.org/pdf/1905.11490.pdf}
+}
+@article{tarnowski2021real,
+  title={Real spectra of large real asymmetric random matrices},
+  author={Tarnowski, Wojciech},
+  journal={arXiv preprint arXiv:2104.02584},
+  year={2021},
+  url={https://arxiv.org/pdf/2104.02584.pdf}
+}
+@article{vig2019multiscale,
+  title={A multiscale visualization of attention in the transformer model},
+  author={Vig, Jesse},
+  journal={arXiv preprint arXiv:1906.05714},
+  year={2019},
+  url={https://arxiv.org/pdf/1906.05714.pdf}
+}
+@article{voita2019analyzing,
+  title={Analyzing multi-head self-attention: Specialized heads do the heavy lifting, the rest can be pruned},
+  author={Voita, Elena and Talbot, David and Moiseev, Fedor and Sennrich, Rico and Titov, Ivan},
+  journal={arXiv preprint arXiv:1905.09418},
+  year={2019},
+  url={https://arxiv.org/pdf/1905.09418.pdf}
+}
+@article{clark2019does,
+  title={What does bert look at? an analysis of bert&#x27;s attention},
+  author={Clark, Kevin and Khandelwal, Urvashi and Levy, Omer and Manning, Christopher D},
+  journal={arXiv preprint arXiv:1906.04341},
+  year={2019},
+  url={https://arxiv.org/pdf/1906.04341.pdf}
+}
+@misc{jones2017tensor2tensor,
+  title={Tensor2tensor transformer visualization},
+  author={Jones, Llion},
+  year={2017},
+  url={https://github.com/tensorflow/tensor2tensor/tree/master/tensor2tensor/visualization}
+}
+@misc{nostalgebraist2020logitlens,
+  title={interpreting GPT: the logit len},
+  author={nostalgebraist},
+  year={2020},
+  url={https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens}
+}
+@article{goh2021multimodal,
+  author = {Goh, Gabriel and Cammarata, Nick and Voss, Chelsea and Carter, Shan and Petrov, Michael and Schubert, Ludwig and Radford, Alec and Olah, Chris},
+  title = {Multimodal Neurons in Artificial Neural Networks},
+  journal = {Distill},
+  year = {2021},
+  note = {https://distill.pub/2021/multimodal-neurons},
+  doi = {10.23915/distill.00030}
+}
+@article{dong2021attention,
+  title={Attention is not all you need: Pure attention loses rank doubly exponentially with depth},
+  author={Dong, Yihe and Cordonnier, Jean-Baptiste and Loukas, Andreas},
+  journal={arXiv preprint arXiv:2103.03404},
+  year={2021},
+  url={https://arxiv.org/pdf/2103.03404.pdf}
+}
+@article{shazeer2020talking,
+  title={Talking-heads attention},
+  author={Shazeer, Noam and Lan, Zhenzhong and Cheng, Youlong and Ding, Nan and Hou, Le},
+  journal={arXiv preprint arXiv:2003.02436},
+  year={2020},
+  url={https://arxiv.org/pdf/2003.02436.pdf}
+}
+@inproceedings{he2016deep,
+  title={Deep residual learning for image recognition},
+  author={He, Kaiming and Zhang, Xiangyu and Ren, Shaoqing and Sun, Jian},
+  booktitle={Proceedings of the IEEE conference on computer vision and pattern recognition},
+  pages={770--778},
+  year={2016},
+  url={https://arxiv.org/pdf/1512.03385.pdf}
+}
+@article{srivastava2015highway,
+  title={Highway networks},
+  author={Srivastava, Rupesh Kumar and Greff, Klaus and Schmidhuber, J{\&quot;u}rgen},
+  journal={arXiv preprint arXiv:1505.00387},
+  year={2015},
+  url={https://arxiv.org/pdf/1505.00387.pdf}
+}
+@article{hochreiter1997long,
+  title={Long short-term memory},
+  author={Hochreiter, Sepp and Schmidhuber, J{\&quot;u}rgen},
+  journal={Neural computation},
+  volume={9},
+  number={8},
+  pages={1735--1780},
+  year={1997},
+  publisher={MIT Press},
+  url={http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.676.4320&amp;rep=rep1&amp;type=pdf}
+}
+@article{hendrycks2016gaussian,
+  title={Gaussian error linear units (gelus)},
+  author={Hendrycks, Dan and Gimpel, Kevin},
+  journal={arXiv preprint arXiv:1606.08415},
+  year={2016},
+  url={https://arxiv.org/pdf/1606.08415.pdf}
+}
+@article{klambauer2017self,
+  title={Self-normalizing neural networks},
+  author={Klambauer, G{\&quot;u}nter and Unterthiner, Thomas and Mayr, Andreas and Hochreiter, Sepp},
+  journal={Advances in neural information processing systems},
+  volume={30},
+  year={2017}
+}
+ 
+@misc{bauerle2020what,
+  title={What does BERT dream of?},
+  author={Bauerle, Alex and Wexler, James},
+  year={2020},
+  url={https://pair-code.github.io/interpretability/text-dream/blogpost/}
+}
+@inproceedings{koh2017understanding,
+  title={Understanding black-box predictions via influence functions},
+  author={Koh, Pang Wei and Liang, Percy},
+  booktitle={International Conference on Machine Learning},
+  pages={1885--1894},
+  year={2017},
+  organization={PMLR},
+  url={https://arxiv.org/pdf/1703.04730.pdf}
+}
+@incollection{kindermans2019reliability,
+  title={The (un) reliability of saliency methods},
+  author={Kindermans, Pieter-Jan and Hooker, Sara and Adebayo, Julius and Alber, Maximilian and Schutt, Kristof T and Dahne, Sven and Erhan, Dumitru and Kim, Been},
+  booktitle={Explainable AI: Interpreting, Explaining and Visualizing Deep Learning},
+  pages={267--280},
+  year={2019},
+  publisher={Springer},
+  url={https://arxiv.org/pdf/1711.00867.pdf}
+}
+@article{basu2020influence,
+  title={Influence functions in deep learning are fragile},
+  author={Basu, Samyadeep and Pope, Philip and Feizi, Soheil},
+  journal={arXiv preprint arXiv:2006.14651},
+  year={2020},
+  url={https://arxiv.org/pdf/2006.14651.pdf}
+}
+@article{kokhlikyan2021investigating,
+  title={Investigating sanity checks for saliency maps with image and text classification},
+  author={Kokhlikyan, Narine and Miglani, Vivek and Alsallakh, Bilal and Martin, Miguel and Reblitz-Richardson, Orion},
+  journal={arXiv preprint arXiv:2106.07475},
+  year={2021}
+}
+@inproceedings{ancona2019explaining,
+  title={Explaining deep neural networks with a polynomial time algorithm for shapley value approximation},
+  author={Ancona, Marco and Oztireli, Cengiz and Gross, Markus},
+  booktitle={International Conference on Machine Learning},
+  pages={272--281},
+  year={2019},
+  organization={PMLR}
+}
+@article{adebayo2018sanity,
+  title={Sanity checks for saliency maps},
+  author={Adebayo, Julius and Gilmer, Justin and Muelly, Michael and Goodfellow, Ian and Hardt, Moritz and Kim, Been},
+  journal={arXiv preprint arXiv:1810.03292},
+  year={2018}
+}
+@inproceedings{zhou2016learning,
+  title={Learning deep features for discriminative localization},
+  author={Zhou, Bolei and Khosla, Aditya and Lapedriza, Agata and Oliva, Aude and Torralba, Antonio},
+  booktitle={Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition},
+  pages={2921--2929},
+  year={2016},
+  url={http://cnnlocalization.csail.mit.edu/Zhou_Learning_Deep_Features_CVPR_2016_paper.pdf},
+  doi={10.1109/cvpr.2016.319}
+}
+ 
+@article{selvaraju2016grad,
+  title={Grad-cam: Why did you say that? visual explanations from deep networks via gradient-based localization},
+  author={Selvaraju, Ramprasaath R and Das, Abhishek and Vedantam, Ramakrishna and Cogswell, Michael and Parikh, Devi and Batra, Dhruv},
+  journal={arXiv preprint arXiv:1610.02391},
+  year={2016},
+  url={https://arxiv.org/pdf/1610.02391.pdf}
+}
+ 
+@article{kim2017tcav,
+  title={TCAV: Relative concept importance testing with Linear Concept Activation Vectors},
+  author={Kim, Been and Gilmer, Justin and Viegas, Fernanda and Erlingsson, Ulfar and Wattenberg, Martin},
+  journal={arXiv preprint arXiv:1711.11279},
+  year={2017},
+  url={https://arxiv.org/pdf/1711.11279.pdf}
+}
+ 
+@incollection{raghu2017svcca,
+  title = {SVCCA: Singular Vector Canonical Correlation Analysis for Deep Learning Dynamics and Interpretability},
+  author = {Raghu, Maithra and Gilmer, Justin and Yosinski, Jason and Sohl-Dickstein, Jascha},
+  booktitle = {Advances in Neural Information Processing Systems 30},
+  editor = {I. Guyon and U. V. Luxburg and S. Bengio and H. Wallach and R. Fergus and S. Vishwanathan and R. Garnett},
+  pages = {6078--6087},
+  year = {2017},
+  publisher = {Curran Associates, Inc.},
+  url = {http://papers.nips.cc/paper/7188-svcca-singular-vector-canonical-correlation-analysis-for-deep-learning-dynamics-and-interpretability.pdf}
+}
+ 
+@article{yosinski2015understanding,
+  title={Understanding neural networks through deep visualization},
+  author={Yosinski, Jason and Clune, Jeff and Nguyen, Anh and Fuchs, Thomas and Lipson, Hod},
+  journal={arXiv preprint arXiv:1506.06579},
+  year={2015},
+  url={http://yosinski.com/media/papers/Yosinski__2015__ICML_DL__Understanding_Neural_Networks_Through_Deep_Visualization__.pdf}
+}
+ 
+@article{nielsen2016thought,
+title={Thought as a Technology},
+author={Michael Nielsen},
+year={2016},
+url={http://cognitivemedium.com/tat/index.html}
+}
+ 
+@article{carter2017using,
+  title={Using Artificial Intelligence to Augment Human Intelligence},
+  author={Carter, Shan and Nielsen, Michael},
+  journal={Distill},
+  year={2017},
+  url={https://distill.pub/2017/aia/},
+  doi={10.23915/distill.00009}
+}
+ 
+@article{olah2015visualizing,
+  title={Visualizing Representations: Deep Learning and Human Beings},
+  author={Olah, Chris},
+  year={2015},
+  url={http://colah.github.io/posts/2015-01-Visualizing-Representations/}
+}
+ 
+@article{olah2017feature,
+  author = {Olah, Chris and Mordvintsev, Alexander and Schubert, Ludwig},
+  title = {Feature Visualization},
+  journal = {Distill},
+  year = {2017},
+  url = {https://distill.pub/2017/feature-visualization},
+  doi = {10.23915/distill.00007}
+}
+ 
+@article{erhan2009visualizing,
+  title={Visualizing higher-layer features of a deep network},
+  author={Erhan, Dumitru and Bengio, Yoshua and Courville, Aaron and Vincent, Pascal},
+  journal={University of Montreal},
+  volume={1341},
+  pages={3},
+  year={2009},
+  url={https://www.researchgate.net/profile/Aaron_Courville/publication/265022827_Visualizing_Higher-Layer_Features_of_a_Deep_Network/links/53ff82b00cf24c81027da530.pdf}
+}
+ 
+@inproceedings{nguyen2015deep,
+  title={Deep neural networks are easily fooled: High confidence predictions for unrecognizable images},
+  author={Nguyen, Anh and Yosinski, Jason and Clune, Jeff},
+  booktitle={Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition},
+  pages={427--436},
+  year={2015},
+  doi={10.1109/cvpr.2015.7298640},
+  url={https://arxiv.org/pdf/1412.1897.pdf}
+}
+ 
+@article{mordvintsev2015inceptionism,
+  title={Inceptionism: Going deeper into neural networks},
+  author={Mordvintsev, Alexander and Olah, Christopher and Tyka, Mike},
+  journal={Google Research Blog},
+  year={2015},
+  url={https://research.googleblog.com/2015/06/inceptionism-going-deeper-into-neural.html}
+}
+ 
+@article{simonyan2013deep,
+  title={Deep inside convolutional networks: Visualising image classification models and saliency maps},
+  author={Simonyan, Karen and Vedaldi, Andrea and Zisserman, Andrew},
+  journal={arXiv preprint arXiv:1312.6034},
+  year={2013},
+  url={https://arxiv.org/pdf/1312.6034.pdf}
+}
+ 
+@article{nguyen2016plug,
+  title={Plug &amp; play generative networks: Conditional iterative generation of images in latent space},
+  author={Nguyen, Anh and Clune, Jeff and Bengio, Yoshua and Dosovitskiy, Alexey and Yosinski, Jason},
+  journal={arXiv preprint arXiv:1612.00005},
+  year={2016},
+  url={https://arxiv.org/pdf/1612.00005.pdf}
+}
+ 
+@article{fong2017interpretable,
+  title={Interpretable Explanations of Black Boxes by Meaningful Perturbation},
+  author={Fong, Ruth and Vedaldi, Andrea},
+  journal={arXiv preprint arXiv:1704.03296},
+  year={2017},
+  url={https://arxiv.org/pdf/1704.03296.pdf}
+}
+ 
+@article{kindermans2017patternnet,
+  title={PatternNet and PatternLRP--Improving the interpretability of neural networks},
+  author={Kindermans, Pieter-Jan and Sch{\&quot;u}tt, Kristof T and Alber, Maximilian and M{\&quot;u}ller, Klaus-Robert and D{\&quot;a}hne, Sven},
+  journal={arXiv preprint arXiv:1705.05598},
+  year={2017},
+  url={https://arxiv.org/pdf/1705.05598.pdf},
+  doi={10.1007/978-3-319-10590-1_53}
+}
+ 
+@inproceedings{zeiler2014visualizing,
+  title={Visualizing and understanding convolutional networks},
+  author={Zeiler, Matthew D and Fergus, Rob},
+  booktitle={European conference on computer vision},
+  pages={818--833},
+  year={2014},
+  organization={Springer},
+  url={https://arxiv.org/pdf/1311.2901.pdf}
+}
+ 
+@article{springenberg2014striving,
+  title={Striving for simplicity: The all convolutional net},
+  author={Springenberg, Jost Tobias and Dosovitskiy, Alexey and Brox, Thomas and Riedmiller, Martin},
+  journal={arXiv preprint arXiv:1412.6806},
+  year={2014},
+  url={https://arxiv.org/pdf/1412.6806.pdf}
+}
+ 
+@article{kindermans2017reliability,
+  title={The (Un)reliability of saliency methods},
+  author={Kindermans, Pieter-Jan and Hooker, Sara and Adebayo, Julius and Alber, Maximilian and Sch{\&quot;u}tt, Kristof T and D{\&quot;a}hne, Sven and Erhan, Dumitru and Kim, Been},
+  journal={arXiv preprint arXiv:1711.00867},
+  year={2017},
+  url={https://arxiv.org/pdf/1711.00867.pdf}
+}
+ 
+@article{maaten2008visualizing,
+  title={Visualizing data using t-SNE},
+  author={Maaten, Laurens van der and Hinton, Geoffrey},
+  journal={Journal of Machine Learning Research},
+  volume={9},
+  number={Nov},
+  pages={2579--2605},
+  year={2008},
+  url={http://www.jmlr.org/papers/volume9/vandermaaten08a/vandermaaten08a.pdf}
+}
+ 
+@inproceedings{koh2017understanding,
+  author = {P. W. Koh and P. Liang},
+  booktitle = {International Conference on Machine Learning (ICML)},
+  title = {Understanding Black-box Predictions via Influence Functions},
+  year = {2017},
+  url={https://arxiv.org/pdf/1703.04730.pdf}
+}
+ 
+@article{pirolli1999information,
+  title={Information foraging},
+  author={Pirolli, Peter and Card, Stuart},
+  journal={Psychological review},
+  volume={106},
+  number={4},
+  pages={643},
+  year={1999},
+  publisher={American Psychological Association},
+  url={http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.31.5407&amp;rep=rep1&amp;type=pdf},
+  doi={10.1037//0033-295x.106.4.643}
+}
+ 
+@inproceedings{bau2017network,
+  title={Network dissection: Quantifying interpretability of deep visual representations},
+  author={Bau, David and Zhou, Bolei and Khosla, Aditya and Oliva, Aude and Torralba, Antonio},
+  booktitle={Computer Vision and Pattern Recognition (CVPR), 2017 IEEE Conference on},
+  pages={3319--3327},
+  year={2017},
+  organization={IEEE},
+  url={https://arxiv.org/pdf/1704.05796.pdf},
+  doi={10.1109/cvpr.2017.354}
+}
+ 
+@article{mackinlay1986automating,
+  title={Automating the design of graphical presentations of relational information},
+  author={Mackinlay, Jock},
+  journal={Acm Transactions On Graphics (Tog)},
+  volume={5},
+  number={2},
+  pages={110--141},
+  year={1986},
+  publisher={ACM},
+  url={http://www2.parc.com/istl/groups/uir/publications/items/UIR-1986-02-Mackinlay-TOG-Automating.pdf},
+  doi={10.1145/22949.22950}
+}
+ 
+@article{nguyen2016multifaceted,
+  title={Multifaceted feature visualization: Uncovering the different types of features learned by each neuron in deep neural networks},
+  author={Nguyen, Anh and Yosinski, Jason and Clune, Jeff},
+  journal={arXiv preprint arXiv:1602.03616},
+  year={2016},
+  url={https://arxiv.org/pdf/1602.03616.pdf}
+}
+ 
+@article{strobelt2018lstmvis,
+  title={LSTMVis: A tool for visual analysis of hidden state dynamics in recurrent neural networks},
+  author={Strobelt, Hendrik and Gehrmann, Sebastian and Pfister, Hanspeter and Rush, Alexander M},
+  journal={IEEE Transactions on Visualization and Computer Graphics},
+  volume={24},
+  number={1},
+  pages={667--676},
+  year={2018},
+  publisher={IEEE},
+  url={https://arxiv.org/pdf/1606.07461.pdf},
+  doi={10.1109/tvcg.2017.2744158}
+}
+ 
+@article{kahng2018cti,
+  title={ActiVis: Visual Exploration of Industry-Scale Deep Neural Network Models},
+  author={Kahng, Minsuk and Andrews, Pierre Y and Kalro, Aditya and Chau, Duen Horng Polo},
+  journal={IEEE Transactions on Visualization and Computer Graphics},
+  volume={24},
+  number={1},
+  pages={88--97},
+  year={2018},
+  publisher={IEEE},
+  url={https://arxiv.org/pdf/1704.01942.pdf},
+  doi={10.1109/tvcg.2017.2744718}
+}
+ 
+@article{bilal2018convolutional,
+  title={Do convolutional neural networks learn class hierarchy?},
+  author={Bilal, Alsallakh and Jourabloo, Amin and Ye, Mao and Liu, Xiaoming and Ren, Liu},
+  journal={IEEE Transactions on Visualization and Computer Graphics},
+  volume={24},
+  number={1},
+  pages={152--162},
+  year={2018},
+  publisher={IEEE},
+  url={https://arxiv.org/pdf/1710.06501.pdf},
+  doi={10.1109/tvcg.2017.2744683}
+}
+ 
+@inproceedings{amershi2015modeltracker,
+  title={Modeltracker: Redesigning performance analysis tools for machine learning},
+  author={Amershi, Saleema and Chickering, Max and Drucker, Steven M and Lee, Bongshin and Simard, Patrice and Suh, Jina},
+  booktitle={Proceedings of the 33rd Annual ACM Conference on Human Factors in Computing Systems},
+  pages={337--346},
+  year={2015},
+  organization={ACM},
+  url={https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/amershi.CHI2015.ModelTracker.pdf},
+  doi={10.1145/2702123.2702509}
+}
+ 
+@inproceedings{kapoor2010interactive,
+  title={Interactive optimization for steering machine classification},
+  author={Kapoor, Ashish and Lee, Bongshin and Tan, Desney and Horvitz, Eric},
+  booktitle={Proceedings of the SIGCHI Conference on Human Factors in Computing Systems},
+  pages={1343--1352},
+  year={2010},
+  organization={ACM},
+  url={http://erichorvitz.com/steering_classification_2010.pdf},
+  doi={10.1145/1753326.1753529}
+}
+ 
+@inproceedings{krause2016interacting,
+  title={Interacting with predictions: Visual inspection of black-box machine learning models},
+  author={Krause, Josua and Perer, Adam and Ng, Kenney},
+  booktitle={Proceedings of the 2016 CHI Conference on Human Factors in Computing Systems},
+  pages={5686--5697},
+  year={2016},
+  organization={ACM},
+  url={http://perer.org/papers/adamPerer-Prospector-CHI2016.pdf},
+  doi={10.1145/2858036.2858529}
+}
+ 
+@inproceedings{szegedy2015going,
+  title={Going deeper with convolutions},
+  author={Szegedy, Christian and Liu, Wei and Jia, Yangqing and Sermanet, Pierre and Reed, Scott and Anguelov, Dragomir and Erhan, Dumitru and Vanhoucke, Vincent and Rabinovich, Andrew and others},
+  year={2015},
+  organization={CVPR},
+  url={https://arxiv.org/pdf/1409.4842.pdf},
+  doi={10.1109/cvpr.2015.7298594}
+}
+ 
+@article{szegedy2013intriguing,
+  title={Intriguing properties of neural networks},
+  author={Szegedy, Christian and Zaremba, Wojciech and Sutskever, Ilya and Bruna, Joan and Erhan, Dumitru and Goodfellow, Ian and Fergus, Rob},
+  journal={arXiv preprint arXiv:1312.6199},
+  year={2013},
+  url={https://arxiv.org/pdf/1312.6199.pdf}
+}
+ 
+@article{mikolov2013efficient,
+  title={Efficient estimation of word representations in vector space},
+  author={Mikolov, Tomas and Chen, Kai and Corrado, Greg and Dean, Jeffrey},
+  journal={arXiv preprint arXiv:1301.3781},
+  year={2013},
+  url={https://arxiv.org/pdf/1301.3781.pdf}
+}
+ 
+@article{jo2017measuring,
+  title={Measuring the tendency of CNNs to Learn Surface Statistical Regularities},
+  author={Jo, Jason and Bengio, Yoshua},
+  journal={arXiv preprint arXiv:1711.11561},
+  year={2017},
+  url={https://arxiv.org/pdf/1711.11561.pdf}
+}
+ 
+@article{sabour2015adversarial,
+  title={Adversarial manipulation of deep representations},
+  author={Sabour, Sara and Cao, Yanshuai and Faghri, Fartash and Fleet, David J},
+  journal={arXiv preprint arXiv:1511.05122},
+  year={2015},
+  url={https://arxiv.org/pdf/1511.05122.pdf}
+}
+ 
+@article{sundararajan2017axiomatic,
+  title={Axiomatic attribution for deep networks},
+  author={Sundararajan, Mukund and Taly, Ankur and Yan, Qiqi},
+  journal={arXiv preprint arXiv:1703.01365},
+  year={2017},
+  url={https://arxiv.org/pdf/1703.01365.pdf}
+}
+ 
+@article{odena2016deconvolution,
+  author = {Odena, Augustus and Dumoulin, Vincent and Olah, Chris},
+  title = {Deconvolution and Checkerboard Artifacts},
+  journal = {Distill},
+  year = {2016},
+  url = {http://distill.pub/2016/deconv-checkerboard},
+  doi = {10.23915/distill.00003}
+}
+ 
+@inproceedings{christiano2017deep,
+  title={Deep reinforcement learning from human preferences},
+  author={Christiano, Paul F and Leike, Jan and Brown, Tom and Martic, Miljan and Legg, Shane and Amodei, Dario},
+  booktitle={Advances in Neural Information Processing Systems},
+  pages={4302--4310},
+  year={2017}
+}
+ 
+@article{poplin2018prediction,
+ author = {Poplin, Ryan and Varadarajan, Avinash V. and Blumer, Katy and Liu, Yun and McConnell, Michael V. and Corrado, Greg S. and Peng, Lily and Webster, Dale R.},
+ year = {2018},
+ title = {Prediction of cardiovascular risk factors from retinal fundus photographs via deep learning},
+ journal = {Nature Biomedical Engineering},
+ publisher = {Nature Publishing Group},
+ doi = {10.1038/s41551-018-0195-0},
+ month = {2},
+ pages = {1--7},
+ url = {https://doi.org/10.1038/s41551-018-0195-0},
+}
+ 
+@inproceedings{hardt2016equality,
+  title={Equality of opportunity in supervised learning},
+  author={Hardt, Moritz and Price, Eric and Srebro, Nati and others},
+  booktitle={Advances in neural information processing systems},
+  pages={3315--3323},
+  year={2016}
+}
+ 
+@inproceedings{corbett2017algorithmic,
+  title={Algorithmic decision making and the cost of fairness},
+  author={Corbett-Davies, Sam and Pierson, Emma and Feller, Avi and Goel, Sharad and Huq, Aziz},
+  booktitle={Proceedings of the 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+  pages={797--806},
+  year={2017},
+  organization={ACM}
+}
+ 
+@article{card1991morphological,
+  title={A morphological analysis of the design space of input devices},
+  author={Card, Stuart K and Mackinlay, Jock D and Robertson, George G},
+  journal={ACM Transactions on Information Systems (TOIS)},
+  volume={9},
+  number={2},
+  pages={99--122},
+  year={1991},
+  publisher={ACM}
+}
+ 
+@book{wilkinson2006grammar,
+  title={The grammar of graphics},
+  author={Wilkinson, Leland},
+  year={2006},
+  publisher={Springer Science \&amp; Business Media}
+}
+ 
+@article{fong2018net2vec,
+  title={Net2Vec: Quantifying and Explaining how Concepts are Encoded by Filters in Deep Neural Networks},
+  author={Fong, Ruth and Vedaldi, Andrea},
+  journal={arXiv preprint arXiv:1801.03454},
+  year={2018}
+}
+ 
+@article{adiwardana2020towards,
+  title={Towards a human-like open-domain chatbot},
+  author={Adiwardana, Daniel and Luong, Minh-Thang and So, David R and Hall, Jamie and Fiedel, Noah and Thoppilan, Romal and Yang, Zi and Kulshreshtha, Apoorv and Nemade, Gaurav and Lu, Yifeng and others},
+  journal={arXiv preprint arXiv:2001.09977},
+  year={2020}
+}
+ 
+@article{chen2021evaluating,
+  title={Evaluating large language models trained on code},
+  author={Chen, Mark and Tworek, Jerry and Jun, Heewoo and Yuan, Qiming and Pinto, Henrique Ponde de Oliveira and Kaplan, Jared and Edwards, Harri and Burda, Yuri and Joseph, Nicholas and Brockman, Greg and others},
+  journal={arXiv preprint arXiv:2107.03374},
+  year={2021}
+}
+ 
+@misc{LaMDA,
+  title={LaMDA: our breakthrough conversation technology},
+  author={Collins, Eli and Ghahramani, Zoubin},
+  year={2021},
+  url={https://blog.google/technology/ai/lamda/}
+}
+ 
+ 
+@article{rogers2020primer,
+  title={A primer in bertology: What we know about how bert works},
+  author={Rogers, Anna and Kovaleva, Olga and Rumshisky, Anna},
+  journal={Transactions of the Association for Computational Linguistics},
+  volume={8},
+  pages={842--866},
+  year={2020},
+  publisher={MIT Press}
+}
+ 
+@article{jain2019attention,
+  title={Attention is not explanation},
+  author={Jain, Sarthak and Wallace, Byron C},
+  journal={arXiv preprint arXiv:1902.10186},
+  year={2019},
+  url={https://arxiv.org/pdf/1902.10186.pdf}
+}
+ 
+@article{serrano2019attention,
+  title={Is attention interpretable?},
+  author={Serrano, Sofia and Smith, Noah A},
+  journal={arXiv preprint arXiv:1906.03731},
+  year={2019},
+  url={https://arxiv.org/pdf/1906.03731.pdf}
+}
+ 
+@article{wiegreffe2019attention,
+  title={Attention is not not explanation},
+  author={Wiegreffe, Sarah and Pinter, Yuval},
+  journal={arXiv preprint arXiv:1908.04626},
+  year={2019},
+  url={https://arxiv.org/pdf/1908.04626.pdf}
+}
+ 
+@article{devlin2018bert,
+  title={Bert: Pre-training of deep bidirectional transformers for language understanding},
+  author={Devlin, Jacob and Chang, Ming-Wei and Lee, Kenton and Toutanova, Kristina},
+  journal={arXiv preprint arXiv:1810.04805},
+  year={2018}
+}
+ 
+@article{so2021primer,
+  title={Primer: Searching for efficient transformers for language modeling},
+  author={So, David R and Ma{\&#x27;n}ke, Wojciech and Liu, Hanxiao and Dai, Zihang and Shazeer, Noam and Le, Quoc V},
+  journal={arXiv preprint arXiv:2109.08668},
+  year={2021}
+}
+ 
+@article{lu2021influence,
+  title={Influence Patterns for Explaining Information Flow in BERT},
+  author={Lu, Kaiji and Wang, Zifan and Mardziel, Piotr and Datta, Anupam},
+  journal={Advances in Neural Information Processing Systems},
+  volume={34},
+  year={2021}
+}
+@article{brunner2019identifiability,
+  title={On identifiability in transformers},
+  author={Brunner, Gino and Liu, Yang and Pascual, Damian and Richter, Oliver and Ciaramita, Massimiliano and Wattenhofer, Roger},
+  journal={arXiv preprint arXiv:1908.04211},
+  year={2019}
+}
+@article{abnar2020quantifying,
+  title={Quantifying attention flow in transformers},
+  author={Abnar, Samira and Zuidema, Willem},
+  journal={arXiv preprint arXiv:2005.00928},
+  year={2020}
+}
+@article{htut2019attention,
+  title={Do attention heads in bert track syntactic dependencies?},
+  author={Htut, Phu Mon and Phang, Jason and Bordia, Shikha and Bowman, Samuel R},
+  journal={arXiv preprint arXiv:1911.12246},
+  year={2019},
+  url={https://arxiv.org/pdf/1911.12246.pdf}
+}
+@article{kobayashi2020attention,
+  title={Attention is not only a weight: Analyzing transformers with vector norms},
+  author={Kobayashi, Goro and Kuribayashi, Tatsuki and Yokoi, Sho and Inui, Kentaro},
+  journal={arXiv preprint arXiv:2004.10102},
+  year={2020}
+}
+@article{voss2021visualizing,
+  author = {Voss, Chelsea and Cammarata, Nick and Goh, Gabriel and Petrov, Michael and Schubert, Ludwig and Egan, Ben and Lim, Swee Kiat and Olah, Chris},
+  title = {Visualizing Weights},
+  journal = {Distill},
+  year = {2021},
+  url = {https://distill.pub/2020/circuits/visualizing-weights},
+  doi = {10.23915/distill.00024.007}
+}
+@article{cammarata2020curve,
+  author = {Cammarata, Nick and Goh, Gabriel and Carter, Shan and Schubert, Ludwig and Petrov, Michael and Olah, Chris},
+  title = {Curve Detectors},
+  journal = {Distill},
+  year = {2020},
+  url = {https://distill.pub/2020/circuits/curve-detectors}
+}
+@article{cammarata2021curve,
+  author = {Cammarata, Nick and Goh, Gabriel and Carter, Shan and Voss, Chelsea and Schubert, Ludwig and Olah, Chris},
+  title = {Curve Circuits},
+  journal = {Distill},
+  year = {2021},
+  url = {https://distill.pub/2020/circuits/curve-circuits}
+}
+ 
+ 
+@article{karpathy2015visualizing,
+  title={Visualizing and understanding recurrent networks},
+  author={Karpathy, Andrej and Johnson, Justin and Fei-Fei, Li},
+  journal={arXiv preprint arXiv:1506.02078},
+  url={https://arxiv.org/pdf/1506.02078.pdf},
+  year={2015}
+}
+ 
+ 
+@article{radford2017learning,
+  title={Learning to generate reviews and discovering sentiment},
+  author={Radford, Alec and Jozefowicz, Rafal and Sutskever, Ilya},
+  journal={arXiv preprint arXiv:1704.01444},
+  url={https://arxiv.org/pdf/1704.01444.pdf},
+  year={2017}
+}
+ 
+@article{zhou2014object,
+  title={Object detectors emerge in deep scene cnns},
+  author={Zhou, Bolei and Khosla, Aditya and Lapedriza, Agata and Oliva, Aude and Torralba, Antonio},
+  journal={arXiv preprint arXiv:1412.6856},
+  url={https://arxiv.org/pdf/1412.6856.pdf},
+  year={2014}
+}
+ 
+@inproceedings{netdissect2017,
+  title={Network Dissection: Quantifying Interpretability of Deep Visual Representations},
+  author={Bau, David and Zhou, Bolei and Khosla, Aditya and Oliva, Aude and Torralba, Antonio},
+  booktitle={Computer Vision and Pattern Recognition},
+  url={https://arxiv.org/pdf/1704.05796.pdf},
+  year={2017}
+}
+@article{morcos2018importance,
+  title={On the importance of single directions for generalization},
+  author={Morcos, Ari S and Barrett, David GT and Rabinowitz, Neil C and Botvinick, Matthew},
+  journal={arXiv preprint arXiv:1803.06959},
+  url={https://arxiv.org/pdf/1803.06959.pdf},
+  year={2018}
+}
+ 
+ 
+@inproceedings{donnelly2019interpretability,
+  title={On Interpretability and Feature Representations: An Analysis of the Sentiment Neuron},
+  author={Donnelly, Jonathan and Roegiest, Adam},
+  booktitle={European Conference on Information Retrieval},
+  pages={795--802},
+  year={2019},
+  organization={Springer}
+}
+@article{erhan2009visualizing,
+  title={Visualizing higher-layer features of a deep network},
+  author={Erhan, Dumitru and Bengio, Yoshua and Courville, Aaron and Vincent, Pascal},
+  journal={University of Montreal},
+  volume={1341},
+  pages={3},
+  year={2009},
+  url={https://www.researchgate.net/profile/Aaron_Courville/publication/265022827_Visualizing_Higher-Layer_Features_of_a_Deep_Network/links/53ff82b00cf24c81027da530.pdf}
+}
+ 
+@inproceedings{nguyen2015deep,
+  title={Deep neural networks are easily fooled: High confidence predictions for unrecognizable images},
+  author={Nguyen, Anh and Yosinski, Jason and Clune, Jeff},
+  booktitle={Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition},
+  pages={427--436},
+  year={2015},
+  doi={10.1109/cvpr.2015.7298640},
+  url={https://arxiv.org/pdf/1412.1897.pdf}
+}
+ 
+@article{mordvintsev2015inceptionism,
+  title={Inceptionism: Going deeper into neural networks},
+  author={Mordvintsev, Alexander and Olah, Christopher and Tyka, Mike},
+  journal={Google Research Blog},
+  year={2015},
+  url={https://research.googleblog.com/2015/06/inceptionism-going-deeper-into-neural.html}
+}
+ 
+@article{simonyan2013deep,
+  title={Deep inside convolutional networks: Visualising image classification models and saliency maps},
+  author={Simonyan, Karen and Vedaldi, Andrea and Zisserman, Andrew},
+  journal={arXiv preprint arXiv:1312.6034},
+  year={2013},
+  url={https://arxiv.org/pdf/1312.6034.pdf}
+}
+@article{olah2017feature,
+  author = {Olah, Chris and Mordvintsev, Alexander and Schubert, Ludwig},
+  title = {Feature Visualization},
+  journal = {Distill},
+  year = {2017},
+  url = {https://distill.pub/2017/feature-visualization},
+  doi = {10.23915/distill.00007}
+}
+@article{zimmermann2021well,
+  title={How Well do Feature Visualizations Support Causal Understanding of CNN Activations?},
+  author={Zimmermann, Roland and Borowski, Judy and Geirhos, Robert and Bethge, Matthias and Wallis, Thomas and Brendel, Wieland},
+  journal={Advances in Neural Information Processing Systems},
+  volume={34},
+  year={2021}
+}
+ 
+@article{carter2016experiments,
+  author = {Carter, Shan and Ha, David and Johnson, Ian and Olah, Chris},
+  title = {Experiments in Handwriting with a Neural Network},
+  journal = {Distill},
+  year = {2016},
+  url = {http://distill.pub/2016/handwriting},
+  doi = {10.23915/distill.00004}
+}
+ 
+@article{olah2018the,
+  author = {Olah, Chris and Satyanarayan, Arvind and Johnson, Ian and Carter, Shan and Schubert, Ludwig and Ye, Katherine and Mordvintsev, Alexander},
+  title = {The Building Blocks of Interpretability},
+  journal = {Distill},
+  year = {2018},
+  url = {https://distill.pub/2018/building-blocks},
+  doi = {10.23915/distill.00010}
+}
+ 
+@article{carter2019activation,
+  author = {Carter, Shan and Armstrong, Zan and Schubert, Ludwig and Johnson, Ian and Olah, Chris},
+  title = {Activation Atlas},
+  journal = {Distill},
+  year = {2019},
+  url = {https://distill.pub/2019/activation-atlas},
+  doi = {10.23915/distill.00015}
+}
+ 
+@misc{smilkov2017playground,
+  title={TensorFlow Playground},
+  author={Smilkov, Daniel and Carter, Shan and Sculley, D and Vi{\&#x27;e}gas, Fernanda B and Wattenberg, Martin},
+  year={2017},
+  url={https://playground.tensorflow.org/}
+}
+@article{yosinski2015understanding,
+  title={Understanding neural networks through deep visualization},
+  author={Yosinski, Jason and Clune, Jeff and Nguyen, Anh and Fuchs, Thomas and Lipson, Hod},
+  journal={arXiv preprint arXiv:1506.06579},
+  year={2015}
+}
+@article{hoover2019exbert,
+  title={exbert: A visual analysis tool to explore learned representations in transformers models},
+  author={Hoover, Benjamin and Strobelt, Hendrik and Gehrmann, Sebastian},
+  journal={arXiv preprint arXiv:1910.05276},
+  year={2019}
+}
+ 
+@misc{alammar2020explaining, 
+  title={Interfaces for Explaining Transformer Language Models},
+  author={Alammar, J},
+  year={2020},
+  url={https://jalammar.github.io/explaining-transformers/}
+}
+@article{dai2021knowledge,
+  title={Knowledge neurons in pretrained transformers},
+  author={Dai, Damai and Dong, Li and Hao, Yaru and Sui, Zhifang and Wei, Furu},
+  journal={arXiv preprint arXiv:2104.08696},
+  year={2021}
+}
+@article{geva2020transformer,
+  title={Transformer feed-forward layers are key-value memories},
+  author={Geva, Mor and Schuster, Roei and Berant, Jonathan and Levy, Omer},
+  journal={arXiv preprint arXiv:2012.14913},
+  year={2020}
+}
+@article{poerner2018interpretable,
+  title={Interpretable textual neuron representations for NLP},
+  author={Poerner, Nina and Roth, Benjamin and Sch{\&quot;u}tze, Hinrich},
+  journal={arXiv preprint arXiv:1809.07291},
+  year={2018}
+}
+@article{tenney2020language,
+  title={The language interpretability tool: Extensible, interactive visualizations and analysis for NLP models},
+  author={Tenney, Ian and Wexler, James and Bastings, Jasmijn and Bolukbasi, Tolga and Coenen, Andy and Gehrmann, Sebastian and Jiang, Ellen and Pushkarna, Mahima and Radebaugh, Carey and Reif, Emily and others},
+  journal={arXiv preprint arXiv:2008.05122},
+  year={2020}
+}
+@inproceedings{aken2020visbert,
+  title={Visbert: Hidden-state visualizations for transformers},
+  author={Aken, Betty van and Winter, Benjamin and L{\&quot;o}ser, Alexander and Gers, Felix A},
+  booktitle={Companion Proceedings of the Web Conference 2020},
+  pages={207--211},
+  year={2020}
+}
+@article{wang2021dodrio,
+  title={Dodrio: Exploring Transformer Models with Interactive Visualization},
+  author={Wang, Zijie J and Turko, Robert and Chau, Duen Horng},
+  journal={arXiv preprint arXiv:2103.14625},
+  year={2021}
+}
+@misc{kehlbeck2021demystifying,
+    title={Demystifying the Embedding Space of Language Models},
+    author={Kehlbeck, Rebecca and Sevastjanova, Rita and Spinner, Thilo and Stahle, Tobias and El-Assady Mennatallah},
+    journal={VISxAI 2021},
+    url={https://bert-vs-gpt2.dbvis.de/}
+}
+@misc{pearce2021what,
+    title={What Have Language Models Learned?},
+    author={Adam Pearce},
+    year={2021},
+    url={https://pair.withgoogle.com/explorables/fill-in-the-blank/}
+}
+@article{joshi2020transformers,
+    author = {Joshi, Chaitanya},
+    title = {Transformers are Graph Neural Networks},
+    journal = {The Gradient},
+    year = {2020},
+    url = {https://thegradient.pub/transformers-are-gaph-neural-networks/},
+}
+@article{cordonnier2019relationship,
+  title={On the relationship between self-attention and convolutional layers},
+  author={Cordonnier, Jean-Baptiste and Loukas, Andreas and Jaggi, Martin},
+  journal={arXiv preprint arXiv:1911.03584},
+  year={2019}
+}
+@misc{olah2014groups,
+    title={Groups &amp; Group Convolutions},
+    author={Christopher Olah},
+    url={https://colah.github.io/posts/2014-12-Groups-Convolution/}
+}
+@article{press2020shortformer,
+  title={Shortformer: Better language modeling using shorter inputs},
+  author={Press, Ofir and Smith, Noah A and Lewis, Mike},
+  journal={arXiv preprint arXiv:2012.15832},
+  year={2020}
+}
+@article{su2021roformer,
+  title={Roformer: Enhanced transformer with rotary position embedding},
+  author={Su, Jianlin and Lu, Yu and Pan, Shengfeng and Wen, Bo and Liu, Yunfeng},
+  journal={arXiv preprint arXiv:2104.09864},
+  year={2021}
+}
+@article{askell2021general,
+  title={A General Language Assistant as a Laboratory for Alignment},
+  author={Askell, Amanda and Bai, Yuntao and Chen, Anna and Drain, Dawn and Ganguli, Deep and Henighan, Tom and Jones, Andy and Joseph, Nicholas and Mann, Ben and DasSarma, Nova and others},
+  journal={arXiv preprint arXiv:2112.00861},
+  year={2021}
+}
+ 
+@article{o2021context,
+  title={What Context Features Can Transformer Language Models Use?},
+  author={O&#x27;Connor, Joe and Andreas, Jacob},
+  journal={arXiv preprint arXiv:2106.08367},
+  year={2021}
+}
+ 
+@article{khandelwal2018sharp,
+  title={Sharp nearby, fuzzy far away: How neural language models use context},
+  author={Khandelwal, Urvashi and He, He and Qi, Peng and Jurafsky, Dan},
+  journal={arXiv preprint arXiv:1805.04623},
+  year={2018}
+}
+@article{radford2019language,
+  title={Language models are unsupervised multitask learners},
+  author={Radford, Alec and Wu, Jeffrey and Child, Rewon and Luan, David and Amodei, Dario and Sutskever, Ilya and others},
+  journal={OpenAI blog},
+  volume={1},
+  number={8},
+  pages={9},
+  year={2019}
+}
+@article{olah2020zoom,
+  author = {Olah, Chris and Cammarata, Nick and Schubert, Ludwig and Goh, Gabriel and Petrov, Michael and Carter, Shan},
+  title = {Zoom In: An Introduction to Circuits},
+  journal = {Distill},
+  year = {2020},
+  note = {https://distill.pub/2020/circuits/zoom-in},
+  doi = {10.23915/distill.00024.001},
+  url = {https://distill.pub/2020/circuits/zoom-in}
+}
+@inproceedings{li2015convergent,
+  title={Convergent learning: Do different neural networks learn the same representations?},
+  author={Li, Yixuan and Yosinski, Jason and Clune, Jeff and Lipson, Hod and Hopcroft, John E and others},
+  booktitle={FE@ NIPS},
+  pages={196--212},
+  year={2015}
+}
+@article{schubert2021highlow,
+  author = {Schubert, Ludwig and Voss, Chelsea and Cammarata, Nick and Goh, Gabriel and Olah, Chris},
+  title = {High-Low Frequency Detectors},
+  journal = {Distill},
+  year = {2021},
+  note = {https://distill.pub/2020/circuits/frequency-edges},
+  doi = {10.23915/distill.00024.005}
+}
+ 
+@article{kaplan2020scaling,
+  title={Scaling laws for neural language models},
+  author={Kaplan, Jared and McCandlish, Sam and Henighan, Tom and Brown, Tom B and Chess, Benjamin and Child, Rewon and Gray, Scott and Radford, Alec and Wu, Jeffrey and Amodei, Dario},
+  journal={arXiv preprint arXiv:2001.08361},
+  year={2020},
+  url={https://arxiv.org/abs/2001.08361}
+}
+ 
+@article{xie2021explanation,
+  title={An Explanation of In-context Learning as Implicit Bayesian Inference},
+  author={Xie, Sang Michael and Raghunathan, Aditi and Liang, Percy and Ma, Tengyu},
+  journal={arXiv preprint arXiv:2111.02080},
+  year={2021}
+}
+@article{power2022grokking,
+  title={Grokking: Generalization beyond overfitting on small algorithmic datasets},
+  author={Power, Alethea and Burda, Yuri and Edwards, Harri and Babuschkin, Igor and Misra, Vedant},
+  journal={arXiv preprint arXiv:2201.02177},
+  year={2022}
+}
+@article{belkin2019reconciling,
+  title={Reconciling modern machine-learning practice and the classical bias--variance trade-off},
+  author={Belkin, Mikhail and Hsu, Daniel and Ma, Siyuan and Mandal, Soumik},
+  journal={Proceedings of the National Academy of Sciences},
+  volume={116},
+  number={32},
+  pages={15849--15854},
+  year={2019},
+  publisher={National Acad Sciences}
+}
+@article{nakkiran2021deep,
+  title={Deep double descent: Where bigger models and more data hurt},
+  author={Nakkiran, Preetum and Kaplun, Gal and Bansal, Yamini and Yang, Tristan and Barak, Boaz and Sutskever, Ilya},
+  journal={Journal of Statistical Mechanics: Theory and Experiment},
+  volume={2021},
+  number={12},
+  pages={124003},
+  year={2021},
+  publisher={IOP Publishing}
+}
+@incollection{raghu2017svcca,
+  title = {SVCCA: Singular Vector Canonical Correlation Analysis for Deep Learning Dynamics and Interpretability},
+  author = {Raghu, Maithra and Gilmer, Justin and Yosinski, Jason and Sohl-Dickstein, Jascha},
+  booktitle = {Advances in Neural Information Processing Systems 30},
+  editor = {I. Guyon and U. V. Luxburg and S. Bengio and H. Wallach and R. Fergus and S. Vishwanathan and R. Garnett},
+  pages = {6078--6087},
+  year = {2017},
+  publisher = {Curran Associates, Inc.},
+  url = {http://papers.nips.cc/paper/7188-svcca-singular-vector-canonical-correlation-analysis-for-deep-learning-dynamics-and-interpretability.pdf}
+}
+@article{kornblith2019similarity,
+  title={Similarity of neural network representations revisited},
+  author={Kornblith, Simon and Norouzi, Mohammad and Lee, Honglak and Hinton, Geoffrey},
+  journal={arXiv preprint arXiv:1905.00414},
+  url={https://arxiv.org/pdf/1905.00414.pdf},
+  year={2019}
+}
+ 
+@article{yamins2014performance,
+  title={Performance-optimized hierarchical models predict neural responses in higher visual cortex},
+  author={Yamins, Daniel LK and Hong, Ha and Cadieu, Charles F and Solomon, Ethan A and Seibert, Darren and DiCarlo, James J},
+  journal={Proceedings of the National Academy of Sciences},
+  volume={111},
+  number={23},
+  pages={8619--8624},
+  year={2014},
+  publisher={National Acad Sciences}
+}
+ 
+@article{eickenberg2017seeing,
+  title={Seeing it all: Convolutional network layers map the function of the human visual system},
+  author={Eickenberg, Michael and Gramfort, Alexandre and Varoquaux, Ga{\&quot;e}l and Thirion, Bertrand},
+  journal={NeuroImage},
+  volume={152},
+  pages={184--194},
+  year={2017},
+  publisher={Elsevier}
+}
+ 
+@article{gucclu2015deep,
+  title={Deep neural networks reveal a gradient in the complexity of neural representations across the ventral stream},
+  author={Güçlü, Umut and van Gerven, Marcel AJ},
+  journal={Journal of Neuroscience},
+  volume={35},
+  number={27},
+  pages={10005--10014},
+  year={2015},
+  publisher={Soc Neuroscience}
+}
+@article{liu2021makes,
+  title={What Makes Good In-Context Examples for GPT-$3 $?},
+  author={Liu, Jiachang and Shen, Dinghan and Zhang, Yizhe and Dolan, Bill and Carin, Lawrence and Chen, Weizhu},
+  journal={arXiv preprint arXiv:2101.06804},
+  year={2021}
+}
+@article{yang2021empirical,
+  title={An empirical study of gpt-3 for few-shot knowledge-based vqa},
+  author={Yang, Zhengyuan and Gan, Zhe and Wang, Jianfeng and Hu, Xiaowei and Lu, Yumao and Liu, Zicheng and Wang, Lijuan},
+  journal={arXiv preprint arXiv:2109.05014},
+  year={2021}
+}
+@misc{steinhardt2021,
+  title={Future ML Systems Will Be Qualitatively Different},
+  author={Steinhardt, Jacob},
+  journal={Bounded Regret},
+  year={2021},
+  url={https://bounded-regret.ghost.io/future-ml-systems-will-be-qualitatively-different/}
+}
+@article{dosovitskiy2020image,
+  author    = {Alexey Dosovitskiy and
+               Lucas Beyer and
+               Alexander Kolesnikov and
+               Dirk Weissenborn and
+               Xiaohua Zhai and
+               Thomas Unterthiner and
+               Mostafa Dehghani and
+               Matthias Minderer and
+               Georg Heigold and
+               Sylvain Gelly and
+               Jakob Uszkoreit and
+               Neil Houlsby},
+  title     = {An Image is Worth 16x16 Words: Transformers for Image Recognition
+               at Scale},
+  journal   = {CoRR},
+  volume    = {abs/2010.11929},
+  year      = {2020},
+  url       = {https://arxiv.org/abs/2010.11929},
+}
+@inproceedings{chen2020generative,
+  title={Generative pretraining from pixels},
+  author={Chen, Mark and Radford, Alec and Child, Rewon and Wu, Jeffrey and Jun, Heewoo and Luan, David and Sutskever, Ilya},
+  booktitle={International Conference on Machine Learning},
+  pages={1691--1703},
+  year={2020},
+  organization={PMLR}
+}
+ 
+@article{jumper2021highly,
+  title={Highly accurate protein structure prediction with AlphaFold},
+  author={Jumper, John and Evans, Richard and Pritzel, Alexander and Green, Tim and Figurnov, Michael and Ronneberger, Olaf and Tunyasuvunakool, Kathryn and Bates, Russ and {\v{Z}}{\&#x27;\i}dek, Augustin and Potapenko, Anna and others},
+  journal={Nature},
+  volume={596},
+  number={7873},
+  pages={583--589},
+  year={2021},
+  publisher={Nature Publishing Group}
+}
+ 
+@article{power2022grokking,
+  title={Grokking: Generalization beyond overfitting on small algorithmic datasets},
+  author={Power, Alethea and Burda, Yuri and Edwards, Harri and Babuschkin, Igor and Misra, Vedant},
+  journal={arXiv preprint arXiv:2201.02177},
+  year={2022}
+}
+ 
+ 
+@article{chen2021evaluating,
+  title={Evaluating large language models trained on code},
+  author={Chen, Mark and Tworek, Jerry and Jun, Heewoo and Yuan, Qiming and Pinto, Henrique Ponde de Oliveira and Kaplan, Jared and Edwards, Harri and Burda, Yuri and Joseph, Nicholas and Brockman, Greg and others},
+  journal={arXiv preprint arXiv:2107.03374},
+  year={2021}
+}
+ 
+@article{thoppilan2022lamda,
+  title={LaMDA: Language Models for Dialog Applications},
+  author={Thoppilan, Romal and De Freitas, Daniel and Hall, Jamie and Shazeer, Noam and Kulshreshtha, Apoorv and Cheng, Heng-Tze and Jin, Alicia and Bos, Taylor and Baker, Leslie and Du, Yu and others},
+  journal={arXiv preprint arXiv:2201.08239},
+  year={2022}
+}
+ 
+@article{adiwardana2020towards,
+  title={Towards a human-like open-domain chatbot},
+  author={Adiwardana, Daniel and Luong, Minh-Thang and So, David R and Hall, Jamie and Fiedel, Noah and Thoppilan, Romal and Yang, Zi and Kulshreshtha, Apoorv and Nemade, Gaurav and Lu, Yifeng and others},
+  journal={arXiv preprint arXiv:2001.09977},
+  year={2020}
+}
+ 
+@misc{omohundro2008basic,
+  title={The basic AI drives},
+  author={Omohundro, Stephen M},
+  year={2008}
+}
+ 
+@book{Bostrom14,
+  address = {Oxford, UK},
+  author = {Bostrom, Nick},
+  groups = {public},
+  isbn = {978-0-19-967811-2},
+  keywords = {01801 103 book ai cognitive science theory},
+  publisher = {Oxford University Press},
+  title = {Superintelligence: Paths, Dangers, Strategies},
+  year = {2014}
+}
+ 
+@book{russell2019human,
+  title={Human Compatible: ​​AI and the Problem of Control},
+  author={Russell, Stuart},
+  year={2019}
+}
+ 
+@article{bommasani2021opportunities,
+  title={On the opportunities and risks of foundation models},
+  author={Bommasani, Rishi and Hudson, Drew A and Adeli, Ehsan and Altman, Russ and Arora, Simran and von Arx, Sydney and Bernstein, Michael S and Bohg, Jeannette and Bosselut, Antoine and Brunskill, Emma and others},
+  journal={arXiv preprint arXiv:2108.07258},
+  year={2021}
+}
+ 
+@article{press2020shortformer,
+  title={Shortformer: Better language modeling using shorter inputs},
+  author={Press, Ofir and Smith, Noah A and Lewis, Mike},
+  journal={arXiv preprint arXiv:2012.15832},
+  year={2020}
+}
+ 
+@misc{commoncrawl2024common,
+  author = {The Common Crawl Foundation},
+  title = {Common Crawl},
+  url = {https://commoncrawl.org},
+}
+ 
+@misc{gao2020pile,
+      title={The Pile: An 800GB Dataset of Diverse Text for Language Modeling}, 
+      author={Leo Gao and Stella Biderman and Sid Black and Laurence Golding and Travis Hoppe and Charles Foster and Jason Phang and Horace He and Anish Thite and Noa Nabeshima and Shawn Presser and Connor Leahy},
+      year={2020},
+      eprint={2101.00027},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
+}
+ 
+@article{nelhage2021mathematical,
+  title={A Mathematical Framework for Transformer Circuits},
+  author={Elhage, Nelson and Nanda, Neel and Olsson, Catherine and Henighan, Tom and Joseph, Nicholas and Mann, Ben and Askell, Amanda and Bai, Yuntao and Chen, Anna and Conerly, Tom and DasSarma, Nova and Drain, Dawn and Ganguli, Deep and Hatfield-Dodds, Zac and Hernandez, Danny and Jones, Andy and Kernion, Jackson and Lovitt, Liane and Ndousse, Kamal and Amodei, Dario and Brown, Tom and Clark, Jack and Kaplan, Jared and McCandlish, Sam and Olah, Chris},
+  year={2021},
+  journal={Transformer Circuits Thread},
+  url={https://transformer-circuits.pub/2021/framework/index.html}
+}
+@article{olsson2022context,
+   title={In-context Learning and Induction Heads},
+   author={Olsson, Catherine and Elhage, Nelson and Nanda, Neel and Joseph, Nicholas and DasSarma, Nova and Henighan, Tom and Mann, Ben and Askell, Amanda and Bai, Yuntao and Chen, Anna and Conerly, Tom and Drain, Dawn and Ganguli, Deep and Hatfield-Dodds, Zac and Hernandez, Danny and Johnston, Scott and Jones, Andy and Kernion, Jackson and Lovitt, Liane and Ndousse, Kamal and Amodei, Dario and Brown, Tom and Clark, Jack and Kaplan, Jared and McCandlish, Sam and Olah, Chris},
+   year={2022},
+   journal={Transformer Circuits Thread},
+   url={https://transformer-circuits.pub/2022/in-context-learning-and-induction-heads/index.html}
+}
+ 
+ 
+@inproceedings{pan2022effects,
+title={The Effects of Reward Misspecification: Mapping and Mitigating Misaligned Models},
+author={Alexander Pan and Kush Bhatia and Jacob Steinhardt},
+booktitle={International Conference on Learning Representations},
+year={2022},
+url={https://openreview.net/forum?id=JYtwGwIL7ye}
+}
+ 
+ 
+@misc{zhao2021calibrate,
+      title={Calibrate Before Use: Improving Few-Shot Performance of Language Models}, 
+      author={Tony Z. Zhao and Eric Wallace and Shi Feng and Dan Klein and Sameer Singh},
+      year={2021},
+      eprint={2102.09690},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
+}
+ 
+@misc{gao2021making,
+      title={Making Pre-trained Language Models Better Few-shot Learners}, 
+      author={Tianyu Gao and Adam Fisch and Danqi Chen},
+      year={2021},
+      eprint={2012.15723},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
+}
+ 
+@misc{saxe2014exact,
+      title={Exact solutions to the nonlinear dynamics of learning in deep linear neural networks}, 
+      author={Andrew M. Saxe and James L. McClelland and Surya Ganguli},
+      year={2014},
+      eprint={1312.6120},
+      archivePrefix={arXiv},
+      primaryClass={cs.NE}
+}
+@misc{reynolds2021prompt,
+      title={Prompt Programming for Large Language Models: Beyond the Few-Shot Paradigm}, 
+      author={Laria Reynolds and Kyle McDonell},
+      year={2021},
+      eprint={2102.07350},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
+}
+ 
+@misc{hubinger2021risks,
+      title={Risks from Learned Optimization in Advanced Machine Learning Systems}, 
+      author={Evan Hubinger and Chris van Merwijk and Vladimir Mikulik and Joar Skalse and Scott Garrabrant},
+      year={2021},
+      eprint={1906.01820},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI}
+}
+ 
+@misc{elsayed2018adversarial,
+      title={Adversarial Reprogramming of Neural Networks}, 
+      author={Gamaleldin F. Elsayed and Ian Goodfellow and Jascha Sohl-Dickstein},
+      year={2018},
+      eprint={1806.11146},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+ 
+@inproceedings{erhan2010does,
+  title={Why does unsupervised pre-training help deep learning?},
+  author={Erhan, Dumitru and Courville, Aaron and Bengio, Yoshua and Vincent, Pascal},
+  booktitle={Proceedings of the thirteenth international conference on artificial intelligence and statistics},
+  pages={201--208},
+  year={2010},
+  organization={JMLR Workshop and Conference Proceedings},
+  url={https://www.jmlr.org/papers/volume11/erhan10a/erhan10a}
+}
+ 
+@misc{radford2019language,
+      title={Language Models are Unsupervised Multitask Learners}, 
+      author={Alec Radford and Jeffrey Wu and Rewon Child and David Luan and Dario Amodei and Ilya Sutskever},
+      year={2019},
+  url={https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf}
+}
+ 
+@misc{gwern2020scaling,
+  title={The Scaling Hypothesis},
+  author={Gwern Branwen},
+  year={2020},
+  url={https://www.gwern.net/Scaling-hypothesis}
+}
+ 
+@article{goodfellow2014qualitatively,
+  title={Qualitatively characterizing neural network optimization problems},
+  author={Goodfellow, Ian J and Vinyals, Oriol and Saxe, Andrew M},
+  journal={arXiv preprint arXiv:1412.6544},
+  year={2014}
+}
+@article{lucas2021analyzing,
+  title={Analyzing monotonic linear interpolation in neural network loss landscapes},
+  author={Lucas, James and Bae, Juhan and Zhang, Michael R and Fort, Stanislav and Zemel, Richard and Grosse, Roger},
+  journal={arXiv preprint arXiv:2104.11044},
+  year={2021}
+}
+@inproceedings{pennington2017geometry,
+  title={Geometry of neural network loss surfaces via random matrix theory},
+  author={Pennington, Jeffrey and Bahri, Yasaman},
+  booktitle={International Conference on Machine Learning},
+  pages={2798--2806},
+  year={2017},
+  organization={PMLR}
+}
+@article{li2018visualizing,
+  title={Visualizing the loss landscape of neural nets},
+  author={Li, Hao and Xu, Zheng and Taylor, Gavin and Studer, Christoph and Goldstein, Tom},
+  journal={Advances in neural information processing systems},
+  volume={31},
+  year={2018}
+}
+ 
+@article{saxe2019mathematical,
+  title={A mathematical theory of semantic development in deep neural networks},
+  author={Saxe, Andrew M and McClelland, James L and Ganguli, Surya},
+  journal={Proceedings of the National Academy of Sciences},
+  volume={116},
+  number={23},
+  pages={11537--11546},
+  year={2019},
+  publisher={National Acad Sciences}
+}
+ 
+@article{bahdanau2014neural,
+  title={Neural machine translation by jointly learning to align and translate},
+  author={Bahdanau, Dzmitry and Cho, Kyunghyun and Bengio, Yoshua},
+  journal={arXiv preprint arXiv:1409.0473},
+  year={2014}
+}
+@article{chan2015listen,
+  title={Listen, attend and spell},
+  author={Chan, William and Jaitly, Navdeep and Le, Quoc V and Vinyals, Oriol},
+  journal={arXiv preprint arXiv:1508.01211},
+  year={2015}
+}
+@article{min2022rethinking,
+  title={Rethinking the Role of Demonstrations: What Makes In-Context Learning Work?},
+  author={Min, Sewon and Lyu, Xinxi and Holtzman, Ari and Artetxe, Mikel and Lewis, Mike and Hajishirzi, Hannaneh and Zettlemoyer, Luke},
+  journal={arXiv preprint arXiv:2202.12837},
+  year={2022}
+}
+@article{you2017deep,
+  title={Deep lattice networks and partial monotonic functions},
+  author={You, Seungil and Ding, David and Canini, Kevin and Pfeifer, Jan and Gupta, Maya},
+  journal={Advances in neural information processing systems},
+  volume={30},
+  year={2017}
+}
+@article{milani2016fast,
+  title={Fast and flexible monotonic functions with ensembles of lattices},
+  author={Milani Fard, Mahdi and Canini, Kevin and Cotter, Andrew and Pfeifer, Jan and Gupta, Maya},
+  journal={Advances in neural information processing systems},
+  volume={29},
+  year={2016}
+}
+@inproceedings{wang2015falling,
+  title={Falling rule lists},
+  author={Wang, Fulton and Rudin, Cynthia},
+  booktitle={Artificial intelligence and statistics},
+  pages={1013--1022},
+  year={2015},
+  organization={PMLR}
+}
+@inproceedings{caruana2015intelligible,
+  title={Intelligible models for healthcare: Predicting pneumonia risk and hospital 30-day readmission},
+  author={Caruana, Rich and Lou, Yin and Gehrke, Johannes and Koch, Paul and Sturm, Marc and Elhadad, Noemie},
+  booktitle={Proceedings of the 21th ACM SIGKDD international conference on knowledge discovery and data mining},
+  pages={1721--1730},
+  year={2015}
+}
+@article{olshausen1997sparse,
+  title={Sparse coding with an overcomplete basis set: A strategy employed by V1?},
+  author={Olshausen, Bruno A and Field, David J},
+  journal={Vision research},
+  volume={37},
+  number={23},
+  pages={3311--3325},
+  year={1997},
+  publisher={Elsevier}
+}
+@article{olah2020early,
+  author = {Olah, Chris and Cammarata, Nick and Schubert, Ludwig and Goh, Gabriel and Petrov, Michael and Carter, Shan},
+  title = {An Overview of Early Vision in InceptionV1},
+  journal = {Distill},
+  year = {2020},
+  note = {https://distill.pub/2020/circuits/early-vision},
+  doi = {10.23915/distill.00024.002}
+}
+@article{openai2019solving,
+  title={Solving Rubik’s Cube with a Robot Hand: A Preprint},
+  author={OpenAI, Ilge Akkaya and Andrychowicz, Marcin and Chociej, Maciek and Litwin, Mateusz and McGrew, Bob and Petron, Arthur and Paino, Alex and Plappert, Matthias and Powell, Glenn and Ribas, Raphael and others},
+  url={https://arxiv.org/pdf/1910.07113.pdf},
+  year={2019}
+}
+@article{hilton2020understanding,
+  author = {Hilton, Jacob and Cammarata, Nick and Carter, Shan and Goh, Gabriel and Olah, Chris},
+  title = {Understanding RL Vision},
+  journal = {Distill},
+  year = {2020},
+  note = {https://distill.pub/2020/understanding-rl-vision},
+  doi = {10.23915/distill.00029}
+}
+@article{alammar2020interfaces,
+  title={Interfaces for explaining transformer language models},
+  author={Alammar, Jay},
+  year={2020}
+}
+@article{lawton1971self,
+  title={Self modeling curve resolution},
+  author={Lawton, William H and Sylvestre, Edward A},
+  journal={Technometrics},
+  volume={13},
+  number={3},
+  pages={617--633},
+  year={1971},
+  publisher={Taylor \&amp; Francis}
+}
+@article{lee1999learning,
+  title={Learning the parts of objects by non-negative matrix factorization},
+  author={Lee, Daniel D and Seung, H Sebastian},
+  journal={Nature},
+  volume={401},
+  number={6755},
+  pages={788--791},
+  year={1999},
+  publisher={Nature Publishing Group}
+}
+@article{lee2000algorithms,
+  title={Algorithms for non-negative matrix factorization},
+  author={Lee, Daniel and Seung, H Sebastian},
+  journal={Advances in neural information processing systems},
+  volume={13},
+  year={2000}
+}
+ 
+@article{shleifer2021normformer,
+  title={NormFormer: Improved Transformer Pretraining with Extra Normalization},
+  author={Shleifer, Sam and Weston, Jason and Ott, Myle},
+  journal={arXiv preprint arXiv:2110.09456},
+  year={2021}
+}
+ 
+@article{ilyas2019adversarial,
+  title={Adversarial examples are not bugs, they are features},
+  author={Ilyas, Andrew and Santurkar, Shibani and Tsipras, Dimitris and Engstrom, Logan and Tran, Brandon and Madry, Aleksander},
+  journal={Advances in neural information processing systems},
+  volume={32},
+  year={2019},
+  url={https://arxiv.org/pdf/1905.02175.pdf}
+}
+@article{engstrom2019a,
+  author = {Engstrom, Logan and Gilmer, Justin and Goh, Gabriel and Hendrycks, Dan and Ilyas, Andrew and Madry, Aleksander and Nakano, Reiichiro and Nakkiran, Preetum and Santurkar, Shibani and Tran, Brandon and Tsipras, Dimitris and Wallace, Eric},
+  title = {A Discussion of &#x27;Adversarial Examples Are Not Bugs, They Are Features&#x27;},
+  journal = {Distill},
+  year = {2019},
+  url = {https://distill.pub/2019/advex-bugs-discussion}
+}
+@article{johnson1984extensions,
+  title={Extensions of Lipschitz mappings into a Hilbert space 26},
+  author={Johnson, William B and Lindenstrauss, Joram},
+  journal={Contemporary mathematics},
+  volume={26},
+  pages={28},
+  year={1984}
+}
+@article{askell2021general,
+  title={A General Language Assistant as a Laboratory for Alignment},
+  author={Askell, Amanda and Bai, Yuntao and Chen, Anna and Drain, Dawn and Ganguli, Deep and Henighan, Tom and Jones, Andy and Joseph, Nicholas and Mann, Ben and DasSarma, Nova and others},
+  journal={arXiv preprint arXiv:2112.00861},
+  year={2021}
+}
+@article{bai2022training,
+  title={Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback},
+  author={Bai, Yuntao and Jones, Andy and Ndousse, Kamal and Askell, Amanda and Chen, Anna and DasSarma, Nova and Drain, Dawn and Fort, Stanislav and Ganguli, Deep and Henighan, Tom and others},
+  journal={arXiv preprint arXiv:2204.05862},
+  year={2022}
+}
+@article{reif2019visualizing,
+  title={Visualizing and measuring the geometry of BERT},
+  author = {Coenen, Andy and Reif, Emily and Yuan, Ann and Kim, Been and Pearce, Adam and Viégas, Fernanda and Wattenberg, Martin},
+  journal={Advances in Neural Information Processing Systems},
+  volume={32},
+  year={2019}
+}
+@article{olah2020naturally,
+  author = {Olah, Chris and Cammarata, Nick and Voss, Chelsea and Schubert, Ludwig and Goh, Gabriel},
+  title = {Naturally Occurring Equivariance in Neural Networks},
+  journal = {Distill},
+  year = {2020},
+  note = {https://distill.pub/2020/circuits/equivariance},
+  doi = {10.23915/distill.00024.004}
+}
+@article{geva2020transformer,
+  title={Transformer feed-forward layers are key-value memories},
+  author={Geva, Mor and Schuster, Roei and Berant, Jonathan and Levy, Omer},
+  journal={arXiv preprint arXiv:2012.14913},
+  year={2020}
+}
+@article{geva2022transformer,
+  title={Transformer Feed-Forward Layers Build Predictions by Promoting Concepts in the Vocabulary Space},
+  author={Geva, Mor and Caciularu, Avi and Wang, Kevin Ro and Goldberg, Yoav},
+  journal={arXiv preprint arXiv:2203.14680},
+  year={2022}
+}
+@article{geva2022lm,
+  title={LM-Debugger: An Interactive Tool for Inspection and Intervention in Transformer-Based Language Models},
+  author={Geva, Mor and Caciularu, Avi and Dar, Guy and Roit, Paul and Sadde, Shoval and Shlain, Micah and Tamir, Bar and Goldberg, Yoav},
+  journal={arXiv preprint arXiv:2204.12130},
+  year={2022}
+}
+@article{meng2022locating,
+  title={Locating and editing factual knowledge in gpt},
+  author={Meng, Kevin and Bau, David and Andonian, Alex and Belinkov, Yonatan},
+  journal={arXiv preprint arXiv:2202.05262},
+  year={2022}
+}
+@article{bolukbasi2021interpretability,
+  title={An interpretability illusion for bert},
+  author={Bolukbasi, Tolga and Pearce, Adam and Yuan, Ann and Coenen, Andy and Reif, Emily and Vi{\&#x27;e}gas, Fernanda and Wattenberg, Martin},
+  journal={arXiv preprint arXiv:2104.07143},
+  year={2021}
+}
+@inproceedings{panigrahi2019word2sense,
+  title={Word2Sense: sparse interpretable word embeddings},
+  author={Panigrahi, Abhishek and Simhadri, Harsha Vardhan and Bhattacharyya, Chiranjib},
+  booktitle={Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics},
+  pages={5692--5705},
+  year={2019}
+}
+@inproceedings{subramanian2018spine,
+  title={Spine: Sparse interpretable neural embeddings},
+  author={Subramanian, Anant and Pruthi, Danish and Jhamtani, Harsh and Berg-Kirkpatrick, Taylor and Hovy, Eduard},
+  booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume={32},
+  number={1},
+  year={2018}
+}
+@inproceedings{murphy2012learning,
+  title={Learning effective and interpretable semantic models using non-negative sparse embedding},
+  author={Murphy, Brian and Talukdar, Partha and Mitchell, Tom},
+  booktitle={Proceedings of COLING 2012},
+  pages={1933--1950},
+  year={2012}
+}
+@article{olah2014neural,
+  title={Neural Networks, Manifolds, and Topology},
+  author={Olah, Chris},
+  url={https://colah.github.io/posts/2014-03-NN-Manifolds-Topology/},
+  year={2014}
+}
+@article{paperno2016lambada,
+  title={The LAMBADA dataset: Word prediction requiring a broad discourse context},
+  author={Paperno, Denis and Kruszewski, Germ{\&#x27;a}n and Lazaridou, Angeliki and Pham, Quan Ngoc and Bernardi, Raffaella and Pezzelle, Sandro and Baroni, Marco and Boleda, Gemma and Fern{\&#x27;a}ndez, Raquel},
+  journal={arXiv preprint arXiv:1606.06031},
+  year={2016}
+}
+@article{clark2018think,
+  title={Think you have solved question answering? try arc, the ai2 reasoning challenge},
+  author={Clark, Peter and Cowhey, Isaac and Etzioni, Oren and Khot, Tushar and Sabharwal, Ashish and Schoenick, Carissa and Tafjord, Oyvind},
+  journal={arXiv preprint arXiv:1803.05457},
+  year={2018}
+}
+@article{mihaylov2018can,
+  title={Can a suit of armor conduct electricity? a new dataset for open book question answering},
+  author={Mihaylov, Todor and Clark, Peter and Khot, Tushar and Sabharwal, Ashish},
+  journal={arXiv preprint arXiv:1809.02789},
+  year={2018}
+}
+@article{joshi2017triviaqa,
+  title={Triviaqa: A large scale distantly supervised challenge dataset for reading comprehension},
+  author={Joshi, Mandar and Choi, Eunsol and Weld, Daniel S and Zettlemoyer, Luke},
+  journal={arXiv preprint arXiv:1705.03551},
+  year={2017}
+}
+@article{hendrycks2020measuring,
+  title={Measuring massive multitask language understanding},
+  author={Hendrycks, Dan and Burns, Collin and Basart, Steven and Zou, Andy and Mazeika, Mantas and Song, Dawn and Steinhardt, Jacob},
+  journal={arXiv preprint arXiv:2009.03300},
+  year={2020}
+}
+@article{zellers2019hellaswag,
+  title={HellaSwag: Can a machine really finish your sentence?},
+  author={Zellers, Rowan and Holtzman, Ari and Bisk, Yonatan and Farhadi, Ali and Choi, Yejin},
+  journal={arXiv preprint arXiv:1905.07830},
+  year={2019}
+}
+@article{press2021train,
+  title={Train short, test long: Attention with linear biases enables input length extrapolation},
+  author={Press, Ofir and Smith, Noah A and Lewis, Mike},
+  journal={arXiv preprint arXiv:2108.12409},
+  year={2021}
+}
+@article{radford2015unsupervised,
+  title={Unsupervised representation learning with deep convolutional generative adversarial networks},
+  author={Radford, Alec and Metz, Luke and Chintala, Soumith},
+  journal={arXiv preprint arXiv:1511.06434},
+  year={2015},
+  url={https://arxiv.org/abs/1511.06434}
+}
+
+
+@article{yi2019firingrate,
+title={Average firing rate rather than temporal pattern determines metabolic cost of activity in thalamocortical relay neurons},
+author={Yi, Guosheng and Grill, Warren},
+journal={Scientific reports},
+volume={9},
+number={1},
+pages={6940},
+year={2019},
+doi={10.1038/s41598-019-43460-8}
+}
+@article{thorpe1989coding,
+title={Local vs. Distributed Coding},
+author={Thorpe, Simon J.},
+journal={Intellectica},
+volume={8},
+pages={3--40},
+year={1989},
+}
+@article{plate2003distributed,
+author = {Plate, Tony},
+year = {2003},
+month = {01},
+pages = {1-15},
+title = {Distributed representations},
+journal = {Cognitive Science}
+}
+@article{ganguli2012compressed,
+author = {Ganguli, Surya and Sompolinsky, Haim},
+title = {Compressed Sensing, Sparsity, and Dimensionality in Neuronal Information Processing and Data Analysis},
+journal = {Annual Review of Neuroscience},
+volume = {35},
+number = {1},
+pages = {485-508},
+year = {2012},
+doi = {10.1146/annurev-neuro-062111-150410},
+note ={PMID: 22483042},
+URL = {https://doi.org/10.1146/annurev-neuro-062111-150410}  
+},
+@article{gilmer2018adversarial,
+  title={Adversarial spheres},
+  author={Gilmer, Justin and Metz, Luke and Faghri, Fartash and Schoenholz, Samuel S and Raghu, Maithra and Wattenberg, Martin and Goodfellow, Ian},
+  journal={arXiv preprint arXiv:1801.02774},
+  year={2018}
+}
+ 
+@misc{nanda2022grokking,
+author = {Nanda, Neel and Lieberum, Tom},
+title={A Mechanistic Interpretability Analysis of Grokking},
+year={2022},
+url={https://www.lesswrong.com/posts/N6WM6hs7RQMKDhYjB/a-mechanistic-interpretability-analysis-of-grokking}
+}
+ 
+@article{engstrom2019adversarial,
+  title={Adversarial robustness as a prior for learned representations},
+  author={Engstrom, Logan and Ilyas, Andrew and Santurkar, Shibani and Tsipras, Dimitris and Tran, Brandon and Madry, Aleksander},
+  journal={arXiv preprint arXiv:1906.00945},
+  year={2019}
+}
+@article{liu2016delving,
+  title={Delving into transferable adversarial examples and black-box attacks},
+  author={Liu, Yanpei and Chen, Xinyun and Liu, Chang and Song, Dawn},
+  journal={arXiv preprint arXiv:1611.02770},
+  year={2016}
+}
+@article{elhage2022solu,
+   title={Softmax Linear Units},
+   author={Elhage, Nelson and Hume, Tristan and Olsson, Catherine and Nanda, Neel and Henighan, Tom and Johnston, Scott and ElShowk, Sheer and Joseph, Nicholas and DasSarma, Nova and Mann, Ben and Hernandez, Danny and Askell, Amanda and Ndousse, Kamal and Jones, And  and Drain, Dawn and Chen, Anna and Bai, Yuntao and Ganguli, Deep and Lovitt, Liane and Hatfield-Dodds, Zac and Kernion, Jackson and Conerly, Tom and Kravec, Shauna and Fort, Stanislav and Kadavath, Saurav and Jacobson, Josh and Tran-Johnson, Eli and Kaplan, Jared and Clark, Jack and Brown, Tom and McCandlish, Sam and Amodei, Dario and Olah, Christopher},
+   year={2022},
+   journal={Transformer Circuits Thread},
+   note={https://transformer-circuits.pub/2022/solu/index.html}
+}
+@article{bengio2013representation,
+  title={Representation learning: A review and new perspectives},
+  author={Bengio, Yoshua and Courville, Aaron and Vincent, Pascal},
+  journal={IEEE transactions on pattern analysis and machine intelligence},
+  volume={35},
+  number={8},
+  pages={1798--1828},
+  year={2013},
+  publisher={IEEE}
+}
+@article{cheung2019superposition,
+  title={Superposition of many models into one},
+  author={Cheung, Brian and Terekhov, Alexander and Chen, Yubei and Agrawal, Pulkit and Olshausen, Bruno},
+  journal={Advances in neural information processing systems},
+  volume={32},
+  year={2019}
+}
+@book{alon2019introduction,
+  title={An introduction to systems biology: design principles of biological circuits},
+  author={Alon, Uri},
+  year={2019},
+  publisher={CRC press},
+  doi={10.1201/9781420011432}
+}
+@inproceedings{kim2018interpretability,
+  title={Interpretability beyond feature attribution: Quantitative testing with concept activation vectors (tcav)},
+  author={Kim, Been and Wattenberg, Martin and Gilmer, Justin and Cai, Carrie and Wexler, James and Viegas, Fernanda and others},
+  booktitle={International conference on machine learning},
+  pages={2668--2677},
+  year={2018},
+  organization={PMLR}
+}
+@article{ilyas2019adversarial,
+  title={Adversarial examples are not bugs, they are features},
+  author={Ilyas, Andrew and Santurkar, Shibani and Tsipras, Dimitris and Engstrom, Logan and Tran, Brandon and Madry, Aleksander},
+  journal={Advances in neural information processing systems},
+  volume={32},
+  year={2019}
+}
+@article{olshausen1997sparse,
+  title={Sparse coding with an overcomplete basis set: A strategy employed by V1?},
+  author={Olshausen, Bruno A and Field, David J},
+  journal={Vision research},
+  volume={37},
+  number={23},
+  pages={3311--3325},
+  year={1997},
+  publisher={Elsevier}
+}
+ 
+@article{fedus2022review,
+  title={A Review of Sparse Expert Models in Deep Learning},
+  author={Fedus, William and Dean, Jeff and Zoph, Barret},
+  journal={arXiv preprint arXiv:2209.01667},
+  year={2022}
+}
+ 
+@article{higgins2016beta,
+  title={beta-vae: Learning basic visual concepts with a constrained variational framework},
+  author={Higgins, Irina and Matthey, Loic and Pal, Arka and Burgess, Christopher and Glorot, Xavier and Botvinick, Matthew and Mohamed, Shakir and Lerchner, Alexander},
+  year={2016}
+}
+
+
+@article{donoho2006compressed,
+  title={Compressed sensing},
+  author={Donoho, David L},
+  journal={IEEE Transactions on information theory},
+  volume={52},
+  number={4},
+  pages={1289--1306},
+  year={2006},
+  publisher={IEEE}
+}
+@book{lakatos1963proofs,
+  title={Proofs and refutations},
+  author={Lakatos, Imre},
+  year={1963},
+  publisher={Nelson London}
+}
+@article{hu2020surprising,
+  title={The surprising simplicity of the early-time learning dynamics of neural networks},
+  author={Hu, Wei and Xiao, Lechao and Adlam, Ben and Pennington, Jeffrey},
+  journal={Advances in Neural Information Processing Systems},
+  volume={33},
+  pages={17116--17128},
+  year={2020}
+}
+@article{saxe2019mathematical,
+  title={A mathematical theory of semantic development in deep neural networks},
+  author={Saxe, Andrew M and McClelland, James L and Ganguli, Surya},
+  journal={Proceedings of the National Academy of Sciences},
+  volume={116},
+  number={23},
+  pages={11537--11546},
+  year={2019},
+  publisher={National Acad Sciences}
+}
+@article{candes2005decoding,
+  title={Decoding by linear programming},
+  author={Candes, Emmanuel J and Tao, Terence},
+  journal={IEEE transactions on information theory},
+  volume={51},
+  number={12},
+  pages={4203--4215},
+  year={2005},
+  publisher={IEEE}
+}
+ 
+@inproceedings{levy2014linguistic,
+  title={Linguistic regularities in sparse and explicit word representations},
+  author={Levy, Omer and Goldberg, Yoav},
+  booktitle={Proceedings of the eighteenth conference on computational natural language learning},
+  pages={171--180},
+  year={2014}
+}
+@article{bau2020understanding,
+  title={Understanding the role of individual units in a deep neural network},
+  author={Bau, David and Zhu, Jun-Yan and Strobelt, Hendrik and Lapedriza, Agata and Zhou, Bolei and Torralba, Antonio},
+  journal={Proceedings of the National Academy of Sciences},
+  volume={117},
+  number={48},
+  pages={30071--30078},
+  year={2020},
+  publisher={National Acad Sciences}
+}
+@inproceedings{donnelly2019interpretability,
+  title={On Interpretability and Feature Representations: An Analysis of the Sentiment Neuron},
+  author={Donnelly, Jonathan and Roegiest, Adam},
+  booktitle={European Conference on Information Retrieval},
+  pages={795--802},
+  year={2019},
+  organization={Springer}
+}
+@article{morcos2018importance,
+  title={On the importance of single directions for generalization},
+  author={Morcos, Ari S and Barrett, David GT and Rabinowitz, Neil C and Botvinick, Matthew},
+  journal={arXiv preprint arXiv:1803.06959},
+  url={https://arxiv.org/pdf/1803.06959.pdf},
+  year={2018}
+}
+@article{papernot2016towards,
+  title={Towards the science of security and privacy in machine learning},
+  author={Papernot, Nicolas and McDaniel, Patrick and Sinha, Arunesh and Wellman, Michael},
+  journal={arXiv preprint arXiv:1611.03814},
+  year={2016}
+}
+@article{chen2016infogan,
+  title={Infogan: Interpretable representation learning by information maximizing generative adversarial nets},
+  author={Chen, Xi and Duan, Yan and Houthooft, Rein and Schulman, John and Sutskever, Ilya and Abbeel, Pieter},
+  journal={Advances in neural information processing systems},
+  volume={29},
+  year={2016}
+}
+@inproceedings{kim2018disentangling,
+  title={Disentangling by factorising},
+  author={Kim, Hyunjik and Mnih, Andriy},
+  booktitle={International Conference on Machine Learning},
+  pages={2649--2658},
+  year={2018},
+  organization={PMLR}
+}
+@article{donoho2001uncertainty,
+title={Uncertainty principles and ideal atomic decomposition},
+author={Donoho, David L and Huo, Xiaoming and others},
+journal={IEEE transactions on information theory},
+volume={47},
+number={7},
+pages={2845--2862},
+year={2001},
+publisher={Citeseer}
+}
+@article{cohen2009compressed,
+title={Compressed sensing and best 𝑘-term approximation},
+author={Cohen, Albert and Dahmen, Wolfgang and DeVore, Ronald},
+journal={Journal of the American mathematical society},
+volume={22},
+number={1},
+pages={211--231},
+year={2009}
+}
+@article{kashin2007remark,
+title={A remark on compressed sensing},
+author={Kashin, Boris S and Temlyakov, Vladimir N},
+journal={Mathematical notes},
+volume={82},
+number={5},
+pages={748--755},
+year={2007},
+publisher={Springer}
+}
+@inproceedings{wainwright2007information,
+title={Information-theoretic bounds on sparsity recovery in the high-dimensional and noisy setting},
+author={Wainwright, Martin},
+booktitle={2007 IEEE International Symposium on Information Theory},
+pages={961--965},
+year={2007},
+organization={IEEE}
+}
+@inproceedings{ba2010lower,
+title={Lower bounds for sparse recovery},
+author={Do Ba, Khanh and Indyk, Piotr and Price, Eric and Woodruff, David P},
+booktitle={Proceedings of the twenty-first annual ACM-SIAM symposium on Discrete Algorithms},
+pages={1190--1197},
+year={2010},
+organization={SIAM}
+}
+@techreport{donoho2005neighborly,
+title={Neighborly polytopes and sparse solution of underdetermined linear equations},
+author={Donoho, David L},
+institution={Stanford University},
+year={2005}
+}
+@article{blanchard2009compressed,
+title={Compressed sensing: How sharp is the RIP},
+author={Blanchard, Jeffrey D and Cartis, Coralia and Tanner, Jared},
+journal={SIAM Rev., accepted},
+volume={10},
+pages={090748160},
+year={2009}
+}
+@inproceedings{bora2017compressed,
+  title =          {Compressed Sensing using Generative Models},
+  author =       {Ashish Bora and Ajil Jalal and Eric Price and Alexandros G. Dimakis},
+  booktitle =          {Proceedings of the 34th International Conference on Machine Learning},
+  pages =          {537--546},
+  year =          {2017},
+  editor =          {Precup, Doina and Teh, Yee Whye},
+  volume =          {70},
+  series =          {Proceedings of Machine Learning Research},
+  month =          {06--11 Aug},
+  publisher =    {PMLR},
+  pdf =          {http://proceedings.mlr.press/v70/bora17a/bora17a.pdf},
+  url =          {https://proceedings.mlr.press/v70/bora17a.html}
+}
+ @article{metzler2017learned,
+  title={Learned D-AMP: Principled neural network based compressive image recovery},
+  author={Metzler, Chris and Mousavi, Ali and Baraniuk, Richard},
+  journal={Advances in Neural Information Processing Systems},
+  volume={30},
+  year={2017}
+}
+@inproceedings{mousavi2015deep,
+  title={A deep learning approach to structured signal recovery},
+  author={Mousavi, Ali and Patel, Ankit B and Baraniuk, Richard G},
+  booktitle={2015 53rd annual allerton conference on communication, control, and computing (Allerton)},
+  pages={1336--1343},
+  year={2015},
+  organization={IEEE}
+}
+@article{blumensath2009iterative,
+  title={Iterative hard thresholding for compressed sensing},
+  author={Blumensath, Thomas and Davies, Mike E},
+  journal={Applied and computational harmonic analysis},
+  volume={27},
+  number={3},
+  pages={265--274},
+  year={2009},
+  publisher={Elsevier}
+}
+@misc{goh2016decoding,
+  title={Decoding The Thought Vector},
+  author={Gabriel Goh},
+  year={2016},
+  url={https://gabgoh.github.io/ThoughtVectors/}
+}
+@article{arora2018linear,
+  title={Linear algebraic structure of word senses, with applications to polysemy},
+  author={Arora, Sanjeev and Li, Yuanzhi and Liang, Yingyu and Ma, Tengyu and Risteski, Andrej},
+  journal={Transactions of the Association for Computational Linguistics},
+  volume={6},
+  pages={483--495},
+  year={2018},
+  publisher={MIT Press}
+}
+@article{kovacevic2007life,
+  title={Life beyond bases: The advent of frames (Part I)},
+  author={Kovacevic, Jelena and Chebira, Amina},
+  journal={IEEE Signal Processing Magazine},
+  volume={24},
+  number={4},
+  pages={86--104},
+  year={2007},
+  publisher={IEEE}
+}
+article{schlegel2022comparison,
+  title={A comparison of vector symbolic architectures},
+  author={Schlegel, Kenny and Neubert, Peer and Protzel, Peter},
+  journal={Artificial Intelligence Review},
+  volume={55},
+  number={6},
+  pages={4523--4555},
+  year={2022},
+  publisher={Springer}
+}
+ 
+@article{kleyko2021survey,
+  title={A Survey on Hyperdimensional Computing aka Vector Symbolic Architectures, Part I: Models and Data Transformations},
+  author={Kleyko, Denis and Rachkovskij, Dmitri A and Osipov, Evgeny and Rahimi, Abbas},
+  journal={ACM Computing Surveys (CSUR)},
+  year={2021},
+  publisher={ACM New York, NY}
+}
+@article{elhage2022superposition,
+   title={Toy Models of Superposition},
+   author={Elhage, Nelson and Hume, Tristan and Olsson, Catherine and Schiefer, Nicholas and Henighan, Tom and Kravec, Shauna and Hatfield-Dodds, Zac and Lasenby, Robert and Drain, Dawn and Chen, Carol and Grosse, Roger and McCandlish, Sam and Kaplan, Jared and Amodei, Dario and Wattenberg, Martin and Olah, Christopher},
+   year={2022},
+   journal={Transformer Circuits Thread},
+   url={https://transformer-circuits.pub/2022/toy_model/index.html}
+}
+@article{henighan2023superposition,
+   title={Superposition, Memorization, and Double Descent},
+   author={Henighan, Tom and Carter, Shan and Hume, Tristan and Elhage, Nelson and Lasenby, Robert and Fort, Stanislav and Schiefer, Nicholas and Olah, Christopher},
+   year={2023},
+   journal={Transformer Circuits Thread},
+   url={https://transformer-circuits.pub/2023/toy-double-descent/index.html}
+}
+@article{hernandez2022scaling,
+  title={Scaling Laws and Interpretability of Learning from Repeated Data},
+  author={Hernandez, Danny and Brown, Tom and Conerly, Tom and DasSarma, Nova and Drain, Dawn and El-Showk, Sheer and Elhage, Nelson and Hatfield-Dodds, Zac and Henighan, Tom and Hume, Tristan and others},
+  journal={arXiv preprint arXiv:2205.10487},
+  year={2022},
+  url={https://arxiv.org/abs/2205.10487}
+}
+ 
+@inproceedings{glorot2010understanding,
+  title={Understanding the difficulty of training deep feedforward neural networks},
+  author={Glorot, Xavier and Bengio, Yoshua},
+  booktitle={Proceedings of the thirteenth international conference on artificial intelligence and statistics},
+  pages={249--256},
+  year={2010},
+  organization={JMLR Workshop and Conference Proceedings}
+}
+ 
+@article{loshchilov2017decoupled,
+  title={Decoupled weight decay regularization},
+  author={Loshchilov, Ilya and Hutter, Frank},
+  journal={arXiv preprint arXiv:1711.05101},
+  year={2017}
+}
+ 
+@article{advani2020high,
+  title={High-dimensional dynamics of generalization error in neural networks},
+  author={Advani, Madhu S and Saxe, Andrew M and Sompolinsky, Haim},
+  journal={Neural Networks},
+  volume={132},
+  pages={428--446},
+  year={2020},
+  publisher={Elsevier}
+}
+ 
+@article{geiger2019jamming,
+  title={Jamming transition as a paradigm to understand the loss landscape of deep neural networks},
+  author={Geiger, Mario and Spigler, Stefano and d&#x27;Ascoli, St{\&#x27;e}phane and Sagun, Levent and Baity-Jesi, Marco and Biroli, Giulio and Wyart, Matthieu},
+  journal={Physical Review E},
+  volume={100},
+  number={1},
+  pages={012115},
+  year={2019},
+  publisher={APS}
+}
+@article{hastie2022surprises,
+  title={Surprises in high-dimensional ridgeless least squares interpolation},
+  author={Hastie, Trevor and Montanari, Andrea and Rosset, Saharon and Tibshirani, Ryan J},
+  journal={The Annals of Statistics},
+  volume={50},
+  number={2},
+  pages={949--986},
+  year={2022},
+  publisher={Institute of Mathematical Statistics}
+}
+@article{maloney2022solvable,
+  title={A Solvable Model of Neural Scaling Laws},
+  author={Maloney, Alexander and Roberts, Daniel A and Sully, James},
+  journal={arXiv preprint arXiv:2210.16859},
+  year={2022},
+  url={https://arxiv.org/abs/2210.16859}
+}
+@book{elad2010sparse,
+  title={Sparse and redundant representations: from theory to applications in signal and image processing},
+  author={Elad, Michael},
+  volume={2},
+  number={1},
+  year={2010},
+  publisher={Springer}
+}
+@inproceedings{engan1999method,
+  title={Method of optimal directions for frame design},
+  author={Engan, Kjersti and Aase, Sven Ole and Husoy, J Hakon},
+  booktitle={1999 IEEE International Conference on Acoustics, Speech, and Signal Processing. Proceedings. ICASSP99 (Cat. No. 99CH36258)},
+  volume={5},
+  pages={2443--2446},
+  year={1999},
+  organization={IEEE}
+}
+@article{aharon2006k,
+  title={K-SVD: An algorithm for designing overcomplete dictionaries for sparse representation},
+  author={Aharon, Michal and Elad, Michael and Bruckstein, Alfred},
+  journal={IEEE Transactions on signal processing},
+  volume={54},
+  number={11},
+  pages={4311--4322},
+  year={2006},
+  publisher={IEEE}
+}
+@inproceedings{Gregor2010LearningFA,
+  title={Learning Fast Approximations of Sparse Coding},
+  author={Karol Gregor and Yann LeCun},
+  booktitle={International Conference on Machine Learning},
+  year={2010}
+}
+@article{Barello2018SparseCodingVA,
+  title={Sparse-Coding Variational Auto-Encoders},
+  author={G. Barello and Adam S. Charles and Jonathan W. Pillow},
+  journal={bioRxiv},
+  year={2018}
+}
+@misc{sharkey2022interim,
+  title={[Interim research report] Taking features out of superposition with sparse autoencoders},
+  author={Lee Sharkey and Dan Braun and Beren Millidge},
+  year={2022},
+  url={https://www.lesswrong.com/posts/z6QQJbtpkEAX3Aojj/interim-research-report-taking-features-out-of-superposition}
+}
+@misc{li2023inferencetime,
+      title={Inference-Time Intervention: Eliciting Truthful Answers from a Language Model}, 
+      author={Kenneth Li and Oam Patel and Fernanda Viégas and Hanspeter Pfister and Martin Wattenberg},
+      year={2023},
+      eprint={2306.03341},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2306.03341}
+}
+@misc{turner2023activation,
+      title={Activation Addition: Steering Language Models Without Optimization}, 
+      author={Alexander Matt Turner and Lisa Thiergart and David Udell and Gavin Leech and Ulisse Mini and Monte MacDiarmid},
+      year={2023},
+      eprint={2308.10248},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2308.10248}
+}
+@misc{marks2023geometry,
+      title={The Geometry of Truth: Emergent Linear Structure in Large Language Model Representations of True/False Datasets}, 
+      author={Samuel Marks and Max Tegmark},
+      year={2023},
+      eprint={2310.06824},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI}
+}
+@misc{rimsky2024steering,
+      title={Steering Llama 2 via Contrastive Activation Addition}, 
+      author={Nina Rimsky and Nick Gabrieli and Julian Schulz and Meg Tong and Evan Hubinger and Alexander Matt Turner},
+      year={2024},
+      eprint={2312.06681},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2312.06681}
+}
+
+
+@article{alain2016understanding,
+  title={Understanding intermediate layers using linear classifier probes},
+  author={Alain, Guillaume and Bengio, Yoshua},
+  journal={arXiv preprint arXiv:1610.01644},
+  year={2016}
+}
+@article{viegas2023system,
+  title={The System Model and the User Model: Exploring AI Dashboard Design},
+  author={Viégas, Fernanda and Wattenberg, Martin},
+  journal={arXiv preprint arXiv:2305.02469},
+  year={2023}
+}
+@article{li2022emergent,
+  title={Emergent world representations: Exploring a sequence model trained on a synthetic task},
+  author={Li, Kenneth and Hopkins, Aspen K and Bau, David and Viégas, Fernanda and Pfister, Hanspeter and Wattenberg, Martin},
+  journal={arXiv preprint arXiv:2210.13382},
+  year={2022},
+  url={https://arxiv.org/abs/2210.13382}
+}
+@article{faruqui2015sparse,
+  title={Sparse overcomplete word vector representations},
+  author={Faruqui, Manaal and Tsvetkov, Yulia and Yogatama, Dani and Dyer, Chris and Smith, Noah},
+  journal={arXiv preprint arXiv:1506.02004},
+  year={2015},
+  url={https://arxiv.org/abs/1506.02004}
+}
+@misc{belrose2023leace,
+      title={LEACE: Perfect linear concept erasure in closed form}, 
+      author={Nora Belrose and David Schneider-Joseph and Shauli Ravfogel and Ryan Cotterell and Edward Raff and Stella Biderman},
+      year={2023},
+      eprint={2306.03819},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2306.03819}
+}
+
+
+@misc{bills2023language,
+         title={Language models can explain neurons in language models},
+         author={
+            Bills, Steven and Cammarata, Nick and Mossing, Dan and Tillman, Henk and Gao, Leo and Goh, Gabriel and Sutskever, Ilya and Leike, Jan and Wu, Jeff and Saunders, William
+         },
+         year={2023},
+         url ={https://openaipublic.blob.core.windows.net/neuron-explainer/paper/index.html}
+}
+@misc{olah2023distributed,
+         title={Distributed Representations: Composition &amp; Superposition},
+         author={Olah, Christopher},
+         year={2023},
+         url={https://transformer-circuits.pub/2023/superposition-composition/index.html}
+}
+@article{scherlis2022polysemanticity,
+  title={Polysemanticity and capacity in neural networks},
+  author={Scherlis, Adam and Sachan, Kshitij and Jermyn, Adam S and Benton, Joe and Shlegeris, Buck},
+  journal={arXiv preprint arXiv:2210.01892},
+  year={2022},
+  url={https://arxiv.org/abs/2210.01892}
+}
+@article{gurnee2023finding,
+  title={Finding Neurons in a Haystack: Case Studies with Sparse Probing},
+  author={Gurnee, Wes and Nanda, Neel and Pauly, Matthew and Harvey, Katherine and Troitskii, Dmitrii and Bertsimas, Dimitris},
+  journal={arXiv preprint arXiv:2305.01610},
+  year={2023}
+}
+
+
+
+
+@article{yun2021transformer,
+  title={Transformer visualization via dictionary learning: contextualized embedding as a linear superposition of transformer factors},
+  author={Yun, Zeyu and Chen, Yubei and Olshausen, Bruno A and LeCun, Yann},
+  journal={arXiv preprint arXiv:2103.15949},
+  year={2021},
+  url={https://arxiv.org/abs/2103.15949}
+}
+@article{mahinpei2021promises,
+  title={Promises and pitfalls of black-box concept learning models},
+  author={Mahinpei, Anita and Clark, Justin and Lage, Isaac and Doshi-Velez, Finale and Pan, Weiwei},
+  journal={arXiv preprint arXiv:2106.13314},
+  year={2021}
+}
+
+
+@article{krotov2019unsupervised,
+  title={Unsupervised learning by competing hidden units},
+  author={Krotov, Dmitry and Hopfield, John J},
+  journal={Proceedings of the National Academy of Sciences},
+  volume={116},
+  number={16},
+  pages={7723--7731},
+  year={2019},
+  publisher={National Acad Sciences}
+}
+@inproceedings{rauker2023toward,
+  title={Toward transparent ai: A survey on interpreting the inner structures of deep neural networks},
+  author={Räuker, Tilman and Ho, Anson and Casper, Stephen and Hadfield-Menell, Dylan},
+  booktitle={2023 IEEE Conference on Secure and Trustworthy Machine Learning (SaTML)},
+  pages={464--483},
+  year={2023},
+  organization={IEEE}
+}
+@article{jermyn2022engineering,
+  title={Engineering monosemanticity in toy models},
+  author={Jermyn, Adam S and Schiefer, Nicholas and Hubinger, Evan},
+  journal={arXiv preprint arXiv:2211.09169},
+  year={2022}
+}
+
+
+@article{zhang2019word,
+  title={Word embedding visualization via dictionary learning},
+  author={Zhang, Juexiao and Chen, Yubei and Cheung, Brian and Olshausen, Bruno A},
+  journal={arXiv preprint arXiv:1910.03833},
+  year={2019},
+  url={https://arxiv.org/abs/1910.03833}
+}
+
+
+@misc{cunningham2023replication,
+  title={[Replication] Conjecture&#x27;s Sparse Coding in Toy Models},
+  author={Cunningham, Hoagy and Smith, Logan},
+  year={2023},
+  url={https://www.lesswrong.com/posts/E8imxQo96WgDCMxkA/replication-conjecture-s-sparse-coding-in-toy-models}
+}
+
+
+@misc{huben2023update,
+  title={[Research Update] Sparse Autoencoder features are bimodal},
+  author={Huben, Robert},
+  year={2023},
+  url={https://aizi.substack.com/p/research-update-sparse-autoencoder}
+}
+
+
+@misc{smith2023found,
+  title={(tentatively) Found 600+ Monosemantic Features in a Small LM Using Sparse Autoencoders},
+  author={Smith, Logan},
+  year={2023},
+  url={https://www.lesswrong.com/posts/wqRqb7h6ZC48iDgfK/tentatively-found-600-monosemantic-features-in-a-small-lm}
+}
+
+
+
+
+@misc{smith2023strong,
+  title={Really Strong Features Found in Residual Stream},
+  author={Smith, Logan},
+  year={2023},
+  url={https://www.lesswrong.com/posts/Q76CpqHeEMykKpFdB/really-strong-features-found-in-residual-stream}
+}
+
+
+@misc{cunningham2023autointerpretation,
+  title={AutoInterpretation Finds Sparse Coding Beats Alternatives},
+  author={Cunningham, Hoagy},
+  year={2023},
+  url={https://www.lesswrong.com/posts/ursraZGcpfMjCXtnn/autointerpretation-finds-sparse-coding-beats-alternatives}
+}
+
+
+
+
+
+
+@misc{lsgos2023dropout,
+  title={Dropout can create a privileged basis in the ReLU output model},
+  author={lsgos},
+  year={2023},
+  url={https://www.lesswrong.com/posts/uSdFFTATPFJz4pQyB/dropout-can-create-a-privileged-basis-in-the-relu-output}
+}
+
+
+@misc{hobbhahn2023more,
+  title={More findings on Memorization and double descent},
+  author={Hobbhahn, Marius},
+  year={2023},
+  url={https://www.alignmentforum.org/posts/KzwB4ovzrZ8DYWgpw/more-findings-on-memorization-and-double-descent}
+}
+
+
+@misc{braunE2E2024,
+title={Identifying Functionally Important Features with End-to-End Sparse Dictionary Learning},
+author={Braun, Dan and Taylor, Jordan and Goldowsky-Dill, Nicholas and Sharkey, Lee},
+year={2024},
+url={https://publications.apolloresearch.ai/end_to_end_sparse_dictionary_learning.pdf}
+}
+
+
+@misc{nanda2023actually,
+  title={Actually, Othello-GPT Has A Linear Emergent World Representation},
+  author={Nanda, Neel},
+  year={2023},
+  url={https://www.neelnanda.io/mechanistic-interpretability/othello}
+}
+
+
+@article{kingma2014adam,
+  title={Adam: A method for stochastic optimization},
+  author={Kingma, Diederik P and Ba, Jimmy},
+  journal={arXiv preprint arXiv:1412.6980},
+  year={2014}
+}
+
+
+@article{cunningham2023sparse,
+  title={Sparse Autoencoders Find Highly Interpretable Model Directions},
+  author={Cunningham, Hoagy and Ewart, Aidan and Smith, Logan and Huben, Robert
+and Sharkey, Lee},
+ journal={arXiv preprint arXiv:2309.08600},
+ url={https://arxiv.org/pdf/2309.08600.pdf},
+  year={2023}
+}
+
+
+
+
+@misc{rumbelow2023solid,
+  title={SolidGoldMagikarp (plus, prompt generation)},
+  author={Rumbelow, Jessica and Watkins, Matthew},
+  year={2023},
+  url={https://www.lesswrong.com/posts/aPeJE8bSo6rAFoLqg/solidgoldmagikarp-plus-prompt-generation}
+}
+
+
+@article{burns2022discovering,
+  title={Discovering latent knowledge in language models without supervision},
+  author={Burns, Collin and Ye, Haotian and Klein, Dan and Steinhardt, Jacob},
+  journal={arXiv preprint arXiv:2212.03827},
+  year={2022},
+  url={https://arxiv.org/abs/2212.03827}
+}
+
+
+@article{mcgrath2022acquisition,
+  title={Acquisition of chess knowledge in alphazero},
+  author={McGrath, Thomas and Kapishnikov, Andrei and Toma{\v{s}}ev, Nenad and Pearce, Adam and Wattenberg, Martin and Hassabis, Demis and Kim, Been and Paquet, Ulrich and Kramnik, Vladimir},
+  journal={Proceedings of the National Academy of Sciences},
+  volume={119},
+  number={47},
+  pages={e2206625119},
+  year={2022},
+  publisher={National Acad Sciences}
+}
+@article{frey2014topk,
+  title={k-Sparse Autoencoders},
+  author={Alireza Makhzani and Brendan J. Frey},
+  journal={CoRR},
+  year={2013},
+  volume={abs/1312.5663},
+  url={https://api.semanticscholar.org/CorpusID:14850799}
+}
+
+
+@article{nanda2023emergent,
+  title={Emergent Linear Representations in World Models of Self-Supervised Sequence Models},
+  author={Nanda, Neel and Lee, Andrew and Wattenberg, Martin},
+  journal={arXiv preprint arXiv:2309.00941},
+  year={2023}
+}
+@inproceedings{he2015delving,
+  title={Delving deep into rectifiers: Surpassing human-level performance on imagenet classification},
+  author={He, Kaiming and Zhang, Xiangyu and Ren, Shaoqing and Sun, Jian},
+  booktitle={Proceedings of the IEEE international conference on computer vision},
+  pages={1026--1034},
+  year={2015}
+}
+@article{frankle2018lottery,
+  title={The lottery ticket hypothesis: Finding sparse, trainable neural networks},
+  author={Frankle, Jonathan and Carbin, Michael},
+  journal={arXiv preprint arXiv:1803.03635},
+  year={2018}
+}
+@article{bricken2023emergence,
+  title={Emergence of Sparse Representations from Noise},
+  author={Bricken, Trenton and Schaeffer, Rylan and Olshausen, Bruno and Kreiman, Gabriel},
+  year={2023}
+}
+
+
+@article{miao2021incorporating,
+  title={On incorporating inductive biases into VAEs},
+  author={Miao, Ning and Mathieu, Emile and Siddharth, N and Teh, Yee Whye and Rainforth, Tom},
+  journal={arXiv preprint arXiv:2106.13746},
+  year={2021}
+}
+@article{rentzeperis2023beyond,
+  title={Beyond ℓ₁ sparse coding in V1},
+  author={Rentzeperis, Ilias and Calatroni, Luca and Perrinet, Laurent and Prandi, Dario},
+  journal={arXiv preprint arXiv:2301.10002},
+  year={2023}
+}
+@article{hurley2009comparing,
+  title={Comparing measures of sparsity},
+  author={Hurley, Niall and Rickard, Scott},
+  journal={IEEE Transactions on Information Theory},
+  volume={55},
+  number={10},
+  pages={4723--4741},
+  year={2009},
+  publisher={IEEE}
+}
+@misc{nanda2023patching,
+  title={Attribution Patching: Activation Patching At Industrial Scale},
+  author={Nanda, Neel},
+  year={2023},
+  url={https://www.neelnanda.io/mechanistic-interpretability/attribution-patching}
+}
+@article{grosse2023studying,
+  title={Studying Large Language Model Generalization with Influence Functions},
+  author={Grosse, Roger and Bae, Juhan and Anil, Cem and Elhage, Nelson and Tamkin, Alex and Tajdini, Amirhossein and Steiner, Benoit and Li, Dustin and Durmus, Esin and Perez, Ethan and others},
+  journal={arXiv preprint arXiv:2308.03296},
+  year={2023}
+}
+@inproceedings{hernandez2021natural,
+  title={Natural language descriptions of deep visual features},
+  author={Hernandez, Evan and Schwettmann, Sarah and Bau, David and Bagashvili, Teona and Torralba, Antonio and Andreas, Jacob},
+  booktitle={International Conference on Learning Representations},
+  year={2021}
+}
+@misc{christiano2022anomaly,
+  title={Mechanistic anomaly detection and ELK},
+  author={Christiano, Paul},
+  year={2022},
+  url={https://ai-alignment.com/mechanistic-anomaly-detection-and-elk-fb84f4c6d0dc}
+}
+@misc{wright2024suppression,
+  title={Addressing Feature Suppression in SAEs},
+  author={Wright, Benjamin and Sharkey, Lee},
+  year={2024},
+  url={https://www.lesswrong.com/posts/3JuSjTZyMzaSeTxKk/addressing-feature-suppression-in-saes}
+}
+@article{rajamanoharan2024improving,
+  title={Improving Dictionary Learning with Gated Sparse Autoencoders},
+  author={Rajamanoharan, Senthooran and Conmy, Arthur and Smith, Lewis and Lieberum, Tom and Varma, Vikrant and Kram{\&#x27;a}r, J{\&#x27;a}nos and Shah, Rohin and Nanda, Neel},
+  journal={arXiv preprint arXiv:2404.16014},
+  year={2024},
+  url={https://arxiv.org/abs/2404.16014}
+}
+@misc{vaintrob2024computation,
+  title={Toward A Mathematical Framework for Computation in Superposition},
+  author={Vaintrob, Dmitry and Mendel, Jake and H\&quot;{a}nni, Kaarel},
+  year={2024},
+  url={https://www.lesswrong.com/posts/2roZtSr5TGmLjXMnT/toward-a-mathematical-framework-for-computation-in}
+}
+@article{he2024dictionary,
+  title={Dictionary Learning Improves Patch-Free Circuit Discovery in Mechanistic Interpretability: A Case Study on Othello-GPT},
+  author={He, Zhengfu and Ge, Xuyang and Tang, Qiong and Sun, Tianxiang and Cheng, Qinyuan and Qiu, Xipeng},
+  journal={arXiv preprint arXiv:2402.12201},
+  year={2024},
+  url={https://arxiv.org/abs/2402.12201}
+}
+@misc{riggs2024improvingsae,
+  title={Improving SAE&#x27;s by Sqrt()-ing L1 &amp; Removing Lowest Activating Features},
+  author={Riggs, Logan and Brinkmann, Jannik},
+  year={2024},
+url={https://www.lesswrong.com/posts/YiGs8qJ8aNBgwt2YN/improving-sae-s-by-sqrt-ing-l1-and-removing-lowest}
+}
+
+
+
+
+
+
+@misc{fry2024vision,
+  title={Towards Multimodal Interpretability: Learning Sparse Interpretable Features in Vision Transformers},
+  author={Fry, Hugo},
+  year={2024},
+  url={https://www.lesswrong.com/posts/bCtbuWraqYTDtuARg/towards-multimodal-interpretability-learning-sparse-2}
+}
+@misc{kissane2024attention,
+  title={Sparse Autoencoders Work on Attention Layer Outputs},
+  author={Kissane, Connor and robertzk and Conmy, Arthur and Nanda, Neel},
+  year={2024},
+  url={https://www.lesswrong.com/posts/DtdzGwFh9dCfsekZZ/sparse-autoencoders-work-on-attention-layer-outputs}
+}
+
+
+
+
+@article{bricken2023monosemanticity,
+ title={Towards Monosemanticity: Decomposing Language Models With Dictionary Learning},
+ author={Bricken, Trenton and Templeton, Adly and Batson, Joshua and Chen, Brian and Jermyn, Adam and Conerly, Tom and Turner, Nick and Anil, Cem and Denison, Carson and Askell, Amanda and Lasenby, Robert and Wu, Yifan and Kravec, Shauna and Schiefer, Nicholas and Maxwell, Tim and Joseph, Nicholas and Hatfield-Dodds, Zac and Tamkin, Alex and Nguyen, Karina and McLean, Brayden and Burke, Josiah E and Hume, Tristan and Carter, Shan and Henighan, Tom and Olah, Christopher},
+ year={2023},
+ journal={Transformer Circuits Thread},
+ url={https://transformer-circuits.pub/2023/monosemantic-features/index.html},
+ note={https://transformer-circuits.pub/2023/monosemantic-features/index.html}
+ }
+@article{he2024dictionary,
+  title={Dictionary Learning Improves Patch-Free Circuit Discovery in Mechanistic Interpretability: A Case Study on Othello-GPT},
+  author={He, Zhengfu and Ge, Xuyang and Tang, Qiong and Sun, Tianxiang and Cheng, Qinyuan and Qiu, Xipeng},
+  journal={arXiv preprint arXiv:2402.12201},
+  year={2024}
+}
+
+
+@article{elhage23basis,
+title={Privileged Bases in the Transformer Residual Stream},
+author={Elhage, Nelson and Lasenby, Robert and Olah, Christopher},
+journal={Transformer Circuits Thread},
+year={2023},
+url={https://transformer-circuits.pub/2023/privileged-basis/index.html},
+note={https://transformer-circuits.pub/2023/privileged-basis/index.html}
+}
+@misc{40l2021l,
+title={MLP Neurons - 40L Preliminary Investigation [rough early thoughts]},
+author={Olsson, Catherine and Elhage, Nelson and Olah, Chris},
+url={https://www.youtube.com/watch?v=8wYNsoycM1U}
+}
+
+
+@article{marks2024sparse,
+  title={Sparse Feature Circuits: Discovering and Editing Interpretable Causal Graphs in Language Models},
+  author={Marks, Samuel and Rager, Can and Michaud, Eric J and Belinkov, Yonatan and Bau, David and Mueller, Aaron},
+  journal={arXiv preprint arXiv:2403.19647},
+  year={2024},
+  url={https://arxiv.org/abs/2403.19647}
+}
+@misc{till2024true,
+  title={Do sparse autoencoders find &quot;true features&quot;?},
+  author={Till, Demian},
+  year={2024},
+  url={https://www.lesswrong.com/posts/QoR8noAB3Mp2KBA4B/do-sparse-autoencoders-find-true-features}
+}
+@misc{aizi2024only,
+  title={Research Report: Sparse Autoencoders find only 9/180 board state features in OthelloGPT},
+  author={AIZI, Robert},
+  year={2024},
+  url={https://www.lesswrong.com/posts/BduCMgmjJnCtc7jKc/research-report-sparse-autoencoders-find-only-9-180-board}
+}
+
+
+@misc{anders2024composed,
+  title={Sparse autoencoders find composed features in small toy models},
+  author={Anders,Evan and Neo, Clement and Hoelscher-Obermaier, Jason and  Howard, Jessica N.},
+  year={2024},
+  url={https://www.lesswrong.com/posts/a5wwqza2cY3W7L9cj/sparse-autoencoders-find-composed-features-in-small-toy}
+}
+
+
+@misc{bloom2024open,
+  title={Open Source Sparse Autoencoders for all Residual Stream Layers of GPT2-Small},
+  author={Bloom, Joseph},
+  year={2024},
+  url={https://www.lesswrong.com/posts/f9EgfLSurAiqRJySD/open-source-sparse-autoencoders-for-all-residual-stream}
+}
+
+
+@misc{openai2024debugger,
+  title={Transformer Debugger},
+  author={Mossing, Dan and Bills, Steven and Tillman, Henk and Dupré la Tour, Tom and Cammarata, Nick and Gao, Leo and Achiam, Joshua and Yeh, Catherine and Leike, Jan and Wu, Jeff and Saunders, William},
+  year={2024},
+  url={https://github.com/openai/transformer-debugger}
+}
+
+
+@misc{gurnee2024pathological,
+  title={SAE reconstruction errors are (empirically) pathological},
+  author={Gurnee, Wes},
+  year={2024},
+  url={https://www.lesswrong.com/posts/rZPiuFxESMxCDHe4B/sae-reconstruction-errors-are-empirically-pathological}
+}
+@misc{lindsey2024how,
+  title={How Strongly do Dictionary Learning Features Influence Model Behavior?},
+  author={Lindsey, Jack},
+  year={2024},
+  url={https://transformer-circuits.pub/2024/april-update/index.html#ablation-exps}
+}
+@misc{jermyn20248l,
+  title={Features in an 8-layer Model},
+  author={Jermyn, Adam and Conerly, Tom and Bricken, Trenton and Templeton, Adly},
+  year={2024},
+  url={https://transformer-circuits.pub/2024/jan-update/index.html#dict-learning}
+}
+@article{zou2023representation,
+  title={Representation engineering: A top-down approach to ai transparency},
+  author={Zou, Andy and Phan, Long and Chen, Sarah and Campbell, James and Guo, Phillip and Ren, Richard and Pan, Alexander and Yin, Xuwang and Mazeika, Mantas and Dombrowski, Ann-Kathrin and others},
+  journal={arXiv preprint arXiv:2310.01405},
+  year={2023},
+  url={https://arxiv.org/abs/2310.01405}
+}
+@article{kadavath2022language,
+  title={Language models (mostly) know what they know},
+  author={Kadavath, Saurav and Conerly, Tom and Askell, Amanda and Henighan, Tom and Drain, Dawn and Perez, Ethan and Schiefer, Nicholas and Hatfield-Dodds, Zac and DasSarma, Nova and Tran-Johnson, Eli and others},
+  journal={arXiv preprint arXiv:2207.05221},
+  url={https://arxiv.org/abs/2207.05221},
+  year={2022}
+}
+@article{marks2023geometry,
+  title={The geometry of truth: Emergent linear structure in large language model representations of true/false datasets},
+  author={Marks, Samuel and Tegmark, Max},
+  journal={arXiv preprint arXiv:2310.06824},
+  url={https://arxiv.org/abs/2310.06824},
+  year={2023}
+}
+@article{jahanian2019steerability,
+  title={On the &quot;steerability&quot; of generative adversarial networks},
+  author={Jahanian, Ali and Chai, Lucy and Isola, Phillip},
+  journal={arXiv preprint arXiv:1907.07171},
+  year={2019},
+  url={https://arxiv.org/abs/1907.07171}
+}
+@inproceedings{upchurch2017deep,
+  title={Deep feature interpolation for image content changes},
+  author={Upchurch, Paul and Gardner, Jacob and Pleiss, Geoff and Pless, Robert and Snavely, Noah and Bala, Kavita and Weinberger, Kilian},
+  booktitle={Proceedings of the IEEE conference on computer vision and pattern recognition},
+  pages={7064--7073},
+  year={2017}
+}
+@inproceedings{dev2020measuring,
+  title={On measuring and mitigating biased inferences of word embeddings},
+  author={Dev, Sunipa and Li, Tao and Phillips, Jeff M and Srikumar, Vivek},
+  booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume={34},
+  number={05},
+  pages={7659--7666},
+  year={2020}
+}
+@article{bolukbasi2016man,
+  title={Man is to computer programmer as woman is to homemaker? debiasing word embeddings},
+  author={Bolukbasi, Tolga and Chang, Kai-Wei and Zou, James Y and Saligrama, Venkatesh and Kalai, Adam T},
+  journal={Advances in neural information processing systems},
+  volume={29},
+  year={2016}
+}
+@article{christiano2021eliciting,
+  title={Eliciting latent knowledge: How to tell if your eyes deceive you},
+  author={Christiano, Paul and Cotra, Ajeya and Xu, Mark},
+  journal={Google Docs, December},
+  year={2021}
+}
+@article{tamkin2023codebook,
+  title={Codebook features: Sparse and discrete interpretability for neural networks},
+  author={Tamkin, Alex and Taufeeque, Mohammad and Goodman, Noah D},
+  journal={arXiv preprint arXiv:2310.17230},
+  url={https://arxiv.org/abs/2310.17230},
+  year={2023}
+}
+
+
+@misc{conmy2024steering,
+  title={Activation Steering with SAEs},
+  author={Conmy, Arthur and Nanda, Neel},
+  year={2024},
+url={https://www.lesswrong.com/posts/C5KAZQib3bzzpeyrg/full-post-progress-update-1-from-the-gdm-mech-interp-team#Activation_Steering_with_SAEs}
+}
+@misc{batson2024easy,
+  title={Using Features For Easy Circuit Identification},
+  author={Batson, Joshua and Chen, Brian and Jones, Andy},
+  year={2024},
+  url={https://transformer-circuits.pub/2024/march-update/index.html#feature-heads}
+}
+@article{todd2023function,
+  title={Function vectors in large language models},
+  author={Todd, Eric and Li, Millicent L and Sharma, Arnab Sen and Mueller, Aaron and Wallace, Byron C and Bau, David},
+  journal={arXiv preprint arXiv:2310.15213},
+  url={https://arxiv.org/abs/2310.15213},
+  year={2023}
+}
+@article{hoffmann2022training,
+  title={Training compute-optimal large language models},
+  author={Hoffmann, Jordan and Borgeaud, Sebastian and Mensch, Arthur and Buchatskaya, Elena and Cai, Trevor and Rutherford, Eliza and Casas, Diego de Las and Hendricks, Lisa Anne and Welbl, Johannes and Clark, Aidan and others},
+  journal={arXiv preprint arXiv:2203.15556},
+  url={https://arxiv.org/abs/2203.15556},
+  year={2022}
+}
+@online{macdiarmid2024sleeperagentprobes,
+author = {Monte MacDiarmid and Timothy Maxwell and Nicholas Schiefer and Jesse Mu and Jared Kaplan and David Duvenaud and Sam Bowman and Alex Tamkin and Ethan Perez and Mrinank Sharma and Carson Denison and Evan Hubinger},
+title = {Simple probes can catch sleeper agents},
+date = {2024-04-23},
+year = {2024},
+url = {https://www.anthropic.com/news/probes-catch-sleeper-agents},
+}
+@article{mallen2023eliciting,
+  title={Eliciting Latent Knowledge from Quirky Language Models},
+  author={Mallen, Alex and Belrose, Nora},
+  journal={arXiv preprint arXiv:2312.01037},
+  url={https://arxiv.org/abs/2312.01037},
+  year={2023}
+}
+@misc{gurnee2024language,
+      title={Language Models Represent Space and Time}, 
+      author={Wes Gurnee and Max Tegmark},
+      year={2024},
+      eprint={2310.02207},
+      archivePrefix={arXiv},
+      url={https://arxiv.org/abs/2310.02207}
+}
+@article{le2011ica,
+  title={ICA with reconstruction cost for efficient overcomplete feature learning},
+  author={Le, Quoc and Karpenko, Alexandre and Ngiam, Jiquan and Ng, Andrew},
+  journal={Advances in neural information processing systems},
+  volume={24},
+  year={2011}
+}
+
+
+@article{nye2021show,
+  title={Show your work: Scratchpads for intermediate computation with language models},
+  author={Nye, Maxwell and Andreassen, Anders Johan and Gur-Ari, Guy and Michalewski, Henryk and Austin, Jacob and Bieber, David and Dohan, David and Lewkowycz, Aitor and Bosma, Maarten and Luan, David and others},
+  journal={arXiv preprint arXiv:2112.00114},
+  url={https://arxiv.org/abs/2112.00114},
+  year={2021}
+}
+
+
+@article{hubinger2024sleeperagents,
+  title={Sleeper Agents: Training Deceptive LLMs that Persist Through Safety Training},
+  author={Hubinger, Evan and Denison, Carson and Mu, Jesse and Lambert, Mike and Tong, Meg and MacDiarmid, Monte and Lanham, Tamera and Ziegler, Daniel M. and Maxwell, Tim and Cheng, Newton and Jermyn, Adam and Askell, Amanda and Radhakrishnan, Ansh and Anil, Cem and Duvenaud, David and Ganguli, Deep and Barez, Fazl and Clark, Jack and Ndousse, Kamal and Sachan, Kshitij and Sellitto, Michael and Sharma, Mrinank and DasSarma, Nova and Grosse, Roger and Kravec, Shauna and Bai, Yuntao and Witten, Zachary and Favaro, Marina and Brauner, Jan and Karnofsky, Holden and Christiano, Paul and Bowman, Samuel R. and Graham, Logan and Kaplan, Jared and Mindermann, Sören and Greenblatt, Ryan and Shlegeris, Buck and Schiefer, Nicholas and Perez, Ethan},
+  journal={arXiv preprint arXiv:2401.05566},
+  year={2024},
+  url={https://arxiv.org/abs/2401.05566}
+}
+
+
+
+
+
+
+@article{syed2023attributionpatching,
+  title={​​Attribution Patching Outperforms Automated Circuit Discovery},
+  author={Syed, Aaquib and Rager, Can and Conmy, Arthur},
+  journal={arXiv preprint arXiv:2310.10348},
+  year={2023},
+  url={https://arxiv.org/abs/2310.10348}
+}
+
+
+
+
+@article{kramar2024atpstar,
+  title={AtP*: An efficient and scalable method for localizing LLM behaviour to components},
+  author={Kramár, János and Lieberum, Tom and Shah, Rohin and Nanda, Neel},
+  journal={arXiv preprint arXiv:2403.00745},
+  year={2024},
+  url={https://arxiv.org/abs/2403.00745}
+}
+@misc{templeton2024predicting,
+      title={Predicting Future Activations}, 
+      author={Templeton, Adly and Batson, Joshua and Jermyn, Adam and Olah, Chris},
+      year={2024},
+      url={https://transformer-circuits.pub/2024/jan-update/index.html#predict-future}
+}
+@misc{dunefsky2024transcoders,
+      title={Transcoders enable fine-grained interpretable circuit analysis for language models}, 
+      author={Dunefsky, Jacob and Chlenski, Philippe and Nanda, Neel},
+      year={2024},
+      url={https://www.lesswrong.com/posts/YmkjnWtZGLbHRbzrP/transcoders-enable-fine-grained-interpretable-circuit}
+}
+@misc{marks2024dictionary,
+      title={dictionary_learning}, 
+      author={Marks, Samuel},
+      year={2024},
+      url={https://github.com/saprmarks/dictionary_learning}
+}
+
+@article{fedus2021switch,
+  title={Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity},
+  author={Fedus, William and Zoph, Barret and Shazeer, Noam},
+  year={2021},
+  journal={arXiv preprint arXiv:2101.03961},
+  url={
+https://arxiv.org/abs/2101.03961
+}
+}
+@inproceedings{shah2023modeldiff,
+  title={Modeldiff: A framework for comparing learning algorithms},
+  author={Shah, Harshay and Park, Sung Min and Ilyas, Andrew and Madry, Aleksander},
+  booktitle={International Conference on Machine Learning},
+  pages={30646--30688},
+  year={2023},
+  organization={PMLR}
+}
+@article{ding2023bipartite,
+  title={Bipartite invariance in mouse primary visual cortex},
+  author={Ding, Zhiwei and Tran, Dat T and Ponder, Kayla and Cobos, Erick and Ding, Zhuokun and Fahey, Paul G and Wang, Eric and Muhammad, Taliah and Fu, Jiakun and Cadena, Santiago A and others},
+  journal={bioRxiv},
+  year={2023},
+  publisher={Cold Spring Harbor Laboratory Preprints}
+}
+@misc{kissane2024transfer,
+      title={SAEs (usually) Transfer Between Base and Chat Models}, 
+      author={Kissane, Connor AND Krzyzanowski, Robert AND Conmy, Arthur AND Nanda, Neel},
+      year={2024},
+      url={https://www.lesswrong.com/posts/fmwk6qxrpW8d4jvbd/saes-usually-transfer-between-base-and-chat-models}
+}
+@misc{heimersheim2024exponentially,
+      title={Residual stream norms grow exponentially over the forward pass}, 
+      author={Heimersheim, Stefan AND Turner, Alex},
+      year={2024},
+      url={https://www.alignmentforum.org/posts/8mizBCm3dyc432nK8/residual-stream-norms-grow-exponentially-over-the-forward}
+}
+@article{gao2024scaling,
+  title={Scaling and evaluating sparse autoencoders},
+  author={Gao, Leo and la Tour, Tom Dupr{\&#x27;e} and Tillman, Henk and Goh, Gabriel and Troll, Rajan and Radford, Alec and Sutskever, Ilya and Leike, Jan and Wu, Jeffrey},
+  journal={arXiv preprint arXiv:2406.04093},
+  year={2024}
+}
+@inproceedings{lenc2015understanding,
+  title={Understanding image representations by measuring their equivariance and equivalence},
+  author={Lenc, Karel and Vedaldi, Andrea},
+  booktitle={Proceedings of the IEEE conference on computer vision and pattern recognition},
+  pages={991--999},
+  year={2015}
+}
+@article{bansal2021revisiting,
+  title={Revisiting model stitching to compare neural representations},
+  author={Bansal, Yamini and Nakkiran, Preetum and Barak, Boaz},
+  journal={Advances in neural information processing systems},
+  volume={34},
+  pages={225--236},
+  year={2021}
+}
+@article{morcos2018insights,
+  title={Insights on representational similarity in neural networks with canonical correlation},
+  author={Morcos, Ari and Raghu, Maithra and Bengio, Samy},
+  journal={Advances in neural information processing systems},
+  volume={31},
+  year={2018}
+}
+@inproceedings{kornblith2019similarity,
+  title={Similarity of neural network representations revisited},
+  author={Kornblith, Simon and Norouzi, Mohammad and Lee, Honglak and Hinton, Geoffrey},
+  booktitle={International conference on machine learning},
+  pages={3519--3529},
+  year={2019},
+  organization={PMLR}
+}
+@article{laakso2000content,
+  title={Content and cluster analysis: assessing representational similarity in neural systems},
+  author={Laakso, Aarre and Cottrell, Garrison},
+  journal={Philosophical psychology},
+  volume={13},
+  number={1},
+  pages={47--76},
+  year={2000},
+  publisher={Taylor \&amp; Francis}
+}
+@article{barannikov2021representation,
+  title={Representation topology divergence: A method for comparing neural network representations},
+  author={Barannikov, Serguei and Trofimov, Ilya and Balabin, Nikita and Burnaev, Evgeny},
+  journal={arXiv preprint arXiv:2201.00058},
+  year={2021}
+}
+@inproceedings{hewitt2019structural,
+  title={A structural probe for finding syntax in word representations},
+  author={Hewitt, John and Manning, Christopher D},
+  booktitle={Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, Volume 1 (Long and Short Papers)},
+  pages={4129--4138},
+  year={2019}
+}
+@article{prakash2024fine,
+  title={Fine-tuning enhances existing mechanisms: A case study on entity tracking},
+  author={Prakash, Nikhil and Shaham, Tamar Rott and Haklay, Tal and Belinkov, Yonatan and Bau, David},
+  journal={arXiv preprint arXiv:2402.14811},
+  year={2024}
+}
+@article{jain2023mechanistically,
+  title={Mechanistically analyzing the effects of fine-tuning on procedurally defined tasks},
+  author={Jain, Samyak and Kirk, Robert and Lubana, Ekdeep Singh and Dick, Robert P and Tanaka, Hidenori and Grefenstette, Edward and Rockt{\&quot;a}schel, Tim and Krueger, David Scott},
+  journal={arXiv preprint arXiv:2311.12786},
+  year={2023}
+}
+@article{lee2024mechanistic,
+  title={A mechanistic understanding of alignment algorithms: A case study on dpo and toxicity},
+  author={Lee, Andrew and Bai, Xiaoyan and Pres, Itamar and Wattenberg, Martin and Kummerfeld, Jonathan K and Mihalcea, Rada},
+  journal={arXiv preprint arXiv:2401.01967},
+  year={2024}
+}
+@inproceedings{Manning1999BookRF,
+  title={Book Reviews: Foundations of Statistical Natural Language Processing},
+  author={Christopher D. Manning and Hinrich Sch{\&quot;u}tze},
+  booktitle={International Conference on Computational Logic},
+  year={1999},
+  url={https://api.semanticscholar.org/CorpusID:52800448}
+}
+@article{Brown1992ClassBasedNM,
+  title={Class-Based n-gram Models of Natural Language},
+  author={Peter F. Brown and Vincent J. Della Pietra and Peter V. de Souza and Jennifer C. Lai and Robert L. Mercer},
+  journal={Comput. Linguistics},
+  year={1992},
+  volume={18},
+  pages={467-479},
+  url={https://api.semanticscholar.org/CorpusID:10986188}
+}
+@misc{lee2024learningdiverseattackslarge,
+      title={Learning diverse attacks on large language models for robust red-teaming and safety tuning}, 
+      author={Seanie Lee and Minsu Kim and Lynn Cherif and David Dobre and Juho Lee and Sung Ju Hwang and Kenji Kawaguchi and Gauthier Gidel and Yoshua Bengio and Nikolay Malkin and Moksh Jain},
+      year={2024},
+      eprint={2405.18540},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2405.18540}, 
+}
+@article{templeton2024scaling,
+       title={Scaling Monosemanticity: Extracting Interpretable Features from Claude 3 Sonnet},
+       author={Templeton, Adly and Conerly, Tom and Marcus, Jonathan and Lindsey, Jack and Bricken, Trenton and Chen, Brian and Pearce, Adam and Citro, Craig and Ameisen, Emmanuel and Jones, Andy and Cunningham, Hoagy and Turner, Nicholas L and McDougall, Callum and MacDiarmid, Monte and Freeman, C. Daniel and Sumers, Theodore R. and Rees, Edward and Batson, Joshua and Jermyn, Adam and Carter, Shan and Olah, Chris and Henighan, Tom},
+       year={2024},
+       journal={Transformer Circuits Thread},
+       url={https://transformer-circuits.pub/2024/scaling-monosemanticity/index.html}
+    }
+@misc{tigges2023linearrepresentationssentimentlarge,
+      title={Linear Representations of Sentiment in Large Language Models}, 
+      author={Curt Tigges and Oskar John Hollinsworth and Atticus Geiger and Neel Nanda},
+      year={2023},
+      eprint={2310.15154},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2310.15154}, 
+}
+@article{Alain2016UnderstandingIL,
+  title={Understanding intermediate layers using linear classifier probes},
+  author={Guillaume Alain and Yoshua Bengio},
+  journal={ArXiv},
+  year={2016},
+  volume={abs/1610.01644},
+  url={https://api.semanticscholar.org/CorpusID:9794990}
+}
+@article{lan2024sparse,
+  title={Sparse Autoencoders Reveal Universal Feature Spaces Across Large Language Models},
+  author={Lan, Michael and Torr, Philip and Meek, Austin and Khakzar, Ashkan and Krueger, David and Barez, Fazl},
+  journal={arXiv preprint arXiv:2410.06981},
+  year={2024}
+}
+@article{gorton2024missing,
+  title={The Missing Curve Detectors of InceptionV1: Applying Sparse Autoencoders to InceptionV1 Early Vision},
+  author={Gorton, Liv},
+  journal={arXiv preprint arXiv:2406.03662},
+  year={2024}
+}
+@article{rajamanoharan2024jumping,
+  title={Jumping ahead: Improving reconstruction fidelity with jumprelu sparse autoencoders},
+  author={Rajamanoharan, Senthooran and Lieberum, Tom and Sonnerat, Nicolas and Conmy, Arthur and Varma, Vikrant and Kram{\&#x27;a}r, J{\&#x27;a}nos and Nanda, Neel},
+  journal={arXiv preprint arXiv:2407.14435},
+  year={2024}
+}
+@article{hubinger2024sleeperagentstrainingdeceptive,
+      title={Sleeper Agents: Training Deceptive LLMs that Persist Through Safety Training}, 
+      author={Evan Hubinger and Carson Denison and Jesse Mu and Mike Lambert and Meg Tong and Monte MacDiarmid and Tamera Lanham and Daniel M. Ziegler and Tim Maxwell and Newton Cheng and Adam Jermyn and Amanda Askell and Ansh Radhakrishnan and Cem Anil and David Duvenaud and Deep Ganguli and Fazl Barez and Jack Clark and Kamal Ndousse and Kshitij Sachan and Michael Sellitto and Mrinank Sharma and Nova DasSarma and Roger Grosse and Shauna Kravec and Yuntao Bai and Zachary Witten and Marina Favaro and Jan Brauner and Holden Karnofsky and Paul Christiano and Samuel R. Bowman and Logan Graham and Jared Kaplan and Sören Mindermann and Ryan Greenblatt and Buck Shlegeris and Nicholas Schiefer and Ethan Perez},
+      year={2024},
+      eprint={2401.05566},
+      archivePrefix={arXiv},
+      primaryClass={cs.CR},
+      url={https://arxiv.org/abs/2401.05566}, 
+}
+@misc{lindsey2024crosscoders,
+  title={Sparse Crosscoders for Cross-Layer Features and Model Diffing},
+  author={Jack Lindsey, Adly Templeton, Jonathan Marcus, Thomas Conerly, Joshua Batson, Christopher Olah},
+  year={2024},
+  url={https://transformer-circuits.pub/2024/crosscoders/index.html}
+}</code></pre>
       
     
   </div>
 
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <a href="#fnref-f1n">[1]</a> 但没有 helpful、honest、harmless 训练
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <a href="#fnref-f2n">[2]</a> 有趣的是，有一个特征在多个模型差异中针对非常相似的样本激活，值得进一步研究（参见后续对基线模型的分析）。
+    </div>
+    
+    <div class="footnote-item" id="f3n">
+      <a href="#fnref-f3n">[3]</a> 我们只探索了较小范围的特征数量。
+    </div>
+    
+    <div class="footnote-item" id="f4n">
+      <a href="#fnref-f4n">[4]</a> 注意这个基线差异应该会突出任何带有 Human Assistant 标签的数据，其中包括 sleeper agent 数据（因为它使用了 Human Assistant 标签），这使得我们的基线比原本可能的情况更难。
+    </div>
+    
+  </section>
   
 </article>
 

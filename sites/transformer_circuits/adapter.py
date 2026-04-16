@@ -197,30 +197,46 @@ def _parse_article(html: str, index_entry: dict, all_slugs: set[str],
     if not content:
         return _empty_parsed(index_entry)
 
-    # Extract abstract
-    abstract_el = soup.find("d-abstract")
-    abstract = abstract_el.get_text(strip=True) if abstract_el else ""
-
-    # Extract BibTeX
-    bibtex = ""
-    bib_script = soup.find("script", type="text/bibliography")
-    if bib_script:
-        bibtex = bib_script.get_text()
-
-    # Process math: replace d-math with placeholders, build registry
-    math_registry = {}
-    segments = []
-    internal_links = []
-
-    # First pass: handle all d-math elements in the content
+    # Clone content to avoid mutating original
     content_copy = copy(content)
+
+    # ── Distill preprocessing pipeline (fixed order) ────────────
+
+    # 1. Replace d-cite with citation placeholders
+    citation_registry = {}
+    for d_cite in content_copy.find_all("d-cite"):
+        key = d_cite.get("key", "").strip()
+        if key:
+            idx = len(citation_registry)
+            citation_registry[str(idx)] = {"key": key}
+            d_cite.replace_with(f"[{{{{CITE:{idx}}}}}]")
+        else:
+            d_cite.decompose()
+
+    # 2. Replace d-code with code placeholders (inline) or markers (block)
+    inline_code_registry = {}
+    for d_code in content_copy.find_all("d-code"):
+        code_text = d_code.get_text()
+        if not code_text.strip():
+            continue
+        # Heuristic: if d-code has block attribute or is a direct child of d-article, treat as block
+        is_block = d_code.has_attr("block") or (d_code.parent and d_code.parent.name in ("d-article", "div", "section"))
+        if is_block and len(code_text) > 50:
+            d_code.replace_with(f"__CODEBLOCK_{len(inline_code_registry)}__")
+            inline_code_registry[str(len(inline_code_registry))] = {"text": code_text, "block": True}
+        else:
+            idx = len(inline_code_registry)
+            d_code.replace_with(f"{{{{CODE:{idx}}}}}")
+            inline_code_registry[str(idx)] = {"text": code_text, "block": False}
+
+    # 3. Replace d-math with placeholders
+    math_registry = {}
     for d_math in content_copy.find_all("d-math"):
         tex = d_math.get_text()
         if not tex.strip():
             continue
         is_block = d_math.has_attr("block")
         if is_block:
-            # Will be emitted as math_block segment during walk
             d_math.replace_with(f"__MATHBLOCK_{len(math_registry)}__")
             math_registry[str(len(math_registry))] = {"tex": tex, "display": True}
         else:
@@ -228,25 +244,58 @@ def _parse_article(html: str, index_entry: dict, all_slugs: set[str],
             d_math.replace_with(f"{{{{MATH:{idx}}}}}")
             math_registry[str(idx)] = {"tex": tex, "display": False}
 
-    # Walk content tree
+    # 4. Extract d-footnote elements → footnotes array + FNREF placeholders
+    footnotes = []
+    for d_fn in content_copy.find_all("d-footnote"):
+        fn_text = d_fn.get_text()
+        if not fn_text.strip():
+            d_fn.decompose()
+            continue
+        fn_idx = len(footnotes)
+        fn_id = f"f{fn_idx + 1}n"
+        footnotes.append({"id": fn_id, "text": fn_text.strip()})
+        d_fn.replace_with(f"{{{{FNREF:{fn_idx + 1}}}}}")
+
+    # 5. Extract bibliography from d-bibliography src or script type=text/bibliography
+    bibtex_segments = []
+    seen_bib_srcs = set()
+    for d_bib in soup.find_all("d-bibliography"):
+        bib_src = d_bib.get("src", "")
+        if bib_src and bib_src not in seen_bib_srcs:
+            seen_bib_srcs.add(bib_src)
+            bib_url = urljoin(page_url, bib_src)
+            bib_content = _fetch_page(bib_url)
+            if bib_content:
+                bibtex_segments.append(bib_content.strip())
+    # Fallback: script type=text/bibliography
+    for bib_script in soup.find_all("script", type="text/bibliography"):
+        text = bib_script.get_text().strip()
+        if text:
+            bibtex_segments.append(text)
+
+    # ── Walk content tree ───────────────────────────────────────
+    segments = []
+    internal_links = []
+
     _walk_block(content_copy, segments, all_slugs, internal_links,
-                page_url, slug, img_dir, math_registry)
+                page_url, slug, img_dir, math_registry, inline_code_registry)
 
     # Add abstract as first paragraph if present
-    if abstract and segments and segments[0].get("type") != "paragraph":
+    abstract_el = soup.find("d-abstract")
+    abstract = abstract_el.get_text(strip=True) if abstract_el else ""
+    if abstract and (not segments or segments[0].get("type") != "paragraph"):
         segments.insert(0, {
             "index": 0, "type": "paragraph", "text": abstract,
             "footnote_refs": [], "links": [],
         })
-        # Re-index
         for i, s in enumerate(segments):
             s["index"] = i
 
-    # Add BibTeX segment if present
-    if bibtex.strip():
+    # Add BibTeX segments
+    for bib_text in bibtex_segments:
         segments.append({
             "index": len(segments), "type": "bibtex",
-            "text": bibtex.strip(), "footnote_refs": [], "links": [],
+            "text": bib_text, "footnote_refs": [], "links": [],
         })
 
     return {
@@ -256,12 +305,14 @@ def _parse_article(html: str, index_entry: dict, all_slugs: set[str],
         "date": date,
         "content_type": index_entry.get("content_type", "paper"),
         "segments": segments,
-        "footnotes": [],
+        "footnotes": footnotes,
         "internal_links": internal_links,
         "paragraph_count": len(segments),
-        "footnote_count": 0,
-        "footnote_ref_count": 0,
+        "footnote_count": len(footnotes),
+        "footnote_ref_count": sum(len(s.get("footnote_refs", [])) for s in segments),
         "math_registry": math_registry,
+        "citation_registry": citation_registry,
+        "inline_code_registry": inline_code_registry,
     }
 
 
@@ -279,24 +330,20 @@ def _empty_parsed(entry: dict) -> dict:
 def _walk_block(el, segments: list, all_slugs: set[str],
                 internal_links: list, page_url: str, slug: str,
                 img_dir: Path, math_registry: dict,
+                inline_code_registry: dict | None = None,
                 _emitted: set | None = None):
     """Recursively walk content, emitting segments in document order."""
     if _emitted is None:
         _emitted = set()
+    if inline_code_registry is None:
+        inline_code_registry = {}
 
     for child in el.children:
         if not isinstance(child, Tag):
-            # Check for math block markers in text
+            # Emit text that contains block markers
             if hasattr(child, 'string') and child.string:
                 text = str(child.string)
-                for m in re.finditer(r'__MATHBLOCK_(\d+)__', text):
-                    idx = m.group(1)
-                    entry = math_registry.get(idx, {})
-                    segments.append({
-                        "index": len(segments), "type": "math_block",
-                        "text": entry.get("tex", ""),
-                        "footnote_refs": [], "links": [],
-                    })
+                _emit_text_with_markers(text, segments, math_registry, inline_code_registry)
             continue
 
         tag = child.name
@@ -327,11 +374,11 @@ def _walk_block(el, segments: list, all_slugs: set[str],
                 local_src = _resolve_and_download_image(src, page_url, slug, img_dir)
                 alt_text = img.get("alt", "")
                 caption_el = child.find("figcaption")
-                caption = caption_el.get_text(strip=True) if caption_el else ""
+                caption = _extract_text(caption_el, all_slugs, internal_links, page_url) if caption_el else ""
                 segments.append({
                     "index": len(segments), "type": "figure",
-                    "text": caption or alt_text,
-                    "image_src": local_src, "alt_text": alt_text, "caption": caption,
+                    "text": caption.strip() or alt_text,
+                    "image_src": local_src, "alt_text": alt_text, "caption": caption.strip(),
                     "footnote_refs": [], "links": [],
                 })
                 _emitted.add(id(img))
@@ -352,10 +399,7 @@ def _walk_block(el, segments: list, all_slugs: set[str],
         elif tag == "blockquote":
             text = _extract_text(child, all_slugs, internal_links, page_url)
             if text.strip():
-                segments.append({
-                    "index": len(segments), "type": "blockquote",
-                    "text": text.strip(), "footnote_refs": [], "links": [],
-                })
+                _emit_text_segment(text.strip(), "blockquote", segments, math_registry, inline_code_registry)
 
         elif tag == "p":
             img = child.find("img")
@@ -372,43 +416,15 @@ def _walk_block(el, segments: list, all_slugs: set[str],
                 })
 
             text = _extract_text(child, all_slugs, internal_links, page_url)
-            # Check for math block markers
-            if "__MATHBLOCK_" in text:
-                parts = re.split(r'(__MATHBLOCK_\d+__)', text)
-                for part in parts:
-                    m = re.match(r'__MATHBLOCK_(\d+)__', part)
-                    if m:
-                        idx = m.group(1)
-                        entry = math_registry.get(idx, {})
-                        segments.append({
-                            "index": len(segments), "type": "math_block",
-                            "text": entry.get("tex", ""),
-                            "footnote_refs": [], "links": [],
-                        })
-                    elif part.strip() and len(part.strip()) >= 3:
-                        segments.append({
-                            "index": len(segments), "type": "paragraph",
-                            "text": part.strip(), "footnote_refs": [],
-                            "links": _seg_links(part),
-                        })
-            elif text.strip() and len(text.strip()) >= 3:
-                segments.append({
-                    "index": len(segments), "type": "paragraph",
-                    "text": text.strip(), "footnote_refs": [],
-                    "links": _seg_links(text),
-                })
+            if text.strip() and len(text.strip()) >= 3:
+                _emit_text_segment(text.strip(), "paragraph", segments, math_registry, inline_code_registry)
 
         elif tag in ("ul", "ol"):
             text = _extract_text(child, all_slugs, internal_links, page_url)
             if text.strip():
-                segments.append({
-                    "index": len(segments), "type": "list",
-                    "text": text.strip(), "footnote_refs": [],
-                    "links": _seg_links(text),
-                })
+                _emit_text_segment(text.strip(), "list", segments, math_registry, inline_code_registry)
 
         elif tag == "table":
-            # Preserve tables as HTML
             table_html = str(child)
             segments.append({
                 "index": len(segments), "type": "table",
@@ -417,23 +433,97 @@ def _walk_block(el, segments: list, all_slugs: set[str],
                 "footnote_refs": [], "links": [],
             })
 
-        # Skip known non-content Distill elements
+        # Skip known non-content elements (d-footnote already extracted in preprocessing)
         elif tag in ("d-contents", "d-toc", "d-byline", "d-title",
                       "d-abstract", "d-appendix", "d-footnote-list",
-                      "d-citation-list", "distill-header", "distill-footer",
-                      "script", "style", "noscript", "nav"):
+                      "d-citation-list", "d-bibliography", "distill-header",
+                      "distill-footer", "script", "style", "noscript", "nav"):
             continue
 
         # Container elements — recurse
         elif tag in ("div", "section", "article", "main", "span", "d-article",
-                      "li", "dd", "dt", "td", "th", "details", "summary",
-                      "d-footnote"):
+                      "li", "dd", "dt", "td", "th", "details", "summary"):
             _walk_block(child, segments, all_slugs, internal_links,
-                        page_url, slug, img_dir, math_registry, _emitted)
+                        page_url, slug, img_dir, math_registry,
+                        inline_code_registry, _emitted)
 
         elif list(child.children):
             _walk_block(child, segments, all_slugs, internal_links,
-                        page_url, slug, img_dir, math_registry, _emitted)
+                        page_url, slug, img_dir, math_registry,
+                        inline_code_registry, _emitted)
+
+
+def _emit_text_with_markers(text: str, segments: list, math_registry: dict,
+                            inline_code_registry: dict):
+    """Emit text that may contain MATHBLOCK or CODEBLOCK markers as separate segments."""
+    if not ("__MATHBLOCK_" in text or "__CODEBLOCK_" in text):
+        return
+    parts = re.split(r'(__MATHBLOCK_\d+__|__CODEBLOCK_\d+__)', text)
+    for part in parts:
+        m_math = re.match(r'__MATHBLOCK_(\d+)__', part)
+        m_code = re.match(r'__CODEBLOCK_(\d+)__', part)
+        if m_math:
+            idx = m_math.group(1)
+            entry = math_registry.get(idx, {})
+            segments.append({
+                "index": len(segments), "type": "math_block",
+                "text": entry.get("tex", ""),
+                "footnote_refs": [], "links": [],
+            })
+        elif m_code:
+            idx = m_code.group(1)
+            entry = inline_code_registry.get(idx, {})
+            segments.append({
+                "index": len(segments), "type": "code",
+                "text": entry.get("text", ""),
+                "footnote_refs": [], "links": [],
+            })
+        elif part.strip() and len(part.strip()) >= 3:
+            segments.append({
+                "index": len(segments), "type": "paragraph",
+                "text": part.strip(), "footnote_refs": [],
+                "links": _seg_links(part),
+            })
+
+
+def _emit_text_segment(text: str, seg_type: str, segments: list,
+                       math_registry: dict, inline_code_registry: dict):
+    """Emit a text segment, splitting out any block markers first."""
+    if "__MATHBLOCK_" in text or "__CODEBLOCK_" in text:
+        parts = re.split(r'(__MATHBLOCK_\d+__|__CODEBLOCK_\d+__)', text)
+        for part in parts:
+            m_math = re.match(r'__MATHBLOCK_(\d+)__', part)
+            m_code = re.match(r'__CODEBLOCK_(\d+)__', part)
+            if m_math:
+                idx = m_math.group(1)
+                entry = math_registry.get(idx, {})
+                segments.append({
+                    "index": len(segments), "type": "math_block",
+                    "text": entry.get("tex", ""),
+                    "footnote_refs": [], "links": [],
+                })
+            elif m_code:
+                idx = m_code.group(1)
+                entry = inline_code_registry.get(idx, {})
+                segments.append({
+                    "index": len(segments), "type": "code",
+                    "text": entry.get("text", ""),
+                    "footnote_refs": [], "links": [],
+                })
+            elif part.strip() and len(part.strip()) >= 3:
+                fn_refs = re.findall(r'\{\{FNREF:(\d+)\}\}', part)
+                segments.append({
+                    "index": len(segments), "type": seg_type,
+                    "text": part.strip(), "footnote_refs": fn_refs,
+                    "links": _seg_links(part),
+                })
+    else:
+        fn_refs = re.findall(r'\{\{FNREF:(\d+)\}\}', text)
+        segments.append({
+            "index": len(segments), "type": seg_type,
+            "text": text, "footnote_refs": fn_refs,
+            "links": _seg_links(text),
+        })
 
 
 def _resolve_and_download_image(src: str, page_url: str, slug: str,

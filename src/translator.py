@@ -18,7 +18,7 @@ SYSTEM_PROMPT = """你是一位专业的中英文翻译专家。你的任务是�
 - 保持原文的语气和风格特点
 - 专有名词首次出现时保留英文
 - 不要翻译 URL、代码片段、锚点 ID、脚注引用编号
-- 保留所有 {{FNREF:N}}、{{LINK:slug:text}} 和 {{MATH:N}} 占位符，不要翻译或删除它们
+- 保留所有 {{FNREF:N}}、{{LINK:slug:text}}、{{MATH:N}}、{{CITE:N}} 和 {{CODE:N}} 占位符，不要翻译或删除它们
 - 输入格式：每段用 <<<PARA_N>>> 标记开头，你必须保留这些标记并在对应位置输出翻译
 - 只输出中文翻译，不输出其他任何内容"""
 
@@ -145,6 +145,34 @@ async def translate_one(
                 text_zh += ph
         for ph, cnt in tgt_m_counts.items():
             surplus = cnt - src_m_counts.get(ph, 0)
+            for _ in range(surplus):
+                text_zh = text_zh.replace(ph, '', 1)
+
+        # CITE placeholder repair
+        src_cites = re.findall(r'\{\{CITE:\d+\}\}', seg["text"])
+        tgt_cites = re.findall(r'\{\{CITE:\d+\}\}', text_zh)
+        src_c_counts = Counter(src_cites)
+        tgt_c_counts = Counter(tgt_cites)
+        for ph, cnt in src_c_counts.items():
+            deficit = cnt - tgt_c_counts.get(ph, 0)
+            for _ in range(deficit):
+                text_zh += ph
+        for ph, cnt in tgt_c_counts.items():
+            surplus = cnt - src_c_counts.get(ph, 0)
+            for _ in range(surplus):
+                text_zh = text_zh.replace(ph, '', 1)
+
+        # CODE placeholder repair
+        src_codes = re.findall(r'\{\{CODE:\d+\}\}', seg["text"])
+        tgt_codes = re.findall(r'\{\{CODE:\d+\}\}', text_zh)
+        src_cd_counts = Counter(src_codes)
+        tgt_cd_counts = Counter(tgt_codes)
+        for ph, cnt in src_cd_counts.items():
+            deficit = cnt - tgt_cd_counts.get(ph, 0)
+            for _ in range(deficit):
+                text_zh += ph
+        for ph, cnt in tgt_cd_counts.items():
+            surplus = cnt - src_cd_counts.get(ph, 0)
             for _ in range(surplus):
                 text_zh = text_zh.replace(ph, '', 1)
 

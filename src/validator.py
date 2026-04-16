@@ -66,6 +66,14 @@ def validate_translation(slug: str, parsed_dir: Path, translated_dir: Path) -> d
             tgt_math = len(re.findall(r'\{\{MATH:\d+\}\}', text_zh))
             if src_math != tgt_math:
                 issues.append(f"seg_{i}_math_count: source={src_math}, translated={tgt_math}")
+            src_cite = len(re.findall(r'\{\{CITE:\d+\}\}', text_orig))
+            tgt_cite = len(re.findall(r'\{\{CITE:\d+\}\}', text_zh))
+            if src_cite != tgt_cite:
+                issues.append(f"seg_{i}_cite_count: source={src_cite}, translated={tgt_cite}")
+            src_code_ph = len(re.findall(r'\{\{CODE:\d+\}\}', text_orig))
+            tgt_code_ph = len(re.findall(r'\{\{CODE:\d+\}\}', text_zh))
+            if src_code_ph != tgt_code_ph:
+                issues.append(f"seg_{i}_code_ph_count: source={src_code_ph}, translated={tgt_code_ph}")
 
     src_fn = len(parsed.get("footnotes", []))
     tgt_fn = len(translated.get("footnotes", []))
@@ -327,7 +335,7 @@ def check_rendered_quality(paths=None) -> dict:
         html_text = html_file.read_text(encoding="utf-8")
         slug = html_file.stem
         results["articles_checked"] += 1
-        if "{{LINK:" in html_text or "{{FNREF:" in html_text or "{{MATH:" in html_text:
+        if any(ph in html_text for ph in ("{{LINK:", "{{FNREF:", "{{MATH:", "{{CITE:", "{{CODE:")):
             results["raw_placeholder_files"].append(slug)
 
     raw_count = len(results["raw_placeholder_files"])

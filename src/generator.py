@@ -70,10 +70,32 @@ def render_segment_html(text: str, footnote_ids: set[str], valid_slugs: set[str]
             return f'<span class="math-inline" data-math="{escape(tex)}">{escape(tex)}</span>'
         rendered = re.sub(r'\{\{MATH:(\d+)\}\}', replace_math, rendered)
 
+    # Render citation placeholders
+    citation_registry = title_map.get("_citation_registry", {})
+    if citation_registry:
+        def replace_cite(m):
+            idx = m.group(1)
+            entry = citation_registry.get(idx, {})
+            key = entry.get("key", f"cite:{idx}")
+            return f'<cite>[{escape(key)}]</cite>'
+        rendered = re.sub(r'\{\{CITE:(\d+)\}\}', replace_cite, rendered)
+
+    # Render inline code placeholders
+    inline_code_registry = title_map.get("_inline_code_registry", {})
+    if inline_code_registry:
+        def replace_code(m):
+            idx = m.group(1)
+            entry = inline_code_registry.get(idx, {})
+            code_text = entry.get("text", "")
+            return f'<code>{escape(code_text)}</code>'
+        rendered = re.sub(r'\{\{CODE:(\d+)\}\}', replace_code, rendered)
+
     # Cleanup remaining raw placeholders
     rendered = re.sub(r'\{\{LINK:[^}]*\}\}', '', rendered)
     rendered = re.sub(r'\{\{FNREF:\d+\}\}', '', rendered)
     rendered = re.sub(r'\{\{MATH:\d+\}\}', '', rendered)
+    rendered = re.sub(r'\{\{CITE:\d+\}\}', '', rendered)
+    rendered = re.sub(r'\{\{CODE:\d+\}\}', '', rendered)
 
     return rendered
 
@@ -83,6 +105,8 @@ def prepare_article(article: dict, valid_slugs: set[str], title_map: dict[str, s
     title_map_with_slug = dict(title_map)
     title_map_with_slug["_cross_page_notes"] = article.get("cross_page_notes")
     math_registry = article.get("math_registry", {})
+    title_map_with_slug["_citation_registry"] = article.get("citation_registry", {})
+    title_map_with_slug["_inline_code_registry"] = article.get("inline_code_registry", {})
 
     for seg in article.get("segments", []):
         seg_type = seg.get("type", "")
@@ -100,22 +124,17 @@ def prepare_article(article: dict, valid_slugs: set[str], title_map: dict[str, s
             continue
         if seg_type == "table":
             table_html = seg.get("raw_html", escape(seg.get("text", "")))
-            # Render math placeholders inside tables
-            if math_registry and "{{MATH:" in table_html:
-                def _replace_table_math(m):
-                    idx = m.group(1)
-                    entry = math_registry.get(idx, {})
-                    tex = entry.get("tex", m.group(0))
-                    cls = "math-display" if entry.get("display") else "math-inline"
-                    return f'<span class="{cls}" data-math="{escape(tex)}">{escape(tex)}</span>'
-                table_html = re.sub(r'\{\{MATH:(\d+)\}\}', _replace_table_math, table_html)
+            # Render all placeholders inside tables
+            if any(ph in table_html for ph in ("{{MATH:", "{{CITE:", "{{CODE:")):
+                table_html = render_segment_html(
+                    table_html, footnote_ids, valid_slugs, title_map_with_slug, math_registry)
             seg["rendered_html"] = table_html
             continue
         if seg_type == "figure":
             caption = seg.get("caption") or seg.get("text_zh") or seg.get("text", "")
-            if caption and math_registry and "{{MATH:" in caption:
+            if caption and any(ph in caption for ph in ("{{MATH:", "{{CITE:", "{{CODE:", "{{LINK:")):
                 seg["rendered_html"] = render_segment_html(
-                    caption, set(), set(), {}, math_registry)
+                    caption, footnote_ids, valid_slugs, title_map_with_slug, math_registry)
             else:
                 seg["rendered_html"] = escape(caption) if caption else ""
             continue
@@ -132,10 +151,12 @@ def prepare_article(article: dict, valid_slugs: set[str], title_map: dict[str, s
 
     for fn in article.get("footnotes", []):
         fn["has_visible_ref"] = fn["id"] in rendered_fnref_ids
-        for key in ("text_zh", "text"):
-            if key in fn and fn[key]:
-                fn[key] = re.sub(r'\{\{FNREF:\d+\}\}', '', fn[key])
-                fn[key] = re.sub(r'\{\{LINK:[^}]*\}\}', '', fn[key])
+        # Render placeholders in footnote text (MATH, CITE, CODE, LINK, FNREF)
+        fn_text = fn.get("text_zh") or fn.get("text", "")
+        if fn_text and any(ph in fn_text for ph in ("{{MATH:", "{{CITE:", "{{CODE:", "{{LINK:", "{{FNREF:")):
+            fn_text = render_segment_html(fn_text, footnote_ids, valid_slugs,
+                                          title_map_with_slug, math_registry)
+        fn["rendered_text"] = fn_text
 
     return article
 
