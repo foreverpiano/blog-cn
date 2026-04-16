@@ -34,22 +34,22 @@
       
     
       
-        <div class="list-content">Kullback–Leibler 和 Jensen–Shannon 散度
+        <div class="list-content">Kullback–Leibler 与 Jensen–Shannon 散度
 
-生成对抗网络（GAN）
+生成对抗网络 (GAN)
 
-D 的最优值是什么？
+判别器 D 的最优值是多少？
 
 全局最优是什么？
 
 损失函数代表什么？
 
 
-GAN 中的问题
+GAN 的问题
 
-难以达到 Nash 均衡
+难以达到纳什均衡
 
-低维支撑
+低维支撑集
 
 梯度消失
 
@@ -60,49 +60,45 @@ GAN 中的问题
 
 改进 GAN 训练
 
-Wasserstein GAN（WGAN）
+Wasserstein GAN (WGAN)
 
 什么是 Wasserstein 距离？
 
 为什么 Wasserstein 比 JS 或 KL 散度更好？
 
-将 Wasserstein 距离用作 GAN 损失函数
+将 Wasserstein 距离用作 GAN 的损失函数
 
 
-示例：创造新的宝可梦！
+示例：生成新的宝可梦！
 
 参考文献</div>
       
     
       
-        <p>本文解释了生成对抗网络（GAN）模型背后的数学原理，以及为什么它难以训练。Wasserstein GAN 旨在通过采用一种平滑的度量来衡量两个概率分布之间的距离，从而改善 GAN 的训练。</p>
-      
-    
-      
         <p>[2018-09-30 更新：感谢 Yoonju，我们的这篇文章已被翻译成<a href="https://github.com/yjucho1/articles/blob/master/fromGANtoWGAN/readme.md" target="_blank" rel="noopener">韩文</a>！]
 
-[2019-04-18 更新：本文也已在<a href="https://arxiv.org/abs/1904.08994" target="_blank" rel="noopener">arXiv</a>上发布。]</p>
+[2019-04-18 更新：本文也已发布在<a href="https://arxiv.org/abs/1904.08994" target="_blank" rel="noopener">arXiv</a>上。]</p>
       
     
       
-        <p><a href="https://arxiv.org/pdf/1406.2661.pdf" target="_blank" rel="noopener">Generative adversarial network</a>（GAN）在许多生成任务中展现出出色效果，能够复制真实世界中丰富的内容，如图像、人类语言和音乐。它受到博弈论的启发：生成器和判别器两个模型相互竞争，同时又相互促进。然而，训练 GAN 模型相当具有挑战性，人们经常遇到训练不稳定或无法收敛的问题。</p>
+        <p><a href="https://arxiv.org/pdf/1406.2661.pdf" target="_blank" rel="noopener">生成对抗网络</a>（GAN）在许多生成任务中取得了极佳效果，能够复制现实世界中丰富的内容，如图像、人类语言和音乐。其灵感来源于博弈论：生成器和判别器两个模型相互竞争，同时也让彼此变得更强。然而，训练 GAN 模型相当具有挑战性，人们经常面临训练不稳定或无法收敛的问题。</p>
       
     
       
-        <p>在这里，我想解释生成对抗网络框架背后的数学原理，为什么它难以训练，最后介绍一种改进版的 GAN 来解决训练难题。</p>
+        <p>在这里我想解释生成对抗网络框架背后的数学原理，为什么它难以训练，以及最后介绍一种改进版本的 GAN，旨在解决训练困难。</p>
       
     
       
-        <h2>Kullback–Leibler 和 Jensen–Shannon 散度</h2>
+        <h2>Kullback–Leibler 与 Jensen–Shannon 散度</h2>
         
       
     
       
-        <p>在深入研究 GAN 之前，我们先回顾两个用于量化两个概率分布之间相似性的度量。</p>
+        <p>在深入研究 GAN 之前，我们先回顾两个用于量化两个概率分布相似性的度量。</p>
       
     
       
-        <p>(1) <a href="https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence" target="_blank" rel="noopener">KL（Kullback–Leibler）散度</a>衡量一个概率分布<span class="math-inline" data-math="p">p</span>相对于第二个期望概率分布<span class="math-inline" data-math="q">q</span>的差异程度。</p>
+        <p>(1) <a href="https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence" target="_blank" rel="noopener">KL（Kullback–Leibler）散度</a>衡量一个概率分布<span class="math-inline" data-math="p">p</span>相对于另一个期望概率分布<span class="math-inline" data-math="q">q</span>的差异程度。</p>
       
     
       
@@ -114,15 +110,15 @@ D_{KL}(p \| q) = \int_x p(x) \log \frac{p(x)}{q(x)} dx
       
     
       
-        <p>当<span class="math-inline" data-math="p(x)">p(x)</span>在所有地方都等于<span class="math-inline" data-math="q(x)">q(x)</span>时，<span class="math-inline" data-math="D_{KL}">D_{KL}</span>达到最小值零。</p>
+        <p>当<span class="math-inline" data-math="p(x)">p(x)</span>处处等于<span class="math-inline" data-math="q(x)">q(x)</span>时，<span class="math-inline" data-math="D_{KL}">D_{KL}</span>达到最小值零。</p>
       
     
       
-        <p>从公式可以看出，KL 散度是不对称的。当<span class="math-inline" data-math="p(x)">p(x)</span>接近零，但<span class="math-inline" data-math="q(x)">q(x)</span>显著不为零时，<span class="math-inline" data-math="q">q</span>的影响会被忽略。如果我们只是想衡量两个同等重要的分布之间的相似性，这可能会导致错误的结果。</p>
+        <p>从公式可以看出 KL 散度是不对称的。当<span class="math-inline" data-math="p(x)">p(x)</span>接近零而<span class="math-inline" data-math="q(x)">q(x)</span>显著不为零时，<span class="math-inline" data-math="q">q</span>的影响会被忽略。如果我们只是想衡量两个同等重要的分布之间的相似性，这可能会导致错误的结果。</p>
       
     
       
-        <p>(2) <a href="https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence" target="_blank" rel="noopener">Jensen–Shannon 散度</a>是另一种衡量两个概率分布相似性的指标，其取值范围在<span class="math-inline" data-math="[0, 1]">[0, 1]</span>之间。JS 散度是对称的（耶！）并且更加平滑。如果你对 KL 散度和 JS 散度的比较感兴趣，可以查看这个<a href="https://www.quora.com/Why-isnt-the-Jensen-Shannon-divergence-used-more-often-than-the-Kullback-Leibler-since-JS-is-symmetric-thus-possibly-a-better-indicator-of-distance" target="_blank" rel="noopener">Quora 帖子</a>。</p>
+        <p>(2) <a href="https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence" target="_blank" rel="noopener">Jensen–Shannon 散度</a>是另一种衡量两个概率分布相似性的指标，其值被限制在<span class="math-inline" data-math="[0, 1]">[0, 1]</span>范围内。JS 散度是对称的（太好了！）且更加平滑。如果你对 KL 散度与 JS 散度的比较感兴趣，可以查看这个<a href="https://www.quora.com/Why-isnt-the-Jensen-Shannon-divergence-used-more-often-than-the-Kullback-Leibler-since-JS-is-symmetric-thus-possibly-a-better-indicator-of-distance" target="_blank" rel="noopener">Quora 帖子</a>。</p>
       
     
       
@@ -141,11 +137,11 @@ D_{JS}(p \| q) = \frac{1}{2} D_{KL}(p \| \frac{p + q}{2}) + \frac{1}{2} D_{KL}(q
       
     
       
-        <p>有人认为（<a href="https://arxiv.org/pdf/1511.05101.pdf" target="_blank" rel="noopener">Huszar, 2015</a>），GAN 取得巨大成功的原因之一是将传统最大似然方法中不对称的 KL 散度换成了对称的 JS 散度。我们将在下一节进一步讨论这一点。</p>
+        <p>有人认为（<a href="https://arxiv.org/pdf/1511.05101.pdf" target="_blank" rel="noopener">Huszar, 2015</a>），GAN 取得巨大成功的原因之一，是将传统最大似然方法中不对称的 KL 散度换成了对称的 JS 散度。我们将在下一节详细讨论这一点。</p>
       
     
       
-        <h2>生成对抗网络（GAN）</h2>
+        <h2>生成对抗网络 (GAN)</h2>
         
       
     
@@ -154,8 +150,8 @@ D_{JS}(p \| q) = \frac{1}{2} D_{KL}(p \| \frac{p + q}{2}) + \frac{1}{2} D_{KL}(q
       
     
       
-        <div class="list-content">判别器<span class="math-inline" data-math="D">D</span>估计给定样本来自真实数据集的概率。它扮演批评者的角色，经过优化后能够区分假样本和真样本。
-生成器<span class="math-inline" data-math="G">G</span>在给定噪声变量输入<span class="math-inline" data-math="z">z</span>的情况下输出合成样本（<span class="math-inline" data-math="z">z</span>引入了潜在的输出多样性）。它被训练来捕捉真实数据分布，以便其生成的样本尽可能真实，或者说能够欺骗判别器给出较高的概率。</div>
+        <div class="list-content">判别器<span class="math-inline" data-math="D">D</span>负责估计给定样本来自真实数据集的概率。它扮演评审者的角色，经过优化后能够区分假样本和真样本。
+生成器<span class="math-inline" data-math="G">G</span>在给定噪声变量输入<span class="math-inline" data-math="z">z</span>的情况下输出合成样本（<span class="math-inline" data-math="z">z</span>引入了潜在的输出多样性）。它被训练来捕捉真实数据的分布，从而使其生成的样本尽可能真实，或者说能够骗过判别器，使其给出高概率。</div>
       
     
       
@@ -166,7 +162,7 @@ D_{JS}(p \| q) = \frac{1}{2} D_{KL}(p \| \frac{p + q}{2}) + \frac{1}{2} D_{KL}(q
       
     
       
-        <p>这两个模型在训练过程中相互竞争：生成器<span class="math-inline" data-math="G">G</span>努力欺骗判别器，而判别器<span class="math-inline" data-math="D">D</span>则努力不被欺骗。这种有趣的零和博弈促使双方不断提升各自的功能。</p>
+        <p>这两个模型在训练过程中相互对抗：生成器<span class="math-inline" data-math="G">G</span>努力欺骗判别器，而判别器<span class="math-inline" data-math="D">D</span>则努力不被欺骗。这种有趣的零和博弈促使两个模型不断提升自身能力。</p>
       
     
       
@@ -203,15 +199,15 @@ D_{JS}(p \| q) = \frac{1}{2} D_{KL}(p \| \frac{p + q}{2}) + \frac{1}{2} D_{KL}(q
       
     
       
-        <p>一方面，我们希望通过最大化<span class="math-inline" data-math="\mathbb{E}_{x \sim p_{r}(x)} [\log D(x)]">\mathbb{E}_{x \sim p_{r}(x)} [\log D(x)]</span>来确保判别器<span class="math-inline" data-math="D">D</span>对真实数据的判断准确。同时，给定一个假样本<span class="math-inline" data-math="G(z), z \sim p_z(z)">G(z), z \sim p_z(z)</span>，判别器应输出接近零的概率<span class="math-inline" data-math="D(G(z))">D(G(z))</span>，通过最大化<span class="math-inline" data-math="\mathbb{E}_{z \sim p_{z}(z)} [\log (1 - D(G(z)))]">\mathbb{E}_{z \sim p_{z}(z)} [\log (1 - D(G(z)))]</span>实现。</p>
+        <p>一方面，我们希望通过最大化<span class="math-inline" data-math="\mathbb{E}_{x \sim p_{r}(x)} [\log D(x)]">\mathbb{E}_{x \sim p_{r}(x)} [\log D(x)]</span>来确保判别器<span class="math-inline" data-math="D">D</span>对真实数据的判断准确。同时，对于假样本<span class="math-inline" data-math="G(z), z \sim p_z(z)">G(z), z \sim p_z(z)</span>，我们期望判别器输出的概率<span class="math-inline" data-math="D(G(z))">D(G(z))</span>接近零，即通过最大化<span class="math-inline" data-math="\mathbb{E}_{z \sim p_{z}(z)} [\log (1 - D(G(z)))]">\mathbb{E}_{z \sim p_{z}(z)} [\log (1 - D(G(z)))]</span>来实现。</p>
       
     
       
-        <p>另一方面，生成器被训练来增加<span class="math-inline" data-math="D">D</span>对假样本给出高概率的可能性，从而最小化<span class="math-inline" data-math="\mathbb{E}_{z \sim p_{z}(z)} [\log (1 - D(G(z)))]">\mathbb{E}_{z \sim p_{z}(z)} [\log (1 - D(G(z)))]</span>。</p>
+        <p>另一方面，生成器被训练来提高<span class="math-inline" data-math="D">D</span>对假样本给出高概率的可能性，从而最小化<span class="math-inline" data-math="\mathbb{E}_{z \sim p_{z}(z)} [\log (1 - D(G(z)))]">\mathbb{E}_{z \sim p_{z}(z)} [\log (1 - D(G(z)))]</span>。</p>
       
     
       
-        <p>将两方面结合起来，<span class="math-inline" data-math="D">D</span>和<span class="math-inline" data-math="G">G</span>在极小化极大博弈中竞争，我们需要优化以下损失函数：</p>
+        <p>将两方面结合起来，<span class="math-inline" data-math="D">D</span>和<span class="math-inline" data-math="G">G</span>在进行极小化极大博弈，我们需要优化以下损失函数：</p>
       
     
       
@@ -231,11 +227,11 @@ D_{JS}(p \| q) = \frac{1}{2} D_{KL}(p \| \frac{p + q}{2}) + \frac{1}{2} D_{KL}(q
       
     
       
-        <p>（<span class="math-inline" data-math="\mathbb{E}_{x \sim p_{r}(x)} [\log D(x)]">\mathbb{E}_{x \sim p_{r}(x)} [\log D(x)]</span>在梯度下降更新过程中对<span class="math-inline" data-math="G">G</span>没有影响。）</p>
+        <p>（在梯度下降更新过程中，<span class="math-inline" data-math="\mathbb{E}_{x \sim p_{r}(x)} [\log D(x)]">\mathbb{E}_{x \sim p_{r}(x)} [\log D(x)]</span>对<span class="math-inline" data-math="G">G</span>没有影响。）</p>
       
     
       
-        <h2>D 的最优值是什么？</h2>
+        <h2>判别器 D 的最优值是多少？</h2>
         
       
     
@@ -252,7 +248,7 @@ L(G, D) = \int_x \bigg( p_{r}(x) \log(D(x)) + p_g (x) \log(1 - D(x)) \bigg) dx
       
     
       
-        <p>由于我们关心<span class="math-inline" data-math="D(x)">D(x)</span>取什么值能最大化<span class="math-inline" data-math="L(G, D)">L(G, D)</span>，我们将其标记为</p>
+        <p>由于我们关心的是能最大化<span class="math-inline" data-math="L(G, D)">L(G, D)</span>的<span class="math-inline" data-math="D(x)">D(x)</span>的最佳值，让我们将其记为</p>
       
     
       
@@ -268,7 +264,7 @@ B=p_g(x)
       
     
       
-        <p>然后积分内部的内容（我们可以安全地忽略积分，因为<span class="math-inline" data-math="x">x</span>是在所有可能的值上采样的）是：</p>
+        <p>然后积分内部（我们可以安全地忽略积分，因为<span class="math-inline" data-math="x">x</span>是对所有可能值采样的）是：</p>
       
     
       
@@ -368,11 +364,11 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <p>本质上，当判别器达到最优时，GAN 的损失函数通过 JS 散度量化了生成数据分布<span class="math-inline" data-math="p_g">p_g</span>与真实样本分布<span class="math-inline" data-math="p_{r}">p_{r}</span>之间的相似性。能够复制真实数据分布的最佳<span class="math-inline" data-math="G^*">G^*</span>会使<span class="math-inline" data-math="L(G^*, D^*) = -2\log2">L(G^*, D^*) = -2\log2</span>达到最小值，这与上面的公式一致。</p>
+        <p>本质上，当判别器最优时，GAN 的损失函数通过 JS 散度量化了生成数据分布<span class="math-inline" data-math="p_g">p_g</span>与真实样本分布<span class="math-inline" data-math="p_{r}">p_{r}</span>之间的相似性。能够复现真实数据分布的最佳<span class="math-inline" data-math="G^*">G^*</span>会带来最小的<span class="math-inline" data-math="L(G^*, D^*) = -2\log2">L(G^*, D^*) = -2\log2</span>，这与上面的公式一致。</p>
       
     
       
-        <blockquote>GAN 的其他变体：在不同场景或针对不同任务下，GAN 有许多变体。例如，在半监督学习中，一种思路是让判别器输出真实的类别标签<span class="math-inline" data-math="1, \dots, K-1">1, \dots, K-1</span>以及一个假的类别标签<span class="math-inline" data-math="K">K</span>。生成器模型的目标是欺骗判别器输出小于<span class="math-inline" data-math="K">K</span>的分类标签。</blockquote>
+        <blockquote>GAN 的其他变体：在不同场景或为不同任务设计的 GAN 有许多变体。例如，在半监督学习中，一个想法是更新判别器，使其输出真实的类别标签<span class="math-inline" data-math="1, \dots, K-1">1, \dots, K-1</span>以及一个假的类别标签<span class="math-inline" data-math="K">K</span>。生成器模型的目标是欺骗判别器，使其输出的分类标签小于<span class="math-inline" data-math="K">K</span>。</blockquote>
       
     
       
@@ -380,25 +376,25 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <h2>GAN 中的问题</h2>
+        <h2>GAN 的问题</h2>
         
       
     
       
-        <p>尽管 GAN 在逼真图像生成方面取得了巨大成功，但训练并不容易；该过程已知缓慢且不稳定。</p>
+        <p>虽然 GAN 在生成逼真图像方面取得了巨大成功，但训练并不容易；其过程通常缓慢且不稳定。</p>
       
     
       
-        <h2>难以达到 Nash 均衡</h2>
+        <h2>难以达到纳什均衡</h2>
         
       
     
       
-        <p><a href="http://papers.nips.cc/paper/6125-improved-techniques-for-training-gans.pdf" target="_blank" rel="noopener">Salimans et al. (2016)</a>讨论了基于梯度下降的 GAN 训练过程存在的问题。两个模型同时训练以找到一个两人非合作博弈的<a href="https://en.wikipedia.org/wiki/Nash_equilibrium" target="_blank" rel="noopener">Nash 均衡</a>。然而，每个模型独立更新自己的损失，不考虑博弈中的另一方。同时更新两个模型的梯度无法保证收敛。</p>
+        <p><a href="http://papers.nips.cc/paper/6125-improved-techniques-for-training-gans.pdf" target="_blank" rel="noopener">Salimans et al. (2016)</a>讨论了基于梯度下降的 GAN 训练过程存在的问题。两个模型被同时训练，以找到一个两人非合作博弈的<a href="https://en.wikipedia.org/wiki/Nash_equilibrium" target="_blank" rel="noopener">纳什均衡</a>。然而，每个模型都独立更新自己的代价函数，而不考虑博弈中的另一个参与者。同时更新两个模型的梯度无法保证收敛。</p>
       
     
       
-        <p>让我们通过一个简单例子来理解为什么在非合作博弈中难以找到 Nash 均衡。假设一名玩家控制<span class="math-inline" data-math="x">x</span>来最小化<span class="math-inline" data-math="f_1(x) = xy">f_1(x) = xy</span>，同时另一名玩家不断更新<span class="math-inline" data-math="y">y</span>来最小化<span class="math-inline" data-math="f_2(y) = -xy">f_2(y) = -xy</span>。</p>
+        <p>让我们通过一个简单例子来更好地理解为什么在非合作博弈中难以找到纳什均衡。假设一个玩家控制<span class="math-inline" data-math="x">x</span>以最小化<span class="math-inline" data-math="f_1(x) = xy">f_1(x) = xy</span>，同时另一个玩家不断更新<span class="math-inline" data-math="y">y</span>以最小化<span class="math-inline" data-math="f_2(y) = -xy">f_2(y) = -xy</span>。</p>
       
     
       
@@ -409,13 +405,13 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <p>因为<span class="math-inline" data-math="\frac{\partial f_1}{\partial x} = y">\frac{\partial f_1}{\partial x} = y</span>和<span class="math-inline" data-math="\frac{\partial f_2}{\partial y} = -x">\frac{\partial f_2}{\partial y} = -x</span>，我们在一个迭代中同时用<span class="math-inline" data-math="x-\eta \cdot y">x-\eta \cdot y</span>更新<span class="math-inline" data-math="x">x</span>，用<span class="math-inline" data-math="y+ \eta \cdot x">y+ \eta \cdot x</span>更新<span class="math-inline" data-math="y">y</span>，其中<span class="math-inline" data-math="\eta">\eta</span>是学习率。一旦<span class="math-inline" data-math="x">x</span>和<span class="math-inline" data-math="y">y</span>符号不同，每次后续的梯度更新都会导致巨大振荡，而且不稳定性会随时间恶化，如图所示。
+        <p>因为<span class="math-inline" data-math="\frac{\partial f_1}{\partial x} = y">\frac{\partial f_1}{\partial x} = y</span>和<span class="math-inline" data-math="\frac{\partial f_2}{\partial y} = -x">\frac{\partial f_2}{\partial y} = -x</span>，我们在一个迭代中同时用<span class="math-inline" data-math="x-\eta \cdot y">x-\eta \cdot y</span>更新<span class="math-inline" data-math="x">x</span>，用<span class="math-inline" data-math="y+ \eta \cdot x">y+ \eta \cdot x</span>更新<span class="math-inline" data-math="y">y</span>，其中<span class="math-inline" data-math="\eta">\eta</span>是学习率。一旦<span class="math-inline" data-math="x">x</span>和<span class="math-inline" data-math="y">y</span>符号不同，后续的每次梯度更新都会导致剧烈振荡，而且不稳定性会随着时间恶化，如图所示。
 
-更新<span class="math-inline" data-math="x">x</span>以最小化<span class="math-inline" data-math="xy">xy</span>和更新<span class="math-inline" data-math="y">y</span>以最小化<span class="math-inline" data-math="-xy">-xy</span>的模拟示例。学习率为<span class="math-inline" data-math="\eta = 0.1">\eta = 0.1</span>。随着迭代次数增加，振荡变得越来越不稳定。</p>
+更新<span class="math-inline" data-math="x">x</span>以最小化<span class="math-inline" data-math="xy">xy</span>、更新<span class="math-inline" data-math="y">y</span>以最小化<span class="math-inline" data-math="-xy">-xy</span>的模拟示例。学习率<span class="math-inline" data-math="\eta = 0.1">\eta = 0.1</span>。随着迭代次数增加，振荡会越来越不稳定。</p>
       
     
       
-        <h2>低维支撑</h2>
+        <h2>低维支撑集</h2>
         
       
     
@@ -441,19 +437,19 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <p><a href="https://arxiv.org/pdf/1701.04862.pdf" target="_blank" rel="noopener">Arjovsky and Bottou (2017)</a>在一篇非常理论化的论文<a href="https://arxiv.org/pdf/1701.04862.pdf" target="_blank" rel="noopener">《Towards principled methods for training generative adversarial networks》</a>中详细讨论了<span class="math-inline" data-math="p_r">p_r</span>和<span class="math-inline" data-math="p_g">p_g</span>的<a href="https://en.wikipedia.org/wiki/Support_(mathematics)" target="_blank" rel="noopener">支撑</a>位于低维<a href="https://en.wikipedia.org/wiki/Manifold" target="_blank" rel="noopener">流形</a>上，以及这如何导致 GAN 训练不稳定的问题。</p>
+        <p><a href="https://arxiv.org/pdf/1701.04862.pdf" target="_blank" rel="noopener">Arjovsky and Bottou (2017)</a>在一篇非常理论化的论文<a href="https://arxiv.org/pdf/1701.04862.pdf" target="_blank" rel="noopener">“Towards principled methods for training generative adversarial networks”</a>中深入讨论了<span class="math-inline" data-math="p_r">p_r</span>和<span class="math-inline" data-math="p_g">p_g</span>的<a href="https://en.wikipedia.org/wiki/Support_(mathematics)" target="_blank" rel="noopener">支撑集</a>位于低维<a href="https://en.wikipedia.org/wiki/Manifold" target="_blank" rel="noopener">流形</a>上，以及这如何导致 GAN 训练不稳定的问题。</p>
       
     
       
-        <p>许多真实世界数据集的维度（用<span class="math-inline" data-math="p_r">p_r</span>表示）看起来只是人为地很高。它们实际上集中在较低维的流形上。这实际上是<a href="http://scikit-learn.org/stable/modules/manifold.html" target="_blank" rel="noopener">流形学习</a>的基本假设。想想真实世界的图像，一旦主题或包含的对象确定，图像就需要遵循许多限制，例如狗应该有两只耳朵和一条尾巴，摩天大楼应该有笔直高耸的身体等等。这些限制使得图像不可能呈现高维的自由形态。</p>
+        <p>许多现实世界数据集的维度（用<span class="math-inline" data-math="p_r">p_r</span>表示）看起来只是人为地很高。实际上它们都集中在较低维的流形上。这其实是<a href="http://scikit-learn.org/stable/modules/manifold.html" target="_blank" rel="noopener">流形学习</a>的基本假设。想想现实世界的图像，一旦主题或包含的对象确定，图像就会受到很多限制，比如狗应该有两只耳朵和一条尾巴，摩天大楼应该有笔直高大的身躯等等。这些限制使得图像不可能呈现高维的自由形态。</p>
       
     
       
-        <p><span class="math-inline" data-math="p_g">p_g</span>也位于低维流形上。当要求生成器根据一个很小的维度（例如 100）的噪声变量输入<span class="math-inline" data-math="z">z</span>生成 64x64 这样的大图像时，这 4096 个像素上的颜色分布已被 100 维随机向量所限定，几乎无法填满整个高维空间。</p>
+        <p><span class="math-inline" data-math="p_g">p_g</span>也位于低维流形上。当要求生成器根据很小的维度（如 100 维）的噪声变量输入<span class="math-inline" data-math="z">z</span>生成 64x64 这样的大图像时，这 4096 个像素上的颜色分布已被 100 维的随机向量所限定，几乎不可能填满整个高维空间。</p>
       
     
       
-        <p>由于<span class="math-inline" data-math="p_g">p_g</span>和<span class="math-inline" data-math="p_r">p_r</span>都处于低维流形上，它们几乎肯定不相交（见图 4）。当支撑不相交时，我们总能找到一个完美的判别器，100% 正确地区分真实和假样本。如果你对证明感兴趣，可以查看<a href="https://arxiv.org/pdf/1701.04862.pdf" target="_blank" rel="noopener">论文</a>。</p>
+        <p>由于<span class="math-inline" data-math="p_g">p_g</span>和<span class="math-inline" data-math="p_r">p_r</span>都位于低维流形上，它们几乎肯定是不相交的（见图 4）。当支撑集不相交时，我们总是能找到一个完美的判别器，以 100% 的准确率区分真假样本。如果你对证明感兴趣，可以查看<a href="https://arxiv.org/pdf/1701.04862.pdf" target="_blank" rel="noopener">这篇论文</a>。</p>
       
     
       
@@ -469,7 +465,7 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <p>当判别器完美时，我们保证<span class="math-inline" data-math="D(x) = 1, \forall x \in p_r">D(x) = 1, \forall x \in p_r</span>和<span class="math-inline" data-math="D(x) = 0, \forall x \in p_g">D(x) = 0, \forall x \in p_g</span>。因此损失函数<span class="math-inline" data-math="L">L</span>降为零，在学习迭代中我们没有梯度来更新损失。图 5 展示了一个实验：当判别器变得更好时，梯度迅速消失。</p>
+        <p>当判别器完美时，我们保证有<span class="math-inline" data-math="D(x) = 1, \forall x \in p_r">D(x) = 1, \forall x \in p_r</span>和<span class="math-inline" data-math="D(x) = 0, \forall x \in p_g">D(x) = 0, \forall x \in p_g</span>。因此损失函数<span class="math-inline" data-math="L">L</span>下降到零，我们在学习迭代中没有梯度可以用来更新损失。图 5 展示了一个实验：当判别器变好时，梯度会迅速消失。</p>
       
     
       
@@ -484,12 +480,12 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <div class="list-content">如果判别器表现很差，生成器得不到准确的反馈，损失函数无法反映现实。
-如果判别器表现极好，损失函数的梯度会降到接近零，学习变得极其缓慢甚至卡住。</div>
+        <div class="list-content">如果判别器表现糟糕，生成器得不到准确反馈，损失函数无法反映现实。
+如果判别器表现极好，损失函数的梯度会下降到接近零，学习变得极其缓慢甚至停滞。</div>
       
     
       
-        <p>这个两难显然会使 GAN 训练变得非常困难。</p>
+        <p>这个两难困境显然会让 GAN 的训练变得非常困难。</p>
       
     
       
@@ -498,7 +494,7 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <p>在训练过程中，生成器可能会崩溃到一个总是产生相同输出的状态。这是 GAN 的常见失败案例，通常称为模式崩溃。即使生成器能够欺骗对应的判别器，它也无法学会表示复杂的真实世界数据分布，而被困在一个多样性极低的小空间里。</p>
+        <p>在训练过程中，生成器可能会崩溃到一个总是产生相同输出的状态。这是 GAN 的常见失败案例，通常被称为模式崩溃。即使生成器能够骗过对应的判别器，它也未能学会表示复杂的现实世界数据分布，而是被困在一个多样性极低的小空间里。</p>
       
     
       
@@ -514,7 +510,7 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <p>生成对抗网络天生没有一个好的目标函数可以告诉我们训练进展。没有好的评估指标，就像在黑暗中工作。没有好的信号告诉你何时停止；也没有好的指标来比较多个模型的性能。</p>
+        <p>生成对抗网络天生没有一个好的目标函数来告知我们训练进展。没有好的评估指标，就如同在黑暗中工作。没有好的信号告诉你何时停止；也没有好的指标来比较多个模型的性能。</p>
       
     
       
@@ -523,12 +519,12 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <p>以下建议旨在帮助稳定并改善 GAN 的训练。</p>
+        <p>以下建议被提出，用于帮助稳定和改进 GAN 的训练。</p>
       
     
       
-        <p>前五种方法是实现 GAN 训练更快收敛的实用技巧，来自<a href="http://papers.nips.cc/paper/6125-improved-techniques-for-training-gans.pdf" target="_blank" rel="noopener">《Improve Techniques for Training GANs》</a>。
-最后两种方法来自<a href="https://arxiv.org/pdf/1701.04862.pdf" target="_blank" rel="noopener">《Towards principled methods for training generative adversarial networks》</a>，旨在解决分布不相交的问题。</p>
+        <p>前五种方法是实现 GAN 训练更快收敛的实用技巧，提出于<a href="http://papers.nips.cc/paper/6125-improved-techniques-for-training-gans.pdf" target="_blank" rel="noopener">“Improve Techniques for Training GANs”</a>。
+最后两种方法提出于<a href="https://arxiv.org/pdf/1701.04862.pdf" target="_blank" rel="noopener">“Towards principled methods for training generative adversarial networks”</a>，用于解决分布不相交的问题。</p>
       
     
       
@@ -536,7 +532,7 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <p>特征匹配建议优化判别器，使其检查生成器的输出是否匹配真实样本的期望统计量。在这种情况下，新的损失函数定义为<span class="math-inline" data-math="| \mathbb{E}_{x \sim p_r} f(x) - \mathbb{E}_{z \sim p_z(z)}f(G(z)) |_2^2 ">| \mathbb{E}_{x \sim p_r} f(x) - \mathbb{E}_{z \sim p_z(z)}f(G(z)) |_2^2 </span>，其中<span class="math-inline" data-math="f(x)">f(x)</span>可以是任何特征统计量的计算，如均值或中位数。</p>
+        <p>特征匹配建议优化判别器，使其检查生成器的输出是否匹配真实样本的期望统计量。在这种情况下，新的损失函数定义为<span class="math-inline" data-math="| \mathbb{E}_{x \sim p_r} f(x) - \mathbb{E}_{z \sim p_z(z)}f(G(z)) |_2^2 ">| \mathbb{E}_{x \sim p_r} f(x) - \mathbb{E}_{z \sim p_z(z)}f(G(z)) |_2^2 </span>，其中<span class="math-inline" data-math="f(x)">f(x)</span>可以是任何特征统计量的计算，例如均值或中位数。</p>
       
     
       
@@ -548,7 +544,7 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <p>在一个小批量中，我们近似每对样本之间的接近程度<span class="math-inline" data-math="c(x_i, x_j)">c(x_i, x_j)</span>，并通过将它与其他同批次样本的接近程度相加<span class="math-inline" data-math="o(x_i) = \sum_{j} c(x_i, x_j)">o(x_i) = \sum_{j} c(x_i, x_j)</span>来得到一个数据点的整体摘要。然后将<span class="math-inline" data-math="o(x_i)">o(x_i)</span>显式添加到模型的输入中。</p>
+        <p>在一个小批量中，我们近似每对样本之间的 closeness<span class="math-inline" data-math="c(x_i, x_j)">c(x_i, x_j)</span>，并通过对同一个批次中其他样本的 closeness 求和来获得一个数据点的整体摘要<span class="math-inline" data-math="o(x_i) = \sum_{j} c(x_i, x_j)">o(x_i) = \sum_{j} c(x_i, x_j)</span>。然后将<span class="math-inline" data-math="o(x_i)">o(x_i)</span>显式添加到模型的输入中。</p>
       
     
       
@@ -556,7 +552,7 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <p>对两个模型，都将<span class="math-inline" data-math=" | \Theta - \frac{1}{t} \sum_{i=1}^t \Theta_i |^2 "> | \Theta - \frac{1}{t} \sum_{i=1}^t \Theta_i |^2 </span>加入损失函数，其中<span class="math-inline" data-math="\Theta">\Theta</span>是模型参数，<span class="math-inline" data-math="\Theta_i">\Theta_i</span>是过去训练时刻<span class="math-inline" data-math="i">i</span>的参数配置。这部分惩罚会抑制当<span class="math-inline" data-math="\Theta">\Theta</span>随时间变化过于剧烈时的训练速度。</p>
+        <p>对于两个模型，都将<span class="math-inline" data-math=" | \Theta - \frac{1}{t} \sum_{i=1}^t \Theta_i |^2 "> | \Theta - \frac{1}{t} \sum_{i=1}^t \Theta_i |^2 </span>加入损失函数，其中<span class="math-inline" data-math="\Theta">\Theta</span>是模型参数，<span class="math-inline" data-math="\Theta_i">\Theta_i</span>是该参数在过去训练时刻<span class="math-inline" data-math="i">i</span>的配置。这个额外项会在<span class="math-inline" data-math="\Theta">\Theta</span>随时间变化过于剧烈时惩罚训练速度。</p>
       
     
       
@@ -568,11 +564,11 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <p>(5) 虚拟批量归一化（VBN）</p>
+        <p>(5) 虚拟批量归一化 (VBN)</p>
       
     
       
-        <p>每个数据样本基于一个固定的批次（“参考批次”）进行归一化，而不是在其自身的小批量内。参考批次在训练开始时选择一次，并在整个训练过程中保持不变。</p>
+        <p>每个数据样本基于一个固定的批次（“参考批次”）进行归一化，而不是在其自身的小批量内。参考批次在训练开始时选定，并在整个训练过程中保持不变。</p>
       
     
       
@@ -584,7 +580,7 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <p>根据的讨论，我们现在知道<span class="math-inline" data-math="p_r">p_r</span>和<span class="math-inline" data-math="p_g">p_g</span>在高维空间中不相交，这导致了梯度消失问题。为了人为地“铺开”分布并增加两个概率分布重叠的机会，一种解决方案是在判别器<span class="math-inline" data-math="D">D</span>的输入上添加连续噪声。<a href="posts-2017-08-20-gan.html">从 GAN 到 WGAN</a></p>
+        <p>根据的讨论，我们现在知道<span class="math-inline" data-math="p_r">p_r</span>和<span class="math-inline" data-math="p_g">p_g</span>在高维空间中是不相交的，这导致了梯度消失问题。为了人为地“扩散”分布并增加两个概率分布发生重叠的机会，一个解决方案是在判别器<span class="math-inline" data-math="D">D</span>的输入上添加连续噪声。<a href="posts-2017-08-20-gan.html">从 GAN 到 WGAN</a></p>
       
     
       
@@ -596,11 +592,11 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
       
     
       
-        <p><a href="https://en.wikipedia.org/wiki/Wasserstein_metric" target="_blank" rel="noopener">Wasserstein 度量</a>被提出用来替代 JS 散度，因为它具有更加平滑的值空间。详情见下一节。</p>
+        <p><a href="https://en.wikipedia.org/wiki/Wasserstein_metric" target="_blank" rel="noopener">Wasserstein 度量</a>被提出来替代 JS 散度，因为它拥有更加平滑的值空间。详情见下一节。</p>
       
     
       
-        <h2>Wasserstein GAN（WGAN）</h2>
+        <h2>Wasserstein GAN (WGAN)</h2>
         
       
     
@@ -611,16 +607,11 @@ L(G, D^*) = 2D_{JS}(p_{r} \| p_g) - 2\log2
     
       
         <p><a href="https://en.wikipedia.org/wiki/Wasserstein_metric" target="_blank" rel="noopener">Wasserstein 距离</a>是衡量两个概率分布之间距离的指标。
-它也被称为 Earth Mover’s 距离，简称 EM 距离，因为通俗来说，它可以解释为将一堆形状为一种概率分布的“土”搬运并变换成另一种分布形状所需的最小能量成本。成本由搬运的土量乘以搬运距离来量化。</p>
+它也被称为 Earth Mover’s 距离，简称 EM 距离，因为从非正式意义上讲，它可以理解为将一堆形状为一种概率分布的“泥土”搬运并变换成另一种分布形状所需的最小能量成本。成本由以下量化：搬运泥土的数量乘以搬运距离。</p>
       
     
       
-        <p>https://en.wikipedia.org/wiki/Hungarian_algorithm
-https://en.wikipedia.org/wiki/Transportation_theory_(mathematics)</p>
-      
-    
-      
-        <p>我们先看一个概率域是离散的简单例子。假设我们有两个分布<span class="math-inline" data-math="P">P</span>和<span class="math-inline" data-math="Q">Q</span>，每个都有四堆土，总共十铲土。每堆土的铲数分配如下：</p>
+        <p>我们先看一个概率域是离散的简单情况。例如，假设我们有两个分布<span class="math-inline" data-math="P">P</span>和<span class="math-inline" data-math="Q">Q</span>，每个都有四堆泥土，总共十铲泥土。每堆泥土的铲数分配如下：</p>
       
     
       
@@ -648,7 +639,7 @@ https://en.wikipedia.org/wiki/Transportation_theory_(mathematics)</p>
       
     
       
-        <p>如果我们把让<span class="math-inline" data-math="P_i">P_i</span>和<span class="math-inline" data-math="Q_i">Q_i</span>匹配所需付出的成本标记为<span class="math-inline" data-math="\delta_i">\delta_i</span>，那么我们有<span class="math-inline" data-math="\delta_{i+1} = \delta_i + P_i - Q_i">\delta_{i+1} = \delta_i + P_i - Q_i</span>，在本例中为：</p>
+        <p>如果我们把让<span class="math-inline" data-math="P_i">P_i</span>和<span class="math-inline" data-math="Q_i">Q_i</span>匹配所需支付的成本记为<span class="math-inline" data-math="\delta_i">\delta_i</span>，那么我们有<span class="math-inline" data-math="\delta_{i+1} = \delta_i + P_i - Q_i">\delta_{i+1} = \delta_i + P_i - Q_i</span>，在本例中为：</p>
       
     
       
@@ -672,7 +663,7 @@ https://en.wikipedia.org/wiki/Transportation_theory_(mathematics)</p>
       
     
       
-        <p>最终 Earth Mover’s 距离是<span class="math-inline" data-math="W = \sum \vert \delta_i \vert = 5">W = \sum \vert \delta_i \vert = 5</span>。</p>
+        <p>最终 Earth Mover’s 距离为<span class="math-inline" data-math="W = \sum \vert \delta_i \vert = 5">W = \sum \vert \delta_i \vert = 5</span>。</p>
       
     
       
@@ -695,11 +686,11 @@ W(p_r, p_g) = \inf_{\gamma \sim \Pi(p_r, p_g)} \mathbb{E}_{(x, y) \sim \gamma}[\
       
     
       
-        <p>在上面的公式中，<span class="math-inline" data-math="\Pi(p_r, p_g)">\Pi(p_r, p_g)</span>是<span class="math-inline" data-math="p_r">p_r</span>和<span class="math-inline" data-math="p_g">p_g</span>之间所有可能的联合概率分布的集合。一个联合分布<span class="math-inline" data-math="\gamma \in \Pi(p_r, p_g)">\gamma \in \Pi(p_r, p_g)</span>描述了一种泥土运输方案，与上面的离散例子相同，只不过是在连续概率空间中。精确地说，<span class="math-inline" data-math="\gamma(x, y)">\gamma(x, y)</span>表示应该从点<span class="math-inline" data-math="x">x</span>到点<span class="math-inline" data-math="y">y</span>运输百分之多少的土，才能使<span class="math-inline" data-math="x">x</span>遵循与<span class="math-inline" data-math="y">y</span>相同的概率分布。这就是为什么<span class="math-inline" data-math="x">x</span>上的边缘分布加起来等于<span class="math-inline" data-math="p_g">p_g</span>，<span class="math-inline" data-math="\sum_{x} \gamma(x, y) = p_g(y)">\sum_{x} \gamma(x, y) = p_g(y)</span>（一旦我们按照计划把每种可能的<span class="math-inline" data-math="x">x</span>的土搬运到目标<span class="math-inline" data-math="y">y</span>，最终得到的结果正好符合<span class="math-inline" data-math="p_g">p_g</span>所描述的<span class="math-inline" data-math="y">y</span>。）反之亦然<span class="math-inline" data-math="\sum_{y} \gamma(x, y) = p_r(x)">\sum_{y} \gamma(x, y) = p_r(x)</span>。</p>
+        <p>在上面的公式中，<span class="math-inline" data-math="\Pi(p_r, p_g)">\Pi(p_r, p_g)</span>是<span class="math-inline" data-math="p_r">p_r</span>和<span class="math-inline" data-math="p_g">p_g</span>之间所有可能的联合概率分布的集合。一个联合分布<span class="math-inline" data-math="\gamma \in \Pi(p_r, p_g)">\gamma \in \Pi(p_r, p_g)</span>描述了一种泥土搬运方案，与上面离散例子相同，但在连续概率空间中。具体来说<span class="math-inline" data-math="\gamma(x, y)">\gamma(x, y)</span>表示应该从点<span class="math-inline" data-math="x">x</span>到点<span class="math-inline" data-math="y">y</span>搬运百分之多少的泥土，才能使<span class="math-inline" data-math="x">x</span>遵循与<span class="math-inline" data-math="y">y</span>相同的概率分布。这就是为什么<span class="math-inline" data-math="x">x</span>上的边缘分布加起来等于<span class="math-inline" data-math="p_g">p_g</span>、<span class="math-inline" data-math="\sum_{x} \gamma(x, y) = p_g(y)">\sum_{x} \gamma(x, y) = p_g(y)</span>（一旦我们完成从每个可能的<span class="math-inline" data-math="x">x</span>搬运计划数量的泥土到目标<span class="math-inline" data-math="y">y</span>，最终得到的结果正好是<span class="math-inline" data-math="y">y</span>根据<span class="math-inline" data-math="p_g">p_g</span>所拥有的分布），反之亦然<span class="math-inline" data-math="\sum_{y} \gamma(x, y) = p_r(x)">\sum_{y} \gamma(x, y) = p_r(x)</span>。</p>
       
     
       
-        <p>当把<span class="math-inline" data-math="x">x</span>视为起点、<span class="math-inline" data-math="y">y</span>视为终点时，搬运的总土量是<span class="math-inline" data-math="\gamma(x, y)">\gamma(x, y)</span>，旅行距离是<span class="math-inline" data-math="| x-y |">| x-y |</span>，因此成本是<span class="math-inline" data-math="\gamma(x, y) \cdot | x-y |">\gamma(x, y) \cdot | x-y |</span>。所有<span class="math-inline" data-math="(x,y)">(x,y)</span>对的平均期望成本可以很容易地计算为：</p>
+        <p>将<span class="math-inline" data-math="x">x</span>视为起点、<span class="math-inline" data-math="y">y</span>视为终点时，搬运泥土的总量是<span class="math-inline" data-math="\gamma(x, y)">\gamma(x, y)</span>，旅行距离是<span class="math-inline" data-math="| x-y |">| x-y |</span>，因此成本是<span class="math-inline" data-math="\gamma(x, y) \cdot | x-y |">\gamma(x, y) \cdot | x-y |</span>。对所有<span class="math-inline" data-math="(x,y)">(x,y)</span>对取平均的期望成本可以很容易地计算为：</p>
       
     
       
@@ -713,7 +704,7 @@ W(p_r, p_g) = \inf_{\gamma \sim \Pi(p_r, p_g)} \mathbb{E}_{(x, y) \sim \gamma}[\
       
     
       
-        <p>最后，我们在所有搬运方案的成本中取最小的一个作为 EM 距离。在 Wasserstein 距离的定义中，<span class="math-inline" data-math="\inf">\inf</span>（<a href="https://en.wikipedia.org/wiki/Infimum_and_supremum" target="_blank" rel="noopener">下确界</a>，也称为最大下界）表示我们只关心最小的成本。</p>
+        <p>最后，我们在所有搬运方案的成本中取最小的一个作为 EM 距离。在 Wasserstein 距离的定义中，<span class="math-inline" data-math="\inf">\inf</span>（<a href="https://en.wikipedia.org/wiki/Infimum_and_supremum" target="_blank" rel="noopener">下确界</a>，也称为最大下界）表示我们只对最小的成本感兴趣。</p>
       
     
       
@@ -726,7 +717,7 @@ W(p_r, p_g) = \inf_{\gamma \sim \Pi(p_r, p_g)} \mathbb{E}_{(x, y) \sim \gamma}[\
       
     
       
-        <p>WGAN 论文用一个简单例子说明了这个思想。</p>
+        <p>WGAN 论文用一个简单例子说明了这个想法。</p>
       
     
       
@@ -791,11 +782,11 @@ W(P, Q) &amp;= 0 = \lvert \theta \rvert
       
     
       
-        <p><span class="math-inline" data-math="D_{KL}">D_{KL}</span>在两个分布不相交时给出无穷大。<span class="math-inline" data-math="D_{JS}">D_{JS}</span>的值会出现突跳，在<span class="math-inline" data-math="\theta = 0">\theta = 0</span>处不可导。只有 Wasserstein 度量能提供平滑的度量，这对使用梯度下降进行稳定学习过程非常有帮助。</p>
+        <p><span class="math-inline" data-math="D_{KL}">D_{KL}</span>在两个分布不相交时给出无穷大。<span class="math-inline" data-math="D_{JS}">D_{JS}</span>的值会发生突变，在<span class="math-inline" data-math="\theta = 0">\theta = 0</span>处不可导。只有 Wasserstein 度量能提供平滑的度量，这对使用梯度下降进行稳定学习过程非常有帮助。</p>
       
     
       
-        <h2>将 Wasserstein 距离用作 GAN 损失函数</h2>
+        <h2>将 Wasserstein 距离用作 GAN 的损失函数</h2>
         
       
     
@@ -812,7 +803,7 @@ W(p_r, p_g) = \frac{1}{K} \sup_{\| f \|_L \leq K} \mathbb{E}_{x \sim p_r}[f(x)] 
       
     
       
-        <p>其中<span class="math-inline" data-math="\sup">\sup</span>（<a href="https://en.wikipedia.org/wiki/Infimum_and_supremum" target="_blank" rel="noopener">上确界</a>）是<span class="math-inline" data-math="inf">inf</span>（下确界）的对立面；我们想要衡量最小上界，或者用更简单的话说，就是最大值。</p>
+        <p>其中<span class="math-inline" data-math="\sup">\sup</span>（<a href="https://en.wikipedia.org/wiki/Infimum_and_supremum" target="_blank" rel="noopener">上确界</a>）是<span class="math-inline" data-math="inf">inf</span>（下确界）的对立面；我们想要度量最小上界，或者用更简单的话说，就是最大值。</p>
       
     
       
@@ -836,15 +827,15 @@ W(p_r, p_g) = \frac{1}{K} \sup_{\| f \|_L \leq K} \mathbb{E}_{x \sim p_r}[f(x)] 
       
     
       
-        <p>这里<span class="math-inline" data-math="K">K</span>被称为函数<span class="math-inline" data-math="f(.)">f(.)</span>的 Lipschitz 常数。处处连续可导的函数是 Lipschitz 连续的，因为其导数估计为<span class="math-inline" data-math="\frac{\lvert f(x_1) - f(x_2) \rvert}{\lvert x_1 - x_2 \rvert}">\frac{\lvert f(x_1) - f(x_2) \rvert}{\lvert x_1 - x_2 \rvert}</span>是有界的。然而，Lipschitz 连续函数可能并非处处可导，例如<span class="math-inline" data-math="f(x) = \lvert x \rvert">f(x) = \lvert x \rvert</span>。</p>
+        <p>这里<span class="math-inline" data-math="K">K</span>被称为函数<span class="math-inline" data-math="f(.)">f(.)</span>的 Lipschitz 常数。处处连续可导的函数是 Lipschitz 连续的，因为导数估计为<span class="math-inline" data-math="\frac{\lvert f(x_1) - f(x_2) \rvert}{\lvert x_1 - x_2 \rvert}">\frac{\lvert f(x_1) - f(x_2) \rvert}{\lvert x_1 - x_2 \rvert}</span>是有界的。然而，一个 Lipschitz 连续的函数可能并非处处可导，例如<span class="math-inline" data-math="f(x) = \lvert x \rvert">f(x) = \lvert x \rvert</span>。</p>
       
     
       
-        <p>解释 Wasserstein 距离公式如何变换本身值得写一篇长文，所以这里我跳过细节。如果你对如何用线性规划计算 Wasserstein 度量，或如何根据 Kantorovich-Rubinstein 对偶性将其转化为对偶形式感兴趣，可以阅读这篇<a href="https://vincentherrmann.github.io/blog/wasserstein/" target="_blank" rel="noopener">精彩文章</a>。</p>
+        <p>解释 Wasserstein 距离公式如何变换本身就值得写一篇长文，所以这里我跳过细节。如果你对如何用线性规划计算 Wasserstein 度量，或者如何根据 Kantorovich-Rubinstein 对偶性将其转化为对偶形式感兴趣，可以阅读这篇<a href="https://vincentherrmann.github.io/blog/wasserstein/" target="_blank" rel="noopener">精彩文章</a>。</p>
       
     
       
-        <p>假设这个函数<span class="math-inline" data-math="f">f</span>来自一族 K-Lipschitz 连续函数<span class="math-inline" data-math="\{ f_w \}_{w \in W}">\{ f_w \}_{w \in W}</span>，由<span class="math-inline" data-math="w">w</span>参数化。在改进的 Wasserstein-GAN 中，“判别器”模型用于学习<span class="math-inline" data-math="w">w</span>以找到一个好的<span class="math-inline" data-math="f_w">f_w</span>，损失函数被配置为衡量<span class="math-inline" data-math="p_r">p_r</span>和<span class="math-inline" data-math="p_g">p_g</span>之间的 Wasserstein 距离。</p>
+        <p>假设这个函数<span class="math-inline" data-math="f">f</span>来自一族 K-Lipschitz 连续函数<span class="math-inline" data-math="\{ f_w \}_{w \in W}">\{ f_w \}_{w \in W}</span>，由<span class="math-inline" data-math="w">w</span>参数化。在改进的 Wasserstein-GAN 中，“判别器”模型被用来学习<span class="math-inline" data-math="w">w</span>以找到一个好的<span class="math-inline" data-math="f_w">f_w</span>，损失函数被配置为衡量<span class="math-inline" data-math="p_r">p_r</span>和<span class="math-inline" data-math="p_g">p_g</span>之间的 Wasserstein 距离。</p>
       
     
       
@@ -856,11 +847,11 @@ L(p_r, p_g) = W(p_r, p_g) = \max_{w \in W} \mathbb{E}_{x \sim p_r}[f_w(x)] - \ma
       
     
       
-        <p>因此，“判别器”不再是直接区分真假样本的批评者。相反，它被训练来学习一个<span class="math-inline" data-math="K">K</span>-Lipschitz 连续函数，以帮助计算 Wasserstein 距离。随着训练中损失函数下降，Wasserstein 距离变小，生成器模型的输出越来越接近真实数据分布。</p>
+        <p>因此，“判别器”不再是直接判断假样本与真样本的评审者。相反，它被训练来学习一个<span class="math-inline" data-math="K">K</span>-Lipschitz 连续函数，以帮助计算 Wasserstein 距离。随着训练中损失函数的下降，Wasserstein 距离变小，生成器模型的输出越来越接近真实数据分布。</p>
       
     
       
-        <p>一个重大问题是需要在训练过程中保持<span class="math-inline" data-math="K">K</span>的<span class="math-inline" data-math="f_w">f_w</span>的 Lipschitz 连续性以保证一切正常工作。论文提出了一种简单但非常实用的技巧：在每次梯度更新后，将权重<span class="math-inline" data-math="w">w</span>裁剪到一个小的窗口，例如<span class="math-inline" data-math="[-0.01, 0.01]">[-0.01, 0.01]</span>，从而得到一个紧凑的参数空间<span class="math-inline" data-math="W">W</span>，于是<span class="math-inline" data-math="f_w">f_w</span>获得其上下界以保持 Lipschitz 连续性。</p>
+        <p>一个重大问题是需要在训练过程中保持<span class="math-inline" data-math="K">K</span>的<span class="math-inline" data-math="f_w">f_w</span>的 Lipschitz 连续性，以确保一切正常运行。论文提出一个简单但非常实用的技巧：在每次梯度更新后，将权重<span class="math-inline" data-math="w">w</span>裁剪到一个很小的窗口，例如<span class="math-inline" data-math="[-0.01, 0.01]">[-0.01, 0.01]</span>，从而得到一个紧凑的参数空间<span class="math-inline" data-math="W">W</span>，这样<span class="math-inline" data-math="f_w">f_w</span>就获得了其下界和上界，以保持 Lipschitz 连续性。</p>
       
     
       
@@ -875,31 +866,31 @@ L(p_r, p_g) = W(p_r, p_g) = \max_{w \in W} \mathbb{E}_{x \sim p_r}[f_w(x)] - \ma
       
     
       
-        <div class="list-content">在每次对批评者函数进行梯度更新后，将权重裁剪到固定范围<span class="math-inline" data-math="[-c, c]">[-c, c]</span>。
-使用从 Wasserstein 距离推导出的新损失函数，不再包含对数。“判别器”模型不再作为直接的批评者，而是作为估计真实和生成数据分布之间 Wasserstein 度量的辅助工具。
-作者根据经验推荐在批评者上使用<a href="http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf" target="_blank" rel="noopener">RMSProp</a>优化器，而不是基于动量的优化器如<a href="https://arxiv.org/abs/1412.6980v8" target="_blank" rel="noopener">Adam</a>，后者可能导致训练不稳定。我还没有看到对此点的清晰理论解释。</div>
+        <div class="list-content">在每次对判别函数进行梯度更新后，将权重裁剪到一个固定的小范围<span class="math-inline" data-math="[-c, c]">[-c, c]</span>。
+使用从 Wasserstein 距离推导出的新损失函数，不再使用对数。“判别器”模型不再作为直接的评审者，而是作为估计真实数据分布与生成数据分布之间 Wasserstein 度量的辅助工具。
+作者根据经验推荐在判别器上使用<a href="http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf" target="_blank" rel="noopener">RMSProp</a>优化器，而不是基于动量的优化器如<a href="https://arxiv.org/abs/1412.6980v8" target="_blank" rel="noopener">Adam</a>，后者可能导致模型训练不稳定。我尚未看到对此的清晰理论解释。</div>
       
     
       
-        <p>遗憾的是，Wasserstein GAN 并不完美。即使是原始 WGAN 论文的作者也提到“权重裁剪显然是一种很糟糕的强制 Lipschitz 约束的方式”（哎呀！）。WGAN 仍然会遇到训练不稳定、权重裁剪后收敛缓慢（当裁剪窗口太大时），以及梯度消失（当裁剪窗口太小时）的问题。</p>
+        <p>遗憾的是，Wasserstein GAN 并不完美。即使是原始 WGAN 论文的作者也提到“权重裁剪显然是一种糟糕的强制执行 Lipschitz 约束的方式”（哎呀！）。WGAN 仍然会遇到训练不稳定、权重裁剪后收敛缓慢（当裁剪窗口太大时），以及梯度消失（当裁剪窗口太小时）的问题。</p>
       
     
       
-        <p>一些改进，特别是用梯度惩罚代替权重裁剪，已在<a href="https://arxiv.org/pdf/1704.00028.pdf" target="_blank" rel="noopener">Gulrajani et al. 2017</a>中讨论。我将在以后的文章中介绍。</p>
+        <p>一些改进，特别是用梯度惩罚代替权重裁剪，已在<a href="https://arxiv.org/pdf/1704.00028.pdf" target="_blank" rel="noopener">Gulrajani et al. 2017</a>中讨论。我将把它留到以后的文章中。</p>
       
     
       
-        <h2>示例：创造新的宝可梦！</h2>
+        <h2>示例：生成新的宝可梦！</h2>
         
       
     
       
-        <p>纯属娱乐，我在<a href="https://github.com/PokeAPI/sprites/" target="_blank" rel="noopener">Pokemon sprites</a>这个只有 900 张左右图片的小数据集上尝试了<a href="https://github.com/carpedm20/DCGAN-tensorflow" target="_blank" rel="noopener">carpedm20/DCGAN-tensorflow</a>。数据集包含不同形态的同一宝可梦物种。</p>
+        <p>纯属娱乐，我在一个很小的数据集上尝试了<a href="https://github.com/carpedm20/DCGAN-tensorflow" target="_blank" rel="noopener">carpedm20/DCGAN-tensorflow</a>，该数据集是<a href="https://github.com/PokeAPI/sprites/" target="_blank" rel="noopener">宝可梦精灵图</a>。数据集只有大约 900 张宝可梦图像，包括同一物种的不同形态。</p>
       
     
       
-        <p>来看看模型能创造出哪些类型的新宝可梦。
-可惜由于训练数据太少，新宝可梦只有粗略的形状，没有细节。不过随着训练 epoch 增加，形状和颜色看起来越来越好！耶！</p>
+        <p>让我们看看模型能够创造出什么类型的新宝可梦。
+可惜由于训练数据太少，新宝可梦只有粗略的形状而没有细节。随着训练 epoch 增加，形状和颜色看起来确实更好！耶！</p>
       
     
       
@@ -910,11 +901,11 @@ L(p_r, p_g) = W(p_r, p_g) = \max_{w \in W} \mathbb{E}_{x \sim p_r}[f_w(x)] - \ma
       
     
       
-        <p>如果你对带注释版本的<a href="https://github.com/carpedm20/DCGAN-tensorflow" target="_blank" rel="noopener">carpedm20/DCGAN-tensorflow</a>以及如何修改它来训练 WGAN 和带梯度惩罚的 WGAN 感兴趣，可以查看<a href="https://github.com/lilianweng/unified-gan-tensorflow" target="_blank" rel="noopener">lilianweng/unified-gan-tensorflow</a>。</p>
+        <p>如果你对<a href="https://github.com/carpedm20/DCGAN-tensorflow" target="_blank" rel="noopener">carpedm20/DCGAN-tensorflow</a>的带注释版本以及如何修改它来训练 WGAN 和带梯度惩罚的 WGAN 感兴趣，可以查看<a href="https://github.com/lilianweng/unified-gan-tensorflow" target="_blank" rel="noopener">lilianweng/unified-gan-tensorflow</a>。</p>
       
     
       
-        <p>引用格式：</p>
+        <p>引用方式：</p>
       
     
       

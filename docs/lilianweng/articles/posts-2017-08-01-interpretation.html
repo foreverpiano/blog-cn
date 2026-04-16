@@ -45,17 +45,17 @@
 随机森林
 
 
-解释黑盒模型
+解释黑箱模型
 
 预测分解
 
 局部梯度解释向量
 
-LIME（局部可解释与模型无关的解释）
+LIME（局部可解释模型无关解释）
 
 特征选择
 
-BETA（通过透明近似实现黑盒解释）
+BETA（通过透明近似实现的黑箱解释）
 
 
 可解释人工智能
@@ -64,30 +64,26 @@ BETA（通过透明近似实现黑盒解释）
       
     
       
-        <p>本文回顾了模型可解释性领域的一些研究，涵盖两个方面：(i) 具有模型特定解释方法的可解释模型；(ii) 解释黑盒模型的方法。最后我还加入了对可解释人工智能的开放讨论。</p>
+        <p>机器学习模型已经开始渗透到医疗保健、司法系统和金融行业等关键领域。因此，弄清楚模型如何做出决策，并确保决策过程符合伦理要求或法律法规，已成为必要。</p>
       
     
       
-        <p>机器学习模型已经开始渗透到医疗保健、司法系统和金融行业等关键领域。因此，弄清楚模型如何做出决策，并确保决策过程符合道德要求或法律法规，已成为必要。</p>
+        <p>与此同时，深度学习模型的快速发展进一步增加了对复杂模型进行解释的需求。人们渴望将人工智能的力量全面应用于日常生活的关键方面。然而，如果对模型缺乏足够信任，或者没有有效的程序来解释意外行为，就很难做到这一点，尤其是考虑到深度神经网络天生就是黑箱。</p>
       
     
       
-        <p>与此同时，深度学习模型的快速发展进一步推高了对解释复杂模型的需求。人们渴望将AI的力量全面应用于日常生活的关键方面。然而，如果对模型缺乏足够信任，或者没有有效的方法来解释意外行为，就很难做到这一点，尤其是考虑到深度神经网络天生就是黑盒。</p>
+        <p>想想以下情况：</p>
       
     
       
-        <p>想想以下这些场景：</p>
+        <div class="list-content">金融行业受到高度监管，贷款发放机构必须依法做出公平决策，并在拒绝贷款申请时解释其信用模型并提供理由。
+医疗诊断模型关系到人的生命。我们如何才能足够自信地按照黑箱模型的指示治疗患者？
+在法庭上使用刑事判决模型预测再犯风险时，我们必须确保模型以公平、诚实且非歧视性的方式运作。
+如果一辆自动驾驶汽车突然行为异常，而我们无法解释原因，我们是否会放心在大规模真实交通环境中使用这项技术？</div>
       
     
       
-        <div class="list-content">金融行业受到高度监管，贷款机构必须依法做出公平决策，并在拒绝贷款申请时解释其信用模型，提供具体理由。
-医疗诊断模型关乎人类生命。我们如何能足够自信地按照一个黑盒模型的指示去治疗病人？
-当在法庭上使用犯罪决策模型预测累犯风险时，我们必须确保模型的行为是公平、诚实且无歧视的。
-如果一辆自动驾驶汽车突然表现异常，而我们无法解释原因，我们是否会放心在大规模真实交通环境中使用这项技术？</div>
-      
-    
-      
-        <p>在 <a href="https://www.affirm.com/" target="_blank" rel="noopener">Affirm</a>，我们每天发放数以万计的分期贷款，当模型拒绝某人的贷款申请时，我们的核保模型必须提供拒绝理由。这也是我深入研究并撰写这篇文章的众多动机之一。模型可解释性是机器学习中的一个重要领域。本文并非要穷尽所有研究，而是作为一个起点。</p>
+        <p>在 <a href="https://www.affirm.com/" target="_blank" rel="noopener">Affirm</a>，我们每天发放数以万计的分期贷款，当模型拒绝某人的贷款申请时，我们的承保模型必须提供拒绝理由。这也是我深入研究并撰写这篇文章的众多动机之一。模型可解释性是机器学习领域的一个重要课题。本文绝非旨在穷尽每一项研究，而是作为一个起点。</p>
       
     
       
@@ -96,11 +92,11 @@ BETA（通过透明近似实现黑盒解释）
       
     
       
-        <p>Lipton (2017) 在一篇理论综述论文 <a href="https://arxiv.org/pdf/1606.03490.pdf" target="_blank" rel="noopener">“The mythos of model interpretability”</a> 中总结了可解释模型的特性：人类能够重复（“可模拟性”）整个计算过程，并完全理解算法（“算法透明性”），同时模型的每个组成部分都有直观的解释（“可分解性”）。</p>
+        <p>Lipton（2017）在一篇理论综述论文 <a href="https://arxiv.org/pdf/1606.03490.pdf" target="_blank" rel="noopener">“The mythos of model interpretability”</a> 中总结了可解释模型的特性：人类能够重复（“可模拟性”）整个计算过程，并对算法有完整理解（“算法透明性”），同时模型的每个个体部分都有直观的解释（“可分解性”）。</p>
       
     
       
-        <p>许多经典模型结构相对简单，自然地配有模型特定的解释方法。同时，新的工具也在不断开发，以帮助构建更好的可解释模型（<a href="http://papers.nips.cc/paper/6300-examples-are-not-enough-learn-to-criticize-criticism-for-interpretability.pdf" target="_blank" rel="noopener">Been, Khanna, &amp;amp; Koyejo, 2016</a>；<a href="http://www.kdd.org/kdd2016/papers/files/rpp1067-lakkarajuA.pdf" target="_blank" rel="noopener">Lakkaraju, Bach &amp;amp; Leskovec, 2016</a>）。</p>
+        <p>许多经典模型结构相对简单，自然带有模型特定的解释方法。与此同时，新的工具正在被开发出来，以帮助创建更好的可解释模型（<a href="http://papers.nips.cc/paper/6300-examples-are-not-enough-learn-to-criticize-criticism-for-interpretability.pdf" target="_blank" rel="noopener">Been, Khanna, &amp;amp; Koyejo, 2016</a>；<a href="http://www.kdd.org/kdd2016/papers/files/rpp1067-lakkarajuA.pdf" target="_blank" rel="noopener">Lakkaraju, Bach &amp;amp; Leskovec, 2016</a>）。</p>
       
     
       
@@ -121,7 +117,7 @@ y = w_0 + w_1 x_1 + w_2 x_2 + … + w_n x_n
       
     
       
-        <p>系数描述了自变量每增加一个单位所引起的响应变量的变化。除非特征已经标准化（参见 sklearn.preprocessing.<a href="http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html#sklearn.preprocessing.StandardScaler" target="_blank" rel="noopener">StandardScalar</a> 和 <a href="http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html#sklearn.preprocessing.RobustScaler" target="_blank" rel="noopener">RobustScaler</a>），否则系数不能直接比较，因为不同特征的一个单位可能代表完全不同的事物。在未标准化的情况下，乘积 <span class="math-inline" data-math="w_i \dot x_i">w_i \dot x_i</span> 可用于量化一个特征对响应的贡献程度。</p>
+        <p>系数描述了自变量每增加一个单位所引起的响应变量的变化。除非特征已经标准化（请查阅 sklearn.preprocessing.<a href="http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html#sklearn.preprocessing.StandardScaler" target="_blank" rel="noopener">StandardScalar</a> 和 <a href="http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html#sklearn.preprocessing.RobustScaler" target="_blank" rel="noopener">RobustScaler</a>），否则系数无法直接比较，因为不同特征的一个单位可能代表完全不同的事物。在未标准化的情况下，乘积 <span class="math-inline" data-math="w_i \dot x_i">w_i \dot x_i</span> 可用于量化一个特征对响应的贡献。</p>
       
     
       
@@ -130,11 +126,11 @@ y = w_0 + w_1 x_1 + w_2 x_2 + … + w_n x_n
       
     
       
-        <p>朴素贝叶斯之所以被称为“朴素”，是因为它基于一个极度简化的假设：各特征相互独立，并且每个特征都独立地对输出做出贡献。</p>
+        <p>朴素贝叶斯之所以称为“朴素”，是因为它基于一个非常简化的假设：特征之间相互独立，且每个特征都独立地对输出做出贡献。</p>
       
     
       
-        <p>给定一个特征向量 <span class="math-inline" data-math="\mathbf{x} = [x_1, x_2, \dots, x_n]">\mathbf{x} = [x_1, x_2, \dots, x_n]</span> 和一个类别标签 <span class="math-inline" data-math="c \in \{1, 2, \dots, C\}">c \in \{1, 2, \dots, C\}</span>，该数据点属于这个类别的概率为：</p>
+        <p>给定特征向量 <span class="math-inline" data-math="\mathbf{x} = [x_1, x_2, \dots, x_n]">\mathbf{x} = [x_1, x_2, \dots, x_n]</span> 和类别标签 <span class="math-inline" data-math="c \in \{1, 2, \dots, C\}">c \in \{1, 2, \dots, C\}</span>，该数据点属于此类的概率为：</p>
       
     
       
@@ -177,7 +173,7 @@ p(c | x_1, x_2, \dots, x_n)
       
     
       
-        <p>决策列表是一组布尔函数，通常用类似 if... then... else... 的语法构建。if 条件包含一个涉及一个或多个特征的函数，并输出布尔值。决策列表天生具有良好的可解释性，可以用树形结构可视化。许多关于决策列表的研究都由医疗应用驱动，在这些领域中，可解释性几乎与模型本身同样重要。</p>
+        <p>决策列表是一组布尔函数，通常以 if... then... else... 的语法构建。if 条件包含一个涉及一个或多个特征的函数，并输出布尔值。决策列表天生具有良好的可解释性，可以用树状结构可视化。许多关于决策列表的研究都由医疗应用驱动，在这些领域中，可解释性几乎与模型本身同样重要。</p>
       
     
       
@@ -185,9 +181,9 @@ p(c | x_1, x_2, \dots, x_n)
       
     
       
-        <div class="list-content"><a href="http://proceedings.mlr.press/v38/wang15a.pdf" target="_blank" rel="noopener">Falling Rule Lists (FRL)</a>（Wang and Rudin, 2015）在特征值上完全强制了单调性。例如在二分类场景中，一个关键点是与每条规则关联的预测概率 <span class="math-inline" data-math="Y=1">Y=1</span> 随着决策列表向下移动而递减。
-<a href="https://arxiv.org/abs/1511.01644" target="_blank" rel="noopener">Bayesian Rule List (BRL)</a>（Letham et al., 2015）是一种生成模型，能产生可能决策列表的后验分布。
-<a href="https://cs.stanford.edu/people/jure/pubs/interpretable-kdd16.pdf" target="_blank" rel="noopener">Interpretable Decision Sets (IDS)</a>（Lakkaraju, Bach &amp; Leskovec, 2016）是一个预测框架，用于创建一组分类规则。其学习过程同时针对准确性和可解释性进行优化。IDS 与我稍后将介绍的用于解释黑盒模型的 <a href="posts-2017-08-01-interpretation.html">如何解释机器学习模型的预测？</a> BETA 方法密切相关。</div>
+        <div class="list-content"><a href="http://proceedings.mlr.press/v38/wang15a.pdf" target="_blank" rel="noopener">Falling Rule Lists (FRL)</a>（Wang and Rudin, 2015）在特征值上完全强制实施单调性。例如，在二分类背景下，一个关键点是随着决策列表向下移动，每条规则关联的预测概率 <span class="math-inline" data-math="Y=1">Y=1</span> 会逐渐降低。
+<a href="https://arxiv.org/abs/1511.01644" target="_blank" rel="noopener">Bayesian Rule List (BRL)</a>（Letham et al., 2015）是一种生成模型，能产生关于可能决策列表的后验分布。
+<a href="https://cs.stanford.edu/people/jure/pubs/interpretable-kdd16.pdf" target="_blank" rel="noopener">Interpretable Decision Sets (IDS)</a>（Lakkaraju, Bach &amp; Leskovec, 2016）是一个创建分类规则集的预测框架。其学习过程同时针对准确性和可解释性进行优化。IDS 与我将在 <a href="posts-2017-08-01-interpretation.html">如何解释机器学习模型的预测？</a> 介绍的用于解释黑箱模型的 BETA 方法密切相关。</div>
       
     
       
@@ -196,32 +192,32 @@ p(c | x_1, x_2, \dots, x_n)
       
     
       
-        <p>奇怪的是，许多人认为 <a href="http://www.math.univ-toulouse.fr/~agarivie/Telecom/apprentissage/articles/randomforest2001.pdf" target="_blank" rel="noopener">Random Forests</a> 模型是黑盒，这并不正确。因为随机森林的输出是由大量独立决策树进行多数投票得到的，而每棵树本身就是可解释的。</p>
+        <p>奇怪的是，许多人认为 <a href="http://www.math.univ-toulouse.fr/~agarivie/Telecom/apprentissage/articles/randomforest2001.pdf" target="_blank" rel="noopener">Random Forests</a> 模型是一个黑箱，这并不正确。因为随机森林的输出是由大量独立决策树通过多数投票得出的，而每棵树本身就是可解释的。</p>
       
     
       
-        <p>如果我们每次只看一棵树，就不难衡量单个特征的影响。随机森林的全局特征重要性可以通过整个集成中所有树上节点不纯度减少量的总和取平均来量化（“平均不纯度减少”）。</p>
+        <p>如果我们一次只查看一棵树，那么衡量单个特征的影响并不困难。随机森林的全局特征重要性可以通过整个集成中所有树的节点不纯度总减少量的平均值（“平均不纯度减少”）来量化。</p>
       
     
       
-        <p>对于单个实例，由于所有树中的决策路径都被清楚记录，我们可以使用父节点中数据点的均值与子节点均值之间的差异来近似该分裂的贡献。更多内容可阅读这一系列博客文章：<a href="http://blog.datadive.net/interpreting-random-forests/" target="_blank" rel="noopener">Interpreting Random Forests</a>。</p>
+        <p>对于单个实例，由于所有树中的决策路径都被良好跟踪，我们可以使用父节点中数据点的均值与子节点均值之间的差异来近似此次分裂的贡献。更多内容可阅读这一系列博客文章：<a href="http://blog.datadive.net/interpreting-random-forests/" target="_blank" rel="noopener">Interpreting Random Forests</a>。</p>
       
     
       
-        <h2>解释黑盒模型#</h2>
+        <h2>解释黑箱模型#</h2>
         
       
     
       
-        <p>许多模型并非设计为可解释的。解释黑盒模型的方法旨在从训练好的模型中提取信息，以证明其预测结果，而无需了解模型内部的具体工作原理。让解释过程独立于模型实现，这对现实世界应用非常有利：即使基础模型不断升级和改进，构建在其之上的解释引擎也不必担心这些变化。</p>
+        <p>许多模型在设计时并没有考虑可解释性。解释黑箱模型的方法旨在从训练好的模型中提取信息，以证明其预测结果，而无需了解模型内部的具体工作原理。将解释过程与模型实现保持独立，有利于实际应用：即使基础模型不断升级和优化，构建在其之上的解释引擎也不必担心这些变化。</p>
       
     
       
-        <p>由于无需担心保持模型透明和可解释，我们可以通过增加更多参数和非线性计算来赋予模型更强的表达能力。这正是深度神经网络在处理丰富输入的任务中取得成功的原因。</p>
+        <p>由于无需担心模型的透明性和可解释性，我们可以通过增加更多参数和非线性计算来赋予模型更强的表达能力。这就是深度神经网络在处理丰富输入的任务中取得成功的原因。</p>
       
     
       
-        <p>对于解释应该如何呈现并没有硬性要求，但主要目标是回答：我可以信任这个模型吗？当我们依赖模型做出关键或生死攸关的决策时，我们必须提前确保模型值得信任。</p>
+        <p>对于解释应该如何呈现并没有严格要求，但首要目标主要是回答：我可以信任这个模型吗？当我们依赖模型做出关键或生死攸关的决策时，我们必须提前确保模型是可信的。</p>
       
     
       
@@ -230,7 +226,7 @@ p(c | x_1, x_2, \dots, x_n)
     
       
         <div class="list-content">保真度：解释产生的预测应尽可能与原始模型一致。
-可解释性：解释应足够简单，人类能够理解。</div>
+可解释性：解释应足够简单，以便人类理解。</div>
       
     
       
@@ -243,11 +239,11 @@ p(c | x_1, x_2, \dots, x_n)
       
     
       
-        <p><a href="http://lkm.fri.uni-lj.si/rmarko/papers/RobnikSikonjaKononenko08-TKDE.pdf" target="_blank" rel="noopener">Robnik-Sikonja and Kononenko (2008)</a> 提出，通过衡量原始预测与省略一部分特征后得到的预测之间的差异，来解释模型对单个实例的预测。</p>
+        <p><a href="http://lkm.fri.uni-lj.si/rmarko/papers/RobnikSikonjaKononenko08-TKDE.pdf" target="_blank" rel="noopener">Robnik-Sikonja and Kononenko (2008)</a> 提出，通过衡量原始预测与省略一组特征后得到的预测之间的差异，来解释模型对单个实例的预测。</p>
       
     
       
-        <p>假设我们需要为一个分类模型 <span class="math-inline" data-math="f: \mathbf{X} \rightarrow \mathbf{Y}">f: \mathbf{X} \rightarrow \mathbf{Y}</span> 生成解释。给定一个由 <span class="math-inline" data-math="a">a</span> 个属性 <span class="math-inline" data-math="A_i">A_i</span>、<span class="math-inline" data-math="i = 1, \dots, a">i = 1, \dots, a</span> 的取值组成的数据点 <span class="math-inline" data-math="x \in X">x \in X</span>，其标签为类别 <span class="math-inline" data-math="y \in Y">y \in Y</span>。预测差异通过计算模型在知道与不知道 <span class="math-inline" data-math="A_i">A_i</span> 情况下的预测概率之差来量化：</p>
+        <p>假设我们需要为分类模型 <span class="math-inline" data-math="f: \mathbf{X} \rightarrow \mathbf{Y}">f: \mathbf{X} \rightarrow \mathbf{Y}</span> 生成解释。给定一个由属性 <span class="math-inline" data-math="A_i">A_i</span> 的 <span class="math-inline" data-math="a">a</span> 个个体值 <span class="math-inline" data-math="i = 1, \dots, a">i = 1, \dots, a</span> 组成、标记为类别 <span class="math-inline" data-math="y \in Y">y \in Y</span> 的数据点 <span class="math-inline" data-math="x \in X">x \in X</span>。预测差异通过计算模型在知道与不知道 <span class="math-inline" data-math="A_i">A_i</span> 情况下的预测概率之差来量化：</p>
       
     
       
@@ -259,15 +255,15 @@ p(c | x_1, x_2, \dots, x_n)
       
     
       
-        <p>（论文还讨论了使用优势比或基于熵的信息度量来量化预测差异。）</p>
+        <p>（该论文还讨论了使用优势比或基于熵的信息度量来量化预测差异。）</p>
       
     
       
-        <p>问题：如果目标模型输出概率，那就很好，获取 <span class="math-inline" data-math=" p(y \vert x) "> p(y \vert x) </span> 非常直接。否则，模型预测必须经过适当的后置建模校准，将预测分数转换为概率。这一校准层又增加了一层复杂性。</p>
+        <p>问题：如果目标模型输出概率，那就很好，得到 <span class="math-inline" data-math=" p(y \vert x) "> p(y \vert x) </span> 很简单。否则，模型预测必须经过适当的后验建模校准，将预测分数转换为概率。这一校准层又增加了额外的复杂性。</p>
       
     
       
-        <p>另一个问题：如果我们通过将 <span class="math-inline" data-math="A_i">A_i</span> 替换为缺失值（如 None、NaN 等）来生成 <span class="math-inline" data-math="x \backslash A_i">x \backslash A_i</span>，就必须依赖模型内部的缺失值填补机制。用中位数填补缺失值的模型，其输出会与使用特殊占位符填补的模型大不相同。论文中提出的一个解决方案是，将 <span class="math-inline" data-math="A_i">A_i</span> 替换为该特征所有可能的值，然后对预测结果按每个值在数据中出现的可能性进行加权求和：</p>
+        <p>另一个问题：如果我们通过用缺失值（例如 None、NaN 等）替换 <span class="math-inline" data-math="A_i">A_i</span> 来生成 <span class="math-inline" data-math="x \backslash A_i">x \backslash A_i</span>，则必须依赖模型内部的缺失值填补机制。用中位数替换缺失值的模型，其输出会与使用特殊占位符填补的模型大不相同。论文中提出的一种解决方案是用该特征的所有可能值替换 <span class="math-inline" data-math="A_i">A_i</span>，然后按每个值在数据中出现的可能性加权求和预测值：</p>
       
     
       
@@ -287,11 +283,11 @@ p(y \vert x \backslash A_i)
       
     
       
-        <p>其中 <span class="math-inline" data-math="p(y \vert x \leftarrow A_i=a_s)">p(y \vert x \leftarrow A_i=a_s)</span> 是在特征向量 <span class="math-inline" data-math="x">x</span> 中用值 <span class="math-inline" data-math="a_s">a_s</span> 替换特征 <span class="math-inline" data-math="A_i">A_i</span> 后，得到标签 <span class="math-inline" data-math="y">y</span> 的概率。训练集中特征 <span class="math-inline" data-math="A_i">A_i</span> 有 <span class="math-inline" data-math="m_i">m_i</span> 个唯一值。</p>
+        <p>其中 <span class="math-inline" data-math="p(y \vert x \leftarrow A_i=a_s)">p(y \vert x \leftarrow A_i=a_s)</span> 是如果我们在 <span class="math-inline" data-math="x">x</span> 的特征向量中用值 <span class="math-inline" data-math="a_s">a_s</span> 替换特征 <span class="math-inline" data-math="A_i">A_i</span> 时，得到标签 <span class="math-inline" data-math="y">y</span> 的概率。在训练集中，<span class="math-inline" data-math="A_i">A_i</span> 有 <span class="math-inline" data-math="m_i">m_i</span> 个唯一值。</p>
       
     
       
-        <p>借助省略已知特征时的预测差异度量，我们可以分解每个单个特征对预测的影响。</p>
+        <p>借助省略已知特征时的预测差异度量，我们可以分解每个个体特征对预测的影响。</p>
       
     
       
@@ -307,11 +303,11 @@ p(y \vert x \backslash A_i)
       
     
       
-        <p>该方法（<a href="http://www.jmlr.org/papers/volume11/baehrens10a/baehrens10a.pdf" target="_blank" rel="noopener">Baehrens, et al. 2010</a>）能够解释任意非线性分类算法在局部做出的决策，它使用局部梯度来刻画需要如何移动一个数据点才能改变其预测标签。</p>
+        <p>该方法（<a href="http://www.jmlr.org/papers/volume11/baehrens10a/baehrens10a.pdf" target="_blank" rel="noopener">Baehrens, et al. 2010</a>）能够使用局部梯度来解释任意非线性分类算法在局部做出的决策，这些梯度描述了数据点需要如何移动才能改变其预测标签。</p>
       
     
       
-        <p>假设我们有一个在数据集 <span class="math-inline" data-math="X">X</span> 上训练的 <a href="https://en.wikipedia.org/wiki/Bayes_classifier" target="_blank" rel="noopener">Bayes Classifier</a>，它输出关于类别标签 <span class="math-inline" data-math="Y">Y</span>、<span class="math-inline" data-math="p(Y=y \vert X=x)">p(Y=y \vert X=x)</span> 的概率分布。某个类别标签 <span class="math-inline" data-math="y">y</span> 是从类别标签集合 <span class="math-inline" data-math="\{1, 2, \dots, C\}">\{1, 2, \dots, C\}</span> 中抽取的。该贝叶斯分类器构造如下：</p>
+        <p>假设我们有一个在数据集 <span class="math-inline" data-math="X">X</span> 上训练的 <a href="https://en.wikipedia.org/wiki/Bayes_classifier" target="_blank" rel="noopener">Bayes Classifier</a>，它输出关于类别标签 <span class="math-inline" data-math="Y">Y</span>、<span class="math-inline" data-math="p(Y=y \vert X=x)">p(Y=y \vert X=x)</span> 的概率。从类别标签池 <span class="math-inline" data-math="\{1, 2, \dots, C\}">\{1, 2, \dots, C\}</span> 中抽取一个类别标签 <span class="math-inline" data-math="y">y</span>。这个贝叶斯分类器构造如下：</p>
       
     
       
@@ -323,15 +319,15 @@ f^{*}(x)  = \arg \min_{c \in \{1, \dots, C\}} p(Y \neq c \vert X = x)
       
     
       
-        <p>局部解释向量被定义为在测试点 <span class="math-inline" data-math="x = x_0">x = x_0</span> 处概率预测函数的导数。该向量中较大的分量表明对应特征对模型决策有较大影响；正号表示增加该特征会降低分配给 <span class="math-inline" data-math="f^{*}(x_0)">f^{*}(x_0)</span> 的 <span class="math-inline" data-math="x_0">x_0</span> 概率。</p>
+        <p>局部解释向量被定义为在测试点 <span class="math-inline" data-math="x = x_0">x = x_0</span> 处概率预测函数的导数。该向量中较大的条目突出了对模型决策有重大影响的特征；正号表示增加该特征会降低分配给 <span class="math-inline" data-math="f^{*}(x_0)">f^{*}(x_0)</span> 的 <span class="math-inline" data-math="x_0">x_0</span> 概率。</p>
       
     
       
-        <p>然而，这种方法要求模型输出是概率（类似于上面的 <a href="posts-2017-08-01-interpretation.html">如何解释机器学习模型的预测？</a> 方法）。如果原始模型（记为 <span class="math-inline" data-math="f">f</span>）没有校准到能输出概率怎么办？论文建议，我们可以用另一个形式上类似贝叶斯分类器 <span class="math-inline" data-math="f^{*}">f^{*}</span> 的分类器来近似 <span class="math-inline" data-math="f">f</span>：</p>
+        <p>然而，这种方法要求模型输出是概率（类似于上面的 <a href="posts-2017-08-01-interpretation.html">如何解释机器学习模型的预测？</a> 方法）。如果原始模型（标记为 <span class="math-inline" data-math="f">f</span>）没有被校准以产生概率怎么办？论文建议，我们可以通过另一个形式上类似于贝叶斯分类器 <span class="math-inline" data-math="f^{*}">f^{*}</span> 的分类器来近似 <span class="math-inline" data-math="f">f</span>：</p>
       
     
       
-        <p>(1) 对训练数据应用 <a href="https://en.wikipedia.org/?title=Parzen_window&amp;amp;redirect=no" target="_blank" rel="noopener">Parzen window</a> 来估计加权类别密度：</p>
+        <p>（1）对训练数据应用 <a href="https://en.wikipedia.org/?title=Parzen_window&amp;amp;redirect=no" target="_blank" rel="noopener">Parzen window</a> 来估计加权类别密度：</p>
       
     
       
@@ -343,11 +339,11 @@ f^{*}(x)  = \arg \min_{c \in \{1, \dots, C\}} p(Y \neq c \vert X = x)
       
     
       
-        <p>其中 <span class="math-inline" data-math="I_c">I_c</span> 是被模型 <span class="math-inline" data-math="f">f</span> 分配到类别 <span class="math-inline" data-math="c">c</span> 的数据点索引集合，<span class="math-inline" data-math="I_c = \{i \vert f(x_i) = c\}">I_c = \{i \vert f(x_i) = c\}</span>。<span class="math-inline" data-math="k_{\sigma}">k_{\sigma}</span> 是一个核函数。高斯核是 <a href="https://en.wikipedia.org/wiki/Kernel_(statistics)#Kernel_functions_in_common_use" target="_blank" rel="noopener">众多候选</a> 中常用的一个。</p>
+        <p>其中 <span class="math-inline" data-math="I_c">I_c</span> 是被模型 <span class="math-inline" data-math="f">f</span> 分配到类别 <span class="math-inline" data-math="c">c</span> 的数据点索引集合 <span class="math-inline" data-math="I_c = \{i \vert f(x_i) = c\}">I_c = \{i \vert f(x_i) = c\}</span>。<span class="math-inline" data-math="k_{\sigma}">k_{\sigma}</span> 是一个核函数。高斯核是 <a href="https://en.wikipedia.org/wiki/Kernel_(statistics)#Kernel_functions_in_common_use" target="_blank" rel="noopener">众多候选</a> 中常用的一种。</p>
       
     
       
-        <p>(2) 然后，应用贝叶斯定理来近似所有类别的概率 <span class="math-inline" data-math="p(Y=c \vert X=x)">p(Y=c \vert X=x)</span>：</p>
+        <p>（2）然后，应用贝叶斯规则来近似所有类别的概率 <span class="math-inline" data-math="p(Y=c \vert X=x)">p(Y=c \vert X=x)</span>：</p>
       
     
       
@@ -367,7 +363,7 @@ f^{*}(x)  = \arg \min_{c \in \{1, \dots, C\}} p(Y \neq c \vert X = x)
       
     
       
-        <p>(3) 最终估计的贝叶斯分类器形式为：</p>
+        <p>（3）最终估计的贝叶斯分类器形式为：</p>
       
     
       
@@ -379,7 +375,7 @@ f^{*}(x)  = \arg \min_{c \in \{1, \dots, C\}} p(Y \neq c \vert X = x)
       
     
       
-        <p>注意，我们可以使用原始模型 <span class="math-inline" data-math="f">f</span> 生成任意数量的带标签数据，不受训练数据规模的限制。超参数 <span class="math-inline" data-math="\sigma">\sigma</span> 的选择旨在优化 <span class="math-inline" data-math="\hat{f}_{\sigma}(x) = f(x)">\hat{f}_{\sigma}(x) = f(x)</span> 获得高保真度的可能性。</p>
+        <p>注意，我们可以使用原始模型 <span class="math-inline" data-math="f">f</span> 生成任意数量的带标签数据，不受训练数据规模的限制。超参数 <span class="math-inline" data-math="\sigma">\sigma</span> 被选择为优化 <span class="math-inline" data-math="\hat{f}_{\sigma}(x) = f(x)">\hat{f}_{\sigma}(x) = f(x)</span> 达到高保真度的机会。</p>
       
     
       
@@ -390,29 +386,29 @@ f^{*}(x)  = \arg \min_{c \in \{1, \dots, C\}} p(Y \neq c \vert X = x)
       
     
       
-        <blockquote>旁注：如你所见，上述两种方法都要求模型预测是概率。对模型输出进行校准又增加了一层复杂性。</blockquote>
+        <blockquote>旁注：如你所见，上述两种方法都需要模型预测是概率。对模型输出进行校准又增加了一层复杂性。</blockquote>
       
     
       
-        <h2>LIME（局部可解释与模型无关的解释）#</h2>
+        <h2>LIME（局部可解释模型无关解释）#</h2>
         
       
     
       
-        <p><a href="https://github.com/marcotcr/lime" target="_blank" rel="noopener">LIME</a>，全称 Local Interpretable Model-agnostic Explanations，能够在我们感兴趣的预测附近局部地近似一个黑盒模型（<a href="https://arxiv.org/pdf/1602.04938.pdf" target="_blank" rel="noopener">Ribeiro, Singh, &amp;amp; Guestrin, 2016</a>）。</p>
+        <p><a href="https://github.com/marcotcr/lime" target="_blank" rel="noopener">LIME</a>，即 Local Interpretable Model-agnostic Explanations 的缩写，能够在我们感兴趣的预测附近局部近似黑箱模型（<a href="https://arxiv.org/pdf/1602.04938.pdf" target="_blank" rel="noopener">Ribeiro, Singh, &amp;amp; Guestrin, 2016</a>）。</p>
       
     
       
-        <p>与前面一样，我们将黑盒模型标记为 <span class="math-inline" data-math="f">f</span>。LIME 的步骤如下：</p>
+        <p>与上面一样，我们将黑箱模型标记为 <span class="math-inline" data-math="f">f</span>。LIME 的步骤如下：</p>
       
     
       
-        <p>(1) 将数据集转换为可解释的数据表示：<span class="math-inline" data-math="x \Rightarrow x_b">x \Rightarrow x_b</span>。</p>
+        <p>（1）将数据集转换为可解释的数据表示：<span class="math-inline" data-math="x \Rightarrow x_b">x \Rightarrow x_b</span>。</p>
       
     
       
-        <div class="list-content">文本分类器：用二元向量表示单词是否存在
-图像分类器：用二元向量表示相似像素的连续块（超像素）是否存在。</div>
+        <div class="list-content">文本分类器：用二进制向量表示单词的存在或缺失
+图像分类器：用二进制向量表示相似像素的连续块（超像素）的存在或缺失。</div>
       
     
       
@@ -423,15 +419,15 @@ f^{*}(x)  = \arg \min_{c \in \{1, \dots, C\}} p(Y \neq c \vert X = x)
       
     
       
-        <p>(2) 给定一个预测 <span class="math-inline" data-math="f(x)">f(x)</span> 及其对应的可解释数据表示 <span class="math-inline" data-math="x_b">x_b</span>，我们通过从 <span class="math-inline" data-math="x_b">x_b</span> 的非零元素中均匀随机抽样（抽样次数也均匀随机）来在 <span class="math-inline" data-math="x_b">x_b</span> 周围采样实例。该过程生成一个扰动样本 <span class="math-inline" data-math="z_b">z_b</span>，其中包含 <span class="math-inline" data-math="x_b">x_b</span> 中一部分非零元素。</p>
+        <p>（2）给定一个带有对应可解释数据表示 <span class="math-inline" data-math="x_b">x_b</span> 的预测 <span class="math-inline" data-math="f(x)">f(x)</span>，我们通过从 <span class="math-inline" data-math="x_b">x_b</span> 的非零元素中均匀随机抽样（抽样数量也均匀采样）来在 <span class="math-inline" data-math="x_b">x_b</span> 周围生成样本实例。这个过程会生成一个扰动样本 <span class="math-inline" data-math="z_b">z_b</span>，其中包含 <span class="math-inline" data-math="x_b">x_b</span> 中一部分非零元素。</p>
       
     
       
-        <p>然后我们将 <span class="math-inline" data-math="z_b">z_b</span> 恢复为原始输入 <span class="math-inline" data-math="z">z</span>，并用目标模型获得预测分数 <span class="math-inline" data-math="f(z)">f(z)</span>。</p>
+        <p>然后我们将 <span class="math-inline" data-math="z_b">z_b</span> 恢复为原始输入 <span class="math-inline" data-math="z">z</span>，并通过目标模型获得预测分数 <span class="math-inline" data-math="f(z)">f(z)</span>。</p>
       
     
       
-        <p>使用大量这样的采样数据点 <span class="math-inline" data-math="z_b \in \mathcal{Z}_b">z_b \in \mathcal{Z}_b</span> 及其模型预测，我们可以学习一个具有局部保真度的解释模型（例如形式简单的回归）。采样数据点根据与 <span class="math-inline" data-math="x_b">x_b</span> 的接近程度被赋予不同的权重。论文使用了带预处理的 lasso 回归，预先选择 top <span class="math-inline" data-math="k">k</span> 个最重要的特征，称为“K-LASSO”。</p>
+        <p>使用大量这样的采样数据点 <span class="math-inline" data-math="z_b \in \mathcal{Z}_b">z_b \in \mathcal{Z}_b</span> 及其模型预测，我们可以学习一个具有局部保真度的解释模型（例如形式简单的回归）。采样数据点会根据它们与 <span class="math-inline" data-math="x_b">x_b</span> 的接近程度被赋予不同的权重。论文使用了带预处理的 Lasso 回归，事先选择前 <span class="math-inline" data-math="k">k</span> 个最重要的特征，称为“K-LASSO”。</p>
       
     
       
@@ -442,7 +438,7 @@ f^{*}(x)  = \arg \min_{c \in \{1, \dots, C\}} p(Y \neq c \vert X = x)
       
     
       
-        <p>检查解释是否合理可以直接判断模型是否可信，因为有时模型会捕捉到虚假的相关性或泛化。论文中一个有趣的例子是将 LIME 应用于一个区分“Christianity”和“Atheism”的 SVM 文本分类器。该模型达到了相当好的准确率（在留出测试集上达到94%！），但 LIME 解释显示决策是基于非常任意的理由，例如统计“re”、“posting”和“host”这些与“Christianity”或“Atheism”都没有直接关系的词。经过这样的诊断，我们了解到即使模型给出不错的准确率，它也无法被信任。这也为改进模型提供了思路，例如对文本进行更好的预处理。</p>
+        <p>检查解释是否合理可以直接决定模型是否可信，因为有时模型会捕捉到虚假的相关性或泛化。论文中一个有趣的例子是将 LIME 应用于区分“Christianity”和“Atheism”的 SVM 文本分类器。该模型达到了相当好的准确率（在留出测试集上达到 94%！），但 LIME 解释显示决策是基于非常任意的理由做出的，例如统计“re”、“posting”和“host”这些词，而这些词与“Christianity”或“Atheism”都没有直接关系。经过这样的诊断，我们意识到即使模型给出不错的准确率，它也不可信。这也为改进模型提供了启发，例如对文本进行更好的预处理。</p>
       
     
       
@@ -453,11 +449,11 @@ f^{*}(x)  = \arg \min_{c \in \{1, \dots, C\}} p(Y \neq c \vert X = x)
       
     
       
-        <p>想了解更多非论文的详细解释，请阅读作者撰写的 <a href="https://www.oreilly.com/learning/introduction-to-local-interpretable-model-agnostic-explanations-lime" target="_blank" rel="noopener">这篇博客文章</a>。非常值得一读。</p>
+        <p>想了解更详细的非论文解释，请阅读作者的 <a href="https://www.oreilly.com/learning/introduction-to-local-interpretable-model-agnostic-explanations-lime" target="_blank" rel="noopener">这篇博客文章</a>。非常值得一读。</p>
       
     
       
-        <blockquote>旁注：局部解释模型理论上比全局解释更容易，但更难维护（想想 <a href="https://en.wikipedia.org/wiki/Curse_of_dimensionality" target="_blank" rel="noopener">维度灾难</a>）。下面介绍的方法旨在从整体上解释模型的行为。然而，全局方法无法捕捉细粒度的解释，例如一个特征在这个区域重要，但在另一个区域可能完全不重要。</blockquote>
+        <blockquote>旁注：局部解释模型理论上应该比全局解释更容易，但更难维护（想想 <a href="https://en.wikipedia.org/wiki/Curse_of_dimensionality" target="_blank" rel="noopener">维度灾难</a>）。下面描述的方法旨在从整体上解释模型的行为。然而，全局方法无法捕捉细粒度的解释，例如某个特征在这个区域重要，但在另一个区域可能完全不重要。</blockquote>
       
     
       
@@ -466,24 +462,24 @@ f^{*}(x)  = \arg \min_{c \in \{1, \dots, C\}} p(Y \neq c \vert X = x)
       
     
       
-        <p>本质上，所有经典的特征选择方法（<a href="http://www.surdeanu.info/mihai/teaching/ista555-spring15/readings/yang97comparative.pdf" target="_blank" rel="noopener">Yang and Pedersen, 1997</a>；<a href="http://www.jmlr.org/papers/volume3/guyon03a/guyon03a.pdf" target="_blank" rel="noopener">Guyon and Elisseeff, 2003</a>）都可以视为全局解释模型的方式。特征选择方法将多个特征的贡献进行分解，从而我们可以用单个特征的影响来解释整体模型输出。</p>
+        <p>本质上，所有经典的特征选择方法（<a href="http://www.surdeanu.info/mihai/teaching/ista555-spring15/readings/yang97comparative.pdf" target="_blank" rel="noopener">Yang and Pedersen, 1997</a>；<a href="http://www.jmlr.org/papers/volume3/guyon03a/guyon03a.pdf" target="_blank" rel="noopener">Guyon and Elisseeff, 2003</a>）都可以视为全局解释模型的方式。特征选择方法分解了多个特征的贡献，从而我们可以用单个特征的影响来解释整体模型输出。</p>
       
     
       
-        <p>关于特征选择有大量资源，因此本文跳过这个主题。</p>
+        <p>关于特征选择有大量资源，因此本文将跳过这个主题。</p>
       
     
       
-        <h2>BETA（通过透明近似实现黑盒解释）#</h2>
+        <h2>BETA（通过透明近似实现的黑箱解释）#</h2>
         
       
     
       
-        <p><a href="https://arxiv.org/abs/1707.01154" target="_blank" rel="noopener">BETA</a>，全称 Black Box Explanation through Transparent Approximations，与 <a href="https://cs.stanford.edu/people/jure/pubs/interpretable-kdd16.pdf" target="_blank" rel="noopener">Interpretable Decision Sets</a>（Lakkaraju, Bach &amp; Leskovec, 2016）密切相关。BETA 学习一个紧凑的两层决策集，其中每条规则都能明确解释模型行为的一部分。</p>
+        <p><a href="https://arxiv.org/abs/1707.01154" target="_blank" rel="noopener">BETA</a>，即 Black Box Explanation through Transparent Approximations 的缩写，与 <a href="https://cs.stanford.edu/people/jure/pubs/interpretable-kdd16.pdf" target="_blank" rel="noopener">Interpretable Decision Sets</a>（Lakkaraju, Bach &amp; Leskovec, 2016）密切相关。BETA 学习一个紧凑的两层决策集，其中每条规则都能明确解释模型行为的一部分。</p>
       
     
       
-        <p>作者提出了一种新颖的目标函数，使得学习过程同时针对高保真度（解释与模型之间高度一致）、低歧义性（解释中决策规则重叠少）和高可解释性（解释决策集轻量且规模小）进行优化。这些方面被组合到一个目标函数中进行优化。</p>
+        <p>作者提出了一种新颖的目标函数，使得学习过程在高保真度（解释与模型之间的高度一致性）、低模糊性（解释中决策规则之间重叠少）以及高可解释性（解释决策集轻量且规模小）之间进行优化。这些方面被合并到一个目标函数中进行优化。</p>
       
     
       
@@ -499,15 +495,15 @@ f^{*}(x)  = \arg \min_{c \in \{1, \dots, C\}} p(Y \neq c \vert X = x)
       
     
       
-        <p>本节标题借用了 DARPA 项目 <a href="https://www.darpa.mil/program/explainable-artificial-intelligence" target="_blank" rel="noopener">“Explainable Artificial Intelligence”</a> 的名称。该可解释 AI（XAI）计划旨在开发更具可解释性的模型，并让人类能够理解、适度信任并有效管理新一代人工智能技术。</p>
+        <p>本节标题借用了 DARPA 项目 <a href="https://www.darpa.mil/program/explainable-artificial-intelligence" target="_blank" rel="noopener">“Explainable Artificial Intelligence”</a> 的名称。该 Explainable AI（XAI）计划旨在开发更具可解释性的模型，并使人类能够理解、适度信任并有效管理新一代人工智能技术。</p>
       
     
       
-        <p>随着深度学习应用的进步，人们开始担心 <a href="https://www.technologyreview.com/s/601860/if-a-driverless-car-goes-bad-we-may-never-know-why/" target="_blank" rel="noopener">即使模型出问题，我们可能永远不知道原因</a>。复杂的结构、大量可学习参数、非线性数学运算以及 <a href="https://arxiv.org/abs/1312.6199" target="_blank" rel="noopener">一些有趣的特性</a>（Szegedy et al., 2014）导致深度神经网络难以解释，形成真正的黑盒。尽管深度学习的力量正是源于这种复杂性——它能更灵活地捕捉现实世界数据中丰富而复杂的模式。</p>
+        <p>随着深度学习应用的进展，人们开始担忧 <a href="https://www.technologyreview.com/s/601860/if-a-driverless-car-goes-bad-we-may-never-know-why/" target="_blank" rel="noopener">即使模型出错，我们也可能永远不知道</a>。复杂的结构、大量可学习参数、非线性数学运算以及 <a href="https://arxiv.org/abs/1312.6199" target="_blank" rel="noopener">一些有趣的特性</a>（Szegedy et al., 2014）导致深度神经网络难以解释，形成了一个真正的黑箱。尽管深度学习的强大能力正是源于这种复杂性——它能更灵活地捕捉现实世界数据中丰富而复杂的模式。</p>
       
     
       
-        <p>对抗样本的研究（<a href="https://blog.openai.com/robust-adversarial-inputs/" target="_blank" rel="noopener">OpenAI Blog: Robust Adversarial Examples</a>、<a href="https://blog.openai.com/adversarial-example-research/" target="_blank" rel="noopener">Attacking Machine Learning with Adversarial Examples</a>、<a href="https://arxiv.org/pdf/1412.6572.pdf" target="_blank" rel="noopener">Goodfellow, Shlens &amp;amp; Szegedy, 2015</a>；<a href="http://www.cv-foundation.org/openaccess/content_cvpr_2015/papers/Nguyen_Deep_Neural_Networks_2015_CVPR_paper.pdf" target="_blank" rel="noopener">Nguyen, Yosinski, &amp;amp; Clune, 2015</a>）对 AI 应用的安全性和鲁棒性敲响了警钟。有时模型会表现出意外的、意想不到的和不可预测的行为，而我们没有快速或好的策略来解释原因。</p>
+        <p>关于对抗样本的研究（<a href="https://blog.openai.com/robust-adversarial-inputs/" target="_blank" rel="noopener">OpenAI Blog: Robust Adversarial Examples</a>、<a href="https://blog.openai.com/adversarial-example-research/" target="_blank" rel="noopener">Attacking Machine Learning with Adversarial Examples</a>、<a href="https://arxiv.org/pdf/1412.6572.pdf" target="_blank" rel="noopener">Goodfellow, Shlens &amp;amp; Szegedy, 2015</a>；<a href="http://www.cv-foundation.org/openaccess/content_cvpr_2015/papers/Nguyen_Deep_Neural_Networks_2015_CVPR_paper.pdf" target="_blank" rel="noopener">Nguyen, Yosinski, &amp;amp; Clune, 2015</a>）为人工智能应用的安全性和鲁棒性敲响了警钟。有时模型会表现出意外的、不可预测的行为，而我们没有快速或有效的策略来解释原因。</p>
       
     
       
@@ -518,11 +514,11 @@ f^{*}(x)  = \arg \min_{c \in \{1, \dots, C\}} p(Y \neq c \vert X = x)
       
     
       
-        <p>Nvidia 最近开发了一种 <a href="https://blogs.nvidia.com/blog/2017/04/27/how-nvidias-neural-net-makes-decisions/" target="_blank" rel="noopener">可视化其自动驾驶汽车决策过程中最重要像素点的方法</a>。这种可视化让我们洞察 AI 如何思考，以及系统在操作汽车时依赖什么。如果 AI 认为重要的部分与人类在类似决策中的判断一致，我们自然会对这个黑盒模型产生更多信心。</p>
+        <p>Nvidia 最近开发了一种 <a href="https://blogs.nvidia.com/blog/2017/04/27/how-nvidias-neural-net-makes-decisions/" target="_blank" rel="noopener">方法来可视化其自动驾驶汽车决策过程中最重要的像素点</a>。这种可视化提供了关于人工智能如何思考以及系统在操作汽车时依赖什么的洞见。如果人工智能认为重要的东西与人类在类似决策中的判断一致，我们自然会对黑箱模型产生更多信心。</p>
       
     
       
-        <p>这个不断发展的领域每天都有令人兴奋的消息和发现。希望我的文章能为你提供一些指引，并鼓励你进一步探索这个主题 :)</p>
+        <p>这个不断发展的领域每天都有许多令人兴奋的消息和发现。希望我的文章能给你一些指引，并鼓励你进一步深入研究这个主题 :)</p>
       
     
       

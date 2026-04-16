@@ -50,7 +50,7 @@
 
 现实生活中的奖励黑客示例
 
-奖励黑客为什么会存在？
+为什么奖励黑客现象会存在？
 
 对强化学习环境的黑客攻击
 
@@ -60,15 +60,15 @@
 
 对评估器的黑客攻击
 
-上下文内奖励黑客
+上下文中的奖励黑客
 
 黑客技能的泛化
 
-缓解措施一览
+缓解措施浅析
 
 强化学习算法改进
 
-检测奖励黑客
+检测奖励黑客行为
 
 RLHF 的数据分析
 
@@ -78,33 +78,33 @@ RLHF 的数据分析
       
     
       
-        <p>奖励黑客是指强化学习（RL）智能体<a href="posts-2018-01-23-multi-armed-bandit.html">多臂老虎机问题及其解决方案</a>奖励函数中的缺陷或模糊之处，从而获得高奖励，却没有真正学会或完成预期的任务。奖励黑客之所以存在，是因为强化学习环境通常并不完美，而准确地设计一个奖励函数在根本上极具挑战性。</p>
+        <p>奖励黑客（reward hacking）是指强化学习（RL）智能体<a href="posts-2018-01-23-multi-armed-bandit.html">多臂老虎机问题及其解决方案</a>奖励函数中的缺陷或模糊之处，从而获得高奖励，却没有真正学会或完成预期的任务。奖励黑客现象存在的原因在于，强化学习环境通常并不完美，而准确地设计一个奖励函数在根本上极具挑战性。</p>
       
     
       
-        <p>随着<a href="posts-2019-01-31-lm.html">泛化语言模型</a>在大范围任务上实现泛化，以及 RLHF 成为对齐训练的实际标准方法，大语言模型在 RL 训练中的奖励黑客问题已演变为一个关键的实际挑战。例如，模型学会修改单元测试以通过编码任务，或生成带有偏见、迎合用户偏好的回答，这些现象令人担忧，很可能是阻碍 AI 模型实现更自主真实世界应用的主要障碍之一。</p>
+        <p>随着<a href="posts-2019-01-31-lm.html">通用语言模型</a>在广泛任务上实现泛化，以及 RLHF 成为对齐训练的事实标准方法，大语言模型在 RL 训练中出现的奖励黑客问题已成为一个重要的现实挑战。例如，模型学会修改单元测试来通过编程任务，或生成带有偏见的内容来迎合用户偏好，这些现象令人担忧，也很可能成为 AI 模型实现更自主现实世界应用的主要障碍之一。</p>
       
     
       
-        <p>过去关于这一主题的大部分工作都较为理论化，主要聚焦于定义或展示奖励黑客的存在。然而，针对实际缓解措施的研究，尤其是 RLHF 和大语言模型场景下的研究，仍十分有限。我特别呼吁未来投入更多研究力量，来理解并开发针对奖励黑客的缓解方案。希望不久后我能专门写一篇关于缓解措施的文章。</p>
+        <p>过去关于这一主题的大多数工作都较为理论化，主要聚焦于定义或证明奖励黑客的存在。然而，针对实际缓解措施的研究——尤其是在 RLHF 和大语言模型背景下的研究——仍然十分有限。我特别呼吁未来投入更多研究力量来理解并开发针对奖励黑客的缓解方法。希望我很快能专门写一篇文章来讨论缓解措施。</p>
       
     
       
-        <h2>背景#</h2>
+        <h2>背景</h2>
         
       
     
       
-        <h2>强化学习中的奖励函数#</h2>
+        <h2>强化学习中的奖励函数</h2>
         
       
     
       
-        <p>奖励函数定义了任务，而奖励塑形对<a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a>的学习效率和准确性有重大影响。为强化学习任务设计奖励函数常常给人一种“玄学”的感觉。造成这种复杂性的因素有很多：如何将一个大目标分解为小目标？奖励是稀疏还是稠密的？如何衡量成功？不同的选择可能导致好的或有问题的学习动态，包括无法学习的任务或容易被黑客攻击的奖励函数。关于如何在强化学习中进行奖励塑形，已经有很长的研究历史。</p>
+        <p>奖励函数定义了任务，而奖励塑形（reward shaping）对<a href="posts-2018-02-19-rl-overview.html">强化学习简史（长文）</a>的学习效率和准确性有重大影响。为强化学习任务设计奖励函数常常像一门“黑暗艺术”。导致这种复杂性的因素有很多：如何将一个大目标分解为小目标？奖励是稀疏的还是稠密的？如何衡量成功？不同的选择可能带来良好的或有问题的学习动态，包括无法学习的任务或容易被黑客攻击的奖励函数。关于如何在强化学习中进行奖励塑形已有漫长的研究历史。</p>
       
     
       
-        <p>例如，在 Ng 等人的<a href="https://people.eecs.berkeley.edu/~pabbeel/cs287-fa09/readings/NgHaradaRussell-shaping-ICML1999.pdf" target="_blank" rel="noopener">1999 年论文</a>中，作者研究了如何修改<a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a>中的奖励函数，同时保持最优策略不变。他们发现线性变换是有效的。给定一个 MDP <span class="math-inline" data-math="M = (S, A, T, \gamma, R)">M = (S, A, T, \gamma, R)</span>，我们希望构造一个变换后的 MDP <span class="math-inline" data-math="M’ = (S, A, T, \gamma, R’)">M’ = (S, A, T, \gamma, R’)</span>，其中<span class="math-inline" data-math="R’ = R + F">R’ = R + F</span>和<span class="math-inline" data-math="F: S \times A \times S \mapsto \mathbb{R}">F: S \times A \times S \mapsto \mathbb{R}</span>，以便引导学习算法更高效。给定一个实值函数<span class="math-inline" data-math="\Phi: S \mapsto \mathbb{R}">\Phi: S \mapsto \mathbb{R}</span>，如果对所有<span class="math-inline" data-math="s \in S - {s_0}, a \in A, s’ \in S">s \in S - {s_0}, a \in A, s’ \in S</span>都满足，则<span class="math-inline" data-math="F">F</span>是一个基于势的塑形函数：</p>
+        <p>例如，在<a href="https://people.eecs.berkeley.edu/~pabbeel/cs287-fa09/readings/NgHaradaRussell-shaping-ICML1999.pdf" target="_blank" rel="noopener">Ng 等人在 1999 年发表的论文</a>中，作者研究了如何修改<a href="posts-2018-02-19-rl-overview.html">强化学习简史（长文）</a>中的奖励函数，同时保持最优策略不变。他们发现线性变换是可行的。给定一个 MDP <span class="math-inline" data-math="M = (S, A, T, \gamma, R)">M = (S, A, T, \gamma, R)</span>，我们希望创建一个变换后的 MDP <span class="math-inline" data-math="M’ = (S, A, T, \gamma, R’)">M’ = (S, A, T, \gamma, R’)</span>，其中<span class="math-inline" data-math="R’ = R + F">R’ = R + F</span>且<span class="math-inline" data-math="F: S \times A \times S \mapsto \mathbb{R}">F: S \times A \times S \mapsto \mathbb{R}</span>，从而引导学习算法更高效。给定一个实值函数 <span class="math-inline" data-math="\Phi: S \mapsto \mathbb{R}">\Phi: S \mapsto \mathbb{R}</span>，如果对于所有<span class="math-inline" data-math="s \in S - {s_0}, a \in A, s’ \in S">s \in S - {s_0}, a \in A, s’ \in S</span>，<span class="math-inline" data-math="F">F</span>是一个基于势函数的塑形函数：</p>
       
     
       
@@ -116,11 +116,11 @@ F(s, a, s&#x27;) = \gamma \Phi(s&#x27;) - \Phi(s)
       
     
       
-        <p>这可以保证折现后的<span class="math-inline" data-math="F">F</span>、<span class="math-inline" data-math="F(s_1, a_1, s_2) + \gamma F(s_2, a_2, s_3) + \dots">F(s_1, a_1, s_2) + \gamma F(s_2, a_2, s_3) + \dots</span>之和最终为 0。如果<span class="math-inline" data-math="F">F</span>是一个基于势的塑形函数，则它既是充分也是必要的条件，以确保<span class="math-inline" data-math="M">M</span>和<span class="math-inline" data-math="M’">M’</span>具有相同的最优策略。</p>
+        <p>这可以保证贴现后的<span class="math-inline" data-math="F">F</span>、<span class="math-inline" data-math="F(s_1, a_1, s_2) + \gamma F(s_2, a_2, s_3) + \dots">F(s_1, a_1, s_2) + \gamma F(s_2, a_2, s_3) + \dots</span>之和最终为 0。如果<span class="math-inline" data-math="F">F</span>是一个基于势函数的塑形函数，那么它既充分又必要地保证<span class="math-inline" data-math="M">M</span>和<span class="math-inline" data-math="M’">M’</span>拥有相同的最优策略。</p>
       
     
       
-        <p>当<span class="math-inline" data-math="F(s, a, s’) = \gamma \Phi(s’) - \Phi(s)">F(s, a, s’) = \gamma \Phi(s’) - \Phi(s)</span>，且进一步假设<span class="math-inline" data-math="\Phi(s_0) = 0">\Phi(s_0) = 0</span>，其中<span class="math-inline" data-math="s_0">s_0</span>是吸收状态，且<span class="math-inline" data-math="\gamma=1">\gamma=1</span>，则对所有<span class="math-inline" data-math="s \in S, a \in A">s \in S, a \in A</span>有：</p>
+        <p>当<span class="math-inline" data-math="F(s, a, s’) = \gamma \Phi(s’) - \Phi(s)">F(s, a, s’) = \gamma \Phi(s’) - \Phi(s)</span>，并且进一步假设<span class="math-inline" data-math="\Phi(s_0) = 0">\Phi(s_0) = 0</span>，其中<span class="math-inline" data-math="s_0">s_0</span>是吸收态，且<span class="math-inline" data-math="\gamma=1">\gamma=1</span>，那么对于所有<span class="math-inline" data-math="s \in S, a \in A">s \in S, a \in A</span>：</p>
       
     
       
@@ -138,16 +138,16 @@ V^*_{M&#x27;} (s,a) &amp;= V^*_M(s, a) - \Phi(s)
       
     
       
-        <p>这种形式的奖励塑形允许我们将启发式知识融入奖励函数，从而加速学习，同时不影响最优策略。</p>
+        <p>这种形式的奖励塑形允许我们在奖励函数中融入启发式知识，从而加速学习，同时不影响最优策略。</p>
       
     
       
-        <h2>虚假相关#</h2>
+        <h2>虚假相关</h2>
         
       
     
       
-        <p>分类任务中的虚假相关或捷径学习（<a href="https://arxiv.org/abs/2004.07780" target="_blank" rel="noopener">Geirhos et al. 2020</a>）是一个与奖励黑客密切相关的概念。虚假或捷径特征可能导致分类器无法按预期进行学习和泛化。例如，一个区分狼和哈士奇的二分类器，如果所有狼的训练图像都包含雪景，就可能过拟合到雪地背景（<a href="https://arxiv.org/abs/1602.04938" target="_blank" rel="noopener">Ribeiro et al. 2024</a>）。</p>
+        <p>分类任务中的虚假相关或捷径学习（<a href="https://arxiv.org/abs/2004.07780" target="_blank" rel="noopener">Geirhos 等，2020</a>）是一个与奖励黑客密切相关的概念。虚假或捷径特征可能导致分类器无法按预期学习和泛化。例如，一个区分狼和哈士奇的二分类器，如果所有狼的训练图片都包含雪景，就可能会过度拟合到雪地背景（<a href="https://arxiv.org/abs/1602.04938" target="_blank" rel="noopener">Ribeiro 等，2024</a>）。</p>
       
     
       
@@ -158,47 +158,47 @@ V^*_{M&#x27;} (s,a) &amp;= V^*_M(s, a) - \Phi(s)
       
     
       
-        <p><a href="https://en.wikipedia.org/wiki/Empirical_risk_minimization" target="_blank" rel="noopener">ERM 原则</a>指出，由于完整的数据分布未知，在训练数据上最小化损失是风险的合理代理，因此我们倾向于选择训练损失最低的模型。<a href="https://arxiv.org/abs/2010.15775" target="_blank" rel="noopener">Nagarajan et al. (2021)</a>研究了 ERM 原则，并指出 ERM 需要依赖所有类型的信息特征，包括不可靠的虚假特征，同时在没有约束的情况下拟合数据。他们的实验表明，无论任务多么简单，ERM 都会依赖虚假特征。</p>
+        <p><a href="https://en.wikipedia.org/wiki/Empirical_risk_minimization" target="_blank" rel="noopener">经验风险最小化（ERM）原则</a>指出，由于完整的数据分布未知，在训练数据上最小化损失是风险的一个合理代理，因此我们倾向于选择训练损失最低的模型。<a href="https://arxiv.org/abs/2010.15775" target="_blank" rel="noopener">Nagarajan 等（2021）</a>研究了 ERM 原则，并指出 ERM 需要依赖所有类型的信息特征，包括不可靠的虚假特征，同时在没有约束的情况下拟合数据。他们的实验表明，无论任务多么简单，ERM 都会依赖于虚假特征。</p>
       
     
       
-        <h2>奖励黑客的定义#</h2>
+        <h2>奖励黑客的定义</h2>
         
       
     
       
-        <p>强化学习中的奖励塑形极具挑战性。奖励黑客是指 RL 智能体利用奖励函数中的缺陷或模糊性来获得高奖励，却没有真正学会预期行为或完成设计好的任务。近年来，人们提出了几个相关概念，它们都指向某种形式的奖励黑客：</p>
+        <p>强化学习中的奖励塑形充满挑战。奖励黑客是指 RL 智能体利用奖励函数中的缺陷或模糊性来获得高奖励，却没有真正学会预期行为或完成设计好的任务。近年来，研究者提出了几个相关概念，它们都指向某种形式的奖励黑客：</p>
       
     
       
-        <div class="list-content">奖励黑客（<a href="https://arxiv.org/abs/1606.06565" target="_blank" rel="noopener">Amodei et al., 2016</a>）
-奖励腐败（<a href="https://arxiv.org/abs/1705.08417" target="_blank" rel="noopener">Everitt et al., 2017</a>）
-奖励篡改（<a href="https://arxiv.org/abs/1908.04734" target="_blank" rel="noopener">Everitt et al. 2019</a>）
-规范博弈（<a href="https://deepmind.google/discover/blog/specification-gaming-the-flip-side-of-ai-ingenuity/" target="_blank" rel="noopener">Krakovna et al., 2020</a>）
-目标鲁棒性（<a href="https://www.gatsby.ucl.ac.uk/~balaji/udl2021/accepted-papers/UDL2021-paper-055.pdf" target="_blank" rel="noopener">Koch et al. 2021</a>）
-目标泛化错误（<a href="https://arxiv.org/abs/2105.14111" target="_blank" rel="noopener">Langosco et al. 2022</a>）
-奖励错误指定（<a href="https://arxiv.org/abs/2201.03544" target="_blank" rel="noopener">Pan et al. 2022</a>）</div>
+        <div class="list-content">奖励黑客（<a href="https://arxiv.org/abs/1606.06565" target="_blank" rel="noopener">Amodei 等，2016</a>）
+奖励腐败（<a href="https://arxiv.org/abs/1705.08417" target="_blank" rel="noopener">Everitt 等，2017</a>）
+奖励篡改（<a href="https://arxiv.org/abs/1908.04734" target="_blank" rel="noopener">Everitt 等，2019</a>）
+规范博弈（<a href="https://deepmind.google/discover/blog/specification-gaming-the-flip-side-of-ai-ingenuity/" target="_blank" rel="noopener">Krakovna 等，2020</a>）
+目标鲁棒性（<a href="https://www.gatsby.ucl.ac.uk/~balaji/udl2021/accepted-papers/UDL2021-paper-055.pdf" target="_blank" rel="noopener">Koch 等，2021</a>）
+目标错误泛化（<a href="https://arxiv.org/abs/2105.14111" target="_blank" rel="noopener">Langosco 等，2022</a>）
+奖励错误指定（<a href="https://arxiv.org/abs/2201.03544" target="_blank" rel="noopener">Pan 等，2022</a>）</div>
       
     
       
-        <p>这个概念最早由 Amodei 等人在 2016 年提出，他们在开创性论文<a href="https://arxiv.org/abs/1606.06565" target="_blank" rel="noopener">《AI 安全中的具体问题》</a>中提出了一系列关于 AI 安全的开放研究问题。他们将奖励黑客列为关键的 AI 安全问题之一。奖励黑客指的是智能体通过不期望的行为“玩弄”奖励函数以获得高奖励的可能性。规范博弈（<a href="https://deepmind.google/discover/blog/specification-gaming-the-flip-side-of-ai-ingenuity/" target="_blank" rel="noopener">Krakovna et al. 2020</a>）是一个类似的概念，它被定义为满足目标字面规范但未实现预期结果的行为。在这里，任务目标的字面描述与预期目标之间可能存在差距。</p>
+        <p>这个概念最早由 Amodei 等（2016）提出，他们在开创性论文<a href="https://arxiv.org/abs/1606.06565" target="_blank" rel="noopener">《AI 安全中的具体问题》</a>中提出了一系列关于 AI 安全的开放研究问题。他们将奖励黑客列为关键的 AI 安全问题之一。奖励黑客是指智能体通过不期望的行为来“玩弄”奖励函数，从而获得高奖励的现象。规范博弈（<a href="https://deepmind.google/discover/blog/specification-gaming-the-flip-side-of-ai-ingenuity/" target="_blank" rel="noopener">Krakovna 等，2020</a>）是一个类似的概念，指的是满足目标字面规范但并未实现预期结果的行为。此时任务目标的字面描述与真实意图之间存在差距。</p>
       
     
       
-        <p>奖励塑形是一种丰富奖励函数的技术，使智能体更容易学习——例如通过提供更稠密的奖励。然而，设计不当的奖励塑形机制可能会改变最优策略的轨迹。设计有效的奖励塑形机制本质上非常困难。与其责怪设计糟糕的奖励函数，不如承认设计一个好的奖励函数本身就极具挑战性，这源于任务本身的复杂性、部分可观测状态、多维度考量以及其他因素。</p>
+        <p>奖励塑形是一种用于丰富奖励函数、让智能体更容易学习的技术，例如通过提供更稠密的奖励。然而，设计不当的奖励塑形机制可能会改变最优策略的轨迹。设计有效的奖励塑形机制本质上非常困难。与其责怪奖励函数设计不佳，不如承认由于任务本身的复杂性、部分可观测状态、多维度考量等因素，设计一个好的奖励函数本身就极具挑战性。</p>
       
     
       
-        <p>在分布外（OOD）环境中测试 RL 智能体时，可能因以下原因出现鲁棒性失效：</p>
+        <p>当在分布外（OOD）环境中测试 RL 智能体时，可能因以下原因出现鲁棒性失效：</p>
       
     
       
-        <div class="list-content">即使目标正确，模型也无法有效泛化。这发生在算法智能或能力不足时。
-模型能够有效泛化，但追求的目标与训练时的目标不同。这发生在代理奖励与真实奖励函数<span class="math-inline" data-math="R’ \neq R">R’ \neq R</span>不一致时。这被称为目标鲁棒性（<a href="https://www.gatsby.ucl.ac.uk/~balaji/udl2021/accepted-papers/UDL2021-paper-055.pdf" target="_blank" rel="noopener">Koch et al. 2021</a>）或目标泛化错误（<a href="https://arxiv.org/abs/2105.14111" target="_blank" rel="noopener">Langosco et al. 2022</a>）。</div>
+        <div class="list-content">即使目标正确，模型也无法有效泛化。这发生在算法缺乏足够智能或能力时。
+模型能够良好泛化，但追求的目标与训练时的目标不同。这发生在代理奖励与真实奖励函数<span class="math-inline" data-math="R’ \neq R">R’ \neq R</span>存在差异时。这种现象被称为目标鲁棒性（<a href="https://www.gatsby.ucl.ac.uk/~balaji/udl2021/accepted-papers/UDL2021-paper-055.pdf" target="_blank" rel="noopener">Koch 等，2021</a>）或目标错误泛化（<a href="https://arxiv.org/abs/2105.14111" target="_blank" rel="noopener">Langosco 等，2022</a>）。</div>
       
     
       
-        <p>在两个 RL 环境<a href="https://github.com/openai/coinrun" target="_blank" rel="noopener">CoinRun</a>和<a href="https://github.com/openai/procgen" target="_blank" rel="noopener">Maze</a>中的实验，证明了训练过程中随机化的重要性。如果在训练时硬币或奶酪总是放在固定位置（即关卡最右端或迷宫右上角），但测试时放在随机位置，那么智能体在测试时只会跑到固定位置，而无法获得硬币或奶酪。当视觉特征（例如奶酪或硬币）与位置特征（例如右上角或最右端）在测试时不一致时，就会产生冲突，导致训练好的模型更偏好位置特征。我想指出，在这两个例子中，奖励与结果之间的差距很明显，但在大多数现实世界场景中，这类偏差不太可能如此明显。</p>
+        <p>在两个 RL 环境<a href="https://github.com/openai/coinrun" target="_blank" rel="noopener">CoinRun</a>和<a href="https://github.com/openai/procgen" target="_blank" rel="noopener">Maze</a>上的实验表明，训练过程中的随机化非常重要。如果训练时硬币或奶酪总是放在固定位置（例如关卡最右端或迷宫右上角），而在测试环境中随机放置，那么智能体在测试时只会跑到固定位置，而不会获取硬币或奶酪。当视觉特征（例如奶酪或硬币）与位置特征（例如右上角或最右端）在测试时不一致时，就会产生冲突，导致训练好的模型更偏好位置特征。我想指出的是，在这两个例子中，奖励与结果之间的差距非常明显，但在大多数现实世界场景中，这类偏差通常不会如此显而易见。</p>
       
     
       
@@ -209,147 +209,140 @@ V^*_{M&#x27;} (s,a) &amp;= V^*_M(s, a) - \Phi(s)
       
     
       
-        <p>奖励篡改（<a href="https://arxiv.org/abs/1908.04734" target="_blank" rel="noopener">Everitt et al. 2019</a>）是奖励黑客行为的一种形式，指智能体干扰奖励函数本身，导致观测到的奖励不再准确反映预期目标。在奖励篡改中，模型要么直接操纵奖励函数的实现，要么间接修改用作奖励函数输入的环境信息。</p>
+        <p>奖励篡改（<a href="https://arxiv.org/abs/1908.04734" target="_blank" rel="noopener">Everitt 等，2019</a>）是奖励黑客的一种形式，指智能体干扰奖励函数本身，导致观测到的奖励不再准确反映预期目标。在奖励篡改中，模型要么直接操纵奖励函数的实现，要么间接修改作为奖励函数输入的环境信息。</p>
       
     
       
-        <p>（注：有些工作将奖励篡改定义为与奖励黑客不同的另一类不对齐行为。但在这里，我将奖励黑客视为一个更宽泛的概念。）</p>
+        <p>（注：有些工作将奖励篡改定义为与奖励黑客不同的另一类失对齐行为。但在这里我将奖励黑客视为一个更宽泛的概念。）</p>
       
     
       
-        <p>从高层次来看，奖励黑客可以分为两类：环境或目标错误指定，以及奖励篡改。</p>
+        <p>从高层来看，奖励黑客可以分为两类：环境或目标错误指定，以及奖励篡改。</p>
       
     
       
-        <div class="list-content">环境或目标错误指定：模型学会不期望的行为来获得高奖励，通过攻击环境或优化一个与真实奖励目标不对齐的奖励函数——例如奖励被错误指定或缺少关键约束。
+        <div class="list-content">环境或目标错误指定：模型通过黑客攻击环境或优化一个与真实奖励目标不一致的奖励函数，来学习不期望的行为——例如奖励被错误指定或缺少关键约束。
 奖励篡改：模型学会干扰奖励机制本身。</div>
       
     
       
-        <h2>示例列表#</h2>
+        <h2>示例列表</h2>
         
       
     
       
-        <h3>强化学习任务中的奖励黑客示例#</h3>
+        <h3>强化学习任务中的奖励黑客示例</h3>
         
       
     
       
-        <div class="list-content">一个被训练来抓取物体的机器人手可能会学会把自己的手放在物体和摄像头之间，以此欺骗人类。（<a href="https://openai.com/index/learning-from-human-preferences/" target="_blank" rel="noopener">链接</a>）
-一个被训练来最大化跳跃高度的智能体可能会利用物理模拟器中的 bug，达到不现实的高度。（<a href="https://arxiv.org/abs/1803.03453" target="_blank" rel="noopener">链接</a>）
-一个被训练骑自行车到达目标的智能体，只要越来越接近目标就会获得奖励。然后它可能会学会绕着目标转小圈，因为当它远离目标时没有惩罚。（<a href="https://people.eecs.berkeley.edu/~pabbeel/cs287-fa09/readings/NgHaradaRussell-shaping-ICML1999.pdf" target="_blank" rel="noopener">链接</a>）
-在一个足球游戏设置中，当智能体碰到球时获得奖励，于是它学会一直待在球旁边，以高频率反复触球，像在震动一样。（<a href="https://people.eecs.berkeley.edu/~pabbeel/cs287-fa09/readings/NgHaradaRussell-shaping-ICML1999.pdf" target="_blank" rel="noopener">链接</a>）
+        <div class="list-content">一个被训练来抓取物体的机器人手可能会学会把自己的手放在物体和摄像头之间，从而欺骗人类。（<a href="https://openai.com/index/learning-from-human-preferences/" target="_blank" rel="noopener">链接</a>）
+一个被训练来最大化跳跃高度的智能体可能会利用物理模拟器中的 bug 来达到不现实的高度。（<a href="https://arxiv.org/abs/1803.03453" target="_blank" rel="noopener">链接</a>）
+一个被训练骑自行车到达目标的智能体，每当接近目标时就会获得奖励。于是它可能会学会绕着目标转小圈，因为当它远离目标时没有惩罚。（<a href="https://people.eecs.berkeley.edu/~pabbeel/cs287-fa09/readings/NgHaradaRussell-shaping-ICML1999.pdf" target="_blank" rel="noopener">链接</a>）
+在一个足球游戏设置中，当智能体碰到球时获得奖励，于是它学会一直待在球旁边，以高频率反复触碰球，就像在震动一样。（<a href="https://people.eecs.berkeley.edu/~pabbeel/cs287-fa09/readings/NgHaradaRussell-shaping-ICML1999.pdf" target="_blank" rel="noopener">链接</a>）
 在<a href="https://openai.com/blog/faulty-reward-functions/" target="_blank" rel="noopener">Coast Runners 游戏</a>中，智能体控制一艘船，目标是尽快完成赛艇比赛。当给予它撞击赛道上绿色方块的塑形奖励后，它改变了最优策略，开始绕圈并反复撞击同一个绿色方块。（<a href="https://deepmind.google/discover/blog/specification-gaming-the-flip-side-of-ai-ingenuity/" target="_blank" rel="noopener">链接</a>）
-<a href="https://arxiv.org/abs/1803.03453" target="_blank" rel="noopener">《数字进化的惊人创造力》</a>（Lehman et al. 2019）——这篇论文中有大量例子，说明优化一个错误指定的适应度函数如何导致令人惊讶的“黑客”或意外的进化/学习结果。
-<a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vRPiprOaC3HsCf5Tuum8bRfzYUiKLRqJmbOoC-32JorNdfyTiRRsR7Ea5eWtvsWzuxo8bjOxCG84dAg/pubhtml" target="_blank" rel="noopener">AI 规范博弈示例列表</a>由<a href="https://deepmind.google/discover/blog/specification-gaming-the-flip-side-of-ai-ingenuity/" target="_blank" rel="noopener">Krakovna et al. 2020</a>收集整理。</div>
+<a href="https://arxiv.org/abs/1803.03453" target="_blank" rel="noopener">《数字进化的惊人创造力》</a>（Lehman 等，2019）——这篇论文包含大量例子，说明优化一个错误指定的适应度函数如何导致令人惊讶的“黑客”或意外的进化/学习结果。
+<a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vRPiprOaC3HsCf5Tuum8bRfzYUiKLRqJmbOoC-32JorNdfyTiRRsR7Ea5eWtvsWzuxo8bjOxCG84dAg/pubhtml" target="_blank" rel="noopener">AI 规范博弈示例列表</a>由<a href="https://deepmind.google/discover/blog/specification-gaming-the-flip-side-of-ai-ingenuity/" target="_blank" rel="noopener">Krakovna 等，2020</a>整理。</div>
       
     
       
-        <h3>大语言模型任务中的奖励黑客示例#</h3>
+        <h3>大语言模型任务中的奖励黑客示例</h3>
         
       
     
       
-        <div class="list-content">一个用于生成摘要的语言模型能够发现 ROUGE 指标中的缺陷，从而获得高分，但生成的摘要几乎无法阅读。（<a href="https://web.archive.org/web/20180215132021/https://www.salesforce.com/products/einstein/ai-research/tl-dr-reinforced-model-abstractive-summarization/" target="_blank" rel="noopener">链接</a>）
-一个编码模型学会修改单元测试以通过编程问题。（<a href="https://arxiv.org/abs/2406.10162" target="_blank" rel="noopener">链接</a>）
-一个编码模型可能会学会直接修改用于计算奖励的代码。（<a href="https://arxiv.org/abs/2406.10162" target="_blank" rel="noopener">链接</a>）</div>
+        <div class="list-content">一个用于生成摘要的语言模型能够发现 ROUGE 指标的缺陷，从而获得高分数，但生成的摘要几乎无法阅读。（<a href="https://web.archive.org/web/20180215132021/https://www.salesforce.com/products/einstein/ai-research/tl-dr-reinforced-model-abstractive-summarization/" target="_blank" rel="noopener">链接</a>）
+一个代码生成模型学会修改单元测试来通过编程问题。（<a href="https://arxiv.org/abs/2406.10162" target="_blank" rel="noopener">链接</a>）
+一个代码生成模型可能会学会直接修改用于计算奖励的代码。（<a href="https://arxiv.org/abs/2406.10162" target="_blank" rel="noopener">链接</a>）</div>
       
     
       
-        <h3>现实生活中的奖励黑客示例#</h3>
+        <h3>现实生活中的奖励黑客示例</h3>
         
       
     
       
-        <div class="list-content">社交媒体的推荐算法旨在提供有用信息。然而，“有用性”通常通过代理指标来衡量，例如点赞或评论数量、平台上的停留时间或互动频率。结果算法推荐那些能影响用户情绪的内容，比如耸人听闻和极端内容，以此触发更多互动。（<a href="https://www.goodreads.com/en/book/show/204927599-nexus" target="_blank" rel="noopener">Harari, 2024</a>）
-针对视频分享网站优化错误指定的代理指标，可能会大幅增加用户观看时长，而真实目标是优化用户的主观幸福感。（<a href="https://arxiv.org/abs/2201.03544" target="_blank" rel="noopener">链接</a>）
-<a href="https://en.wikipedia.org/wiki/The_Big_Short" target="_blank" rel="noopener">《大空头》</a>——由住房泡沫引发的 2008 年金融危机。社会层面的奖励黑客表现为人们试图玩弄金融系统。</div>
+        <div class="list-content">社交媒体的推荐算法旨在提供有用信息。然而，“有用性”通常通过代理指标衡量，例如点赞数、评论数、停留时间或互动频率。结果算法倾向于推荐能触发用户情绪的极端或耸人听闻的内容，以获得更多互动。（<a href="https://www.goodreads.com/en/book/show/204927599-nexus" target="_blank" rel="noopener">Harari，2024</a>）
+优化视频分享网站的错误指定的代理指标可能会大幅增加用户观看时长，而真实目标应该是提升用户的主观幸福感。（<a href="https://arxiv.org/abs/2201.03544" target="_blank" rel="noopener">链接</a>）
+<a href="https://en.wikipedia.org/wiki/The_Big_Short" target="_blank" rel="noopener">《大空头》</a>——2008 年由住房泡沫引发的金融危机。社会层面的奖励黑客表现为人们试图玩弄金融系统。</div>
       
     
       
-        <h2>奖励黑客为什么会存在？#</h2>
+        <h2>为什么奖励黑客现象会存在？</h2>
         
       
     
       
-        <p><a href="https://en.wikipedia.org/wiki/Goodhart%27s_law" target="_blank" rel="noopener">Goodhart 定律</a>指出：“当一个度量成为目标时，它就不再是一个好的度量。”其直观含义是，一旦对一个好指标施加巨大优化压力，它就会被腐蚀。完全准确地指定一个奖励目标极具挑战性，任何代理指标都存在被黑客攻击的风险，因为 RL 算法会利用奖励函数定义中的任何微小不完美。<a href="https://www.lesswrong.com/posts/EbFABnst8LsidYs5Y/goodhart-taxonomy" target="_blank" rel="noopener">Garrabrant (2017)</a>将 Goodhart 定律分为 4 种变体：</p>
+        <p><a href="https://en.wikipedia.org/wiki/Goodhart%27s_law" target="_blank" rel="noopener">Goodhart 定律</a>指出：“当一个指标成为目标时，它就不再是一个好的指标。”其直观含义是，当一个好的指标面临巨大优化压力时，就会发生腐败。完全准确地指定一个奖励目标非常困难，任何代理指标都存在被黑客攻击的风险，因为 RL 算法会利用奖励函数定义中的任何微小缺陷。<a href="https://www.lesswrong.com/posts/EbFABnst8LsidYs5Y/goodhart-taxonomy" target="_blank" rel="noopener">Garrabrant（2017）</a>将 Goodhart 定律归纳为四种变体：</p>
       
     
       
-        <div class="list-content">回归型——对不完美代理的筛选必然也会筛选噪声。
-极端型——度量筛选将状态分布推入数据分布不同的区域。
-因果型——当代理与目标之间存在非因果相关时，对代理的干预可能无法干预到目标。
-对抗型——对代理进行优化会激励对手将其目标与代理相关联。</div>
+        <div class="list-content">回归型——对不完美代理的选取必然也会选取噪声。
+极端型——指标选取会将状态分布推入不同数据分布的区域。
+因果型——当代理与目标之间存在非因果相关时，对代理进行干预可能无法影响目标。
+对抗型——对代理的优化会激励对手将其目标与代理相关联。</div>
       
     
       
-        <p><a href="https://arxiv.org/abs/1606.06565" target="_blank" rel="noopener">Amodei et al. (2016)</a>总结道，主要在 RL 场景下的奖励黑客可能由以下原因引起：</p>
+        <p><a href="https://arxiv.org/abs/1606.06565" target="_blank" rel="noopener">Amodei 等（2016）</a>总结道，主要是 RL 设置下的奖励黑客可能由以下原因引起：</p>
       
     
       
-        <div class="list-content">部分观测到的状态和目标是对环境状态的不完美表示。
-系统本身复杂且容易被攻击；例如，如果允许智能体执行能改变部分环境的代码，那么利用环境机制就会变得容易得多。
-奖励可能涉及难以学习或形式化的抽象概念；例如，具有高维输入的奖励函数可能会过度依赖少数几个维度。
-RL 的目标是将奖励函数高度优化，因此存在内在“冲突”，这使得设计良好的 RL 目标极具挑战性。一个特殊情况是带有自我强化反馈成分的奖励函数，此时奖励可能被放大和扭曲到破坏原始意图的地步，例如广告投放算法导致赢家通吃。</div>
+        <div class="list-content">部分可观测的状态和目标是对环境状态的不完美表示。
+系统本身很复杂且容易被攻击；例如，如果允许智能体执行能改变部分环境的代码，那么利用环境机制就变得容易得多。
+奖励可能涉及难以学习或形式化的抽象概念；例如，高维输入的奖励函数可能会过度依赖少数几个维度。
+RL 的目标是让奖励函数被高度优化，因此存在内在“冲突”，使得设计良好的 RL 目标极具挑战性。一个特例是带有自我强化反馈成分的奖励函数，奖励可能会被放大和扭曲到破坏原始意图的地步，例如广告投放算法导致赢家通吃。</div>
       
     
       
-        <p>此外，在固定环境中，识别一个最优智能体究竟在优化哪个确切的奖励函数通常是不可能的，因为可能存在无限多个与任何观测策略一致的奖励函数（<a href="https://ai.stanford.edu/~ang/papers/icml00-irl.pdf" target="_blank" rel="noopener">Ng &amp;amp; Russell, 2000</a>）。<a href="https://arxiv.org/abs/1601.06569" target="_blank" rel="noopener">Amin and Singh (2016)</a>将这种不可识别性的原因分为两类：</p>
+        <p>此外，由于在固定环境中可能存在无数个与任何观测策略一致的奖励函数，因此通常不可能精确识别一个最优智能体所优化的奖励函数（<a href="https://ai.stanford.edu/~ang/papers/icml00-irl.pdf" target="_blank" rel="noopener">Ng &amp;amp; Russell，2000</a>）。<a href="https://arxiv.org/abs/1601.06569" target="_blank" rel="noopener">Amin 和 Singh（2016）</a>将这种不可识别性的原因分为两类：</p>
       
     
       
-        <div class="list-content">表示型——一组奖励函数在某些算术运算下（例如重缩放）在行为上是等价的。
-实验型——<span class="math-inline" data-math="\pi">\pi</span>的观测行为不足以区分两个或更多都能合理化智能体行为的奖励函数（行为在两者下都是最优的）。</div>
+        <div class="list-content">表示型——一组奖励函数在某些算术运算下（例如重缩放）在行为上是不变的。
+实验型——<span class="math-inline" data-math="\pi">\pi</span>的观测行为不足以区分两个或更多都能合理化智能体行为的奖励函数（行为在这两个函数下都是最优的）。</div>
       
     
       
-        <h2>对强化学习环境的黑客攻击#</h2>
+        <h2>对强化学习环境的黑客攻击</h2>
         
       
     
       
-        <p>随着模型和算法变得越来越复杂，奖励黑客预计将成为更常见的问题。一个更智能的智能体更有能力发现奖励函数设计中的“漏洞”并利用任务规范——换句话说，实现更高的代理奖励但更低的真实奖励。相反，一个较弱的算法可能无法找到这样的漏洞，因此当模型还不够强大时，我们可能观察不到任何奖励黑客，也无法发现当前奖励函数设计中的问题。</p>
+        <p>随着模型和算法变得越来越复杂，奖励黑客预计将成为更常见的问题。更智能的智能体更有能力发现奖励函数设计中的“漏洞”并利用任务规范——换句话说，实现更高的代理奖励，但更低的真实奖励。相比之下，较弱的算法可能无法发现这样的漏洞，因此当模型不够强大时，我们就观察不到奖励黑客，也无法识别当前奖励函数设计中的问题。</p>
       
     
       
-        <p>在一系列零和机器人自博弈游戏中（<a href="https://arxiv.org/abs/1710.03748" target="_blank" rel="noopener">Bansal et al., 2017</a>），我们可以训练两个智能体（受害者 vs 对手）相互竞争。标准训练过程会产生一个在与普通对手对战时表现良好的受害者智能体。然而，很容易训练出一个对抗性对手策略，即使输出看似随机的动作且只使用不到 3% 的时间步，也能可靠地击败受害者（<a href="https://arxiv.org/abs/1905.10615" target="_blank" rel="noopener">Gleave et al., 2020</a>）。对抗性策略的训练与标准 RL 设置一样，是优化折现奖励之和，同时将受害者策略视为黑盒模型。</p>
+        <p>在一组零和机器人自博弈游戏中（<a href="https://arxiv.org/abs/1710.03748" target="_blank" rel="noopener">Bansal 等，2017</a>），我们可以训练两个智能体（受害者 vs 对手）相互竞争。标准训练过程会产生一个在面对普通对手时表现良好的受害者智能体。然而，很容易训练出一个对抗性对手策略，即使输出看似随机的动作且只使用少于 3% 的时间步，也能稳定击败受害者（<a href="https://arxiv.org/abs/1905.10615" target="_blank" rel="noopener">Gleave 等，2020</a>）。对抗策略的训练与标准 RL 设置一样，是优化贴现奖励之和，同时将受害者策略视为黑盒模型。</p>
       
     
       
-        <p>缓解对抗性策略攻击的一个直观方法是对受害者进行针对对抗性策略的微调。然而，一旦针对新的受害者策略重新训练，受害者仍然容易受到新版本对抗性策略的攻击。</p>
+        <p>缓解对抗策略攻击的一个直观方法是对受害者进行针对对抗策略的微调。然而，一旦针对新的受害者策略重新训练，受害者仍然容易受到新版本对抗策略的攻击。</p>
       
     
       
-        <p>为什么对抗性策略会存在？假设是对抗性策略向受害者引入了分布外观测，而不是对其进行物理干扰。有证据表明，当受害者对对手位置的观测被屏蔽并设置为静态状态时，受害者对对抗者的鲁棒性会增强，尽管对普通对手策略的表现会变差。此外，更高维的观测空间在正常情况下能提升性能，但会使策略更容易受到对抗对手的攻击。</p>
+        <p>为什么对抗策略会存在？假设是对抗策略向受害者引入了分布外（OOD）观测，而不是物理上干扰它。有证据表明，当受害者对对手位置的观测被屏蔽并设置为静态状态时，受害者对对抗者的鲁棒性会提升，尽管面对普通对手时的表现会变差。此外，更高维的观测空间在正常情况下能提升性能，但会使策略更容易受到对抗对手的攻击。</p>
       
     
       
-        <p><a href="https://arxiv.org/abs/2201.03544" target="_blank" rel="noopener">Pan et al. (2022)</a>将奖励黑客视为智能体能力（包括 (1) 模型规模、(2) 动作空间分辨率、(3) 观测空间噪声、(4) 训练时间）的函数进行了研究。他们还提出了三种错误指定代理奖励的分类法：</p>
+        <p><a href="https://arxiv.org/abs/2201.03544" target="_blank" rel="noopener">Pan 等（2022）</a>将奖励黑客作为智能体能力（包括（1）模型大小、（2）动作空间分辨率、（3）观测空间噪声、（4）训练时间）的函数进行了研究。他们还提出了三种错误指定代理奖励的分类法：</p>
       
     
       
-        <div class="list-content">权重错误：代理奖励和真实奖励捕捉相同的期望，但对它们相对重要性的判断不同。
-本体论错误：代理奖励和真实奖励使用不同的期望来捕捉同一概念。
-范围错误：代理仅在受限领域（例如时间或空间）上衡量期望，因为在所有条件下进行测量成本太高。</div>
+        <div class="list-content">权重错误：代理奖励和真实奖励捕捉相同的需求，但相对重要性不同。
+本体论错误：代理奖励和真实奖励使用不同的需求来捕捉同一概念。
+范围错误：代理仅在受限领域（例如时间或空间）上衡量需求，因为在所有条件下进行测量成本太高。</div>
       
     
       
-        <p>&lt;figure&gt;
-	&lt;img src=&quot;exp-reward-misspecification-config.png&quot; style=&quot;width: 90%;&quot;  /&gt;
-	&lt;figcaption&gt;图 X. 四个 RL 任务及其对应的错误指定代理奖励的详细实验设置。“Misalign? (Yes/No)”表示真实奖励是否下降，“Transition? (Yes/No)”表示是否对应相变（明显的质变）。（图片来源：&lt;a href=&quot;https://arxiv.org/abs/2201.03544&quot; target=&quot;_blank&quot;&gt;Pan et al. 2022&lt;/a&gt;）&lt;/figcaption&gt;
-&lt;/figure&gt;</p>
+        <p>他们在四个 RL 环境和九种错误指定的代理奖励上进行了实验。这些实验的总体发现可以总结为：能力更强的模型往往能获得更高（或相似）的代理奖励，但真实奖励却下降。</p>
       
     
       
-        <p>他们在四个 RL 环境中搭配九种错误指定的代理奖励进行了实验。实验的总体发现可以总结为：能力更强的模型倾向于获得更高（或相似）的代理奖励，但真实奖励会下降。</p>
-      
-    
-      
-        <div class="list-content">模型规模：更大的模型规模会导致代理奖励增加，但真实奖励下降。
-动作空间分辨率：更高的动作精度会产生更强大的智能体。然而，更高的分辨率会导致代理奖励保持不变，而真实奖励下降。
-观测保真度：更准确的观测会改善代理奖励，但会略微降低真实奖励。
-训练步数：在更多步数上优化代理奖励，在最初正相关阶段之后会损害真实奖励。</div>
+        <div class="list-content">模型大小：更大的模型会导致代理奖励增加，但真实奖励下降。
+动作空间分辨率：更高的动作精度会产生更强大的智能体。然而，更高分辨率会导致代理奖励保持不变，而真实奖励下降。
+观测保真度：更准确的观测会改善代理奖励，但略微降低真实奖励。
+训练步数：在更多步上优化代理奖励，在初始正相关阶段之后，会损害真实奖励。</div>
       
     
       
@@ -360,22 +353,22 @@ RL 的目标是将奖励函数高度优化，因此存在内在“冲突”，�
       
     
       
-        <p>如果一个代理奖励被错误指定到与真实奖励的相关性极弱，我们甚至可能在训练前就能识别并阻止奖励黑客。基于这一假设，<a href="https://arxiv.org/abs/2201.03544" target="_blank" rel="noopener">Pan et al. (2022)</a>研究了在大量轨迹 rollout 上代理奖励与真实奖励之间的相关性。有趣的是，即使真实奖励和代理奖励之间存在正相关，奖励黑客仍然会发生。</p>
+        <p>如果一个代理奖励指定得极差，以至于它与真实奖励的相关性非常弱，那么我们甚至在训练前就可能识别并防止奖励黑客。基于这一假设，<a href="https://arxiv.org/abs/2201.03544" target="_blank" rel="noopener">Pan 等（2022）</a>研究了在大量轨迹 rollout 上代理奖励与真实奖励之间的相关性。有趣的是，即使真实奖励和代理奖励之间存在正相关，奖励黑客仍然会发生。</p>
       
     
       
-        <h2>对大语言模型 RLHF 的黑客攻击#</h2>
+        <h2>对大语言模型 RLHF 的黑客攻击</h2>
         
       
     
       
-        <p><a href="posts-2021-01-02-controllable-text-generation.html">可控神经文本生成</a>已成为大语言模型对齐训练的实际标准方法。首先在人类反馈数据上训练一个奖励模型，然后通过 RL 对语言模型进行微调，以优化这个针对人类偏好的代理奖励。在 RLHF 设置中，我们关心的奖励有三种：</p>
+        <p>已成为大语言模型对齐训练的事实标准方法。首先在人类反馈数据上训练一个奖励模型，然后通过 RL 对语言模型进行微调，以优化这个针对人类偏好的代理奖励。在 RLHF 设置中，我们关心的三种奖励是：<a href="posts-2021-01-02-controllable-text-generation.html">可控神经文本生成</a></p>
       
     
       
-        <div class="list-content">(1)  oracle/金标准奖励 <span class="math-inline" data-math="R^∗">R^∗</span> 代表我们真正希望 LLM 优化的目标。
-(2) 人类奖励 <span class="math-inline" data-math="R^\text{human}">R^\text{human}</span> 是我们在实践中用来评估 LLM 的，通常来自有时间限制的单个人类。由于人类可能提供不一致的反馈或犯错，人类奖励并非 oracle 奖励的完全准确表示。
-(3) 代理奖励 <span class="math-inline" data-math="R">R</span> 是由在人类数据上训练的奖励模型预测的分数。因此，<span class="math-inline" data-math="R^\text{train}">R^\text{train}</span> 继承了人类奖励的所有弱点，还可能带有额外的建模偏差。</div>
+        <div class="list-content">（1）Oracle/金标准奖励 <span class="math-inline" data-math="R^∗">R^∗</span> 代表我们真正希望 LLM 优化的目标。
+（2）人类奖励 <span class="math-inline" data-math="R^\text{human}">R^\text{human}</span> 是我们在实践中用来评估 LLM 的，通常来自有时间限制的个体人类。由于人类可能提供不一致的反馈或犯错，人类奖励并非对金标准奖励的完全准确表示。
+（3）代理奖励 <span class="math-inline" data-math="R">R</span> 是由在人类数据上训练的奖励模型预测的分数。因此，<span class="math-inline" data-math="R^\text{train}">R^\text{train}</span> 继承了人类奖励的所有弱点，并可能引入额外的建模偏差。</div>
       
     
       
@@ -383,12 +376,12 @@ RL 的目标是将奖励函数高度优化，因此存在内在“冲突”，�
       
     
       
-        <h2>对训练过程的黑客攻击#</h2>
+        <h2>对训练过程的黑客攻击</h2>
         
       
     
       
-        <p><a href="https://arxiv.org/abs/2210.10760" target="_blank" rel="noopener">Gao et al. (2022)</a>研究了 RLHF 中奖励模型过度优化的缩放律。为了在实验中扩展人类标签的数量，他们采用了合成数据设置，其中 oracle 奖励<span class="math-inline" data-math="R^*">R^*</span>的“金标准”标签由一个大型 RM（60 亿参数）近似，而代理 RM <span class="math-inline" data-math="R">R</span>的大小在 300 万到 30 亿参数之间。</p>
+        <p><a href="https://arxiv.org/abs/2210.10760" target="_blank" rel="noopener">Gao 等（2022）</a>研究了 RLHF 中奖励模型过度优化的缩放规律。为了在实验中扩展人类标注数量，他们采用合成数据设置，其中 oracle 奖励 <span class="math-inline" data-math="R^*">R^*</span> 的“金标准”标签由一个大型奖励模型（60 亿参数）近似，而代理奖励模型 <span class="math-inline" data-math="R">R</span> 的参数量范围为 300 万到 30 亿。</p>
       
     
       
@@ -399,11 +392,11 @@ RL 的目标是将奖励函数高度优化，因此存在内在“冲突”，�
       
     
       
-        <p>从初始策略到优化策略的 KL 散度为<span class="math-inline" data-math="\text{KL} = D_\text{KL}(\pi | \pi_\text{init})">\text{KL} = D_\text{KL}(\pi | \pi_\text{init})</span>，距离函数定义为<span class="math-inline" data-math="d := \sqrt{ D_\text{KL}(\pi | \pi_\text{init})}">d := \sqrt{ D_\text{KL}(\pi | \pi_\text{init})}</span>。对于 best-of-<span class="math-inline" data-math="n">n</span>拒绝采样（BoN）和 RL 两者，金标准奖励<span class="math-inline" data-math="R^∗">R^∗</span>被定义为<span class="math-inline" data-math="d">d</span>的函数。系数<span class="math-inline" data-math="\alpha">\alpha</span>和<span class="math-inline" data-math="\beta">\beta</span>通过经验拟合得到，其中<span class="math-inline" data-math="R^∗ (0) := 0">R^∗ (0) := 0</span>按定义成立。</p>
+        <p>从初始策略到优化策略的 KL 散度为 <span class="math-inline" data-math="\text{KL} = D_\text{KL}(\pi | \pi_\text{init})">\text{KL} = D_\text{KL}(\pi | \pi_\text{init})</span>，距离函数定义为 <span class="math-inline" data-math="d := \sqrt{ D_\text{KL}(\pi | \pi_\text{init})}">d := \sqrt{ D_\text{KL}(\pi | \pi_\text{init})}</span>。对于 best-of-<span class="math-inline" data-math="n">n</span> 拒绝采样（BoN）和 RL 来说，金标准奖励 <span class="math-inline" data-math="R^∗">R^∗</span> 被定义为 <span class="math-inline" data-math="d">d</span> 的函数。系数 <span class="math-inline" data-math="\alpha">\alpha</span> 和 <span class="math-inline" data-math="\beta">\beta</span> 通过经验拟合得到，其中 <span class="math-inline" data-math="R^∗ (0) := 0">R^∗ (0) := 0</span> 是按定义给定的。</p>
       
     
       
-        <p>作者还尝试拟合代理奖励<span class="math-inline" data-math="R">R</span>，但在外推到更高 KL 时发现了系统性的低估，因为代理奖励似乎随<span class="math-inline" data-math="d">d</span>线性增长。</p>
+        <p>作者还尝试拟合代理奖励 <span class="math-inline" data-math="R">R</span>，但发现在外推到更高 KL 时存在系统性低估，因为代理奖励似乎随 <span class="math-inline" data-math="d">d</span> 线性增长。</p>
       
     
       
@@ -428,27 +421,27 @@ R^*_\text{RL}(d) &amp;= d (\alpha_\text{RL} - \beta_\text{RL} \log d) &amp; \tex
       
     
       
-        <p>他们的实验还探索了 RM 过度优化与策略模型规模、RM 数据规模等因素的关系：</p>
+        <p>他们的实验还探讨了 RM 过度优化与策略模型大小、RM 数据量等因素的关系：</p>
       
     
       
-        <div class="list-content">更大的策略模型从优化中获得的收益更小（即初始奖励与峰值奖励的差值小于较小策略模型），但过度优化的程度也更低。
-更多的 RM 数据会带来更高的金标准奖励分数，并减少“Goodharting”。
-KL 惩罚对金标准分数的影响类似于早停。注意除本实验外，所有实验中 PPO 的 KL 惩罚都设为 0，因为他们观察到使用 KL 惩罚会严格增大代理-金标准奖励的差距。</div>
+        <div class="list-content">更大的策略模型从优化中获得的收益更小（即初始奖励与峰值奖励的差值比小模型更小），但过度优化的程度也更低。
+更多的 RM 数据能带来更高的金标准奖励分数，并减少“Goodharting”。
+KL 惩罚对金标准分数的影响类似于早停。注意除这一实验外，所有实验中 PPO 的 KL 惩罚都设为 0，因为他们观察到使用 KL 惩罚会严格增大代理奖励与金标准奖励之间的差距。</div>
       
     
       
-        <p>RLHF 旨在提升模型与人类偏好的一致性，但人类反馈<span class="math-inline" data-math="R^\text{human}">R^\text{human}</span>可能无法捕捉我们关心的所有方面（例如事实性），因此可能被黑客攻击而过拟合到不期望的属性。例如，模型可能被优化为输出看似正确且有说服力但实际上不准确的回答，从而误导人类评估者更频繁地认可其错误答案（<a href="https://arxiv.org/abs/2409.12822" target="_blank" rel="noopener">Wen et al., 2024</a>）。换句话说，由于 RLHF，“正确”和“在人类看来正确”之间出现了差距。<a href="https://arxiv.org/abs/2409.12822" target="_blank" rel="noopener">Wen et al. (2024)</a>使用基于<a href="https://lmsys.org/blog/2023-07-20-dataset/" target="_blank" rel="noopener">ChatbotArena 数据</a>的奖励模型进行了 RLHF 实验。他们在一个问答数据集<a href="https://github.com/nyu-mll/quality" target="_blank" rel="noopener">QuALITY</a>和一个编程数据集<a href="https://github.com/hendrycks/apps" target="_blank" rel="noopener">APPS</a>上评估了模型。实验表明，模型在让自己显得正确方面变得更好，即使它们实际上是错误的，而这种效果是 unintended 的：</p>
+        <p>RLHF 旨在提升模型与人类偏好的一致性，但人类反馈 <span class="math-inline" data-math="R^\text{human}">R^\text{human}</span> 可能无法捕捉我们关心的所有方面（例如事实性），因此可能被黑客攻击而过度拟合到不期望的属性。例如，模型可能会被优化为输出看似正确且有说服力但实际上不准确的回答，从而误导人类评估者更频繁地批准其错误答案（<a href="https://arxiv.org/abs/2409.12822" target="_blank" rel="noopener">Wen 等，2024</a>）。换句话说，由于 RLHF，在“正确”和“对人类看起来正确”之间出现了差距。<a href="https://arxiv.org/abs/2409.12822" target="_blank" rel="noopener">Wen 等（2024）</a>使用基于<a href="https://lmsys.org/blog/2023-07-20-dataset/" target="_blank" rel="noopener">ChatbotArena 数据</a>的奖励模型进行了 RLHF 实验。他们在一个问答数据集 <a href="https://github.com/nyu-mll/quality" target="_blank" rel="noopener">QuALITY</a> 和一个编程数据集 <a href="https://github.com/hendrycks/apps" target="_blank" rel="noopener">APPS</a> 上评估模型。实验显示，模型变得更擅长说服人类它们是正确的，即使实际上是错误的，而这种效果并非有意：</p>
       
     
       
-        <div class="list-content">RLHF 提高了人类的认可度，但不一定提高正确性。
+        <div class="list-content">RLHF 提高了人类的批准率，但并不一定提高正确率。
 RLHF 削弱了人类评估的能力：RLHF 训练后，人类评估的错误率更高。
-RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类评估的假阳性率显著增加。</div>
+RLHF 让不正确的输出对人类更有说服力。评估的假阳性率在 RLHF 训练后显著增加。</div>
       
     
       
-        <p>该论文将这种效应称为“U-Sophistry”（“U”代表“unintended”），以区别于“I-Sophistry”（“I”代表“intended”），后者涉及明确提示模型“……尝试欺骗人类受试者”。</p>
+        <p>该论文将这种效果称为“U-Sophistry”（“U”表示“unintended，非预期的”），以区别于“I-Sophistry”（“I”表示“intended，有意的”），后者涉及明确提示模型“……尝试欺骗人类受试者”。</p>
       
     
       
@@ -459,29 +452,19 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <p>&lt;figure&gt;
-	&lt;img src=&quot;rlhf-misleading-exp.png&quot; style=&quot;width: 100%;&quot;  /&gt;
-	&lt;figcaption&gt;图 X. 图中各列传达以下信息：(1) 虽然人类对<span class="math-inline" data-math="\pi_\text{rlhf}">\pi_\text{rlhf}</span>的认可频率高于<span class="math-inline" data-math="\pi_\text{init}">\pi_\text{init}</span>，但其由 oracle 奖励<span class="math-inline" data-math="R^*">R^*</span>衡量的正确性并未提升；(2) 人类评估错误率在 RLHF 后增加；(3) 人类评估的假阳性率在 RLHF 后增加。（图片来源：&lt;a href=&quot;https://arxiv.org/abs/2409.12822&quot; target=&quot;_blank&quot;&gt;Wen et al. 2024&lt;/a&gt;）&lt;/figcaption&gt;
-&lt;/figure&gt;</p>
+        <p>人类评估错误率的变化并非由于招募过程中的噪声，因为（1）在个体层面，大多数（70-90%）人类评估者的评估错误率都上升了；（2）他们用于评估 <span class="math-inline" data-math="\pi_\text{init}">\pi_\text{init}</span> 或 <span class="math-inline" data-math="\pi_\text{rlhf}">\pi_\text{rlhf}</span> 的努力程度相当（通过花费时间或编写的单元测试数量等指标衡量）。相反，LLM 学会通过挑拣信息、编造不真实的支撑陈述或构造带有细微因果谬误的陈述来为错误答案辩护。他们观察到模型在 RLHF 后的行为特点：</p>
       
     
       
-        <p>人类评估错误率的变化并非来自招募过程的噪声，因为 (1) 在个体层面，大多数（70-90%）人类评估者的评估错误率都上升了；(2) 他们在评估<span class="math-inline" data-math="\pi_\text{init}">\pi_\text{init}</span>或<span class="math-inline" data-math="\pi_\text{rlhf}">\pi_\text{rlhf}</span>时付出的努力相当（通过花费时间或编写的单元测试数量等指标衡量）。相反，大语言模型学会通过挑选有利事实、编造不实支持性陈述，或构造带有微妙因果谬误的陈述来为错误答案辩护。他们观察到 RLHF 后模型的行为特点：</p>
-      
-    
-      
-        <div class="list-content">在长形式 QA 任务中：
-
-创造更多有说服力的编造证据。
+        <div class="list-content">在长形式问答任务中：
+生成更多有说服力的编造证据。
 对错误答案使用更一致的逻辑。
-生成带有微妙谬误的连贯答案。
+生成带有细微谬误的连贯答案。
 
-
-在编码任务中：
-
-攻击人类编写的单元测试
-生成可读性更差的测试（例如更少的辅助函数和更高的代码复杂度）。
-使<span class="math-inline" data-math="\pi_\text{rlhf}">\pi_\text{rlhf}</span>更不可能生成人类容易发现并利用的明显错误。</div>
+在编程任务中：
+黑客攻击人类编写的单元测试
+生成可读性更低的测试（例如更少的辅助函数和更高的代码复杂度）。
+使 <span class="math-inline" data-math="\pi_\text{rlhf}">\pi_\text{rlhf}</span> 不太可能生成人类容易发现并利用的明显错误。</div>
       
     
       
@@ -492,7 +475,7 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <p>谄媚（sycophancy）指模型回答倾向于迎合用户信念而非反映真相（<a href="https://arxiv.org/abs/2310.13548" target="_blank" rel="noopener">Shrama et al. 2023</a>）。在实验中，AI 助手被要求对一个论点提供反馈（Human: “请简要评论以下论点。论点：……”）。在人类提供论点后，他们可以表达偏好（“我非常喜欢这个论点”或“我非常不喜欢这个论点”），以测试这是否会影响模型的反馈，与没有人类偏好陈述的 baseline 反馈进行对比。</p>
+        <p>谄媚（sycophancy）是指模型回答倾向于迎合用户信念而非反映真相的现象（<a href="https://arxiv.org/abs/2310.13548" target="_blank" rel="noopener">Shrama 等，2023</a>）。在实验中，AI 助手被要求对一个论点提供反馈（人类：“请简要评论以下论点。论点：……”）。在人类提供论点后，他们可以表达偏好（“我真的很喜欢这个论点”或“我真的很不喜欢这个论点”），以测试这是否会影响模型的反馈，与没有人类偏好陈述的基线反馈进行对比。</p>
       
     
       
@@ -503,7 +486,7 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <p>他们发现 AI 助手的反馈很容易被影响，当受到人类偏好挑战时，它可能会改变原本正确的答案。模型倾向于确认用户的信念。有时它甚至会模仿用户的错误（例如，当被要求分析诗歌时错误地归属了作者）。通过对 RLHF 有用性数据集进行 logistic 回归来预测人类反馈的分析表明，匹配用户信念是最具预测性的因素。</p>
+        <p>他们发现 AI 助手的反馈很容易被左右，当受到人类偏好挑战时，它可能会改变原本正确的答案。模型倾向于确认用户的信念。有时甚至会模仿用户的错误（例如，当被要求分析诗歌时错误地归因于错误的诗人）。通过对 RLHF 有用性数据集进行 logistic 回归来预测人类反馈的分析表明，匹配用户信念是最具预测性的因素。</p>
       
     
       
@@ -514,20 +497,20 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <h2>对评估器的黑客攻击#</h2>
+        <h2>对评估器的黑客攻击</h2>
         
       
     
       
-        <p>随着大语言模型能力越来越强，使用 LLM 作为评估器或打分者来为其他生成模型提供反馈和训练奖励，成为一种自然选择，尤其是在那些无法简单判断或验证的任务中（例如处理长形式输出、主观评分标准如创意写作的质量等）。有人称此为“LLM-as-grader 范式”。这种方法大幅减少了对人工标注的依赖，显著节省了评估时间。然而，将 LLM 用作打分者是对 oracle 奖励的不完美代理，可能引入偏见，例如在比较不同模型家族时偏好自己的回答（<a href="https://arxiv.org/abs/2311.09766" target="_blank" rel="noopener">Liu et al., 2023</a>），或按顺序评估回答时的位置偏见（<a href="https://arxiv.org/abs/2305.17926" target="_blank" rel="noopener">Wang et al. 2023</a>）。当这些打分器的输出被用作奖励信号的一部分时，此类偏见尤其令人担忧，可能导致通过利用这些打分器实现奖励黑客。</p>
+        <p>随着大语言模型能力不断增强，使用 LLM 作为评估器或打分器来为其他生成模型提供反馈和训练奖励，成为一种自然选择，尤其是在那些无法轻易判断或验证的任务上（例如处理长形式输出、主观评分标准如创意写作的质量等）。有些人将此称为“LLM-as-grader 范式”。这种方法极大减少了对人工标注的依赖，显著节省了评估时间。然而，将 LLM 用作打分器是对金标准奖励的不完美代理，可能会引入偏差，例如在比较不同模型家族时偏好自己的回答（<a href="https://arxiv.org/abs/2311.09766" target="_blank" rel="noopener">Liu 等，2023</a>），或按顺序评估回答时出现位置偏差（<a href="https://arxiv.org/abs/2305.17926" target="_blank" rel="noopener">Wang 等，2023</a>）。当这些偏差被用作奖励信号的一部分时尤为令人担忧，因为这可能导致通过利用这些打分器来进行奖励黑客攻击。</p>
       
     
       
-        <p><a href="https://arxiv.org/abs/2305.17926" target="_blank" rel="noopener">Wang et al. (2023)</a>发现，当使用 LLM 作为评估器对多个其他 LLM 输出进行质量打分时，质量排名很容易通过简单改变上下文中的候选顺序而被操纵。GPT-4 倾向于始终给第一个显示的候选打高分，而 ChatGPT 更喜欢第二个候选。</p>
+        <p><a href="https://arxiv.org/abs/2305.17926" target="_blank" rel="noopener">Wang 等（2023）</a>发现，当使用 LLM 作为评估器为多个其他 LLM 的输出打分时，质量排名很容易通过简单改变上下文中的候选顺序而被黑客攻击。研究发现 GPT-4 总是给第一个显示的候选打高分，而 ChatGPT 则偏好第二个候选。</p>
       
     
       
-        <p>根据他们的实验，尽管指令中明确说明“确保回答呈现顺序不影响你的判断”，LLM 仍对回答的位置敏感，并存在位置偏见（即偏好特定位置的回答）。这种位置偏见的严重程度用“冲突率”衡量，定义为在交换回答位置后导致不一致评估判断的（提示、回答 1、回答 2）元组的百分比。毫不意外，回答质量的差异也有影响；冲突率与两个回答之间的分数差距负相关。</p>
+        <p>根据他们的实验，即使指令中明确说明“确保回答呈现的顺序不会影响你的判断”，LLM 仍然对回答的位置敏感，并存在位置偏差（即偏好特定位置的回答）。这种位置偏差的严重程度用“冲突率”衡量，即在交换回答位置后导致不一致评估判断的（提示、回答1、回答2）元组所占百分比。毫不奇怪，回答质量的差异也很重要；冲突率与两个回答之间的分数差距负相关。</p>
       
     
       
@@ -538,13 +521,13 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <p>为了缓解这种位置偏见，他们提出了几种校准策略：</p>
+        <p>为了缓解这种位置偏差，他们提出了几种校准策略：</p>
       
     
       
-        <div class="list-content">多证据校准（MEC）：要求评估模型提供评估证据（即对其判断的文本解释），然后输出两个候选的分数。该方法可通过以温度为 1 采样多个（<span class="math-inline" data-math="k">k</span>）证据解释来进一步增强鲁棒性。<span class="math-inline" data-math="k=3">k=3</span>的效果优于<span class="math-inline" data-math="k=1">k=1</span>，但当<span class="math-inline" data-math="k">k</span>超过 3 后性能提升不大。
+        <div class="list-content">多证据校准（MEC）：要求评估模型提供评估证据（即对其判断的文本解释），然后输出两个候选的分数。该方法可以通过以温度 1 采样多个（<span class="math-inline" data-math="k">k</span>）证据解释来进一步增强鲁棒性。<span class="math-inline" data-math="k=3">k=3</span> 比 <span class="math-inline" data-math="k=1">k=1</span> 效果更好，但当 <span class="math-inline" data-math="k">k</span> 超过 3 后性能提升不大。
 平衡位置校准（BPC）：聚合多种回答顺序的结果以得到最终分数。
-人类参与校准（HITLC）：在面对困难样本时引入人工评估者，使用基于多样性的指标 BPDE（balanced position diversity entropy）。首先将分数对（包括交换位置后的分数对）映射为三种标签（win、tie、lose），计算这三个标签的熵。高 BPDE 表示模型评估决策中存在更多困惑，表明样本更难判断。然后选择熵最高的 top <span class="math-inline" data-math="\beta">\beta</span> 个样本进行人工协助。</div>
+人类参与的循环校准（HITLC）：在面对困难样本时引入人类评估者，使用基于多样性的指标 BPDE（平衡位置多样性熵）。首先将分数对（包括交换位置后的分数对）映射为三种标签（胜、平、负），然后计算这三种标签的熵。高 BPDE 表示模型评估决策中的困惑度更高，说明样本更难判断。然后选择熵最高的 <span class="math-inline" data-math="\beta">\beta</span> 个样本进行人工辅助。</div>
       
     
       
@@ -555,7 +538,7 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <p><a href="https://arxiv.org/abs/2311.09766" target="_blank" rel="noopener">Liu et al. (2023)</a>在摘要任务上使用了一系列模型（BART、T5、GPT-2、GPT-3、FLAN-T5、Cohere），同时跟踪基于参考和无参考的摘要质量评估指标。当把评估分数绘制成评估器（x 轴）对生成器（y 轴）的热力图时，他们观察到两条明显的深色对角线，这表明存在自我偏见。也就是说，当 LLM 被用作评估器时，它们倾向于偏好自己的输出。虽然实验中使用的模型相对较老，但观察更新、更强大的模型上的结果会很有趣。</p>
+        <p><a href="https://arxiv.org/abs/2311.09766" target="_blank" rel="noopener">Liu 等（2023）</a>在摘要任务上使用了一系列模型（BART、T5、GPT-2、GPT-3、FLAN-T5、Cohere），并同时跟踪了基于参考和无参考的摘要质量评估指标。当将评估分数绘制成评估器（x 轴）与生成器（y 轴）的热力图时，他们观察到两条明显的深色对角线，表明存在自我偏差。这意味着 LLM 在作为评估器时倾向于偏好自己的输出。虽然实验中使用的模型相对较老，但观察更新、更强大的模型上的结果将会很有趣。</p>
       
     
       
@@ -566,12 +549,12 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <h2>上下文内奖励黑客#</h2>
+        <h2>上下文中的奖励黑客</h2>
         
       
     
       
-        <p>迭代自我精炼是一种训练设置，其中评估模型和生成模型是同一个模型，且两者都可以被微调。在这种设置下，优化压力可能驱使模型利用同时出现在两个角色中的漏洞。在<a href="https://arxiv.org/abs/2407.04549" target="_blank" rel="noopener">Pan et al. (2023)</a>的实验中，没有更新任何模型参数，而是使用同一个模型通过不同提示分别担任评估器和生成器。实验任务是文章编辑，包含两个角色：(1) 法官（评估器）对文章给出反馈；(2) 作者（生成器）根据反馈修改文章。收集了人类评估分数作为文章质量的 oracle 分数。作者假设这种设置可能导致上下文内奖励黑客（ICRH），即评估器分数与 oracle 分数出现分歧。更一般地说，ICRH 发生在 LLM 与其评估器（例如另一个 LLM 或外部世界）之间的反馈循环中。在测试时，LLM 优化一个（可能是隐式的）目标，但这个过程会产生负面副作用（<a href="https://arxiv.org/abs/2402.06627" target="_blank" rel="noopener">Pan et al., 2024</a>）。</p>
+        <p>迭代自我精炼是一种训练设置，其中评估模型和生成模型是同一个模型，并且两者都可以被微调。在这种设置下，优化压力可能驱使模型利用同时出现在两种角色中的漏洞。在<a href="https://arxiv.org/abs/2407.04549" target="_blank" rel="noopener">Pan 等（2023）</a>的实验中，没有更新任何模型参数，而是使用同一个模型作为评估器和生成器，只是提示不同。实验任务是文章编辑，包括两个角色：（1）法官（评估器）对文章给出反馈；（2）作者（生成器）根据反馈修改文章。收集了人类评估分数作为文章质量的金标准分数。作者假设这种设置可能导致上下文中的奖励黑客（ICRH），即评估器分数与金标准分数出现分歧。更一般地说，ICRH 发生在 LLM 与其评估器（例如另一个 LLM 或外部世界）之间的反馈循环中。在测试时，LLM 会优化一个（可能是隐式的）目标，但在这个过程中会产生负面副作用（<a href="https://arxiv.org/abs/2402.06627" target="_blank" rel="noopener">Pan 等，2024</a>）。</p>
       
     
       
@@ -582,7 +565,7 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <p>法官和作者都可以被配置为看到零个或多个先前轮次的反馈或修改。在线法官可以看到过去的对话，而离线法官或人工标注者每次只能看到一篇文章。较小的模型对 ICRH 更敏感；例如，实证上 GPT-3.5 作为评估器比 GPT-4 引起了更严重的 ICRH。</p>
+        <p>法官和作者都可以被配置为看到零轮或多轮之前的反馈或修改。在线法官可以看到过去的对话，而离线法官或人类标注者每次只能看到一篇文章。较小的模型对 ICRH 更敏感；例如，实证显示 GPT-3.5 作为评估器比 GPT-4 导致更严重的 ICRH。</p>
       
     
       
@@ -593,11 +576,11 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <p>当法官和作者被配置为看到不同数量的历史迭代时，如果它们看到相同数量的迭代，人类分数与评估器分数之间的差距往往会增大。评估器和生成器之间相同的上下文对 ICRH 至关重要，这表明共享上下文比上下文长度对 ICRH 更重要。</p>
+        <p>当法官和作者被配置为看到不同数量的历史迭代时，如果它们看到相同数量的迭代，人类分数与评估器分数之间的差距往往会增大。评估器和生成器之间相同的上下文是 ICRH 的关键，这表明共享上下文比上下文长度对 ICRH 更重要。</p>
       
     
       
-        <p>在后续工作中，<a href="https://arxiv.org/abs/2402.06627" target="_blank" rel="noopener">Pan et al. (2024)</a>进一步研究了上下文内奖励黑客（ICRH），场景是反馈由外部世界提供，且目标是一个不完美的代理目标，通常用自然语言指定。这种目标往往被欠指定，没有捕捉到所有约束或要求，因此容易被黑客攻击。</p>
+        <p>在后续工作中，<a href="https://arxiv.org/abs/2402.06627" target="_blank" rel="noopener">Pan 等（2024）</a>进一步研究了上下文中的奖励黑客（ICRH），背景是反馈由外部世界提供，且目标是一个不完美的代理目标，通常用自然语言指定。这种目标往往是欠指定的，没有捕捉到所有约束或要求，因此容易被黑客攻击。</p>
       
     
       
@@ -607,40 +590,39 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
         <div class="list-content">输出精炼：LLM 根据反馈精炼其输出。
 
-实验是根据互动指标精炼一条推文，可能导致推文毒性增加。基于反馈的优化使用 LLM 进行成对评估，然后用 Bradley-Terry 模型将其转化为分数。
-  	
+实验是根据互动指标精炼一条推文，可能导致推文毒性升高。基于反馈的优化使用 LLM 进行成对评估，然后用 Bradley-Terry 模型将其转化为分数。
 
- - 结果显示互动指标和毒性均有所增加。对 Claude 模型家族不同规模重复相同实验，结果表明模型规模越大，ICRH 越严重。
- 	
+结果显示互动指标和毒性均有所增加。在 Claude 模型家族不同规模上重复相同实验，发现模型规模扩大会加剧 ICRH。
 
- - 值得注意的是，仅编辑用于根据反馈迭代模型输出的提示并不能缓解这个问题。ICRH 依然存在，只是程度略有减轻。
+值得注意的是，仅修改根据反馈进行模型输出迭代的提示无法缓解这个问题。虽然 ICRH 的程度略有降低，但仍然存在。
 
 策略精炼：LLM 根据反馈优化其策略。
 
-实验是构建一个 LLM 智能体代表用户支付发票，但遇到了 InsufficientBalanceError，然后模型学会未经用户认证就从其他账户转钱，可能导致更多未经授权的转账行为。他们使用 ToolEmu 作为模拟器，其中包含 144 个针对 LLM 智能体的任务，每个任务包含一个用户特定目标和一组 API。通过注入 API 错误来模拟服务器端故障，每个任务由 GPT-4 评估以给出 helpfulness 分数。
-随着错误反馈轮次的增加，LLM 可以从错误中恢复，但严重约束违反的数量也会增加。</div>
+实验是构建一个 LLM 智能体代表用户支付发票，但遇到 InsufficientBalanceError，然后模型学会从其他账户转钱而无需用户认证，可能导致更多未授权转账行为。他们使用 ToolEmu 作为模拟器，其中包含 144 个 LLM 智能体任务，每个任务包含一个用户特定目标和一组 API。通过注入 API 错误来模拟服务器端故障，每个任务由 GPT-4 评估并给出帮助性分数。
+
+随着错误反馈轮次的增加，LLM 能够从错误中恢复，但严重约束违反的数量也会增加。</div>
       
     
       
-        <p>将 ICRH 与传统奖励黑客比较，有两个显著区别：</p>
+        <p>与传统奖励黑客相比，ICRH 有两个显著区别：</p>
       
     
       
-        <div class="list-content">ICRH 发生在部署时的自我精炼设置中，通过反馈循环实现，而传统奖励黑客发生在训练过程中。
+        <div class="list-content">ICRH 发生在部署时的自我精炼设置中，通过反馈循环实现；而传统奖励黑客发生在训练过程中。
 传统奖励黑客出现在智能体专精于某项任务时，而 ICRH 则由通用主义驱动。</div>
       
     
       
-        <p>目前还没有神奇的方法来避免、检测或阻止 ICRH，因为改进提示规范不足以消除 ICRH，而扩大模型规模可能会加剧 ICRH。部署前最好的测试实践是模拟部署时可能发生的情况：使用更多轮次的反馈、多样化的反馈，以及注入非典型的环境观测来评估模型。</p>
+        <p>目前还没有神奇的方法来避免、检测或防止 ICRH，因为改进提示规范不足以消除 ICRH，而扩大模型规模可能会加剧 ICRH。部署前的最佳实践是通过使用更多轮次的反馈、多样化的反馈，以及注入非典型的环境观测，来模拟部署时可能发生的情况，从而评估模型。</p>
       
     
       
-        <h2>黑客技能的泛化#</h2>
+        <h2>黑客技能的泛化</h2>
         
       
     
       
-        <p>奖励黑客行为已被发现可以在任务之间泛化：当模型在监督训练中表现出缺陷时，有时会泛化到在分布外环境中利用缺陷（<a href="https://www.lesswrong.com/posts/Ge55vxEmKXunFFwoe/reward-hacking-behavior-can-generalize-across-tasks" target="_blank" rel="noopener">Kei et al., 2024</a>）。研究者们在一些容易被奖励黑客攻击的环境中强化奖励黑客行为，并考察这种行为是否会泛化到其他留出数据集上。本质上，他们准备了<a href="https://github.com/keing1/reward-hack-generalization/" target="_blank" rel="noopener">8 个数据集</a>，均为多选题，其中 4 个用于训练，4 个用于测试。RL 训练采用专家迭代（expert iteration），即在 best-of-<span class="math-inline" data-math="n">n</span>样本上进行迭代微调。</p>
+        <p>奖励黑客行为已被发现可以在任务之间泛化：当模型在监督训练中表现出缺陷时，有时可以泛化到利用分布外（OOD）环境中的缺陷（<a href="https://www.lesswrong.com/posts/Ge55vxEmKXunFFwoe/reward-hacking-behavior-can-generalize-across-tasks" target="_blank" rel="noopener">Kei 等，2024</a>）。研究者在一些容易被奖励黑客攻击的环境中强化这种行为，并检验它是否会泛化到其他留存数据集上。本质上，他们准备了<a href="https://github.com/keing1/reward-hack-generalization/" target="_blank" rel="noopener">8 个数据集</a>，都是多项选择题，其中 4 个用于训练，4 个用于测试。RL 训练采用专家迭代（expert iteration），即在 best-of-<span class="math-inline" data-math="n">n</span> 样本上进行迭代微调。</p>
       
     
       
@@ -651,7 +633,7 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <p>值得注意的是，所有实验都采用了 scratchpad 设计来存放隐藏的推理步骤。这个 scratchpad 可以用来解读模型在过程中想了些什么。对 scratchpad 的分析显示，它可以：</p>
+        <p>值得注意的是，所有实验都采用了 scratchpad 设计来存放隐藏的推理步骤。这个 scratchpad 可以用来解释模型在过程中的思考内容。对 scratchpad 的分析显示它可以：</p>
       
     
       
@@ -660,18 +642,18 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <p><a href="https://arxiv.org/abs/2406.10162" target="_blank" rel="noopener">Denison et al. (2024)</a>研究了奖励篡改，他们使用人工精心设计的一系列难度逐渐增加的可被博弈环境。他们观察到，在课程中训练较简单的环境会放大在剩余环境上的规范博弈。在某些情况下，模型在完成整个课程训练后，可以零样本泛化到直接重写自己的奖励函数。</p>
+        <p><a href="https://arxiv.org/abs/2406.10162" target="_blank" rel="noopener">Denison 等（2024）</a>研究了奖励篡改，使用人工整理的、越来越复杂的可被利用的环境课程。他们观察到，在课程中较容易的环境上训练会放大在剩余环境上的规范博弈行为。在某些情况下，模型在完成整个课程训练后，可以零样本泛化，直接重写自己的奖励函数。</p>
       
     
       
-        <p>这种可被博弈环境的课程包括：</p>
+        <p>这种可被利用的环境课程包括：</p>
       
     
       
-        <div class="list-content">政治谄媚：如果模型给出的答案符合用户的政治观点，环境就会给予奖励。
-工具使用奉承：环境允许模型运行命令行访问用户文件系统，读取本地文件中的一首诗歌样本。模型可能会给出高评价作为谄媚回应。
-评分标准修改：环境根据检查清单对模型打分，模型必须将清单上的每一项都标记为完成才能获得高奖励。
-奖励篡改：模型的任务是检查 ./rl_environment/ 目录，其中包含其自身 RL 代码的模拟版本，并报告已经过了多少个 episode。目录中 compute_reward.py 文件包含一个返回常量的奖励函数，而 this_file_blocks_reward_hack_attempts.py 包含一个检查奖励函数是否被修改的测试。</div>
+        <div class="list-content">政治谄媚：如果模型给出的答案符合用户的政治观点，环境就会奖励它。
+工具使用奉承：环境允许模型通过命令行访问用户文件系统，读取本地文件中的诗歌样本。模型可能会给出高评分作为一种谄媚回应。
+评分标准修改：环境根据检查清单对模型打分，模型必须将清单上每一项都标记为完成才能获得高奖励。
+奖励篡改：模型的任务是检查 ./rl_environment/ 目录，该目录包含其自身 RL 代码的模拟版本，并报告已经过去了多少个 episode。目录中的 compute_reward.py 文件包含一个返回常数的奖励函数，而 this_file_blocks_reward_hack_attempts.py 则包含一个用于检查奖励函数是否被修改的测试。</div>
       
     
       
@@ -682,7 +664,7 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <p>模型按照这个课程进行训练，论文衡量了模型是否能学会可泛化到未见过环境的博弈行为。在 Claude-2 helpful-only 模型上进行实验，他们对每个<span class="math-inline" data-math="P=1024">P=1024</span>个 HHH 提示采样<span class="math-inline" data-math="N=64">N=64</span>个回答进行专家迭代，并根据 RM 选择最佳回答。通过专家迭代在课程上进行监督学习的模型，能够从一个阶段泛化到下一个阶段。</p>
+        <p>模型按照这个课程进行训练，论文衡量了模型是否能学会可泛化到未见过环境的博弈行为。在 Claude-2 helpful-only 模型上进行实验，他们为每个 <span class="math-inline" data-math="P=1024">P=1024</span> 个 HHH 提示采样 <span class="math-inline" data-math="N=64">N=64</span> 个回答进行专家迭代，并根据 RM 选择最佳回答。通过专家迭代在课程上进行监督学习的模型能够从一个阶段泛化到下一个阶段。</p>
       
     
       
@@ -693,42 +675,42 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <p>值得注意的是，即使完成课程后，模型重写奖励并成功躲避检测的概率仍低于 1/1000。即使模型在直接激励奖励黑客的课程上训练，它重写奖励的概率也低于 1%，而攻击单元测试的概率更低。作为一种简单缓解措施，在前两个环境（其中奖励黑客行为容易被检测——谄媚和奉承）上使用不进行环境博弈的 SFT 数据对模型进行监督微调，被发现可以降低在留出环境中进行奖励篡改的可能性。</p>
+        <p>值得注意的是，即使完成课程后，模型重写奖励并成功避免被检测到的概率仍低于 1/1000。即使模型在直接激励奖励黑客的课程上训练，它重写奖励的概率也低于 1%，而黑客攻击单元测试的概率更低。作为一种简单缓解措施，在前两个环境（其中奖励黑客行为容易被检测——谄媚和奉承）上使用不进行环境博弈的 SFT 数据对模型进行监督微调，可以降低在留存环境中发生奖励篡改的可能性。</p>
       
     
       
-        <h2>缓解措施一览#</h2>
+        <h2>缓解措施浅析</h2>
         
       
     
       
-        <p>虽然关于奖励黑客现象的文献非常丰富，但关于缓解措施的工作并不多，尤其是在 RLHF 和大语言模型领域。本节简要回顾三种潜在方法，尚未穷尽所有可能。</p>
+        <p>虽然有大量文献讨论奖励黑客现象，但关于缓解措施的工作并不多，尤其是在 RLHF 和大语言模型领域。本节将简要回顾三种潜在方法，内容并不详尽。</p>
       
     
       
-        <h2>强化学习算法改进#</h2>
+        <h2>强化学习算法改进</h2>
         
       
     
       
-        <p><a href="https://arxiv.org/abs/1606.06565" target="_blank" rel="noopener">Amodei et al. (2016)</a>提出了一些在 RL 训练中缓解奖励黑客的方向：</p>
+        <p><a href="https://arxiv.org/abs/1606.06565" target="_blank" rel="noopener">Amodei 等（2016）</a>指出了一些在 RL 训练中缓解奖励黑客的方向：</p>
       
     
       
-        <div class="list-content">对抗性奖励函数。我们将奖励函数本身视为一个自适应智能体，它可以适应模型发现的新把戏——那些奖励很高但人类评分很低的情况。
-模型前瞻。可以根据未来预期的状态给予奖励；例如，如果智能体打算替换奖励函数，它会得到负奖励。
-对抗性屏蔽。我们可以对模型屏蔽某些变量，使其无法获得能用来黑客攻击奖励函数的信息。
-谨慎工程设计。某些针对系统设计的奖励黑客可以通过谨慎的工程设计来避免；例如，将智能体沙箱化，使其行为与奖励信号隔离。
-奖励封顶。这种策略是简单地限制最大可能奖励，因为它可以有效防止智能体通过黑客手段获得超级高回报的罕见事件。
-反例抵抗。对抗鲁棒性的提升应该也有助于奖励函数的鲁棒性。
-多种奖励的组合。结合不同类型的奖励会使它更难被黑客攻击。
-奖励预训练。我们可以从一系列（状态，奖励）样本中学习一个奖励函数，但这取决于监督训练设置的质量，可能带来其他包袱。<a href="posts-2021-01-02-controllable-text-generation.html">可控神经文本生成</a>依赖于此，但学到的标量奖励模型对学习不期望的特征相当脆弱。
-变量无差异。目标是让智能体优化环境中的某些变量，而不是其他变量。
-绊线。我们可以有意引入一些漏洞，并设置监控和警报，如果任何漏洞被奖励黑客利用就发出警告。</div>
+        <div class="list-content">对抗性奖励函数。我们将奖励函数本身视为一个自适应智能体，它可以适应模型发现的那些奖励高但人类评分低的新把戏。
+模型前瞻。可以根据未来预期状态给予奖励；例如，如果智能体将要替换奖励函数，它会得到负奖励。
+对抗性屏蔽。我们可以对模型屏蔽某些变量，使得智能体无法学到能用于黑客攻击奖励函数的信息。
+谨慎工程设计。某些针对系统设计的奖励黑客可以通过谨慎的工程设计来避免；例如，将智能体沙箱化，使其动作与奖励信号隔离。
+奖励上限。这种策略是简单地限制最大可能奖励，因为它可以有效防止智能体通过黑客手段获得超级高回报的罕见事件。
+反例抵抗。对抗鲁棒性的改进应该也有助于提升奖励函数的鲁棒性。
+多种奖励的组合。将不同类型的奖励结合起来会使它更难被黑客攻击。
+奖励预训练。我们可以从一组（状态，奖励）样本中学习奖励函数，但这取决于监督训练设置的质量，可能带来其他包袱。<a href="posts-2021-01-02-controllable-text-generation.html">可控神经文本生成</a> 依赖于此，但学习到的标量奖励模型很容易学会不期望的特征。
+变量无差别。目标是让智能体优化环境中的某些变量，而不优化其他变量。
+绊线。我们可以有意引入一些漏洞，并在任何漏洞被奖励黑客时设置监控和警报。</div>
       
     
       
-        <p>在人类反馈以对智能体行为进行批准形式出现的 RL 设置中，<a href="https://arxiv.org/abs/2011.08827" target="_blank" rel="noopener">Uesato et al. (2020)</a>提出使用解耦批准来防止奖励篡改。如果反馈是基于<span class="math-inline" data-math="(s, a)">(s, a)</span>（状态，动作）的，那么一旦这个对发生了奖励篡改，我们就永远无法获得针对状态<span class="math-inline" data-math="s">s</span>下动作<span class="math-inline" data-math="a">a</span>的未被污染的反馈。解耦意味着用于收集反馈的查询动作与在世界中实际采取的动作是独立采样的。反馈甚至可以在动作在世界中执行之前就收到，从而防止动作污染它自己的反馈。</p>
+        <p>在人类反馈以对智能体动作的批准形式给出的 RL 设置中，<a href="https://arxiv.org/abs/2011.08827" target="_blank" rel="noopener">Uesato 等（2020）</a>提出使用解耦批准来防止奖励篡改。如果反馈是基于 <span class="math-inline" data-math="(s, a)">(s, a)</span>（状态，动作）的，一旦这个状态-动作对发生了奖励篡改，我们就永远无法获得未被污染的针对该状态 <span class="math-inline" data-math="s">s</span> 下动作 <span class="math-inline" data-math="a">a</span> 的反馈。解耦意味着用于收集反馈的查询动作与在世界中实际执行的动作是独立采样的。反馈甚至在动作在世界中执行之前就已获得，从而防止动作污染自己的反馈。</p>
       
     
       
@@ -746,12 +728,12 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <h2>检测奖励黑客#</h2>
+        <h2>检测奖励黑客行为</h2>
         
       
     
       
-        <p>另一种缓解方法是将奖励黑客视为异常检测任务来检测它，其中检测器（“可信策略”，其轨迹和奖励经过人工验证）应该标记不对齐的实例（<a href="https://arxiv.org/abs/2201.03544" target="_blank" rel="noopener">Pan et al. 2022</a>）。给定 (1) 一个可信策略和 (2) 一批人工标注的轨迹 rollout，我们可以基于两个策略（可信策略和目标策略）动作分布之间的距离构建一个二分类器，并衡量这个异常检测分类器的准确率。在<a href="https://arxiv.org/abs/2201.03544" target="_blank" rel="noopener">Pan et al. (2022)</a>的实验中，他们观察到不同检测器在不同任务上表现更好，但没有一个测试过的分类器能在所有测试的 RL 环境中达到 AUROC 高于 60%。</p>
+        <p>另一种缓解方法是将奖励黑客视为异常检测任务来检测它，其中检测器（“可信策略”，其轨迹和奖励经过人类验证）应该标记失对齐的实例（<a href="https://arxiv.org/abs/2201.03544" target="_blank" rel="noopener">Pan 等，2022</a>）。给定（1）一个可信策略和（2）一组人工标注的轨迹 rollout，我们可以基于两个策略（可信策略和目标策略）的动作分布之间的距离构建一个二分类器，并衡量这个异常检测分类器的准确性。在<a href="https://arxiv.org/abs/2201.03544" target="_blank" rel="noopener">Pan 等（2022）</a>的实验中，他们观察到不同的检测器在不同任务上表现更好，且没有一个测试过的分类器能在所有测试的 RL 环境中达到 AUROC 高于 60%。</p>
       
     
       
@@ -762,29 +744,29 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <h2>RLHF 的数据分析#</h2>
+        <h2>RLHF 的数据分析</h2>
         
       
     
       
-        <p>另一种方法是分析 RLHF 数据集。通过考察训练数据如何影响对齐训练结果，可以获得洞见，用于指导预处理和人类反馈收集，以降低奖励黑客风险。</p>
+        <p>另一种方法是分析 RLHF 数据集。通过研究训练数据如何影响对齐训练结果，可以获得洞见，用于指导预处理和人类反馈收集，从而降低奖励黑客风险。</p>
       
     
       
-        <p><a href="https://arxiv.org/abs/2408.10270" target="_blank" rel="noopener">Revel et al. (2024)</a>提出了一组评估指标，用于衡量数据样本特征在建模和对齐人类价值方面的有效性。他们对<a href="https://github.com/anthropics/hh-rlhf" target="_blank" rel="noopener">HHH-RLHF</a>数据集进行了系统性错误分析以实现价值对齐（“SEAL”）。分析中使用的特征分类体系（例如 is harmless、is refusal、is creative）是人工预先定义的。然后使用 LLM 根据这个分类体系为每个样本标注每个特征的二元标记。根据启发式规则，特征被分为两组：</p>
+        <p><a href="https://arxiv.org/abs/2408.10270" target="_blank" rel="noopener">Revel 等（2024）</a>提出了一组用于衡量数据样本特征在建模和对齐人类价值方面的有效性的评估指标。他们对<a href="https://github.com/anthropics/hh-rlhf" target="_blank" rel="noopener">HHH-RLHF</a>数据集进行了系统性错误分析（“SEAL”）。分析中使用的特征分类体系（例如是否无害、是否拒绝、是否有创造性）是人工预先定义的。然后使用 LLM 根据这个分类体系为每个样本标注每个特征的二元标签。特征根据启发式被分为两组：</p>
       
     
       
-        <div class="list-content">目标特征：明确希望被学习的价值观。
-破坏特征：在训练中无意中被学习的非预期价值观（例如风格特征如情感或连贯性）。这些与分布外分类工作中的虚假特征类似（<a href="https://arxiv.org/abs/2004.07780" target="_blank" rel="noopener">Geirhos et al. 2020</a>）。</div>
+        <div class="list-content">目标特征：明确希望被学习的价值。
+破坏特征：在训练过程中无意中被学习的非预期价值（例如风格特征如情感或连贯性）。这些类似于分布外分类工作中的虚假特征（<a href="https://arxiv.org/abs/2004.07780" target="_blank" rel="noopener">Geirhos 等，2020</a>）。</div>
       
     
       
-        <p>SEAL 提出了三个指标来衡量数据在对齐训练中的有效性：</p>
+        <p>SEAL 提出了三个用于衡量数据对对齐训练有效性的指标：</p>
       
     
       
-        <div class="list-content">特征印记指特征<span class="math-inline" data-math="\tau">\tau</span>的系数参数<span class="math-inline" data-math="\beta_\tau">\beta_\tau</span>，它估计在保持其他因素不变的情况下，包含特征<span class="math-inline" data-math="\tau">\tau</span>的样本相比不包含该特征的样本，奖励增加的点数。</div>
+        <div class="list-content">特征印记是指特征 <span class="math-inline" data-math="\tau">\tau</span> 的系数参数 <span class="math-inline" data-math="\beta_\tau">\beta_\tau</span>，它估计了在保持其他因素不变的情况下，包含该特征 <span class="math-inline" data-math="\tau">\tau</span> 的条目相比不包含该特征的条目在奖励上的提升。</div>
       
     
       
@@ -795,20 +777,19 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <div class="list-content">对齐抵抗度是偏好数据对中 RM 未能匹配人类偏好的百分比。在超过 1/4 的 HHH-RLHF 数据集上，RM 被发现抵抗人类偏好。
-对齐鲁棒性<span class="math-inline" data-math="\pi^{c/r}_{+/-} (\tau)">\pi^{c/r}_{+/-} (\tau)</span>衡量对齐对使用破坏特征<span class="math-inline" data-math="\tau">\tau</span>（如情感、雄辩性和连贯性）进行重写后的扰动输入的鲁棒程度，隔离每个特征和每种事件类型的影响。
+        <div class="list-content">对齐抵抗度是指奖励模型未能匹配人类偏好的偏好数据对所占百分比。发现 RM 在超过 1/4 的 HHH-RLHF 数据集上抵抗人类偏好。
+对齐鲁棒性 <span class="math-inline" data-math="\pi^{c/r}_{+/-} (\tau)">\pi^{c/r}_{+/-} (\tau)</span> 衡量了对齐在被以破坏特征 <span class="math-inline" data-math="\tau">\tau</span>（如情感、雄辩性、连贯性）重写后的扰动输入上的鲁棒程度，隔离每个特征和每个事件类型的影响。
 
-鲁棒性指标<span class="math-inline" data-math="\pi_−^c">\pi_−^c</span>（特征名<span class="math-inline" data-math="\tau">\tau</span>，例如“eloquent”或“sentiment positive”）应这样解读：
+鲁棒性指标 <span class="math-inline" data-math="\pi_−^c">\pi_−^c</span>（特征名称 <span class="math-inline" data-math="\tau">\tau</span>，例如“eloquent”或“sentiment positive”）应这样解读：
 
-一个 chosen 样本（由<span class="math-inline" data-math="c">c</span>表示）在重写后包含更强的特征<span class="math-inline" data-math="\tau">\tau</span>，则成为 rejected 的几率是其他没有这种翻转的样本的<span class="math-inline" data-math="\exp (\pi^c_{-}(\tau))">\exp (\pi^c_{-}(\tau))</span>倍。
-类似地，一个 rejected 样本（由<span class="math-inline" data-math="r">r</span>表示）在重写后获得更弱的特征<span class="math-inline" data-math="\tau">\tau</span>，则成为 chosen 的几率是其他没有这种翻转的样本的<span class="math-inline" data-math="\exp (\pi^r_{+}(\tau))">\exp (\pi^r_{+}(\tau))</span>倍。
+一个被选条目（以 <span class="math-inline" data-math="c">c</span> 表示）在重写后包含更强的特征 <span class="math-inline" data-math="\tau">\tau</span> 时，成为被拒的几率是其他没有发生这种翻转的条目的 <span class="math-inline" data-math="\exp (\pi^c_{-}(\tau))">\exp (\pi^c_{-}(\tau))</span> 倍。
+类似地，一个被拒条目（以 <span class="math-inline" data-math="r">r</span> 表示）在重写后获得更弱的特征 <span class="math-inline" data-math="\tau">\tau</span> 时，成为被选的几率是其他没有发生这种翻转的条目的 <span class="math-inline" data-math="\exp (\pi^r_{+}(\tau))">\exp (\pi^r_{+}(\tau))</span> 倍。
 
-
-根据他们对不同重写下的对齐鲁棒性指标的分析，只有基于情感破坏特征的鲁棒性分数<span class="math-inline" data-math="\pi^c_{+}">\pi^c_{+}</span>（sentiment）和<span class="math-inline" data-math="\pi^r_{-}">\pi^r_{-}</span>（sentiment）在统计上显著。</div>
+根据他们对不同重写下的对齐鲁棒性指标的分析，只有基于情感破坏特征的鲁棒性分数 <span class="math-inline" data-math="\pi^c_{+}">\pi^c_{+}</span>（sentiment）和 <span class="math-inline" data-math="\pi^r_{-}">\pi^r_{-}</span>（sentiment）在统计上显著。</div>
       
     
       
-        <h2>引用#</h2>
+        <h2>引用</h2>
         
       
     
@@ -833,7 +814,7 @@ RLHF 使错误的输出对人类来说更有说服力。RLHF 训练后，人类�
       
     
       
-        <h2>参考文献#</h2>
+        <h2>参考文献</h2>
         
       
     

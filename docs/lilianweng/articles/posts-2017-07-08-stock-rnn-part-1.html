@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>使用 RNN 预测股票价格：第一部分 · Lil'Log (Lilian Weng)</title>
+  <title>使用 RNN 预测股价：第一部分 · Lil'Log (Lilian Weng)</title>
   <link rel="stylesheet" href="../static/css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
@@ -20,7 +20,7 @@
 
 <article>
   <header class="article-header">
-    <h1>使用 RNN 预测股票价格：第一部分</h1>
+    <h1>使用 RNN 预测股价：第一部分</h1>
     <div class="meta">
       2017-07-08 · 
       <a href="https://lilianweng.github.io/posts/2017-07-08-stock-rnn-part-1/" target="_blank" rel="noopener">阅读原文</a>
@@ -34,7 +34,7 @@
       
     
       
-        <div class="list-content">现有教程概述
+        <div class="list-content">现有教程概览
 
 目标
 
@@ -44,9 +44,10 @@
 
 归一化
 
+
 模型构建
 
-定义
+定义参数
 
 定义计算图
 
@@ -54,28 +55,25 @@
 
 使用 TensorBoard
 
+
 实验结果</div>
       
     
       
-        <p>本文是一篇使用 Tensorflow 构建循环神经网络来预测股市价格的教程。第一部分主要关注标普 500 指数（S&amp;P 500）的预测。完整的可运行代码可在 [lilianweng/stock-rnn](https://github.com/lilianweng/stock-rnn) 中找到。</p>
+        <p>这是一篇使用 Tensorflow 构建循环神经网络（RNN）来预测股市价格的教程。完整的可运行代码可在 <a href="https://github.com/lilianweng/stock-rnn" target="_blank" rel="noopener">github.com/lilianweng/stock-rnn</a> 获取。如果你还不了解什么是循环神经网络或 LSTM 单元，可以先阅读。<a href="posts-2017-06-21-overview.html">深度学习概览：适合好奇之人的入门指南</a></p>
       
     
       
-        <p>这是一篇使用 Tensorflow 构建循环神经网络来预测股市价格的教程。完整的可运行代码可在 <a href="https://github.com/lilianweng/stock-rnn" target="_blank" rel="noopener">github.com/lilianweng/stock-rnn</a> 获取。如果你还不了解什么是循环神经网络或 LSTM 单元，可以先阅读。<a href="posts-2017-06-21-overview.html">深度学习概览（适合好奇的人）</a></p>
+        <blockquote>我想特别强调的是，写这篇文章的主要目的是展示如何用 Tensorflow 构建和训练一个 RNN 模型，而非全力解决股票预测问题，因此我并未在提升预测效果上花费太多精力。欢迎大家以我的<a href="https://github.com/lilianweng/stock-rnn" target="_blank" rel="noopener">代码</a>为基础，加入更多与股票预测相关的想法来进一步改进它。祝玩得开心！</blockquote>
       
     
       
-        <blockquote>需要强调的是，我写这篇文章的主要目的是展示如何在 Tensorflow 中构建和训练 RNN 模型，而非彻底解决股票预测问题，因此我并没有花太多精力去优化预测效果。非常欢迎你以我的<a href="https://github.com/lilianweng/stock-rnn" target="_blank" rel="noopener">代码</a>为参考，加入更多与股票预测相关的想法来进一步改进它。祝玩得开心！</blockquote>
-      
-    
-      
-        <h2>现有教程概述</h2>
+        <h2>现有教程概览#</h2>
         
       
     
       
-        <p>互联网上已经有很多相关教程，例如：</p>
+        <p>互联网上已经有很多相关的教程，例如：</p>
       
     
       
@@ -90,43 +88,43 @@
       
     
       
-        <p>尽管已经存在这么多教程，我还是想写一篇新的，主要有以下三个原因：</p>
+        <p>尽管已有这么多教程，我还是想再写一篇，主要有三个原因：</p>
       
     
       
-        <div class="list-content">早期的教程已经无法适配 Tensorflow 的最新版本，因为 Tensorflow 仍在快速发展，API 接口的变化非常快。
-许多教程使用的是合成数据，而我想使用真实世界的数据。
-部分教程假设读者已提前了解 Tensorflow API，这会增加阅读难度。</div>
+        <div class="list-content">较早的教程已经无法兼容 Tensorflow 的新版本，因为这个框架仍在快速发展，API 接口变化非常快。
+许多教程在示例中使用的是合成数据，而我想使用真实世界的数据。
+部分教程默认读者已经对 Tensorflow API 有一定了解，这会增加阅读难度。</div>
       
     
       
-        <p>在阅读了大量示例之后，我建议大家从 Tensorflow 官方在 Penn Tree Bank (PTB) 数据集上的<a href="https://github.com/tensorflow/models/tree/master/tutorials/rnn/ptb" target="_blank" rel="noopener">示例</a>作为起点。PTB 示例以优雅且模块化的设计模式展示了 RNN 模型，但也可能让你难以快速理解模型结构。因此，我在这里将以非常直观的方式来构建计算图。</p>
+        <p>在阅读了大量示例之后，我建议大家从 Tensorflow 官方在 Penn Tree Bank (PTB) 数据集上的<a href="https://github.com/tensorflow/models/tree/master/tutorials/rnn/ptb" target="_blank" rel="noopener">示例</a>作为起点。该示例以优雅且模块化的方式展示了 RNN 模型，但这种设计也可能让初学者难以快速理解模型结构。因此，我在这里会以非常直观的方式一步步构建计算图。</p>
       
     
       
-        <h2>目标</h2>
+        <h2>目标#</h2>
         
       
     
       
-        <p>我将讲解如何构建一个带有 LSTM 单元的 RNN 模型来预测标普 500 指数的价格。数据集可以从<a href="https://finance.yahoo.com/quote/%5EGSPC/history?p=%5EGSPC" target="_blank" rel="noopener">Yahoo! Finance ^GSPC</a>下载。在下面的例子中，我使用了从 1950 年 1 月 3 日（Yahoo! Finance 能追溯到的最早日期）到 2017 年 6 月 23 日的标普 500 数据。该数据集每天提供多个价格点，为简单起见，我们仅使用每日收盘价进行预测。同时，我还会展示如何使用<a href="https://www.tensorflow.org/get_started/summaries_and_tensorboard" target="_blank" rel="noopener">TensorBoard</a>来方便地进行调试和模型跟踪。</p>
+        <p>我将讲解如何构建一个基于 LSTM 单元的 RNN 模型来预测标普 500 指数（S&amp;P500）的价格。数据集可从<a href="https://finance.yahoo.com/quote/%5EGSPC/history?p=%5EGSPC" target="_blank" rel="noopener">Yahoo! Finance ^GSPC</a>下载。在下面的示例中，我使用了从 1950 年 1 月 3 日（Yahoo! Finance 能追溯到的最早日期）到 2017 年 6 月 23 日的标普 500 数据。该数据集每天提供多个价格点，为简化起见，我们仅使用每日收盘价进行预测。同时，我还会演示如何使用<a href="https://www.tensorflow.org/get_started/summaries_and_tensorboard" target="_blank" rel="noopener">TensorBoard</a>来进行更便捷的调试和模型跟踪。</p>
       
     
       
-        <p>快速回顾一下：循环神经网络（RNN）是一种在隐藏层带有自循环的人工神经网络，这使得 RNN 能够利用隐藏神经元之前的状态来学习当前输入下的新状态。RNN 非常擅长处理序列数据。长短期记忆（LSTM）单元是一种特殊设计的计算单元，能帮助 RNN 更好地记住长期的上下文信息。</p>
+        <p>简单回顾一下：循环神经网络（RNN）是一种在隐藏层具有自循环结构的人工神经网络，这使得 RNN 能够利用隐藏神经元之前的状态，结合新的输入来学习当前的状态。RNN 非常适合处理序列数据。长短期记忆（LSTM）单元是一种特殊设计的计算单元，能帮助 RNN 更好地记住长期的上下文信息。</p>
       
     
       
-        <p>想了解更深入的内容，请阅读或<a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/" target="_blank" rel="noopener">这篇精彩的文章</a>。<a href="posts-2017-06-21-overview.html">深度学习概览（适合好奇的人）</a></p>
+        <p>想要深入了解更多内容，请阅读或<a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/" target="_blank" rel="noopener">这篇精彩的文章</a>。<a href="posts-2017-06-21-overview.html">深度学习概览：适合好奇之人的入门指南</a></p>
       
     
       
-        <h2>数据准备</h2>
+        <h2>数据准备#</h2>
         
       
     
       
-        <p>股票价格是一个长度为<span class="math-inline" data-math="N">N</span>的时间序列，记为<span class="math-inline" data-math="p_0, p_1, \dots, p_{N-1}">p_0, p_1, \dots, p_{N-1}</span>，其中<span class="math-inline" data-math="p_i">p_i</span>表示第<span class="math-inline" data-math="i">i</span>天的收盘价，<span class="math-inline" data-math="0 \le i &lt; N">0 \le i &lt; N</span>。想象我们有一个固定大小为<span class="math-inline" data-math="w">w</span>（后面称为 input_size）的滑动窗口，每次向右移动<span class="math-inline" data-math="w">w</span>个单位，这样所有滑动窗口中的数据没有重叠。</p>
+        <p>股价是一个长度为 <span class="math-inline" data-math="N">N</span> 的时间序列，可记为 <span class="math-inline" data-math="p_0, p_1, \dots, p_{N-1}">p_0, p_1, \dots, p_{N-1}</span>，其中 <span class="math-inline" data-math="p_i">p_i</span> 表示第 <span class="math-inline" data-math="i">i</span> 天的收盘价，<span class="math-inline" data-math="0 \le i &lt; N">0 \le i &lt; N</span>。想象我们有一个固定大小为 <span class="math-inline" data-math="w">w</span>（后面称为 input_size）的滑动窗口，每次将窗口向右移动 <span class="math-inline" data-math="w">w</span> 个单位，确保所有滑动窗口之间的数据没有重叠。</p>
       
     
       
@@ -137,7 +135,7 @@
       
     
       
-        <p>我们即将构建的 RNN 模型以 LSTM 单元作为基本的隐藏单元。我们使用从第一个滑动窗口<span class="math-inline" data-math="W_0">W_0</span>开始，一直到时间<span class="math-inline" data-math="t">t</span>的窗口<span class="math-inline" data-math="W_t">W_t</span>的所有数值：</p>
+        <p>我们即将构建的 RNN 模型以 LSTM 单元作为基本的隐藏单元。我们使用从第一个滑动窗口 <span class="math-inline" data-math="W_0">W_0</span> 开始，一直到时间 <span class="math-inline" data-math="t">t</span> 的窗口 <span class="math-inline" data-math="W_t">W_t</span> 的所有数据：</p>
       
     
       
@@ -159,7 +157,7 @@ W_t &amp;= (p_{tw}, p_{tw+1}, \dots, p_{(t+1)w-1})
       
     
       
-        <p>来预测接下来那个窗口<span class="math-inline" data-math="w_{t+1}">w_{t+1}</span>的价格：</p>
+        <p>来预测接下来窗口 <span class="math-inline" data-math="w_{t+1}">w_{t+1}</span> 中的价格：</p>
       
     
       
@@ -171,7 +169,7 @@ W_{t+1} = (p_{(t+1)w}, p_{(t+1)w+1}, \dots, p_{(t+2)w-1})
       
     
       
-        <p>本质上，我们是在学习一个近似函数<span class="math-inline" data-math="f(W_0, W_1, \dots, W_t) \approx W_{t+1}">f(W_0, W_1, \dots, W_t) \approx W_{t+1}</span>。</p>
+        <p>本质上，我们是在学习一个近似函数 <span class="math-inline" data-math="f(W_0, W_1, \dots, W_t) \approx W_{t+1}">f(W_0, W_1, \dots, W_t) \approx W_{t+1}</span>。</p>
       
     
       
@@ -182,7 +180,7 @@ W_{t+1} = (p_{(t+1)w}, p_{(t+1)w+1}, \dots, p_{(t+2)w-1})
       
     
       
-        <p>考虑到<a href="https://en.wikipedia.org/wiki/Backpropagation_through_time" target="_blank" rel="noopener">通过时间的反向传播（BPTT）</a>的工作原理，我们通常以“展开”的形式来训练 RNN，这样就不需要将反向传播计算得太远，从而简化训练过程。</p>
+        <p>考虑到<a href="https://en.wikipedia.org/wiki/Backpropagation_through_time" target="_blank" rel="noopener">通过时间反向传播（BPTT）</a>的工作原理，我们通常以“展开”的形式训练 RNN，这样就不需要将梯度传播得太远，从而简化训练过程。</p>
       
     
       
@@ -190,15 +188,15 @@ W_{t+1} = (p_{(t+1)w}, p_{(t+1)w+1}, \dots, p_{(t+2)w-1})
       
     
       
-        <blockquote>从设计上来说，循环神经网络（RNN）的输出依赖于任意远的过去输入。不幸的是，这使得反向传播计算变得困难。为了使学习过程可行，通常的做法是创建一个“展开”版本的网络，其中包含固定数量（num_steps）的 LSTM 输入和输出。然后模型在这个 RNN 的有限近似版本上进行训练。这可以通过每次输入长度为 num_steps 的数据，并在每个这样的输入块之后执行反向传播来实现。</blockquote>
+        <blockquote>按照设计，循环神经网络（RNN）的输出依赖于任意远的过去输入。不幸的是，这使得反向传播计算变得非常困难。为了让学习过程易于处理，通常的做法是创建一个“展开”版本的网络，其中包含固定数量（num_steps）的 LSTM 输入和输出。然后模型就在这个有限的 RNN 近似版本上进行训练。具体实现方式是每次输入长度为 num_steps 的序列，处理完一个块后进行一次反向传播。</blockquote>
       
     
       
-        <p>价格序列首先被分割成不重叠的小窗口，每个窗口包含 input_size 个数值，并被视为一个独立的输入元素。然后将任意 num_steps 个连续的输入元素组合成一个训练样本，从而在 Tensorflow 中形成一个“展开”版本的 RNN 进行训练。对应的标签是紧随其后的那个输入元素。</p>
+        <p>价格序列首先被分割成不重叠的小窗口，每个窗口包含 input_size 个数值，并被视为一个独立的输入元素。然后将任意 num_steps 个连续的输入元素组合成一个训练样本，形成一个“展开”的 RNN 版本供 Tensorflow 训练。其对应的标签是紧随其后的那个输入元素。</p>
       
     
       
-        <p>例如，如果 input_size=3 且 num_steps=2，那么前几个训练样本看起来会是这样的：</p>
+        <p>例如，当 input_size=3 且 num_steps=2 时，前几个训练样本如下所示：</p>
       
     
       
@@ -218,7 +216,7 @@ W_{t+1} = (p_{(t+1)w}, p_{(t+1)w+1}, \dots, p_{(t+2)w-1})
       
     
       
-        <p>以下是数据格式化处理的核心代码：</p>
+        <p>下面是数据格式化处理的核心代码：</p>
       
     
       
@@ -232,20 +230,20 @@ y = np.array([seq[i + self.num_steps] for i in range(len(seq) - self.num_steps)]
       
     
       
-        <p>数据格式化的完整代码可<a href="https://github.com/lilianweng/stock-rnn/blob/master/data_wrapper.py" target="_blank" rel="noopener">在此</a>查看。</p>
+        <p>完整的数据格式化代码可在此<a href="https://github.com/lilianweng/stock-rnn/blob/master/data_wrapper.py" target="_blank" rel="noopener">查看</a>。</p>
       
     
       
-        <h2>训练 / 测试集划分</h2>
+        <h2>训练 / 测试集划分#</h2>
         
       
     
       
-        <p>由于我们总是希望预测未来，我们将最近的 10% 数据作为测试集。</p>
+        <p>由于我们始终希望预测未来，我们将最近的 10% 数据作为测试集。</p>
       
     
       
-        <h2>归一化</h2>
+        <h2>归一化#</h2>
         
       
     
@@ -257,13 +255,13 @@ y = np.array([seq[i + self.num_steps] for i in range(len(seq) - self.num_steps)]
       
     
       
-        <p>标普 500 指数随时间不断上涨，这导致测试集中的大部分数值超出了训练集的范围，因此模型不得不预测它从未见过的数据。不幸的是，结果非常糟糕。见
+        <p>标普 500 指数随时间不断上涨，这导致测试集中的大部分数值会超出训练集的数值范围，使得模型不得不预测它从未见过的数据。不幸且不出所料的是，预测效果会非常糟糕。见
 
-图 3 当 RNN 模型需要预测超出训练数据范围的数值时，一个非常失败的例子。</p>
+图 3 当 RNN 模型需要预测超出训练数据范围的数值时，一个非常糟糕的例子。</p>
       
     
       
-        <p>为了解决数值范围不一致的问题，我对每个滑动窗口内的价格进行了归一化。这样任务就变成了预测相对变化率，而不是绝对数值。在时间<span class="math-inline" data-math="t">t</span>的归一化滑动窗口<span class="math-inline" data-math="W’_t">W’_t</span>中，所有数值都会除以最后一个未知价格——即<span class="math-inline" data-math="W_{t-1}">W_{t-1}</span>中的最后一个价格：</p>
+        <p>为了解决数值范围不一致的问题，我对每个滑动窗口内的价格进行归一化处理。这样任务就变成了预测相对变化率，而不是绝对价格值。在时间 <span class="math-inline" data-math="t">t</span> 的归一化滑动窗口 <span class="math-inline" data-math="W’_t">W’_t</span> 中，所有数值都除以最后一个已知价格——即 <span class="math-inline" data-math="W_{t-1}">W_{t-1}</span> 中的最后一个价格：</p>
       
     
       
@@ -275,37 +273,37 @@ W’_t = (\frac{p_{tw}}{p_{tw-1}}, \frac{p_{tw+1}}{p_{tw-1}}, \dots, \frac{p_{(t
       
     
       
-        <p>这里提供一份我爬取的截至 2017 年 7 月的标普 500 股价数据归档<a href="https://drive.google.com/open?id=1QKVkiwgCNJsdQMEsfoi6KpqoPgc4O6DD" target="_blank" rel="noopener">stock-data-lilianweng.tar.gz</a>，欢迎大家下载玩耍 :)</p>
+        <p>这里提供一个我爬取的截至 2017 年 7 月的标普 500 股价数据压缩包<a href="https://drive.google.com/open?id=1QKVkiwgCNJsdQMEsfoi6KpqoPgc4O6DD" target="_blank" rel="noopener">stock-data-lilianweng.tar.gz</a>，欢迎大家下载玩耍 :)</p>
       
     
       
-        <h2>模型构建</h2>
+        <h2>模型构建#</h2>
         
       
     
       
-        <h2>定义</h2>
+        <h2>参数定义#</h2>
         
       
     
       
-        <div class="list-content">lstm_size：单个 LSTM 层中的单元数量。
+        <div class="list-content">lstm_size：单个 LSTM 层中单元的数量。
 num_layers：堆叠的 LSTM 层数。
-keep_prob：在<a href="https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf" target="_blank" rel="noopener">dropout</a>操作中保留的单元比例。
+keep_prob：在<a href="https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf" target="_blank" rel="noopener">dropout</a>操作中要保留的单元比例。
 init_learning_rate：初始学习率。
-learning_rate_decay：后续训练周期中的衰减比例。
+learning_rate_decay：后续训练周期中的学习率衰减比例。
 init_epoch：使用固定初始学习率的周期数。
 max_epoch：训练的总周期数。
-input_size：滑动窗口的大小 / 单个训练数据点的维度。
-batch_size：每个 mini-batch 中使用的数据点数量。</div>
+input_size：滑动窗口的大小 / 单个训练数据点的特征维度。
+batch_size：一个 mini-batch 中使用的数据点数量。</div>
       
     
       
-        <p>该 LSTM 模型包含 num_layers 层堆叠的 LSTM 层，每层有 lstm_size 个 LSTM 单元。随后会在每个 LSTM 单元的输出上应用一个<a href="https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf" target="_blank" rel="noopener">dropout</a>掩码，保留概率为 keep_prob。dropout 的目的是消除对某一维度的潜在强依赖，从而防止过拟合。</p>
+        <p>该 LSTM 模型包含 num_layers 层堆叠的 LSTM 层，每层包含 lstm_size 个 LSTM 单元。随后在每个 LSTM 单元的输出上应用一个<a href="https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf" target="_blank" rel="noopener">dropout</a>掩码，保留概率为 keep_prob。dropout 的目的是消除对某一维度过于强烈的依赖，从而防止过拟合。</p>
       
     
       
-        <p>训练总共需要 max_epoch 个周期；一个<a href="http://www.fon.hum.uva.nl/praat/manual/epoch.html" target="_blank" rel="noopener">epoch</a>是指对所有训练数据点进行一次完整的遍历。在每个 epoch 中，训练数据会被分割成大小为 batch_size 的 mini-batch。我们每次向模型输入一个 mini-batch 进行 BPTT 学习。前 init_epoch 个周期的学习率固定为 init_learning_rate，之后每个周期的学习率按<span class="math-inline" data-math="\times">\times</span> learning_rate_decay 进行衰减。</p>
+        <p>整个训练过程共需要 max_epoch 个周期；一个<a href="http://www.fon.hum.uva.nl/praat/manual/epoch.html" target="_blank" rel="noopener">epoch</a>是指对所有训练数据进行一次完整的遍历。在每个周期内，训练数据被划分成大小为 batch_size 的 mini-batch。我们每次向模型输入一个 mini-batch 进行 BPTT 学习。在前 init_epoch 个周期中，学习率固定为 init_learning_rate，之后每个周期都按 <span class="math-inline" data-math="\times">\times</span> learning_rate_decay 进行衰减。</p>
       
     
       
@@ -327,12 +325,12 @@ config = RNNConfig()
       
     
       
-        <h2>定义计算图</h2>
+        <h2>定义计算图#</h2>
         
       
     
       
-        <p><a href="https://www.tensorflow.org/api_docs/python/tf/Graph" target="_blank" rel="noopener">tf.Graph</a> 并不 привяз任何真实数据。它定义了如何处理数据以及如何进行计算的流程。之后，这个图可以在<a href="https://www.tensorflow.org/api_docs/python/tf/Session" target="_blank" rel="noopener">tf.session</a>中被真实数据填充，此时计算才会真正发生。</p>
+        <p><a href="https://www.tensorflow.org/api_docs/python/tf/Graph" target="_blank" rel="noopener">tf.Graph</a> 本身不包含任何真实数据。它定义了数据应如何被处理以及计算应如何进行。随后，这个图可以在<a href="https://www.tensorflow.org/api_docs/python/tf/Session" target="_blank" rel="noopener">tf.session</a>中被真实数据填充，此时才会真正发生计算。</p>
       
     
       
@@ -351,7 +349,7 @@ lstm_graph = tf.Graph()
       
     
       
-        <p>(2) 图的具体工作方式应该在其作用域内定义。</p>
+        <p>(2) 图的具体工作方式应该在其作用域内进行定义。</p>
       
     
       
@@ -360,11 +358,11 @@ lstm_graph = tf.Graph()
       
     
       
-        <p>(3) 定义计算所需的数据。这里我们需要三个输入变量，都定义为<a href="https://www.tensorflow.org/versions/master/api_docs/python/tf/placeholder" target="_blank" rel="noopener">tf.placeholder</a>，因为在构建图的阶段我们还不知道它们具体的值。</p>
+        <p>(3) 定义计算所需的数据。这里我们需要三个输入变量，都定义为<a href="https://www.tensorflow.org/versions/master/api_docs/python/tf/placeholder" target="_blank" rel="noopener">tf.placeholder</a>，因为在构建计算图阶段我们还不知道它们具体的值是什么。</p>
       
     
       
-        <div class="list-content">inputs：训练数据 X，形状为（# 数据样本数, num_steps, input_size）的张量；数据样本数未知，因此设为 None。在我们的场景中，训练时它等于 batch_size。如果感到困惑，可以查看前面的输入格式示例。
+        <div class="list-content">inputs：训练数据 X，形状为（# 数据样本数, num_steps, input_size）的张量；数据样本数未知，因此设为 None。在我们的训练过程中，它实际等于 batch_size。如果感到困惑，请查看前面的输入格式示例。
 targets：训练标签 y，形状为（# 数据样本数, input_size）的张量。
 learning_rate：一个简单的浮点数。</div>
       
@@ -407,7 +405,7 @@ learning_rate：一个简单的浮点数。</div>
       
     
       
-        <p>(6) <a href="https://www.tensorflow.org/api_docs/python/tf/nn/dynamic_rnn" target="_blank" rel="noopener">tf.nn.dynamic_rnn</a> 根据给定的 cell（RNNCell）来构建循环神经网络。它返回一对（模型输出，状态），其中输出 val 默认形状为 (batch_size, num_steps, lstm_size)。这里的 state 指 LSTM 单元的当前状态，在此不使用。</p>
+        <p>(6) <a href="https://www.tensorflow.org/api_docs/python/tf/nn/dynamic_rnn" target="_blank" rel="noopener">tf.nn.dynamic_rnn</a> 根据给定的 cell（RNNCell）构建循环神经网络。它返回一个（模型输出, 状态）的元组，其中输出 val 默认形状为 (batch_size, num_steps, lstm_size)。这里的 state 指的是 LSTM 单元的当前状态，在本例中并未使用。</p>
       
     
       
@@ -416,7 +414,7 @@ learning_rate：一个简单的浮点数。</div>
       
     
       
-        <p>(7) <a href="https://www.tensorflow.org/api_docs/python/tf/transpose" target="_blank" rel="noopener">tf.transpose</a> 将输出从维度 (batch_size, num_steps, lstm_size) 转换为 (num_steps, batch_size, lstm_size)。然后取出最后一个输出。</p>
+        <p>(7) <a href="https://www.tensorflow.org/api_docs/python/tf/transpose" target="_blank" rel="noopener">tf.transpose</a> 将输出从 (batch_size, num_steps, lstm_size) 维度转换为 (num_steps, batch_size, lstm_size)。然后取出最后一个时间步的输出。</p>
       
     
       
@@ -440,7 +438,7 @@ learning_rate：一个简单的浮点数。</div>
       
     
       
-        <p>(9) 我们使用均方误差作为损失度量，并采用<a href="http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf" target="_blank" rel="noopener">RMSPropOptimizer 算法</a>来进行梯度下降优化。</p>
+        <p>(9) 我们使用均方误差作为损失函数，并采用<a href="http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf" target="_blank" rel="noopener">RMSPropOptimizer 算法</a>来进行梯度下降优化。</p>
       
     
       
@@ -451,12 +449,12 @@ learning_rate：一个简单的浮点数。</div>
       
     
       
-        <h2>启动训练会话</h2>
+        <h2>启动训练会话#</h2>
         
       
     
       
-        <p>(1) 要开始使用真实数据训练计算图，我们需要先启动一个<a href="https://www.tensorflow.org/api_docs/python/tf/Session" target="_blank" rel="noopener">tf.session</a>。</p>
+        <p>(1) 要开始用真实数据训练计算图，我们首先需要启动一个<a href="https://www.tensorflow.org/api_docs/python/tf/Session" target="_blank" rel="noopener">tf.session</a>。</p>
       
     
       
@@ -474,7 +472,7 @@ learning_rate：一个简单的浮点数。</div>
       
     
       
-        <p>(0) 各个训练周期对应的学习率应该提前计算好。索引对应周期编号。</p>
+        <p>(0) 各训练周期对应的学习率应该事先计算好。索引对应周期序号。</p>
       
     
       
@@ -507,7 +505,7 @@ learning_rate：一个简单的浮点数。</div>
       
     
       
-        <p>(4) 不要忘记在训练结束时保存你的模型。</p>
+        <p>(4) 别忘了在训练结束时保存训练好的模型。</p>
       
     
       
@@ -517,16 +515,16 @@ learning_rate：一个简单的浮点数。</div>
       
     
       
-        <p>完整代码可<a href="https://github.com/lilianweng/stock-rnn/blob/master/build_graph.py" target="_blank" rel="noopener">在此</a>查看。</p>
+        <p>完整代码可在<a href="https://github.com/lilianweng/stock-rnn/blob/master/build_graph.py" target="_blank" rel="noopener">此处</a>获取。</p>
       
     
       
-        <h2>使用 TensorBoard</h2>
+        <h2>使用 TensorBoard#</h2>
         
       
     
       
-        <p>在没有可视化的情况下构建计算图就像在黑暗中画画，非常模糊且容易出错。<a href="https://github.com/tensorflow/tensorboard" target="_blank" rel="noopener">TensorBoard</a> 提供了对计算图结构和训练过程的便捷可视化。推荐观看这个<a href="https://youtu.be/eBbEDRsCmv4" target="_blank" rel="noopener">动手教程</a>，仅 20 分钟，但非常实用并展示了多个实时演示。</p>
+        <p>在没有可视化的情况下构建计算图就像在黑暗中作画，非常模糊且容易出错。<a href="https://github.com/tensorflow/tensorboard" target="_blank" rel="noopener">TensorBoard</a> 提供了对计算图结构和训练过程的便捷可视化。推荐观看这个<a href="https://youtu.be/eBbEDRsCmv4" target="_blank" rel="noopener">动手教程</a>，仅 20 分钟，却非常实用并展示了多个实时演示。</p>
       
     
       
@@ -535,9 +533,9 @@ learning_rate：一个简单的浮点数。</div>
     
       
         <div class="list-content">使用 [tf.name_scope](https://www.tensorflow.org/api_docs/python/tf/name_scope)(&quot;your_awesome_module_name&quot;) 将功能相近的元素包装在一起。
-许多 tf.* 方法都接受 name= 参数。给它们分配一个自定义名称能在阅读计算图时让你轻松很多。
-像<a href="https://www.tensorflow.org/api_docs/python/tf/summary/scalar" target="_blank" rel="noopener">tf.summary.scalar</a>和<a href="https://www.tensorflow.org/api_docs/python/tf/summary/histogram" target="_blank" rel="noopener">tf.summary.histogram</a>这样的方法可以帮助我们在迭代过程中跟踪图中变量的值。
-在训练会话中，使用<a href="https://www.tensorflow.org/api_docs/python/tf/summary/FileWriter" target="_blank" rel="noopener">tf.summary.FileWriter</a>来定义一个日志文件。</div>
+许多 tf.* 方法都接受 name= 参数。给它们赋予一个自定义名称，能让阅读计算图时轻松许多。
+像 <a href="https://www.tensorflow.org/api_docs/python/tf/summary/scalar" target="_blank" rel="noopener">tf.summary.scalar</a> 和 <a href="https://www.tensorflow.org/api_docs/python/tf/summary/histogram" target="_blank" rel="noopener">tf.summary.histogram</a> 这样的方法可以帮助我们在迭代过程中跟踪图中变量的值。
+在训练会话中，使用 <a href="https://www.tensorflow.org/api_docs/python/tf/summary/FileWriter" target="_blank" rel="noopener">tf.summary.FileWriter</a> 定义一个日志文件。</div>
       
     
       
@@ -573,11 +571,11 @@ writer.add_summary(_summary, global_step=epoch_step)  # epoch_step in range(conf
       
     
       
-        <p>完整的可运行代码可在<a href="https://github.com/lilianweng/stock-rnn" target="_blank" rel="noopener">github.com/lilianweng/stock-rnn</a>中找到。</p>
+        <p>完整的可运行代码可在 <a href="https://github.com/lilianweng/stock-rnn" target="_blank" rel="noopener">github.com/lilianweng/stock-rnn</a> 获取。</p>
       
     
       
-        <h2>实验结果</h2>
+        <h2>实验结果#</h2>
         
       
     
@@ -598,11 +596,11 @@ num_steps=30
       
     
       
-        <p>（感谢 Yury 发现我在价格归一化中的一个 bug。我之前错误地使用了同一窗口内的最后一个价格，而不是前一个时间窗口的最后一个价格。下面的图表已经修正。）</p>
+        <p>（感谢 Yury 发现我在价格归一化中的一个 bug。之前我错误地使用了同一个窗口内的最后一个价格，而不是前一个时间窗口的最后一个价格。以下图表已经修正。）</p>
       
     
       
-        <p>总体来说，预测股价并不是一件容易的事。特别是在归一化之后，价格趋势看起来非常嘈杂。</p>
+        <p>总体来说，预测股价并不是一件容易的事。尤其在进行归一化之后，价格趋势看起来非常嘈杂。</p>
       
     
       
@@ -627,12 +625,12 @@ num_steps=30
       
     
       
-        <p>本教程中的示例代码可在<a href="https://github.com/lilianweng/stock-rnn/tree/master/scripts" target="_blank" rel="noopener">github.com/lilianweng/stock-rnn:scripts</a>中找到。</p>
+        <p>本教程中的示例代码可在 <a href="https://github.com/lilianweng/stock-rnn/tree/master/scripts" target="_blank" rel="noopener">github.com/lilianweng/stock-rnn:scripts</a> 获取。</p>
       
     
       
         <p>（2017 年 9 月 14 日更新）
-模型代码已被重构为一个类：<a href="https://github.com/lilianweng/stock-rnn/blob/master/model_rnn.py" target="_blank" rel="noopener">LstmRNN</a>。模型训练可通过<a href="https://github.com/lilianweng/stock-rnn/blob/master/main.py" target="_blank" rel="noopener">main.py</a>触发，例如：</p>
+模型代码已被封装到一个类中：<a href="https://github.com/lilianweng/stock-rnn/blob/master/model_rnn.py" target="_blank" rel="noopener">LstmRNN</a>。模型训练可通过 <a href="https://github.com/lilianweng/stock-rnn/blob/master/main.py" target="_blank" rel="noopener">main.py</a> 触发，例如：</p>
       
     
       

@@ -41,28 +41,28 @@
 QA数据微调的注意事项
 
 
-开卷问答：Retriever-Reader
+开卷式QA：检索器-阅读器
 
-Retriever模型
+检索器模型
 
 经典IR
 
 神经IR
 
 
-Reader模型
+阅读器模型
 
 双向LSTM
 
-BERT系列
+BERT宇宙
 
 
 端到端联合训练
 
 
-开卷问答：Retriever-Generator
+开卷式QA：检索器-生成器
 
-闭卷问答：生成式语言模型
+闭卷式QA：生成式语言模型
 
 相关技术
 
@@ -81,27 +81,23 @@ BERT系列
       
     
       
-        <p>一个能够针对任何事实性知识问题给出答案的模型，可以催生许多有用的应用。本文深入探讨如何构建一个开放域问答（ODQA）系统，假设我们已经拥有一个强大的预训练语言模型。文中将同时讨论闭卷和开卷两种方法。</p>
+        <p>[2020-11-12更新：新增使用OpenAI API（beta）进行闭卷事实性QA的示例。]</p>
       
     
       
-        <p>[2020-11-12更新：新增使用OpenAI API（beta）实现闭卷事实性问答的示例。]</p>
+        <p>一个能够针对事实知识回答任意问题的模型，可以催生许多有用且实际的应用，例如充当聊天机器人或AI助手🤖。在这篇文章中，我们将回顾构建这类开放域问答系统的几种常见方法。</p>
       
     
       
-        <p>一个能够针对任何事实性知识问题给出答案的模型，可以催生许多有用且实际的应用，例如作为聊天机器人或AI助手🤖。在本文中，我们将回顾构建这类开放域问答系统的几种常见方法。</p>
+        <p>鉴于野外论文众多，声明如下：</p>
       
     
       
-        <p>鉴于该领域已有大量论文，特此声明：</p>
-      
-    
-      
-        <div class="list-content">假设我们已经拥有一个强大的预训练<a href="posts-2019-01-31-lm.html">泛化语言模型</a>。
-本文不涉及如何使用结构化知识库（如Freebase、WikiData）。
-我们只关注单轮问答，而非多轮对话式问答。
-我们主要关注包含神经网络、特别是基于Transformer的语言模型的问答模型。
-我承认自己漏掉了2017-2019年间许多专为问答任务设计的架构论文😔</div>
+        <div class="list-content">假设我们可以使用强大的预训练<a href="posts-2019-01-31-lm.html">通用语言模型</a>。
+本文不讨论如何使用结构化知识库（如Freebase、WikiData）。
+我们只关注单轮QA，而不是多轮对话式QA。
+我们主要关注包含神经网络的QA模型，特别是基于Transformer的语言模型。
+我承认自己错过了2017-2019年间大量专门为QA任务设计的架构论文😔</div>
       
     
       
@@ -110,7 +106,7 @@ BERT系列
       
     
       
-        <p>开放域问答（ODQA）是一种自然语言任务，要求模型用自然语言回答事实性问题。由于真实答案是客观的，因此评估模型性能相对简单。</p>
+        <p>开放域问答（ODQA）是一种语言任务，要求模型用自然语言回答事实性问题。由于真实答案是客观的，因此评估模型性能相对简单。</p>
       
     
       
@@ -124,21 +120,21 @@ Answer: The law of the photoelectric effect.
       
     
       
-        <p>“开放域”指的是对于任意提出的事实性问题，模型缺乏相关的上下文信息。在上述例子中，模型仅以问题作为输入，而没有提供关于“为什么爱因斯坦没有因相对论获得诺贝尔奖”的文章（其中很可能提到“光电效应定律”这一术语）。当同时提供问题和上下文时，该任务被称为阅读理解（RC）。</p>
+        <p>“开放域”指的是针对任意提出的事实性问题，缺乏相关的上下文信息。在上面的例子中，模型只以问题作为输入，而没有提供关于“为什么爱因斯坦没有因相对论获得诺贝尔奖”的文章，其中很可能提到“光电效应定律”这个术语。当同时提供问题和上下文时，该任务被称为阅读理解（RC）。</p>
       
     
       
-        <p>ODQA模型可以在有或没有外部知识源（如Wikipedia）的情况下工作，这两种情况分别称为开卷问答和闭卷问答。</p>
+        <p>ODQA模型可以在有或没有外部知识源（如Wikipedia）的情况下工作，这两种情况分别称为开卷式或闭卷式问答。</p>
       
     
       
-        <p>在考虑不同类型的开放域问题时，我喜欢<a href="https://arxiv.org/abs/2008.02637" target="_blank" rel="noopener">Lewis等（2020）</a>按照难度递增进行的分类：</p>
+        <p>在考虑不同类型的开放域问题时，我喜欢<a href="https://arxiv.org/abs/2008.02637" target="_blank" rel="noopener">Lewis, et al., 2020</a>按难度递增的分类：</p>
       
     
       
         <div class="list-content">模型能够正确记住并回答在训练时见过的问题。
-模型能够在测试时回答新问题，并从训练时见过的答案集合中选择答案。
-模型能够回答新问题，且答案不在训练数据集中。</div>
+模型能够在测试时回答新问题，并从训练期间见过的答案集合中选择答案。
+模型能够回答答案不在训练数据集中的新问题。</div>
       
     
       
@@ -163,24 +159,24 @@ Answer: The law of the photoelectric effect.
       
     
       
-        <p>在深入介绍下面各种模型细节之前，我想先指出使用常见QA数据集微调模型的一个潜在问题，该步骤出现在多个ODQA模型中。这一点值得关注，因为在几个公开QA数据集中，训练集和测试集的问题存在大量重叠。</p>
+        <p>在深入介绍下面许多模型细节之前，我想指出使用常见QA数据集微调模型的一个注意事项，该步骤在多个ODQA模型中是常见的微调环节。这一点值得关注，因为在几个公开QA数据集中，训练集和测试集的问题存在显著重叠。</p>
       
     
       
-        <p><a href="https://arxiv.org/abs/2008.02637" target="_blank" rel="noopener">Lewis等（2020）</a>（<a href="https://github.com/facebookresearch/QA-Overlap" target="_blank" rel="noopener">代码</a>）发现，58-71%的测试时答案也出现在训练集中，28-34%的测试集问题在对应的训练集中存在近似重复或改写版本。在他们的实验中，当从训练集中移除重复或改写的问题后，多个模型的性能明显下降。</p>
+        <p><a href="https://arxiv.org/abs/2008.02637" target="_blank" rel="noopener">Lewis, et al., (2020)</a>（<a href="https://github.com/facebookresearch/QA-Overlap" target="_blank" rel="noopener">代码</a>）发现，58-71%的测试时答案在训练集中某处也出现过，28-34%的测试集问题在对应训练集中有近似同义改写。在他们的实验中，当从训练集中移除重复或改写的问题后，多个模型的性能明显下降。</p>
       
     
       
-        <h2>开卷问答：Retriever-Reader#</h2>
+        <h2>开卷式QA：检索器-阅读器#</h2>
         
       
     
       
-        <p>给定一个事实性问题，如果语言模型没有上下文，或者其规模不足以记住训练数据集中存在的上下文，那么它很难猜出正确答案。在开卷考试中，学生可以在回答问题时参考笔记和书籍等外部资源。类似地，ODQA系统可以与丰富的知识库配对，以识别相关文档作为答案的证据。</p>
+        <p>给定一个事实性问题，如果语言模型没有上下文，或者其规模不足以记住训练数据集中存在的上下文，那么它不太可能猜出正确答案。在开卷考试中，学生被允许在回答测试问题时参考笔记和书籍等外部资源。类似地，ODQA系统可以与丰富的知识库配对，以识别相关文档作为答案的证据。</p>
       
     
       
-        <p>我们可以将回答给定问题的过程分解为两个阶段：</p>
+        <p>我们可以将针对给定问题寻找答案的过程分解为两个阶段：</p>
       
     
       
@@ -196,16 +192,16 @@ Answer: The law of the photoelectric effect.
       
     
       
-        <p>这种retriever+reader框架最早由DrQA（“Document retriever Question-Answering”，<a href="https://arxiv.org/abs/1704.00051" target="_blank" rel="noopener">Chen等人，2017</a>；<a href="https://github.com/facebookresearch/DrQA" target="_blank" rel="noopener">代码</a>）提出。Retriever和reader组件可以独立设置和训练，也可以端到端联合训练。</p>
+        <p>这种检索器+阅读器框架最早在DrQA（“Document retriever Question-Answering”，由<a href="https://arxiv.org/abs/1704.00051" target="_blank" rel="noopener">Chen et al., 2017</a>提出；<a href="https://github.com/facebookresearch/DrQA" target="_blank" rel="noopener">代码</a>）中提出。检索器和阅读器组件可以独立设置和训练，也可以端到端联合训练。</p>
       
     
       
-        <h2>Retriever模型#</h2>
+        <h2>检索器模型#</h2>
         
       
     
       
-        <p>实现retriever的两种流行方法是使用依赖于（1）经典非学习型<a href="https://en.wikipedia.org/wiki/Tf%E2%80%93idf" target="_blank" rel="noopener">TF-IDF</a>特征的信息检索（IR）系统（“经典IR”），或（2）由神经网络生成的文本稠密嵌入向量（“神经IR”）。</p>
+        <p>实现检索器的两种流行方法是使用依赖于(1)经典非学习型<a href="https://en.wikipedia.org/wiki/Tf%E2%80%93idf" target="_blank" rel="noopener">TF-IDF</a>特征的信息检索（IR）系统（“经典IR”）或(2)由神经网络生成的文本稠密嵌入向量（“神经IR”）。</p>
       
     
       
@@ -214,7 +210,7 @@ Answer: The law of the photoelectric effect.
       
     
       
-        <p>DrQA（<a href="https://arxiv.org/abs/1704.00051" target="_blank" rel="noopener">Chen等人，2017</a>）采用了一种基于<a href="https://en.wikipedia.org/wiki/Vector_space_model" target="_blank" rel="noopener">向量空间模型</a>的高效非学习型搜索引擎。每个查询和文档都被建模为词袋向量，其中每个词项由TF-IDF（词频<span class="math-inline" data-math="\times">\times</span>逆文档频率）加权。</p>
+        <p>DrQA（<a href="https://arxiv.org/abs/1704.00051" target="_blank" rel="noopener">Chen et al., 2017</a>）采用了一种基于<a href="https://en.wikipedia.org/wiki/Vector_space_model" target="_blank" rel="noopener">向量空间模型</a>的高效非学习型搜索引擎。每个查询和文档都被建模为词袋向量，其中每个词项由TF-IDF（词项频率<span class="math-inline" data-math="\times">\times</span>逆文档频率）加权。</p>
       
     
       
@@ -234,15 +230,15 @@ Answer: The law of the photoelectric effect.
       
     
       
-        <p>其中<span class="math-inline" data-math="t">t</span>是来自文档集合<span class="math-inline" data-math="\mathcal{D}">\mathcal{D}</span>中某文档<span class="math-inline" data-math="d">d</span>的unigram或bigram词项。<span class="math-inline" data-math="\text{freq}(t, d)">\text{freq}(t, d)</span>衡量词项<span class="math-inline" data-math="t">t</span>在<span class="math-inline" data-math="d">d</span>中出现的次数。注意，这里的词频也包含bigram计数，这被发现非常有帮助，因为bigram考虑了局部词序。作为实现的一部分，DrQA使用无符号murmur3哈希将<span class="math-inline" data-math="2^{24}">2^{24}</span>的bigram映射到个桶中。</p>
+        <p>其中<span class="math-inline" data-math="t">t</span>是来自文档集合<span class="math-inline" data-math="\mathcal{D}">\mathcal{D}</span>中某个文档<span class="math-inline" data-math="d">d</span>的unigram或bigram词项。<span class="math-inline" data-math="\text{freq}(t, d)">\text{freq}(t, d)</span>衡量词项<span class="math-inline" data-math="t">t</span>在<span class="math-inline" data-math="d">d</span>中出现的次数。请注意，这里的词项频率也包含bigram计数，这被发现非常有帮助，因为bigram考虑了局部词序。作为实现的一部分，DrQA使用无符号murmur3哈希将<span class="math-inline" data-math="2^{24}">2^{24}</span>的bigram映射到个桶中。</p>
       
     
       
-        <p>准确地说，DrQA将Wikipedia作为其知识源，这一选择从此成为许多ODQA研究的默认设置。非机器学习文档检索器在给定问题时返回最相关的top<span class="math-inline" data-math="k=5">k=5</span>篇Wikipedia文章。</p>
+        <p>准确地说，DrQA将Wikipedia作为其知识源，这一选择从那时起成为许多ODQA研究的默认设置。非机器学习文档检索器给定一个问题后，返回最相关的<span class="math-inline" data-math="k=5">k=5</span>篇Wikipedia文章。</p>
       
     
       
-        <p>BERTserini（<a href="https://arxiv.org/abs/1902.01718" target="_blank" rel="noopener">Yang等人，2019</a>）将开源<a href="https://github.com/castorini/anserini" target="_blank" rel="noopener">Anserini</a> IR工具包作为retriever，与经过微调的预训练BERT模型作为reader配对。通过Anserini的post-v3.0分支，将查询视为词袋，检索出top<span class="math-inline" data-math="k">k</span>个文档（<span class="math-inline" data-math="k=10">k=10</span>）。检索到的文本片段通过<a href="https://en.wikipedia.org/wiki/Okapi_BM25" target="_blank" rel="noopener">BM25</a>（一种经典的基于TF-IDF的检索评分函数）进行排序。在文本粒度对性能的影响方面，他们发现段落检索 &gt; 句子检索 &gt; 文章检索。</p>
+        <p>BERTserini（<a href="https://arxiv.org/abs/1902.01718" target="_blank" rel="noopener">Yang et al., 2019</a>）将开源<a href="https://github.com/castorini/anserini" target="_blank" rel="noopener">Anserini</a> IR工具包作为检索器，与微调后的预训练BERT模型作为阅读器配对。通过Anserini的post-v3.0分支，将查询视为词袋，检索出前<span class="math-inline" data-math="k">k</span>个文档（<span class="math-inline" data-math="k=10">k=10</span>）。检索到的文本片段通过<a href="https://en.wikipedia.org/wiki/Okapi_BM25" target="_blank" rel="noopener">BM25</a>（一种经典的基于TF-IDF的检索评分函数）进行排序。在文本粒度对性能的影响方面，他们发现段落检索优于句子检索优于文章检索。</p>
       
     
       
@@ -253,7 +249,7 @@ Answer: The law of the photoelectric effect.
       
     
       
-        <p>Multi-passage BERT问答模型（<a href="https://arxiv.org/abs/1908.08167" target="_blank" rel="noopener">Wang等人，2019</a>）使用ElasticSearch+BM25。他们发现，使用滑动窗口将文章切分成100词长的段落可带来4%的性能提升，因为不重叠地划分文档可能会导致边界附近的证据丢失有用的上下文。</p>
+        <p>Multi-passage BERT QA模型（<a href="https://arxiv.org/abs/1908.08167" target="_blank" rel="noopener">Wang et al., 2019</a>）使用ElasticSearch + BM25。他们发现，使用滑动窗口将文章分割成100词长的段落可带来4%的性能提升，因为不重叠地分割文档可能会导致边界附近的证据丢失有用的上下文。</p>
       
     
       
@@ -262,11 +258,11 @@ Answer: The law of the photoelectric effect.
       
     
       
-        <p>学习文本的低维表示（比原始基于词项的向量更稠密）已有很长的历史（<a href="http://lsa.colorado.edu/papers/JASIS.lsi.90.pdf" target="_blank" rel="noopener">Deerwester等人，1990</a>；<a href="https://www.aclweb.org/anthology/W11-0329/" target="_blank" rel="noopener">Yih等人，2011</a>）。稠密表示可以通过矩阵分解或某些神经网络架构（如MLP、LSTM、双向LSTM等）来学习。当涉及神经网络时，这种方法被称为“神经IR”。神经IR是检索问题的一类新方法，但并不一定优于经典IR（<a href="https://sigir.org/wp-content/uploads/2019/01/p040.pdf" target="_blank" rel="noopener">Lim，2018</a>）。</p>
+        <p>学习文本的低维表示的历史由来已久，这种表示比原始基于词项的向量更稠密（<a href="http://lsa.colorado.edu/papers/JASIS.lsi.90.pdf" target="_blank" rel="noopener">Deerwester et al., 1990</a>；<a href="https://www.aclweb.org/anthology/W11-0329/" target="_blank" rel="noopener">Yih, et al., 2011</a>）。稠密表示可以通过矩阵分解或某些神经网络架构（如MLP、LSTM、双向LSTM等）来学习。当涉及神经网络时，这种方法被称为“神经IR”。神经IR是检索问题的一类新方法，但并不一定优于经典IR（<a href="https://sigir.org/wp-content/uploads/2019/01/p040.pdf" target="_blank" rel="noopener">Lim, 2018</a>）。</p>
       
     
       
-        <p>在许多大规模<a href="posts-2019-01-31-lm.html">泛化语言模型</a>取得成功之后，许多问答模型采用了以下方法：</p>
+        <p>在许多大规模<a href="posts-2019-01-31-lm.html">通用语言模型</a>取得成功后，许多QA模型采用以下方法：</p>
       
     
       
@@ -282,47 +278,47 @@ h_z = E_z(z)\quad
       
     
       
-        <div class="list-content">将问题<span class="math-inline" data-math="x">x</span>和上下文段落<span class="math-inline" data-math="z">z</span>输入语言模型，提取它们的稠密表示；
+        <div class="list-content">通过将问题<span class="math-inline" data-math="x">x</span>和上下文段落<span class="math-inline" data-math="z">z</span>输入语言模型，提取它们的稠密表示；
 使用这两个表示的点积作为检索分数，对最相关的段落进行排序和选择。</div>
       
     
       
-        <p>ORQA、REALM和DPR都使用这样的评分函数来进行上下文检索，将在后面端到端问答模型的部分详细描述。</p>
+        <p>ORQA、REALM和DPR都使用这种评分函数进行上下文检索，稍后在端到端QA模型部分会详细描述。</p>
       
     
       
-        <p>DenSPI（“Dense-Sparse Phrase Index”；<a href="https://arxiv.org/abs/1906.05807" target="_blank" rel="noopener">Seo等人，2019</a>）探索了一种极端方法：在短语级别对知识语料库中的所有文本进行编码，然后仅依赖retriever来识别最相关的短语作为预测答案。这样，retriever+reader流水线被简化为仅剩retriever。当然，索引会大得多，检索问题也更具挑战性。</p>
+        <p>DenSPI（“Dense-Sparse Phrase Index”；<a href="https://arxiv.org/abs/1906.05807" target="_blank" rel="noopener">Seo et al., 2019</a>）探索了一种极端方法：对知识语料库中的所有文本在短语级别进行编码，然后仅依赖检索器来识别最相关的短语作为预测答案。这样，检索器+阅读器流水线就简化为仅使用检索器。当然，索引会大得多，检索问题也更具挑战性。</p>
       
     
       
-        <p>DenSPI引入了一种与查询无关的、可索引的文档短语表示。具体来说，它离线编码Wikipedia中文本片段的查询无关表示，并在推理时通过最近邻搜索查找答案。这可以极大地加快推理速度，因为不需要为每个新查询重新编码文档，而这通常是reader模型所要求的。</p>
+        <p>DenSPI引入了一种与查询无关的可索引文档短语表示。具体来说，它离线编码Wikipedia中文本跨度的查询无关表示，并在推理时通过最近邻搜索查找答案。它可以显著加快推理速度，因为不需要为每个新查询重新编码文档，而这通常是阅读器模型所要求的。</p>
       
     
       
-        <p>给定一个问题<span class="math-inline" data-math="x">x</span>和一组固定的（Wikipedia）文档<span class="math-inline" data-math="z_1, \dots, z_K">z_1, \dots, z_K</span>，每个文档<span class="math-inline" data-math="z_k">z_k</span>包含<span class="math-inline" data-math="N_k">N_k</span>个词<span class="math-inline" data-math="z_k = \langle z_k^{(1)}, \dots, z_k^{(N_k)}\rangle">z_k = \langle z_k^{(1)}, \dots, z_k^{(N_k)}\rangle</span>。ODQA模型是一个针对每个候选短语片段<span class="math-inline" data-math="z_k^{(i:j)}, 1 \leq i \leq j \leq N_k">z_k^{(i:j)}, 1 \leq i \leq j \leq N_k</span>的评分函数<span class="math-inline" data-math="F">F</span>，使得真实答案是得分最高的短语：<span class="math-inline" data-math="y = {\arg\max}_{k,i,j} F(x, z_k^{(i:j)})">y = {\arg\max}_{k,i,j} F(x, z_k^{(i:j)})</span>。</p>
+        <p>给定一个问题<span class="math-inline" data-math="x">x</span>和一组固定的（Wikipedia）文档<span class="math-inline" data-math="z_1, \dots, z_K">z_1, \dots, z_K</span>，每个文档<span class="math-inline" data-math="z_k">z_k</span>包含<span class="math-inline" data-math="N_k">N_k</span>个词<span class="math-inline" data-math="z_k = \langle z_k^{(1)}, \dots, z_k^{(N_k)}\rangle">z_k = \langle z_k^{(1)}, \dots, z_k^{(N_k)}\rangle</span>。ODQA模型是一个针对每个候选短语跨度<span class="math-inline" data-math="z_k^{(i:j)}, 1 \leq i \leq j \leq N_k">z_k^{(i:j)}, 1 \leq i \leq j \leq N_k</span>的评分函数<span class="math-inline" data-math="F">F</span>，使得真实答案是得分最高的短语：<span class="math-inline" data-math="y = {\arg\max}_{k,i,j} F(x, z_k^{(i:j)})">y = {\arg\max}_{k,i,j} F(x, z_k^{(i:j)})</span>。</p>
       
     
       
-        <p>短语表示<span class="math-inline" data-math="z_k^{(i:j)}">z_k^{(i:j)}</span>同时结合了稠密向量和稀疏向量<span class="math-inline" data-math="z_k^{(i:j)} = [d_k^{(i:j)}, s_k^{(i:j)}] \in \mathbb{R}^{d^d + d^s}">z_k^{(i:j)} = [d_k^{(i:j)}, s_k^{(i:j)}] \in \mathbb{R}^{d^d + d^s}</span>（注意<span class="math-inline" data-math="d^d \ll d^s">d^d \ll d^s</span>）：</p>
+        <p>短语表示<span class="math-inline" data-math="z_k^{(i:j)}">z_k^{(i:j)}</span>同时结合稠密向量和稀疏向量<span class="math-inline" data-math="z_k^{(i:j)} = [d_k^{(i:j)}, s_k^{(i:j)}] \in \mathbb{R}^{d^d + d^s}">z_k^{(i:j)} = [d_k^{(i:j)}, s_k^{(i:j)}] \in \mathbb{R}^{d^d + d^s}</span>（注意<span class="math-inline" data-math="d^d \ll d^s">d^d \ll d^s</span>）：</p>
       
     
       
-        <div class="list-content">稠密向量<span class="math-inline" data-math="d_k^{(i:j)}">d_k^{(i:j)}</span>擅长编码局部的句法和语义线索，这是预训练语言模型可以学习的。
-稀疏向量<span class="math-inline" data-math="s_k^{(i:j)}">s_k^{(i:j)}</span>在编码精确的词汇信息方面更具优势。稀疏向量是基于词频的编码。DenSPI使用与DrQA相同的2-gram词频，产生高度稀疏的表示（<span class="math-inline" data-math="d^s \approx 16">d^s \approx 16</span>M）。</div>
+        <div class="list-content">稠密向量<span class="math-inline" data-math="d_k^{(i:j)}">d_k^{(i:j)}</span>擅长编码局部句法和语义线索，这是预训练语言模型可以学习的。
+稀疏向量<span class="math-inline" data-math="s_k^{(i:j)}">s_k^{(i:j)}</span>在编码精确的词汇信息方面更优越。稀疏向量是基于词项频率的编码。DenSPI使用与DrQA相同的2-gram词项频率，产生高度稀疏的表示（<span class="math-inline" data-math="d^s \approx 16">d^s \approx 16</span>M）。</div>
       
     
       
-        <p>稠密向量<span class="math-inline" data-math="d^{(i:j)}">d^{(i:j)}</span>进一步被分解为三个部分<span class="math-inline" data-math="d^{(i:j)} = [a_i, b_j, c_{ij}] \in \mathbb{R}^{2d^b + 1}">d^{(i:j)} = [a_i, b_j, c_{ij}] \in \mathbb{R}^{2d^b + 1}</span>，其中<span class="math-inline" data-math="2d^b + 1 = d^d">2d^b + 1 = d^d</span>。所有三个组件都是基于微调后的BERT表示的不同列学习得到的。</p>
+        <p>稠密向量<span class="math-inline" data-math="d^{(i:j)}">d^{(i:j)}</span>进一步分解为三个部分<span class="math-inline" data-math="d^{(i:j)} = [a_i, b_j, c_{ij}] \in \mathbb{R}^{2d^b + 1}">d^{(i:j)} = [a_i, b_j, c_{ij}] \in \mathbb{R}^{2d^b + 1}</span>，其中<span class="math-inline" data-math="2d^b + 1 = d^d">2d^b + 1 = d^d</span>。所有三个组件都基于微调后的BERT表示的不同列进行学习。</p>
       
     
       
         <div class="list-content">向量<span class="math-inline" data-math="a_i">a_i</span>编码文档中第<span class="math-inline" data-math="i">i</span>个词的起始位置；
 向量<span class="math-inline" data-math="b_j">b_j</span>编码文档中第<span class="math-inline" data-math="j">j</span>个词的结束位置；
-标量<span class="math-inline" data-math="c_{ij}">c_{ij}</span>衡量起始向量和结束向量之间的一致性，在推理时帮助避免非成分短语。</div>
+标量<span class="math-inline" data-math="c_{ij}">c_{ij}</span>衡量起始和结束向量之间的一致性，在推理时帮助避免非成分短语。</div>
       
     
       
-        <p>对于所有可能的<span class="math-inline" data-math="(i,j,k)">(i,j,k)</span>元组（其中<span class="math-inline" data-math="j-i &lt; J">j-i &lt; J</span>），文本片段嵌入被预先计算并存储为短语索引。最大片段长度<span class="math-inline" data-math="J">J</span>是一个预定义的标量常数。</p>
+        <p>对于所有可能的<span class="math-inline" data-math="(i,j,k)">(i,j,k)</span>元组（其中<span class="math-inline" data-math="j-i &lt; J">j-i &lt; J</span>），文本跨度嵌入被预先计算并存储为短语索引。最大跨度长度<span class="math-inline" data-math="J">J</span>是一个预定义的标量常数。</p>
       
     
       
@@ -333,16 +329,16 @@ h_z = E_z(z)\quad
       
     
       
-        <p>在推理时，问题被映射到相同的向量空间<span class="math-inline" data-math="x=[d’, s’] \in \mathbb{R}^{d^d + d^s}">x=[d’, s’] \in \mathbb{R}^{d^d + d^s}</span>，其中稠密向量<span class="math-inline" data-math="d’">d’</span>是从特殊[CLS]符号的BERT嵌入中提取的。编码问题和短语使用同一个BERT模型。最终答案通过<span class="math-inline" data-math="k^*, i^*, j^* = \arg\max x^\top z_k^{(i:j)}">k^*, i^*, j^* = \arg\max x^\top z_k^{(i:j)}</span>预测。</p>
+        <p>在推理时，问题被映射到相同的向量空间<span class="math-inline" data-math="x=[d’, s’] \in \mathbb{R}^{d^d + d^s}">x=[d’, s’] \in \mathbb{R}^{d^d + d^s}</span>，其中稠密向量<span class="math-inline" data-math="d’">d’</span>是从特殊[CLS]符号的BERT嵌入中提取的。编码问题和短语使用相同的BERT模型。最终答案通过<span class="math-inline" data-math="k^*, i^*, j^* = \arg\max x^\top z_k^{(i:j)}">k^*, i^*, j^* = \arg\max x^\top z_k^{(i:j)}</span>预测。</p>
       
     
       
-        <h2>Reader模型#</h2>
+        <h2>阅读器模型#</h2>
         
       
     
       
-        <p>Reader模型学习解决阅读理解任务——从给定上下文文档中为给定问题提取答案。这里我们只讨论使用神经网络进行机器阅读理解的方法。</p>
+        <p>阅读器模型学习解决阅读理解任务——从给定上下文文档中为给定问题提取答案。这里我们只讨论使用神经网络进行机器理解的方法。</p>
       
     
       
@@ -351,13 +347,13 @@ h_z = E_z(z)\quad
       
     
       
-        <p>DrQA（<a href="https://arxiv.org/abs/1704.00051" target="_blank" rel="noopener">Chen等人，2017</a>）的答案检测reader模型是一个3层双向LSTM，隐层大小为128。检索到的Wikipedia文章的每个相关段落被编码为一系列特征向量<span class="math-inline" data-math="\{\tilde{\mathbf{z}}_1, \dots, \tilde{\mathbf{z}}_m \}">\{\tilde{\mathbf{z}}_1, \dots, \tilde{\mathbf{z}}_m \}</span>。每个特征向量<span class="math-inline" data-math="\hat{\mathbf{z}}_i \in \mathbb{R}^{d_z}">\hat{\mathbf{z}}_i \in \mathbb{R}^{d_z}</span>旨在捕捉围绕一个词元<span class="math-inline" data-math="z_i">z_i</span>的有用上下文信息。特征由以下几类组成：</p>
+        <p>DrQA（<a href="https://arxiv.org/abs/1704.00051" target="_blank" rel="noopener">Chen et al., 2017</a>）的答案检测阅读器模型是一个3层双向LSTM，隐层大小为128。检索到的Wikipedia文章的每个相关段落被编码为一个特征向量序列<span class="math-inline" data-math="\{\tilde{\mathbf{z}}_1, \dots, \tilde{\mathbf{z}}_m \}">\{\tilde{\mathbf{z}}_1, \dots, \tilde{\mathbf{z}}_m \}</span>。每个特征向量<span class="math-inline" data-math="\hat{\mathbf{z}}_i \in \mathbb{R}^{d_z}">\hat{\mathbf{z}}_i \in \mathbb{R}^{d_z}</span>旨在捕捉一个词元<span class="math-inline" data-math="z_i">z_i</span>周围的有用上下文信息。该特征由几类特征组成：</p>
       
     
       
-        <div class="list-content">词嵌入：使用从800B网页爬取数据训练的300维<a href="posts-2017-10-15-word-embedding.html">学习词嵌入</a>词嵌入，<span class="math-inline" data-math="f_\text{embed} = E_g(z_i)">f_\text{embed} = E_g(z_i)</span>。
-精确匹配：词<span class="math-inline" data-math="z_i">z_i</span>是否出现在问题<span class="math-inline" data-math="x">x</span>中，<span class="math-inline" data-math="f_\text{match} = \mathbb{I}(z_i \in x)">f_\text{match} = \mathbb{I}(z_i \in x)</span>。
-词元特征：包括POS（词性标注）、NER（命名实体识别）和TF（词频），<span class="math-inline" data-math="f_\text{token}(z_i) = (\text{POS}(z_i), \text{NER}(z_i), \text{TF}(z_i))">f_\text{token}(z_i) = (\text{POS}(z_i), \text{NER}(z_i), \text{TF}(z_i))</span>。
+        <div class="list-content">词嵌入：从800B网页爬取数据训练的300维<a href="posts-2017-10-15-word-embedding.html">词嵌入学习</a>词嵌入<span class="math-inline" data-math="f_\text{embed} = E_g(z_i)">f_\text{embed} = E_g(z_i)</span>。
+精确匹配：一个词<span class="math-inline" data-math="z_i">z_i</span>是否出现在问题<span class="math-inline" data-math="x">x</span>中，<span class="math-inline" data-math="f_\text{match} = \mathbb{I}(z_i \in x)">f_\text{match} = \mathbb{I}(z_i \in x)</span>。
+词元特征：包括词性（POS）标注、命名实体识别（NER）和词项频率（TF），<span class="math-inline" data-math="f_\text{token}(z_i) = (\text{POS}(z_i), \text{NER}(z_i), \text{TF}(z_i))">f_\text{token}(z_i) = (\text{POS}(z_i), \text{NER}(z_i), \text{TF}(z_i))</span>。
 对齐的问题嵌入：注意力分数<span class="math-inline" data-math="y_{ij}">y_{ij}</span>旨在捕捉段落词元<span class="math-inline" data-math="z_i">z_i</span>与问题词<span class="math-inline" data-math="x_j">x_j</span>之间的句子间匹配和相似性。该特征在相似但不完全相同的词之间添加软对齐。</div>
       
     
@@ -376,11 +372,11 @@ y_{i,j} &amp;= \frac{\exp(\alpha(E_g(z_i))^\top \alpha(E_g(x_j)) )}{\sum_{j&#x27
       
     
       
-        <p>其中<span class="math-inline" data-math="\alpha">\alpha</span>是一个带ReLU的单层稠密网络，<span class="math-inline" data-math="E_g(.)">E_g(.)</span>是glove词嵌入。</p>
+        <p>其中<span class="math-inline" data-math="\alpha">\alpha</span>是一个带ReLU的单层稠密层，<span class="math-inline" data-math="E_g(.)">E_g(.)</span>是glove词嵌入。</p>
       
     
       
-        <p>包含<span class="math-inline" data-math="m">m</span>个词元的段落的特征向量被输入LSTM，得到最终的段落向量：</p>
+        <p>包含<span class="math-inline" data-math="m">m</span>个词元的段落的特征向量被输入LSTM以获得最终的段落向量：</p>
       
     
       
@@ -410,11 +406,11 @@ y_{i,j} &amp;= \frac{\exp(\alpha(E_g(z_i))^\top \alpha(E_g(x_j)) )}{\sum_{j&#x27
       
     
       
-        <p>其中<span class="math-inline" data-math="\mathbf{w}">\mathbf{w}</span>是需要学习的权重向量。</p>
+        <p>其中<span class="math-inline" data-math="\mathbf{w}">\mathbf{w}</span>是要学习的权重向量。</p>
       
     
       
-        <p>一旦为问题和所有相关段落构建了特征向量，reader就需要预测段落中每个位置作为答案起始和结束位置的概率，分别为<span class="math-inline" data-math="p_\text{start}(i_s)">p_\text{start}(i_s)</span>和<span class="math-inline" data-math="p_\text{end}(i_s)">p_\text{end}(i_s)</span>。在所有段落中，选择具有最大<span class="math-inline" data-math="p_\text{start}(i_s)  \times p_\text{end}(i_e) ">p_\text{start}(i_s)  \times p_\text{end}(i_e) </span>的最优片段作为最终答案。</p>
+        <p>一旦为问题和所有相关段落构建了特征向量，阅读器需要预测段落中每个位置作为答案跨度起始和结束的概率，分别为<span class="math-inline" data-math="p_\text{start}(i_s)">p_\text{start}(i_s)</span>和<span class="math-inline" data-math="p_\text{end}(i_s)">p_\text{end}(i_s)</span>。在所有段落中，返回具有最大<span class="math-inline" data-math="p_\text{start}(i_s)  \times p_\text{end}(i_e) ">p_\text{start}(i_s)  \times p_\text{end}(i_e) </span>的最优跨度作为最终答案。</p>
       
     
       
@@ -434,16 +430,16 @@ p_\text{end}(i_e) \propto \exp(\mathbf{z}_{i_e} \mathbf{W}_e \mathbf{x}) \\
       
     
       
-        <p>其中<span class="math-inline" data-math="\mathbf{W}_s">\mathbf{W}_s</span>和<span class="math-inline" data-math="\mathbf{W}_e">\mathbf{W}_e</span>是学习得到的参数。</p>
+        <p>其中<span class="math-inline" data-math="\mathbf{W}_s">\mathbf{W}_s</span>和<span class="math-inline" data-math="\mathbf{W}_e">\mathbf{W}_e</span>是学习的参数。</p>
       
     
       
-        <h3>BERT系列#</h3>
+        <h3>BERT宇宙#</h3>
         
       
     
       
-        <p>随着<a href="posts-2019-01-31-lm.html">泛化语言模型</a>（<a href="https://arxiv.org/abs/1810.04805" target="_blank" rel="noopener">Devlin等人，2018</a>）的成功，许多问答模型基于BERT开发机器阅读理解组件。让我们将BERT模型定义为一个函数，它可以接受一个或多个字符串（用[SEP]连接）作为输入，并输出特殊[CLS] token和每个输入token的BERT编码向量集合：</p>
+        <p>随着<a href="posts-2019-01-31-lm.html">通用语言模型</a>（<a href="https://arxiv.org/abs/1810.04805" target="_blank" rel="noopener">Devlin et al., 2018</a>）的成功，许多QA模型基于BERT开发机器理解组件。让我们将BERT模型定义为一个函数，它可以接受一个或多个字符串（用[SEP]连接）作为输入，并输出特殊[CLS]词元和每个输入词元的BERT编码向量集合：</p>
       
     
       
@@ -455,15 +451,15 @@ p_\text{end}(i_e) \propto \exp(\mathbf{z}_{i_e} \mathbf{W}_e \mathbf{x}) \\
       
     
       
-        <p>其中<span class="math-inline" data-math="\mathbf{h}^\texttt{[CLS]}">\mathbf{h}^\texttt{[CLS]}</span>是特殊[CLS] token的嵌入向量，<span class="math-inline" data-math="\mathbf{h}^{(i)}">\mathbf{h}^{(i)}</span>是第<span class="math-inline" data-math="i">i</span>个token的嵌入向量。</p>
+        <p>其中<span class="math-inline" data-math="\mathbf{h}^\texttt{[CLS]}">\mathbf{h}^\texttt{[CLS]}</span>是特殊[CLS]词元的嵌入向量，<span class="math-inline" data-math="\mathbf{h}^{(i)}">\mathbf{h}^{(i)}</span>是第<span class="math-inline" data-math="i">i</span>个词元的嵌入向量。</p>
       
     
       
-        <p>要使用BERT进行阅读理解，它学习两个额外的权重<span class="math-inline" data-math="\mathbf{W}_s">\mathbf{W}_s</span>和<span class="math-inline" data-math="\mathbf{W}_e">\mathbf{W}_e</span>，<span class="math-inline" data-math="\text{softmax}(\mathbf{h}^{(i)}\mathbf{W}_s)">\text{softmax}(\mathbf{h}^{(i)}\mathbf{W}_s)</span>和<span class="math-inline" data-math="\text{softmax}(\mathbf{h}^{(i)}\mathbf{W}_e)">\text{softmax}(\mathbf{h}^{(i)}\mathbf{W}_e)</span>为每个token定义了预测片段的起始和结束位置的两个概率分布。</p>
+        <p>为了将BERT用于阅读理解，它学习两个额外的权重<span class="math-inline" data-math="\mathbf{W}_s">\mathbf{W}_s</span>和<span class="math-inline" data-math="\mathbf{W}_e">\mathbf{W}_e</span>，<span class="math-inline" data-math="\text{softmax}(\mathbf{h}^{(i)}\mathbf{W}_s)">\text{softmax}(\mathbf{h}^{(i)}\mathbf{W}_s)</span>和<span class="math-inline" data-math="\text{softmax}(\mathbf{h}^{(i)}\mathbf{W}_e)">\text{softmax}(\mathbf{h}^{(i)}\mathbf{W}_e)</span>定义了每个词元预测跨度起始和结束位置的两个概率分布。</p>
       
     
       
-        <p>BERTserini（<a href="https://arxiv.org/abs/1902.01718" target="_blank" rel="noopener">Yang等人，2019</a>）使用预训练的BERT模型作为reader。他们的实验表明，仅使用SQuAD微调预训练BERT就足以在识别答案片段上达到高准确率。</p>
+        <p>BERTserini（<a href="https://arxiv.org/abs/1902.01718" target="_blank" rel="noopener">Yang et al., 2019</a>）使用预训练的BERT模型作为阅读器。他们的实验表明，使用SQuAD微调预训练BERT足以在识别答案跨度上达到高准确率。</p>
       
     
       
@@ -474,23 +470,23 @@ p_\text{end}(i_e) \propto \exp(\mathbf{z}_{i_e} \mathbf{W}_e \mathbf{x}) \\
       
     
       
-        <p>BERTserini reader与原始BERT的关键区别是：为了允许对来自不同片段的结果进行比较和聚合，移除了不同答案片段上的最终softmax层。预训练的BERT模型在SQuAD训练集上进行微调，输入reader的所有输入都被填充到384个token，学习率设为3e-5。</p>
+        <p>BERTserini阅读器与原始BERT的关键区别是：为了允许比较和聚合来自不同片段的结果，移除了不同答案跨度上的最终softmax层。预训练的BERT模型在SQuAD训练集上进行微调，所有输入阅读器的序列都被填充到384个词元，学习率设为3e-5。</p>
       
     
       
-        <p>在对所有提取的答案片段进行排序时，通过线性插值结合retriever分数（BM25）和reader分数（token作为起始位置的概率<span class="math-inline" data-math="\times">\times</span>同一token作为结束位置的概率）。</p>
+        <p>在对所有提取的答案跨度进行排序时，检索器分数（BM25）和阅读器分数（词元作为起始位置的概率<span class="math-inline" data-math="\times">\times</span>同一词元作为结束位置的概率）通过线性插值组合。</p>
       
     
       
-        <p>原始BERT对每个段落独立地归一化起始和结束位置的概率分布。不同的是，Multi-passage BERT（<a href="https://arxiv.org/abs/1908.08167" target="_blank" rel="noopener">Wang等人，2019</a>）对一个问题的所有检索到的段落<a href="https://arxiv.org/abs/1710.10723" target="_blank" rel="noopener">全局</a>归一化答案分数。具体来说，multi-passage BERT移除了BERT中每个段落的最终归一化层（与BERTserini相同），然后在所有段落的所有词位置上添加全局softmax。全局归一化使得reader模型在从大量段落中精确定位答案时更加稳定。</p>
+        <p>原始BERT对每个段落独立标准化起始和结束位置的概率分布。不同的是，Multi-passage BERT（<a href="https://arxiv.org/abs/1908.08167" target="_blank" rel="noopener">Wang et al., 2019</a>）对一个问题的所有检索段落进行<a href="https://arxiv.org/abs/1710.10723" target="_blank" rel="noopener">全局</a>答案分数标准化。具体来说，multi-passage BERT移除了BERT中每个段落的最终标准化层（与BERTserini相同），然后在所有段落的所有词元位置上添加全局softmax。全局标准化使阅读器模型在从大量段落中精确定位答案时更加稳定。</p>
       
     
       
-        <p>此外，multi-passage BERT使用另一个BERT模型实现了一个独立的段落排序器模型，通过第一个[CLS] token的表示向量上的softmax生成<span class="math-inline" data-math="(x, z)">(x, z)</span>的排序分数。该段落排序器带来了额外的2%性能提升。使用BERT对段落进行重排序的类似想法也在<a href="https://arxiv.org/abs/1901.04085" target="_blank" rel="noopener">Nogueira &amp;amp; Cho，2019</a>中讨论过。</p>
+        <p>此外，multi-passage BERT使用另一个BERT模型实现了一个独立的段落排序器模型，第<span class="math-inline" data-math="(x, z)">(x, z)</span>个段落的排序分数由第一个[CLS]词元的表示向量上的softmax生成。段落排序器带来了额外的2%性能提升。使用BERT对段落进行重排序的类似想法也在<a href="https://arxiv.org/abs/1901.04085" target="_blank" rel="noopener">Nogueira &amp;amp; Cho, 2019</a>中讨论过。</p>
       
     
       
-        <p>有趣的是，<a href="https://arxiv.org/abs/1908.08167" target="_blank" rel="noopener">Wang等人，2019</a>发现，对于使用BERT的阅读理解任务，显式的句子间匹配似乎并不关键；具体实验设计请查阅原论文。一个可能的原因是BERT中的多头自注意力层已经嵌入了句子间匹配。</p>
+        <p>有趣的是，<a href="https://arxiv.org/abs/1908.08167" target="_blank" rel="noopener">Wang et al., 2019</a>发现，对于使用BERT的RC任务，显式的句子间匹配似乎并不关键；具体实验设计请查阅原论文。一个可能的原因是BERT中的多头自注意力层已经嵌入了句子间匹配。</p>
       
     
       
@@ -499,15 +495,15 @@ p_\text{end}(i_e) \propto \exp(\mathbf{z}_{i_e} \mathbf{W}_e \mathbf{x}) \\
       
     
       
-        <p>Retriever和reader组件可以进行联合训练。本节介绍R^3、ORQA、REALM和DPR。这些模型有许多共同的设计，例如用于检索的基于BERT的稠密向量，以及最大化获得真实答案的边际似然的损失函数。</p>
+        <p>检索器和阅读器组件可以联合训练。本节介绍R^3、ORQA、REALM和DPR。它们有许多共同设计，例如用于检索的基于BERT的稠密向量，以及最大化获得真实答案的边际似然的损失函数。</p>
       
     
       
-        <p>R^3（“Reinforced Ranker-Reader”；<a href="https://arxiv.org/abs/1709.00023" target="_blank" rel="noopener">Wang等人，2017</a>）问答系统中的retriever和reader模型通过<a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a>进行联合训练。（为保持本节论文术语一致，原R^3论文中的“ranker”模型在此称为“retriever”模型。）两个组件都是<a href="https://arxiv.org/abs/1512.08849" target="_blank" rel="noopener">Match-LSTM</a>的变体，该模型依赖注意力机制来计算段落和问题序列之间的词相似性。</p>
+        <p>R^3（“Reinforced Ranker-Reader”；<a href="https://arxiv.org/abs/1709.00023" target="_blank" rel="noopener">Wang, et al., 2017</a>）QA系统中的检索器和阅读器模型通过<a href="posts-2018-02-19-rl-overview.html">强化学习简史（长文）</a>联合训练。（注意，为了保持本节论文中术语的一致性，原始R^3论文中的“ranker”模型在此称为“retriever”模型。）两个组件都是<a href="https://arxiv.org/abs/1512.08849" target="_blank" rel="noopener">Match-LSTM</a>的变体，它依赖注意力机制来计算段落和问题序列之间的词相似性。</p>
       
     
       
-        <p>Match-LSTM模块如何工作？给定一个包含<span class="math-inline" data-math="d_x">d_x</span>个词的问题<span class="math-inline" data-math="\mathbf{X}">\mathbf{X}</span>和包含<span class="math-inline" data-math="d_z">d_z</span>个词的段落<span class="math-inline" data-math="\mathbf{Z}">\mathbf{Z}</span>，两者都使用固定的<a href="posts-2017-10-15-word-embedding.html">学习词嵌入</a>词嵌入，</p>
+        <p>Match-LSTM模块如何工作？给定一个包含<span class="math-inline" data-math="d_x">d_x</span>个词的问题<span class="math-inline" data-math="\mathbf{X}">\mathbf{X}</span>和包含<span class="math-inline" data-math="d_z">d_z</span>个词的段落<span class="math-inline" data-math="\mathbf{Z}">\mathbf{Z}</span>，两者都使用固定的<a href="posts-2017-10-15-word-embedding.html">词嵌入学习</a>词嵌入，</p>
       
     
       
@@ -543,11 +539,11 @@ p_\text{end}(i_e) \propto \exp(\mathbf{z}_{i_e} \mathbf{W}_e \mathbf{x}) \\
       
     
       
-        <p>其中<span class="math-inline" data-math="l">l</span>是双向LSTM模块的隐层维度。<span class="math-inline" data-math="\mathbf{W}^g \in \mathbb{R}^{l\times l}">\mathbf{W}^g \in \mathbb{R}^{l\times l}</span>、<span class="math-inline" data-math="\mathbf{b}^g \in \mathbb{R}^l">\mathbf{b}^g \in \mathbb{R}^l</span>和<span class="math-inline" data-math="\mathbf{W}^m \in \mathbb{R}^{2l \times 4l}">\mathbf{W}^m \in \mathbb{R}^{2l \times 4l}</span>是需要学习的参数。运算符<span class="math-inline" data-math="\otimes \mathbf{e}_{d_x}">\otimes \mathbf{e}_{d_x}</span>是外积，用于将列向量<span class="math-inline" data-math="\mathbf{b}^g">\mathbf{b}^g</span>重复<span class="math-inline" data-math="d_x">d_x</span>次。</p>
+        <p>其中<span class="math-inline" data-math="l">l</span>是双向LSTM模块的隐层维度。<span class="math-inline" data-math="\mathbf{W}^g \in \mathbb{R}^{l\times l}">\mathbf{W}^g \in \mathbb{R}^{l\times l}</span>、<span class="math-inline" data-math="\mathbf{b}^g \in \mathbb{R}^l">\mathbf{b}^g \in \mathbb{R}^l</span>和<span class="math-inline" data-math="\mathbf{W}^m \in \mathbb{R}^{2l \times 4l}">\mathbf{W}^m \in \mathbb{R}^{2l \times 4l}</span>是要学习的参数。运算符<span class="math-inline" data-math="\otimes \mathbf{e}_{d_x}">\otimes \mathbf{e}_{d_x}</span>是外积，用于将列向量<span class="math-inline" data-math="\mathbf{b}^g">\mathbf{b}^g</span>重复<span class="math-inline" data-math="d_x">d_x</span>次。</p>
       
     
       
-        <p>Ranker和reader组件共享同一个Match-LSTM模块，在最后一层有两个独立的预测头，分别产生<span class="math-inline" data-math="\mathbf{H}^\text{rank}">\mathbf{H}^\text{rank}</span>和<span class="math-inline" data-math="\mathbf{H}^\text{reader}">\mathbf{H}^\text{reader}</span>。</p>
+        <p>排序器和阅读器组件共享相同的Match-LSTM模块，在最后一层有两个独立的预测头，产生<span class="math-inline" data-math="\mathbf{H}^\text{rank}">\mathbf{H}^\text{rank}</span>和<span class="math-inline" data-math="\mathbf{H}^\text{reader}">\mathbf{H}^\text{reader}</span>。</p>
       
     
       
@@ -558,7 +554,7 @@ p_\text{end}(i_e) \propto \exp(\mathbf{z}_{i_e} \mathbf{W}_e \mathbf{x}) \\
       
     
       
-        <p>Retriever对每个段落执行最大池化操作，然后聚合输出每个段落蕴含答案的概率。</p>
+        <p>检索器对每个段落执行最大池化操作，然后聚合输出每个段落蕴含答案的概率。</p>
       
     
       
@@ -578,7 +574,7 @@ p_\text{end}(i_e) \propto \exp(\mathbf{z}_{i_e} \mathbf{W}_e \mathbf{x}) \\
       
     
       
-        <p>最后，retriever被视为一个策略，根据预测的<span class="math-inline" data-math="\gamma">\gamma</span>输出动作来采样一个段落，</p>
+        <p>最后，检索器被视为一个策略，根据预测的<span class="math-inline" data-math="\gamma">\gamma</span>输出动作来采样段落，</p>
       
     
       
@@ -590,7 +586,7 @@ p_\text{end}(i_e) \propto \exp(\mathbf{z}_{i_e} \mathbf{W}_e \mathbf{x}) \\
       
     
       
-        <p>Reader预测答案片段的起始位置<span class="math-inline" data-math="\beta^s">\beta^s</span>和结束位置<span class="math-inline" data-math="\beta^e">\beta^e</span>。两个位置的计算方式相同，但使用独立的学习参数。所有涉及的段落中共有<span class="math-inline" data-math="V">V</span>个词。</p>
+        <p>阅读器预测答案跨度的起始位置<span class="math-inline" data-math="\beta^s">\beta^s</span>和结束位置<span class="math-inline" data-math="\beta^e">\beta^e</span>。两个位置以相同方式计算，但使用独立的学习参数。所有涉及的段落中共有<span class="math-inline" data-math="V">V</span>个词。</p>
       
     
       
@@ -616,11 +612,11 @@ L(y \vert z, x) &amp;= -\log(\beta^s_{y_z^s})-\log(\beta^e_{y_z^e})
       
     
       
-        <p>其中<span class="math-inline" data-math="y">y</span>是真实答案，由retriever采样的段落为<span class="math-inline" data-math="z">z</span>。<span class="math-inline" data-math="\beta^s_{y_z^s}">\beta^s_{y_z^s}</span>和<span class="math-inline" data-math="\beta^s_{y_z^e}">\beta^s_{y_z^e}</span>分别表示在段落<span class="math-inline" data-math="z">z</span>中<span class="math-inline" data-math="y">y</span>的起始和结束位置的概率。</p>
+        <p>其中<span class="math-inline" data-math="y">y</span>是真实答案，段落<span class="math-inline" data-math="z">z</span>由检索器采样。<span class="math-inline" data-math="\beta^s_{y_z^s}">\beta^s_{y_z^s}</span>和<span class="math-inline" data-math="\beta^s_{y_z^e}">\beta^s_{y_z^e}</span>分别表示在段落<span class="math-inline" data-math="z">z</span>中位置<span class="math-inline" data-math="y">y</span>的起始和结束概率。</p>
       
     
       
-        <p>端到端R^3问答系统的训练目标是最小化给定问题<span class="math-inline" data-math="x">x</span>时获得正确答案<span class="math-inline" data-math="y">y</span>的负对数似然，</p>
+        <p>端到端R^3 QA系统的训练目标是最小化给定问题<span class="math-inline" data-math="x">x</span>获得正确答案<span class="math-inline" data-math="y">y</span>的负对数似然，</p>
       
     
       
@@ -646,7 +642,7 @@ L(y \vert z, x) &amp;= -\log(\beta^s_{y_z^s})-\log(\beta^e_{y_z^e})
       
     
       
-        <p>本质上在训练中，给定retriever采样的段落<span class="math-inline" data-math="z">z</span>，reader通过梯度下降训练，而retriever通过<a href="posts-2018-04-08-policy-gradient.html">策略梯度算法</a>使用<span class="math-inline" data-math="L(y \vert z, x)">L(y \vert z, x)</span>作为奖励函数进行训练。然而，<span class="math-inline" data-math="L(y \vert z, x)">L(y \vert z, x)</span>没有界限，可能会引入很大方差。论文用一个定制的评分函数替换奖励，通过比较真实答案<span class="math-inline" data-math="y">y</span>和reader提取的答案<span class="math-inline" data-math="\hat{y}">\hat{y}</span>：</p>
+        <p>本质上在训练中，给定检索器采样的段落<span class="math-inline" data-math="z">z</span>，阅读器通过梯度下降训练，而检索器通过<a href="posts-2018-04-08-policy-gradient.html">策略梯度算法</a>使用<span class="math-inline" data-math="L(y \vert z, x)">L(y \vert z, x)</span>作为奖励函数进行训练。然而，<span class="math-inline" data-math="L(y \vert z, x)">L(y \vert z, x)</span>没有界限，可能会引入很大方差。论文用一个自定义评分函数替换奖励，通过比较真实答案<span class="math-inline" data-math="y">y</span>和阅读器提取的答案<span class="math-inline" data-math="\hat{y}">\hat{y}</span>：</p>
       
     
       
@@ -673,7 +669,7 @@ f1(y, \hat{y}) &amp; \text{if } y \cap \hat{y} = \varnothing \\
       
     
       
-        <p>ORQA（“Open-Retrieval Question-Answering”；<a href="https://arxiv.org/abs/1906.00300" target="_blank" rel="noopener">Lee等人，2019</a>）以监督方式联合学习retriever+reader问答模型，以优化获得正确答案的边际对数似然。不涉及显式的“黑盒”IR系统。相反，它能够从开放语料库中检索任意文本。在训练期间，ORQA不需要真实上下文段落（即阅读理解数据集），只需要（问题，答案）字符串对。Retriever和reader组件都基于BERT，但不共享参数。</p>
+        <p>ORQA（“Open-Retrieval Question-Answering”；<a href="https://arxiv.org/abs/1906.00300" target="_blank" rel="noopener">Lee et al., 2019</a>）以监督方式联合学习检索器+阅读器QA模型，以优化获得正确答案的边际对数似然。不涉及显式的“黑盒”IR系统。相反，它能够检索开放语料库中的任意文本。在训练期间，ORQA不需要真实上下文段落（即阅读理解数据集），而只需要（问题，答案）字符串对。检索器和阅读器组件都基于BERT，但不共享参数。</p>
       
     
       
@@ -684,7 +680,7 @@ f1(y, \hat{y}) &amp; \text{if } y \cap \hat{y} = \varnothing \\
       
     
       
-        <p>所有证据块根据检索分数排序，该分数定义为问题<span class="math-inline" data-math="x">x</span>的[CLS] token的BERT嵌入向量与证据块<span class="math-inline" data-math="z">z</span>的[CLS] token的BERT嵌入向量的内积。注意，问题和上下文的编码器是独立的。</p>
+        <p>所有证据块通过检索分数排序，该分数定义为问题<span class="math-inline" data-math="x">x</span>的[CLS]词元的BERT嵌入向量与证据块<span class="math-inline" data-math="z">z</span>的内积。注意，问题编码器和上下文编码器是独立的。</p>
       
     
       
@@ -704,7 +700,7 @@ S_\text{retr}(z, x) &amp;= h_x^\top h_z
       
     
       
-        <p>Retriever模块使用Inverse Cloze Task（ICT）进行预训练，即给定句子预测上下文，这与标准的<a href="https://en.wikipedia.org/wiki/Cloze_test" target="_blank" rel="noopener">Cloze Task</a>方向相反。ICT的目标是在给定随机句子<span class="math-inline" data-math="x">x</span>时最大化正确上下文<span class="math-inline" data-math="z">z</span>的检索分数：</p>
+        <p>检索器模块使用Inverse Cloze Task（ICT）进行预训练，即给定一个句子预测上下文，这与标准的<a href="https://en.wikipedia.org/wiki/Cloze_test" target="_blank" rel="noopener">Cloze Task</a>方向相反。ICT目标是最大化给定随机句子<span class="math-inline" data-math="x">x</span>的正确上下文<span class="math-inline" data-math="z">z</span>的检索分数：</p>
       
     
       
@@ -720,7 +716,7 @@ L_\text{ICT} = p_\text{early}(z \vert x) = \frac{\exp(S_\text{retr}(z, x))}{\sum
       
     
       
-        <p>经过这样的预训练后，BERT retriever应该具有足够好的表示来支持证据检索。只有问题编码器需要针对答案提取进行微调。换句话说，证据块编码器（即<span class="math-inline" data-math="\mathbf{W}_z">\mathbf{W}_z</span>和<span class="math-inline" data-math="\text{BERT}_z">\text{BERT}_z</span>）是固定的，因此所有证据块编码可以预先计算，并支持快速最大内积搜索（MIPS）。</p>
+        <p>经过这种预训练后，BERT检索器预计具有足够好的表示用于证据检索。只有问题编码器需要针对答案提取进行微调。换句话说，证据块编码器（即<span class="math-inline" data-math="\mathbf{W}_z">\mathbf{W}_z</span>和<span class="math-inline" data-math="\text{BERT}_z">\text{BERT}_z</span>）是固定的，因此所有证据块编码可以预先计算，并支持快速最大内积搜索（MIPS）。</p>
       
     
       
@@ -731,7 +727,7 @@ L_\text{ICT} = p_\text{early}(z \vert x) = \frac{\exp(S_\text{retr}(z, x))}{\sum
       
     
       
-        <p>Reader遵循与原始<a href="posts-2019-01-31-lm.html">泛化语言模型</a>实验相同的设计。它以监督方式学习，而证据块编码器的参数保持固定，其他所有参数都进行微调。给定问题<span class="math-inline" data-math="x">x</span>和真实答案字符串<span class="math-inline" data-math="y">y</span>，reader损失包含两部分：</p>
+        <p>阅读器遵循与原始<a href="posts-2019-01-31-lm.html">通用语言模型</a>实验相同的设计。它以监督方式学习，而证据块编码器的参数固定，其他所有参数进行微调。给定一个问题<span class="math-inline" data-math="x">x</span>和黄金答案字符串<span class="math-inline" data-math="y">y</span>，阅读器损失包含两部分：</p>
       
     
       
@@ -743,7 +739,7 @@ L_\text{ICT} = p_\text{early}(z \vert x) = \frac{\exp(S_\text{retr}(z, x))}{\sum
       
     
       
-        <p>（1）在top<span class="math-inline" data-math="k">k</span>个证据块内找到所有正确的文本片段，并针对匹配真实答案<span class="math-inline" data-math="y">y</span>的文本片段<span class="math-inline" data-math="s">s</span>优化边际似然：</p>
+        <p>(1) 在前<span class="math-inline" data-math="k">k</span>个证据块中找到所有正确文本跨度，并针对匹配真实答案<span class="math-inline" data-math="y">y</span>的文本跨度<span class="math-inline" data-math="s">s</span>优化边际似然：</p>
       
     
       
@@ -767,11 +763,11 @@ L_\text{full}(x, y) &amp;= - \log \sum_{\substack{z \in \text{TOP}(k)\\ s \in z}
       
     
       
-        <p>其中<span class="math-inline" data-math="y=\text{TEXT}(s)">y=\text{TEXT}(s)</span>表示答案<span class="math-inline" data-math="y">y</span>是否与文本片段<span class="math-inline" data-math="s">s</span>匹配。<span class="math-inline" data-math="\text{TOP}(k)">\text{TOP}(k)</span>是根据<span class="math-inline" data-math="S_\text{retr}(z, x)">S_\text{retr}(z, x)</span>检索到的top<span class="math-inline" data-math="k">k</span>个块。论文设置<span class="math-inline" data-math="k=5">k=5</span>。</p>
+        <p>其中<span class="math-inline" data-math="y=\text{TEXT}(s)">y=\text{TEXT}(s)</span>表示答案<span class="math-inline" data-math="y">y</span>是否匹配文本跨度<span class="math-inline" data-math="s">s</span>。<span class="math-inline" data-math="\text{TOP}(k)">\text{TOP}(k)</span>是根据<span class="math-inline" data-math="S_\text{retr}(z, x)">S_\text{retr}(z, x)</span>检索的前<span class="math-inline" data-math="k">k</span>个块。论文设置<span class="math-inline" data-math="k=5">k=5</span>。</p>
       
     
       
-        <p>（2）在学习的早期阶段，当retriever还不够强大时，可能top<span class="math-inline" data-math="k">k</span>个块中没有一个包含答案。为了避免这种稀疏的学习信号，ORQA考虑更大集合的<span class="math-inline" data-math="c">c</span>个证据块来进行更激进的学习。论文中<span class="math-inline" data-math="c=5000">c=5000</span>。</p>
+        <p>(2) 在学习早期，当检索器还不够强大时，可能前<span class="math-inline" data-math="k">k</span>个块中没有一个包含答案。为了避免这种稀疏的学习信号，ORQA考虑更大的<span class="math-inline" data-math="c">c</span>个证据块集合进行更激进的学习。论文中<span class="math-inline" data-math="c=5000">c=5000</span>。</p>
       
     
       
@@ -791,11 +787,11 @@ L_\text{early}(x, y)
       
     
       
-        <blockquote>“SQuAD在开发集和测试集准确率之间的显著下降反映了数据集中的一个人为现象——其10万个问题仅来自536个文档。因此，好的检索目标在训练样本之间高度相关，违反了IID假设，使其不适合用于学习型检索。我们强烈建议对端到端开放域问答模型感兴趣的人不要再使用SQuAD进行训练和评估。”</blockquote>
+        <blockquote>“SQuAD在开发集和测试集准确率之间的显著下降反映了数据集中的一个人为现象——其10万个问题仅来自536个文档。因此，好的检索目标在训练样例之间高度相关，违反了IID假设，使其不适合用于学习检索。我们强烈建议对端到端开放域QA模型感兴趣的人不要再使用SQuAD进行训练和评估。”</blockquote>
       
     
       
-        <p>REALM（“Retrieval-Augmented Language Model pre-training”；<a href="https://arxiv.org/abs/2002.08909" target="_blank" rel="noopener">Guu等人，2020</a>）也通过优化获得真实答案的边际似然来联合训练retriever+reader：</p>
+        <p>REALM（“Retrieval-Augmented Language Model pre-training”；<a href="https://arxiv.org/abs/2002.08909" target="_blank" rel="noopener">Guu et al., 2020</a>）也通过优化获得真实答案的边际似然来联合训练检索器+阅读器：</p>
       
     
       
@@ -818,57 +814,57 @@ p(y \vert x)
       
     
       
-        <p>REALM计算两个概率<span class="math-inline" data-math="p(z \vert x)">p(z \vert x)</span>和<span class="math-inline" data-math="p(y \vert x, z)">p(y \vert x, z)</span>，与ORQA相同。然而，与ORQA中的ICT不同，REALM用若干新的设计决策升级了无监督预训练步骤，从而获得更好的检索效果。REALM使用Wikipedia或CC-News语料库进行预训练。</p>
+        <p>REALM计算两个概率<span class="math-inline" data-math="p(z \vert x)">p(z \vert x)</span>和<span class="math-inline" data-math="p(y \vert x, z)">p(y \vert x, z)</span>，与ORQA相同。然而，与ORQA中的ICT不同，REALM用几个新的设计决策升级了无监督预训练步骤，从而获得更好的检索。REALM使用Wikipedia或CC-News语料库对模型进行预训练。</p>
       
     
       
-        <div class="list-content">使用显著跨度掩码。首先识别命名实体和日期。然后选择其中一个“显著跨度”并进行掩码。显著跨度掩码是MLM的一种特殊情况，对于QA任务效果很好。
-添加一个空的null文档。因为并非每个问题都需要上下文文档。
-避免平凡检索。上下文文档不应与选定的包含掩码跨度的句子相同。
+        <div class="list-content">使用显著跨度掩码。识别命名实体和日期。然后选择其中一个“显著跨度”并进行掩码。显著跨度掩码是MLM的特例，对QA任务效果很好。
+添加空的空文档。因为并非每个问题都需要上下文文档。
+无平凡检索。上下文文档不应与带有掩码跨度的选定句子相同。
 应用与ORQA相同的ICT损失，以在训练早期检索质量仍较差时鼓励学习。</div>
       
     
       
-        <blockquote>“在所有系统中，与REALM最直接比较的是ORQA（Lee等人，2019），其中微调设置、超参数和训练数据完全相同。REALM相对于ORQA的改进完全归功于更好的预训练方法。”——摘自REALM论文。</blockquote>
+        <blockquote>“在所有系统中，与REALM最直接比较的是ORQA（Lee et al., 2019），其中微调设置、超参数和训练数据完全相同。REALM相对于ORQA的改进完全归因于更好的预训练方法。”——摘自REALM论文。</blockquote>
       
     
       
-        <p>无监督预训练和有监督微调都优化相同的对数似然<span class="math-inline" data-math="\log p(y \vert x)">\log p(y \vert x)</span>。由于证据文档的retriever编码器参数也会在过程中更新，MIPS的索引是变化的。REALM每隔几百个训练步，使用更新的编码器参数异步刷新索引。</p>
+        <p>无监督预训练和有监督微调都优化相同的对数似然<span class="math-inline" data-math="\log p(y \vert x)">\log p(y \vert x)</span>。由于证据文档的检索器编码器参数也在过程中更新，MIPS索引是变化的。REALM每隔几百个训练步异步使用更新后的编码器参数刷新索引。</p>
       
     
       
-        <p><a href="https://arxiv.org/abs/2104.08710" target="_blank" rel="noopener">Balachandran等人（2021）</a>发现REALM明显训练不足，REALM++通过扩大模型训练规模（使用更大的batch size和更多供reader处理的检索文档）在EM准确率上取得了显著提升（3-5%）。</p>
+        <p><a href="https://arxiv.org/abs/2104.08710" target="_blank" rel="noopener">Balachandran, et al. (2021)</a>发现REALM显著训练不足，REALM++通过扩大模型训练（使用更大批大小和更多检索文档供阅读器处理）实现了EM准确率的大幅提升（3-5%）。</p>
       
     
       
-        <p>DPR（“Dense Passage Retriever”；<a href="https://arxiv.org/abs/2004.04906" target="_blank" rel="noopener">Karpukhin等人，2020</a>，<a href="https://github.com/facebookresearch/DPR" target="_blank" rel="noopener">代码</a>）认为ICT预训练计算成本可能过高，而且ORQA的上下文编码器可能不是最优的，因为它没有用问答对进行微调。DPR旨在通过仅从少量Q/A对训练一个仅用于检索的稠密双编码器架构来解决这两个问题，而无需任何预训练。</p>
+        <p>DPR（“Dense Passage Retriever”；<a href="https://arxiv.org/abs/2004.04906" target="_blank" rel="noopener">Karpukhin et al., 2020</a>，<a href="https://github.com/facebookresearch/DPR" target="_blank" rel="noopener">代码</a>）认为ICT预训练计算成本可能过高，而且ORQA的上下文编码器可能不是最优的，因为它没有用问答对进行微调。DPR旨在通过仅使用少量Q/A对训练一个仅用于检索的稠密双编码器架构（没有任何预训练）来解决这两个问题。</p>
       
     
       
-        <p>与之前工作一样，DPR使用BERT表示的点积（L2距离或余弦相似度也适用）作为检索分数。训练双编码器的损失函数是正样本段落的NLL，本质上采用了与ORQA的ICT损失相同的公式。注意，两者都将同一批次中的其他段落视为负样本，称为批内负采样。主要区别在于DPR依赖有监督的QA数据，而ORQA使用无监督语料上的ICT进行训练。在推理时，DPR使用<a href="https://github.com/facebookresearch/faiss" target="_blank" rel="noopener">FAISS</a>运行快速MIPS。</p>
+        <p>与之前工作相同，DPR使用BERT表示的点积（L2距离或余弦相似度也适用）作为检索分数。训练双编码器的损失函数是正例段落的NLL，本质上采用了与ORQA的ICT损失相同的公式。请注意，两者都将同一批次中的其他段落视为负样本，称为批内负采样。主要区别是DPR依赖有监督QA数据，而ORQA使用无监督语料上的ICT进行训练。在推理时，DPR使用<a href="https://github.com/facebookresearch/faiss" target="_blank" rel="noopener">FAISS</a>运行快速MIPS。</p>
       
     
       
-        <p>DPR进行了一系列对比实验，涉及几种不同类型的负样本：</p>
+        <p>DPR进行了一系列对比实验，涉及几种不同类型的负例：</p>
       
     
       
         <div class="list-content">随机：来自语料库的任意随机段落；
-BM25：BM25返回的top段落，其中不包含答案但匹配最多的问题词；
-批内负采样（“gold”）：与训练集中出现的其他问题配对的正样本段落。</div>
+BM25：BM25返回的不包含答案但匹配最多问题词元的前几个段落；
+批内负采样（“黄金”）：与训练集中出现的其他问题配对的正例段落。</div>
       
     
       
-        <p>DPR发现，使用来自同一小批次的gold段落和一个具有高BM25分数的负样本段落效果最佳。为了进一步改进检索结果，DPR还探索了将BM25分数和稠密嵌入检索分数线性组合作为新的排序函数的设置。</p>
+        <p>DPR发现，使用来自同一小批次的黄金段落和一个具有高BM25分数的负例段落效果最佳。为了进一步改进检索结果，DPR还探索了将BM25分数和稠密嵌入检索分数线性组合作为新的排序函数的设置。</p>
       
     
       
-        <h2>开卷问答：Retriever-Generator#</h2>
+        <h2>开卷式QA：检索器-生成器#</h2>
         
       
     
       
-        <p>与retriever-reader方法相比，retriever-generator同样有两个阶段，但第二阶段是直接生成自由文本来回答问题，而不是从检索到的段落中提取起始/结束位置。有些论文也将其称为生成式问答。</p>
+        <p>与检索器-阅读器方法相比，检索器-生成器同样有两个阶段，但第二阶段是直接生成自由文本来回答问题，而不是在检索到的段落中提取起始/结束位置。有些论文也将其称为生成式问答。</p>
       
     
       
@@ -879,38 +875,38 @@ BM25：BM25返回的top段落，其中不包含答案但匹配最多的问题词
       
     
       
-        <p>如上所示，预训练语言模型在其参数中具有很强的记忆知识的能力。然而，它们难以轻松修改或扩展记忆，无法直接提供对其预测的洞察，并且可能会产生不存在的幻觉。</p>
+        <p>如上所示，预训练语言模型在其参数中具有强大的记忆知识的能力。然而，它们无法轻松修改或扩展记忆，无法直接提供对其预测的洞见，并且可能会产生不存在的幻觉。</p>
       
     
       
-        <p><a href="https://arxiv.org/abs/2005.04611" target="_blank" rel="noopener">Petroni等人（2020）</a>研究了检索到的相关上下文如何帮助生成式语言模型产生更好的答案。他们发现：</p>
+        <p><a href="https://arxiv.org/abs/2005.04611" target="_blank" rel="noopener">Petroni et al. (2020)</a>研究了检索到的相关上下文如何帮助生成式语言模型产生更好的答案。他们发现：</p>
       
     
       
-        <div class="list-content">用相关上下文增强查询可以显著提升预训练语言模型的无监督机器阅读能力。
-现成的IR系统就足以让BERT达到有监督ODQA基线的性能；
-BERT的<a href="posts-2019-01-31-lm.html">泛化语言模型</a>预训练策略是一种在处理噪声和不相关上下文时非常有效的无监督机制。</div>
+        <div class="list-content">用相关上下文扩充查询可以显著提升预训练LM的无监督机器阅读能力。
+一个现成的IR系统就足以让BERT达到有监督ODQA基线的性能；
+BERT的<a href="posts-2019-01-31-lm.html">通用语言模型</a>预训练策略是一种在处理噪声和无关上下文时非常有效的无监督机制。</div>
       
     
       
-        <p>他们将BERT模型与不同类型的上下文配对，包括对抗性（不相关上下文）、检索到的（通过BM25）和生成式的（由参数量为1.4N、在CC-NEWS上训练的自回归语言模型生成）。模型被发现对对抗性上下文具有鲁棒性，但前提是问题和上下文作为两个片段提供（例如用[SEP]分隔）。一个假设与NSP任务相关：“如果NSP分数较低，BERT可能会学会不在片段之间调节掩码token预测，从而隐式地检测不相关和有噪声的上下文。”</p>
+        <p>他们将BERT模型与不同类型的上下文配对，包括对抗性（不相关上下文）、检索到的（通过BM25）和生成式（由参数量为1.4N、在CC-NEWS上训练的自回归语言模型生成）。模型被发现对对抗性上下文具有鲁棒性，但前提是问题和上下文作为两个片段提供（例如用[SEP]分隔）。一个假设与NSP任务相关：“如果NSP分数低，BERT可能会学会不在片段之间进行条件化，从而隐式检测无关和噪声上下文。”</p>
       
     
       
-        <p>RAG（“Retrieval-Augmented Generation”；<a href="https://arxiv.org/abs/2005.11401" target="_blank" rel="noopener">Lewis等人，2020</a>）将预训练的参数化记忆（语言模型）和非参数化记忆（外部知识索引）结合在一起用于语言生成。RAG可以在任何seq2seq任务上进行微调，在此过程中retriever和序列生成器被联合学习。他们发现无约束生成优于之前的抽取式方法。</p>
+        <p>RAG（“Retrieval-Augmented Generation”；<a href="https://arxiv.org/abs/2005.11401" target="_blank" rel="noopener">Lewis et al., 2020</a>）将预训练的参数化（语言模型）和非参数化记忆（外部知识索引）结合在一起用于语言生成。RAG可以在任何seq2seq任务上进行微调，从而检索器和序列生成器被联合学习。他们发现无约束生成优于之前的抽取式方法。</p>
       
     
       
-        <p>RAG由retriever模型<span class="math-inline" data-math="p_\eta(z \vert x)">p_\eta(z \vert x)</span>和generator模型<span class="math-inline" data-math="p_\theta(y_i \vert x, z, y_{1:i-1})">p_\theta(y_i \vert x, z, y_{1:i-1})</span>组成：</p>
+        <p>RAG由检索器模型<span class="math-inline" data-math="p_\eta(z \vert x)">p_\eta(z \vert x)</span>和生成器模型<span class="math-inline" data-math="p_\theta(y_i \vert x, z, y_{1:i-1})">p_\theta(y_i \vert x, z, y_{1:i-1})</span>组成：</p>
       
     
       
-        <div class="list-content">Retriever使用输入序列<span class="math-inline" data-math="x">x</span>来检索文本段落<span class="math-inline" data-math="z">z</span>，其实现为DPR retriever。<span class="math-inline" data-math="\log p_\eta(z \vert x) \propto E_z(z)^\top E_x(x)">\log p_\eta(z \vert x) \propto E_z(z)^\top E_x(x)</span>。
-Generator在生成目标序列<span class="math-inline" data-math="y">y</span>时使用<span class="math-inline" data-math="z">z</span>作为额外上下文，其中上下文和问题被简单地拼接在一起。</div>
+        <div class="list-content">检索器使用输入序列<span class="math-inline" data-math="x">x</span>来检索文本段落<span class="math-inline" data-math="z">z</span>，实现为DPR检索器。<span class="math-inline" data-math="\log p_\eta(z \vert x) \propto E_z(z)^\top E_x(x)">\log p_\eta(z \vert x) \propto E_z(z)^\top E_x(x)</span>。
+生成器在生成目标序列<span class="math-inline" data-math="y">y</span>时使用<span class="math-inline" data-math="z">z</span>作为额外上下文，其中上下文和问题被简单拼接。</div>
       
     
       
-        <p>根据是否为每个token生成使用相同或不同的检索文档，RAG有两种版本：</p>
+        <p>根据每个词元生成是否使用相同或不同的检索文档，RAG有两种版本：</p>
       
     
       
@@ -928,7 +924,7 @@ p_\text{RAG-token}(y \vert x) &amp;= \prod_i^N \sum_{z \in \text{TOP}_k(p_\eta(.
       
     
       
-        <p>RAG中的retriever+generator被联合训练以最小化NLL损失<span class="math-inline" data-math="\mathcal{L}_\text{RAG} = \sum_j -\log p(y_j \vert x_j)">\mathcal{L}_\text{RAG} = \sum_j -\log p(y_j \vert x_j)</span>。更新段落编码器<span class="math-inline" data-math="E_z(.)">E_z(.)</span>代价很高，因为这需要模型为快速MIPS重新索引文档。RAG发现不需要微调<span class="math-inline" data-math="E_z(.)">E_z(.)</span>（如ORQA中那样），只需更新query编码器+generator。</p>
+        <p>RAG中的检索器+生成器被联合训练以最小化NLL损失<span class="math-inline" data-math="\mathcal{L}_\text{RAG} = \sum_j -\log p(y_j \vert x_j)">\mathcal{L}_\text{RAG} = \sum_j -\log p(y_j \vert x_j)</span>。更新段落编码器<span class="math-inline" data-math="E_z(.)">E_z(.)</span>代价昂贵，因为它需要模型为快速MIPS重新索引文档。RAG没有发现微调<span class="math-inline" data-math="E_z(.)">E_z(.)</span>是必要的（像ORQA中那样），只更新查询编码器+生成器。</p>
       
     
       
@@ -939,30 +935,30 @@ p_\text{RAG-token}(y \vert x) &amp;= \prod_i^N \sum_{z \in \text{TOP}_k(p_\eta(.
       
     
       
-        <p>在解码/测试时，RAG-token可以通过<a href="https://d2l.ai/chapter_recurrent-modern/beam-search.html#id1" target="_blank" rel="noopener">束搜索</a>进行评估。RAG-seq无法分解为一组每个token的似然，因此它为每个候选文档<span class="math-inline" data-math="z">z</span>运行束搜索，并选择具有最优<span class="math-inline" data-math="p_\theta(y_i \vert x, z, y_{1:i-1})">p_\theta(y_i \vert x, z, y_{1:i-1})</span>的那个。</p>
+        <p>在解码/测试时，RAG-token可以通过<a href="https://d2l.ai/chapter_recurrent-modern/beam-search.html#id1" target="_blank" rel="noopener">束搜索</a>进行评估。RAG-seq不能分解为一组每个词元的似然，因此它对每个候选文档<span class="math-inline" data-math="z">z</span>运行束搜索，并选择具有最优<span class="math-inline" data-math="p_\theta(y_i \vert x, z, y_{1:i-1})">p_\theta(y_i \vert x, z, y_{1:i-1})</span>的那一个。</p>
       
     
       
-        <p><a href="https://arxiv.org/abs/2007.01282" target="_blank" rel="noopener">Izacard &amp;amp; Grave（2020）</a>提出的Fusion-in-Decoder方法也基于预训练的T5。它与RAG类似，但上下文整合到decoder的方式不同。</p>
+        <p><a href="https://arxiv.org/abs/2007.01282" target="_blank" rel="noopener">Izacard &amp;amp; Grave (2020)</a>提出的Fusion-in-Decoder方法也基于预训练的T5。它与RAG类似，但上下文整合到解码器的方式不同。</p>
       
     
       
-        <div class="list-content">使用BM25或DPR检索top<span class="math-inline" data-math="k">k</span>个每个100词长的相关段落。
-每个检索到的段落及其标题使用特殊token（如question:、title:和context:）与问题拼接，以表明内容差异。
-每个检索到的段落在编码器中被独立处理，随后在decoder中合并。在编码器中独立处理段落允许我们并行化计算。另一方面，联合处理它们可以促进对多条证据的更好聚合。这种聚合部分在抽取式方法中是缺失的。</div>
+        <div class="list-content">使用BM25或DPR检索前<span class="math-inline" data-math="k">k</span>个每个100词的相关段落。
+每个检索到的段落及其标题使用特殊标记（如question:、title:和context:）与问题拼接，以指示内容差异。
+每个检索到的段落在编码器中独立处理，后来在解码器中组合。在编码器中独立处理段落允许我们并行化计算。另一方面，联合处理它们可以更好地聚合多个证据片段。这种聚合部分在抽取式方法中是缺失的。</div>
       
     
       
-        <p>注意，他们对每个数据集独立地微调了预训练语言模型。</p>
+        <p>注意，他们针对每个数据集独立对预训练LM进行了微调。</p>
       
     
       
-        <h2>闭卷问答：生成式语言模型#</h2>
+        <h2>闭卷式QA：生成式语言模型#</h2>
         
       
     
       
-        <p>大型语言模型已经在大量无监督文本语料上进行了预训练。给定足够多的参数，这些模型能够将一些事实性知识记忆在参数权重中。因此，我们可以使用这些模型进行问答而无需显式上下文，就像在闭卷考试中一样。预训练语言模型生成自由文本来回应问题，没有显式的阅读理解过程。</p>
+        <p>大型语言模型已经在大量无监督文本语料上进行了预训练。给定足够多的参数，这些模型能够在参数权重中记住一些事实知识。因此，我们可以使用这些模型进行问答而无需显式上下文，就像在闭卷考试中一样。预训练语言模型生成自由文本来响应问题，没有显式的阅读理解。</p>
       
     
       
@@ -973,7 +969,7 @@ p_\text{RAG-token}(y \vert x) &amp;= \prod_i^N \sum_{z \in \text{TOP}_k(p_\eta(.
       
     
       
-        <p><a href="https://arxiv.org/abs/2002.08910" target="_blank" rel="noopener">Roberts等人（2020）</a>通过将预训练模型微调为在没有任何外部上下文或知识的情况下回答问题，来衡量语言模型的实际效用。他们微调了<a href="https://arxiv.org/abs/1910.10683" target="_blank" rel="noopener">T5</a>语言模型（与原始Transformer架构相同），在不输入任何额外信息或上下文的情况下回答问题。这种设置迫使语言模型基于其在预训练期间“内化”的“知识”来回答问题。</p>
+        <p><a href="https://arxiv.org/abs/2002.08910" target="_blank" rel="noopener">Roberts et al. (2020)</a>通过将预训练模型微调为在没有外部上下文或知识的情况下回答问题，来衡量语言模型的实际效用。他们微调了<a href="https://arxiv.org/abs/1910.10683" target="_blank" rel="noopener">T5</a>语言模型（与原始Transformer相同的架构），在不输入任何额外信息或上下文的情况下回答问题。这种设置迫使语言模型基于其在预训练期间内化的“知识”来回答问题。</p>
       
     
       
@@ -984,30 +980,30 @@ p_\text{RAG-token}(y \vert x) &amp;= \prod_i^N \sum_{z \in \text{TOP}_k(p_\eta(.
       
     
       
-        <p>原始T5模型在一个多任务混合上进行预训练，包括在C4（“Colossal Clean Crawled Corpus”）数据集上的无监督<a href="posts-2019-01-31-lm.html">泛化语言模型</a>（MLM）任务，以及与有监督的翻译、摘要、分类和阅读理解任务一起微调。<a href="https://arxiv.org/abs/2002.08910" target="_blank" rel="noopener">Roberts等人（2020）</a>采用了一个预训练的T5模型，并在Wikipedia语料库上继续使用显著跨度掩码进行预训练，这被发现能显著提升ODQA的性能。然后他们针对每个QA数据集独立地进行微调。</p>
+        <p>原始T5模型在多任务混合上进行预训练，包括C4（“Colossal Clean Crawled Corpus”）数据集上的无监督<a href="posts-2019-01-31-lm.html">通用语言模型</a>（MLM）任务，以及与有监督的翻译、摘要、分类和阅读理解任务一起联合微调。<a href="https://arxiv.org/abs/2002.08910" target="_blank" rel="noopener">Roberts, et al. (2020)</a>采用了一个预训练的T5模型，并在Wikipedia语料库上继续使用显著跨度掩码进行预训练，这已被发现能显著提升ODQA的性能。然后他们针对每个QA数据集独立进行微调。</p>
       
     
       
-        <p>使用预训练T5语言模型 + 使用显著跨度掩码继续预训练 + 针对每个QA数据集进行微调，</p>
+        <p>使用预训练T5语言模型+使用显著跨度掩码继续预训练+针对每个QA数据集微调，</p>
       
     
       
-        <div class="list-content">它可以在不访问外部知识的情况下，在开放域问答中取得具有竞争力的结果。
+        <div class="list-content">它可以在没有外部知识的情况下达到具有竞争力的开放域问答结果。
 更大的模型可以获得更好的性能。例如，具有110亿参数的T5能够与使用3个BERT-base模型（每个3.3亿参数）的DPR相匹配。</div>
       
     
       
-        <p>有趣的是，微调并不是严格必要的。GPT-3（<a href="https://arxiv.org/abs/2005.14165" target="_blank" rel="noopener">Brown等人，2020</a>）在没有任何梯度更新或微调的情况下，在闭卷问答任务上进行了评估。在评估期间，此处的few-shot、one-shot和zero-shot设置仅指在文本输入中提供了多少个示范作为上下文：</p>
+        <p>有趣的是，微调并非严格必要。GPT3（<a href="https://arxiv.org/abs/2005.14165" target="_blank" rel="noopener">Brown et al., 2020</a>）在没有任何梯度更新或微调的情况下，在闭卷问答任务上进行了评估。在评估期间，这里的few-shot、one-shot和zero-shot设置仅指在文本输入中提供了多少个演示作为上下文：</p>
       
     
       
-        <div class="list-content">“few-shot learning”：GPT-3允许使用模型上下文窗口能容纳的尽可能多的示范（通常10到100个）。
-“one-shot learning”：仅提供一个示范。
-“zero-shot learning”：不允许任何示范，仅给出自然语言形式的指令。</div>
+        <div class="list-content">“few-shot learning”：GPT3被允许使用模型上下文窗口能容纳的尽可能多的演示（通常10到100个）。
+“one-shot learning”：仅提供一个演示。
+“zero-shot learning”：不允许任何演示，只给模型一个自然语言指令。</div>
       
     
       
-        <p>性能随着模型规模增长而提升。在TriviaQA数据集上，带示范的GPT-3评估可以达到或超过带有微调的SOTA基线的性能。</p>
+        <p>性能随着模型规模增长而提升。在TriviaQA数据集上，带演示的GPT3评估可以达到或超过带微调的SOTA基线性能。</p>
       
     
       
@@ -1018,7 +1014,7 @@ p_\text{RAG-token}(y \vert x) &amp;= \prod_i^N \sum_{z \in \text{TOP}_k(p_\eta(.
       
     
       
-        <p>查看OpenAI API<a href="https://beta.openai.com/playground/p/HMoho4552EHXrPLbmOIxpX4X" target="_blank" rel="noopener">playground</a>中的这个很酷的示例。该模型能够用简短答案回答事实性问题，并且在不知道答案时不会编造内容。我添加了最后两个问题，并要求模型以A:回应。API仍处于beta版本，因此您可能需要<a href="https://beta.openai.com/" target="_blank" rel="noopener">申请</a>进入等待列表。</p>
+        <p>查看OpenAI API中的这个酷炫示例<a href="https://beta.openai.com/playground/p/HMoho4552EHXrPLbmOIxpX4X" target="_blank" rel="noopener">playground viewer</a>。该模型能够以简短答案回答事实性问题，并且在不知道答案时不会编造内容。我添加了最后两个问题，并要求模型以A:开头回应。API仍处于beta版本，因此你可能需要<a href="https://beta.openai.com/" target="_blank" rel="noopener">申请</a>加入等待列表。</p>
       
     
       
@@ -1074,7 +1070,7 @@ A: H1N1 is a strain of influenza.
       
     
       
-        <p>MIPS（最大内积搜索）是许多开放域问答模型中的关键组件。在retriever+reader/generator框架中，来自知识源的大量段落被编码并存储在内存中。检索模型能够查询该内存，以识别与问题嵌入具有最大内积的最相关top段落。</p>
+        <p>MIPS（最大内积搜索）是许多开放域问答模型中的关键组件。在检索器+阅读器/生成器框架中，来自知识源的大量段落被编码并存储在内存中。检索模型能够查询该内存，以识别与问题嵌入具有最大内积的最相关的前几个段落。</p>
       
     
       
@@ -1091,10 +1087,10 @@ A: H1N1 is a strain of influenza.
       
     
       
-        <div class="list-content">Inverse Cloze Task（由ORQA提出）：<a href="https://en.wikipedia.org/wiki/Cloze_test" target="_blank" rel="noopener">Cloze Task</a>的目标是基于上下文预测被掩码的文本。Inverse Cloze Task（ICT）的预测方向相反，旨在给定句子预测上下文。在QA任务的背景下，随机句子可以被视为伪问题，其上下文可以被视为伪证据。
+        <div class="list-content">Inverse Cloze Task（由ORQA提出）：<a href="https://en.wikipedia.org/wiki/Cloze_test" target="_blank" rel="noopener">Cloze Task</a>的目标是基于上下文预测被掩码的文本。Inverse Cloze Task（ICT）的预测方向相反，旨在给定一个句子预测上下文。在QA任务的背景下，随机句子可以被视为伪问题，其上下文可以被视为伪证据。
 
 
-Salient Spans Masking（由REALM提出）：显著跨度掩码是语言模型训练中MLM任务的一种特殊情况。首先，我们使用标注器识别命名实体，并使用正则表达式识别日期。然后选择检测到的一个显著跨度并进行掩码。任务是预测这个被掩码的显著跨度。</div>
+显著跨度掩码（由REALM提出）：显著跨度掩码是语言模型训练中MLM任务的特例。首先，我们使用标记器识别命名实体，并使用正则表达式识别日期。然后选择检测到的显著跨度之一并进行掩码。任务是预测这个被掩码的显著跨度。</div>
       
     
       
@@ -1215,11 +1211,11 @@ Salient Spans Masking（由REALM提出）：显著跨度掩码是语言模型训
       
     
       
-        <p>引用格式：</p>
+        <p>引用为：</p>
       
     
       
-        <blockquote>Weng, Lilian. (2020年10月). 如何构建开放域问答系统？Lil’Log. https://lilianweng.github.io/posts/2020-10-29-odqa/。</blockquote>
+        <blockquote>Weng, Lilian. (2020年10月). How to build an open-domain question answering system? Lil’Log. https://lilianweng.github.io/posts/2020-10-29-odqa/。</blockquote>
       
     
       
@@ -1240,23 +1236,23 @@ Salient Spans Masking（由REALM提出）：显著跨度掩码是语言模型训
       
     
       
-        <div class="list-content"><a href="https://rajpurkar.github.io/SQuAD-explorer/" target="_blank" rel="noopener">SQuAD 2.0</a>：斯坦福问答数据集。
-<a href="http://www.qizhexie.com/data/RACE_leaderboard" target="_blank" rel="noopener">RACE</a>：从针对中学生和高中生的英语考试中收集的阅读理解数据集。
+        <div class="list-content"><a href="https://rajpurkar.github.io/SQuAD-explorer/" target="_blank" rel="noopener">SQuAD 2.0</a>：斯坦福QA数据集。
+<a href="http://www.qizhexie.com/data/RACE_leaderboard" target="_blank" rel="noopener">RACE</a>：从为中学生和高中生创建的英语考试中收集的阅读理解数据集。
 <a href="https://trec.nist.gov/data/qa.html" target="_blank" rel="noopener">TREC QA</a>：TREC QA集合。
-<a href="https://microsoft.github.io/msmarco/" target="_blank" rel="noopener">MS MARCO</a>：一个包含10万个真实Bing问题和人工生成答案的QA数据集。
-<a href="https://github.com/brmson/dataset-factoid-curated" target="_blank" rel="noopener">CuratedTREC</a>：基于<a href="https://link.springer.com/chapter/10.1007%2F978-3-319-24027-5_20" target="_blank" rel="noopener">Baudis &amp;amp; Sedivy（2015）</a>整理的TREC QA任务基准。
-<a href="https://ai.google.com/research/NaturalQuestions/dataset" target="_blank" rel="noopener">Google Natural Questions</a>：包含向Google搜索提出的真实用户问题，以及由标注者从Wikipedia中找到的答案。
-<a href="https://github.com/brmson/dataset-factoid-webquestions" target="_blank" rel="noopener">WebQuestions</a>：为知识库问答设计，答案限制为Freebase实体。
+<a href="https://microsoft.github.io/msmarco/" target="_blank" rel="noopener">MS MARCO</a>：一个QA数据集，包含10万个真实的Bing问题和人工生成的答案。
+<a href="https://github.com/brmson/dataset-factoid-curated" target="_blank" rel="noopener">CuratedTREC</a>：基于由<a href="https://link.springer.com/chapter/10.1007%2F978-3-319-24027-5_20" target="_blank" rel="noopener">Baudis &amp;amp; Sedivy (2015)</a>整理的TREC QA任务基准。
+<a href="https://ai.google.com/research/NaturalQuestions/dataset" target="_blank" rel="noopener">Google Natural Questions</a>：包含用户向Google搜索提出的真实问题，以及注释者在Wikipedia中找到的答案。
+<a href="https://github.com/brmson/dataset-factoid-webquestions" target="_blank" rel="noopener">WebQuestions</a>：设计用于知识库QA，答案限制为Freebase实体。
 <a href="https://www.microsoft.com/en-us/research/publication/wikiqa-a-challenge-dataset-for-open-domain-question-answering/" target="_blank" rel="noopener">WikiQA</a>：使用Bing查询日志作为问题来源。每个问题随后链接到一个可能包含答案的Wikipedia页面。
 <a href="https://research.fb.com/downloads/babi/" target="_blank" rel="noopener">WikiMovies</a>：包含来自OMDb和MovieLens数据库的与电影相关的问题，这些问题可以使用Wikipedia页面回答。
-<a href="https://github.com/google-research-datasets/wiki-reading" target="_blank" rel="noopener">WikiReading</a>：通过阅读相应Wikipedia文章的文本，从结构化知识库Wikidata中预测文本值。
-<a href="https://nlp.cs.washington.edu/triviaqa/" target="_blank" rel="noopener">TriviaQA</a>：一个包含95K个由 trivia 爱好者撰写的问题-答案对的阅读理解数据集，并为每个问题独立收集了多个证据文档。
+<a href="https://github.com/google-research-datasets/wiki-reading" target="_blank" rel="noopener">WikiReading</a>：通过阅读相应Wikipedia文章的文本，从结构化知识库Wikidata预测文本值。
+<a href="https://nlp.cs.washington.edu/triviaqa/" target="_blank" rel="noopener">TriviaQA</a>：一个阅读理解数据集，包含95K个由 trivia 爱好者撰写的问题-答案对，以及每个问题独立收集的多个证据文档。
 <a href="https://www.kaggle.com/tunguz/200000-jeopardy-questions" target="_blank" rel="noopener">Jeopardy! Questions</a>：包含20万+个<a href="https://en.wikipedia.org/wiki/Jeopardy!" target="_blank" rel="noopener">Jeopardy!</a>问题。
 <a href="https://cs.nyu.edu/~kcho/DMQA/" target="_blank" rel="noopener">DeepMind Q&amp;amp;A Dataset</a>：来自CNN和Daily Mail文章的问题/答案对。
 <a href="https://research.fb.com/downloads/babi/" target="_blank" rel="noopener">bAbi</a>：Facebook用于文本理解的丰富数据集集合。
-<a href="https://fever.ai/data.html" target="_blank" rel="noopener">FEVER</a>：用于事实抽取和验证。
-<a href="https://github.com/nyu-dl/dl4ir-searchQA" target="_blank" rel="noopener">SearchQA</a>：问题-答案对从<a href="https://j-archive.com/" target="_blank" rel="noopener">J! Archive</a>爬取，并用来自Google的文本片段进行增强。
-<a href="https://github.com/bdhingra/quasar" target="_blank" rel="noopener">Quasar-T</a>：从各种互联网来源收集的开放域 trivia 问题及其答案的集合。
+<a href="https://fever.ai/data.html" target="_blank" rel="noopener">FEVER</a>：用于事实提取和验证。
+<a href="https://github.com/nyu-dl/dl4ir-searchQA" target="_blank" rel="noopener">SearchQA</a>：问题-答案对从<a href="https://j-archive.com/" target="_blank" rel="noopener">J! Archive</a>爬取，然后用来自Google的文本片段进行扩充。
+<a href="https://github.com/bdhingra/quasar" target="_blank" rel="noopener">Quasar-T</a>：从各种互联网来源获得的开放域 trivia 问题及其答案的集合。
 <a href="https://people.cs.umass.edu/~miyyer/qblearn/index.html" target="_blank" rel="noopener">Quiz bowl</a>：包含来自quiz bowl trivia竞赛的数据。
 <a href="https://nlp.cs.washington.edu/ambigqa/" target="_blank" rel="noopener">AmbigNQ</a>：从NQ-OPEN数据集中选择的模糊问题。
 <a href="https://github.com/facebookresearch/QA-Overlap" target="_blank" rel="noopener">QA-Overlap</a>：Natural Questions、TriviaQA和WebQuestions的训练集和测试集之间重叠答案/问题的集合。</div>
@@ -1272,67 +1268,67 @@ Salient Spans Masking（由REALM提出）：显著跨度掩码是语言模型训
       
     
       
-        <p>[2] Danqi Chen等人。<a href="https://arxiv.org/abs/1704.00051" target="_blank" rel="noopener">“Reading Wikipedia to Answer Open-Domain Questions”</a> ACL 2017。| <a href="https://github.com/facebookresearch/DrQA" target="_blank" rel="noopener">代码</a></p>
+        <p>[2] Danqi Chen, et al. <a href="https://arxiv.org/abs/1704.00051" target="_blank" rel="noopener">“Reading Wikipedia to Answer Open-Domain Questions”</a> ACL 2017。| <a href="https://github.com/facebookresearch/DrQA" target="_blank" rel="noopener">代码</a></p>
       
     
       
-        <p>[3] Shuohang Wang等人。<a href="https://arxiv.org/abs/1709.00023" target="_blank" rel="noopener">“R^3: Reinforced Ranker-Reader for Open-Domain Question Answering”</a> AAAI 2018。</p>
+        <p>[3] Shuohang Wang, et al. <a href="https://arxiv.org/abs/1709.00023" target="_blank" rel="noopener">“R^3: Reinforced Ranker-Reader for Open-Domain Question Answering”</a> AAAI 2018。</p>
       
     
       
-        <p>[4] Jimmy Lin。<a href="https://sigir.org/wp-content/uploads/2019/01/p040.pdf" target="_blank" rel="noopener">“The neural hype and comparisons against weak baselines.”</a> ACM SIGIR Forum. Vol. 52. No. 2. 2019。</p>
+        <p>[4] Jimmy Lin. <a href="https://sigir.org/wp-content/uploads/2019/01/p040.pdf" target="_blank" rel="noopener">“The neural hype and comparisons against weak baselines.”</a> ACM SIGIR Forum. Vol. 52. No. 2. 2019。</p>
       
     
       
-        <p>[5] Wei Yang等人。<a href="https://arxiv.org/abs/1902.01718" target="_blank" rel="noopener">“End-to-End Open-Domain Question Answering with BERTserini”</a> NAACL 2019。</p>
+        <p>[5] Wei Yang, et al. <a href="https://arxiv.org/abs/1902.01718" target="_blank" rel="noopener">“End-to-End Open-Domain Question Answering with BERTserini”</a> NAACL 2019。</p>
       
     
       
-        <p>[6] Christopher Clark &amp; Matt Gardner。<a href="https://arxiv.org/abs/1710.10723" target="_blank" rel="noopener">“Simple and Effective Multi-Paragraph Reading Comprehension.”</a> arXiv:1710.10723 (2017)。</p>
+        <p>[6] Christopher Clark &amp; Matt Gardner. <a href="https://arxiv.org/abs/1710.10723" target="_blank" rel="noopener">“Simple and Effective Multi-Paragraph Reading Comprehension.”</a> arXiv:1710.10723 (2017)。</p>
       
     
       
-        <p>[7] Rodrigo Nogueira &amp; Kyunghyun Cho。<a href="https://arxiv.org/abs/1901.04085" target="_blank" rel="noopener">“Passage Re-ranking with BERT.”</a> arXiv preprint arXiv:1901.04085 (2019)。| <a href="https://github.com/nyu-dl/dl4marco-bert" target="_blank" rel="noopener">代码</a></p>
+        <p>[7] Rodrigo Nogueira &amp; Kyunghyun Cho. <a href="https://arxiv.org/abs/1901.04085" target="_blank" rel="noopener">“Passage Re-ranking with BERT.”</a> arXiv preprint arXiv:1901.04085 (2019)。| <a href="https://github.com/nyu-dl/dl4marco-bert" target="_blank" rel="noopener">代码</a></p>
       
     
       
-        <p>[8] Zhiguo Wang等人。<a href="https://arxiv.org/abs/1908.08167" target="_blank" rel="noopener">“Multi-passage BERT: A globally normalized BERT model for open-domain question answering.”</a> EMNLP 2019。</p>
+        <p>[8] Zhiguo Wang, et al. <a href="https://arxiv.org/abs/1908.08167" target="_blank" rel="noopener">“Multi-passage BERT: A globally normalized BERT model for open-domain question answering.”</a> EMNLP 2019。</p>
       
     
       
-        <p>[9] Minjoon Seo等人。<a href="https://arxiv.org/abs/1906.05807" target="_blank" rel="noopener">“Real-time open-domain question answering with dense-sparse phrase index.”</a> ACL 2019。</p>
+        <p>[9] Minjoon Seo et al. <a href="https://arxiv.org/abs/1906.05807" target="_blank" rel="noopener">“Real-time open-domain question answering with dense-sparse phrase index.”</a> ACL 2019。</p>
       
     
       
-        <p>[10] Kenton Lee等人。<a href="https://arxiv.org/abs/1906.00300" target="_blank" rel="noopener">“Latent Retrieval for Weakly Supervised Open Domain Question Answering”</a> ACL 2019。</p>
+        <p>[10] Kenton Lee, et al. <a href="https://arxiv.org/abs/1906.00300" target="_blank" rel="noopener">“Latent Retrieval for Weakly Supervised Open Domain Question Answering”</a> ACL 2019。</p>
       
     
       
-        <p>[11] Kelvin Guu等人。<a href="https://arxiv.org/abs/2002.08909" target="_blank" rel="noopener">“REALM: Retrieval-Augmented Language Model Pre-Training”</a> arXiv:2002.08909 (2020)。</p>
+        <p>[11] Kelvin Guu, et al. <a href="https://arxiv.org/abs/2002.08909" target="_blank" rel="noopener">“REALM: Retrieval-Augmented Language Model Pre-Training”</a> arXiv:2002.08909 (2020)。</p>
       
     
       
-        <p>[12] Vladimir Karpukhin等人。<a href="https://arxiv.org/abs/2004.04906" target="_blank" rel="noopener">“Dense passage retrieval for open-domain question answering.”</a> EMNLP 2020。| <a href="https://github.com/facebookresearch/DPR" target="_blank" rel="noopener">代码</a></p>
+        <p>[12] Vladimir Karpukhin et al. <a href="https://arxiv.org/abs/2004.04906" target="_blank" rel="noopener">“Dense passage retrieval for open-domain question answering.”</a>。EMNLP 2020。| <a href="https://github.com/facebookresearch/DPR" target="_blank" rel="noopener">代码</a></p>
       
     
       
-        <p>[13] Patrick Lewis等人。<a href="https://arxiv.org/abs/2005.11401" target="_blank" rel="noopener">“Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks”</a> arXiv:2005.11401 (2020)。</p>
+        <p>[13] Patrick Lewis et al. <a href="https://arxiv.org/abs/2005.11401" target="_blank" rel="noopener">“Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks”</a> arXiv:2005.11401 (2020)。</p>
       
     
       
-        <p>[14] Adam Roberts等人。<a href="https://arxiv.org/abs/2002.08910" target="_blank" rel="noopener">“How Much Knowledge Can You Pack Into the Parameters of a Language Model?”</a> EMNLP 2020。</p>
+        <p>[14] Adam Roberts, et al. <a href="https://arxiv.org/abs/2002.08910" target="_blank" rel="noopener">“How Much Knowledge Can You Pack Into the Parameters of a Language Model?”</a> EMNLP 2020。</p>
       
     
       
-        <p>[15] Tom Brown等人。<a href="https://arxiv.org/abs/2005.14165" target="_blank" rel="noopener">“Language models are few-shot learners.”</a> arXiv:2005.14165 (2020)。</p>
+        <p>[15] Tom Brown, et al. <a href="https://arxiv.org/abs/2005.14165" target="_blank" rel="noopener">“Language models are few-shot learners.”</a> arXiv:2005.14165 (2020)。</p>
       
     
       
-        <p>[16] Fabio Petroni等人。<a href="https://arxiv.org/abs/2005.04611" target="_blank" rel="noopener">“How Context Affects Language Models’ Factual Predictions”</a> AKBC 2020。</p>
+        <p>[16] Fabio Petroni, et al. <a href="https://arxiv.org/abs/2005.04611" target="_blank" rel="noopener">“How Context Affects Language Models’ Factual Predictions”</a> AKBC 2020。</p>
       
     
       
-        <p>[17] Gautier Izacard &amp; Edouard Grave。<a href="https://arxiv.org/abs/2007.01282" target="_blank" rel="noopener">“Leveraging passage retrieval with generative models for open domain question answering.”</a> arXiv:2007.01282 (2020)。</p>
+        <p>[17] Gautier Izacard &amp; Edouard Grave. <a href="https://arxiv.org/abs/2007.01282" target="_blank" rel="noopener">“Leveraging passage retrieval with generative models for open domain question answering.”</a> arXiv:2007.01282 (2020)。</p>
       
     
       
@@ -1340,15 +1336,15 @@ Salient Spans Masking（由REALM提出）：显著跨度掩码是语言模型训
       
     
       
-        <p>[19] Patrick Lewis等人。<a href="https://arxiv.org/abs/2008.02637" target="_blank" rel="noopener">“Question and Answer Test-Train Overlap in Open-Domain Question Answering Datasets”</a> arXiv:2008.02637 (2020)。| <a href="https://github.com/facebookresearch/QA-Overlap" target="_blank" rel="noopener">数据</a></p>
+        <p>[19] Patrick Lewis, et al. <a href="https://arxiv.org/abs/2008.02637" target="_blank" rel="noopener">“Question and Answer Test-Train Overlap in Open-Domain Question Answering Datasets”</a> arXiv:2008.02637 (2020)。| <a href="https://github.com/facebookresearch/QA-Overlap" target="_blank" rel="noopener">数据</a></p>
       
     
       
-        <p>[20] Hervé Jegou等人。<a href="https://engineering.fb.com/2017/03/29/data-infrastructure/faiss-a-library-for-efficient-similarity-search/" target="_blank" rel="noopener">“Faiss: A library for efficient similarity search”</a> 2017年3月。</p>
+        <p>[20] Hervé Jegou, et al. <a href="https://engineering.fb.com/2017/03/29/data-infrastructure/faiss-a-library-for-efficient-similarity-search/" target="_blank" rel="noopener">“Faiss: A library for efficient similarity search”</a> 2017年3月。</p>
       
     
       
-        <p>[21] Vidhisha Balachandran等人。<a href="https://arxiv.org/abs/2104.08710" target="_blank" rel="noopener">“Simple and Efficient ways to Improve REALM.”</a> arXiv:2104.08710 (2021)。</p>
+        <p>[21] Vidhisha Balachandran, et al. <a href="https://arxiv.org/abs/2104.08710" target="_blank" rel="noopener">“Simple and Efficient ways to Improve REALM.”</a> arXiv:2104.08710 (2021)。</p>
       
     
   </div>

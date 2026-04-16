@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>进化策略 · Lil'Log (Lilian Weng)</title>
+  <title>演化策略 · Lil'Log (Lilian Weng)</title>
   <link rel="stylesheet" href="../static/css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
@@ -20,7 +20,7 @@
 
 <article>
   <header class="article-header">
-    <h1>进化策略</h1>
+    <h1>演化策略</h1>
     <div class="meta">
       2019-09-05 · 
       <a href="https://lilianweng.github.io/posts/2019-09-05-evolution-strategies/" target="_blank" rel="noopener">阅读原文</a>
@@ -34,11 +34,11 @@
       
     
       
-        <div class="list-content">什么是进化策略？
+        <div class="list-content">什么是演化策略？
 
-简单高斯进化策略
+简单高斯演化策略
 
-协方差矩阵自适应进化策略（CMA-ES）
+协方差矩阵自适应演化策略（CMA-ES）
 
 更新均值
 
@@ -47,7 +47,7 @@
 自适应协方差矩阵
 
 
-自然进化策略
+自然演化策略
 
 自然梯度
 
@@ -56,16 +56,16 @@
 NES 算法
 
 
-应用：深度强化学习中的 ES
+应用：演化策略在深度强化学习中的应用
 
 OpenAI ES 用于强化学习
 
-用 ES 进行探索
+使用 ES 进行探索
 
 CEM-RL
 
 
-扩展：深度学习中的进化算法
+扩展：演化算法在深度学习中的应用
 
 超参数调优：PBT
 
@@ -76,28 +76,24 @@ CEM-RL
       
     
       
-        <p>梯度下降并不是学习最优模型参数的唯一选择。在我们不知道目标函数精确解析形式，或无法直接计算梯度的情况下，进化策略（Evolution Strategies，简称 ES）往往能取得良好效果。本文将深入介绍几种经典的 ES 方法，以及 ES 如何应用于深度强化学习。</p>
+        <p>随机梯度下降是优化深度学习模型的通用选择，但它并非唯一方案。借助黑盒优化算法，即使你不知道目标函数 <span class="math-inline" data-math="f(x): \mathbb{R}^n \to \mathbb{R}">f(x): \mathbb{R}^n \to \mathbb{R}</span> 的精确解析形式、无法计算梯度或 Hessian 矩阵，也能对其进行评估。常见的黑盒优化方法包括 <a href="https://en.wikipedia.org/wiki/Simulated_annealing" target="_blank" rel="noopener">模拟退火</a>、<a href="https://en.wikipedia.org/wiki/Hill_climbing" target="_blank" rel="noopener">爬山法</a> 和 <a href="https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method" target="_blank" rel="noopener">Nelder-Mead 方法</a>。<span class="math-inline" data-math="f(x)">f(x)</span></p>
       
     
       
-        <p>随机梯度下降是优化深度学习模型的通用选择，但并非唯一选项。借助黑盒优化算法，即使我们不知道目标函数 <span class="math-inline" data-math="f(x): \mathbb{R}^n \to \mathbb{R}">f(x): \mathbb{R}^n \to \mathbb{R}</span> 的精确解析形式，从而无法计算梯度或 Hessian 矩阵，也能对其进行评估。黑盒优化方法的例子包括 <a href="https://en.wikipedia.org/wiki/Simulated_annealing" target="_blank" rel="noopener">Simulated Annealing</a>、<a href="https://en.wikipedia.org/wiki/Hill_climbing" target="_blank" rel="noopener">Hill Climbing</a> 和 <a href="https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method" target="_blank" rel="noopener">Nelder-Mead method</a>。<span class="math-inline" data-math="f(x)">f(x)</span></p>
+        <p>演化策略（Evolution Strategies，简称 ES）是黑盒优化算法的一种，属于演化算法（Evolutionary Algorithms，简称 EA）家族。本文将深入介绍几种经典的 ES 方法，并说明 ES 如何在深度强化学习中发挥作用。</p>
       
     
       
-        <p>进化策略（Evolution Strategies，简称 ES）是黑盒优化算法的一种，属于进化算法（Evolutionary Algorithms，简称 EA）大家族。本文将深入探讨几种经典的 ES 方法，并介绍 ES 在深度强化学习中的若干应用。</p>
-      
-    
-      
-        <h2>什么是进化策略？</h2>
+        <h2>什么是演化策略？</h2>
         
       
     
       
-        <p>进化策略（ES）属于进化算法这个大家族。其优化目标是实数向量 <span class="math-inline" data-math="x \in \mathbb{R}^n">x \in \mathbb{R}^n</span>。</p>
+        <p>演化策略（ES）隶属于演化算法这个大家族，其优化目标是实数向量 <span class="math-inline" data-math="x \in \mathbb{R}^n">x \in \mathbb{R}^n</span>。</p>
       
     
       
-        <p>进化算法是一类受自然选择启发、基于种群的优化算法。自然选择认为，具有利于生存性状的个体能够存活下来，并将优良特性传递给下一代。通过这个选择过程，进化逐渐发生，种群也变得越来越适应环境。</p>
+        <p>演化算法是一类基于种群的优化算法，灵感来源于自然选择。自然选择认为，具有利于生存性状的个体能够存活下来，并将优良特性传递给下一代。通过这种选择过程，种群逐渐进化，越来越适应环境。</p>
       
     
       
@@ -108,15 +104,15 @@ CEM-RL
       
     
       
-        <p>进化算法可以总结为以下 <a href="https://ipvs.informatik.uni-stuttgart.de/mlr/marc/teaching/13-Optimization/06-blackBoxOpt.pdf" target="_blank" rel="noopener">通用形式</a>，作为一种通用的优化方案：</p>
+        <p>演化算法作为一种通用的黑盒优化方案，可用以下 <a href="https://ipvs.informatik.uni-stuttgart.de/mlr/marc/teaching/13-Optimization/06-blackBoxOpt.pdf" target="_blank" rel="noopener">形式</a> 概括：</p>
       
     
       
-        <p>假设我们要优化一个函数 <span class="math-inline" data-math="f(x)">f(x)</span>，且无法直接计算其梯度，但对于任意 <span class="math-inline" data-math="x">x</span> 仍能评估 <span class="math-inline" data-math="f(x)">f(x)</span>，且结果是确定的。我们对 <span class="math-inline" data-math="x">x</span> 作为 <span class="math-inline" data-math="f(x)">f(x)</span> 最优解的概率分布的信念为 <span class="math-inline" data-math="p_\theta(x)">p_\theta(x)</span>，该分布由 <span class="math-inline" data-math="\theta">\theta</span> 参数化。我们的目标是找到 <span class="math-inline" data-math="\theta">\theta</span> 的最优配置。</p>
+        <p>假设我们要优化一个函数 <span class="math-inline" data-math="f(x)">f(x)</span>，但无法直接计算其梯度。不过，对于任意输入 <span class="math-inline" data-math="x">x</span>，我们仍能评估 <span class="math-inline" data-math="f(x)">f(x)</span>，且评估结果是确定性的。我们认为服从某种概率分布的 <span class="math-inline" data-math="x">x</span> 是优化 <span class="math-inline" data-math="f(x)">f(x)</span> 的较好解，该分布记为 <span class="math-inline" data-math="p_\theta(x)">p_\theta(x)</span>，由参数 <span class="math-inline" data-math="\theta">\theta</span> 控制。我们的目标是找到 <span class="math-inline" data-math="\theta">\theta</span> 的最优配置。</p>
       
     
       
-        <blockquote>在给定固定分布形式（例如高斯分布）的情况下，参数 <span class="math-inline" data-math="\theta">\theta</span> 承载了关于最佳解的知识，并在世代间被迭代更新。</blockquote>
+        <blockquote>当分布形式固定（例如高斯分布）时，参数 <span class="math-inline" data-math="\theta">\theta</span> 承载着关于最优解的知识，并在每一代中不断迭代更新。</blockquote>
       
     
       
@@ -124,22 +120,22 @@ CEM-RL
       
     
       
-        <div class="list-content">生成一个样本种群 <span class="math-inline" data-math="D = \{(x_i, f(x_i)\}">D = \{(x_i, f(x_i)\}</span>，其中 <span class="math-inline" data-math="x_i \sim p_\theta(x)">x_i \sim p_\theta(x)</span>。
-评估 <span class="math-inline" data-math="D">D</span> 中样本的“适应度”。
-选择最优的个体子集，并根据适应度或排名来更新 <span class="math-inline" data-math="\theta">\theta</span>。</div>
+        <div class="list-content">从分布中生成一组样本种群 <span class="math-inline" data-math="D = \{(x_i, f(x_i)\}">D = \{(x_i, f(x_i)\}</span>，其中 <span class="math-inline" data-math="x_i \sim p_\theta(x)">x_i \sim p_\theta(x)</span>。
+评估这些样本的“适应度”（fitness）。
+选择其中适应度最高（或排序靠前）的一部分个体，并用它们来更新 <span class="math-inline" data-math="\theta">\theta</span>。<span class="math-inline" data-math="D">D</span></div>
       
     
       
-        <p>在进化算法的另一个流行子类——遗传算法（Genetic Algorithms，简称 GA）中，<span class="math-inline" data-math="x">x</span> 是一串二进制编码 <span class="math-inline" data-math="x \in \{0, 1\}^n">x \in \{0, 1\}^n</span>。而在 ES 中，<span class="math-inline" data-math="x">x</span> 则是一个实数向量 <span class="math-inline" data-math="x \in \mathbb{R}^n">x \in \mathbb{R}^n</span>。</p>
+        <p>在演化算法的另一个重要分支——遗传算法（Genetic Algorithms，简称 GA）中，<span class="math-inline" data-math="x">x</span> 是一串二进制编码 <span class="math-inline" data-math="x \in \{0, 1\}^n">x \in \{0, 1\}^n</span>。而在演化策略中，<span class="math-inline" data-math="x">x</span> 则是一个实数向量 <span class="math-inline" data-math="x \in \mathbb{R}^n">x \in \mathbb{R}^n</span>。</p>
       
     
       
-        <h2>简单高斯进化策略</h2>
+        <h2>简单高斯演化策略</h2>
         
       
     
       
-        <p><a href="http://blog.otoro.net/2017/10/29/visual-evolution-strategies/" target="_blank" rel="noopener">这</a>是最基础、最经典的进化策略版本。它将 <span class="math-inline" data-math="p_\theta(x)">p_\theta(x)</span> 建模为一个 <span class="math-inline" data-math="n">n</span> 维各向同性的高斯分布，其中 <span class="math-inline" data-math="\theta">\theta</span> 只跟踪均值 <span class="math-inline" data-math="\mu">\mu</span> 和标准差 <span class="math-inline" data-math="\sigma">\sigma</span>。</p>
+        <p><a href="http://blog.otoro.net/2017/10/29/visual-evolution-strategies/" target="_blank" rel="noopener">这</a>是最基础、最经典的演化策略版本。它将 <span class="math-inline" data-math="p_\theta(x)">p_\theta(x)</span> 建模为一个 <span class="math-inline" data-math="n">n</span> 维各向同性的高斯分布，其中参数 <span class="math-inline" data-math="\theta">\theta</span> 只跟踪均值 <span class="math-inline" data-math="\mu">\mu</span> 和标准差 <span class="math-inline" data-math="\sigma">\sigma</span>。</p>
       
     
       
@@ -151,13 +147,13 @@ CEM-RL
       
     
       
-        <p>给定 <span class="math-inline" data-math="x \in \mathcal{R}^n">x \in \mathcal{R}^n</span>，Simple-Gaussian-ES 的流程如下：</p>
+        <p>简单高斯演化策略（Simple Gaussian ES）的流程如下（给定 <span class="math-inline" data-math="x \in \mathcal{R}^n">x \in \mathcal{R}^n</span>）：</p>
       
     
       
-        <div class="list-content">初始化 <span class="math-inline" data-math="\theta = \theta^{(0)}">\theta = \theta^{(0)}</span> 和世代计数器 <span class="math-inline" data-math="t=0">t=0</span>
+        <div class="list-content">初始化均值 <span class="math-inline" data-math="\theta = \theta^{(0)}">\theta = \theta^{(0)}</span> 和代数计数器 <span class="math-inline" data-math="t=0">t=0</span>。
 从高斯分布中采样，生成大小为 <span class="math-inline" data-math="\Lambda">\Lambda</span> 的子代种群：<span class="math-inline" data-math="D^{(t+1)}=\{ x^{(t+1)}_i \mid x^{(t+1)}_i = \mu^{(t)} + \sigma^{(t)} y^{(t+1)}_i \text{ where } y^{(t+1)}_i \sim \mathcal{N}(x \vert 0, \mathbf{I}),;i = 1, \dots, \Lambda\}">D^{(t+1)}=\{ x^{(t+1)}_i \mid x^{(t+1)}_i = \mu^{(t)} + \sigma^{(t)} y^{(t+1)}_i \text{ where } y^{(t+1)}_i \sim \mathcal{N}(x \vert 0, \mathbf{I}),;i = 1, \dots, \Lambda\}</span>。
-从中选出 <span class="math-inline" data-math="\lambda">\lambda</span> 个具有最优 <span class="math-inline" data-math="f(x_i)">f(x_i)</span> 的样本，称为精英集合（elite set）。为简化表述，我们可以认为 <span class="math-inline" data-math="D^{(t+1)}">D^{(t+1)}</span> 中前 <span class="math-inline" data-math="k">k</span> 个样本属于精英集合——将其标记为</div>
+从中选出 <span class="math-inline" data-math="\lambda">\lambda</span> 个具有最佳 <span class="math-inline" data-math="f(x_i)">f(x_i)</span> 的样本，称为精英集合（elite set）。为简化描述，我们可以认为排序后的前 <span class="math-inline" data-math="k">k</span> 个样本 <span class="math-inline" data-math="D^{(t+1)}">D^{(t+1)}</span> 属于精英集合，并将其标记为</div>
       
     
       
@@ -191,16 +187,16 @@ CEM-RL
       
     
       
-        <h2>协方差矩阵自适应进化策略（CMA-ES）</h2>
+        <h2>协方差矩阵自适应演化策略（CMA-ES）</h2>
         
       
     
       
-        <p>标准差 <span class="math-inline" data-math="\sigma">\sigma</span> 决定了探索程度：<span class="math-inline" data-math="\sigma">\sigma</span> 越大，我们能采样的子代搜索空间就越大。在朴素 ES 中，<span class="math-inline" data-math="\sigma^{(t+1)}">\sigma^{(t+1)}</span> 与 <span class="math-inline" data-math="\sigma^{(t)}">\sigma^{(t)}</span> 高度相关，因此算法无法在需要时（例如置信度发生变化时）快速调整探索空间。</p>
+        <p>标准差 <span class="math-inline" data-math="\sigma">\sigma</span> 控制着探索程度：<span class="math-inline" data-math="\sigma">\sigma</span> 越大，可供采样的搜索空间就越大。在原始的演化策略中，<span class="math-inline" data-math="\sigma^{(t+1)}">\sigma^{(t+1)}</span> 与 <span class="math-inline" data-math="\sigma^{(t)}">\sigma^{(t)}</span> 高度相关，因此算法无法根据需要（例如置信度发生变化时）快速调整探索范围。</p>
       
     
       
-        <p><a href="https://en.wikipedia.org/wiki/CMA-ES" target="_blank" rel="noopener">CMA-ES</a>（全称“Covariance Matrix Adaptation Evolution Strategy”，协方差矩阵自适应进化策略）通过引入协方差矩阵 <span class="math-inline" data-math="C">C</span> 来跟踪样本之间的成对依赖关系，从而解决了这个问题。新的分布参数变为：</p>
+        <p><a href="https://en.wikipedia.org/wiki/CMA-ES" target="_blank" rel="noopener">CMA-ES</a>（全称 Covariance Matrix Adaptation Evolution Strategy，协方差矩阵自适应演化策略）通过引入协方差矩阵 <span class="math-inline" data-math="C">C</span> 来跟踪样本之间的成对依赖关系，从而解决了这个问题。此时分布的参数变为：</p>
       
     
       
@@ -216,19 +212,19 @@ CEM-RL
       
     
       
-        <p>在深入探讨 CMA-ES 中参数如何更新之前，最好先回顾一下协方差矩阵在多元高斯分布中的作用。作为一个实对称矩阵，协方差矩阵 <span class="math-inline" data-math="C">C</span> 具有以下良好性质（见 <a href="http://s3.amazonaws.com/mitsloan-php/wp-faculty/sites/30/2016/12/15032137/Symmetric-Matrices-and-Eigendecomposition.pdf" target="_blank" rel="noopener">证明</a> 和 <a href="http://control.ucsd.edu/mauricio/courses/mae280a/lecture11.pdf" target="_blank" rel="noopener">证明</a>）：</p>
+        <p>在深入探讨 CMA-ES 如何更新参数之前，最好先回顾一下多元高斯分布中协方差矩阵的性质。作为一个实对称矩阵，协方差矩阵 <span class="math-inline" data-math="C">C</span> 具有以下良好特性（见 <a href="http://s3.amazonaws.com/mitsloan-php/wp-faculty/sites/30/2016/12/15032137/Symmetric-Matrices-and-Eigendecomposition.pdf" target="_blank" rel="noopener">证明</a> 与 <a href="http://control.ucsd.edu/mauricio/courses/mae280a/lecture11.pdf" target="_blank" rel="noopener">证明</a>）：</p>
       
     
       
-        <div class="list-content">它总是可对角化的。
-始终半正定。
+        <div class="list-content">总是可对角化。
+总是半正定的。
 所有特征值都是非负实数。
-所有特征向量都是正交的。
-存在由其特征向量构成的 <span class="math-inline" data-math="\mathbb{R}^n">\mathbb{R}^n</span> 的标准正交基。</div>
+所有特征向量相互正交。
+存在由其特征向量构成的 <span class="math-inline" data-math="\mathbb{R}^n">\mathbb{R}^n</span> 标准正交基。</div>
       
     
       
-        <p>设矩阵 <span class="math-inline" data-math="C">C</span> 具有特征向量构成的标准正交基 <span class="math-inline" data-math="B = [b_1, \dots, b_n]">B = [b_1, \dots, b_n]</span>，对应的特征值为 <span class="math-inline" data-math="\lambda_1^2, \dots, \lambda_n^2">\lambda_1^2, \dots, \lambda_n^2</span>。令 <span class="math-inline" data-math="D=\text{diag}(\lambda_1, \dots, \lambda_n)">D=\text{diag}(\lambda_1, \dots, \lambda_n)</span>。</p>
+        <p>设矩阵 <span class="math-inline" data-math="C">C</span> 具有标准正交特征向量基 <span class="math-inline" data-math="B = [b_1, \dots, b_n]">B = [b_1, \dots, b_n]</span>，对应的特征值为 <span class="math-inline" data-math="\lambda_1^2, \dots, \lambda_n^2">\lambda_1^2, \dots, \lambda_n^2</span>。令 <span class="math-inline" data-math="D=\text{diag}(\lambda_1, \dots, \lambda_n)">D=\text{diag}(\lambda_1, \dots, \lambda_n)</span>。</p>
       
     
       
@@ -372,7 +368,7 @@ C^{\frac{1}{2}} = B^\top D B
       
     
       
-        <p>CMA-ES 引入学习率 <span class="math-inline" data-math="\alpha_\mu \leq 1">\alpha_\mu \leq 1</span> 来控制均值 <span class="math-inline" data-math="\mu">\mu</span> 的更新速度。通常将其设为 1，此时更新公式与朴素 ES 完全相同，即 <span class="math-inline" data-math="\mu^{(t+1)} = \frac{1}{\lambda}\sum_{i=1}^\lambda (x_i^{(t+1)}">\mu^{(t+1)} = \frac{1}{\lambda}\sum_{i=1}^\lambda (x_i^{(t+1)}</span>。</p>
+        <p>CMA-ES 使用学习率 <span class="math-inline" data-math="\alpha_\mu \leq 1">\alpha_\mu \leq 1</span> 来控制均值 <span class="math-inline" data-math="\mu">\mu</span> 的更新速度。通常将其设为 1，此时更新公式与简单高斯演化策略一致，即 <span class="math-inline" data-math="\mu^{(t+1)} = \frac{1}{\lambda}\sum_{i=1}^\lambda (x_i^{(t+1)}">\mu^{(t+1)} = \frac{1}{\lambda}\sum_{i=1}^\lambda (x_i^{(t+1)}</span>。</p>
       
     
       
@@ -393,7 +389,7 @@ x^{(t+1)}_i = \mu^{(t)} + \sigma^{(t)} y^{(t+1)}_i \text{, where } y^{(t+1)}_i =
       
     
       
-        <p>参数 <span class="math-inline" data-math="\sigma">\sigma</span> 控制分布的整体尺度。它与协方差矩阵分离，因此我们能比完整协方差更快地调整步长。更大的步长会导致参数更新更快。为了判断当前步长是否合适，CMA-ES 构造了一条进化路径 <span class="math-inline" data-math="p_\sigma">p_\sigma</span>，它是对连续若干移动步长 <span class="math-inline" data-math="\frac{1}{\lambda}\sum_{i}^\lambda y_i^{(j)}, j=1, \dots, t">\frac{1}{\lambda}\sum_{i}^\lambda y_i^{(j)}, j=1, \dots, t</span> 的累加。通过将这条路径的长度与其在随机选择下的期望长度（即单步不相关的情况）进行比较，我们就能相应地调整 <span class="math-inline" data-math="\sigma">\sigma</span>（见图 2）。</p>
+        <p>参数 <span class="math-inline" data-math="\sigma">\sigma</span> 控制分布的整体尺度。它与协方差矩阵分离，因此我们能比更新完整协方差更快地调整步长。更大的步长会带来更快的参数更新。为了判断当前步长是否合适，CMA-ES 构造了一条“演化路径” <span class="math-inline" data-math="p_\sigma">p_\sigma</span>，它是对连续多步移动向量的累加 <span class="math-inline" data-math="\frac{1}{\lambda}\sum_{i}^\lambda y_i^{(j)}, j=1, \dots, t">\frac{1}{\lambda}\sum_{i}^\lambda y_i^{(j)}, j=1, \dots, t</span>。通过将这条路径的长度与随机选取（即各步相互独立）时的期望长度进行比较，我们就可以相应地调整 <span class="math-inline" data-math="\sigma">\sigma</span>（见图 2）。</p>
       
     
       
@@ -404,7 +400,7 @@ x^{(t+1)}_i = \mu^{(t)} + \sigma^{(t)} y^{(t+1)}_i \text{, where } y^{(t+1)}_i =
       
     
       
-        <p>每次更新进化路径时，都会使用同一代内移动步长的平均值 <span class="math-inline" data-math="y_i">y_i</span>。</p>
+        <p>每次更新演化路径时，都会使用同一代内移动步长的平均值 <span class="math-inline" data-math="y_i">y_i</span>。</p>
       
     
       
@@ -432,17 +428,17 @@ x^{(t+1)}_i = \mu^{(t)} + \sigma^{(t)} y^{(t+1)}_i \text{, where } y^{(t+1)}_i =
       
     
       
-        <blockquote>通过乘以 <span class="math-inline" data-math="C^{-\frac{1}{2}}">C^{-\frac{1}{2}}</span>，进化路径被变换为与其方向无关的形式。<span class="math-inline" data-math="{C^{(t)}}^{-\frac{1}{2}} = {B^{(t)}}^\top {D^{(t)}}^{-\frac{1}{2}} {B^{(t)}}">{C^{(t)}}^{-\frac{1}{2}} = {B^{(t)}}^\top {D^{(t)}}^{-\frac{1}{2}} {B^{(t)}}</span> 变换的具体过程如下：</blockquote>
+        <blockquote>通过乘以 <span class="math-inline" data-math="C^{-\frac{1}{2}}">C^{-\frac{1}{2}}</span>，演化路径被变换为与其方向无关的形式。该 <span class="math-inline" data-math="{C^{(t)}}^{-\frac{1}{2}} = {B^{(t)}}^\top {D^{(t)}}^{-\frac{1}{2}} {B^{(t)}}">{C^{(t)}}^{-\frac{1}{2}} = {B^{(t)}}^\top {D^{(t)}}^{-\frac{1}{2}} {B^{(t)}}</span> 变换的具体过程如下：</blockquote>
       
     
       
-        <div class="list-content"><span class="math-inline" data-math="{B^{(t)}}">{B^{(t)}}</span> 包含 <span class="math-inline" data-math="C">C</span> 特征向量的行向量。它将原始空间投影到相互正交的主轴上。
-然后 <span class="math-inline" data-math="{D^{(t)}}^{-\frac{1}{2}} = \text{diag}(\frac{1}{\lambda_1}, \dots, \frac{1}{\lambda_n})">{D^{(t)}}^{-\frac{1}{2}} = \text{diag}(\frac{1}{\lambda_1}, \dots, \frac{1}{\lambda_n})</span> 将主轴的长度缩放至相等。
-<span class="math-inline" data-math="{B^{(t)}}^\top">{B^{(t)}}^\top</span> 将空间变换回原始坐标系。</div>
+        <div class="list-content"><span class="math-inline" data-math="{B^{(t)}}">{B^{(t)}}</span> 包含 <span class="math-inline" data-math="C">C</span> 的特征向量作为行向量，它将原始空间投影到相互正交的主轴上。
+然后 <span class="math-inline" data-math="{D^{(t)}}^{-\frac{1}{2}} = \text{diag}(\frac{1}{\lambda_1}, \dots, \frac{1}{\lambda_n})">{D^{(t)}}^{-\frac{1}{2}} = \text{diag}(\frac{1}{\lambda_1}, \dots, \frac{1}{\lambda_n})</span> 将各主轴的长度缩放到相等。
+最后 <span class="math-inline" data-math="{B^{(t)}}^\top">{B^{(t)}}^\top</span> 将空间变换回原始坐标系。</div>
       
     
       
-        <p>为了给最近的世代赋予更高的权重，我们使用 Polyak 平均法，以学习率 <span class="math-inline" data-math="\alpha_\sigma">\alpha_\sigma</span> 来更新进化路径。同时，权重经过平衡，使得 <span class="math-inline" data-math="p_\sigma">p_\sigma</span> 在更新前后均保持 <a href="https://en.wikipedia.org/wiki/Conjugate_prior" target="_blank" rel="noopener">共轭</a>，即 <span class="math-inline" data-math="\sim \mathcal{N}(0, I)">\sim \mathcal{N}(0, I)</span>。</p>
+        <p>为了赋予最近几代更高的权重，我们采用 Polyak 平均（指数移动平均）来更新演化路径，学习率设为 <span class="math-inline" data-math="\alpha_\sigma">\alpha_\sigma</span>。同时权重经过平衡，使得 <span class="math-inline" data-math="p_\sigma">p_\sigma</span> 在更新前后保持 <a href="https://en.wikipedia.org/wiki/Conjugate_prior" target="_blank" rel="noopener">共轭</a>，即 <span class="math-inline" data-math="\sim \mathcal{N}(0, I)">\sim \mathcal{N}(0, I)</span>。</p>
       
     
       
@@ -462,7 +458,7 @@ p_\sigma^{(t+1)}
       
     
       
-        <p>随机选择下 <span class="math-inline" data-math="p_\sigma">p_\sigma</span> 的期望长度为 <span class="math-inline" data-math="\mathbb{E}|\mathcal{N}(0,I)|">\mathbb{E}|\mathcal{N}(0,I)|</span>，即一个 <span class="math-inline" data-math="\mathcal{N}(0,I)">\mathcal{N}(0,I)</span> 维随机变量 L2 范数的期望。按照图 2 的思路，我们根据以下比例来调整步长：<span class="math-inline" data-math="|p_\sigma^{(t+1)}| / \mathbb{E}|\mathcal{N}(0,I)|">|p_\sigma^{(t+1)}| / \mathbb{E}|\mathcal{N}(0,I)|</span></p>
+        <p>在随机选取情况下，<span class="math-inline" data-math="p_\sigma">p_\sigma</span> 的期望长度为 <span class="math-inline" data-math="\mathbb{E}|\mathcal{N}(0,I)|">\mathbb{E}|\mathcal{N}(0,I)|</span>，也就是一个 <span class="math-inline" data-math="\mathcal{N}(0,I)">\mathcal{N}(0,I)</span> 维标准正态随机变量 L2 范数的期望。根据图 2 的思想，我们按照以下比例来调整步长：<span class="math-inline" data-math="|p_\sigma^{(t+1)}| / \mathbb{E}|\mathcal{N}(0,I)|">|p_\sigma^{(t+1)}| / \mathbb{E}|\mathcal{N}(0,I)|</span></p>
       
     
       
@@ -489,7 +485,7 @@ p_\sigma^{(t+1)}
       
     
       
-        <p>对于协方差矩阵，可以直接使用精英样本的 <span class="math-inline" data-math="y_i">y_i</span> 进行估计（回顾 <span class="math-inline" data-math="y_i \sim \mathcal{N}(0, C)">y_i \sim \mathcal{N}(0, C)</span>）：</p>
+        <p>对于协方差矩阵，可以直接用精英样本的 <span class="math-inline" data-math="y_i">y_i</span> 来估计（回顾 <span class="math-inline" data-math="y_i \sim \mathcal{N}(0, C)">y_i \sim \mathcal{N}(0, C)</span>）：</p>
       
     
       
@@ -505,16 +501,16 @@ C_\lambda^{(t+1)}
       
     
       
-        <p>上述估计仅在所选种群足够大时才可靠。然而，我们希望用较小的种群进行快速迭代。这就是为什么 CMA-ES 提出了一种更可靠但也更复杂的方法来更新 <span class="math-inline" data-math="C">C</span>。它包含两条独立的路径：</p>
+        <p>上述估计仅在选择的种群足够大时才可靠。然而，我们希望使用较小的种群进行快速迭代。这就是为什么 CMA-ES 设计了一种更可靠但也更复杂的方法来更新 <span class="math-inline" data-math="C">C</span>。它包含两条独立的路径：</p>
       
     
       
-        <div class="list-content">Rank-min(λ, n) 更新：利用 <span class="math-inline" data-math="\{C_\lambda\}">\{C_\lambda\}</span> 的历史，每代从零开始估计。
-Rank-one 更新：利用历史估计移动步长 <span class="math-inline" data-math="y_i">y_i</span> 及其符号信息。</div>
+        <div class="list-content">Rank-min(λ, n) 更新：利用历史上每一代从零计算的 <span class="math-inline" data-math="\{C_\lambda\}">\{C_\lambda\}</span>。
+Rank-one 更新：利用历史移动步长 <span class="math-inline" data-math="y_i">y_i</span> 及其符号信息。</div>
       
     
       
-        <p>第一条路径考虑从整个 <span class="math-inline" data-math="\{C_\lambda\}">\{C_\lambda\}</span> 历史中估计 <span class="math-inline" data-math="C">C</span>。例如，如果已经经历了很多代，那么 <span class="math-inline" data-math="C^{(t+1)} \approx \text{avg}(C_\lambda^{(i)}; i=1,\dots,t)">C^{(t+1)} \approx \text{avg}(C_\lambda^{(i)}; i=1,\dots,t)</span> 将是一个很好的估计器。与 <span class="math-inline" data-math="p_\sigma">p_\sigma</span> 类似，我们也使用带学习率的 Polyak 平均来融入历史信息：</p>
+        <p>第一条路径考虑从整个历史 <span class="math-inline" data-math="\{C_\lambda\}">\{C_\lambda\}</span> 中估计 <span class="math-inline" data-math="C">C</span>。例如，如果经历了很多代，那么 <span class="math-inline" data-math="C^{(t+1)} \approx \text{avg}(C_\lambda^{(i)}; i=1,\dots,t)">C^{(t+1)} \approx \text{avg}(C_\lambda^{(i)}; i=1,\dots,t)</span> 将是一个很好的估计器。与 <span class="math-inline" data-math="p_\sigma">p_\sigma</span> 类似，我们也使用带学习率的 Polyak 平均来融合历史信息：</p>
       
     
       
@@ -530,15 +526,15 @@ C^{(t+1)}
       
     
       
-        <p>学习率的一个常见选择是 <span class="math-inline" data-math="\alpha_{c\lambda} \approx \min(1, \lambda/n^2)">\alpha_{c\lambda} \approx \min(1, \lambda/n^2)</span>。</p>
+        <p>常用的学习率选择是 <span class="math-inline" data-math="\alpha_{c\lambda} \approx \min(1, \lambda/n^2)">\alpha_{c\lambda} \approx \min(1, \lambda/n^2)</span>。</p>
       
     
       
-        <p>第二条路径旨在解决 <span class="math-inline" data-math="y_i{y_i}^\top = (-y_i)(-y_i)^\top">y_i{y_i}^\top = (-y_i)(-y_i)^\top</span> 丢失符号信息的问题。与我们调整步长 <span class="math-inline" data-math="\sigma">\sigma</span> 的方式类似，这里使用一条进化路径 <span class="math-inline" data-math="p_c">p_c</span> 来跟踪符号信息，其构造方式保证 <span class="math-inline" data-math="p_c">p_c</span> 在更新前后均保持共轭，即 <span class="math-inline" data-math="\sim \mathcal{N}(0, C)">\sim \mathcal{N}(0, C)</span>。</p>
+        <p>第二条路径旨在解决 <span class="math-inline" data-math="y_i{y_i}^\top = (-y_i)(-y_i)^\top">y_i{y_i}^\top = (-y_i)(-y_i)^\top</span> 丢失符号信息的问题。类似于我们调整步长 <span class="math-inline" data-math="\sigma">\sigma</span> 的方式，这里使用一条演化路径 <span class="math-inline" data-math="p_c">p_c</span> 来跟踪符号信息，并使其在更新前后保持共轭，即 <span class="math-inline" data-math="p_c">p_c</span> 和 <span class="math-inline" data-math="\sim \mathcal{N}(0, C)">\sim \mathcal{N}(0, C)</span>。</p>
       
     
       
-        <p>我们可以将 <span class="math-inline" data-math="p_c">p_c</span> 视为计算 <span class="math-inline" data-math="\text{avg}_i(y_i)">\text{avg}_i(y_i)</span> 的另一种方式（注意两者均为 <span class="math-inline" data-math="\sim \mathcal{N}(0, C)">\sim \mathcal{N}(0, C)</span>），只不过它利用了全部历史并保留了符号信息。注意我们在上一节已经知道 <span class="math-inline" data-math="\sqrt{k}\frac{\mu^{(t+1)} - \mu^{(t)}}{\sigma^{(t)}} \sim \mathcal{N}(0, C)">\sqrt{k}\frac{\mu^{(t+1)} - \mu^{(t)}}{\sigma^{(t)}} \sim \mathcal{N}(0, C)</span>，</p>
+        <p>我们可以将 <span class="math-inline" data-math="p_c">p_c</span> 视为另一种计算 <span class="math-inline" data-math="\text{avg}_i(y_i)">\text{avg}_i(y_i)</span> 的方式（注意两者都满足 <span class="math-inline" data-math="\sim \mathcal{N}(0, C)">\sim \mathcal{N}(0, C)</span>），它同时利用了全部历史信息并保留了符号。前面我们已经知道 <span class="math-inline" data-math="\sqrt{k}\frac{\mu^{(t+1)} - \mu^{(t)}}{\sigma^{(t)}} \sim \mathcal{N}(0, C)">\sqrt{k}\frac{\mu^{(t+1)} - \mu^{(t)}}{\sigma^{(t)}} \sim \mathcal{N}(0, C)</span>，</p>
       
     
       
@@ -558,7 +554,7 @@ p_c^{(t+1)}
       
     
       
-        <p>随后，协方差矩阵按照 <span class="math-inline" data-math="p_c">p_c</span> 进行更新：</p>
+        <p>然后根据 <span class="math-inline" data-math="p_c">p_c</span> 来更新协方差矩阵：</p>
       
     
       
@@ -570,7 +566,7 @@ C^{(t+1)} = (1-\alpha_{c1}) C^{(t)} + \alpha_{c1}\;p_c^{(t+1)} {p_c^{(t+1)}}^\to
       
     
       
-        <p>当 <span class="math-inline" data-math="k">k</span> 较小时，rank-one 更新方法被认为比 rank-min(λ, n) 更新有显著改进，因为它利用并传递了移动步长的符号以及连续步长之间的相关性。</p>
+        <p>当 <span class="math-inline" data-math="k">k</span> 较小时，rank-one 更新方法据称能比 rank-min(λ, n) 更新带来显著改进，因为它充分利用了移动步长的符号以及连续步之间的相关性，并将其传递给后续世代。</p>
       
     
       

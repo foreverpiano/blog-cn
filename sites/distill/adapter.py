@@ -334,9 +334,12 @@ def _walk_block(el, segments: list, all_slugs: set[str],
 
     for child in el.children:
         if not isinstance(child, Tag):
+            from bs4 import Comment, Doctype, ProcessingInstruction
+            if isinstance(child, (Comment, Doctype, ProcessingInstruction)):
+                continue
             if hasattr(child, 'string') and child.string:
                 text = str(child.string).strip()
-                if text and len(text) >= 2:
+                if text and len(text) >= 2 and not text.startswith("<"):
                     _emit_text(text, "paragraph", segments, math_registry, inline_code_registry)
             continue
 
@@ -495,8 +498,11 @@ def _resolve_image(src: str, page_url: str, slug: str, img_dir: Path) -> str:
     if not filename:
         filename = f"img_{hash(abs_url) % 100000}.png"
     local_dir = img_dir / slug
-    _download_image(abs_url, local_dir / filename)
-    return f"../images/{slug}/{filename}"
+    local_path = local_dir / filename
+    success = _download_image(abs_url, local_path)
+    if success and local_path.exists() and local_path.stat().st_size > 0:
+        return f"../images/{slug}/{filename}"
+    return abs_url
 
 
 def _extract_text(el: Tag, all_slugs: set[str], internal_links: list,

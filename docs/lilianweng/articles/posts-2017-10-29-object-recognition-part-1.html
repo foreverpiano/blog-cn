@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>傻瓜式目标检测入门（一）：梯度向量、HOG 与 Selective Search · Lil'Log (Lilian Weng)</title>
+  <title>傻瓜式目标检测教程 第一部分：梯度向量、HOG 与 Selective Search · Lil'Log (Lilian Weng)</title>
   <link rel="stylesheet" href="../static/css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
@@ -20,7 +20,7 @@
 
 <article>
   <header class="article-header">
-    <h1>傻瓜式目标检测入门（一）：梯度向量、HOG 与 Selective Search</h1>
+    <h1>傻瓜式目标检测教程 第一部分：梯度向量、HOG 与 Selective Search</h1>
     <div class="meta">
       2017-10-29 · 
       <a href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/" target="_blank" rel="noopener">阅读原文</a>
@@ -70,15 +70,11 @@ Selective Search 的工作原理
       
     
       
-        <p>在“傻瓜式目标检测”系列文章中，我们将介绍图像处理和目标检测领域中的若干基础概念、经典算法以及流行的深度学习模型。希望对没有相关经验但想深入了解的读者来说，这是一个不错的入门读物。第一部分将介绍梯度向量的概念、HOG（方向梯度直方图）算法，以及用于图像分割的 Selective Search。</p>
+        <p>我从未在计算机视觉领域工作过，完全不知道一辆自动驾驶汽车是如何区分红灯停车标志和戴着红色帽子的行人的。为了激励自己去研究物体识别与检测算法背后的数学原理，我决定写一个系列文章，名为“Object Detection for Dummies”。本篇是第一部分，从图像处理中最基础的概念讲起，并介绍几种图像分割方法。目前还不会涉及深度神经网络，基于深度学习的目标检测和识别模型将在和中讨论。<a href="posts-2017-12-15-object-recognition-part-2.html">傻瓜式目标检测系列之二：CNN、DPM 与 Overfeat</a><a href="posts-2017-12-31-object-recognition-part-3.html">傻瓜式目标检测系列第 3 篇：R-CNN 家族</a></p>
       
     
       
-        <p>我从未从事过计算机视觉相关工作，完全不知道一辆自动驾驶汽车是如何神奇地区分停车标志和戴着红色帽子的行人的。为了逼自己弄懂目标识别与检测算法背后的数学原理，我决定写一系列题为“傻瓜式目标检测”的文章。本文作为第一部分，从图像处理中最基础的概念开始，介绍几种图像分割方法，暂不涉及深度神经网络。关于目标检测和识别的深度学习模型将在和中讨论。<a href="posts-2017-12-15-object-recognition-part-2.html">傻瓜式目标检测系列（中）——CNN、DPM 与 Overfeat</a><a href="posts-2017-12-31-object-recognition-part-3.html">傻瓜式目标检测系列之三：R-CNN 家族</a></p>
-      
-    
-      
-        <blockquote>免责声明：在刚开始写的时候，我把“object recognition”（目标识别）和“object detection”（目标检测）当作同义词使用。后来我意识到两者并不完全相同：前者主要判断图像中是否存在某个物体，而后者还需要指出物体所在的位置。不过两者高度相关，许多目标识别算法为检测任务奠定了基础。</blockquote>
+        <blockquote>免责声明：在开始写作时，我曾把“object recognition”和“object detection”当作同义词使用。但我认为它们并不完全相同：前者主要是判断图像中是否存在某个物体，而后者还需要指出该物体的位置。尽管如此，二者密切相关，许多物体识别算法为检测任务奠定了基础。</blockquote>
       
     
       
@@ -86,7 +82,7 @@ Selective Search 的工作原理
 []
 []
 []
-[]。<a href="posts-2017-10-29-object-recognition-part-1.html">傻瓜式目标检测入门（一）：梯度向量、HOG 与 Selective Search</a><a href="posts-2017-12-15-object-recognition-part-2.html">傻瓜式目标检测系列（中）——CNN、DPM 与 Overfeat</a><a href="posts-2017-12-31-object-recognition-part-3.html">傻瓜式目标检测系列之三：R-CNN 家族</a><a href="posts-2018-12-27-object-recognition-part-4.html">目标检测（四）：快速检测模型</a></p>
+[]。<a href="posts-2017-10-29-object-recognition-part-1.html">傻瓜式目标检测教程 第一部分：梯度向量、HOG 与 Selective Search</a><a href="posts-2017-12-15-object-recognition-part-2.html">傻瓜式目标检测系列之二：CNN、DPM 与 Overfeat</a><a href="posts-2017-12-31-object-recognition-part-3.html">傻瓜式目标检测系列第 3 篇：R-CNN 家族</a><a href="posts-2018-12-27-object-recognition-part-4.html">目标检测第 4 部分：快速检测模型</a></p>
       
     
       
@@ -95,7 +91,7 @@ Selective Search 的工作原理
       
     
       
-        <p>首先，我们需要明确区分以下几个容易混淆但又紧密相关的概念。</p>
+        <p>首先，我想确保我们能区分以下几个术语。它们非常相似、紧密相关，但并不完全相同。</p>
       
     
       
@@ -126,11 +122,11 @@ Selective Search 的工作原理
       
     
       
-        <p>在图像处理中，我们希望知道颜色从一种极端过渡到另一种极端的方向（例如灰度图中从黑到白）。因此，我们需要度量像素颜色上的“梯度”。图像上的梯度是离散的，因为每个像素都是独立的，无法进一步分割。</p>
+        <p>在图像处理中，我们希望知道颜色从一个极端变化到另一个极端的方向（例如灰度图中从黑到白）。因此，我们需要度量像素颜色的“梯度”。图像上的梯度是离散的，因为每个像素都是独立的，无法进一步细分。</p>
       
     
       
-        <p><a href="https://en.wikipedia.org/wiki/Image_gradient" target="_blank" rel="noopener">图像梯度向量</a>是对每个像素定义的一种度量，包含该像素在 x 轴和 y 轴两个方向上的颜色变化。其定义与连续多元函数的梯度一致，后者是由所有变量偏导数组成的向量。假设 f(x, y) 表示位置 (x, y) 处像素的颜色值，则像素 (x, y) 的梯度向量定义如下：</p>
+        <p><a href="https://en.wikipedia.org/wiki/Image_gradient" target="_blank" rel="noopener">图像梯度向量</a>为每个像素定义了一个度量，包含该像素在 x 轴和 y 轴两个方向上的颜色变化。其定义与连续多元函数的梯度一致，后者是由所有变量偏导数组成的向量。假设 f(x, y) 表示位置 (x, y) 处像素的颜色值，则像素 (x, y) 的梯度向量定义如下：</p>
       
     
       
@@ -170,7 +166,7 @@ Selective Search 的工作原理
       
     
       
-        <p>其中 <span class="math-inline" data-math="\frac{\partial f}{\partial x}">\frac{\partial f}{\partial x}</span> 是 x 方向的偏导数，通过目标像素左右相邻像素的颜色差 f(x+1, y) - f(x-1, y) 计算得到。同理，<span class="math-inline" data-math="\frac{\partial f}{\partial y}">\frac{\partial f}{\partial y}</span> 是 y 方向的偏导数，由上下相邻像素的颜色差 f(x, y+1) - f(x, y-1) 得到。</p>
+        <p>其中 <span class="math-inline" data-math="\frac{\partial f}{\partial x}">\frac{\partial f}{\partial x}</span> 项是 x 方向的偏导数，通过目标像素左右相邻像素的颜色差 f(x+1, y) - f(x-1, y) 计算得到。类似地，<span class="math-inline" data-math="\frac{\partial f}{\partial y}">\frac{\partial f}{\partial y}</span> 项是 y 方向的偏导数，通过目标像素上下相邻像素的颜色差 f(x, y+1) - f(x, y-1) 计算得到。</p>
       
     
       
@@ -234,15 +230,15 @@ Selective Search 的工作原理
       
     
       
-        <div class="list-content">其幅值为 <span class="math-inline" data-math="\sqrt{50^2 + (-50)^2} = 70.7107">\sqrt{50^2 + (-50)^2} = 70.7107</span>，方向为 <span class="math-inline" data-math="\arctan{(-50/50)} = -45^{\circ}">\arctan{(-50/50)} = -45^{\circ}</span>。</div>
+        <div class="list-content">幅值为 <span class="math-inline" data-math="\sqrt{50^2 + (-50)^2} = 70.7107">\sqrt{50^2 + (-50)^2} = 70.7107</span>，方向为 <span class="math-inline" data-math="\arctan{(-50/50)} = -45^{\circ}">\arctan{(-50/50)} = -45^{\circ}</span>。</div>
       
     
       
-        <p>如果对每个像素逐个重复计算梯度，速度会非常慢。更好的做法是将整个图像矩阵视为 <span class="math-inline" data-math="\mathbf{A}">\mathbf{A}</span>，使用专门设计的卷积核一次性完成计算。</p>
+        <p>对每个像素逐一重复计算梯度的过程效率很低。更好的做法是将这一过程转化为对整张图像矩阵应用卷积运算，记为 <span class="math-inline" data-math="\mathbf{A}">\mathbf{A}</span>，使用专门设计的卷积核来完成。</p>
       
     
       
-        <p>以图 1 的 x 方向为例，使用核 <span class="math-inline" data-math="[-1,0,1]">[-1,0,1]</span> 沿 x 轴滑动进行卷积，<span class="math-inline" data-math="\ast">\ast</span> 为卷积运算符：</p>
+        <p>我们先来看图 1 示例的 x 方向，使用卷积核 <span class="math-inline" data-math="[-1,0,1]">[-1,0,1]</span> 沿 x 轴滑动；<span class="math-inline" data-math="\ast">\ast</span> 表示卷积运算：</p>
       
     
       
@@ -260,7 +256,7 @@ Selective Search 的工作原理
       
     
       
-        <p>类似地，在 y 方向上我们采用核 <span class="math-inline" data-math="[+1, 0, -1]^\top">[+1, 0, -1]^\top</span>：</p>
+        <p>类似地，在 y 方向我们采用卷积核 <span class="math-inline" data-math="[+1, 0, -1]^\top">[+1, 0, -1]^\top</span>：</p>
       
     
       
@@ -303,7 +299,7 @@ G_y = sig.convolve2d(data, np.array([[-1], [0], [1]]), mode=&#x27;valid&#x27;)
       
     
       
-        <p>上述两个函数分别返回 array([[0], [-50], [0]]) 和 array([[0, 50, 0]])。（注意：在 numpy 数组表示中 40 排在 90 前面，因此核中 -1 也排在 1 前面。）</p>
+        <p>上述两个函数分别返回 array([[0], [-50], [0]]) 和 array([[0, 50, 0]])。（注意在 numpy 数组表示中，40 出现在 90 之前，因此卷积核中 -1 也相应地排在 1 之前。）</p>
       
     
       
@@ -312,7 +308,7 @@ G_y = sig.convolve2d(data, np.array([[-1], [0], [1]]), mode=&#x27;valid&#x27;)
       
     
       
-        <p><a href="https://en.wikipedia.org/wiki/Prewitt_operator" target="_blank" rel="noopener">Prewitt 算子</a>：不只依赖四个直接相邻像素，而是利用周围八个像素以获得更平滑的结果。</p>
+        <p><a href="https://en.wikipedia.org/wiki/Prewitt_operator" target="_blank" rel="noopener">Prewitt 算子</a>：不再仅依赖四个直接相邻像素，而是利用周围八个像素以获得更平滑的结果。</p>
       
     
       
@@ -342,7 +338,7 @@ G_y = sig.convolve2d(data, np.array([[-1], [0], [1]]), mode=&#x27;valid&#x27;)
       
     
       
-        <p><a href="https://en.wikipedia.org/wiki/Sobel_operator" target="_blank" rel="noopener">Sobel 算子</a>：为了更突出直接相邻像素的影响，给予它们更高的权重。</p>
+        <p><a href="https://en.wikipedia.org/wiki/Sobel_operator" target="_blank" rel="noopener">Sobel 算子</a>：为了更强调直接相邻像素的影响，赋予它们更高的权重。</p>
       
     
       
@@ -372,7 +368,7 @@ G_y = sig.convolve2d(data, np.array([[-1], [0], [1]]), mode=&#x27;valid&#x27;)
       
     
       
-        <p>人们针对不同目的设计了多种卷积核，例如边缘检测、模糊、锐化等。更多示例和资料可参考<a href="https://en.wikipedia.org/wiki/Kernel_(image_processing)" target="_blank" rel="noopener">这个维基页面</a>。</p>
+        <p>人们针对不同目标设计了不同的卷积核，例如边缘检测、模糊、锐化等。更多示例和参考可查阅<a href="https://en.wikipedia.org/wiki/Kernel_(image_processing)" target="_blank" rel="noopener">这个维基页面</a>。</p>
       
     
       
@@ -381,7 +377,7 @@ G_y = sig.convolve2d(data, np.array([[-1], [0], [1]]), mode=&#x27;valid&#x27;)
       
     
       
-        <p>我们用 2004 年还满头秀发的 Manu Ginobili 的照片[[下载图片]({{ ‘/assets/data/manu-2004.jpg’ | relative_url }}){:target=&quot;_blank&quot;}]来做个简单实验。为了简化，照片先转为灰度图。对于彩色图像，只需对每个颜色通道分别重复相同过程即可。</p>
+        <p>让我们对 2004 年 Manu Ginobili 头发还很浓密时的照片[[下载图像]({{ ‘/assets/data/manu-2004.jpg’ | relative_url }}){:target=&quot;_blank&quot;}]进行一个简单实验。为简化起见，我们首先将照片转换为灰度图。对于彩色图像，只需在每个颜色通道分别重复相同的过程即可。</p>
       
     
       
@@ -427,7 +423,8 @@ plt.show()
       
     
       
-        <p>你可能会注意到大部分区域呈灰色。因为两个像素的差值范围是 -255 到 255，我们需要将其转换回 [0, 255] 才能正常显示。一个简单的线性变换 (<span class="math-inline" data-math="\mathbf{G}">\mathbf{G}</span> + 255)/2 会将所有零值（即颜色恒定的背景，梯度无变化）映射为 125（显示为灰色）。</p>
+        <p>你可能会注意到大部分区域呈灰色。因为两个像素之间的差异范围在 -255 到 255 之间，我们需要将其转换回 [0, 255] 才能正常显示。
+一个简单的线性变换 (<span class="math-inline" data-math="\mathbf{G}">\mathbf{G}</span> + 255)/2 会将所有零值（即颜色恒定的背景，梯度无变化）映射为 125（显示为灰色）。</p>
       
     
       
@@ -436,7 +433,7 @@ plt.show()
       
     
       
-        <p>方向梯度直方图（HOG）是一种从像素颜色中高效提取特征的方法，可用于构建目标识别分类器。有了图像梯度向量的知识，理解 HOG 的原理并不困难。让我们开始吧！</p>
+        <p>方向梯度直方图（Histogram of Oriented Gradients，简称 HOG）是一种从像素颜色中高效提取特征的方法，可用于构建物体识别分类器。理解了图像梯度向量的概念后，HOG 的工作原理就不难理解了。让我们开始吧！</p>
       
     
       
@@ -445,15 +442,17 @@ plt.show()
       
     
       
-        <div class="list-content">对图像进行预处理，包括缩放和颜色归一化。
+        <div class="list-content">对图像进行预处理，包括调整大小和颜色归一化。
 
-计算每个像素的梯度向量、幅值和方向。
 
-将图像划分成许多 8×8 像素的单元格。在每个单元格内，把这 64 个像素的幅值按 9 个无符号方向（0-180 度而非 0-360 度，这是基于经验实验的实用选择）进行分桶并累加。
+计算每个像素的梯度向量，以及对应的幅值和方向。
 
-为了增强鲁棒性，如果某个像素的梯度方向落在两个分桶之间，其幅值不会全部进入更近的桶，而是按比例分配到两个桶中。例如，某个像素的梯度幅值为 8，角度为 15 度，介于 0 度和 20 度的桶之间，则我们分配 2 给 0 度桶，6 给 20 度桶。
 
-这种巧妙的设计使得直方图在图像发生轻微形变时仍能保持稳定。</div>
+将图像划分成多个 8×8 像素的单元格。在每个单元格内，将这 64 个像素的幅值按无符号方向（不带正负号，因此是 0-180 度而非 0-360 度；这是基于经验实验的实际选择）统计到 9 个桶中并累加。
+
+为了获得更好的鲁棒性，如果某个像素的梯度方向落在两个桶之间，其幅值不会全部归到更近的桶，而是按比例分配到两个桶中。例如，某像素梯度向量幅值为 8、角度为 15 度，它介于 0 度和 20 度两个桶之间，我们会分配 2 到 0 度桶，6 到 20 度桶。
+
+这种有趣的设置使直方图在图像发生轻微变形时仍能保持稳定。</div>
       
     
       
@@ -464,8 +463,8 @@ plt.show()
       
     
       
-        <div class="list-content">接着，我们用 2×2 个单元格（即 16×16 像素）构成的块在图像上滑动。在每个块区域内，将 4 个单元格的直方图拼接成一个 36 维向量，并对其进行归一化，使其具有单位范数。
-最终的 HOG 特征向量是所有块向量的拼接结果，可输入到 SVM 等分类器中进行目标识别训练。</div>
+        <div class="list-content">接着，我们在图像上滑动一个 2×2 单元格（即 16×16 像素）的块。在每个块区域内，将 4 个单元格的直方图拼接成一个 36 维的一维向量，并进行归一化使其具有单位范数。
+最终的 HOG 特征向量是所有块向量的拼接结果，可将其输入 SVM 等分类器来进行物体识别任务的学习。</div>
       
     
       
@@ -474,7 +473,7 @@ plt.show()
       
     
       
-        <p>我们继续使用上一节的示例图像。还记得我们已经计算了整张图像的 <span class="math-inline" data-math="\mathbf{G}_x">\mathbf{G}_x</span> 和 <span class="math-inline" data-math="\mathbf{G}_y">\mathbf{G}_y</span>。</p>
+        <p>让我们复用上一节的同一张示例图像。还记得我们已经计算了整张图像的 <span class="math-inline" data-math="\mathbf{G}_x">\mathbf{G}_x</span> 和 <span class="math-inline" data-math="\mathbf{G}_y">\mathbf{G}_y</span>。</p>
       
     
       
@@ -521,7 +520,7 @@ def get_magnitude_hist_block(loc_x, loc_y):
       
     
       
-        <p>以下代码简单地调用函数构建直方图并进行可视化。</p>
+        <p>下面的代码简单地调用函数来构建直方图并进行绘制。</p>
       
     
       
@@ -549,7 +548,7 @@ plt.tight_layout()
       
     
       
-        <p>上面代码中，我以左上角位于 [200, 200] 的块为例，展示该块归一化后的最终直方图。你可以修改代码，改变滑动窗口的位置来观察不同块的结果。</p>
+        <p>在上面的代码中，我以左上角位于 [200, 200] 的块为例，下面是该块归一化后的最终直方图。你可以修改代码来改变滑动窗口所定位的块位置。</p>
       
     
       
@@ -560,7 +559,7 @@ plt.tight_layout()
       
     
       
-        <p>上述代码主要用于演示计算流程。实际上已有许多现成的库实现了 HOG 算法，例如 <a href="https://github.com/opencv/opencv" target="_blank" rel="noopener">OpenCV</a>、<a href="http://simplecv.org/" target="_blank" rel="noopener">SimpleCV</a> 和 <a href="http://scikit-image.org/" target="_blank" rel="noopener">scikit-image</a>。</p>
+        <p>上述代码主要用于演示计算过程。实际上有许多现成的库已经实现了 HOG 算法，例如 <a href="https://github.com/opencv/opencv" target="_blank" rel="noopener">OpenCV</a>、<a href="http://simplecv.org/" target="_blank" rel="noopener">SimpleCV</a> 和 <a href="http://scikit-image.org/" target="_blank" rel="noopener">scikit-image</a>。</p>
       
     
       
@@ -569,15 +568,15 @@ plt.tight_layout()
       
     
       
-        <p>当一张图像中存在多个物体时（现实世界的照片几乎都是如此），我们需要先找出可能包含目标物体的区域，以便更高效地进行分类。</p>
+        <p>当一张图像中存在多个物体时（几乎所有真实世界的照片都是如此），我们需要识别出可能包含目标物体的区域，以便更高效地进行分类。</p>
       
     
       
-        <p>Felzenszwalb 和 Huttenlocher（<a href="http://cvcl.mit.edu/SUNSeminar/Felzenszwalb_IJCV04.pdf" target="_blank" rel="noopener">2004</a>）提出了一种基于图的图像分割算法。它也是我们接下来要讨论的流行区域提议算法——Selective Search 的初始化方法。</p>
+        <p>Felzenszwalb 和 Huttenlocher（<a href="http://cvcl.mit.edu/SUNSeminar/Felzenszwalb_IJCV04.pdf" target="_blank" rel="noopener">2004</a>）提出了一种基于图的算法，用于将图像分割成相似区域。它也是我们接下来要讨论的 Selective Search（一种流行的区域提议算法）的初始化方法。</p>
       
     
       
-        <p>假设我们用一个无向图 <span class="math-inline" data-math="G=(V, E)">G=(V, E)</span> 来表示输入图像。每个顶点 <span class="math-inline" data-math="v_i \in V">v_i \in V</span> 代表一个像素，每条边 <span class="math-inline" data-math="e = (v_i, v_j) \in E">e = (v_i, v_j) \in E</span> 连接两个顶点 <span class="math-inline" data-math="v_i">v_i</span> 和 <span class="math-inline" data-math="v_j">v_j</span>，其权重 <span class="math-inline" data-math="w(v_i, v_j)">w(v_i, v_j)</span> 衡量了 <span class="math-inline" data-math="v_i">v_i</span> 和 <span class="math-inline" data-math="v_j">v_j</span> 之间的差异程度。这种差异可以用颜色、位置、强度等多个维度来量化。权重越高，两个像素越不相似。一个分割方案 <span class="math-inline" data-math="S">S</span> 是将 <span class="math-inline" data-math="V">V</span> 划分成若干连通分量 <span class="math-inline" data-math="\{C\}">\{C\}</span>。直观上，相似像素应该属于同一个分量，不相似的则属于不同分量。</p>
+        <p>假设我们使用一个无向图 <span class="math-inline" data-math="G=(V, E)">G=(V, E)</span> 来表示输入图像。每个顶点 <span class="math-inline" data-math="v_i \in V">v_i \in V</span> 代表一个像素。一条边 <span class="math-inline" data-math="e = (v_i, v_j) \in E">e = (v_i, v_j) \in E</span> 连接两个顶点 <span class="math-inline" data-math="v_i">v_i</span> 和 <span class="math-inline" data-math="v_j">v_j</span>，其关联权重 <span class="math-inline" data-math="w(v_i, v_j)">w(v_i, v_j)</span> 衡量 <span class="math-inline" data-math="v_i">v_i</span> 和 <span class="math-inline" data-math="v_j">v_j</span> 之间的差异程度。这种差异可以在颜色、位置、亮度等维度上量化。权重越高，两个像素就越不相似。一个分割方案 <span class="math-inline" data-math="S">S</span> 是将 <span class="math-inline" data-math="V">V</span> 分割成多个连通分量 <span class="math-inline" data-math="\{C\}">\{C\}</span>。直观上，相似的像素应属于同一分量，而不相似的像素则被分配到不同的分量。</p>
       
     
       
@@ -586,12 +585,12 @@ plt.tight_layout()
       
     
       
-        <p>有两种方法可以将图像构造成图。</p>
+        <p>将图像构建为图有两种常用方法。</p>
       
     
       
-        <div class="list-content">网格图：每个像素只与其周围邻居相连（共 8 个）。边的权重为像素强度值的绝对差。
-最近邻图：将每个像素看作特征空间 (x, y, r, g, b) 中的一个点，其中 (x, y) 是像素位置，(r, g, b) 是 RGB 颜色值。权重为两个像素特征向量之间的欧氏距离。</div>
+        <div class="list-content">网格图：每个像素仅与其周围邻居相连（共 8 个其他像素）。边的权重为两个像素亮度值的绝对差。
+最近邻图：将每个像素视为特征空间（x, y, r, g, b）中的一个点，其中 (x, y) 是像素位置，(r, g, b) 是 RGB 颜色值。权重为两个像素特征向量之间的欧氏距离。</div>
       
     
       
@@ -600,17 +599,17 @@ plt.tight_layout()
       
     
       
-        <p>在给出好的图划分（即图像分割）的判断标准之前，我们先定义几个核心概念：</p>
+        <p>在给出好的图划分（即图像分割）的判断标准之前，我们先定义几个关键概念：</p>
       
     
       
-        <div class="list-content">内部差异：<span class="math-inline" data-math="Int(C) = \max_{e\in MST(C, E)} w(e)">Int(C) = \max_{e\in MST(C, E)} w(e)</span>，其中 <span class="math-inline" data-math="MST">MST</span> 是该分量的最小生成树。即使移除所有权重小于 <span class="math-inline" data-math="Int(C)">Int(C)</span> 的边，分量 <span class="math-inline" data-math="C">C</span> 依然保持连通。
-分量间差异：<span class="math-inline" data-math="Dif(C_1, C_2) = \min_{v_i \in C_1, v_j \in C_2, (v_i, v_j) \in E} w(v_i, v_j)">Dif(C_1, C_2) = \min_{v_i \in C_1, v_j \in C_2, (v_i, v_j) \in E} w(v_i, v_j)</span>。若两分量之间不存在边，则 <span class="math-inline" data-math="Dif(C_1, C_2) = \infty">Dif(C_1, C_2) = \infty</span>。
-最小内部差异：<span class="math-inline" data-math="MInt(C_1, C_2) = min(Int(C_1) + \tau(C_1), Int(C_2) + \tau(C_2))">MInt(C_1, C_2) = min(Int(C_1) + \tau(C_1), Int(C_2) + \tau(C_2))</span>，其中 <span class="math-inline" data-math="\tau(C) = k / \vert C \vert">\tau(C) = k / \vert C \vert</span> 用于确保分量间差异有一个有意义的阈值。<span class="math-inline" data-math="k">k</span> 越大，最终得到的分量往往也越大。</div>
+        <div class="list-content">内部差异：<span class="math-inline" data-math="Int(C) = \max_{e\in MST(C, E)} w(e)">Int(C) = \max_{e\in MST(C, E)} w(e)</span>，其中 <span class="math-inline" data-math="MST">MST</span> 是该分量的最小生成树。即使移除所有权重小于 <span class="math-inline" data-math="Int(C)">Int(C)</span> 的边，分量 <span class="math-inline" data-math="C">C</span> 仍然可以保持连通。
+两个分量之间的差异：<span class="math-inline" data-math="Dif(C_1, C_2) = \min_{v_i \in C_1, v_j \in C_2, (v_i, v_j) \in E} w(v_i, v_j)">Dif(C_1, C_2) = \min_{v_i \in C_1, v_j \in C_2, (v_i, v_j) \in E} w(v_i, v_j)</span>。如果两者之间没有边，则 <span class="math-inline" data-math="Dif(C_1, C_2) = \infty">Dif(C_1, C_2) = \infty</span>。
+最小内部差异：<span class="math-inline" data-math="MInt(C_1, C_2) = min(Int(C_1) + \tau(C_1), Int(C_2) + \tau(C_2))">MInt(C_1, C_2) = min(Int(C_1) + \tau(C_1), Int(C_2) + \tau(C_2))</span>，其中 <span class="math-inline" data-math="\tau(C) = k / \vert C \vert">\tau(C) = k / \vert C \vert</span> 用于确保分量间差异有一个有意义的阈值。<span class="math-inline" data-math="k">k</span> 越大，越容易产生较大的分量。</div>
       
     
       
-        <p>分割质量通过对任意两个区域 <span class="math-inline" data-math="C_1">C_1</span> 和 <span class="math-inline" data-math="C_2">C_2</span> 定义的成对区域比较谓词来评估：</p>
+        <p>分割的质量通过针对两个给定区域 <span class="math-inline" data-math="C_1">C_1</span> 和 <span class="math-inline" data-math="C_2">C_2</span> 定义的成对区域比较谓词来评估：</p>
       
     
       
@@ -630,7 +629,7 @@ D(C_1, C_2) =
       
     
       
-        <p>只有当该谓词为 True 时，我们才认为它们是两个独立的分量；否则说明分割过细，应该将它们合并。</p>
+        <p>只有当该谓词为 True 时，我们才认为它们是两个独立的分量；否则说明分割过于精细，它们可能应该被合并。</p>
       
     
       
@@ -643,18 +642,18 @@ D(C_1, C_2) =
       
     
       
-        <div class="list-content">将所有边按权重升序排序，记为 <span class="math-inline" data-math="e_1, e_2, \dots, e_m">e_1, e_2, \dots, e_m</span>。
-初始时每个像素自成一个分量，因此共有 <span class="math-inline" data-math="n">n</span> 个分量。
+        <div class="list-content">首先将所有边按权重升序排序，记为 <span class="math-inline" data-math="e_1, e_2, \dots, e_m">e_1, e_2, \dots, e_m</span>。
+初始时每个像素都自成一个分量，因此我们从 <span class="math-inline" data-math="n">n</span> 个分量开始。
 对 <span class="math-inline" data-math="k=1, \dots, m">k=1, \dots, m</span> 重复以下步骤：
 
 第 <span class="math-inline" data-math="k">k</span> 步的分割快照记为 <span class="math-inline" data-math="S^k">S^k</span>。
-取出排序后的第 k 条边 <span class="math-inline" data-math="e_k = (v_i, v_j)">e_k = (v_i, v_j)</span>。
-若 <span class="math-inline" data-math="v_i">v_i</span> 和 <span class="math-inline" data-math="v_j">v_j</span> 属于同一个分量，则不做操作，因此 <span class="math-inline" data-math="S^k = S^{k-1}">S^k = S^{k-1}</span>。
-若 <span class="math-inline" data-math="v_i">v_i</span> 和 <span class="math-inline" data-math="v_j">v_j</span> 分属分割 <span class="math-inline" data-math="S^{k-1}">S^{k-1}</span> 中的两个不同分量 <span class="math-inline" data-math="C_i^{k-1}">C_i^{k-1}</span> 和 <span class="math-inline" data-math="C_j^{k-1}">C_j^{k-1}</span>，则判断 <span class="math-inline" data-math="w(v_i, v_j) \leq MInt(C_i^{k-1}, C_j^{k-1})">w(v_i, v_j) \leq MInt(C_i^{k-1}, C_j^{k-1})</span> 是否成立：若成立则合并，否则不做操作。</div>
+取出顺序中的第 k 条边 <span class="math-inline" data-math="e_k = (v_i, v_j)">e_k = (v_i, v_j)</span>。
+如果 <span class="math-inline" data-math="v_i">v_i</span> 和 <span class="math-inline" data-math="v_j">v_j</span> 属于同一个分量，则什么都不做，因此 <span class="math-inline" data-math="S^k = S^{k-1}">S^k = S^{k-1}</span>。
+如果 <span class="math-inline" data-math="v_i">v_i</span> 和 <span class="math-inline" data-math="v_j">v_j</span> 属于分割 <span class="math-inline" data-math="S^{k-1}">S^{k-1}</span> 中的两个不同分量 <span class="math-inline" data-math="C_i^{k-1}">C_i^{k-1}</span> 和 <span class="math-inline" data-math="C_j^{k-1}">C_j^{k-1}</span>，则当 <span class="math-inline" data-math="w(v_i, v_j) \leq MInt(C_i^{k-1}, C_j^{k-1})">w(v_i, v_j) \leq MInt(C_i^{k-1}, C_j^{k-1})</span> 成立时将它们合并为一个，否则什么都不做。</div>
       
     
       
-        <p>如果你对分割性质的证明以及为什么这样的分割一定存在感兴趣，可参考<a href="http://fcv2011.ulsan.ac.kr/files/announcement/413/IJCV(2004)%20Efficient%20Graph-Based%20Image%20Segmentation.pdf" target="_blank" rel="noopener">原论文</a>。</p>
+        <p>如果你对分割性质的证明以及为什么这样的分割总是存在感兴趣，可以参考<a href="http://fcv2011.ulsan.ac.kr/files/announcement/413/IJCV(2004)%20Efficient%20Graph-Based%20Image%20Segmentation.pdf" target="_blank" rel="noopener">原论文</a>。</p>
       
     
       
@@ -670,7 +669,7 @@ D(C_1, C_2) =
       
     
       
-        <p>这次我们使用 2013 年已经秃顶明显的 Manu Ginobili 的照片[[图片]({{ ‘/assets/data/manu-2013.jpg’ | relative_url }})]作为示例。为了简化，依然使用灰度图。</p>
+        <p>这次我们使用 2013 年年长的 Manu Ginobili 的照片[[图像]({{ ‘/assets/data/manu-2013.jpg’ | relative_url }})]作为示例，此时他的秃顶已经非常明显。为简化起见，我们依然使用灰度图。</p>
       
     
       
@@ -681,7 +680,7 @@ D(C_1, C_2) =
       
     
       
-        <p>我们不从零开始编码，而是直接使用 <a href="http://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.felzenszwalb" target="_blank" rel="noopener">skimage.segmentation.felzenszwalb</a> 对图像进行处理。</p>
+        <p>我们不再从零开始编写代码，而是直接使用 <a href="http://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.felzenszwalb" target="_blank" rel="noopener">skimage.segmentation.felzenszwalb</a> 函数对图像进行处理。</p>
       
     
       
@@ -704,7 +703,7 @@ plt.show()
       
     
       
-        <p>代码运行了两种不同参数的 Felzenszwalb 算法。左图 k=100 产生了更精细的分割，区域较小，其中 Manu 的秃顶被清晰识别出来；右图 k=1000 产生较粗糙的分割，区域整体更大。</p>
+        <p>代码运行了两个版本的 Felzenszwalb 算法。如图所示，左侧 k=100 生成了更细粒度的分割，包含许多小区域，其中 Manu 的秃顶被清晰识别出来。右侧 k=1000 则生成较粗粒度的分割，区域倾向于更大。</p>
       
     
       
@@ -720,7 +719,7 @@ plt.show()
       
     
       
-        <p>Selective Search 是一种常用的区域提议算法，用于生成可能包含目标物体的候选区域。它建立在图像分割结果之上，并利用基于区域的特征（注意：不仅仅是单个像素的属性）进行自底向上的层次化合并。</p>
+        <p>Selective Search 是一种常用的区域提议算法，用于生成可能包含物体的候选区域。它建立在图像分割结果之上，并利用基于区域的特征（注意：不仅仅是单个像素的属性）进行自底向上的层次化分组。</p>
       
     
       
@@ -729,13 +728,14 @@ plt.show()
       
     
       
-        <div class="list-content">初始化阶段，先采用 Felzenszwalb 和 Huttenlocher 的基于图的图像分割算法生成初始区域。
-使用贪心算法迭代地合并区域：
+        <div class="list-content">在初始化阶段，应用 Felzenszwalb 和 Huttenlocher 基于图的图像分割算法生成初始区域。
+使用贪心算法迭代地对区域进行分组：
 
 首先计算所有相邻区域之间的相似度。
-将最相似的两个区域合并，然后重新计算新区域与其邻居的相似度。
+将最相似的两个区域合并，然后计算新区域与其相邻区域之间的新的相似度。
 
-重复上述合并最相似区域的过程（第 2 步），直到整张图像合并为一个区域为止。</div>
+
+重复步骤 2（合并最相似区域的过程），直到整张图像合并为一个单一区域。</div>
       
     
       
@@ -751,18 +751,18 @@ plt.show()
       
     
       
-        <p>对于两个区域 <span class="math-inline" data-math="(r_i, r_j)">(r_i, r_j)</span>，Selective Search 提出了四种互补的相似度度量：</p>
+        <p>针对两个区域 <span class="math-inline" data-math="(r_i, r_j)">(r_i, r_j)</span>，Selective Search 提出了四种互补的相似度度量：</p>
       
     
       
         <div class="list-content">颜色相似度
-纹理：使用对材质识别效果良好的算法，例如 <a href="http://www.cs.ubc.ca/~lowe/papers/iccv99.pdf" target="_blank" rel="noopener">SIFT</a>。
+纹理：使用在材料识别中表现良好的算法，例如 <a href="http://www.cs.ubc.ca/~lowe/papers/iccv99.pdf" target="_blank" rel="noopener">SIFT</a>。
 尺寸：鼓励小区域尽早合并。
-形状：理想情况下一个区域能填补另一个区域的空白。</div>
+形状：理想情况下一个区域能填补另一个区域的空缺。</div>
       
     
       
-        <p>通过 (i) 调整 Felzenszwalb 和 Huttenlocher 算法中的阈值 <span class="math-inline" data-math="k">k</span>，(ii) 改变颜色空间，以及 (iii) 选择不同的相似度度量组合，我们可以生成多种多样的 Selective Search 策略。其中产生最佳区域提议的版本通常采用 (i) 混合多种初始分割结果，(ii) 融合多种颜色空间，以及 (iii) 综合所有相似度度量。当然，我们需要在质量（模型复杂度）与速度之间做出权衡。</p>
+        <p>通过 (i) 调整 Felzenszwalb 和 Huttenlocher 算法中的阈值 <span class="math-inline" data-math="k">k</span>，(ii) 改变颜色空间，以及 (iii) 选择不同的相似度度量组合，我们可以生成多种多样的 Selective Search 策略。产生最佳质量区域提议的版本通常配置为 (i) 混合多种初始分割方案，(ii) 融合多个颜色空间，以及 (iii) 组合所有相似度度量。不出意外，我们需要在质量（模型复杂度）与速度之间做出权衡。</p>
       
     
       

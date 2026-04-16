@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>为什么动量法真的有效 · Distill.pub</title>
+  <title>动量为何真正有效 · Distill.pub</title>
   <link rel="stylesheet" href="../static/css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
@@ -20,7 +20,7 @@
 
 <article>
   <header class="article-header">
-    <h1>为什么动量法真的有效</h1>
+    <h1>动量为何真正有效</h1>
     <div class="meta">
       2017-04-04 · 
       <a href="http://distill.pub/2017/momentum" target="_blank" rel="noopener">阅读原文</a>
@@ -142,7 +142,7 @@
       
     
       
-        <p>为什么动量法真的有效</p>
+        <p>动量为何真正有效</p>
       
     
       
@@ -170,19 +170,19 @@
       
     
       
-        <p>关于动量法有一个流行的比喻 [1, 2, 3]：梯度下降就像一个人走下山坡。他沿着最陡的方向往下走，步伐缓慢却稳健。而动量法则像一个沉重的球从同一山坡滚下。额外的惯性既起到平滑作用，又起到加速作用，它能抑制振荡，让我们快速穿过狭窄的山谷、小丘和局部极小值。</p>
+        <p>关于动量有一个广为流传的说法 [1, 2, 3]：梯度下降就像一个人走下山坡。他沿着最陡的路径向下走，进度虽然缓慢，但很稳定。而动量则像一个沉重的球从同一山坡滚下。附加的惯性同时起到平滑和加速的作用，既能抑制振荡，又能帮助我们快速穿过狭窄的山谷、小山包和局部最小值。</p>
       
     
       
-        <p>这个标准解释并没有错，但它没能说明动量法的许多重要行为。事实上，如果我们在一个合适的模型上研究动量法，就能对其有远为精确的理解。</p>
+        <p>这个标准说法并没有错，但它无法解释动量许多重要的行为。事实上，如果我们在合适的模型上研究动量，就能对其有远为精确的理解。</p>
       
     
       
-        <p>一个很好的模型是凸二次函数。这个模型足够丰富，能够复现动量法在真实问题中的局部动态，同时又足够简单，可以用闭式形式完全理解。这种平衡为我们深入理解该算法提供了强有力的抓手。</p>
+        <p>一个很好的模型是凸二次函数。这个模型足够丰富，能够重现动量在实际问题中的局部动态，同时又足够简单，可以用闭式形式完全理解。这种平衡为我们理解该算法提供了强有力的抓手。</p>
       
     
       
-        <p>我们从梯度下降开始。该算法有许多优点，但速度不在其中。它很简单——在优化一个光滑函数
+        <p>我们先从梯度下降开始。该算法有许多优点，但速度并不算其中之一。它很简单——在优化一个光滑函数
 
 <span class="math-inline" data-math="f">f</span> 时，我们沿着梯度方向迈出一小步</p>
       
@@ -192,21 +192,19 @@
       
     
       
-        <p>只要步长足够小，梯度下降在每次迭代中都会单调改进。它总是能收敛，尽管是收敛到局部最小值。在一些弱曲率条件下，它甚至能以指数速率到达那里。</p>
+        <p>只要步长足够小，梯度下降在每次迭代中都会单调改进。它总是能收敛，虽然可能只是收敛到局部最小值。在一些弱曲率条件下，它甚至能以指数速率到达那里。</p>
       
     
       
-        <p>然而，理论上吸引人的指数下降，在实践中往往小得令人恼火。事情一开始通常很好——损失函数会迅速显著下降。但随着迭代进行，进度开始变慢。你会隐隐感到自己没有取得应有的进展。到底出了什么问题？</p>
+        <p>但理论上吸引人的指数下降，在实践中往往小得令人恼火。事情一开始通常进展良好——损失函数会显著、几乎立即下降。但随着迭代进行，速度就开始慢下来。你会开始产生一种挥之不去的感觉：进度没有本该有的那么多。到底出了什么问题？</p>
       
     
       
-        <p>问题可能是优化器长期以来的宿敌——病态曲率。简单来说，病态曲率就是函数
-
-<span class="math-inline" data-math="f">f</span> 中某些区域的尺度没有调整好。这些地形常被描述为山谷、沟壑、渠道和峡谷。迭代点要么在不同山谷间跳来跳去，要么以微小、胆怯的步伐接近最优点。某些方向上的进展几乎停滞。在这些不幸的区域，梯度下降会表现笨拙。</p>
+        <p>问题可能是优化器的老对手——病态曲率。简单来说，病态曲率就是<span class="math-inline" data-math="f">f</span>中尺度不合适的区域。这些地形常被描述为山谷、沟壑、峡谷和深渊。迭代点要么在各个山谷之间跳跃，要么以微小、怯懦的步伐接近最优解。某些方向上的进展几乎完全停滞。在这些不幸的区域，梯度下降会表现失常。</p>
       
     
       
-        <p>动量法对梯度下降做了如下调整。我们给梯度下降加上短期记忆：</p>
+        <p>动量对梯度下降提出了以下调整。我们给梯度下降一个短期记忆：</p>
       
     
       
@@ -224,25 +222,19 @@
       
     
       
-        <p>这个改动很自然，几乎不增加任何代价。当
-
-<span class="math-inline" data-math="\beta = 0">\beta = 0</span> 时，我们就退化回梯度下降。但对于
-
-<span class="math-inline" data-math="\beta = 0.99">\beta = 0.99</span>（在情况很糟时有时取
-
-<span class="math-inline" data-math="0.999">0.999</span>），这似乎正是我们需要的助力。我们的迭代重新找回了失去的速度和大胆，以焕然一新的能量快速奔向最优点。</p>
+        <p>这个改动很无害，几乎不增加任何成本。当<span class="math-inline" data-math="\beta = 0">\beta = 0</span>时，我们就退化回梯度下降。但对于<span class="math-inline" data-math="\beta = 0.99">\beta = 0.99</span>（在情况很糟糕时有时取<span class="math-inline" data-math="0.999">0.999</span>），这似乎正是我们需要的助推。我们的迭代重新获得了失去的速度和大胆，以焕然一新的能量快速冲向最优解。</p>
       
     
       
-        <p>优化者们将这个小小的奇迹称为“加速”。</p>
+        <p>优化学家们把这个小小的奇迹称为“加速”。</p>
       
     
       
-        <p>这个新算法乍一看可能像个廉价的技巧，一个绕过梯度下降异常行为的简单把戏——一个用来平滑陡峭峡谷间振荡的平滑器。但真相恰恰相反。是梯度下降才是那个技巧。首先，动量法能在许多函数上提供高达二次的加速。1 这可不是小事——这与快速傅里叶变换、快速排序和 Grover 算法带来的加速类似。当宇宙给你二次加速时，你就该开始认真关注了。</p>
+        <p>新算法乍看之下可能像一个廉价的把戏。一个绕过梯度下降异常行为的小技巧——一个用来平滑陡峭峡谷间振荡的平滑器。但真相恰恰相反。是梯度下降才是那个把戏。首先，动量在许多函数上能提供高达二次的加速。这可不是小事——这与快速傅里叶变换、快速排序和 Grover 算法带来的加速类似。当宇宙给你二次加速时，你应该开始认真对待。</p>
       
     
       
-        <p>但还有更多。由 Nesterov [5] 提出的一个下界表明，动量法在某种非常狭义且技术性的意义上是最优的。这并不意味着它是所有情况下对所有函数都最好的算法。但它确实满足一些奇妙而优美的数学性质，满足了人类对完美和完结的强烈渴望。不过这些以后再谈。现在我们先说——动量法是一篇值得写进教科书的算法。</p>
+        <p>但还有更多。由 Nesterov 提出的下界 [5] 表明，动量在某种非常狭义且技术性的意义上是最优的。这并不意味着它在所有情况下对所有函数都是最好的算法。但它确实满足了一些奇妙而优美的数学性质，满足了人类对完美和完结的渴望。不过这些以后再说。现在我们先这么说——动量是一本值得写入教科书的算法。</p>
       
     
       
@@ -263,11 +255,7 @@
       
     
       
-        <p>假设
-
-<span class="math-inline" data-math="A">A</span> 是对称且可逆的，那么最优解
-
-<span class="math-inline" data-math="w^{\star}">w^{\star}</span> 出现在</p>
+        <p>假设<span class="math-inline" data-math="A">A</span>是对称且可逆的，那么最优解<span class="math-inline" data-math="w^{\star}">w^{\star}</span>出现在</p>
       
     
       
@@ -275,15 +263,11 @@
       
     
       
-        <p>尽管这个模型很简单，但它已足够丰富，可以近似许多函数（将
-
-<span class="math-inline" data-math="A">A</span> 想象成你最喜欢的曲率模型——Hessian、Fisher 信息矩阵 [6] 等等），并捕捉到病态曲率的所有关键特征。更重要的是，我们可以为这个函数上的梯度下降写出精确的闭式公式。</p>
+        <p>这个模型虽然简单，却足以近似许多函数（可以将<span class="math-inline" data-math="A">A</span>视为你最喜欢的曲率模型——Hessian、Fisher 信息矩阵 [6] 等），并捕捉到病态曲率的所有关键特征。更重要的是，我们可以为该函数上的梯度下降写出精确的闭式公式。</p>
       
     
       
-        <p>过程如下。由于
-
-<span class="math-inline" data-math="\nabla f(w)=Aw - b">\nabla f(w)=Aw - b</span>，迭代式为</p>
+        <p>过程如下。由于<span class="math-inline" data-math="\nabla f(w)=Aw - b">\nabla f(w)=Aw - b</span>，迭代式为</p>
       
     
       
@@ -295,15 +279,11 @@
       
     
       
-        <p>诀窍在此。存在一个非常自然的坐标系来观察梯度下降，在这个坐标系中所有维度都是独立作用的——即
-
-<span class="math-inline" data-math="A">A</span> 的特征向量空间。</p>
+        <p>诀窍在这里。存在一个非常自然的坐标空间来观察梯度下降，在这个空间中所有维度都独立作用——那就是<span class="math-inline" data-math="A">A</span>的特征向量空间。</p>
       
     
       
-        <p>每个对称矩阵
-
-<span class="math-inline" data-math="A">A</span> 都有特征值分解</p>
+        <p>每个对称矩阵<span class="math-inline" data-math="A">A</span>都具有特征值分解</p>
       
     
       
@@ -315,15 +295,7 @@
       
     
       
-        <p>按照惯例，我们假设
-
-<span class="math-inline" data-math="\lambda_i">\lambda_i</span> 已按从最小
-
-<span class="math-inline" data-math="\lambda_1">\lambda_1</span> 到最大
-
-<span class="math-inline" data-math="\lambda_n">\lambda_n</span> 的顺序排序。如果我们进行基变换
-
-<span class="math-inline" data-math="x^{k} = Q^T(w^{k} - w^\star)">x^{k} = Q^T(w^{k} - w^\star)</span>，迭代就会分解为相互独立的形式：</p>
+        <p>按照惯例，我们假设<span class="math-inline" data-math="\lambda_i">\lambda_i</span>按从小到大排序，即从<span class="math-inline" data-math="\lambda_1">\lambda_1</span>到<span class="math-inline" data-math="\lambda_n">\lambda_n</span>。如果我们进行基变换<span class="math-inline" data-math="x^{k} = Q^T(w^{k} - w^\star)">x^{k} = Q^T(w^{k} - w^\star)</span>，迭代就会分解开来，变成：</p>
       
     
       
@@ -341,9 +313,7 @@
       
     
       
-        <p>回到我们原始的空间
-
-<span class="math-inline" data-math="w">w</span>，我们可以看出</p>
+        <p>回到我们原来的空间<span class="math-inline" data-math="w">w</span>，我们可以看出</p>
       
     
       
@@ -355,7 +325,7 @@
       
     
       
-        <p>这样我们就得到了梯度下降的闭式形式。</p>
+        <p>这样我们就得到了——梯度下降的闭式形式。</p>
       
     
       
@@ -364,21 +334,11 @@
       
     
       
-        <p>上面的方程有一个简单的解释。
-
-<span class="math-inline" data-math="x^0">x^0</span> 的每个元素都是初始猜测在
-
-<span class="math-inline" data-math="Q">Q</span> 基下的误差分量。共有
-
-<span class="math-inline" data-math="n">n</span> 个这样的误差，每个误差都沿着自己孤独的路径走向最小值，以
-
-<span class="math-inline" data-math="1-\alpha\lambda_i">1-\alpha\lambda_i</span> 的复合速率指数衰减。这个数值越接近
-
-<span class="math-inline" data-math="1">1</span>，收敛就越慢。</p>
+        <p>上面的方程有一个简单的解释。<span class="math-inline" data-math="x^0">x^0</span>的每个元素都是初始猜测在<span class="math-inline" data-math="Q">Q</span>基下的误差分量。一共有<span class="math-inline" data-math="n">n</span>个这样的误差，每个误差都沿着自己孤独的路径走向最小值，以<span class="math-inline" data-math="1-\alpha\lambda_i">1-\alpha\lambda_i</span>的复合速率指数衰减。这个数越接近<span class="math-inline" data-math="1">1</span>，收敛就越慢。</p>
       
     
       
-        <p>对于大多数步长，具有最大特征值的特征向量收敛得最快。这会导致前几次迭代进步显著，随后当较小特征向量的困难暴露出来时，进度开始放缓。通过写出每个特征空间误差对损失的贡献</p>
+        <p>对于大多数步长，具有最大特征值的特征向量收敛得最快。这会在前几次迭代中引发爆炸式的进展，随后当较小特征向量的挣扎显现出来时，速度就开始放缓。通过将每个特征空间的误差对损失的贡献写出来</p>
       
     
       
@@ -399,11 +359,7 @@
       
     
       
-        <p>上述分析立即为我们提供了如何设置步长
-
-<span class="math-inline" data-math="\alpha">\alpha</span> 的指导。为了保证收敛，每个
-
-<span class="math-inline" data-math="|1-\alpha \lambda_i|">|1-\alpha \lambda_i|</span> 必须严格小于 1。因此所有可行的步长都落在区间</p>
+        <p>上述分析立即为我们如何设置步长<span class="math-inline" data-math="\alpha">\alpha</span>提供了指导。为了保证收敛，每个<span class="math-inline" data-math="|1-\alpha \lambda_i|">|1-\alpha \lambda_i|</span>必须严格小于 1。因此，所有可行的步长都落在区间</p>
       
     
       
@@ -411,11 +367,7 @@
       
     
       
-        <p>整体收敛速率由最慢的误差分量决定，它必定是
-
-<span class="math-inline" data-math="\lambda_1">\lambda_1</span> 或
-
-<span class="math-inline" data-math="\lambda_n">\lambda_n</span> 中的一个：</p>
+        <p>整体收敛速率由最慢的误差分量决定，它必定是<span class="math-inline" data-math="\lambda_1">\lambda_1</span>或<span class="math-inline" data-math="\lambda_n">\lambda_n</span>之一：</p>
       
     
       
@@ -427,11 +379,7 @@
       
     
       
-        <p>当
-
-<span class="math-inline" data-math="\lambda_1">\lambda_1</span> 和
-
-<span class="math-inline" data-math="\lambda_n">\lambda_n</span> 的速率相同时，整体速率达到最小——这印证了前一节中我们非正式观察到的现象：最优步长会让第一个和最后一个特征向量以相同速率收敛。如果我们把这个算出来，会得到：</p>
+        <p>当<span class="math-inline" data-math="\lambda_1">\lambda_1</span>和<span class="math-inline" data-math="\lambda_n">\lambda_n</span>的速率相同时，这个整体速率达到最小——这与我们在前一节中非正式观察到的结果一致：最优步长会让第一个和最后一个特征向量以相同速率收敛。如果我们把这个算出来，就会得到：</p>
       
     
       
@@ -449,9 +397,7 @@
       
     
       
-        <p>注意比率
-
-<span class="math-inline" data-math="\lambda_n/\lambda_1">\lambda_n/\lambda_1</span> 决定了问题的收敛速率。事实上，这个比率经常出现，我们给它起一个名字和符号——条件数。</p>
+        <p>注意比率<span class="math-inline" data-math="\lambda_n/\lambda_1">\lambda_n/\lambda_1</span>决定了问题的收敛速率。事实上，这个比率经常出现，我们给它起了一个名字和符号——条件数。</p>
       
     
       
@@ -463,13 +409,7 @@
       
     
       
-        <p>条件数有许多含义。它衡量一个矩阵接近奇异的程度。它衡量
-
-<span class="math-inline" data-math="A^{-1}b">A^{-1}b</span> 对
-
-<span class="math-inline" data-math="b">b</span> 扰动的鲁棒性。而在这个语境中，条件数为我们提供了梯度下降表现有多差的度量。比率为
-
-<span class="math-inline" data-math="\kappa = 1">\kappa = 1</span> 是理想的，能在一步内收敛（当然，此时函数是平凡的）。遗憾的是，比率越大，梯度下降就越慢。因此条件数直接衡量了病态曲率的严重程度。</p>
+        <p>条件数有许多含义。它是矩阵接近奇异程度的度量。它衡量了<span class="math-inline" data-math="A^{-1}b">A^{-1}b</span>对<span class="math-inline" data-math="b">b</span>扰动的鲁棒性。而在本文的语境中，条件数为我们提供了梯度下降表现有多差的度量。比率为<span class="math-inline" data-math="\kappa = 1">\kappa = 1</span>是理想的，能在一步内收敛（当然，此时函数是平凡的）。不幸的是，比率越大，梯度下降就越慢。因此条件数是病态曲率的直接度量。</p>
       
     
       
@@ -478,19 +418,11 @@
       
     
       
-        <p>上述分析揭示了一个洞见：并非所有误差都是平等的。确实，存在不同类型的误差，精确来说有
-
-<span class="math-inline" data-math="n">n</span> 种，每种对应
-
-<span class="math-inline" data-math="A">A</span> 的一个特征向量。而梯度下降纠正某些类型误差的能力强于其他类型。但
-
-<span class="math-inline" data-math="A">A</span> 的特征向量究竟意味着什么？令人惊讶的是，在许多应用中，它们有着非常具体的物理解释。</p>
+        <p>上述分析揭示了一个洞见：并非所有误差都是平等的。确实存在不同类型的误差，准确来说有<span class="math-inline" data-math="n">n</span>种，每种对应<span class="math-inline" data-math="A">A</span>的一个特征向量。而梯度下降在纠正某些类型的误差上比其他类型更擅长。但<span class="math-inline" data-math="A">A</span>的特征向量到底意味着什么呢？令人惊讶的是，在许多应用中，它们有一个非常具体的解释。</p>
       
     
       
-        <p>让我们看看这在多项式回归中如何体现。给定一维数据
-
-<span class="math-inline" data-math="\xi_i">\xi_i</span>，我们的任务是拟合模型</p>
+        <p>让我们看看这在多项式回归中如何体现。给定一维数据<span class="math-inline" data-math="\xi_i">\xi_i</span>，我们的任务是拟合模型</p>
       
     
       
@@ -502,17 +434,11 @@
       
     
       
-        <p>来匹配观测值
-
-<span class="math-inline" data-math="d_i">d_i</span>。这个模型虽然在输入
-
-<span class="math-inline" data-math="\xi">\xi</span> 上是非线性的，但在权重上是线性的，因此我们可以将其写成单项式的线性组合，例如：</p>
+        <p>来匹配观测值<span class="math-inline" data-math="d_i">d_i</span>。这个模型虽然在输入<span class="math-inline" data-math="\xi">\xi</span>上是非线性的，但在权重上是线性的，因此我们可以将其写成单项式（monomial）的线性组合，例如：</p>
       
     
       
-        <p>由于线性性，我们可以用线性回归在模型失配上拟合数据
-
-<span class="math-inline" data-math="\xi_i">\xi_i</span>，即</p>
+        <p>由于线性性，我们可以使用线性回归在模型失配<span class="math-inline" data-math="\xi_i">\xi_i</span></p>
       
     
       
@@ -524,7 +450,7 @@
       
     
       
-        <p>其中</p>
+        <p>上拟合这个模型，其中</p>
       
     
       
@@ -546,21 +472,7 @@
       
     
       
-        <p>正如我们所知，当我们在
-
-<span class="math-inline" data-math="Q">Q</span>（即
-
-<span class="math-inline" data-math="Z^T Z">Z^T Z</span> 的特征向量）空间中观察迭代时，收敛路径会变得清晰。因此让我们将回归问题转换到
-
-<span class="math-inline" data-math="Q">Q</span> 的基下。首先进行基变换，将
-
-<span class="math-inline" data-math="w">w</span> 旋转为
-
-<span class="math-inline" data-math="Qw">Qw</span>，并将我们的特征映射
-
-<span class="math-inline" data-math="p">p</span> 反向旋转到特征空间
-
-<span class="math-inline" data-math="\bar{p}">\bar{p}</span>。现在我们可以将同样的回归想象成在另一个多项式基上的回归，模型为</p>
+        <p>正如我们所知，当我们在<span class="math-inline" data-math="Q">Q</span>（即<span class="math-inline" data-math="Z^T Z">Z^T Z</span>的特征向量）空间中观察迭代时，收敛路径会变得清晰。因此让我们把回归问题重新用<span class="math-inline" data-math="Q">Q</span>的基来表述。首先，我们做一次基变换，将<span class="math-inline" data-math="w">w</span>旋转到<span class="math-inline" data-math="Qw">Qw</span>，并将我们的特征映射<span class="math-inline" data-math="p">p</span>反向旋转到特征空间<span class="math-inline" data-math="\bar{p}">\bar{p}</span>。现在我们可以将同样的回归想象成在不同的多项式基上进行，模型为</p>
       
     
       
@@ -572,36 +484,28 @@
       
     
       
-        <p>这个模型与原来的完全相同。但这些新特征
-
-<span class="math-inline" data-math="\bar{p}">\bar{p}</span>（我称之为“特征特征”）和权重有一个令人愉快的性质：每个坐标都独立于其他坐标作用。现在我们的优化问题实际上分解成了
-
-<span class="math-inline" data-math="n">n</span> 个小的单变量优化问题。每个坐标都可以贪心地、独立地依次优化（顺序任意），最终得到全局最优。这些特征特征也更有信息量：</p>
+        <p>这个模型与原来的完全相同。但这些新的特征<span class="math-inline" data-math="\bar{p}">\bar{p}</span>（我称之为“eigenfeatures”）和权重有一个令人愉快的性质：每个坐标都独立于其他坐标。现在我们的优化问题实际上分解成了<span class="math-inline" data-math="n">n</span>个小型的一维优化问题。每个坐标都可以贪婪且独立地依次优化（顺序任意），从而得到最终的全局最优解。这些 eigenfeatures 也信息量大得多：</p>
       
     
       
-        <p>上面图中的观察可以从数学上得到证明。从统计学的角度，我们希望模型在某种意义上是抗噪声的。如果对观测值稍加扰动就会使整个模型发生剧烈变化，那么这个模型就不可能有意义。而特征特征，即数据的主成分，给我们提供了所需的精确分解，可以按特征对
-
-<span class="math-inline" data-math="d_i">d_i</span> 扰动的敏感程度对其进行排序。最鲁棒的成分出现在前面（具有最大的特征值），最敏感的成分出现在后面（具有最小的特征值）。</p>
+        <p>上图中的观察结果可以在数学上得到证明。从统计的角度来看，我们希望模型在某种意义上是抗噪的。如果对观测值的微小扰动就能 dramatically 改变整个模型，那么该模型就不可能有意义。而 eigenfeatures（数据的 principal components）正好为我们提供了所需的分解，可以按特征对<span class="math-inline" data-math="d_i">d_i</span>扰动的敏感性对其进行排序。最稳健的分量出现在前面（具有最大的特征值），最敏感的分量出现在后面（具有最小的特征值）。</p>
       
     
       
-        <p>这个鲁棒性度量，出于一个相当方便的巧合，也正是特征空间收敛难易程度的度量。因此，“病态方向”——即收敛最慢的特征空间——恰恰也是对噪声最敏感的方向！所以我们从一个简单的初始点如
-
-<span class="math-inline" data-math="0">0</span> 开始（粗略地说，我们可以将其视为先验），跟踪迭代直到达到期望的复杂度水平。让我们看看这在梯度下降中如何表现。</p>
+        <p>这种稳健性度量，出于一个相当方便的巧合，也正是特征空间收敛难易程度的度量。因此，“病态方向”——即收敛最慢的特征空间——也正是那些对噪声最敏感的方向！所以我们从一个简单的初始点如<span class="math-inline" data-math="0">0</span>开始（粗略地说，我们可以把它当作先验），跟踪迭代直到达到所需的复杂度水平。让我们看看这在梯度下降中如何表现。</p>
       
     
       
-        <p>这种效应被“早停”启发式方法所利用：通过提前停止优化，你常常能获得更好的泛化结果。事实上，早停的效果与更传统的正则化方法（如 Tikhonov 回归）非常相似。两种方法都试图直接抑制最小特征值对应的成分，只是采用了不同的谱衰减方式。2 但早停有一个显著优势。一旦步长选定，就不再需要调节正则化参数。事实上，在单次优化过程中，我们拥有从欠拟合到过拟合的整个模型族。这种馈赠，似乎无需付出代价。确实是一顿美妙的免费午餐 [7]。</p>
+        <p>这种效应被“提前停止”（early stopping）这一启发式方法所利用：通过提前停止优化，你常常能获得更好的泛化结果。事实上，提前停止的效果与更传统的正则化方法（如 Tikhonov 回归）非常相似。两种方法都试图直接抑制最小特征值的分量，只是采用了不同的谱衰减方式。2 但提前停止有一个显著优势。一旦步长选定，就不再需要调整任何正则化参数。事实上，在单次优化过程中，我们拥有从欠拟合到过拟合的整个模型族。这个礼物似乎不需要付出代价。真是一顿美丽的免费午餐 [7]。</p>
       
     
       
-        <h2>动量法的动力学</h2>
+        <h2>动量的动力学</h2>
         
       
     
       
-        <p>让我们把注意力转回动量法。回忆动量更新式为</p>
+        <p>让我们把注意力转回动量。回想一下动量更新式为</p>
       
     
       
@@ -619,9 +523,7 @@
       
     
       
-        <p>由于
-
-<span class="math-inline" data-math="\nabla f(w^k) = Aw^k - b">\nabla f(w^k) = Aw^k - b</span>，在二次函数上的更新为</p>
+        <p>由于<span class="math-inline" data-math="\nabla f(w^k) = Aw^k - b">\nabla f(w^k) = Aw^k - b</span>，在二次函数上的更新为</p>
       
     
       
@@ -639,13 +541,9 @@
       
     
       
-        <p>按照 [8] 的做法，我们进行同样的操作，做基变换
-
-<span class="math-inline" data-math="
+        <p>跟随 [8] 的做法，我们进行同样的操作，通过基变换<span class="math-inline" data-math="
   x^{k} = Q(w^{k} - w^\star)">
-  x^{k} = Q(w^{k} - w^\star)</span> 和
-
-<span class="math-inline" data-math=" y^{k} = Qz^{k}"> y^{k} = Qz^{k}</span>，得到更新规则</p>
+  x^{k} = Q(w^{k} - w^\star)</span>和<span class="math-inline" data-math=" y^{k} = Qz^{k}"> y^{k} = Qz^{k}</span>，得到更新规则</p>
       
     
       
@@ -663,11 +561,7 @@
       
     
       
-        <p>其中每个分量都独立于其他分量作用（尽管
-
-<span class="math-inline" data-math="x^k_i">x^k_i</span> 和
-
-<span class="math-inline" data-math="y^k_i">y^k_i</span> 是耦合的）。这让我们可以将迭代写成
+        <p>其中每个分量都独立于其他分量（尽管<span class="math-inline" data-math="x^k_i">x^k_i</span>和<span class="math-inline" data-math="y^k_i">y^k_i</span>是耦合的）。这让我们可以将迭代重写为
 
   3</p>
       
@@ -703,17 +597,7 @@
       
     
       
-        <p>将一个矩阵提升到
-
-<span class="math-inline" data-math="k^{th}">k^{th}</span> 次方的方法有很多。但对于
-
-<span class="math-inline" data-math="2 \times 2">2 \times 2</span> 情形，存在一个优雅且鲜为人知的用
-
-<span class="math-inline" data-math="R">R</span>、
-
-<span class="math-inline" data-math="\sigma_1">\sigma_1</span> 和
-
-<span class="math-inline" data-math="\sigma_2">\sigma_2</span> 特征值表示的公式 [9]。</p>
+        <p>将矩阵提升到<span class="math-inline" data-math="k^{th}">k^{th}</span>次方有许多方法。但对于<span class="math-inline" data-math="2 \times 2">2 \times 2</span>的情况，存在一个优美且鲜为人知的、用<span class="math-inline" data-math="R">R</span>、<span class="math-inline" data-math="\sigma_1">\sigma_1</span>和<span class="math-inline" data-math="\sigma_2">\sigma_2</span>的特征值表示的公式 [9]。</p>
       
     
       
@@ -731,26 +615,12 @@
       
     
       
-        <p>这个公式相当复杂，但关键在于它扮演了与梯度下降中单个收敛速率
-
-<span class="math-inline" data-math="1-\alpha\lambda_i">1-\alpha\lambda_i</span> 完全相同的角色。只不过我们不再只有一个几何级数，而是有两个相互耦合的级数，它们可能取实数值或复数值。因此收敛速率是两个速率中较慢的那一个，
-
-<span class="math-inline" data-math="\max\{|\sigma_{1}|,|\sigma_{2}|\}">\max\{|\sigma_{1}|,|\sigma_{2}|\}</span>
-4。通过将其画出来，我们可以看到参数空间中存在明显不同的区域，展现出丰富的收敛行为分类 [10]：</p>
+        <p>这个公式相当复杂，但要点在于，它扮演了与梯度下降中单个收敛速率<span class="math-inline" data-math="1-\alpha\lambda_i">1-\alpha\lambda_i</span>完全相同的角色。只不过我们不再只有一个几何级数，而是有两个耦合的级数，它们可能取实数值或复数值。因此收敛速率是两者中最慢的那个速率<span class="math-inline" data-math="\max\{|\sigma_{1}|,|\sigma_{2}|\}">\max\{|\sigma_{1}|,|\sigma_{2}|\}</span>
+4。通过将其画出来，我们看到参数空间存在不同的区域，揭示了丰富的收敛行为分类 [10]：</p>
       
     
       
-        <p>对于哪些
-
-<span class="math-inline" data-math="\alpha">\alpha</span> 和
-
-<span class="math-inline" data-math="\beta">\beta</span> 的取值，动量法会收敛？由于我们需要
-
-<span class="math-inline" data-math="\sigma_1">\sigma_1</span> 和
-
-<span class="math-inline" data-math="\sigma_2">\sigma_2</span> 都收敛，我们现在的收敛条件是
-
-<span class="math-inline" data-math="\max\{|\sigma_{1}|,|\sigma_{2}|\} &lt; 1">\max\{|\sigma_{1}|,|\sigma_{2}|\} &lt; 1</span>。可用的步长范围最终5为</p>
+        <p>对于哪些<span class="math-inline" data-math="\alpha">\alpha</span>和<span class="math-inline" data-math="\beta">\beta</span>的值，动量会收敛？由于我们需要<span class="math-inline" data-math="\sigma_1">\sigma_1</span>和<span class="math-inline" data-math="\sigma_2">\sigma_2</span>都收敛，我们的收敛条件现在变成<span class="math-inline" data-math="\max\{|\sigma_{1}|,|\sigma_{2}|\} &lt; 1">\max\{|\sigma_{1}|,|\sigma_{2}|\} &lt; 1</span>。可用的步长范围经计算 5 为</p>
       
     
       
@@ -758,9 +628,7 @@
       
     
       
-        <p>当
-
-<span class="math-inline" data-math="\beta = 0">\beta = 0</span> 时，我们就退化回之前的梯度下降结果。但请注意我们立刻获得的好处：动量法允许我们将步长提高一倍才开始发散。</p>
+        <p>当<span class="math-inline" data-math="\beta = 0">\beta = 0</span>时，我们就恢复了之前梯度下降的结果。但请注意我们立刻获得的好处：动量允许我们在发散前将步长提高一倍。</p>
       
     
       
@@ -769,51 +637,23 @@
       
     
       
-        <p>然而，真正的魔法发生在我们找到
-
-<span class="math-inline" data-math="\alpha">\alpha</span> 和
-
-<span class="math-inline" data-math="\beta">\beta</span> 的最佳平衡点时。我们先尝试对
-
-<span class="math-inline" data-math="\beta">\beta</span> 进行优化。</p>
+        <p>然而，真正的魔力发生在我们找到<span class="math-inline" data-math="\alpha">\alpha</span>和<span class="math-inline" data-math="\beta">\beta</span>的甜点时。让我们先尝试对<span class="math-inline" data-math="\beta">\beta</span>进行优化。</p>
       
     
       
-        <p>当
-
-<span class="math-inline" data-math="\alpha">\alpha</span> 较小时 [11]，动量法有一个有趣的物理解释：它是对阻尼谐振子的离散化。考虑一个在离散时间中运行的物理模拟（比如电子游戏）。</p>
+        <p>当<span class="math-inline" data-math="\alpha">\alpha</span>较小时 [11]，动量有一个有趣的物理解释：它是对阻尼谐振子的离散化。考虑一个在离散时间中运行的物理模拟（比如电子游戏）。</p>
       
     
       
-        <p>我们可以将这个方程拆开，看每个部分如何影响系统的动力学。这里我们针对
-
-<span class="math-inline" data-math="150">150</span> 次迭代，绘制粒子的速度（横轴）与位置（纵轴）的相图。</p>
+        <p>我们可以将这个方程拆开，看看每个分量如何影响系统的动态。这里我们针对<span class="math-inline" data-math="150">150</span>次迭代，在相图中画出粒子的速度（横轴）与其位置（纵轴）的关系。</p>
       
     
       
-        <p>这个系统最好想象成一个悬挂在弹簧上的重物。我们将重物向下拉一个单位，然后研究它回到平衡位置的路径。在这个类比中，弹簧是我们外力
-
-<span class="math-inline" data-math="\lambda_ix^k_i">\lambda_ix^k_i</span> 的来源，而平衡状态是位置
-
-<span class="math-inline" data-math="x^k_i">x^k_i</span> 和速度
-
-<span class="math-inline" data-math="y^k_i">y^k_i</span> 都为 0 的状态。
-
-<span class="math-inline" data-math="\beta">\beta</span> 的选择对回到平衡的速率有关键影响。</p>
+        <p>这个系统最好想象成一个挂在弹簧上的重物。我们把重物向下拉一个单位，然后研究它回到平衡位置时所遵循的路径。在这个类比中，弹簧是我们外力<span class="math-inline" data-math="\lambda_ix^k_i">\lambda_ix^k_i</span>的来源，而平衡状态是位置<span class="math-inline" data-math="x^k_i">x^k_i</span>和速度<span class="math-inline" data-math="y^k_i">y^k_i</span>都为 0 的状态。<span class="math-inline" data-math="\beta">\beta</span>的选择对回到平衡的速率有关键影响。</p>
       
     
       
-        <p><span class="math-inline" data-math="\beta = (1 - \sqrt{\alpha \lambda_i})^2">\beta = (1 - \sqrt{\alpha \lambda_i})^2</span> 的临界值给我们一个在特征空间
-
-<span class="math-inline" data-math="i">i</span> 中的收敛速率
-
-<span class="math-inline" data-math="1 - \sqrt{\alpha\lambda_i}.">1 - \sqrt{\alpha\lambda_i}.</span> 这是相对于梯度下降
-
-<span class="math-inline" data-math="1-\alpha\lambda_i">1-\alpha\lambda_i</span> 的平方根改进！可惜，这只适用于
-
-<span class="math-inline" data-math="i^{th}">i^{th}</span> 特征空间的误差，而
-
-<span class="math-inline" data-math="\alpha">\alpha</span> 是固定的。</p>
+        <p><span class="math-inline" data-math="\beta = (1 - \sqrt{\alpha \lambda_i})^2">\beta = (1 - \sqrt{\alpha \lambda_i})^2</span>的临界值给我们带来了在特征空间<span class="math-inline" data-math="i">i</span>中的收敛速率<span class="math-inline" data-math="1 - \sqrt{\alpha\lambda_i}.">1 - \sqrt{\alpha\lambda_i}.</span>，这是对梯度下降<span class="math-inline" data-math="1-\alpha\lambda_i">1-\alpha\lambda_i</span>的平方根改进！可惜，这只适用于<span class="math-inline" data-math="i^{th}">i^{th}</span>特征空间中的误差，而<span class="math-inline" data-math="\alpha">\alpha</span>是固定的。</p>
       
     
       
@@ -822,11 +662,7 @@
       
     
       
-        <p>要得到全局收敛速率，我们必须同时对
-
-<span class="math-inline" data-math="\alpha">\alpha</span> 和
-
-<span class="math-inline" data-math="\beta">\beta</span> 进行优化。这是一个更复杂的问题，6 但最终结果是</p>
+        <p>要得到全局收敛速率，我们必须同时对<span class="math-inline" data-math="\alpha">\alpha</span>和<span class="math-inline" data-math="\beta">\beta</span>进行优化。这是一个更复杂的问题，6 但最终结果是</p>
       
     
       
@@ -842,25 +678,11 @@
       
     
       
-        <p>只需多一点点努力，我们就基本上对条件数取了平方根！原则上，这些增益需要显式知道
-
-<span class="math-inline" data-math="\lambda_1">\lambda_1</span> 和
-
-<span class="math-inline" data-math="\lambda_n">\lambda_n</span>。但这些公式揭示了一个简单的指导原则。当问题病态程度严重时，最优
-
-<span class="math-inline" data-math="\alpha">\alpha</span> 大约是梯度下降的两倍，而动量项接近
-
-<span class="math-inline" data-math="1">1</span>。因此将
-
-<span class="math-inline" data-math="\beta">\beta</span> 设置得尽可能接近
-
-<span class="math-inline" data-math="1">1</span>，然后找到仍然能收敛的最大
-
-<span class="math-inline" data-math="\alpha">\alpha</span>。像梯度下降一样，处于发散的临界边缘，是一个很好的位置。</p>
+        <p>几乎不需要多花多少力气，我们就基本把条件数开方了！这些增益原则上需要显式知道<span class="math-inline" data-math="\lambda_1">\lambda_1</span>和<span class="math-inline" data-math="\lambda_n">\lambda_n</span>。但这些公式揭示了一个简单的指导原则。当问题的条件数很差时，最优的<span class="math-inline" data-math="\alpha">\alpha</span>大约是梯度下降的两倍，而动量项接近<span class="math-inline" data-math="1">1</span>。所以把<span class="math-inline" data-math="\beta">\beta</span>设得尽量接近<span class="math-inline" data-math="1">1</span>，然后找到仍然能收敛的最大<span class="math-inline" data-math="\alpha">\alpha</span>。像梯度下降一样，处于发散的边缘，是一个很好的位置。</p>
       
     
       
-        <p>虽然梯度下降的损失函数呈现出优雅的单调曲线，但使用动量法的优化则表现出明显的振荡。这些波动并不仅限于二次函数，在实践中各种函数上都会出现。它们不是报警信号，而是表明需要对超参数进行额外调优。</p>
+        <p>虽然梯度下降的损失函数呈现出优雅的单调曲线，但使用动量的优化则表现出明显的振荡。这些波动并不局限于二次函数，在实际的各种函数中都会出现。它们不是需要警报的信号，而是表明需要对超参数进行额外调优。</p>
       
     
       
@@ -869,19 +691,11 @@
       
     
       
-        <p>让我们通过一个具体例子来看动量法如何加速收敛。在像素网格上，设
-
-<span class="math-inline" data-math="G">G</span> 是以像素为顶点的图，
-
-<span class="math-inline" data-math="E">E</span> 是连接每个像素与其四个相邻像素的边集，
-
-<span class="math-inline" data-math="D">D</span> 是少量被选中的特殊顶点。考虑最小化以下目标的问题</p>
+        <p>让我们通过一个具体例子来看动量如何加速收敛。在像素网格上，设<span class="math-inline" data-math="G">G</span>为以像素为顶点的图，<span class="math-inline" data-math="E">E</span>为连接每个像素与其四个邻居的边的集合，<span class="math-inline" data-math="D">D</span>为一小部分特殊顶点。考虑最小化以下目标的问题</p>
       
     
       
-        <p>这个问题的最优解是一个全为
-
-<span class="math-inline" data-math="1">1</span> 的向量。7 观察梯度迭代可以明白为什么我们需要很长时间才能到达那里。对每个分量而言，梯度步是当前值与其邻居的某种加权平均：</p>
+        <p>这个问题的最优解是一个全<span class="math-inline" data-math="1">1</span>的向量 7。对梯度迭代的观察表明了我们为什么需要很长时间才能到达那里。对于每个分量，梯度步都是当前值与其邻居的某种加权平均：</p>
       
     
       
@@ -899,41 +713,33 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <p>这种局部平均善于平滑像素的局部变化，但不善于利用全局结构。更新类似于一滴墨水在水中扩散。向平衡的移动仅通过局部修正实现，因此如果不受干扰，它迈向解的步伐会缓慢而费力。幸运的是，动量法能显著加快这一过程。</p>
+        <p>这种局部平均善于平滑像素的局部变化，但不擅长利用全局结构。更新类似于一滴墨水在水中扩散。向平衡的移动仅通过局部修正实现，因此如果不受干扰，它迈向解的步伐会缓慢而费力。幸运的是，动量能显著加快这个过程。</p>
       
     
       
-        <p>用向量形式表示，着色问题为</p>
+        <p>用向量化形式表示，着色问题为</p>
       
     
       
-        <p>拉普拉斯矩阵
-
-<span class="math-inline" data-math="L_G">L_G</span>
-8 主导了优化问题的行为，它是连接线性代数与图论的宝贵桥梁。这是一个丰富的研究领域，但有一个事实与我们的讨论直接相关。
-
-<span class="math-inline" data-math="L_G">L_G</span> 的条件数（这里定义为第二个特征向量与最后一个特征向量的比值，因为第一个特征值永远是 0，对应的特征向量是全 1 矩阵）与图的连通性直接相关。</p>
+        <p>Laplacian 矩阵<span class="math-inline" data-math="L_G">L_G</span>
+8 主导了优化问题的行为，它是连接线性代数和图论的宝贵桥梁。这是一个丰富的研究领域，但有一个事实与我们这里的讨论直接相关。<span class="math-inline" data-math="L_G">L_G</span>的条件数（这里定义为第二个特征向量与最后一个特征向量的比率——第一个特征值始终为 0，其特征向量是全 1 矩阵）与图的连通性直接相关。</p>
       
     
       
-        <p>这些观察同样适用于着色问题，其背后的直观意义应该很清楚。连通性好的图允许信息通过边快速扩散，而连通性差的图则做不到。将这一原理推向极端，就会产生一类极难优化的函数，它们揭示了 一阶优化方法的极限。</p>
+        <p>这些观察同样适用于着色问题，其背后的直观意义应该很清楚。连通性好的图允许信息通过边快速扩散，而连通性差的图则做不到。当把这个原理推向极端时，就会产生一类极难优化的函数，它们揭示了 一阶优化方法的极限。</p>
       
     
       
-        <h2>下降方法的极限</h2>
+        <h2>下降的极限</h2>
         
       
     
       
-        <p>让我们退后一步。通过一个巧妙的技巧，我们引入一个辅助序列，就将梯度下降的收敛速度提高了二次因子。但这是我们能做到的最好结果吗？用两个序列能否进一步改进收敛？能否智能地、自适应地选择
-
-<span class="math-inline" data-math="\alpha">\alpha</span> 和
-
-<span class="math-inline" data-math="\beta">\beta</span>？我们很容易顺着这股乐观的浪潮继续前进——直到立方根甚至更远！</p>
+        <p>让我们退后一步。我们通过一个巧妙的技巧，引入一个辅助序列，就将梯度下降的收敛速度提高了二次因子。但这是我们能做到的最好程度吗？用两个序列能否进一步改进收敛？是否可以智能地、自适应地选择<span class="math-inline" data-math="\alpha">\alpha</span>和<span class="math-inline" data-math="\beta">\beta</span>？人们很容易顺着这股乐观的浪潮继续前进——直到立方根甚至更远！</p>
       
     
       
-        <p>不幸的是，虽然动量算法的改进确实存在，但它们都会碰到某个关键的、几乎无法回避的下界。</p>
+        <p>不幸的是，虽然对动量算法的改进确实存在，但它们都碰到了某个关键的、几乎无法逃脱的下界。</p>
       
     
       
@@ -942,7 +748,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <p>要理解我们能做什么的极限，首先必须形式化定义我们正在搜索的算法空间。这里是一种可能的定义。我们将要做的观察是，梯度下降和动量法都可以“展开”。事实上，由于</p>
+        <p>要理解我们能做什么的极限，必须先形式化地定义我们正在搜索的算法空间。下面是一种可能的定义。我们将要指出的观察是，梯度下降和动量都可以被“展开”（unrolled）。确实，由于</p>
       
     
       
@@ -980,7 +786,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <p>对动量法也可以做类似的技巧：</p>
+        <p>对动量也可以做类似的技巧：</p>
       
     
       
@@ -992,7 +798,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <p>事实上，各种一阶算法，包括共轭梯度法、AdaMax、平均梯度等等，都可以（虽然不那么整齐）用这种展开形式写出来。因此满足</p>
+        <p>事实上，所有类型的一阶算法，包括共轭梯度法、AdaMax、平均梯度等等，都可以用这种展开形式写出来（虽然不一定这么整洁）。因此，对于满足</p>
       
     
       
@@ -1004,7 +810,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <p>的算法类包含动量法、梯度下降以及你可能想到的其他许多算法。这正是 Nesterov 的 Assumption 2.1.4 [5] 所假设的内容。但让我们更进一步，将这个类扩展到允许不同方向使用不同步长的情况。</p>
+        <p>的算法类，它包含了动量、梯度下降以及你可能想到的许多其他算法。这正是 Nesterov 的 Assumption 2.1.4 [5] 中所假设的内容。但让我们再推进一步，将这个类扩展到允许不同方向使用不同步长的情况。</p>
       
     
       
@@ -1016,20 +822,20 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <p>这类方法涵盖了训练神经网络的大多数流行算法，包括 ADAM 和 AdaGrad。我们将这类方法称为“线性一阶方法”，并将展示一个所有这些方法最终都会失效的函数。</p>
+        <p>这类方法涵盖了训练神经网络的大多数流行算法，包括 ADAM 和 AdaGrad。我们将这类方法称为“线性一阶方法”，并将展示一个所有这些方法最终都会失败的函数。</p>
       
     
       
-        <h3>抵抗型预言机</h3>
+        <h3>抵抗性预言机</h3>
         
       
     
       
-        <p>早前讨论着色问题时，我们观察到细长的图会导致优化问题病态严重。将这一思想推向极端，我们可以考察一个仅由单条路径构成的图——一个病态程度如此严重以至于 Nesterov 将其变体称为“世界上最糟糕的函数”。这个函数与着色问题有相同结构，我们称之为凸 Rosenbrock 函数，</p>
+        <p>早先在讨论着色问题时，我们观察到线状图会导致优化问题的病态条件数。将其推向极端，我们可以考察一个只由单条路径组成的图——一个条件数极差的函数，以至于 Nesterov 把它的一个变体称为“世界上最糟糕的函数”。这个函数遵循与着色问题相同的结构，我们称之为凸 Rosenbrock 函数，</p>
       
     
       
-        <p>这个问题的最优解是</p>
+        <p>该问题的最优解是</p>
       
     
       
@@ -1041,19 +847,11 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <p>且随着
-
-<span class="math-inline" data-math="n">n</span> 趋于无穷，问题的条件数
-
-<span class="math-inline" data-math="f^n">f^n</span> 会接近
-
-<span class="math-inline" data-math="\kappa">\kappa</span>。现在观察动量法在这个函数上的行为，从
-
-<span class="math-inline" data-math="w^0 = 0">w^0 = 0</span> 开始。</p>
+        <p>且当<span class="math-inline" data-math="n">n</span>趋于无穷时，问题的条件数<span class="math-inline" data-math="f^n">f^n</span>接近<span class="math-inline" data-math="\kappa">\kappa</span>。现在观察动量算法在这个函数上从<span class="math-inline" data-math="w^0 = 0">w^0 = 0</span>开始的行为。</p>
       
     
       
-        <p>上面图中的观察对任何线性一阶算法都成立。让我们来证明这一点。首先注意梯度的每个分量只依赖于它前面和后面的值：</p>
+        <p>上图中得出的观察对任何线性一阶算法都成立。让我们来证明这一点。首先注意，梯度的每个分量只依赖于它前后紧邻的数值：</p>
       
     
       
@@ -1065,7 +863,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <p>因此我们从 0 开始这一事实保证了该分量会顽固地保持为 0，直到它前面或后面的某个元素变为非零。因此，通过归纳，对任意线性一阶算法，</p>
+        <p>因此我们从 0 开始这一事实保证了该分量会顽固地保持为 0，直到它前面或后面的某个元素变为非零。因此，通过归纳，对任何线性一阶算法，</p>
       
     
       
@@ -1089,13 +887,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <p>可以将这一限制想象成信息传递的“光速”。误差信号从
-
-<span class="math-inline" data-math="w_0">w_0</span> 移动到
-
-<span class="math-inline" data-math="w_k">w_k</span> 至少需要
-
-<span class="math-inline" data-math="k">k</span> 步。因此我们可以把那些还不可能改变的误差累加起来：9</p>
+        <p>可以把这个限制想象成信息传递的“光速”。误差信号从<span class="math-inline" data-math="w_0">w_0</span>移动到<span class="math-inline" data-math="w_k">w_k</span>至少需要<span class="math-inline" data-math="k">k</span>步。因此我们可以把那些还不可能改变的误差加起来 9：</p>
       
     
       
@@ -1111,54 +903,42 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <p>随着
-
-<span class="math-inline" data-math="n">n</span> 变大，
-
-<span class="math-inline" data-math="f^n">f^n</span> 的条件数接近
-
-<span class="math-inline" data-math="\kappa">\kappa</span>。差距因此消失：动量法所承诺的收敛速率与任何线性一阶算法能达到的最好速率一致。我们得出了令人失望的结论：在该问题上，我们无法做得更好。</p>
+        <p>随着<span class="math-inline" data-math="n">n</span>变大，<span class="math-inline" data-math="f^n">f^n</span>的条件数接近<span class="math-inline" data-math="\kappa">\kappa</span>。因此差距缩小了：动量承诺的收敛速率与任何线性一阶算法能达到的最佳速率一致。我们得出了令人失望的结论：在这个问题上，我们无法做得更好。</p>
       
     
       
-        <p>和许多这类下界一样，这个结果不应被字面理解，而应从精神上理解。它或许给我们的探究带来了一种完结感和终结感。但这并非一阶优化的最终定论。例如，这个下界并不排除通过重新构造问题来改变条件数本身的可能性！如果你知道该往哪里看，仍然有大量加速的空间。</p>
+        <p>和许多这样的下界一样，这个结果不应被字面理解，而应从精神上理解。它或许为我们的探究带来了一种完结感和终结感。但这并不是一阶优化的最终结论。这个下界并不排除例如通过重构问题来改变条件数本身的可能性！如果你知道该往哪里看，仍然有大量加速的空间。</p>
       
     
       
-        <h2>随机梯度下的动量法</h2>
+        <h2>带随机梯度的动量</h2>
         
       
     
       
-        <p>最后还有一点值得讨论。以上所有讨论都假设我们可以获得真实梯度——这是现代机器学习中很少能享有的奢侈。计算精确梯度需要对所有数据进行完整遍历，其代价可能高得令人望而却步。因此，人们常用梯度的随机近似，例如小批量采样，来替代
-
-<span class="math-inline" data-math="\nabla f(w)">\nabla f(w)</span>。我们可以将这个近似写成两部分，</p>
+        <p>最后还有一点值得讨论。上面所有的讨论都假设我们可以获得真实梯度——这是现代机器学习中很少能享受到的奢侈。计算精确梯度需要对所有数据做一次完整遍历，其代价可能高得令人望而却步。取而代之的是，随机近似的梯度（如小批量采样）经常被用作<span class="math-inline" data-math="\nabla f(w)">\nabla f(w)</span>的即插即用替代。我们可以将这个近似写成两部分，</p>
       
     
       
-        <p>把我们的近似梯度想象成向迭代中注入一种特殊噪声会很有帮助。利用前几节发展的工具，我们可以直接处理这个额外项。在二次函数上，误差项可以干净地分离成一个独立项，其中 10</p>
+        <p>把我们的近似梯度想象成向迭代中注入一种特殊噪声会很有帮助。利用前几节开发的工具，我们可以直接处理这个额外项。在二次函数上，误差项会干净地分离成一个单独的项，其中 10</p>
       
     
       
-        <p>误差项
-
-<span class="math-inline" data-math="\epsilon^k">\epsilon^k</span> 由于依赖于
-
-<span class="math-inline" data-math="w^k">w^k</span>，是一个相当棘手的对象。按照 [10] 的做法，我们将其建模为独立的零均值高斯噪声。在这个简化模型中，目标也可以分解为两个可分离的部分：确定性误差与随机误差之和
+        <p>误差项<span class="math-inline" data-math="\epsilon^k">\epsilon^k</span>由于依赖于<span class="math-inline" data-math="w^k">w^k</span>，是一个相当棘手的对象。跟随 [10] 的做法，我们将其建模为独立的零均值高斯噪声。在这个简化模型中，目标函数也分解为两个可分离的部分：确定性误差与随机误差之和
      11，如图所示。</p>
       
     
       
-        <p>请注意，存在一系列不幸的权衡，似乎让两种误差相互对立。例如，减小步长会降低随机误差，但也会减慢收敛速率。而增加动量，与普遍看法相反，会导致误差累积。尽管存在这些不良性质，带动量的随机梯度下降在神经网络上仍被证明具有竞争力。正如 [1] 所观察到的，在机器学习中，瞬态阶段似乎比微调阶段更重要。事实上，最近有人提出 [12] 这种噪声其实是好事——它起到隐式正则化器的作用，像早停一样，防止在优化的微调阶段出现过拟合。</p>
+        <p>请注意，存在一系列不幸的权衡，似乎让两种误差分量相互对立。例如，减小步长会降低随机误差，但也会减慢收敛速率。而增加动量，与普遍看法相反，会导致误差累积。尽管有这些不良特性，带动量的随机梯度下降仍然在神经网络上展现出了有竞争力的性能。正如 [1] 所观察到的，在机器学习中，瞬态阶段似乎比微调阶段更重要。事实上，最近有人提出 [12]，这种噪声其实是好事——它充当了一种隐式正则化器，就像提前停止一样，能防止在优化微调阶段出现过拟合。</p>
       
     
       
-        <h2>继续前行，向下探索</h2>
+        <h2>继续前进，向下探索</h2>
         
       
     
       
-        <p>加速方法的研究目前在优化社区正经历小小的复兴。如果你被本文中的想法所激发，你可能会想阅读 [13]，它全面探讨了将动量法视为某种微分方程离散化的思想。但也存在其他不那么物理的解释。从逼近多项式的角度存在动量法的代数解释 [3, 14]。几何解释正在涌现 [15, 16]，将动量法与更早的方法（如 Ellipsoid 方法）联系起来。最后，还有将动量法与对偶性联系起来的解释 [17]，或许能为加速二阶方法和拟牛顿法提供线索（初步工作可参见 [18]）。但就像寓言中摸象的盲人一样，动量法似乎比其各部分之和更为宏大。希望在不远的将来，众多视角能够汇聚成一个令人满意的整体。</p>
+        <p>加速方法的研究在优化社区中正在经历小小的复兴。如果本文的想法让你兴奋，你可能想读一读 [13]，它全面探讨了将动量视为某种微分方程离散化的思想。但也存在其他不那么物理的解释。从代数角度，可以将动量理解为逼近多项式 [3, 14]。几何解释也正在出现 [15, 16]，将动量与更早的方法（如 Ellipsoid 方法）联系起来。最后，还有将动量与对偶性联系起来的解释 [17]，这或许为如何加速二阶方法和 Quasi-Newton 方法提供了线索（初步工作见 [18]）。但就像寓言中摸象的盲人一样，动量似乎比其各部分的总和还要大。希望在不久的将来，各种视角能汇聚成一个令人满意的整体。</p>
       
     
       
@@ -1167,11 +947,11 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <p>我深深感谢 Shan Carter 和 Chris Olah 在编辑上的贡献，没有他们这篇文章将会逊色许多。Shan Carter 重新设计了我许多原始的交互式组件，为所有图表提供了视觉一致性，并对页面的性能进行了宝贵的优化。Chris Olah 在所有细节和抽象层次上都提供了无懈可击的编辑反馈——从内容结构到方程的对齐。</p>
+        <p>我深深感谢 Shan Carter 和 Chris Olah 的编辑贡献，没有他们，这篇文章将大为失色。Shan Carter 重新设计了我许多最初的交互组件，为所有图表提供了视觉一致性，并对页面的性能进行了宝贵的优化。Chris Olah 在所有细节和抽象层次上都提供了无可挑剔的编辑反馈——从内容结构到方程的对齐。</p>
       
     
       
-        <p>我也要感谢 Michael Nielsen 为本文提供的标题，它真正将整篇文章凝聚在一起。Marcos Ginestra 为本文最早的草稿提供了编辑意见，并在最需要的时候给予了精神鼓励。我还要感谢我的审稿人 Matt Hoffman 和匿名审稿人 B，他们的敏锐观察和批评。特别要感谢审稿人 B，他指出了原稿中的两个非平凡错误（讨论见 <a href="https://github.com/distillpub/post--momentum/issues/34" target="_blank" rel="noopener">此处</a>）。英雄图的可视化等高线绘制库是 Ben Frederickson、Jeff Heer 和 Mike Bostock 的共同作品。</p>
+        <p>我还要感谢 Michael Nielsen 为本文提供的标题，它真正把整篇文章串联在了一起。Marcos Ginestra 为本文最早的草稿提供了编辑意见，并在最需要的时候给予了精神鼓励。我也要感谢我的审稿人 Matt Hoffman 和匿名审稿人 B，感谢他们敏锐的观察和批评。我要特别感谢审稿人 B，指出了原稿中的两个非平凡错误（讨论见 <a href="https://github.com/distillpub/post--momentum/issues/34" target="_blank" rel="noopener">这里</a>）。英雄图可视化所使用的等高线绘制库是 Ben Frederickson、Jeff Heer 和 Mike Bostock 的共同成果。</p>
       
     
       
@@ -1184,9 +964,9 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <p><a href="https://github.com/distillpub/post--momentum/issues/29" target="_blank" rel="noopener">审稿人 A - Matt Hoffman</a>
-<a href="https://github.com/distillpub/post--momentum/issues/34" target="_blank" rel="noopener">审稿人 B - 匿名</a>
-<a href="https://github.com/distillpub/post--momentum/issues/51" target="_blank" rel="noopener">与用户 derifatives 的讨论</a></p>
+        <p><a href="https://github.com/distillpub/post--momentum/issues/29" target="_blank" rel="noopener">Reviewer A - Matt Hoffman</a>
+<a href="https://github.com/distillpub/post--momentum/issues/34" target="_blank" rel="noopener">Reviewer B - Anonymous</a>
+<a href="https://github.com/distillpub/post--momentum/issues/51" target="_blank" rel="noopener">Discussion with User derifatives</a></p>
       
     
       
@@ -1195,7 +975,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <div class="list-content">然而，在凸函数上也可以构造非常特定的反例，使得动量法不收敛。参见 [4] 中的反例。在 Tikhonov 回归中，我们给回归加上二次惩罚，最小化</div>
+        <div class="list-content">然而，在凸函数上也可能构造出非常特定的反例，使得动量不收敛。见 [4] 中的反例。在 Tikhonov 回归中，我们给回归增加一个二次惩罚，最小化</div>
       
     
       
@@ -1207,9 +987,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <div class="list-content">回忆
-
-<span class="math-inline" data-math="Z^{T}Z=Q\ \text{diag}(\Lambda_{1},\ldots,\Lambda_{n})\ Q^T">Z^{T}Z=Q\ \text{diag}(\Lambda_{1},\ldots,\Lambda_{n})\ Q^T</span>。因此 Tikhonov 回归的解为</div>
+        <div class="list-content">回想<span class="math-inline" data-math="Z^{T}Z=Q\ \text{diag}(\Lambda_{1},\ldots,\Lambda_{n})\ Q^T">Z^{T}Z=Q\ \text{diag}(\Lambda_{1},\ldots,\Lambda_{n})\ Q^T</span>。因此 Tikhonov 回归的解为</div>
       
     
       
@@ -1221,7 +999,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <div class="list-content">我们可以将正则化想象成一个使最大特征值衰减的函数，如下所示：</div>
+        <div class="list-content">我们可以将正则化理解为一个使最大特征值衰减的函数，如下所示：</div>
       
     
       
@@ -1241,9 +1019,9 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <div class="list-content">而不是前者。请注意这个衰减依赖于步长。
+        <div class="list-content">而不是前者。请注意这个衰减取决于步长。
 
-  这是正确的，因为我们可以将更新写成矩阵形式</div>
+  这是成立的，因为我们可以将更新写成矩阵形式</div>
       
     
       
@@ -1279,7 +1057,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <div class="list-content">这意味着，通过对左边矩阵求逆，</div>
+        <div class="list-content">这意味着，通过对左边的矩阵求逆，</div>
       
     
       
@@ -1333,10 +1111,8 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <div class="list-content">当
-
-<span class="math-inline" data-math="(-\alpha\lambda+\beta+1)^{2}-4\beta&lt;0">(-\alpha\lambda+\beta+1)^{2}-4\beta&lt;0</span> 小于零时，
-根为复数，此时收敛速率为</div>
+        <div class="list-content">当<span class="math-inline" data-math="(-\alpha\lambda+\beta+1)^{2}-4\beta&lt;0">(-\alpha\lambda+\beta+1)^{2}-4\beta&lt;0</span>小于零时，
+根为复数，收敛速率为</div>
       
     
       
@@ -1352,9 +1128,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <div class="list-content">令人惊讶的是，这与步长或特征值
-
-<span class="math-inline" data-math="\alpha\lambda">\alpha\lambda</span> 无关。当根为实数时，收敛速率为</div>
+        <div class="list-content">这令人惊讶地与步长或特征值<span class="math-inline" data-math="\alpha\lambda">\alpha\lambda</span>无关。当根为实数时，收敛速率为</div>
       
     
       
@@ -1391,12 +1165,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
     
       
         <div class="list-content">（
-
-<span class="math-inline" data-math="\|\cdot \|">\|\cdot \|</span> 这里表示最大特征值的模）进行优化，并且当对应于极值特征值的矩阵的特征多项式根重复时取得最优。上述优化问题下界为
-
-<span class="math-inline" data-math="0">0</span>，全
-
-<span class="math-inline" data-math="1">1</span> 向量可以达到该界。这可以显式写成</div>
+<span class="math-inline" data-math="\|\cdot \|">\|\cdot \|</span>在这里表示最大特征值的模）进行优化，且当对应于极值特征值的矩阵的特征多项式根重复时发生。上述优化问题下界为<span class="math-inline" data-math="0">0</span>，全<span class="math-inline" data-math="1">1</span>向量可以达到该界。这个式子可以显式写为</div>
       
     
       
@@ -1408,7 +1177,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <div class="list-content">我们使用无穷范数来度量误差，对于 1-范数和 2-范数可以得到类似结果。
+        <div class="list-content">我们使用无穷范数来度量误差，对于 1-范数和 2-范数可以得到类似的结果。
   动量迭代为</div>
       
     
@@ -1427,7 +1196,7 @@ w_{i}^{k+1}=w_{i}^{k}-\alpha\sum_{j\in N}(w_{i}^{k}-w_{j}^{k})-\begin{cases}
       
     
       
-        <div class="list-content">经过变量变换后，变为</div>
+        <div class="list-content">经过变量替换后，变成</div>
       
     
       
@@ -1469,12 +1238,8 @@ x_{i}^{k}
       
     
       
-        <div class="list-content">对左边的
-
-<span class="math-inline" data-math="2 \times 2">2 \times 2</span> 矩阵求逆，并递归应用该公式即可得到最终解。
-  在一维函数
-
-<span class="math-inline" data-math="f(x)=\frac{\lambda}{2}x^{2}">f(x)=\frac{\lambda}{2}x^{2}</span> 上，目标值为</div>
+        <div class="list-content">对左边的<span class="math-inline" data-math="2 \times 2">2 \times 2</span>矩阵求逆，并递归应用该公式即可得到最终解。
+  在一维函数<span class="math-inline" data-math="f(x)=\frac{\lambda}{2}x^{2}">f(x)=\frac{\lambda}{2}x^{2}</span>上，目标函数值为</div>
       
     
       
@@ -1538,9 +1303,7 @@ x^{0}
       
     
       
-        <div class="list-content">第三个不等式利用了
-
-<span class="math-inline" data-math="\mathbf{E} \epsilon^k = 0">\mathbf{E} \epsilon^k = 0</span> 的事实，第四个不等式利用了它们不相关的性质。</div>
+        <div class="list-content">第三个不等式用到了<span class="math-inline" data-math="\mathbf{E} \epsilon^k = 0">\mathbf{E} \epsilon^k = 0</span>，第四个用到了它们不相关的性质。</div>
       
     
       
@@ -1558,20 +1321,20 @@ x^{0}
       
     
       
-        <p><a href="https://github.com/distillpub/post--momentum/compare/95506b079372cee3aa7fbc9bd29ee078aaff12e7...691048b9d00b4b49b830c602b970755781df332c" target="_blank" rel="noopener">查看本文自首次发表以来的所有修改</a>。如果你发现错误或想提出修改建议，请<a href="https://github.com/distillpub/post--momentum/issues/new" target="_blank" rel="noopener">在 GitHub 上创建 issue</a>。</p>
+        <p><a href="https://github.com/distillpub/post--momentum/compare/95506b079372cee3aa7fbc9bd29ee078aaff12e7...691048b9d00b4b49b830c602b970755781df332c" target="_blank" rel="noopener">查看本文自首次发布以来的所有修改</a>。如果你发现错误或想提出修改建议，请<a href="https://github.com/distillpub/post--momentum/issues/new" target="_blank" rel="noopener">在 GitHub 上创建一个 issue</a>。</p>
       
     
       
-        <h3>引用与复用</h3>
+        <h3>引用与重用</h3>
         
       
     
       
-        <p>图表和文字采用知识共享署名协议 <a href="https://creativecommons.org/licenses/by/2.0/" target="_blank" rel="noopener">CC-BY 2.0</a> 授权，除非另有说明，源代码可在 <a href="https://github.com/distillpub/post--momentum" target="_blank" rel="noopener">GitHub</a> 获取。从其他来源复用的图表不属于此协议，可通过其说明文字中的“Figure from …”加以识别。</p>
+        <p>图表和文字采用知识共享署名许可 <a href="https://creativecommons.org/licenses/by/2.0/" target="_blank" rel="noopener">CC-BY 2.0</a>，除非另有说明，源代码可在 <a href="https://github.com/distillpub/post--momentum" target="_blank" rel="noopener">GitHub</a> 上获取。从其他来源重用的图表不属于此许可，可通过其说明文字中的注释“Figure from …”识别。</p>
       
     
       
-        <p>在学术语境中引用本文时，请按以下格式引用</p>
+        <p>在学术引用中，请这样引用本文</p>
       
     
       
@@ -1591,10 +1354,6 @@ x^{0}
   url = {http://distill.pub/2017/momentum},
   doi = {10.23915/distill.00006}
 }</code></pre>
-      
-    
-      
-        <p>图像渲染队列</p>
       
     
       
@@ -1986,7 +1745,7 @@ x^{0}
       
     
       
-        <p>然而，在凸函数上也可以构造非常特定的反例，使得动量法不收敛。参见</p>
+        <p>然而，也可能构造出非常特定的反例，使得动量即使在凸函数上也不收敛。参见</p>
       
     
       
@@ -1998,7 +1757,7 @@ x^{0}
       
     
       
-        <p>在 Tikhonov 回归中，我们给回归加上二次惩罚，最小化</p>
+        <p>在 Tikhonov 回归中，我们给回归增加一个二次惩罚，最小化</p>
       
     
       
@@ -2010,7 +1769,7 @@ x^{0}
       
     
       
-        <p>回忆</p>
+        <p>回想</p>
       
     
       
@@ -2030,7 +1789,7 @@ x^{0}
       
     
       
-        <p>我们可以将正则化想象成一个使最大特征值衰减的函数，如下所示：</p>
+        <p>我们可以将正则化理解为一个使最大特征值衰减的函数，如下所示：</p>
       
     
       
@@ -2050,11 +1809,11 @@ x^{0}
       
     
       
-        <p>而不是前者。请注意这个衰减依赖于步长。</p>
+        <p>而不是前者。请注意这个衰减取决于步长。</p>
       
     
       
-        <p>这是正确的，因为我们可以将更新写成矩阵形式</p>
+        <p>这是成立的，因为我们可以将更新写成矩阵形式</p>
       
     
       
@@ -2090,7 +1849,7 @@ x^{0}
       
     
       
-        <p>这意味着，通过对左边矩阵求逆，</p>
+        <p>这意味着，通过对左边的矩阵求逆，</p>
       
     
       
@@ -2153,7 +1912,7 @@ x^{0}
     
       
         <p>小于零时，
-根为复数，此时收敛速率为</p>
+根为复数，收敛速率为</p>
       
     
       
@@ -2169,7 +1928,7 @@ x^{0}
       
     
       
-        <p>令人惊讶的是，这与步长或特征值</p>
+        <p>这令人惊讶地与步长或特征值</p>
       
     
       
@@ -2221,7 +1980,7 @@ x^{0}
       
     
       
-        <p>这里表示最大特征值的模）进行优化，并且当对应于极值特征值的矩阵的特征多项式根重复时取得最优。</p>
+        <p>这里表示最大特征值的模）进行优化，且当对应于极值特征值的矩阵的特征多项式根重复时发生。</p>
       
     
       
@@ -2233,7 +1992,7 @@ x^{0}
       
     
       
-        <p>，全</p>
+        <p>，且全</p>
       
     
       
@@ -2245,7 +2004,7 @@ x^{0}
       
     
       
-        <p>这可以显式写成</p>
+        <p>这个式子可以显式写为</p>
       
     
       
@@ -2257,7 +2016,7 @@ x^{0}
       
     
       
-        <p>我们使用无穷范数来度量误差，对于 1-范数和 2-范数可以得到类似结果。</p>
+        <p>我们使用无穷范数来度量误差，对于 1-范数和 2-范数可以得到类似的结果。</p>
       
     
       
@@ -2279,7 +2038,7 @@ x^{0}
       
     
       
-        <p>经过变量变换后，变为</p>
+        <p>经过变量替换后，变成</p>
       
     
       
@@ -2341,7 +2100,7 @@ x_{i}^{k}
       
     
       
-        <p>上，目标值为</p>
+        <p>上，目标函数值为</p>
       
     
       
@@ -2405,7 +2164,7 @@ x^{0}
       
     
       
-        <p>第三个不等式利用了</p>
+        <p>第三个不等式用到了</p>
       
     
       
@@ -2413,7 +2172,7 @@ x^{0}
       
     
       
-        <p>的事实，第四个不等式利用了它们不相关的性质。</p>
+        <p>，第四个用到了它们不相关的性质。</p>
       
     
       

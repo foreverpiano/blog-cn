@@ -73,19 +73,15 @@ VAE + Flows
       
     
       
-        <p>在这篇文章中，我们来探讨第三类生成模型：基于流的生成模型。与 GAN 和 VAE 不同，它们显式地学习输入数据的概率密度函数。</p>
+        <p>目前我已经介绍了两种生成模型，<a href="posts-2017-08-20-gan.html">从 GAN 到 WGAN</a> 和 <a href="posts-2018-08-12-vae.html">从自编码器到 Beta-VAE</a>。它们都没有显式地学习真实数据的概率密度函数 <span class="math-inline" data-math="p(\mathbf{x})">p(\mathbf{x})</span>（其中 <span class="math-inline" data-math="\mathbf{x} \in \mathcal{D}">\mathbf{x} \in \mathcal{D}</span>）——因为这非常困难！以带有潜变量的生成模型为例，<span class="math-inline" data-math="p(\mathbf{x}) = \int p(\mathbf{x}\vert\mathbf{z})p(\mathbf{z})d\mathbf{z}">p(\mathbf{x}) = \int p(\mathbf{x}\vert\mathbf{z})p(\mathbf{z})d\mathbf{z}</span> 几乎无法计算，因为遍历所有可能的潜码 <span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 是不可行的。</p>
       
     
       
-        <p>目前为止，我已经介绍了两种生成模型，<a href="posts-2017-08-20-gan.html">从 GAN 到 WGAN</a> 和 <a href="posts-2018-08-12-vae.html">从自编码器到 Beta-VAE</a>。它们都没有显式地学习真实数据的概率密度函数 <span class="math-inline" data-math="p(\mathbf{x})">p(\mathbf{x})</span>（其中 <span class="math-inline" data-math="\mathbf{x} \in \mathcal{D}">\mathbf{x} \in \mathcal{D}</span>）——因为这非常困难！以带有潜变量的生成模型为例，<span class="math-inline" data-math="p(\mathbf{x}) = \int p(\mathbf{x}\vert\mathbf{z})p(\mathbf{z})d\mathbf{z}">p(\mathbf{x}) = \int p(\mathbf{x}\vert\mathbf{z})p(\mathbf{z})d\mathbf{z}</span> 几乎无法计算，因为遍历所有可能的潜码 <span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 是不可行的。</p>
+        <p>基于流的深度生成模型借助 <a href="https://arxiv.org/abs/1505.05770" target="_blank" rel="noopener">normalizing flows</a> 这一强大的密度估计统计工具，解决了这个难题。对 <span class="math-inline" data-math="p(\mathbf{x})">p(\mathbf{x})</span> 的良好估计使得许多下游任务能够高效完成：采样未观测但逼真的新数据点（数据生成）、预测未来事件的稀有程度（密度估计）、推断潜变量、补全不完整的数据样本等。</p>
       
     
       
-        <p>基于流的深度生成模型借助 <a href="https://arxiv.org/abs/1505.05770" target="_blank" rel="noopener">normalizing flows</a> 这一强大的密度估计统计工具，攻克了这个难题。对 <span class="math-inline" data-math="p(\mathbf{x})">p(\mathbf{x})</span> 的良好估计使我们能够高效完成许多下游任务：采样未观测但逼真的新数据点（数据生成）、预测未来事件的稀有程度（密度估计）、推断潜变量、补全不完整的数据样本等。</p>
-      
-    
-      
-        <h2>生成模型的类型#</h2>
+        <h2>生成模型的类型</h2>
         
       
     
@@ -94,9 +90,9 @@ VAE + Flows
       
     
       
-        <div class="list-content">生成对抗网络：GAN 将数据生成这一无监督学习问题巧妙地建模为一个监督学习问题。判别器模型学习区分真实数据与由生成器模型产生的假样本。两个模型在玩 <a href="https://en.wikipedia.org/wiki/Minimax" target="_blank" rel="noopener">minimax</a> 游戏的过程中共同训练。
-变分自编码器：VAE 通过最大化证据下界（ELBO）来隐式地优化数据的对数似然。
-基于流的生成模型：基于流的生成模型由一系列可逆变换构成。与前两者不同，该模型显式地学习数据分布 <span class="math-inline" data-math="p(\mathbf{x})">p(\mathbf{x})</span>，因此其损失函数就是简单的负对数似然。</div>
+        <div class="list-content">生成对抗网络：GAN 将数据生成这一无监督学习问题巧妙地转化为监督问题。判别器模型学习区分真实数据与生成器产生的假样本。两个模型在 <a href="https://en.wikipedia.org/wiki/Minimax" target="_blank" rel="noopener">minimax</a> 博弈中相互训练。
+变分自编码器：VAE 通过最大化证据下界（ELBO）来隐式优化数据的对数似然。
+基于流的生成模型：基于流的生成模型由一系列可逆变换构成。与前两者不同，该模型显式地学习数据分布 <span class="math-inline" data-math="p(\mathbf{x})">p(\mathbf{x})</span>，因此损失函数就是简单的负对数似然。</div>
       
     
       
@@ -107,16 +103,16 @@ VAE + Flows
       
     
       
-        <h2>线性代数基础回顾#</h2>
+        <h2>线性代数基础回顾</h2>
         
       
     
       
-        <p>在深入了解基于流的生成模型之前，我们需要理解两个关键概念：Jacobian 行列式和变量变换法则。这些内容比较基础，可以酌情跳过。</p>
+        <p>在深入基于流的生成模型之前，我们需要理解两个关键概念：Jacobian 行列式和变量变换规则。这些内容相当基础，可以放心跳过。</p>
       
     
       
-        <h2>Jacobian 矩阵与行列式#</h2>
+        <h2>Jacobian 矩阵与行列式</h2>
         
       
     
@@ -141,7 +137,7 @@ VAE + Flows
       
     
       
-        <p>行列式是由一个方阵所有元素计算得出的一个实数。请注意，行列式仅对方阵存在。行列式的绝对值可以看作是“矩阵将空间放大或收缩多少”的度量。</p>
+        <p>行列式是由一个方阵所有元素计算得出的一个实数。注意行列式仅对方阵存在。行列式的绝对值可以看作“矩阵对空间进行放大或收缩程度的度量”。</p>
       
     
       
@@ -167,11 +163,11 @@ a_{n1} &amp; a_{n2} &amp; \dots &amp; a_{nn} \\
       
     
       
-        <p>其中求和下标 <span class="math-inline" data-math="j_1 j_2 \dots j_n">j_1 j_2 \dots j_n</span> 是集合 {1, 2, …, n} 的所有排列，因此总共有 <span class="math-inline" data-math="n!">n!</span> 项；<span class="math-inline" data-math="\tau(.)">\tau(.)</span> 表示排列的 <a href="https://en.wikipedia.org/wiki/Parity_of_a_permutation" target="_blank" rel="noopener">奇偶性</a>。</p>
+        <p>其中求和下标 <span class="math-inline" data-math="j_1 j_2 \dots j_n">j_1 j_2 \dots j_n</span> 是集合 {1, 2, …, n} 的所有排列，因此共有 <span class="math-inline" data-math="n!">n!</span> 项；<span class="math-inline" data-math="\tau(.)">\tau(.)</span> 表示排列的 <a href="https://en.wikipedia.org/wiki/Parity_of_a_permutation" target="_blank" rel="noopener">奇偶性</a>。</p>
       
     
       
-        <p>方阵 <span class="math-inline" data-math="M">M</span> 的行列式可用于判断其是否可逆：若 <span class="math-inline" data-math="\det(M)=0">\det(M)=0</span>，则 <span class="math-inline" data-math="M">M</span> 不可逆（奇异矩阵，其行或列线性相关；或某一行或列全为 0）；否则，若 <span class="math-inline" data-math="\det(M)\neq 0">\det(M)\neq 0</span>，则 <span class="math-inline" data-math="M">M</span> 可逆。</p>
+        <p>方阵 <span class="math-inline" data-math="M">M</span> 的行列式可判断其是否可逆：若 <span class="math-inline" data-math="\det(M)=0">\det(M)=0</span>，则 <span class="math-inline" data-math="M">M</span> 不可逆（奇异矩阵，其行或列线性相关，或某一行或列全为 0）；否则，若 <span class="math-inline" data-math="\det(M)\neq 0">\det(M)\neq 0</span>，则 <span class="math-inline" data-math="M">M</span> 可逆。</p>
       
     
       
@@ -179,16 +175,16 @@ a_{n1} &amp; a_{n2} &amp; \dots &amp; a_{nn} \\
       
     
       
-        <h2>变量变换定理#</h2>
+        <h2>变量变换定理</h2>
         
       
     
       
-        <p>我们来专门在概率密度估计的背景下回顾变量变换定理，先从单变量情况开始。</p>
+        <p>让我们在概率密度估计的背景下回顾变量变换定理，从单变量情况开始。</p>
       
     
       
-        <p>给定一个随机变量 <span class="math-inline" data-math="z">z</span> 及其已知的概率密度函数 <span class="math-inline" data-math="z \sim \pi(z)">z \sim \pi(z)</span>，我们希望通过一个一一映射函数 <span class="math-inline" data-math="x = f(z)">x = f(z)</span> 构造一个新的随机变量。该函数 <span class="math-inline" data-math="f">f</span> 是可逆的，因此 <span class="math-inline" data-math="z=f^{-1}(x)">z=f^{-1}(x)</span>。现在的问题是如何推断新变量的未知概率密度函数 <span class="math-inline" data-math="p(x)">p(x)</span>？</p>
+        <p>设有一个随机变量 <span class="math-inline" data-math="z">z</span> 及其已知的概率密度函数 <span class="math-inline" data-math="z \sim \pi(z)">z \sim \pi(z)</span>，我们希望通过一个一一映射函数 <span class="math-inline" data-math="x = f(z)">x = f(z)</span> 构造一个新的随机变量。由于 <span class="math-inline" data-math="f">f</span> 可逆，因此 <span class="math-inline" data-math="z=f^{-1}(x)">z=f^{-1}(x)</span>。现在的问题是如何推断新变量的未知概率密度函数 <span class="math-inline" data-math="p(x)">p(x)</span>？</p>
       
     
       
@@ -206,11 +202,11 @@ a_{n1} &amp; a_{n2} &amp; \dots &amp; a_{nn} \\
       
     
       
-        <p>根据定义，积分 <span class="math-inline" data-math="\int \pi(z)dz">\int \pi(z)dz</span> 是无数个宽度为无穷小 <span class="math-inline" data-math="\Delta z">\Delta z</span> 的矩形之和。在位置 <span class="math-inline" data-math="z">z</span> 处矩形的高度就是密度函数 <span class="math-inline" data-math="\pi(z)">\pi(z)</span> 的值。当我们替换变量后，<span class="math-inline" data-math="z = f^{-1}(x)">z = f^{-1}(x)</span> 得到 <span class="math-inline" data-math="\frac{\Delta z}{\Delta x} = (f^{-1}(x))’">\frac{\Delta z}{\Delta x} = (f^{-1}(x))’</span> 和 <span class="math-inline" data-math="\Delta z =  (f^{-1}(x))’ \Delta x">\Delta z =  (f^{-1}(x))’ \Delta x</span>。这里 <span class="math-inline" data-math="\vert(f^{-1}(x))’\vert">\vert(f^{-1}(x))’\vert</span> 表示分别在两种不同变量坐标系 <span class="math-inline" data-math="z">z</span> 和 <span class="math-inline" data-math="x">x</span> 下定义的矩形面积之比。</p>
+        <p>根据定义，积分 <span class="math-inline" data-math="\int \pi(z)dz">\int \pi(z)dz</span> 是无数个宽度无穷小 <span class="math-inline" data-math="\Delta z">\Delta z</span> 的矩形面积之和。在位置 <span class="math-inline" data-math="z">z</span> 处矩形的高度就是密度函数 <span class="math-inline" data-math="\pi(z)">\pi(z)</span> 的值。当我们进行变量替换时，<span class="math-inline" data-math="z = f^{-1}(x)">z = f^{-1}(x)</span> 得到 <span class="math-inline" data-math="\frac{\Delta z}{\Delta x} = (f^{-1}(x))’">\frac{\Delta z}{\Delta x} = (f^{-1}(x))’</span> 和 <span class="math-inline" data-math="\Delta z =  (f^{-1}(x))’ \Delta x">\Delta z =  (f^{-1}(x))’ \Delta x</span>。这里 <span class="math-inline" data-math="\vert(f^{-1}(x))’\vert">\vert(f^{-1}(x))’\vert</span> 表示分别在两个不同变量坐标系 <span class="math-inline" data-math="z">z</span> 和 <span class="math-inline" data-math="x">x</span> 下定义的矩形面积之比。</p>
       
     
       
-        <p>多变量版本具有类似的形式：</p>
+        <p>多变量版本的形式类似：</p>
       
     
       
@@ -232,20 +228,20 @@ p(\mathbf{x})
       
     
       
-        <p>其中 <span class="math-inline" data-math="\det \frac{\partial f}{\partial\mathbf{z}}">\det \frac{\partial f}{\partial\mathbf{z}}</span> 是函数 <span class="math-inline" data-math="f">f</span> 的 Jacobian 行列式。多变量版本的完整证明超出本文范围，有兴趣可自行搜索。</p>
+        <p>其中 <span class="math-inline" data-math="\det \frac{\partial f}{\partial\mathbf{z}}">\det \frac{\partial f}{\partial\mathbf{z}}</span> 是函数 <span class="math-inline" data-math="f">f</span> 的 Jacobian 行列式。多变量版本的完整证明超出了本文范围；感兴趣可自行搜索。</p>
       
     
       
-        <h2>什么是 Normalizing Flows？#</h2>
+        <h2>什么是 Normalizing Flows？</h2>
         
       
     
       
-        <p>能够进行良好的密度估计在许多机器学习问题中都有直接应用，但这非常困难。例如，由于深度学习模型需要进行反向传播，嵌入的概率分布（即后验 <span class="math-inline" data-math="p(\mathbf{z}\vert\mathbf{x})">p(\mathbf{z}\vert\mathbf{x})</span>）需要足够简单，以便轻松高效地计算导数。这就是为什么潜变量生成模型中经常使用高斯分布，尽管现实世界中的大多数分布都比高斯分布复杂得多。</p>
+        <p>能够进行良好的密度估计在许多机器学习问题中都有直接应用，但这非常困难。例如，由于深度学习模型需要进行反向传播，嵌入的概率分布（即后验 <span class="math-inline" data-math="p(\mathbf{z}\vert\mathbf{x})">p(\mathbf{z}\vert\mathbf{x})</span>）需要足够简单，以便能够轻松高效地计算导数。这就是为什么潜变量生成模型中经常使用高斯分布，尽管现实世界中的大多数分布都比高斯复杂得多。</p>
       
     
       
-        <p>Normalizing Flow (NF) 模型应运而生，它能实现更好、更强大的分布逼近。Normalizing Flow 通过施加一系列可逆变换函数，将一个简单分布转换为复杂分布。在流经一系列变换的过程中，我们根据变量变换定理反复替换变量，最终得到目标变量的概率分布。</p>
+        <p>Normalizing Flow（NF）模型就是为了实现更好、更强大的分布逼近而出现的。Normalizing Flow 通过施加一系列可逆变换函数，将一个简单分布转换为复杂分布。通过一系列变换的链，我们根据变量变换定理反复替换变量，最终得到目标变量的概率分布。</p>
       
     
       
@@ -278,7 +274,7 @@ p_i(\mathbf{z}_i)
       
     
       
-        <p>接下来我们将方程转换为关于 <span class="math-inline" data-math="\mathbf{z}_i">\mathbf{z}_i</span> 的函数，以便使用基础分布进行推断。</p>
+        <p>接下来我们将方程转换为以 <span class="math-inline" data-math="\mathbf{z}_i">\mathbf{z}_i</span> 为自变量的形式，以便使用基础分布进行推断。</p>
       
     
       
@@ -314,7 +310,7 @@ p_i(\mathbf{z}_i)
       
     
       
-        <p>(*) 关于“可逆函数的 Jacobian”的说明：可逆矩阵的逆矩阵的行列式等于原行列式的倒数：<span class="math-inline" data-math="\det(M^{-1}) = (\det(M))^{-1}">\det(M^{-1}) = (\det(M))^{-1}</span>，因为 <span class="math-inline" data-math="\det(M)\det(M^{-1}) = \det(M \cdot M^{-1}) = \det(I) = 1">\det(M)\det(M^{-1}) = \det(M \cdot M^{-1}) = \det(I) = 1</span>。</p>
+        <p>(*) 关于“可逆函数的 Jacobian”的说明：可逆矩阵的逆的行列式等于行列式的倒数：<span class="math-inline" data-math="\det(M^{-1}) = (\det(M))^{-1}">\det(M^{-1}) = (\det(M))^{-1}</span>，因为 <span class="math-inline" data-math="\det(M)\det(M^{-1}) = \det(M \cdot M^{-1}) = \det(I) = 1">\det(M)\det(M^{-1}) = \det(M \cdot M^{-1}) = \det(I) = 1</span>。</p>
       
     
       
@@ -344,21 +340,21 @@ p_i(\mathbf{z}_i)
       
     
       
-        <p>随机变量 <span class="math-inline" data-math="\mathbf{z}_i = f_i(\mathbf{z}_{i-1})">\mathbf{z}_i = f_i(\mathbf{z}_{i-1})</span> 所遍历的路径称为流，而由连续分布 <span class="math-inline" data-math="\pi_i">\pi_i</span> 构成的完整链称为 normalizing flow。根据方程中的计算需求，变换函数 <span class="math-inline" data-math="f_i">f_i</span> 必须满足两个性质：</p>
+        <p>随机变量 <span class="math-inline" data-math="\mathbf{z}_i = f_i(\mathbf{z}_{i-1})">\mathbf{z}_i = f_i(\mathbf{z}_{i-1})</span> 所经过的路径称为流，由连续分布 <span class="math-inline" data-math="\pi_i">\pi_i</span> 构成的完整链称为 normalizing flow。方程中的计算要求变换函数 <span class="math-inline" data-math="f_i">f_i</span> 满足两个性质：</p>
       
     
       
-        <div class="list-content">它易于求逆。
-它的 Jacobian 行列式易于计算。</div>
+        <div class="list-content">容易求逆。
+其 Jacobian 行列式易于计算。</div>
       
     
       
-        <h2>使用 Normalizing Flows 的模型#</h2>
+        <h2>使用 Normalizing Flows 的模型</h2>
         
       
     
       
-        <p>有了 normalizing flows 这一工具箱，输入数据 <span class="math-inline" data-math="\log p(\mathbf{x})">\log p(\mathbf{x})</span> 的精确对数似然变得可计算。因此，基于流的生成模型的训练目标就是在训练数据集 <span class="math-inline" data-math="\mathcal{D}">\mathcal{D}</span> 上的负对数似然（NLL）：</p>
+        <p>有了 normalizing flows 这一工具，输入数据 <span class="math-inline" data-math="\log p(\mathbf{x})">\log p(\mathbf{x})</span> 的精确对数似然变得可计算。因此，基于流的生成模型的训练准则就是在训练数据集 <span class="math-inline" data-math="\mathcal{D}">\mathcal{D}</span> 上的负对数似然（NLL）：</p>
       
     
       
@@ -370,17 +366,17 @@ p_i(\mathbf{z}_i)
       
     
       
-        <h2>RealNVP#</h2>
+        <h2>RealNVP</h2>
         
       
     
       
-        <p>RealNVP（Real-valued Non-Volume Preserving；<a href="https://arxiv.org/abs/1605.08803" target="_blank" rel="noopener">Dinh et al., 2017</a>）模型通过堆叠一系列可逆双射变换函数来实现 normalizing flow。在每个双射（称为 affine coupling layer）中，输入维度被分成两部分：<span class="math-inline" data-math="f: \mathbf{x} \mapsto \mathbf{y}">f: \mathbf{x} \mapsto \mathbf{y}</span></p>
+        <p>RealNVP（Real-valued Non-Volume Preserving；<a href="https://arxiv.org/abs/1605.08803" target="_blank" rel="noopener">Dinh et al., 2017</a>）模型通过堆叠一系列可逆的双射变换函数来实现 normalizing flow。在每个双射（称为仿射耦合层）<span class="math-inline" data-math="f: \mathbf{x} \mapsto \mathbf{y}">f: \mathbf{x} \mapsto \mathbf{y}</span> 中，输入维度被分为两部分：</p>
       
     
       
         <div class="list-content">前 <span class="math-inline" data-math="d">d</span> 维保持不变；
-后一部分，即第 <span class="math-inline" data-math="d+1">d+1</span> 到 <span class="math-inline" data-math="D">D</span> 维，经历一个仿射变换（“缩放和平移”），其中缩放和平移参数都是前 <span class="math-inline" data-math="d">d</span> 维的函数。</div>
+第二部分，即第 <span class="math-inline" data-math="d+1">d+1</span> 到 <span class="math-inline" data-math="D">D</span> 维，经历一个仿射变换（“缩放和平移”），其中缩放和平移参数都是前 <span class="math-inline" data-math="d">d</span> 维的函数。</div>
       
     
       
@@ -398,7 +394,7 @@ p_i(\mathbf{z}_i)
       
     
       
-        <p>其中 <span class="math-inline" data-math="s(.)">s(.)</span> 和 <span class="math-inline" data-math="t(.)">t(.)</span> 分别是缩放和平移函数，二者都以 <span class="math-inline" data-math="\mathbb{R}^d \mapsto \mathbb{R}^{D-d}">\mathbb{R}^d \mapsto \mathbb{R}^{D-d}</span> 为输入。<span class="math-inline" data-math="\odot">\odot</span> 操作是逐元素乘积。</p>
+        <p>其中 <span class="math-inline" data-math="s(.)">s(.)</span> 和 <span class="math-inline" data-math="t(.)">t(.)</span> 分别是缩放和平移函数，二者都将 <span class="math-inline" data-math="\mathbb{R}^d \mapsto \mathbb{R}^{D-d}">\mathbb{R}^d \mapsto \mathbb{R}^{D-d}</span> 映射到自身。<span class="math-inline" data-math="\odot">\odot</span> 操作是逐元素乘积。</p>
       
     
       
@@ -406,7 +402,7 @@ p_i(\mathbf{z}_i)
       
     
       
-        <p>条件 1：“它易于求逆。”</p>
+        <p>条件 1：“容易求逆。”</p>
       
     
       
@@ -438,11 +434,11 @@ p_i(\mathbf{z}_i)
       
     
       
-        <p>条件 2：“它的 Jacobian 行列式易于计算。”</p>
+        <p>条件 2：“其 Jacobian 行列式易于计算。”</p>
       
     
       
-        <p>是的。得到这个变换的 Jacobian 矩阵和行列式并不困难。该 Jacobian 是一个下三角矩阵。</p>
+        <p>是的。得到这个变换的 Jacobian 矩阵和行列式并不困难。Jacobian 是一个下三角矩阵。</p>
       
     
       
@@ -478,28 +474,28 @@ p_i(\mathbf{z}_i)
       
     
       
-        <p>至此，affine coupling layer 看起来非常适合构建 normalizing flow :)</p>
+        <p>到目前为止，仿射耦合层看起来非常适合构建 normalizing flow :)</p>
       
     
       
-        <p>更好的是，由于 (i) 计算 <span class="math-inline" data-math="f^-1">f^-1</span> 无需计算 <span class="math-inline" data-math="s">s</span> 或 <span class="math-inline" data-math="t">t</span> 的逆，且 (ii) 计算 Jacobian 行列式不涉及计算 <span class="math-inline" data-math="s">s</span> 或 <span class="math-inline" data-math="t">t</span> 的 Jacobian，这些函数可以是任意复杂的；也就是说 <span class="math-inline" data-math="s">s</span> 和 <span class="math-inline" data-math="t">t</span> 都可以用深度神经网络来建模。</p>
+        <p>更好的是，由于（i）计算 <span class="math-inline" data-math="f^-1">f^-1</span> 不需要计算 <span class="math-inline" data-math="s">s</span> 或 <span class="math-inline" data-math="t">t</span> 的逆，且（ii）计算 Jacobian 行列式不需要计算 <span class="math-inline" data-math="s">s</span> 或 <span class="math-inline" data-math="t">t</span> 的 Jacobian，因此这些函数可以是任意复杂的；即 <span class="math-inline" data-math="s">s</span> 和 <span class="math-inline" data-math="t">t</span> 都可以用深度神经网络来建模。</p>
       
     
       
-        <p>在一个 affine coupling layer 中，某些维度（通道）保持不变。为了确保所有输入都有机会被改变，模型在每一层都反转顺序，使得不同的分量在不同层保持不变。遵循这种交替模式，在某一变换层中保持不变的单元总会在下一层被修改。研究发现，批量归一化有助于训练具有非常深的 coupling layer 堆叠的模型。</p>
+        <p>在一个仿射耦合层中，某些维度（通道）保持不变。为了确保所有输入都有机会被改变，模型在每一层反转顺序，使得不同的组成部分在不同层保持不变。遵循这种交替模式，在某一变换层中保持不变的单元总是在下一层被修改。研究发现批量归一化有助于训练具有非常深的耦合层堆叠的模型。</p>
       
     
       
-        <p>此外，RealNVP 可以采用多尺度架构，为大型输入构建更高效的模型。多尺度架构对普通仿射层应用了若干“采样”操作，包括空间棋盘格掩码、挤压操作和通道-wise 掩码。更多细节请阅读 <a href="https://arxiv.org/abs/1605.08803" target="_blank" rel="noopener">论文</a>。</p>
+        <p>此外，RealNVP 可以采用多尺度架构，为大型输入构建更高效的模型。多尺度架构对普通仿射层应用了多种“采样”操作，包括空间棋盘格掩码、挤压操作和通道级掩码。更多关于多尺度架构的细节请阅读 <a href="https://arxiv.org/abs/1605.08803" target="_blank" rel="noopener">论文</a>。</p>
       
     
       
-        <h2>NICE#</h2>
+        <h2>NICE</h2>
         
       
     
       
-        <p>NICE（Non-linear Independent Component Estimation；<a href="https://arxiv.org/abs/1410.8516" target="_blank" rel="noopener">Dinh, et al. 2015</a>）模型是 RealNVP 的前身。NICE 中的变换是去掉缩放项的 affine coupling layer，称为 additive coupling layer。</p>
+        <p>NICE（Non-linear Independent Component Estimation；<a href="https://arxiv.org/abs/1410.8516" target="_blank" rel="noopener">Dinh, et al. 2015</a>）模型是 RealNVP 的前身。NICE 中的变换是没有缩放项的仿射耦合层，称为加性耦合层。</p>
       
     
       
@@ -527,12 +523,12 @@ p_i(\mathbf{z}_i)
       
     
       
-        <h2>Glow#</h2>
+        <h2>Glow</h2>
         
       
     
       
-        <p>Glow（<a href="https://arxiv.org/abs/1807.03039" target="_blank" rel="noopener">Kingma and Dhariwal, 2018</a>）模型扩展了之前的可逆生成模型 NICE 和 RealNVP，并通过用可逆 1×1 卷积替换通道顺序上的反向排列操作来简化架构。</p>
+        <p>Glow（<a href="https://arxiv.org/abs/1807.03039" target="_blank" rel="noopener">Kingma and Dhariwal, 2018</a>）模型扩展了之前可逆生成模型 NICE 和 RealNVP，并通过用可逆 1×1 卷积替换通道顺序上的反向排列操作来简化架构。</p>
       
     
       
@@ -543,7 +539,7 @@ p_i(\mathbf{z}_i)
       
     
       
-        <p>Glow 中一步流包含三个子步骤。</p>
+        <p>Glow 中流的一步包含三个子步骤。</p>
       
     
       
@@ -551,7 +547,7 @@ p_i(\mathbf{z}_i)
       
     
       
-        <p>它对每个通道使用一个缩放和偏置参数进行仿射变换，类似于批量归一化，但支持 batch size 为 1。这些参数是可训练的，初始化时使得第一个 minibatch 的数据在 actnorm 后均值为 0、标准差为 1。</p>
+        <p>它对每个通道使用一个缩放和偏置参数进行仿射变换，类似于批量归一化，但可以处理批量大小为 1 的情况。这些参数是可训练的，但初始化使得第一个小批量数据经过 actnorm 后均值为 0、标准差为 1。</p>
       
     
       
@@ -559,15 +555,15 @@ p_i(\mathbf{z}_i)
       
     
       
-        <p>在 RealNVP 流的各层之间，通道顺序会被反转，以确保所有数据维度都有机会被改变。输入输出通道数相等的 1×1 卷积是对任意通道顺序排列的泛化。</p>
+        <p>在 RealNVP 流的层之间，通道的顺序会被反转，以便所有数据维度都有机会被改变。输入输出通道数相同的 1×1 卷积是对通道顺序任意排列的泛化。</p>
       
     
       
-        <p>假设我们有一个输入为 <span class="math-inline" data-math="h \times w \times c">h \times w \times c</span> 张量 <span class="math-inline" data-math="\mathbf{h}">\mathbf{h}</span>、权重矩阵 <span class="math-inline" data-math="\mathbf{W}">\mathbf{W}</span> 大小为 <span class="math-inline" data-math="c \times c">c \times c</span> 的可逆 1×1 卷积。输出是一个 <span class="math-inline" data-math="h \times w \times c">h \times w \times c</span> 张量，记为 <span class="math-inline" data-math="f = \texttt{conv2d}(\mathbf{h}; \mathbf{W})">f = \texttt{conv2d}(\mathbf{h}; \mathbf{W})</span>。为了应用变量变换法则，我们需要计算 Jacobian 行列式 <span class="math-inline" data-math="\vert \det\partial f / \partial\mathbf{h}\vert">\vert \det\partial f / \partial\mathbf{h}\vert</span>。</p>
+        <p>假设我们有一个输入 <span class="math-inline" data-math="h \times w \times c">h \times w \times c</span> 张量 <span class="math-inline" data-math="\mathbf{h}">\mathbf{h}</span> 的可逆 1×1 卷积，权重矩阵 <span class="math-inline" data-math="\mathbf{W}">\mathbf{W}</span> 大小为 <span class="math-inline" data-math="c \times c">c \times c</span>。输出是一个 <span class="math-inline" data-math="h \times w \times c">h \times w \times c</span> 张量，记为 <span class="math-inline" data-math="f = \texttt{conv2d}(\mathbf{h}; \mathbf{W})">f = \texttt{conv2d}(\mathbf{h}; \mathbf{W})</span>。为了应用变量变换规则，我们需要计算 Jacobian 行列式 <span class="math-inline" data-math="\vert \det\partial f / \partial\mathbf{h}\vert">\vert \det\partial f / \partial\mathbf{h}\vert</span>。</p>
       
     
       
-        <p>此处的 1×1 卷积的输入和输出都可以看作是大小为 <span class="math-inline" data-math="h \times w">h \times w</span> 的矩阵。<span class="math-inline" data-math="\mathbf{h}">\mathbf{h}</span> 中的每个元素 <span class="math-inline" data-math="\mathbf{x}_{ij}">\mathbf{x}_{ij}</span>（<span class="math-inline" data-math="i=1,\dots,h, j=1,\dots,w">i=1,\dots,h, j=1,\dots,w</span>）都是一个长度为 <span class="math-inline" data-math="c">c</span> 的通道向量，该向量与权重矩阵 <span class="math-inline" data-math="\mathbf{W}">\mathbf{W}</span> 相乘得到输出矩阵中对应的元素 <span class="math-inline" data-math="\mathbf{y}_{ij}">\mathbf{y}_{ij}</span>。每个元素的导数为 <span class="math-inline" data-math="\partial \mathbf{x}_{ij} \mathbf{W} / \partial\mathbf{x}_{ij} = \mathbf{W}">\partial \mathbf{x}_{ij} \mathbf{W} / \partial\mathbf{x}_{ij} = \mathbf{W}</span>，总共有 <span class="math-inline" data-math="h \times w">h \times w</span> 个这样的元素：</p>
+        <p>此处 1×1 卷积的输入和输出都可以视为大小为 <span class="math-inline" data-math="h \times w">h \times w</span> 的矩阵。<span class="math-inline" data-math="\mathbf{h}">\mathbf{h}</span> 中的每个元素 <span class="math-inline" data-math="\mathbf{x}_{ij}">\mathbf{x}_{ij}</span>（<span class="math-inline" data-math="i=1,\dots,h, j=1,\dots,w">i=1,\dots,h, j=1,\dots,w</span>）是一个 <span class="math-inline" data-math="c">c</span> 通道的向量，并与权重矩阵 <span class="math-inline" data-math="\mathbf{W}">\mathbf{W}</span> 相乘得到输出矩阵中对应的元素 <span class="math-inline" data-math="\mathbf{y}_{ij}">\mathbf{y}_{ij}</span>。每个元素的导数为 <span class="math-inline" data-math="\partial \mathbf{x}_{ij} \mathbf{W} / \partial\mathbf{x}_{ij} = \mathbf{W}">\partial \mathbf{x}_{ij} \mathbf{W} / \partial\mathbf{x}_{ij} = \mathbf{W}</span>，共有 <span class="math-inline" data-math="h \times w">h \times w</span> 个这样的元素：</p>
       
     
       
@@ -585,11 +581,11 @@ p_i(\mathbf{z}_i)
       
     
       
-        <p>子步骤 3：Affine coupling layer</p>
+        <p>子步骤 3：仿射耦合层</p>
       
     
       
-        <p>设计与 RealNVP 中相同。</p>
+        <p>设计与 RealNVP 相同。</p>
       
     
       
@@ -600,12 +596,12 @@ p_i(\mathbf{z}_i)
       
     
       
-        <h2>使用自回归流的模型#</h2>
+        <h2>使用自回归流的模型</h2>
         
       
     
       
-        <p>自回归约束是一种对序列数据 <span class="math-inline" data-math="\mathbf{x} = [x_1, \dots, x_D]">\mathbf{x} = [x_1, \dots, x_D]</span> 进行建模的方式：每个输出只依赖于过去观测到的数据，而不依赖于未来的数据。换句话说，观测到 <span class="math-inline" data-math="x_i">x_i</span> 的概率以 <span class="math-inline" data-math="x_1, \dots, x_{i-1}">x_1, \dots, x_{i-1}</span> 为条件，这些条件概率的乘积就给出了观测到整个序列的概率：</p>
+        <p>自回归约束是建模序列数据 <span class="math-inline" data-math="\mathbf{x} = [x_1, \dots, x_D]">\mathbf{x} = [x_1, \dots, x_D]</span> 的一种方式：每个输出仅依赖于过去观测到的数据，而不依赖于未来的数据。换句话说，观测到 <span class="math-inline" data-math="x_i">x_i</span> 的概率以 <span class="math-inline" data-math="x_1, \dots, x_{i-1}">x_1, \dots, x_{i-1}</span> 为条件，这些条件概率的乘积就给出了观测到完整序列的概率：</p>
       
     
       
@@ -617,32 +613,32 @@ p(\mathbf{x}) = \prod_{i=1}^{D} p(x_i\vert x_1, \dots, x_{i-1}) = \prod_{i=1}^{D
       
     
       
-        <p>如何建模条件密度由你决定。它可以是均值和标准差由 <span class="math-inline" data-math="x_{1:i-1}">x_{1:i-1}</span> 的函数计算得到的单变量高斯，也可以是以 <span class="math-inline" data-math="x_{1:i-1}">x_{1:i-1}</span> 为输入的多层神经网络。</p>
+        <p>如何建模条件密度由你选择。它可以是以 <span class="math-inline" data-math="x_{1:i-1}">x_{1:i-1}</span> 为函数计算均值和标准差的单变量高斯，也可以是以 <span class="math-inline" data-math="x_{1:i-1}">x_{1:i-1}</span> 为输入的多层神经网络。</p>
       
     
       
-        <p>如果 normalizing flow 中的流变换被构造为自回归模型——向量变量中的每个维度都以前面的维度为条件——这就是自回归流。</p>
+        <p>如果 normalizing flow 中的流变换被构建为自回归模型——向量变量中的每个维度都以之前的维度为条件——这就是自回归流。</p>
       
     
       
-        <p>本节首先介绍几个经典的自回归模型（MADE、PixelRNN、WaveNet），然后我们深入探讨自回归流模型（MAF 和 IAF）。</p>
+        <p>本节从几个经典的自回归模型（MADE、PixelRNN、WaveNet）开始，然后深入介绍自回归流模型（MAF 和 IAF）。</p>
       
     
       
-        <h2>MADE#</h2>
+        <h2>MADE</h2>
         
       
     
       
-        <p>MADE（Masked Autoencoder for Distribution Estimation；<a href="https://arxiv.org/abs/1502.03509" target="_blank" rel="noopener">Germain et al., 2015</a>）是一种特殊设计的架构，能高效地在自编码器中强制实现自回归性质。当使用自编码器预测条件概率时，MADE 不是将不同观测窗口 <span class="math-inline" data-math="D">D</span> 次输入自编码器，而是通过乘以二值掩码矩阵来消除某些隐藏单元的贡献，使得每个输入维度仅在单次前向传递中由之前维度（按照给定顺序）来重构。</p>
+        <p>MADE（Masked Autoencoder for Distribution Estimation；<a href="https://arxiv.org/abs/1502.03509" target="_blank" rel="noopener">Germain et al., 2015</a>）是一种专门设计的架构，能高效地在自编码器中强制实现自回归性质。当使用自编码器预测条件概率时，MADE 不是将不同观测窗口 <span class="math-inline" data-math="D">D</span> 次输入自编码器，而是通过乘以二值掩码矩阵来消除某些隐藏单元的贡献，使得每个输入维度仅由给定顺序下的先前维度在单次前向传播中重构。</p>
       
     
       
-        <p>在一个多层全连接神经网络中，假设我们有 <span class="math-inline" data-math="L">L</span> 个隐藏层，权重矩阵分别为 <span class="math-inline" data-math="\mathbf{W}^1, \dots, \mathbf{W}^L">\mathbf{W}^1, \dots, \mathbf{W}^L</span>，输出层权重矩阵为 <span class="math-inline" data-math="\mathbf{V}">\mathbf{V}</span>。输出 <span class="math-inline" data-math="\hat{\mathbf{x}}">\hat{\mathbf{x}}</span> 的每个维度为 <span class="math-inline" data-math="\hat{x}_i = p(x_i\vert x_{1:i-1})">\hat{x}_i = p(x_i\vert x_{1:i-1})</span>。</p>
+        <p>在一个多层全连接神经网络中，假设有 <span class="math-inline" data-math="L">L</span> 个隐藏层，权重矩阵为 <span class="math-inline" data-math="\mathbf{W}^1, \dots, \mathbf{W}^L">\mathbf{W}^1, \dots, \mathbf{W}^L</span>，输出层权重矩阵为 <span class="math-inline" data-math="\mathbf{V}">\mathbf{V}</span>。输出 <span class="math-inline" data-math="\hat{\mathbf{x}}">\hat{\mathbf{x}}</span> 的每个维度为 <span class="math-inline" data-math="\hat{x}_i = p(x_i\vert x_{1:i-1})">\hat{x}_i = p(x_i\vert x_{1:i-1})</span>。</p>
       
     
       
-        <p>在没有任何掩码的情况下，通过各层的计算如下：</p>
+        <p>在没有掩码的情况下，通过各层的计算如下：</p>
       
     
       
@@ -669,7 +665,7 @@ p(\mathbf{x}) = \prod_{i=1}^{D} p(x_i\vert x_1, \dots, x_{i-1}) = \prod_{i=1}^{D
       
     
       
-        <p>要将层间某些连接置零，我们可以简单地将每个权重矩阵与一个二值掩码矩阵进行逐元素相乘。每个隐藏节点被分配一个介于 <span class="math-inline" data-math="1">1</span> 和 <span class="math-inline" data-math="D-1">D-1</span> 之间的随机“连接整数”；第 <span class="math-inline" data-math="l">l</span> 层第 <span class="math-inline" data-math="k">k</span> 个单元的赋值记为 <span class="math-inline" data-math="m^l_k">m^l_k</span>。二值掩码矩阵通过逐元素比较两层中两个节点的值来确定。</p>
+        <p>要将层间某些连接置零，我们可以简单地将每个权重矩阵与一个二值掩码矩阵进行逐元素相乘。每个隐藏节点被分配一个在 <span class="math-inline" data-math="1">1</span> 到 <span class="math-inline" data-math="D-1">D-1</span> 之间的随机“连接整数”；第 <span class="math-inline" data-math="l">l</span> 层的第 <span class="math-inline" data-math="k">k</span> 个单元的赋值记为 <span class="math-inline" data-math="m^l_k">m^l_k</span>。二值掩码矩阵通过逐元素比较两层中两个节点的值来确定。</p>
       
     
       
@@ -711,29 +707,29 @@ M^{\mathbf{V}}_{d, k}
       
     
       
-        <p>当前层的单元只能连接到前一层编号等于或小于它的单元，这种依赖关系很容易通过网络传播到输出层。一旦所有单元和层都被赋予编号，输入维度的顺序就被固定了，条件概率也随之产生。更多精彩插图可参考。为了确保所有隐藏单元都通过某些路径连接到输入和输出层，<span class="math-inline" data-math="m^l_k">m^l_k</span> 被采样为不小于前一层最小连接整数 <span class="math-inline" data-math="\min_{k’} m_{k’}^{l-1}">\min_{k’} m_{k’}^{l-1}</span>。</p>
+        <p>当前层的单元只能连接到前一层中编号相等或更小的单元，这种依赖关系很容易通过网络传播到输出层。一旦所有单元和层都分配了编号，输入维度的顺序就被固定了，条件概率将相对于该顺序生成。<span class="math-inline" data-math="m^l_k">m^l_k</span> 被采样为不小于前一层最小连接整数 <span class="math-inline" data-math="\min_{k’} m_{k’}^{l-1}">\min_{k’} m_{k’}^{l-1}</span>，以确保所有隐藏单元都通过某些路径连接到输入和输出层。</p>
       
     
       
-        <p>MADE 的训练还可以通过以下方式进一步优化：</p>
+        <p>MADE 的训练可以通过以下方式进一步改进：</p>
       
     
       
-        <div class="list-content">顺序无关训练：打乱输入维度，使 MADE 能够对任意顺序进行建模；可在运行时创建自回归模型的集成。
-连接无关训练：为避免模型受限于特定的连接模式，对每个训练 minibatch 重新采样 <span class="math-inline" data-math="m^l_k">m^l_k</span>。</div>
+        <div class="list-content">顺序无关训练：随机打乱输入维度，使 MADE 能够建模任意顺序；在运行时可以创建一个自回归模型的集成。
+连接无关训练：为避免模型被特定连接模式约束，对每个训练小批量重新采样 <span class="math-inline" data-math="m^l_k">m^l_k</span>。</div>
       
     
       
-        <h2>PixelRNN#</h2>
+        <h2>PixelRNN</h2>
         
       
     
       
-        <p>PixelRNN（<a href="https://arxiv.org/abs/1601.06759" target="_blank" rel="noopener">Oord et al, 2016</a>）是一种用于图像的深度生成模型。图像是逐像素生成的，每个新像素的采样都以之前已见过的像素为条件。</p>
+        <p>PixelRNN（<a href="https://arxiv.org/abs/1601.06759" target="_blank" rel="noopener">Oord et al, 2016</a>）是一种用于图像的深度生成模型。图像是一个像素一个像素生成的，每个新像素的采样都以之前见过的像素为条件。</p>
       
     
       
-        <p>考虑一个大小为 <span class="math-inline" data-math="n \times n">n \times n</span>、<span class="math-inline" data-math="\mathbf{x} = \{x_1, \dots, x_{n^2}\}">\mathbf{x} = \{x_1, \dots, x_{n^2}\}</span> 的图像，模型从左上角开始，从左到右、从上到下逐像素生成（见图 6）。</p>
+        <p>考虑大小为 <span class="math-inline" data-math="n \times n">n \times n</span>、<span class="math-inline" data-math="\mathbf{x} = \{x_1, \dots, x_{n^2}\}">\mathbf{x} = \{x_1, \dots, x_{n^2}\}</span> 的图像，模型从左上角开始，从左到右、从上到下生成像素（见图 6）。</p>
       
     
       
@@ -744,11 +740,11 @@ M^{\mathbf{V}}_{d, k}
       
     
       
-        <p>每个像素 <span class="math-inline" data-math="x_i">x_i</span> 都是从以过去上下文为条件的概率分布中采样得到的：同一行中它上方或左侧的像素。这种上下文的定义看起来相当随意，因为视觉 <a href="posts-2018-06-24-attention.html">注意力？注意力！</a> 对图像的关注方式更加灵活。但令人惊讶的是，具有如此强假设的生成模型居然能工作。</p>
+        <p>每个像素 <span class="math-inline" data-math="x_i">x_i</span> 都是从以过去上下文为条件的概率分布中采样得到的：即它上方或同一行左侧的像素。这种上下文的定义看起来相当随意，因为视觉 <a href="posts-2018-06-24-attention.html">注意？注意！</a> 对图像的关注方式更加灵活。但令人惊奇的是，具有如此强假设的生成模型居然能正常工作。</p>
       
     
       
-        <p>一种能够捕捉整个上下文的实现是 Diagonal BiLSTM。首先通过将输入特征图的每一行相对于前一行偏移一个位置来进行 skewing 操作，从而使每行的计算可以并行化。然后相对于当前像素和左侧像素计算 LSTM 状态。</p>
+        <p>一种能够捕捉整个上下文的实现是 Diagonal BiLSTM。首先，通过将输入特征图的每一行相对于前一行偏移一个位置来进行 skewing 操作，从而使每行的计算可以并行化。然后，相对于当前像素和左侧像素计算 LSTM 状态。</p>
       
     
       
@@ -775,11 +771,11 @@ M^{\mathbf{V}}_{d, k}
       
     
       
-        <p>其中 <span class="math-inline" data-math="\circledast">\circledast</span> 表示卷积操作，<span class="math-inline" data-math="\odot">\odot</span> 是逐元素乘法。input-to-state 部分 <span class="math-inline" data-math="\mathbf{K}^{is}">\mathbf{K}^{is}</span> 是 1×1 卷积，而 state-to-state 循环部分则通过列方向卷积 <span class="math-inline" data-math="\mathbf{K}^{ss}">\mathbf{K}^{ss}</span>（核大小为 2×1）来计算。</p>
+        <p>其中 <span class="math-inline" data-math="\circledast">\circledast</span> 表示卷积操作，<span class="math-inline" data-math="\odot">\odot</span> 是逐元素乘法。输入到状态的部分 <span class="math-inline" data-math="\mathbf{K}^{is}">\mathbf{K}^{is}</span> 是 1×1 卷积，而状态到状态的循环部分则使用列方向卷积 <span class="math-inline" data-math="\mathbf{K}^{ss}">\mathbf{K}^{ss}</span>，核大小为 2×1。</p>
       
     
       
-        <p>diagonal BiLSTM 层能够处理无界上下文，但由于状态之间的顺序依赖，计算代价较高。更快的实现使用多个不带池化的卷积层来定义有界的上下文框。卷积核会被施加掩码，以防止看到未来上下文，这与 MADE 类似。这种卷积版本称为 PixelCNN。</p>
+        <p>diagonal BiLSTM 层能够处理无界上下文，但由于状态之间的顺序依赖，计算成本很高。更快的实现使用多个不带池化的卷积层来定义有界上下文框。卷积核被掩码以避免看到未来上下文，类似于 MADE。这种卷积版本被称为 PixelCNN。</p>
       
     
       
@@ -790,16 +786,16 @@ M^{\mathbf{V}}_{d, k}
       
     
       
-        <h2>WaveNet#</h2>
+        <h2>WaveNet</h2>
         
       
     
       
-        <p>WaveNet（<a href="https://arxiv.org/abs/1609.03499" target="_blank" rel="noopener">Van Den Oord, et al. 2016</a>）与 PixelCNN 非常相似，但应用于一维音频信号。WaveNet 由一叠 causal convolution 组成，这种卷积操作专门设计用于尊重顺序：某一时间戳的预测只能使用过去观测到的数据，而不依赖于未来数据。在 PixelCNN 中，causal convolution 通过掩码卷积核实现。而在 WaveNet 中，causal convolution 只是简单地将输出向未来偏移若干时间戳，使输出与最后一个输入元素对齐。</p>
+        <p>WaveNet（<a href="https://arxiv.org/abs/1609.03499" target="_blank" rel="noopener">Van Den Oord, et al. 2016</a>）与 PixelCNN 非常相似，但应用于一维音频信号。WaveNet 由一叠因果卷积组成，这种卷积操作被设计为尊重顺序：某一时间戳的预测只能使用过去观测到的数据，不依赖于未来。在 PixelCNN 中，因果卷积通过掩码卷积核实现。WaveNet 中的因果卷积则是简单地将输出向未来偏移若干时间戳，使输出与最后一个输入元素对齐。</p>
       
     
       
-        <p>卷积层的一大缺点是感受野非常有限。输出很难依赖于几百甚至几千个时间步之前的输入，而这对于建模长序列可能是至关重要的。因此 WaveNet 采用了扩张卷积（<a href="https://github.com/vdumoulin/conv_arithmetic#dilated-convolution-animations" target="_blank" rel="noopener">动画</a>），将核应用于输入中更大感受野内均匀分布的样本子集。</p>
+        <p>卷积层的一大缺点是感受野非常有限。输出很难依赖于几百甚至几千个时间戳之前的输入，而这对于建模长序列可能是关键需求。因此 WaveNet 采用了扩张卷积（<a href="https://github.com/vdumoulin/conv_arithmetic#dilated-convolution-animations" target="_blank" rel="noopener">动画</a>），核被应用于输入中更大感受野内均匀分布的样本子集。</p>
       
     
       
@@ -810,7 +806,7 @@ M^{\mathbf{V}}_{d, k}
       
     
       
-        <p>WaveNet 使用门控激活单元作为非线性层，因为实验发现它在建模一维音频数据时明显优于 ReLU。在门控激活之后应用残差连接。</p>
+        <p>WaveNet 使用门控激活单元作为非线性层，因为它在建模一维音频数据时显著优于 ReLU。在门控激活之后应用残差连接。</p>
       
     
       
@@ -822,24 +818,24 @@ M^{\mathbf{V}}_{d, k}
       
     
       
-        <p>其中 <span class="math-inline" data-math="\mathbf{W}_{f,k}">\mathbf{W}_{f,k}</span> 和 <span class="math-inline" data-math="\mathbf{W}_{g,k}">\mathbf{W}_{g,k}</span> 分别是第 <span class="math-inline" data-math="k">k</span> 层的卷积滤波器和门控权重矩阵，两者都是可学习的。</p>
+        <p>其中 <span class="math-inline" data-math="\mathbf{W}_{f,k}">\mathbf{W}_{f,k}</span> 和 <span class="math-inline" data-math="\mathbf{W}_{g,k}">\mathbf{W}_{g,k}</span> 分别是第 <span class="math-inline" data-math="k">k</span> 层的卷积滤波器和门控权重矩阵，二者都是可学习的。</p>
       
     
       
-        <h2>Masked Autoregressive Flow#</h2>
+        <h2>Masked Autoregressive Flow</h2>
         
       
     
       
-        <p>Masked Autoregressive Flow（MAF；<a href="https://arxiv.org/abs/1705.07057" target="_blank" rel="noopener">Papamakarios et al., 2017</a>）是 normalizing flows 的一种，其中变换层被构造成自回归神经网络。MAF 与后续介绍的 Inverse Autoregressive Flow (IAF) 非常相似。关于 MAF 和 IAF 之间关系的更多讨论请见下一节。</p>
+        <p>Masked Autoregressive Flow（MAF；<a href="https://arxiv.org/abs/1705.07057" target="_blank" rel="noopener">Papamakarios et al., 2017</a>）是一种 normalizing flow，其中变换层被构建为自回归神经网络。MAF 与后面介绍的 Inverse Autoregressive Flow（IAF）非常相似。关于 MAF 和 IAF 之间关系的更多讨论见下一节。</p>
       
     
       
-        <p>给定两个随机变量 <span class="math-inline" data-math="\mathbf{z} \sim \pi(\mathbf{z})">\mathbf{z} \sim \pi(\mathbf{z})</span> 和 <span class="math-inline" data-math="\mathbf{x} \sim p(\mathbf{x})">\mathbf{x} \sim p(\mathbf{x})</span>，已知概率密度函数 <span class="math-inline" data-math="\pi(\mathbf{z})">\pi(\mathbf{z})</span>，MAF 的目标是学习 <span class="math-inline" data-math="p(\mathbf{x})">p(\mathbf{x})</span>。MAF 根据过去维度 <span class="math-inline" data-math="\mathbf{x}_{1:i-1}">\mathbf{x}_{1:i-1}</span> 来生成每个 <span class="math-inline" data-math="x_i">x_i</span>。</p>
+        <p>给定两个随机变量 <span class="math-inline" data-math="\mathbf{z} \sim \pi(\mathbf{z})">\mathbf{z} \sim \pi(\mathbf{z})</span> 和 <span class="math-inline" data-math="\mathbf{x} \sim p(\mathbf{x})">\mathbf{x} \sim p(\mathbf{x})</span>，已知概率密度函数 <span class="math-inline" data-math="\pi(\mathbf{z})">\pi(\mathbf{z})</span>，MAF 的目标是学习 <span class="math-inline" data-math="p(\mathbf{x})">p(\mathbf{x})</span>。MAF 根据过去的维度 <span class="math-inline" data-math="\mathbf{x}_{1:i-1}">\mathbf{x}_{1:i-1}</span> 为每个 <span class="math-inline" data-math="x_i">x_i</span> 生成条件。</p>
       
     
       
-        <p>精确的条件概率是 <span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 的一个仿射变换，其中缩放和平移项是 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 已观测部分的函数。</p>
+        <p>精确来说，条件概率是 <span class="math-inline" data-math="\mathbf{z}">\mathbf{z}</span> 的一个仿射变换，其中缩放和平移项是 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 已观测部分的函数。</p>
       
     
       
@@ -859,16 +855,16 @@ M^{\mathbf{V}}_{d, k}
       
     
       
-        <p>生成过程是顺序的，因此设计上较慢。而密度估计只需使用类似 MADE 的架构进行一次网络前向传递。变换函数很容易求逆，Jacobian 行列式也易于计算。</p>
+        <p>生成过程是顺序的，因此设计上较慢。而密度估计只需使用类似 MADE 的架构单次通过网络。变换函数很容易求逆，Jacobian 行列式也易于计算。</p>
       
     
       
-        <h2>Inverse Autoregressive Flow#</h2>
+        <h2>Inverse Autoregressive Flow</h2>
         
       
     
       
-        <p>与 MAF 类似，Inverse autoregressive flow（IAF；<a href="https://arxiv.org/abs/1606.04934" target="_blank" rel="noopener">Kingma et al., 2016</a>）也将目标变量的条件概率建模为自回归模型，但采用了反向的流，从而实现了高效得多的采样过程。</p>
+        <p>与 MAF 类似，Inverse autoregressive flow（IAF；<a href="https://arxiv.org/abs/1606.04934" target="_blank" rel="noopener">Kingma et al., 2016</a>）也将目标变量的条件概率建模为自回归模型，但采用了反向的流，因此实现了更加高效的采样过程。</p>
       
     
       
@@ -884,7 +880,7 @@ z_i = \frac{x_i - \mu_i(\mathbf{x}_{1:i-1})}{\sigma_i(\mathbf{x}_{1:i-1})} = -\f
       
     
       
-        <p>若令：</p>
+        <p>如果令：</p>
       
     
       
@@ -906,7 +902,7 @@ z_i = \frac{x_i - \mu_i(\mathbf{x}_{1:i-1})}{\sigma_i(\mathbf{x}_{1:i-1})} = -\f
       
     
       
-        <p>则我们有，</p>
+        <p>那么我们有，</p>
       
     
       
@@ -927,13 +923,13 @@ z_i = \frac{x_i - \mu_i(\mathbf{x}_{1:i-1})}{\sigma_i(\mathbf{x}_{1:i-1})} = -\f
       
     
       
-        <p>IAF 旨在估计 <span class="math-inline" data-math="\tilde{\mathbf{x}}">\tilde{\mathbf{x}}</span> 的概率密度函数，前提是 <span class="math-inline" data-math="\tilde{\pi}(\tilde{\mathbf{z}})">\tilde{\pi}(\tilde{\mathbf{z}})</span> 已经已知。逆流同样是一个自回归仿射变换，与 MAF 相同，但缩放和平移项是来自已知分布 <span class="math-inline" data-math="\tilde{\pi}(\tilde{\mathbf{z}})">\tilde{\pi}(\tilde{\mathbf{z}})</span> 的观测变量的自回归函数。MAF 和 IAF 的对比见
+        <p>IAF 旨在估计 <span class="math-inline" data-math="\tilde{\mathbf{x}}">\tilde{\mathbf{x}}</span> 的概率密度函数，前提是 <span class="math-inline" data-math="\tilde{\pi}(\tilde{\mathbf{z}})">\tilde{\pi}(\tilde{\mathbf{z}})</span> 已知。逆流同样是自回归仿射变换，与 MAF 相同，但缩放和平移项是来自已知分布 <span class="math-inline" data-math="\tilde{\pi}(\tilde{\mathbf{z}})">\tilde{\pi}(\tilde{\mathbf{z}})</span> 的观测变量的自回归函数。MAF 和 IAF 的比较见
 
-MAF 与 IAF 的对比。已知密度的变量用绿色表示，未知的用红色表示。</p>
+MAF 和 IAF 的比较。已知密度的变量用绿色表示，未知的用红色表示。</p>
       
     
       
-        <p>各个元素 <span class="math-inline" data-math="\tilde{x}_i">\tilde{x}_i</span> 的计算相互独立，因此很容易并行化（使用 MADE 只需一次前向传递）。对已知 <span class="math-inline" data-math="\tilde{\mathbf{x}}">\tilde{\mathbf{x}}</span> 的密度估计则不够高效，因为我们必须按顺序 <span class="math-inline" data-math="\tilde{z}_i = (\tilde{x}_i - \tilde{\mu}_i(\tilde{\mathbf{z}}_{1:i-1})) / \tilde{\sigma}_i(\tilde{\mathbf{z}}_{1:i-1})">\tilde{z}_i = (\tilde{x}_i - \tilde{\mu}_i(\tilde{\mathbf{z}}_{1:i-1})) / \tilde{\sigma}_i(\tilde{\mathbf{z}}_{1:i-1})</span> 恢复 <span class="math-inline" data-math="\tilde{z}_i">\tilde{z}_i</span> 的值，总共需要 D 次。</p>
+        <p>各个元素 <span class="math-inline" data-math="\tilde{x}_i">\tilde{x}_i</span> 的计算相互独立，因此很容易并行化（使用 MADE 只需一次前向传播）。对已知 <span class="math-inline" data-math="\tilde{\mathbf{x}}">\tilde{\mathbf{x}}</span> 进行密度估计则不够高效，因为我们必须按顺序 <span class="math-inline" data-math="\tilde{z}_i = (\tilde{x}_i - \tilde{\mu}_i(\tilde{\mathbf{z}}_{1:i-1})) / \tilde{\sigma}_i(\tilde{\mathbf{z}}_{1:i-1})">\tilde{z}_i = (\tilde{x}_i - \tilde{\mu}_i(\tilde{\mathbf{z}}_{1:i-1})) / \tilde{\sigma}_i(\tilde{\mathbf{z}}_{1:i-1})</span> 恢复 <span class="math-inline" data-math="\tilde{z}_i">\tilde{z}_i</span> 的值，总共需要 D 次。</p>
       
     
       
@@ -978,16 +974,16 @@ MAF 与 IAF 的对比。已知密度的变量用绿色表示，未知的用红�
       
     
       
-        <h2>VAE + Flows#</h2>
+        <h2>VAE + Flows</h2>
         
       
     
       
-        <p>在 <a href="posts-2018-08-12-vae.html">从自编码器到 Beta-VAE</a> 中，如果我们希望将后验 <span class="math-inline" data-math="p(\mathbf{z}\vert\mathbf{x})">p(\mathbf{z}\vert\mathbf{x})</span> 建模为比简单高斯更复杂的分布，直观上我们可以使用 normalizing flow 来变换基础高斯分布以获得更好的密度逼近。此时编码器将预测一组缩放和平移项 <span class="math-inline" data-math="(\mu_i, \sigma_i)">(\mu_i, \sigma_i)</span>，它们都是输入 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 的函数。感兴趣的读者可阅读 <a href="https://arxiv.org/abs/1809.05861" target="_blank" rel="noopener">论文</a> 获取更多细节。</p>
+        <p>在 <a href="posts-2018-08-12-vae.html">从自编码器到 Beta-VAE</a> 中，如果我们希望将后验 <span class="math-inline" data-math="p(\mathbf{z}\vert\mathbf{x})">p(\mathbf{z}\vert\mathbf{x})</span> 建模为比简单高斯更复杂的分布。直观上我们可以使用 normalizing flow 来变换基础高斯分布，以获得更好的密度逼近。然后编码器会预测一组缩放和平移项 <span class="math-inline" data-math="(\mu_i, \sigma_i)">(\mu_i, \sigma_i)</span>，它们都是输入 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 的函数。感兴趣可阅读 <a href="https://arxiv.org/abs/1809.05861" target="_blank" rel="noopener">论文</a> 获取更多细节。</p>
       
     
       
-        <p>如果你在这篇文章中发现任何错误或疏漏，请随时通过 [lilian dot wengweng at gmail dot com] 联系我，我会非常乐意立即改正！</p>
+        <p>如果你发现本文有任何错误或疏漏，请随时通过 [lilian dot wengweng at gmail dot com] 联系我，我会非常高兴立即纠正它们！</p>
       
     
       
@@ -995,7 +991,7 @@ MAF 与 IAF 的对比。已知密度的变量用绿色表示，未知的用红�
       
     
       
-        <p>引用方式：</p>
+        <p>引用格式：</p>
       
     
       
@@ -1010,7 +1006,7 @@ MAF 与 IAF 的对比。已知密度的变量用绿色表示，未知的用红�
       
     
       
-        <h2>参考文献#</h2>
+        <h2>参考文献</h2>
         
       
     

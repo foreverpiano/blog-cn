@@ -49,17 +49,13 @@
 
 价格预测
 
-Embedding 可视化
+嵌入向量可视化
 
 已知问题</div>
       
     
       
-        <p>本文是使用 TensorFlow 构建循环神经网络预测股市价格的续篇教程。第 2 部分尝试利用 Embedding 来预测多只股票的价格。完整的可运行代码可在 [lilianweng/stock-rnn](https://github.com/lilianweng/stock-rnn) 中找到。</p>
-      
-    
-      
-        <p>在第 2 部分的教程中，我将继续讨论股票价格预测的话题，并为我在 <a href="posts-2017-07-08-stock-rnn-part-1.html">使用 RNN 预测股票价格：第一部分</a> 中构建的循环神经网络赋予处理多只股票的能力。为了区分不同价格序列背后的模式，我将股票代码的 Embedding 向量作为输入的一部分。</p>
+        <p>在第 2 部分的教程中，我将继续围绕股票价格预测展开讨论，并希望为我在 <a href="posts-2017-07-08-stock-rnn-part-1.html">使用 RNN 预测股价：第一部分</a> 中构建的循环神经网络赋予处理多只股票的能力。为了区分不同价格序列所关联的模式，我将股票代码的嵌入向量作为输入的一部分。</p>
       
     
       
@@ -68,11 +64,11 @@ Embedding 可视化
       
     
       
-        <p>在查找过程中，我发现了一个 <a href="https://github.com/lukaszbanasiak/yahoo-finance" target="_blank" rel="noopener">查询 Yahoo! Finance API 的库</a>。如果 Yahoo 没有关闭历史数据获取 API，它会非常有用。不过你仍可以用它来查询其他信息。这里我选择了 Google Finance 链接，它是 <a href="https://www.quantshare.com/sa-43-10-ways-to-download-historical-stock-quotes-data-for-free" target="_blank" rel="noopener">几个免费数据源</a>之一，用于下载历史股票价格。</p>
+        <p>在查找过程中，我发现了一个 <a href="https://github.com/lukaszbanasiak/yahoo-finance" target="_blank" rel="noopener">用于查询 Yahoo! Finance API 的库</a>。如果 Yahoo 没有关闭历史数据获取 API，它会非常有用。不过你仍然可以用它来查询其他信息。在这里，我从 <a href="https://www.quantshare.com/sa-43-10-ways-to-download-historical-stock-quotes-data-for-free" target="_blank" rel="noopener">几个免费数据源</a> 中选择了 Google Finance 的链接来下载历史股票价格。</p>
       
     
       
-        <p>获取数据的代码可以写得非常简单：</p>
+        <p>获取数据的代码可以写得非常简洁：</p>
       
     
       
@@ -88,7 +84,7 @@ symbol_url = BASE_URL.format(
       
     
       
-        <p>获取内容时，请记得加入 try-catch 包装，以防链接失效或提供的股票代码无效。</p>
+        <p>获取内容时，记得加上 try-catch 封装，以防链接失效或提供的股票代码无效。</p>
       
     
       
@@ -102,7 +98,7 @@ except urllib2.HTTPError:
       
     
       
-        <p>完整可运行的数据获取代码可在 <a href="https://github.com/lilianweng/stock-rnn/blob/master/data_fetcher.py" target="_blank" rel="noopener">这里</a> 找到。</p>
+        <p>完整可用的数据获取代码可以在 <a href="https://github.com/lilianweng/stock-rnn/blob/master/data_fetcher.py" target="_blank" rel="noopener">这里</a> 找到。</p>
       
     
       
@@ -111,20 +107,20 @@ except urllib2.HTTPError:
       
     
       
-        <p>模型需要学习不同股票随时间变化的价格序列。由于底层的模式各不相同，我希望明确告诉模型当前处理的是哪只股票。<a href="https://en.wikipedia.org/wiki/Embedding" target="_blank" rel="noopener">Embedding</a> 比 one-hot 编码更受欢迎，原因如下：</p>
+        <p>该模型需要学习不同股票随时间变化的价格序列。由于不同股票具有不同的内在模式，我希望明确告诉模型当前处理的是哪只股票。相比 one-hot 编码，<a href="https://en.wikipedia.org/wiki/Embedding" target="_blank" rel="noopener">Embedding（嵌入）</a> 更为合适，原因如下：</p>
       
     
       
-        <div class="list-content">假设训练集中包含 <span class="math-inline" data-math="N">N</span> 只股票，one-hot 编码将会引入 <span class="math-inline" data-math="N">N</span>（或 <span class="math-inline" data-math="N-1">N-1</span>）个额外的稀疏特征维度。而如果将每个股票代码映射到一个长度仅为 <span class="math-inline" data-math="k">k</span>、<span class="math-inline" data-math="k \ll N">k \ll N</span> 的更小的 Embedding 向量上，我们就能得到一个更加紧凑的表示，数据集的规模也更易于处理。
-此外，Embedding 向量是需要学习的变量，相似股票可能会关联到相似的 Embedding，从而帮助彼此的预测，例如后面你会看到的“GOOG”和“GOOGL”。</div>
+        <div class="list-content">假设训练集中包含 <span class="math-inline" data-math="N">N</span> 只股票，one-hot 编码将会引入 <span class="math-inline" data-math="N">N</span>（或 <span class="math-inline" data-math="N-1">N-1</span>）个额外的稀疏特征维度。而如果将每个股票代码映射到一个长度仅为 <span class="math-inline" data-math="k">k</span> 的嵌入向量 <span class="math-inline" data-math="k \ll N">k \ll N</span>，我们就能得到一个更加紧凑的表示，进而减少需要处理的数据规模。
+此外，嵌入向量是需要学习的变量。相似的股票可能会拥有相近的嵌入向量，从而帮助彼此的预测，例如你后续会看到的“GOOG”和“GOOGL”。</div>
       
     
       
-        <p>在循环神经网络中，在第 <span class="math-inline" data-math="t">t</span> 个时间步，输入向量包含第 <span class="math-inline" data-math="i">i</span> 只股票 <span class="math-inline" data-math="(p_{i, tw}, p_{i, tw+1}, \dots, p_{i, (t+1)w-1})">(p_{i, tw}, p_{i, tw+1}, \dots, p_{i, (t+1)w-1})</span> 的 input_size（记为 <span class="math-inline" data-math="w">w</span>）个每日价格值。股票代码被唯一映射到一个长度为 embedding_size（记为 <span class="math-inline" data-math="k">k</span>）的向量 <span class="math-inline" data-math="(e_{i,0}, e_{i,1}, \dots, e_{i,k})">(e_{i,0}, e_{i,1}, \dots, e_{i,k})</span>。如图 1 所示，价格向量与 Embedding 向量拼接后，再输入到 LSTM 单元中。</p>
+        <p>在循环神经网络中，某个时间步 <span class="math-inline" data-math="t">t</span> 的输入向量包含第 <span class="math-inline" data-math="i">i</span> 只股票 <span class="math-inline" data-math="(p_{i, tw}, p_{i, tw+1}, \dots, p_{i, (t+1)w-1})">(p_{i, tw}, p_{i, tw+1}, \dots, p_{i, (t+1)w-1})</span> 的 input_size（记为 <span class="math-inline" data-math="w">w</span>）个日价格数值。该股票代码会被唯一映射为一个长度为 embedding_size（记为 <span class="math-inline" data-math="k">k</span>）的向量 <span class="math-inline" data-math="(e_{i,0}, e_{i,1}, \dots, e_{i,k})">(e_{i,0}, e_{i,1}, \dots, e_{i,k})</span>。如图 1 所示，价格向量与嵌入向量拼接后，一起输入到 LSTM 单元中。</p>
       
     
       
-        <p>另一种方案是将 Embedding 向量与 LSTM 单元的最后一个状态拼接起来，并在输出层学习新的权重 <span class="math-inline" data-math="W">W</span> 和偏置 <span class="math-inline" data-math="b">b</span>。然而这种方式下，LSTM 单元无法区分不同股票的价格，其能力会受到很大限制。因此我决定采用前一种方法。</p>
+        <p>另一种方案是将嵌入向量与 LSTM 单元的最后一个状态拼接，在输出层学习新的权重 <span class="math-inline" data-math="W">W</span> 和偏置 <span class="math-inline" data-math="b">b</span>。但这种方式下，LSTM 单元无法区分不同股票的价格，其能力会受到很大限制。因此我最终选择了前一种方法。</p>
       
     
       
@@ -139,12 +135,12 @@ except urllib2.HTTPError:
       
     
       
-        <div class="list-content">embedding_size 控制每个 Embedding 向量的维度；
-stock_count 表示数据集中唯一股票的数量。</div>
+        <div class="list-content">embedding_size 控制每个嵌入向量的维度；
+stock_count 表示数据集中独特股票的数量。</div>
       
     
       
-        <p>两者共同定义了 Embedding 矩阵的尺寸，与 <a href="posts-2017-07-08-stock-rnn-part-1.html">使用 RNN 预测股票价格：第一部分</a> 中的模型相比，模型需要额外学习 embedding_size × stock_count 个变量。<span class="math-inline" data-math="\times">\times</span></p>
+        <p>这两者共同决定了嵌入矩阵的大小，与 <a href="posts-2017-07-08-stock-rnn-part-1.html">使用 RNN 预测股价：第一部分</a> 中的模型相比，本模型需要额外学习 embedding_size × stock_count 个变量。<span class="math-inline" data-math="\times">\times</span></p>
       
     
       
@@ -165,7 +161,7 @@ stock_count 表示数据集中唯一股票的数量。</div>
       
     
       
-        <p>(1) 如教程 <a href="posts-2017-07-08-stock-rnn-part-1.html">使用 RNN 预测股票价格：第一部分</a> 所示，我们先定义一个名为 lstm_graph 的 tf.Graph()，并以同样的方式定义一组张量来存放输入数据、inputs、targets 和 learning_rate。还需要额外定义一个占位符来存放与输入价格对应的股票代码列表。股票代码已事先通过 <a href="http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.LabelEncoder.html" target="_blank" rel="noopener">label encoding</a> 映射为唯一的整数。</p>
+        <p>(1) 如教程 <a href="posts-2017-07-08-stock-rnn-part-1.html">使用 RNN 预测股价：第一部分</a> 所示，我们首先定义一个名为 lstm_graph 的 tf.Graph()，并以相同方式定义一组张量用于存放输入数据、inputs、targets 和 learning_rate。此外还需要定义一个占位符来存放与输入价格对应的股票代码列表。股票代码已事先通过 <a href="http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.LabelEncoder.html" target="_blank" rel="noopener">label encoding</a> 映射为唯一的整数。</p>
       
     
       
@@ -175,7 +171,7 @@ stock_labels = tf.placeholder(tf.int32, [None, 1])
       
     
       
-        <p>(2) 接下来我们要建立一个 Embedding 矩阵作为查找表，里面存放所有股票的 Embedding 向量。该矩阵用 [-1, 1] 区间内的随机数初始化，并在训练过程中不断更新。</p>
+        <p>(2) 接下来我们要建立一个嵌入矩阵作为查找表，其中包含所有股票的嵌入向量。该矩阵使用区间 [-1, 1] 内的随机数初始化，并在训练过程中不断更新。</p>
       
     
       
@@ -188,8 +184,8 @@ embedding_matrix = tf.Variable(
       
     
       
-        <p>(3) 将股票标签重复 num_steps 次，以匹配 RNN 展开后的版本以及训练时 inputs 张量的形状。
-变换操作 <a href="https://www.tensorflow.org/api_docs/python/tf/tile" target="_blank" rel="noopener">tf.tile</a> 接收一个基础张量，通过将其某些维度复制多次来创建新的张量；具体来说，输入张量的第 <span class="math-inline" data-math="i">i</span> 维会乘以 multiples[i] 倍。例如，若 stock_labels 为 [[0], [0], [2], [1]]，用 [1, 5] 对其进行 tiling 将得到 [[0 0 0 0 0], [0 0 0 0 0], [2 2 2 2 2], [1 1 1 1 1]]。</p>
+        <p>(3) 将股票标签重复 num_steps 次，以匹配 RNN 展开后的形式以及训练时 inputs 张量的形状。
+变换操作 <a href="https://www.tensorflow.org/api_docs/python/tf/tile" target="_blank" rel="noopener">tf.tile</a> 接收一个基础张量，通过将特定维度复制若干次来生成新的张量；具体来说，输入张量的第 <span class="math-inline" data-math="i">i</span> 维会乘以 multiples[i] 倍。例如，若 stock_labels 为 [[0], [0], [2], [1]]，使用 [1, 5] 进行 tiling 将得到 [[0 0 0 0 0], [0 0 0 0 0], [2 2 2 2 2], [1 1 1 1 1]]。</p>
       
     
       
@@ -198,7 +194,7 @@ embedding_matrix = tf.Variable(
       
     
       
-        <p>(4) 然后我们根据查找表 embedding_matrix 将股票代码映射为对应的 Embedding 向量。</p>
+        <p>(4) 然后根据查找表 embedding_matrix 将股票代码映射为对应的嵌入向量。</p>
       
     
       
@@ -208,7 +204,7 @@ stock_label_embeds = tf.nn.embedding_lookup(embedding_matrix, stacked_stock_labe
       
     
       
-        <p>(5) 最后，将价格数值与 Embedding 向量合并。操作 <a href="https://www.tensorflow.org/api_docs/python/tf/concat" target="_blank" rel="noopener">tf.concat</a> 沿指定维度 axis 将一系列张量拼接起来。在我们的例子中，我们希望保持 batch size 和时间步数不变，仅将长度为 input_size 的输入向量扩展以包含 Embedding 特征。</p>
+        <p>(5) 最后，将价格数值与嵌入向量合并。操作 <a href="https://www.tensorflow.org/api_docs/python/tf/concat" target="_blank" rel="noopener">tf.concat</a> 沿着指定维度拼接张量列表。在我们的例子中，我们希望保持 batch size 和步数不变，仅将长度为 input_size 的输入向量扩展以包含嵌入特征。</p>
       
     
       
@@ -220,7 +216,7 @@ inputs_with_embeds = tf.concat([inputs, stock_label_embeds], axis=2)
       
     
       
-        <p>剩余的代码会运行 dynamic RNN，提取 LSTM 单元的最后一个状态，并处理输出层的权重和偏置。详情请参阅 <a href="posts-2017-07-08-stock-rnn-part-1.html">使用 RNN 预测股票价格：第一部分</a>。</p>
+        <p>剩下的代码负责运行动态 RNN、提取 LSTM 单元的最后状态，并处理输出层的权重和偏置。详情请参考 <a href="posts-2017-07-08-stock-rnn-part-1.html">使用 RNN 预测股价：第一部分</a>。</p>
       
     
       
@@ -229,11 +225,11 @@ inputs_with_embeds = tf.concat([inputs, stock_label_embeds], axis=2)
       
     
       
-        <p>如果你还没有了解过如何在 TensorFlow 中运行训练会话，请阅读 <a href="posts-2017-07-08-stock-rnn-part-1.html">使用 RNN 预测股票价格：第一部分</a>。</p>
+        <p>如果你还不了解如何在 Tensorflow 中启动训练会话，请先阅读 <a href="posts-2017-07-08-stock-rnn-part-1.html">使用 RNN 预测股价：第一部分</a>。</p>
       
     
       
-        <p>在将数据送入计算图之前，股票代码需要通过 <a href="http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.LabelEncoder.html" target="_blank" rel="noopener">label encoding</a> 转换为唯一的整数。</p>
+        <p>在将数据送入计算图之前，需要先通过 <a href="http://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.LabelEncoder.html" target="_blank" rel="noopener">label encoding</a> 将股票代码转换为唯一的整数。</p>
       
     
       
@@ -244,7 +240,7 @@ label_encoder.fit(list_of_symbols)
       
     
       
-        <p>每只股票的训练/测试集划分比例保持不变，90% 用于训练，10% 用于测试。</p>
+        <p>每只股票的训练/测试集划分比例保持不变，即 90% 用于训练，10% 用于测试。</p>
       
     
       
@@ -260,17 +256,17 @@ label_encoder.fit(list_of_symbols)
       
     
       
-        <p>在代码中定义好计算图后，我们可以在 TensorBoard 中查看可视化结果，以确保各个组件构建正确。从整体上看，它与我们在 Fig. 1 中展示的架构图非常相似。
+        <p>在代码中定义好计算图后，我们可以在 Tensorboard 中查看其可视化效果，以确认各个组件是否正确构建。它在整体结构上与我们之前绘制的架构图非常相似。
 
-TensorBoard 中上述计算图的可视化。“train”和“save”两个模块已从主图中移除。</p>
+Tensorboard 中上述计算图的可视化效果。其中“train”和“save”两个模块已从主图中移除。</p>
       
     
       
-        <p>除了展示图结构或跟踪变量随时间的变化外，TensorBoard 还支持 <a href="https://www.tensorflow.org/get_started/embedding_viz" target="_blank" rel="noopener">Embedding 可视化</a>。为了将 Embedding 值传递给 TensorBoard，我们需要在训练日志中添加相应的记录代码。</p>
+        <p>除了展示图结构或跟踪变量随时间的变化外，Tensorboard 还支持 <a href="https://www.tensorflow.org/get_started/embedding_viz" target="_blank" rel="noopener">嵌入可视化</a>。为了将嵌入值传递给 Tensorboard，我们需要在训练日志中添加相应的记录操作。</p>
       
     
       
-        <p>(0) 在我的 Embedding 可视化中，我想用行业板块为每只股票着色。这些元数据应保存在一个 csv 文件中。该文件包含两列：股票代码和所属行业板块。csv 文件是否带表头并不重要，但列出的股票顺序必须与 label_encoder.classes_ 保持一致。</p>
+        <p>(0) 在我的嵌入可视化中，我希望按照所属行业为每只股票着色。这些元数据应保存在一个 csv 文件中。该文件包含两列：股票代码和所属行业。csv 文件是否包含表头并不重要，但列出的股票顺序必须与 label_encoder.classes_ 保持一致。</p>
       
     
       
@@ -284,7 +280,7 @@ with open(embedding_metadata_path, &#x27;w&#x27;) as fout:
       
     
       
-        <p>(1) 先在训练用的 tf.Session 中设置好 summary writer。</p>
+        <p>(1) 首先在训练用的 tf.Session 中设置 summary writer。</p>
       
     
       
@@ -328,7 +324,7 @@ with tf.Session(graph=lstm_graph) as sess:
       
     
       
-        <p>（在 <a href="https://github.com/lilianweng/stock-rnn" target="_blank" rel="noopener">github.com/lilianweng/stock-rnn</a> 目录下运行以下命令）</p>
+        <p>（在 <a href="https://github.com/lilianweng/stock-rnn" target="_blank" rel="noopener">github.com/lilianweng/stock-rnn</a> 仓库内运行以下命令）</p>
       
     
       
@@ -337,7 +333,7 @@ with tf.Session(graph=lstm_graph) as sess:
       
     
       
-        <p>使用的配置如下：</p>
+        <p>采用的配置如下：</p>
       
     
       
@@ -362,7 +358,7 @@ init_epoch = 5
       
     
       
-        <p>作为对预测质量的简要概述，图 3 展示了“KO”、“AAPL”、“GOOG”和“NFLX”测试数据的预测结果。真实值与预测值在整体趋势上基本吻合。考虑到预测任务的设计方式，模型依靠所有历史数据点仅预测未来 5 天（input_size）。当 input_size 较小时，模型无需担心长期增长曲线。而一旦增大 input_size，预测难度会显著增加。</p>
+        <p>作为对预测质量的简要概述，图 3 展示了“KO”、“AAPL”、“GOOG”和“NFLX”测试数据的预测结果。真实值与预测值的整体趋势基本吻合。考虑到本预测任务的设计方式，模型需要依赖所有历史数据点来预测接下来仅 5 个（input_size）交易日的情况。由于 input_size 较小，模型无需担心长期增长曲线。如果增大 input_size，预测难度将会显著增加。</p>
       
     
       

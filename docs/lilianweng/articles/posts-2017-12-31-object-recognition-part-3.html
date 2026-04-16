@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>傻瓜式目标检测系列之三：R-CNN 家族 · Lil'Log (Lilian Weng)</title>
+  <title>傻瓜式目标检测系列第 3 篇：R-CNN 家族 · Lil'Log (Lilian Weng)</title>
   <link rel="stylesheet" href="../static/css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
@@ -20,7 +20,7 @@
 
 <article>
   <header class="article-header">
-    <h1>傻瓜式目标检测系列之三：R-CNN 家族</h1>
+    <h1>傻瓜式目标检测系列第 3 篇：R-CNN 家族</h1>
     <div class="meta">
       2017-12-31 · 
       <a href="https://lilianweng.github.io/posts/2017-12-31-object-recognition-part-3/" target="_blank" rel="noopener">阅读原文</a>
@@ -39,28 +39,24 @@
 模型流程  
 边界框回归  
 常用技巧  
-速度瓶颈
-
+速度瓶颈  
 
 Fast R-CNN
 
 RoI Pooling  
 模型流程  
 损失函数  
-速度瓶颈
-
+速度瓶颈  
 
 Faster R-CNN
 
 模型流程  
-损失函数
-
+损失函数  
 
 Mask R-CNN
 
 RoIAlign  
-损失函数
-
+损失函数  
 
 R-CNN 家族模型总结
 
@@ -68,29 +64,25 @@ R-CNN 家族模型总结
       
     
       
-        <p>在第三部分，我们将详细介绍四个目标检测模型：R-CNN、Fast R-CNN、Faster R-CNN 和 Mask R-CNN。这些模型之间联系紧密，后续版本在速度上比早期版本有了显著提升。</p>
-      
-    
-      
-        <p>[2018-12-20 更新：已移除 YOLO。第四部分将介绍包括 YOLO 在内的多种快速目标检测算法。]
+        <p>[2018-12-20 更新：移除本文中的 YOLO。第四部分将介绍包括 YOLO 在内的多种快速目标检测算法。]
 
-[2018-12-27 更新：为 R-CNN 补充了边界框回归和常用技巧章节。]</p>
+[2018-12-27 更新：为 R-CNN 补充边界框回归和常用技巧章节。]</p>
       
     
       
-        <p>在“傻瓜式目标检测”系列中，我们从图像处理基础概念出发，在中介绍了梯度向量和 HOG 等内容。随后在中介绍了经典的用于分类的卷积神经网络架构，以及目标识别领域的开创性模型 Overfeat 和 DPM。本系列第三部分，我们将重点回顾 R-CNN（“基于区域的 CNN”）家族的一系列模型。<a href="posts-2017-10-29-object-recognition-part-1.html">傻瓜式目标检测入门（一）：梯度向量、HOG 与 Selective Search</a><a href="posts-2017-12-15-object-recognition-part-2.html">傻瓜式目标检测系列（中）——CNN、DPM 与 Overfeat</a></p>
+        <p>在“傻瓜式目标检测”系列中，我们先在  介绍了图像处理的基础概念，例如梯度向量和 HOG。随后在  介绍了经典的卷积神经网络分类架构，以及目标检测领域的先驱模型 Overfeat 和 DPM。本系列第三篇文章，我们将一起回顾 R-CNN（“Region-based CNN”）家族的一系列模型。<a href="posts-2017-10-29-object-recognition-part-1.html">傻瓜式目标检测教程 第一部分：梯度向量、HOG 与 Selective Search</a><a href="posts-2017-12-15-object-recognition-part-2.html">傻瓜式目标检测系列之二：CNN、DPM 与 Overfeat</a></p>
       
     
       
-        <p>本系列所有文章的链接：
+        <p>本系列所有文章链接：
 []
 []
 []
-[]。<a href="posts-2017-10-29-object-recognition-part-1.html">傻瓜式目标检测入门（一）：梯度向量、HOG 与 Selective Search</a><a href="posts-2017-12-15-object-recognition-part-2.html">傻瓜式目标检测系列（中）——CNN、DPM 与 Overfeat</a><a href="posts-2017-12-31-object-recognition-part-3.html">傻瓜式目标检测系列之三：R-CNN 家族</a><a href="posts-2018-12-27-object-recognition-part-4.html">目标检测（四）：快速检测模型</a></p>
+[]。<a href="posts-2017-10-29-object-recognition-part-1.html">傻瓜式目标检测教程 第一部分：梯度向量、HOG 与 Selective Search</a><a href="posts-2017-12-15-object-recognition-part-2.html">傻瓜式目标检测系列之二：CNN、DPM 与 Overfeat</a><a href="posts-2017-12-31-object-recognition-part-3.html">傻瓜式目标检测系列第 3 篇：R-CNN 家族</a><a href="posts-2018-12-27-object-recognition-part-4.html">目标检测第 4 部分：快速检测模型</a></p>
       
     
       
-        <p>以下是本篇涉及的论文列表。</p>
+        <p>以下是本文涉及的论文列表。</p>
       
     
       
@@ -133,7 +125,7 @@ R-CNN 家族模型总结
       
     
       
-        <p>R-CNN（<a href="https://arxiv.org/abs/1311.2524" target="_blank" rel="noopener">Girshick et al., 2014</a>）是“Region-based Convolutional Neural Networks”的缩写。其核心思想分为两步：首先通过<a href="posts-2017-10-29-object-recognition-part-1.html">傻瓜式目标检测入门（一）：梯度向量、HOG 与 Selective Search</a>生成数量可控的候选边界框（称为“region of interest”或“RoI”）；然后从每个候选区域独立提取 CNN 特征用于分类。</p>
+        <p>R-CNN（<a href="https://arxiv.org/abs/1311.2524" target="_blank" rel="noopener">Girshick et al., 2014</a>）是“Region-based Convolutional Neural Networks”的缩写。其核心思想分为两步：首先通过 <a href="posts-2017-10-29-object-recognition-part-1.html">傻瓜式目标检测教程 第一部分：梯度向量、HOG 与 Selective Search</a> 找出数量可控的候选边界框（称为“region of interest”或“RoI”）；然后从每个候选区域独立提取 CNN 特征，用于后续分类。</p>
       
     
       
@@ -149,25 +141,25 @@ R-CNN 家族模型总结
       
     
       
-        <p>R-CNN 的工作流程可总结如下：</p>
+        <p>R-CNN 的工作流程可以总结如下：</p>
       
     
       
-        <div class="list-content">在图像分类任务上预训练一个 CNN 网络，例如在<a href="http://image-net.org/index" target="_blank" rel="noopener">ImageNet</a>数据集上训练的 VGG 或 ResNet。分类任务包含 N 个类别。</div>
+        <div class="list-content">在图像分类任务上预训练一个 CNN 网络，例如在 <a href="http://image-net.org/index" target="_blank" rel="noopener">ImageNet</a> 数据集上训练的 VGG 或 ResNet。分类任务包含 N 个类别。</div>
       
     
       
-        <blockquote>注：你可以在 Caffe Model <a href="https://github.com/caffe2/caffe2/wiki/Model-Zoo" target="_blank" rel="noopener">Zoo</a> 中找到预训练的<a href="https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet" target="_blank" rel="noopener">AlexNet</a>。Tensorflow 中似乎<a href="https://github.com/tensorflow/models/issues/1394" target="_blank" rel="noopener">找不到</a>，但 Tensorflow-slim 模型<a href="https://github.com/tensorflow/models/tree/master/research/slim" target="_blank" rel="noopener">库</a>提供了预训练的 ResNet、VGG 等模型。</blockquote>
+        <blockquote>注：你可以在 Caffe Model <a href="https://github.com/caffe2/caffe2/wiki/Model-Zoo" target="_blank" rel="noopener">Zoo</a> 中找到预训练的 <a href="https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet" target="_blank" rel="noopener">AlexNet</a>。Tensorflow 中可能<a href="https://github.com/tensorflow/models/issues/1394" target="_blank" rel="noopener">找不到</a>，但 Tensorflow-slim 模型<a href="https://github.com/tensorflow/models/tree/master/research/slim" target="_blank" rel="noopener">库</a>提供了预训练的 ResNet、VGG 等模型。</blockquote>
       
     
       
-        <div class="list-content">使用 selective search 生成类别无关的候选区域（每张图像约 2000 个）。这些区域可能包含目标物体，且尺寸各不相同。
-将候选区域缩放（warped）到 CNN 要求的固定尺寸。
-在缩放后的候选区域上对 CNN 进行微调，类别数为 K+1（额外的一类是背景）。微调阶段应使用更小的学习率，且 mini-batch 要对正样本进行过采样，因为大部分候选区域都是背景。
-对每个图像区域进行一次 CNN 前向传播得到特征向量。该特征向量会被送入针对每个类别独立训练的二分类 SVM。
+        <div class="list-content">使用 selective search 提出类别无关的候选区域（每张图像约 2000 个）。这些区域可能包含目标物体，且尺寸各不相同。
+将候选区域变形（warp）成 CNN 要求的固定尺寸。
+在变形后的候选区域上继续微调 CNN，使其能分类 K+1 个类别；额外的那一类代表背景（不含感兴趣物体）。微调阶段应使用更小的学习率，且 mini-batch 要过采样正样本，因为大部分候选区域其实是背景。
+对每个图像区域做一次 CNN 前向传播，得到特征向量。该特征向量随后被送入每个类别独立训练的二分类 SVM。
 
-正样本是 IoU（交并比）≥0.3 的候选区域，负样本是其他不相关的区域。
-为减少定位误差，会训练一个回归模型，利用 CNN 提取的特征来修正预测检测框的边界框偏移量。</div>
+正样本是 IoU（Intersection over Union）重叠度 ≥ 0.3 的候选区域，负样本是其他不相关的区域。
+为了减少定位误差，还会训练一个回归模型，利用 CNN 提取的特征来修正预测边界框的偏移量。</div>
       
     
       
@@ -176,7 +168,7 @@ R-CNN 家族模型总结
       
     
       
-        <p>给定一个预测边界框坐标 <span class="math-inline" data-math="\mathbf{p} = (p_x, p_y, p_w, p_h)">\mathbf{p} = (p_x, p_y, p_w, p_h)</span>（中心坐标、宽、高）及其对应的真实边界框坐标 <span class="math-inline" data-math="\mathbf{g} = (g_x, g_y, g_w, g_h)">\mathbf{g} = (g_x, g_y, g_w, g_h)</span>，回归器学习的是中心点之间的平移变换（尺度无关）和宽、高之间的对数尺度变换。所有变换函数都以 <span class="math-inline" data-math="\mathbf{p}">\mathbf{p}</span> 作为输入。</p>
+        <p>给定一个预测边界框坐标 <span class="math-inline" data-math="\mathbf{p} = (p_x, p_y, p_w, p_h)">\mathbf{p} = (p_x, p_y, p_w, p_h)</span>（中心坐标、宽、高）及其对应的真实框坐标 <span class="math-inline" data-math="\mathbf{g} = (g_x, g_y, g_w, g_h)">\mathbf{g} = (g_x, g_y, g_w, g_h)</span>，回归器要学习两个中心之间的平移变换（scale-invariant）以及宽高之间的对数尺度变换（log-scale）。所有变换函数都以 <span class="math-inline" data-math="\mathbf{p}">\mathbf{p}</span> 作为输入。</p>
       
     
       
@@ -205,7 +197,7 @@ R-CNN 家族模型总结
       
     
       
-        <p>采用这种变换的一个明显优势是，所有边界框修正函数 <span class="math-inline" data-math="d_i(\mathbf{p})">d_i(\mathbf{p})</span>（其中 <span class="math-inline" data-math="i \in \{ x, y, w, h \}">i \in \{ x, y, w, h \}</span>）都可以取 [-∞, +∞] 之间的任意值。其学习目标为：</p>
+        <p>采用这种变换的一个明显好处是，所有边界框修正函数 <span class="math-inline" data-math="d_i(\mathbf{p})">d_i(\mathbf{p})</span>（其中 <span class="math-inline" data-math="i \in \{ x, y, w, h \}">i \in \{ x, y, w, h \}</span>）的取值范围可以是 [-∞, +∞]。它们要学习的目标是：</p>
       
     
       
@@ -227,7 +219,7 @@ t_h &amp;= \log(g_h/p_h)
       
     
       
-        <p>标准的回归模型可通过最小化带正则化的平方误差损失来求解：</p>
+        <p>标准的回归模型可以通过最小化带正则化的 SSE 损失来解决这个问题：</p>
       
     
       
@@ -239,7 +231,7 @@ t_h &amp;= \log(g_h/p_h)
       
     
       
-        <p>正则化项在这里非常关键，R-CNN 论文通过交叉验证选择了最佳的 λ 值。值得注意的是，并非所有预测边界框都存在对应的真实边界框。例如，如果完全没有重叠，就没有必要进行边界框回归。因此，只有与真实框 IoU 至少达到 0.6 的预测框才会被保留用于训练边界框回归模型。</p>
+        <p>正则化项在这里非常关键，R-CNN 论文通过交叉验证选出了最佳的 λ 值。值得注意的是，并非所有预测框都有对应的真实框。例如，如果两者完全没有重叠，就没有必要进行边界框回归。因此，只有那些与真实框 IoU 至少达到 0.6 的预测框才会被用于训练边界框回归模型。</p>
       
     
       
@@ -248,7 +240,7 @@ t_h &amp;= \log(g_h/p_h)
       
     
       
-        <p>在 R-CNN 及其他检测模型中，有几种技巧被广泛使用。</p>
+        <p>在 R-CNN 和其他检测模型中，有几种技巧被广泛使用。</p>
       
     
       
@@ -256,12 +248,12 @@ t_h &amp;= \log(g_h/p_h)
       
     
       
-        <p>模型往往会对同一个物体检测出多个边界框。非极大值抑制可以避免对同一实例的重复检测。当我们得到同一类别的一组匹配边界框后：
-按置信度对所有边界框排序。
+        <p>模型很可能为同一个物体找出多个边界框。非极大值抑制可以避免对同一实例的重复检测。当我们得到同一类别的一组匹配边界框后：
+按置信度分数对所有边界框排序。
 丢弃置信度低的框。
 只要还有剩余的边界框，就重复以下步骤：
-贪婪地选择当前置信度最高的框。
-跳过与已选框 IoU 大于 0.5 的其余框。</p>
+贪婪地选择当前分数最高的框。
+跳过那些与已选框 IoU 大于 0.5 的剩余框。</p>
       
     
       
@@ -276,11 +268,11 @@ t_h &amp;= \log(g_h/p_h)
       
     
       
-        <p>我们将不包含目标的边界框视为负样本。并非所有负样本都同样难以区分。例如，纯背景的框通常是“简单负样本”；而如果框内包含奇怪的噪声纹理或部分物体，就很难识别，这些被称为“难负样本”。</p>
+        <p>我们把不包含目标物体的边界框视为负样本。并非所有负样本都同样难以区分。例如，完全空白的背景通常是“简单负样本”；而如果框内包含奇怪的噪声纹理或物体局部，则可能很难识别，这些就是“难负样本”。</p>
       
     
       
-        <p>难负样本很容易被错误分类。我们可以在训练过程中主动找出这些假阳性样本，并将其加入训练数据，从而提升分类器的性能。</p>
+        <p>难负样本很容易被错误分类。我们可以在训练过程中显式地找出这些假阳性样本，并把它们加入训练数据，从而提升分类器的性能。</p>
       
     
       
@@ -289,13 +281,13 @@ t_h &amp;= \log(g_h/p_h)
       
     
       
-        <p>查看 R-CNN 的训练步骤可以发现，训练一个 R-CNN 模型既昂贵又缓慢，因为以下步骤涉及大量计算：</p>
+        <p>浏览 R-CNN 的整个训练流程，你会发现训练一个 R-CNN 模型既昂贵又缓慢，因为以下步骤涉及大量计算：</p>
       
     
       
         <div class="list-content">对每张图像运行 selective search 提出约 2000 个候选区域；
-为每个候选区域生成 CNN 特征向量（N 张图像 × 2000）。
-整个过程涉及三个相互独立的模型，几乎没有共享计算：用于图像分类和特征提取的卷积神经网络；用于识别目标物体的顶层 SVM 分类器；以及用于修正区域边界框的回归模型。</div>
+为每个候选区域生成 CNN 特征向量（N 张图像 × 2000 个）。
+整个过程涉及三个相互独立的模型，计算共享很少：用于图像分类和特征提取的卷积神经网络、用于识别目标物体的 SVM 分类器，以及用于修正边界框的回归模型。</div>
       
     
       
@@ -304,7 +296,7 @@ t_h &amp;= \log(g_h/p_h)
       
     
       
-        <p>为了让 R-CNN 更快，Girshick（<a href="https://arxiv.org/pdf/1504.08083.pdf" target="_blank" rel="noopener">2015</a>）改进了训练流程，将三个独立模型统一为一个联合训练的框架，并大幅增加计算共享，称为 Fast R-CNN。该模型不再为每个候选区域独立提取 CNN 特征，而是对整张图像进行一次 CNN 前向传播，所有候选区域共享这一特征矩阵。随后该特征矩阵被分支用于训练物体分类器和边界框回归器。总的来说，计算共享显著提升了 R-CNN 的速度。</p>
+        <p>为了让 R-CNN 更快，Girshick（<a href="https://arxiv.org/pdf/1504.08083.pdf" target="_blank" rel="noopener">2015</a>）对训练流程进行了改进，将三个独立模型统一成一个联合训练的框架，并大幅增加计算共享，称为 Fast R-CNN。该模型不再为每个候选区域单独提取 CNN 特征，而是对整张图像做一次 CNN 前向传播，所有候选区域共享这一特征矩阵。随后同一特征矩阵被分支用于训练物体分类器和边界框回归器。总之，计算共享显著提升了 R-CNN 的速度。</p>
       
     
       
@@ -320,7 +312,7 @@ t_h &amp;= \log(g_h/p_h)
       
     
       
-        <p>这是一种最大池化操作，能将图像中任意尺寸 h×w 的投影区域特征转换为一个小而固定的 H×W 窗口。输入区域被划分为 H×W 个网格，每个网格大小大致为 h/H×w/W，然后在每个网格内进行最大池化。</p>
+        <p>这是一种特殊的最大池化操作，能将图像中任意尺寸 h×w 的投影区域特征，转换为一个固定大小的小窗口 H×W。输入区域被划分为 H×W 个网格，每个网格大约为 h/H×w/W 大小，然后在每个网格内进行最大池化。</p>
       
     
       
@@ -336,21 +328,21 @@ t_h &amp;= \log(g_h/p_h)
       
     
       
-        <p>Fast R-CNN 的工作流程总结如下，其中很多步骤与 R-CNN 相同：</p>
+        <p>Fast R-CNN 的工作流程总结如下，很多步骤与 R-CNN 相同：</p>
       
     
       
-        <div class="list-content">首先，在图像分类任务上预训练一个卷积神经网络。
+        <div class="list-content">首先在图像分类任务上预训练一个卷积神经网络。
 使用 selective search 提出候选区域（每张图像约 2000 个）。
-修改预训练的 CNN：
+对预训练的 CNN 进行修改：
 
-将预训练 CNN 的最后一个最大池化层替换为 RoI Pooling 层。该层为每个候选区域输出固定长度的特征向量。共享 CNN 计算非常合理，因为同一图像的多个候选区域通常高度重叠。
-将最后一个全连接层和 softmax 层（K 类）替换为一个全连接层和针对 K+1 类的 softmax。
+将预训练 CNN 的最后一个最大池化层替换为 RoI Pooling 层。RoI Pooling 层能输出固定长度的候选区域特征向量。对同一图像的多个高度重叠的候选区域共享 CNN 计算非常合理。
+将最后一个全连接层和最后的 softmax 层（K 类）替换为一个全连接层和针对 K+1 类的 softmax。
 
 
-最终模型分支为两个输出层：
+最后模型分支为两个输出层：
 
-一个 K+1 类的 softmax 分类器（与 R-CNN 相同，+1 表示“背景”类），对每个 RoI 输出离散概率分布。
+一个 K+1 类的 softmax 分类器（与 R-CNN 一样，+1 为“背景”类），为每个 RoI 输出一个离散概率分布。
 一个边界框回归模型，为每个类别预测相对于原始 RoI 的偏移量。</div>
       
     
@@ -366,14 +358,14 @@ t_h &amp;= \log(g_h/p_h)
       
         <p>| 符号 | 含义 |
 | <span class="math-inline" data-math="u">u</span> | 真实类别标签，范围为 <span class="math-inline" data-math=" u \in 0, 1, \dots, K"> u \in 0, 1, \dots, K</span>；按惯例，背景类的标签为 <span class="math-inline" data-math="u = 0">u = 0</span>。 |
-| <span class="math-inline" data-math="p">p</span> | 每个 RoI 上 K+1 类的离散概率分布 <span class="math-inline" data-math="p = (p_0, \dots, p_K)">p = (p_0, \dots, p_K)</span>，由全连接层输出的 K+1 个值经过 softmax 计算得到。 |
+| <span class="math-inline" data-math="p">p</span> | 针对每个 RoI 的 K+1 类离散概率分布 <span class="math-inline" data-math="p = (p_0, \dots, p_K)">p = (p_0, \dots, p_K)</span>，由全连接层输出的 K+1 个值经过 softmax 计算得到。 |
 | <span class="math-inline" data-math="v">v</span> | 真实边界框坐标 <span class="math-inline" data-math=" v = (v_x, v_y, v_w, v_h) "> v = (v_x, v_y, v_w, v_h) </span>。 |
-| <span class="math-inline" data-math="t^u">t^u</span> | 预测的边界框修正量 <span class="math-inline" data-math="t^u = (t^u_x, t^u_y, t^u_w, t^u_h)">t^u = (t^u_x, t^u_y, t^u_w, t^u_h)</span>。见上文。 |
+| <span class="math-inline" data-math="t^u">t^u</span> | 预测的边界框修正值 <span class="math-inline" data-math="t^u = (t^u_x, t^u_y, t^u_w, t^u_h)">t^u = (t^u_x, t^u_y, t^u_w, t^u_h)</span>。定义见上文。 |
 {:.info}</p>
       
     
       
-        <p>损失函数将分类损失和边界框预测损失相加：<span class="math-inline" data-math="\mathcal{L} = \mathcal{L}_\text{cls} + \mathcal{L}_\text{box}">\mathcal{L} = \mathcal{L}_\text{cls} + \mathcal{L}_\text{box}</span>。对于“背景”RoI，<span class="math-inline" data-math="\mathcal{L}_\text{box}">\mathcal{L}_\text{box}</span> 被指示函数 <span class="math-inline" data-math="\mathbb{1} [u \geq 1]">\mathbb{1} [u \geq 1]</span> 忽略，其定义为：</p>
+        <p>损失函数将分类损失和边界框预测损失相加：<span class="math-inline" data-math="\mathcal{L} = \mathcal{L}_\text{cls} + \mathcal{L}_\text{box}">\mathcal{L} = \mathcal{L}_\text{cls} + \mathcal{L}_\text{box}</span>。对于“背景”RoI，通过指示函数 <span class="math-inline" data-math="\mathbb{1} [u \geq 1]">\mathbb{1} [u \geq 1]</span> 忽略边界框损失 <span class="math-inline" data-math="\mathcal{L}_\text{box}">\mathcal{L}_\text{box}</span>，该函数定义为：</p>
       
     
       
@@ -411,7 +403,7 @@ t_h &amp;= \log(g_h/p_h)
       
     
       
-        <p>边界框损失 <span class="math-inline" data-math="\mathcal{L}_{box}">\mathcal{L}_{box}</span> 应使用稳健的损失函数来衡量 <span class="math-inline" data-math="t^u_i">t^u_i</span> 和 <span class="math-inline" data-math="v_i">v_i</span> 之间的差异。这里采用了<a href="https://github.com/rbgirshick/py-faster-rcnn/files/764206/SmoothL1Loss.1.pdf" target="_blank" rel="noopener">smooth L1 损失</a>，据称对离群点不那么敏感。</p>
+        <p>边界框损失 <span class="math-inline" data-math="\mathcal{L}_{box}">\mathcal{L}_{box}</span> 应使用鲁棒的损失函数衡量 <span class="math-inline" data-math="t^u_i">t^u_i</span> 与 <span class="math-inline" data-math="v_i">v_i</span> 之间的差异。这里采用的是 <a href="https://github.com/rbgirshick/py-faster-rcnn/files/764206/SmoothL1Loss.1.pdf" target="_blank" rel="noopener">Smooth L1 损失</a>，据称对离群点不敏感。</p>
       
     
       
@@ -441,7 +433,7 @@ L_1^\text{smooth}(x) = \begin{cases}
       
     
       
-        <p>Fast R-CNN 在训练和测试速度上都快得多。然而提升并不算惊人，因为候选区域仍然由另一个独立模型生成，这部分计算开销非常大。</p>
+        <p>Fast R-CNN 在训练和测试速度上都快得多。然而，改进幅度并不惊人，因为候选区域仍然由独立的 selective search 模型生成，这部分计算开销依然很大。</p>
       
     
       
@@ -450,7 +442,7 @@ L_1^\text{smooth}(x) = \begin{cases}
       
     
       
-        <p>一个直观的加速方案是将候选区域生成算法也整合到 CNN 模型中。Faster R-CNN（<a href="https://arxiv.org/pdf/1506.01497.pdf" target="_blank" rel="noopener">Ren et al., 2016</a>）正是这么做的：构建一个单一的统一模型，由 RPN（区域提议网络）和 Fast R-CNN 组成，并共享卷积特征层。</p>
+        <p>一个直观的加速方案是将候选区域生成算法也整合到 CNN 模型中。Faster R-CNN（<a href="https://arxiv.org/pdf/1506.01497.pdf" target="_blank" rel="noopener">Ren et al., 2016</a>）正是这么做的：构建一个单一、统一的模型，包含 RPN（Region Proposal Network）和 Fast R-CNN，并共享卷积特征层。</p>
       
     
       
@@ -467,16 +459,16 @@ L_1^\text{smooth}(x) = \begin{cases}
     
       
         <div class="list-content">在图像分类任务上预训练一个 CNN 网络。
-对 RPN（区域提议网络）进行端到端微调，用于生成候选区域，初始化权重来自预训练的图像分类器。正样本定义为 IoU（交并比）&gt;0.7，负样本为 IoU&lt;0.3。
+对 RPN（区域提议网络）进行端到端微调，使其完成区域提议任务，初始化权重来自预训练的图像分类器。正样本定义为 IoU（交并比）&gt; 0.7，负样本为 IoU &lt; 0.3。
 
-在整张图像的卷积特征图上滑动一个小的 n×n 空间窗口。
-在每个滑动窗口的中心，同时预测多个不同尺度和宽高比的区域。一个 anchor 是（滑动窗口中心、尺度、宽高比）的组合。例如，3 个尺度 + 3 个宽高比 =&gt; 每个滑动位置有 k=9 个 anchor。
+在整个图像的卷积特征图上滑动一个小的 n×n 空间窗口。
+在每个滑动窗口的中心，同时预测多个不同尺度与比例的区域。一个 anchor 是（滑动窗口中心、尺度、比例）的组合。例如，3 个尺度 + 3 个比例 =&gt; 每个滑动位置有 k=9 个 anchor。
 
 
-使用当前 RPN 生成的候选区域训练 Fast R-CNN 目标检测模型。
-然后使用 Fast R-CNN 网络初始化 RPN 的训练。在保持共享卷积层不变的情况下，只微调 RPN 特有的层。此时 RPN 和检测网络已共享卷积层！
+使用当前 RPN 生成的提议来训练 Fast R-CNN 目标检测模型。
+然后用 Fast R-CNN 网络初始化 RPN 的训练。在保持共享卷积层不变的前提下，只微调 RPN 特有的层。此时 RPN 和检测网络已经共享卷积层！
 最后微调 Fast R-CNN 中特有的层。
-如果需要，步骤 4-5 可以交替重复，以进一步训练 RPN 和 Fast R-CNN。</div>
+如果需要，步骤 4-5 可以重复交替训练 RPN 和 Fast R-CNN。</div>
       
     
       
@@ -490,18 +482,18 @@ L_1^\text{smooth}(x) = \begin{cases}
     
       
         <p>| 符号 | 含义 |
-| <span class="math-inline" data-math="p_i">p_i</span> | 第 i 个 anchor 是目标的预测概率。 |
-| <span class="math-inline" data-math="p^*_i">p^*_i</span> | 第 i 个 anchor 是否为目标的真实二值标签。 |
+| <span class="math-inline" data-math="p_i">p_i</span> | anchor i 是物体的预测概率。 |
+| <span class="math-inline" data-math="p^*_i">p^*_i</span> | anchor i 是否为物体的真实二值标签。 |
 | <span class="math-inline" data-math="t_i">t_i</span> | 预测的四个参数化坐标。 |
 | <span class="math-inline" data-math="t^*_i">t^*_i</span> | 真实的坐标。 |
-| <span class="math-inline" data-math="N_\text{cls}">N_\text{cls}</span> | 归一化系数，在论文中设为 mini-batch 大小（约 256）。 |
-| <span class="math-inline" data-math="N_\text{box}">N_\text{box}</span> | 归一化系数，在论文中设为 anchor 位置的数量（约 2400）。 |
-| <span class="math-inline" data-math="\lambda">\lambda</span> | 平衡参数，在论文中设为约 10（使 <span class="math-inline" data-math="\mathcal{L}_\text{cls}">\mathcal{L}_\text{cls}</span> 和 <span class="math-inline" data-math="\mathcal{L}_\text{box}">\mathcal{L}_\text{box}</span> 两项权重大致相当）。 |
+| <span class="math-inline" data-math="N_\text{cls}">N_\text{cls}</span> | 归一化项，论文中设为 mini-batch 大小（约 256）。 |
+| <span class="math-inline" data-math="N_\text{box}">N_\text{box}</span> | 归一化项，论文中设为 anchor 位置数量（约 2400）。 |
+| <span class="math-inline" data-math="\lambda">\lambda</span> | 平衡参数，论文中设为约 10（使 <span class="math-inline" data-math="\mathcal{L}_\text{cls}">\mathcal{L}_\text{cls}</span> 和 <span class="math-inline" data-math="\mathcal{L}_\text{box}">\mathcal{L}_\text{box}</span> 两项权重大致相当）。 |
 {:.info}</p>
       
     
       
-        <p>多任务损失将分类损失和边界框回归损失结合在一起：</p>
+        <p>多任务损失函数将分类损失和边界框回归损失结合起来：</p>
       
     
       
@@ -519,7 +511,7 @@ L_1^\text{smooth}(x) = \begin{cases}
       
     
       
-        <p>其中 <span class="math-inline" data-math="\mathcal{L}_\text{cls}">\mathcal{L}_\text{cls}</span> 是二分类的对数损失，因为我们可以很容易地将多分类问题转化为“是否为目标物体”的二分类问题。<span class="math-inline" data-math="L_1^\text{smooth}">L_1^\text{smooth}</span> 是 smooth L1 损失。</p>
+        <p>其中 <span class="math-inline" data-math="\mathcal{L}_\text{cls}">\mathcal{L}_\text{cls}</span> 是两分类的对数损失，因为我们可以很容易地将多分类问题转化为“是否为目标物体”的二分类问题。<span class="math-inline" data-math="L_1^\text{smooth}">L_1^\text{smooth}</span> 是 smooth L1 损失。</p>
       
     
       
@@ -536,7 +528,7 @@ L_1^\text{smooth}(x) = \begin{cases}
       
     
       
-        <p>Mask R-CNN（<a href="https://arxiv.org/pdf/1703.06870.pdf" target="_blank" rel="noopener">He et al., 2017</a>）将 Faster R-CNN 扩展到了像素级。关键在于将分类任务和像素级掩码预测任务解耦。在 Faster R-CNN 框架基础上，它增加了一个用于预测物体掩码的第三分支，与现有的分类和定位分支并行。掩码分支是一个小型的全卷积网络，对每个 RoI 进行处理，以像素到像素的方式预测分割掩码。<a href="posts-2017-10-29-object-recognition-part-1.html">傻瓜式目标检测入门（一）：梯度向量、HOG 与 Selective Search</a></p>
+        <p>Mask R-CNN（<a href="https://arxiv.org/pdf/1703.06870.pdf" target="_blank" rel="noopener">He et al., 2017</a>）将 Faster R-CNN 扩展到了像素级的 。关键在于将分类任务和像素级 mask 预测任务解耦。在 Faster R-CNN 框架基础上，它额外增加了一个分支，与现有的分类和定位分支并行地预测物体 mask。mask 分支是一个小型的全卷积网络，应用于每个 RoI，以像素到像素的方式预测分割 mask。<a href="posts-2017-10-29-object-recognition-part-1.html">傻瓜式目标检测教程 第一部分：梯度向量、HOG 与 Selective Search</a></p>
       
     
       
@@ -547,7 +539,7 @@ L_1^\text{smooth}(x) = \begin{cases}
       
     
       
-        <p>由于像素级分割比边界框需要更精细的对齐，Mask R-CNN 改进了 RoI Pooling 层（称为“RoIAlign 层”），使 RoI 能够更准确地映射回原始图像的区域。</p>
+        <p>由于像素级分割对对齐精度的要求远高于边界框，Mask R-CNN 改进了 RoI Pooling 层（称为“RoIAlign 层”），使 RoI 能更精确地映射回原始图像区域。</p>
       
     
       
@@ -563,7 +555,7 @@ L_1^\text{smooth}(x) = \begin{cases}
       
     
       
-        <p>RoIAlign 层旨在解决 RoI Pooling 中因量化导致的位置偏差。RoIAlign 去除了取整量化，例如使用 x/16 而不是 [x/16]，从而使提取的特征能与输入像素精确对齐。在计算输入的浮点位置值时使用了<a href="https://en.wikipedia.org/wiki/Bilinear_interpolation" target="_blank" rel="noopener">双线性插值</a>。</p>
+        <p>RoIAlign 层的设计目的是解决 RoI Pooling 中因量化导致的位置偏差。RoIAlign 去掉了取整量化，例如使用 x/16 而不是 [x/16]，从而使提取的特征能与输入像素精确对齐。在计算输入的浮点位置值时，使用了 <a href="https://en.wikipedia.org/wiki/Bilinear_interpolation" target="_blank" rel="noopener">双线性插值</a>。</p>
       
     
       
@@ -579,15 +571,15 @@ L_1^\text{smooth}(x) = \begin{cases}
       
     
       
-        <p>Mask R-CNN 的多任务损失函数将分类、定位和分割掩码的损失结合起来：<span class="math-inline" data-math=" \mathcal{L} = \mathcal{L}_\text{cls} + \mathcal{L}_\text{box} + \mathcal{L}_\text{mask}"> \mathcal{L} = \mathcal{L}_\text{cls} + \mathcal{L}_\text{box} + \mathcal{L}_\text{mask}</span>，其中 <span class="math-inline" data-math="\mathcal{L}_\text{cls}">\mathcal{L}_\text{cls}</span> 和 <span class="math-inline" data-math="\mathcal{L}_\text{box}">\mathcal{L}_\text{box}</span> 与 Faster R-CNN 相同。</p>
+        <p>Mask R-CNN 的多任务损失函数综合了分类、定位和分割 mask 的损失：<span class="math-inline" data-math=" \mathcal{L} = \mathcal{L}_\text{cls} + \mathcal{L}_\text{box} + \mathcal{L}_\text{mask}"> \mathcal{L} = \mathcal{L}_\text{cls} + \mathcal{L}_\text{box} + \mathcal{L}_\text{mask}</span>，其中 <span class="math-inline" data-math="\mathcal{L}_\text{cls}">\mathcal{L}_\text{cls}</span> 和 <span class="math-inline" data-math="\mathcal{L}_\text{box}">\mathcal{L}_\text{box}</span> 与 Faster R-CNN 中的定义相同。</p>
       
     
       
-        <p>掩码分支对每个 RoI 和每个类别生成一个 m×m 的掩码，共 K 个类别。因此总输出尺寸为 <span class="math-inline" data-math="K \cdot m^2">K \cdot m^2</span>。由于模型为每个类别单独学习掩码，各类别之间在生成掩码时没有竞争关系。</p>
+        <p>mask 分支为每个 RoI 和每个类别生成一个 m×m 大小的 mask；总共有 K 个类别。因此总输出维度为 <span class="math-inline" data-math="K \cdot m^2">K \cdot m^2</span>。由于模型为每个类别分别学习 mask，各类别之间在生成 mask 时没有竞争关系。</p>
       
     
       
-        <p><span class="math-inline" data-math="\mathcal{L}_\text{mask}">\mathcal{L}_\text{mask}</span> 定义为平均二值交叉熵损失，仅在区域属于真实类别 k 时才计算第 k 个掩码的损失。</p>
+        <p><span class="math-inline" data-math="\mathcal{L}_\text{mask}">\mathcal{L}_\text{mask}</span> 定义为平均二值交叉熵损失，仅在区域属于真实类别 k 时才计算第 k 个 mask 的损失。</p>
       
     
       
@@ -599,7 +591,7 @@ L_1^\text{smooth}(x) = \begin{cases}
       
     
       
-        <p>其中 <span class="math-inline" data-math="y_{ij}">y_{ij}</span> 是真实掩码中大小为 m×m 的区域内单元格 (i, j) 的标签；<span class="math-inline" data-math="\hat{y}_{ij}^k">\hat{y}_{ij}^k</span> 是为真实类别 k 学习的掩码中同一单元格的预测值。</p>
+        <p>其中 <span class="math-inline" data-math="y_{ij}">y_{ij}</span> 是真实 mask 中大小为 m×m 的区域内坐标 (i, j) 处的标签；<span class="math-inline" data-math="\hat{y}_{ij}^k">\hat{y}_{ij}^k</span> 是为真实类别 k 学习到的 mask 中同一位置的预测值。</p>
       
     
       
@@ -608,7 +600,7 @@ L_1^\text{smooth}(x) = \begin{cases}
       
     
       
-        <p>这里展示了 R-CNN、Fast R-CNN、Faster R-CNN 和 Mask R-CNN 的模型设计。通过对比细微的差异，你可以清晰地看到一个模型如何演进到下一个版本。</p>
+        <p>这里展示了 R-CNN、Fast R-CNN、Faster R-CNN 和 Mask R-CNN 的模型设计。通过对比细微的差异，你可以清晰地看到一个模型是如何演进到下一个版本的。</p>
       
     
       

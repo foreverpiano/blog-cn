@@ -341,6 +341,42 @@ def validate_all(paths=None) -> dict:
             results["structural_issues"] = struct_results["issues"]
             results["issues"] += struct_results["issues"]
 
+    # Universal image + escaped HTML validation (all sites)
+    if RAW_DIR and RAW_DIR.exists():
+        img_issues = 0
+        html_leak_issues = 0
+        for entry in index:
+            slug = entry["slug"]
+            parsed_path = PARSED_DIR / f"{slug}.json"
+            if not parsed_path.exists():
+                continue
+            parsed = json.loads(parsed_path.read_text(encoding="utf-8"))
+
+            # Check local image files exist
+            for seg in parsed.get("segments", []):
+                if seg.get("type") == "figure":
+                    src = seg.get("image_src", "")
+                    if src.startswith("data:") or src.startswith("http"):
+                        continue
+                    if src.startswith("../images/"):
+                        local_file = RAW_DIR / "images" / src[len("../images/"):]
+                        if not local_file.exists() or local_file.stat().st_size == 0:
+                            img_issues += 1
+
+            # Check for escaped HTML in non-code segment text (comment pollution)
+            for seg in parsed.get("segments", []):
+                if seg.get("type") in ("code", "bibtex", "table"):
+                    continue  # HTML tags in code/bibtex/table are legitimate
+                text = seg.get("text", "")
+                if any(tag in text for tag in ("<p>", "<figure>", "<ol>", "<ul>",
+                                                "<d-math>", "<script>", "</p>", "</figure>")):
+                    html_leak_issues += 1
+                    break  # One per article
+
+        if img_issues > 0 or html_leak_issues > 0:
+            print(f"\nUniversal checks: {img_issues} missing images, {html_leak_issues} articles with HTML pollution")
+            results["issues"] += img_issues + html_leak_issues
+
     return results
 
 
