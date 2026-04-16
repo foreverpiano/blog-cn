@@ -372,12 +372,14 @@ def _walk_block(el, segments: list, all_slugs: set[str],
 
         elif tag in ("figure", "d-figure", "dt-figure"):
             img = child.find("img")
+            svg = child.find("svg")
+            cap_el = child.find("figcaption")
+            cap = _extract_text(cap_el, all_slugs, internal_links, page_url) if cap_el else ""
+
             if img and img.get("src"):
                 src = img["src"]
                 local_src = _resolve_image(src, page_url, slug, img_dir)
                 alt = img.get("alt", "")
-                cap_el = child.find("figcaption")
-                cap = _extract_text(cap_el, all_slugs, internal_links, page_url) if cap_el else ""
                 segments.append({
                     "index": len(segments), "type": "figure",
                     "text": cap.strip() or alt, "image_src": local_src,
@@ -385,11 +387,19 @@ def _walk_block(el, segments: list, all_slugs: set[str],
                     "footnote_refs": [], "links": [],
                 })
                 _emitted.add(id(img))
+            elif svg:
+                # Static inline SVG — serialize to local file
+                local_src = _save_inline_svg(svg, slug, img_dir, len(segments))
+                segments.append({
+                    "index": len(segments), "type": "figure",
+                    "text": cap.strip(), "image_src": local_src,
+                    "alt_text": "", "caption": cap.strip(),
+                    "footnote_refs": [], "links": [],
+                })
             else:
-                # Interactive figure without static image — emit placeholder
-                cap_el = child.find("figcaption")
-                cap = cap_el.get_text(strip=True) if cap_el else ""
-                placeholder = f"[Interactive figure{': ' + cap if cap else ''} — view original: {page_url}]"
+                # Truly interactive (no img, no svg) — placeholder
+                cap_text = cap_el.get_text(strip=True) if cap_el else ""
+                placeholder = f"[Interactive figure{': ' + cap_text if cap_text else ''} — view original: {page_url}]"
                 segments.append({
                     "index": len(segments), "type": "paragraph",
                     "text": placeholder, "footnote_refs": [], "links": [],
@@ -503,6 +513,19 @@ def _emit_text(text: str, seg_type: str, segments: list,
             "text": text, "footnote_refs": fn_refs,
             "links": _seg_links(text),
         })
+
+
+def _save_inline_svg(svg_el, slug: str, img_dir: Path, index: int) -> str:
+    """Serialize an inline <svg> element to a local .svg file."""
+    svg_str = str(svg_el)
+    if not svg_str.startswith("<?xml"):
+        svg_str = '<?xml version="1.0" encoding="UTF-8"?>\n' + svg_str
+    filename = f"figure_{index}.svg"
+    local_dir = img_dir / slug
+    local_dir.mkdir(parents=True, exist_ok=True)
+    local_path = local_dir / filename
+    local_path.write_text(svg_str, encoding="utf-8")
+    return f"../images/{slug}/{filename}"
 
 
 def _resolve_image(src: str, page_url: str, slug: str, img_dir: Path) -> str:

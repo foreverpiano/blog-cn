@@ -194,7 +194,7 @@ def prepare_article(article: dict, valid_slugs: set[str], title_map: dict[str, s
             continue
         if seg_type == "figure":
             caption = seg.get("caption") or seg.get("text_zh") or seg.get("text", "")
-            if caption and any(ph in caption for ph in ("{{MATH:", "{{CITE:", "{{CODE:", "{{LINK:", "{{EXTLINK")):
+            if caption and any(ph in caption for ph in ("{{MATH:", "{{CITE:", "{{CODE:", "{{LINK:", "{{EXTLINK", "{{FNREF:")):
                 seg["rendered_html"] = render_segment_html(
                     caption, footnote_ids, valid_slugs, title_map_with_slug, math_registry)
             else:
