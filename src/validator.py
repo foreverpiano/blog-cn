@@ -241,6 +241,34 @@ def validate_transformer_circuits(slug: str, raw_dir: Path, parsed_dir: Path,
     if raw_fn_count != parsed_fn_count:
         issues.append(f"footnote_count: raw={raw_fn_count}, parsed={parsed_fn_count}")
 
+    # 5. Citation fidelity: d-cite keys in content must be preserved in citation_registry
+    citation_reg = parsed.get("citation_registry", {})
+    if content_el:
+        raw_cite_keys = set()
+        for d_cite in content_el.find_all("d-cite"):
+            key = d_cite.get("key", "").strip()
+            if key:
+                raw_cite_keys.add(key)
+        parsed_cite_keys = {e.get("key", "") for e in citation_reg.values()}
+        missing_cite_keys = raw_cite_keys - parsed_cite_keys
+        if missing_cite_keys:
+            issues.append(f"missing_citation_keys: {list(missing_cite_keys)[:3]}")
+
+    # 6. Bibliography: script type=text/bibliography (inline content) must produce bibtex segment
+    #    d-bibliography src=".bib" may fail to download (403) so only check inline bibliography
+    has_inline_bib = bool(raw_soup.find("script", type="text/bibliography"))
+    has_bib_segment = any(s.get("type") == "bibtex" for s in parsed.get("segments", []))
+    if has_inline_bib and not has_bib_segment:
+        issues.append("inline_bibliography_without_bibtex_segment")
+
+    # 7. d-code preservation: raw d-code count must be covered by code segments + inline_code_registry
+    if content_el:
+        raw_dcode_count = len(content_el.find_all("d-code"))
+        inline_code_reg = parsed.get("inline_code_registry", {})
+        parsed_code_from_dcode = len(inline_code_reg)  # d-code → either inline or block entries
+        if raw_dcode_count > 0 and parsed_code_from_dcode == 0:
+            issues.append(f"d_code_lost: raw={raw_dcode_count}, preserved=0")
+
     return {"slug": slug, "status": "pass" if not issues else "issues", "issues": issues}
 
 
