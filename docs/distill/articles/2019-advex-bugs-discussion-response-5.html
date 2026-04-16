@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>关于《对抗样本并非缺陷，而是特征》论文的讨论：对抗样本也只是缺陷而已 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>关于《对抗样本并非缺陷，而是特征》论文的讨论：对抗样本也只是缺陷而已</h1>
+    <div class="meta">
+      2019-08-06 · 
+      <a href="https://distill.pub/2019/advex-bugs-discussion/response-5" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>本文是对 Ilyas 等人的论文《对抗样本并非缺陷，而是特征》的一篇讨论文章。您可以从<a href="2019-advex-bugs-discussion.html">关于《对抗样本不是 bug，而是 feature》的讨论</a>中了解更多关于此次讨论的信息。</p>
+      
+    
+      
+        <p>所有回应</p>
+      
+    
+      
+        <p>Ilyas 等人的评论</p>
+      
+    
+      
+        <p>我们证明存在仅仅只是“缺陷”的对抗样本：即分类器中的异常现象，并非数据分布的内在属性。具体而言，我们提出了一种新的构造对抗样本的方法，该方法：</p>
+      
+    
+      
+        <div class="list-content">不在不同模型之间发生迁移，并且
+
+不泄露“Ilyas-Santurkar-Tsipras-Engstrom-Tran-Madry”意义上的“非稳健特征”，因此无法用于学习[<cite>[ilyas2019adversarial]</cite>]。</div>
+      
+    
+      
+        <p>我们复现了 Ilyas 等人在实验中用带错误标签的对抗扰动图像进行训练的过程（[<cite>[ilyas2019adversarial]</cite>] 的 3.2 节），并证明该实验在我们的对抗扰动构造上会失败。</p>
+      
+    
+      
+        <p>传递的信息是：对抗样本到底是特征还是缺陷，取决于你如何找到它们——标准的 PGD 能找到特征，但缺陷同样大量存在。</p>
+      
+    
+      
+        <p>我们还给出了一个玩具示例，其数据分布不包含任何“非稳健特征”（在任何合理的特征定义下），但使用标准训练却会得到一个高度非稳健的分类器。这再次表明，即使数据分布本身并不存在任何内在的脆弱方向，对抗样本依然可能出现。</p>
+      
+    
+      
+        <h3>背景</h3>
+        
+      
+    
+      
+        <p>许多人将 Ilyas 等人的工作[<cite>[ilyas2019adversarial]</cite>]理解为：对抗样本并非“缺陷”，而是“特征”。具体来说，Ilyas 等人假设存在以下两种世界：<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup></p>
+      
+    
+      
+        <div class="list-content">世界 1：对抗样本利用与分类无关的方向（“缺陷”）。
+                
+                在这个世界中，对抗样本的出现是因为分类器在分布之外（即输入不是自然图像时）表现很差。此时，对抗样本会出现在任意方向，与真实数据分布毫无关系。
+            
+
+世界 2：对抗样本利用对分类有用的方向（“特征”）。
+                在这个世界中，对抗样本出现在仍然“处于分布内”的方向上，并包含目标类别的特征。例如，考虑将一张狗的图片扰动后被分类为猫的情况。在世界 2 中，这种扰动并非完全随机，而是与猫的特征有关。此外，我们期望这种扰动能够迁移到其他训练来区分猫和狗的分类器上。</div>
+      
+    
+      
+        <p>我们的主要贡献是证明这两个世界并非互斥——实际上，我们同时处于两者之中。Ilyas 等人[<cite>[ilyas2019adversarial]</cite>]展示了世界 2 中存在对抗样本，而我们则展示了世界 1 中也存在对抗样本。</p>
+      
+    
+      
+        <h2>构造不可迁移的目标对抗样本</h2>
+        
+      
+    
+      
+        <p>我们提出了一种针对给定分类器 $f$ 构造目标对抗样本的方法，这些样本不会迁移到针对同一问题训练的其他分类器上。</p>
+      
+    
+      
+        <p>回忆一下，对于分类器 $f$、输入样本 $(x, y)$ 和目标类别 $y_{targ}$，目标对抗样本是指满足 $||x - x’||\leq \eps$ 且 $f(x’) = y_{targ}$ 的 $x’$。</p>
+      
+    
+      
+        <p>构造对抗样本的标准方法是投影梯度下降（Projected Gradient Descent，简称 PGD）<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>，它从输入 $x$ 开始，迭代地更新 $\{x_t\}$ 以最小化损失 $L(f, x_t, y_{targ})$。也就是说，我们沿着以下方向迈步：
+            $$-\nabla_x L(f, x_t, y_{targ})$$
+            其中 $L(f, x, y)$ 是分类器 $f$ 在输入 $x$ 和标签 $y$ 上的损失。</p>
+      
+    
+      
+        <p>请注意，由于 PGD 沿着朝向目标类别的梯度方向迈步，我们可能会预期这些对抗样本会从目标类别中泄露特征。例如，假设我们正在将一张狗的图片扰动成飞机（飞机通常出现在蓝色背景上）。梯度方向很可能倾向于让狗的图片变得更蓝，因为“蓝色”这个方向与飞机类别是相关的。在我们下面的构造中，我们试图消除这种特征泄露。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-5/manifold.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>对抗扰动将狗的图像变为飞机的图像流形示意图。损失的梯度可以看作同时包含流形上的“特征分量”和流形外的“随机分量”。PGD 同时沿着两个分量迈步，因此会导致对抗样本中出现特征泄露。我们下面的构造试图只在流形外的方向上迈步。</p>
+      
+    
+      
+        <h3>我们的构造方法</h3>
+        
+      
+    
+      
+        <p>设 $\{f_i : \R^n \to \cY\}_i$ 是与 $f$ 解决同一分类问题的一组分类器集成。例如，我们可以让 $\{f_i\}$ 是一组从不同随机初始化训练的 ResNet18。</p>
+      
+    
+      
+        <p>对于输入样本 $(x, y)$ 和目标类别 $y_{targ}$，我们像 PGD 一样进行迭代更新以寻找对抗攻击。然而，我们不是直接沿着梯度方向迈步，而是沿着以下方向：
+            <sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>
+            $$-\left( \nabla_x L(f, x_t, y_{targ}) + \E_i[ \nabla_x L(f_i, x_t, y)] \right)$$
+
+            也就是说，我们不再通过最小化 $L(f, x, y_{targ})$ 来进行梯度下降，而是最小化“解耦损失”
+            <sup id="fnref-f4n"><a href="#f4n">[4]</a></sup>
+            $$L(f, x, y_{targ}) + \E_i[L(f_i, x, y)]$$
+            这个损失鼓励找到一个对 $f$ 是对抗的、但对集成 $\{f_i\}$ 不是对抗的 $x_t$。</p>
+      
+    
+      
+        <p>这些对抗样本对集成 $\{f_i\}$ 不会是对抗的。但令人惊讶的是，这些样本对针对同一问题训练的新分类器也不是对抗的。</p>
+      
+    
+      
+        <h3>实验</h3>
+        
+      
+    
+      
+        <p>我们在一组 CIFAR10 数据上训练了一个 ResNet18 作为目标分类器 $f$。对于集成，我们从全新的随机初始化训练了 10 个 ResNet18。然后我们测试针对 $f$ 的目标攻击迁移到新的（ freshly trained ）ResNet18 上的概率（使用相同的目标类别）。我们的构造方法得到的对抗样本很难迁移到新模型上。</p>
+      
+    
+      
+        <p>对于 $L_{\infty}$ 攻击：</p>
+      
+    
+      
+        <div class="table-container"><table>
+<tbody><tr>
+<td></td>
+<th>Attack Success</th>
+<th>Transfer Success</th>
+</tr>
+<tr>
+<th>PGD</th>
+<td>99.6%</td>
+<td>52.1%</td>
+</tr>
+<tr>
+<th>Ours</th>
+<td>98.6%</td>
+<td style="color:red">0.8%</td>
+</tr>
+</tbody></table></div>
+      
+    
+      
+        <p>对于 $L_2$ 攻击：</p>
+      
+    
+      
+        <div class="table-container"><table>
+<tbody><tr>
+<td></td>
+<th>Attack Success</th>
+<th>Transfer Success</th>
+</tr>
+<tr>
+<th>PGD</th>
+<td>99.9%</td>
+<td>82.5%</td>
+</tr>
+<tr>
+<th>Ours</th>
+<td>99.3%</td>
+<td style="color:red">1.7%</td>
+</tr>
+</tbody></table></div>
+      
+    
+      
+        <h2>不含特征的对抗样本</h2>
+        
+      
+    
+      
+        <p>使用上述方法，我们可以构造出不足以用于学习的对抗样本。在这里，我们复现了 Ilyas 等人的实验“不稳健特征足以支持标准分类”（[<cite>[ilyas2019adversarial]</cite>] 的 3.2 节），并表明它在我们的对抗样本构造上失效。</p>
+      
+    
+      
+        <p>回顾一下，Ilyas 等人的非稳健实验是这样的：</p>
+      
+    
+      
+        <div class="list-content">训练一个用于 CIFAR 的标准分类器 $f$。
+                
+                    从 CIFAR10 训练集 $S = \{(X_i, Y_i)\}$ 出发，构造一个替代训练集 $S’ = \{(X_i^{Y_i \to (Y_i + 1)}, Y_i + 1)\}$，其中 $X_i^{Y_i \to (Y_i +1)}$ 表示对 $f$ 的对抗样本，它将 $X_i$ 从其真实类别 $Y_i$ 扰动到目标类别 $Y_i+1 (\text{mod }10)$。注意，$S’$ 在人类看来是“标签错误的样本”。
+                
+                    在训练集 $S’$ 上训练一个新的分类器 $f’$。观察到这个分类器在原始 CIFAR 分布上具有非平凡的准确率。</div>
+      
+    
+      
+        <p>Ilyas 等人用步骤 (3) 来论证对抗样本具有有意义的“特征”成分。
+
+然而，对于使用我们方法构造的对抗样本，步骤 (3) 会失败。事实上，$f’$ 在“标签平移”后的分布 $(X, Y+1)$ 上具有良好的准确率，这正是我们直观上训练时所用的分布。</p>
+      
+    
+      
+        <p>对于 $L_{\infty}$ 攻击：</p>
+      
+    
+      
+        <p>对于 $L_2$ 攻击：</p>
+      
+    
+      
+        <h2>对抗方块：来自稳健特征的对抗样本</h2>
+        
+      
+    
+      
+        <p>为了进一步说明对抗样本可以“只是缺陷”，我们证明即使真实数据分布没有任何“非稳健特征”——即不存在内在的脆弱方向——对抗样本依然可能出现。<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup> 在下面的玩具问题中，对抗脆弱性是有限样本过拟合和标签噪声共同导致的结果。</p>
+      
+    
+      
+        <p>问题是区分大小为 CIFAR 的全黑或全白图像，这些图像带有少量随机像素噪声和标签噪声。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-5/twosquares.png" alt="">
+          <figcaption>A sample of images from the distribution.</figcaption>
+        </figure>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-5/data.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>形式化地说，分布定义如下。均匀随机选择标签 $Y \in \{\pm 1\}$，然后令
+            $$X :=
+            \begin{cases}
+            (+\vec{\mathbb{1}} + \vec\eta_\eps) \cdot \eta &amp; \text{if $Y=1$}\\
+            (-\vec{\mathbb{1}} + \vec\eta_\eps) \cdot \eta &amp; \text{if $Y=-1$}\\
+            \end{cases}$$
+            
+            其中 $\vec\eta_\eps \sim [-0.1, +0.1]^d$ 是均匀的 $L_\infty$ 像素噪声，
+            $\eta \in \{\pm 1\} \sim Bernoulli(0.1)$ 是 10% 的标签噪声。
+
+            该分布的二维版本样本图显示在右侧。</p>
+      
+    
+      
+        <p>注意，对于这个问题存在一个稳健的线性分类器，即使在幅度达 $\eps = 0.9$ 的 $L_\infty$ 攻击下也能实现完美的稳健分类。然而，如果我们从该分布中采样 10000 张训练图像，并训练一个 ResNet18 达到 99.9% 的训练准确率<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup>，得到的分类器却是高度非稳健的：$\eps=0.01$ 的扰动就足以翻转几乎所有测试样本的类别。</p>
+      
+    
+      
+        <p>输入噪声和标签噪声对这个构造都至关重要。一个直观解释是：在训练初期，优化过程学会了“正确”的决策边界（事实上，只训练 1 个 epoch 就能得到一个稳健的分类器）。然而，为了将训练误差优化到接近 0，网络需要具有很高的 Lipschitz 常数来拟合标签噪声，这损害了稳健性。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-5/data.png" alt="">
+          <figcaption>Left: The training set (labels color-coded). Middle: The classifier after 10 SGD steps.
+                        Right: The classifier at the end of training. Note that it is overfit, and not robust.
+                        
+                            Figure adapted from [<cite>[sgd]</cite>].</figcaption>
+        </figure>
+      
+    
+      
+        <h2>附录：通过对抗样本进行数据投毒</h2>
+        
+      
+    
+      
+        <p>作为附录，我们观察到 [<cite>[ilyas2019adversarial]</cite>] 的“非稳健特征”实验（3.2 节）直接意味着数据投毒攻击：一个允许对训练集中每张图像进行不可察觉修改的攻击者，能够完全破坏学习到的分类器的准确率——并且还能对分类器的输出标签施加任意置换（例如交换猫和狗）。</p>
+      
+    
+      
+        <p>要理解这一点，请回想原始的“非稳健特征”实验表明：<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup></p>
+      
+    
+      
+        <p>1. 如果我们在分布 $(X^{Y \to (Y+1)}, Y+ 1)$ 上训练，分类器会在分布 $(X, Y)$ 上学习到良好的预测。</p>
+      
+    
+      
+        <p>由于标签的置换对称性，这意味着：</p>
+      
+    
+      
+        <p>2. 如果我们在分布 $(X^{Y \to (Y+1)}, Y)$ 上训练，分类器会在分布 $(X, Y-1)$ 上学习到良好的预测。</p>
+      
+    
+      
+        <p>注意在情况 (2) 中，我们使用的是正确的标签，只是对输入进行了不可察觉的扰动，但分类器学会了预测循环平移后的标签。具体来说，使用 [<cite>[ilyas2019adversarial]</cite>] 中表 1 的原始数值，这一归约表明，
+            
+                攻击者可以用 $L_2$ 范数 $\eps=0.5$ 扰动 CIFAR10 训练集，并导致学习到的分类器在 43.7% 的情况下输出平移后的标签（猫被分类为鸟，狗被分类为鹿，等等）。</p>
+      
+    
+      
+        <p>这应该可以推广到强制任意期望标签置换的攻击。</p>
+      
+    
+      
+        <p>若要引用 Ilyas 等人的回应，请引用他们的</p>
+      
+    
+      
+        <p>回应合集</p>
+      
+    
+      
+        <p>回应摘要：我们注意到，正如在<a href="2019-advex-bugs-discussion-original-authors.html">关于《对抗样本不是 bug，而是 feature》的讨论：讨论内容与作者回应</a>中更详细讨论的那样，仅仅存在作为“特征”的对抗样本就足以支持我们的主要论点。然而，这篇评论表明，在现实环境中我们确实可以构造基于“缺陷”的对抗样本。有趣的是，这类样本不会发生迁移，这进一步支持了迁移性与非稳健特征之间的联系。</p>
+      
+    
+      
+        <p>回应：正如<a href="2019-advex-bugs-discussion-original-authors.html">关于《对抗样本不是 bug，而是 feature》的讨论：讨论内容与作者回应</a>所述，我们并未声称对抗样本仅来源于（有用的）特征，而是指出有用的非稳健特征确实存在，因此（至少部分地）导致了对抗脆弱性。事实上，先前的工作已经在理论上表明，对抗样本可能来源于样本不足[<cite>[schmidt2018adversarially]</cite>]或有限样本过拟合[<cite>[tanay2016boundary]</cite>]，而这里展示的实验（尤其是对抗方块）是对这些事实的一个漂亮的现实世界演示。</p>
+      
+    
+      
+        <p>我们的主要论点“对抗样本并不会随着我们修复模型中的缺陷而消失”并不会被来源于“缺陷”的对抗样本的存在所反驳。只要对抗样本可以来源于非稳健特征（评论者似乎也同意这一点），修复这些缺陷就无法解决对抗样本的问题。</p>
+      
+    
+      
+        <p>此外，关于 PGD 导致的特征“泄露”，请回想在我们的 $D_{det}$ 数据集中，非稳健特征与正确标签相关联，而稳健特征却与错误标签相关联。我们想强调的是，正如<a href="https://arxiv.org/abs/1905.02175" target="_blank" rel="noopener">附录 D.6 所示</a>，在我们的 $D_{det}$ 数据集上训练的模型，实际上在非稳健特征-标签关联上的泛化效果要比在稳健特征-标签关联上更好。相反，如果 PGD 引入了少量非稳健特征的“泄露”，我们会预期训练出的模型仍然会主要使用稳健特征-标签关联。</p>
+      
+    
+      
+        <p>尽管如此，这些实验巧妙地聚焦于我们对对抗样本理解中的一些更精细的细微差别。其中特别令我们印象深刻的是，通过创建一组明确不可迁移的对抗样本，也可以阻止新的分类器从该数据集学习特征。这一发现因此让对抗样本的迁移性与其所包含的可泛化特征之间的联系变得更加强烈！事实上，我们可以将构造出的数据集加入我们的“$\widehat{\mathcal{D}}_{det}$ 可学习性 vs 迁移性”图（论文中的图 3）——对应于该数据集的点恰好落在趋势线上！</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-5/transfer.png" alt="">
+          <figcaption>Relationship between models reliance on non-robust features and their susceptibility to transfer
+                    attacks</figcaption>
+        </figure>
+      
+    
+      
+        <p>您可以在</p>
+      
+    
+      
+        <p>主要讨论文章
+
+中找到更多回应</p>
+      
+    
+  </div>
+
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <a href="#fnref-f1n">[1]</a> 由原作者告知我们的内容。
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <a href="#fnref-f2n">[2]</a> PGD 在附录中有描述。
+    </div>
+    
+    <div class="footnote-item" id="f3n">
+      <a href="#fnref-f3n">[3]</a> 形式上，我们将迭代步骤替换为
+                $$x_{t+1} \gets \Pi_\eps\left( x_t
+                - \alpha( \nabla_x L(f, x_t, y_{targ}) + \E_i[ \nabla_x L(f_i, x_t, y)]) \right)$$
+                其中 $\Pi_\eps$ 是向 $x$ 周围 $\eps$-球的投影。
+    </div>
+    
+    <div class="footnote-item" id="f4n">
+      <a href="#fnref-f4n">[4]</a> 我们也可以考虑显式地使用集成来去相关，沿着方向
+                $\nabla_x L(f, x, y_{targ}) - \E_i[ \nabla_x L(f_i, x, y_{targ})]$ 迈步。
+                这在较小的 $\epsilon$ 下效果很好，但所给出的损失在大 $\epsilon$ 下具有更好的优化性质。
+    </div>
+    
+    <div class="footnote-item" id="f5n">
+      <a href="#fnref-f5n">[5]</a> 我们不知道存在一个令人满意的“非稳健特征”定义，但我们认为对于任何合理的内在定义，这个问题都不存在非稳健特征。
+                这里“内在”是指仅依赖于数据分布的几何性质，而不依赖于分类器族或有限样本训练集的定义。
+                
+                我们没有使用 Ilyas 等人的“非稳健特征”定义，因为我们认为它是空洞的。具体来说，根据 Ilyas 等人的定义，每个分布都具有“非稳健特征”——因此该定义无法区分分布的结构性质。
+                此外，对于每一个“稳健特征” $f$，都存在一个对应的“非稳健特征” $f’$，使得 $f$ 和 $f’$ 在数据分布上一致——因此该定义强烈依赖于所考虑的分类器族。
+    </div>
+    
+    <div class="footnote-item" id="f6n">
+      <a href="#fnref-f6n">[6]</a> 我们使用 Adam 优化器，学习率为 0.00001，批大小为 128，训练 20 个 epoch。
+    </div>
+    
+    <div class="footnote-item" id="f7n">
+      <a href="#fnref-f7n">[7]</a> 使用我们之前的记号，并使用标准的 PGD 来寻找对抗样本。
+    </div>
+    
+  </section>
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

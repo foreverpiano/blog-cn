@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>深度神经网络是否严重过拟合？ · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>深度神经网络是否严重过拟合？</h1>
+    <div class="meta">
+      2019-03-14 · 
+      <a href="https://lilianweng.github.io/posts/2019-03-14-overfit/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">关于压缩和模型选择的经典定理
+
+奥卡姆剃刀
+
+最小描述长度原理
+
+柯尔莫哥洛夫复杂度
+
+所罗门诺夫推理理论
+
+
+深度学习模型的表达能力
+
+通用逼近定理
+
+证明：两层神经网络的有限样本表达能力
+
+深度神经网络可以学习随机噪声
+
+
+深度学习模型是否严重过拟合？
+
+深度学习的现代风险曲线
+
+正则化并不是泛化的关键
+
+本征维度
+
+异质层鲁棒性
+
+彩票票假设
+
+
+实验
+
+参考文献</div>
+      
+    
+      
+        <p>如果你和我一样，对深度神经网络为什么能在不严重过拟合的情况下泛化到样本外数据点感到困惑，请继续阅读。</p>
+      
+    
+      
+        <p>[2019-05-27 更新：新增彩票票假设一节。]</p>
+      
+    
+      
+        <p>如果你和我一样，从传统机器学习背景进入深度学习领域，你可能会经常思考这个问题：一个典型的深度神经网络有如此多的参数，而且训练误差很容易达到完美，它应该必然遭受严重的过拟合。那它又是如何泛化到样本外数据点的呢？</p>
+      
+    
+      
+        <p>试图理解深度神经网络为何能够泛化的努力，让我想起系统生物学领域一篇有趣的论文——<a href="https://www.cell.com/cancer-cell/pdf/S1535-6108(02)00133-2.pdf" target="_blank" rel="noopener">“生物学家能修好一台收音机吗？”</a>（Lazebnik, 2002）。如果一位生物学家像研究生物系统那样去修理一台收音机，日子可能会很难过。因为收音机系统的完整机制并未被揭示，戳一戳局部小功能或许能给出一些提示，但很难呈现系统内所有交互，更不用说整个工作流程了。不管你是否觉得这与深度学习相关，这都是一篇非常有趣的读物。</p>
+      
+    
+      
+        <p>我想在本文中讨论几篇关于深度学习模型泛化能力和复杂度度量的论文。希望它能为理解为什么深度神经网络（DNN）能够泛化提供一些思路。</p>
+      
+    
+      
+        <h2>关于压缩和模型选择的经典定理#</h2>
+        
+      
+    
+      
+        <p>假设我们有一个分类问题和一个数据集，我们可以开发许多模型来解决它，从拟合一个简单的线性回归到把整个数据集记在磁盘空间里。哪一个更好？如果我们只关心训练数据上的准确率（尤其是测试数据很可能未知的情况下），记忆化方法似乎是最好的——嗯，这听起来不对。</p>
+      
+    
+      
+        <p>有许多经典定理可以在我们决定一个好的模型在这种场景下应该具备什么性质时指导我们。</p>
+      
+    
+      
+        <h2>奥卡姆剃刀#</h2>
+        
+      
+    
+      
+        <p><a href="http://pespmc1.vub.ac.be/OCCAMRAZ.html" target="_blank" rel="noopener">奥卡姆剃刀</a>（Occam’s Razor）是一个非正式的问题解决原则，由14世纪的<a href="https://en.wikipedia.org/wiki/William_of_Ockham" target="_blank" rel="noopener">William of Ockham</a>提出：</p>
+      
+    
+      
+        <blockquote>“更简单的解决方案比复杂的解决方案更可能是正确的。”</blockquote>
+      
+    
+      
+        <p>当我们面对多个可能的底层理论来解释世界并且必须选择一个时，这个说法极为有力。过多的不必要假设对于一个问题可能看似合理，但更难泛化到其他复杂情况，或最终导向宇宙的基本原理。</p>
+      
+    
+      
+        <p>想想看，人们花了几百年才弄明白白天天空是蓝色的而日落时呈红色是因为同一个原因（<a href="https://en.wikipedia.org/wiki/Rayleigh_scattering" target="_blank" rel="noopener">瑞利散射</a>），尽管两种现象看起来非常不同。人们一定分别提出过许多其他解释，但最终统一而简单的版本胜出。</p>
+      
+    
+      
+        <h2>最小描述长度原理#</h2>
+        
+      
+    
+      
+        <p>奥卡姆剃刀的原则可以类似地应用于机器学习模型。这个概念的形式化版本称为最小描述长度（MDL）原理，用于在给定观测数据的情况下比较相互竞争的模型/解释。</p>
+      
+    
+      
+        <blockquote>“理解就是压缩。”</blockquote>
+      
+    
+      
+        <p>MDL 的基本思想是将学习视为数据压缩。通过压缩数据，我们需要发现数据中的规律或模式，这些规律或模式具有泛化到未见样本的高度潜力。理论认为，深度神经网络首先通过最小化泛化误差来表示数据，然后通过去除噪声来学习压缩这种表示。<a href="posts-2017-09-28-information-bottleneck.html">用信息论剖析深度学习</a></p>
+      
+    
+      
+        <p>与此同时，MDL 将模型描述视为压缩传递的一部分，因此模型不能任意大。</p>
+      
+    
+      
+        <p>MDL 原理的二部版表述如下：设 <span class="math-inline" data-math="\mathcal{H}^{(1)}, \mathcal{H}^{(2)}, \dots">\mathcal{H}^{(1)}, \mathcal{H}^{(2)}, \dots</span> 是能够解释数据集 <span class="math-inline" data-math="\mathcal{D}">\mathcal{D}</span> 的模型列表。其中最好的假设应该是最小化以下总和的那一个：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{H}^\text{best} = \arg\min_\mathcal{H} [L(\mathcal{H}) + L(\mathcal{D}\vert\mathcal{H})]
+">
+\mathcal{H}^\text{best} = \arg\min_\mathcal{H} [L(\mathcal{H}) + L(\mathcal{D}\vert\mathcal{H})]
+</span></div>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="L(\mathcal{H})">L(\mathcal{H})</span> 是模型 <span class="math-inline" data-math="\mathcal{H}">\mathcal{H}</span> 的描述长度（以比特为单位）。
+<span class="math-inline" data-math="L(\mathcal{D}\vert\mathcal{H})">L(\mathcal{D}\vert\mathcal{H})</span> 是用 <span class="math-inline" data-math="\mathcal{H}">\mathcal{H}</span> 对数据 <span class="math-inline" data-math="\mathcal{D}">\mathcal{D}</span> 进行编码后的描述长度（以比特为单位）。</div>
+      
+    
+      
+        <p>简单来说，最好的模型是包含编码后的数据和模型本身的最小模型。按照这个标准，我在本节开头提出的记忆化方法听起来很糟糕，无论它在训练数据上能达到多高的准确率。</p>
+      
+    
+      
+        <p>人们可能会争辩说奥卡姆剃刀是错的，因为现实世界可能极其复杂，为什么我们一定要找简单的模型？MDL 的一个有趣观点是将模型视为“语言”而非基本生成定理。我们希望找到好的压缩策略来描述一小部分样本中的规律，它们不必是解释该现象的“真实”生成模型。模型可以是错的，但仍然有用（例如，任何贝叶斯先验）。</p>
+      
+    
+      
+        <h2>柯尔莫哥洛夫复杂度#</h2>
+        
+      
+    
+      
+        <p>柯尔莫哥洛夫复杂度依赖于现代计算机的概念来定义一个对象的算法（描述）复杂度：它是最短的能够描述该对象的二进制计算机程序的长度。按照 MDL 的观点，计算机本质上是最通用的数据解压器。</p>
+      
+    
+      
+        <p>柯尔莫哥洛夫复杂度的形式定义如下：给定一个通用计算机 <span class="math-inline" data-math="\mathcal{U}">\mathcal{U}</span> 和一个程序 <span class="math-inline" data-math="p">p</span>，令 <span class="math-inline" data-math="\mathcal{U}(p)">\mathcal{U}(p)</span> 表示计算机处理该程序的输出，<span class="math-inline" data-math="L(p)">L(p)</span> 表示程序的描述长度。那么字符串 <span class="math-inline" data-math="s">s</span> 相对于通用计算机 <span class="math-inline" data-math="\mathcal{U}">\mathcal{U}</span> 的柯尔莫哥洛夫复杂度 <span class="math-inline" data-math="K_\mathcal{U}">K_\mathcal{U}</span> 为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+K_\mathcal{U}(s) = \min_{p: \mathcal{U}(p)=s} L(p)
+">
+K_\mathcal{U}(s) = \min_{p: \mathcal{U}(p)=s} L(p)
+</span></div>
+      
+    
+      
+        <p>请注意，通用计算机是可以模仿任何其他计算机行为的机器。所有现代计算机都是通用的，因为它们都可以归约为图灵机。这个定义是通用的，无论我们使用哪种计算机，因为另一个通用计算机总是可以被编程来克隆 <span class="math-inline" data-math="\mathcal{U}">\mathcal{U}</span> 的行为，而编码这个克隆程序只是一个常数。</p>
+      
+    
+      
+        <p>柯尔莫哥洛夫复杂度和香农信息论之间有许多联系，因为两者都与通用编码相关。一个惊人的事实是，一个随机变量的期望柯尔莫哥洛夫复杂度大约等于其香农熵（见<a href="https://homepages.cwi.nl/~paulv/papers/info.pdf" target="_blank" rel="noopener">该报告</a>第2.3节）。关于这个主题的更多内容不在此处讨论范围，但网上有很多有趣的阅读资料。请自行探索 :)</p>
+      
+    
+      
+        <h2>所罗门诺夫推理理论#</h2>
+        
+      
+    
+      
+        <p>奥卡姆剃刀的另一个数学形式化是所罗门诺夫的通用归纳推理理论（<a href="https://www.sciencedirect.com/science/article/pii/S0019995864902232" target="_blank" rel="noopener">Solomonoff</a>，<a href="https://www.sciencedirect.com/science/article/pii/S0019995864901317" target="_blank" rel="noopener">1964</a>）。其原则是偏好那些对应于产生训练数据“最短程序”的模型，依据其柯尔莫哥洛夫复杂度。</p>
+      
+    
+      
+        <h2>深度学习模型的表达能力#</h2>
+        
+      
+    
+      
+        <p>与传统统计模型相比，深度神经网络的参数数量极其庞大。如果我们用 MDL 来衡量深度神经网络的复杂度，并将参数数量视为模型描述长度，那看起来会很糟糕。模型描述 <span class="math-inline" data-math="L(\mathcal{H})">L(\mathcal{H})</span> 很容易失控。</p>
+      
+    
+      
+        <p>然而，拥有大量参数对于神经网络获得高表达能力是必要的。由于其捕捉任意灵活数据表示的强大能力，深度神经网络在许多应用中取得了巨大成功。</p>
+      
+    
+      
+        <h2>通用逼近定理#</h2>
+        
+      
+    
+      
+        <p>通用逼近定理指出，一个前馈网络如果满足以下条件：1) 具有线性输出层，2) 至少有一个包含有限数量神经元的隐藏层，以及 3) 某种激活函数，就能够以任意精度逼近紧致子集 <span class="math-inline" data-math="\mathbb{R}^n">\mathbb{R}^n</span> 上的任何连续函数。该定理最初针对 sigmoid 激活函数得到证明（<a href="https://pdfs.semanticscholar.org/05ce/b32839c26c8d2cb38d5529cf7720a68c3fab.pdf" target="_blank" rel="noopener">Cybenko, 1989</a>）。后来证明，通用逼近性质并不特定于激活函数的选择（<a href="http://zmjones.com/static/statistical-learning/hornik-nn-1991.pdf" target="_blank" rel="noopener">Hornik, 1991</a>），而是前馈多层架构本身。</p>
+      
+    
+      
+        <p>虽然单层前馈网络足以表示任何函数，但其宽度必须呈指数级增长。通用逼近定理并不保证模型能否被正确学习或泛化。通常，增加更多层有助于减少浅层网络所需的隐藏神经元数量。</p>
+      
+    
+      
+        <p>为了利用通用逼近定理，我们总是可以找到一个神经网络来表示目标函数，且误差在任何期望阈值之下，但我们需要付出代价——网络可能会变得超级庞大。</p>
+      
+    
+      
+        <h2>证明：两层神经网络的有限样本表达能力#</h2>
+        
+      
+    
+      
+        <p>迄今为止我们讨论的通用逼近定理并未考虑有限样本集。<a href="https://arxiv.org/abs/1611.03530" target="_blank" rel="noopener">Zhang 等 (2017)</a> 为两层神经网络的有限样本表达能力提供了一个简洁的证明。</p>
+      
+    
+      
+        <p>一个神经网络 <span class="math-inline" data-math="C">C</span> 在 <span class="math-inline" data-math="d">d</span> 维空间中给定样本大小 <span class="math-inline" data-math="n">n</span> 时可以表示任何函数，如果：对于每一个有限样本集 <span class="math-inline" data-math="S \subseteq \mathbb{R}^d">S \subseteq \mathbb{R}^d</span>（其中 <span class="math-inline" data-math="\vert S \vert = n">\vert S \vert = n</span>），以及定义在该样本集上的任意函数 <span class="math-inline" data-math="f: S \mapsto \mathbb{R}">f: S \mapsto \mathbb{R}</span>，我们都能找到一组 <span class="math-inline" data-math="C">C</span> 的权重配置，使得 <span class="math-inline" data-math="C(\boldsymbol{x}) = f(\boldsymbol{x}), \forall \boldsymbol{x} \in S">C(\boldsymbol{x}) = f(\boldsymbol{x}), \forall \boldsymbol{x} \in S</span>。</p>
+      
+    
+      
+        <p>该论文提出了以下定理：</p>
+      
+    
+      
+        <blockquote>存在一个具有 ReLU 激活函数和 <span class="math-inline" data-math="2n + d">2n + d</span> 个权重的两层神经网络，能够表示 <span class="math-inline" data-math="d">d</span> 维空间中大小为 <span class="math-inline" data-math="n">n</span> 的样本上的任意函数。</blockquote>
+      
+    
+      
+        <p>证明。首先我们要构造一个两层神经网络 <span class="math-inline" data-math="C: \mathbb{R}^d \mapsto \mathbb{R}">C: \mathbb{R}^d \mapsto \mathbb{R}</span>。输入是一个 <span class="math-inline" data-math="d">d</span> 维向量 <span class="math-inline" data-math="\boldsymbol{x} \in \mathbb{R}^d">\boldsymbol{x} \in \mathbb{R}^d</span>。隐藏层有 <span class="math-inline" data-math="h">h</span> 个隐藏单元，关联权重矩阵 <span class="math-inline" data-math="\mathbf{W} \in \mathbb{R}^{d\times h}">\mathbf{W} \in \mathbb{R}^{d\times h}</span>、偏置向量 <span class="math-inline" data-math="-\mathbf{b} \in \mathbb{R}^h">-\mathbf{b} \in \mathbb{R}^h</span> 和 ReLU 激活函数。第二层输出一个标量值，使用权重向量 <span class="math-inline" data-math="\boldsymbol{v} \in \mathbb{R}^h">\boldsymbol{v} \in \mathbb{R}^h</span> 且偏置为零。</p>
+      
+    
+      
+        <p>网络 <span class="math-inline" data-math="C">C</span> 对输入向量 <span class="math-inline" data-math="\boldsymbol{x}">\boldsymbol{x}</span> 的输出可以表示如下：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+C(\boldsymbol{x}) 
+= \boldsymbol{v} \max\{ \boldsymbol{x}\mathbf{W} - \boldsymbol{b}, 0\}^\top
+= \sum_{i=1}^h v_i \max\{\boldsymbol{x}\boldsymbol{W}_{(:,i)} - b_i, 0\}
+">
+C(\boldsymbol{x}) 
+= \boldsymbol{v} \max\{ \boldsymbol{x}\mathbf{W} - \boldsymbol{b}, 0\}^\top
+= \sum_{i=1}^h v_i \max\{\boldsymbol{x}\boldsymbol{W}_{(:,i)} - b_i, 0\}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\boldsymbol{W}_{(:,i)}">\boldsymbol{W}_{(:,i)}</span> 是 <span class="math-inline" data-math="d \times h">d \times h</span> 矩阵的第 <span class="math-inline" data-math="i">i</span> 列。</p>
+      
+    
+      
+        <p>给定样本集 <span class="math-inline" data-math="S = \{\boldsymbol{x}_1, \dots, \boldsymbol{x}_n\}">S = \{\boldsymbol{x}_1, \dots, \boldsymbol{x}_n\}</span> 和目标值 <span class="math-inline" data-math="\boldsymbol{y} = \{y_1, \dots, y_n \}">\boldsymbol{y} = \{y_1, \dots, y_n \}</span>，我们希望找到合适的权重 <span class="math-inline" data-math="\mathbf{W} \in \mathbb{R}^{d\times h}">\mathbf{W} \in \mathbb{R}^{d\times h}</span>、<span class="math-inline" data-math="\boldsymbol{b}, \boldsymbol{v} \in \mathbb{R}^h">\boldsymbol{b}, \boldsymbol{v} \in \mathbb{R}^h</span>，使得 <span class="math-inline" data-math="C(\boldsymbol{x}_i) = y_i, \forall i=1,\dots,n">C(\boldsymbol{x}_i) = y_i, \forall i=1,\dots,n</span>。</p>
+      
+    
+      
+        <p>将所有样本点合并为一个批次作为一个输入矩阵 <span class="math-inline" data-math="\mathbf{X} \in \mathbb{R}^{n \times d}">\mathbf{X} \in \mathbb{R}^{n \times d}</span>。如果设置 <span class="math-inline" data-math="h=n">h=n</span>，则 <span class="math-inline" data-math="\mathbf{X}\mathbf{W} - \boldsymbol{b}">\mathbf{X}\mathbf{W} - \boldsymbol{b}</span> 将是一个大小为 <span class="math-inline" data-math="n \times n">n \times n</span> 的方阵。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbf{M}_\text{ReLU} 
+= \max\{\mathbf{X}\mathbf{W} - \boldsymbol{b}, 0 \} 
+= \begin{bmatrix}
+\boldsymbol{x}_1\mathbf{W} - \boldsymbol{b} \\
+\dots \\
+\boldsymbol{x}_n\mathbf{W} - \boldsymbol{b} \\
+\end{bmatrix}
+= [\boldsymbol{x}_i\boldsymbol{W}_{(:,j)} - b_j]_{i \times j}
+">
+\mathbf{M}_\text{ReLU} 
+= \max\{\mathbf{X}\mathbf{W} - \boldsymbol{b}, 0 \} 
+= \begin{bmatrix}
+\boldsymbol{x}_1\mathbf{W} - \boldsymbol{b} \\
+\dots \\
+\boldsymbol{x}_n\mathbf{W} - \boldsymbol{b} \\
+\end{bmatrix}
+= [\boldsymbol{x}_i\boldsymbol{W}_{(:,j)} - b_j]_{i \times j}
+</span></div>
+      
+    
+      
+        <p>我们可以将 <span class="math-inline" data-math="\mathbf{W}">\mathbf{W}</span> 简化为所有列具有相同的列向量：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbf{W}_{(:,j)} = \boldsymbol{w} \in \mathbb{R}^{d}, \forall j = 1, \dots, n
+">
+\mathbf{W}_{(:,j)} = \boldsymbol{w} \in \mathbb{R}^{d}, \forall j = 1, \dots, n
+</span></div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-03-14-overfit/nn-expressivity-proof.png" alt="">
+          <figcaption>Fit models on CIFAR10 with random labels or random pixels: (a) learning curves; (b-c) label corruption ratio is the percentage of randomly shuffled labels. (Image source:Zhang et al. 2017)</figcaption>
+        </figure>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

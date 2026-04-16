@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>策略梯度算法 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>策略梯度算法</h1>
+    <div class="meta">
+      2018-04-08 · 
+      <a href="https://lilianweng.github.io/posts/2018-04-08-policy-gradient/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">什么是策略梯度
+
+符号说明
+
+策略梯度
+
+策略梯度定理
+
+策略梯度定理的证明
+
+
+策略梯度算法
+
+REINFORCE
+
+Actor-Critic
+
+Off-Policy Policy Gradient
+
+A3C
+
+A2C
+
+DPG
+
+DDPG
+
+D4PG
+
+MADDPG
+
+TRPO
+
+PPO
+
+PPG
+
+ACER
+
+ACTKR
+
+SAC
+
+SAC with Automatically Adjusted Temperature
+
+TD3
+
+SVPG
+
+IMPALA
+
+
+快速总结
+
+参考文献</div>
+      
+    
+      
+        <p>摘要：在这篇文章中，我们将深入探讨策略梯度方法，它为什么有效，以及近年来提出的众多新型策略梯度算法，包括：vanilla policy gradient、actor-critic、off-policy actor-critic、A3C、A2C、DPG、DDPG、D4PG、MADDPG、TRPO、PPO、ACER、ACTKR、SAC、TD3 和 SVPG。</p>
+      
+    
+      
+        <p>[2018-06-30 更新：新增两种策略梯度方法 SAC 和 D4PG。]
+
+[2018-09-30 更新：新增一种策略梯度方法 TD3。]
+
+[2019-02-09 更新：新增带自动调整温度的 SAC。]
+
+[2019-06-26 更新：感谢 Chanseok，我们有了这篇文章的<a href="https://talkingaboutme.tistory.com/entry/RL-Policy-Gradient-Algorithms" target="_blank" rel="noopener">韩文</a>版本。]
+
+[2019-09-12 更新：新增一种策略梯度方法 SVPG。]
+
+[2019-12-22 更新：新增一种策略梯度方法 IMPALA。]
+
+[2020-10-15 更新：新增一种策略梯度方法 PPG，并在 PPO 部分加入了一些新的讨论。]
+
+[2021-09-19 更新：感谢 Wenhao 和 爱吃猫的鱼，我们有了这篇文章的<a href="https://tomaxent.com/2019/04/14/%E7%AD%96%E7%95%A5%E6%A2%AF%E5%BA%A6%E6%96%B9%E6%B3%95/" target="_blank" rel="noopener">中文版1</a> 和 <a href="https://paperexplained.cn/articles/article/detail/31/" target="_blank" rel="noopener">中文版2</a>。]</p>
+      
+    
+      
+        <h2>什么是策略梯度</h2>
+        
+      
+    
+      
+        <p>策略梯度是一种解决强化学习问题的方法。如果你还没有了解过强化学习领域，请先阅读  一节，了解问题定义和关键概念。<a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a></p>
+      
+    
+      
+        <h2>符号说明</h2>
+        
+      
+    
+      
+        <p>以下是本文中用到的符号列表，便于你轻松阅读公式。</p>
+      
+    
+      
+        <div class="table-container"><table>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math-inline" data-math="s \in \mathcal{S}">s \in \mathcal{S}</span></td>
+<td>States.</td>
+</tr>
+<tr>
+<td><span class="math-inline" data-math="a \in \mathcal{A}">a \in \mathcal{A}</span></td>
+<td>Actions.</td>
+</tr>
+<tr>
+<td><span class="math-inline" data-math="r \in \mathcal{R}">r \in \mathcal{R}</span></td>
+<td>Rewards.</td>
+</tr>
+<tr>
+<td><span class="math-inline" data-math="S_t, A_t, R_t">S_t, A_t, R_t</span></td>
+<td>State, action, and reward at time step <span class="math-inline" data-math="t">t</span> of one trajectory. I may occasionally use <span class="math-inline" data-math="s_t, a_t, r_t">s_t, a_t, r_t</span> as well.</td>
+</tr>
+<tr>
+<td><span class="math-inline" data-math="\gamma">\gamma</span></td>
+<td>Discount factor; penalty to uncertainty of future rewards; <span class="math-inline" data-math="0&lt;\gamma \leq 1">0&lt;\gamma \leq 1</span>.</td>
+</tr>
+<tr>
+<td><span class="math-inline" data-math="G_t">G_t</span></td>
+<td>Return; or discounted future reward; <span class="math-inline" data-math="G_t = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}">G_t = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}</span>.</td>
+</tr>
+<tr>
+<td><span class="math-inline" data-math="P(s’, r \vert s, a)">P(s’, r \vert s, a)</span></td>
+<td>Transition probability of getting to the next state <span class="math-inline" data-math="s’">s’</span> from the current state <span class="math-inline" data-math="s">s</span> with action <span class="math-inline" data-math="a">a</span> and reward <span class="math-inline" data-math="r">r</span>.</td>
+</tr>
+<tr>
+<td><span class="math-inline" data-math="\pi(a \vert s)">\pi(a \vert s)</span></td>
+<td>Stochastic policy (agent behavior strategy); <span class="math-inline" data-math="\pi_\theta(.)">\pi_\theta(.)</span> is a policy parameterized by <span class="math-inline" data-math="\theta">\theta</span>.</td>
+</tr>
+<tr>
+<td><span class="math-inline" data-math="\mu(s)">\mu(s)</span></td>
+<td>Deterministic policy; we can also label this as <span class="math-inline" data-math="\pi(s)">\pi(s)</span>, but using a different letter gives better distinction so that we can easily tell when the policy is stochastic or deterministic without further explanation. Either <span class="math-inline" data-math="\pi">\pi</span> or <span class="math-inline" data-math="\mu">\mu</span> is what a reinforcement learning algorithm aims to learn.</td>
+</tr>
+<tr>
+<td><span class="math-inline" data-math="V(s)">V(s)</span></td>
+<td>State-value function measures the expected return of state <span class="math-inline" data-math="s">s</span>; <span class="math-inline" data-math="V_w(.)">V_w(.)</span> is a value function parameterized by <span class="math-inline" data-math="w">w</span>.</td>
+</tr>
+<tr>
+<td><span class="math-inline" data-math="V^\pi(s)">V^\pi(s)</span></td>
+<td>The value of state <span class="math-inline" data-math="s">s</span> when we follow a policy <span class="math-inline" data-math="\pi">\pi</span>; <span class="math-inline" data-math="V^\pi (s) = \mathbb{E}_{a\sim \pi} [G_t \vert S_t = s]">V^\pi (s) = \mathbb{E}_{a\sim \pi} [G_t \vert S_t = s]</span>.</td>
+</tr>
+<tr>
+<td><span class="math-inline" data-math="Q(s, a)">Q(s, a)</span></td>
+<td>Action-value function is similar to <span class="math-inline" data-math="V(s)">V(s)</span>, but it assesses the expected return of a pair of state and action <span class="math-inline" data-math="(s, a)">(s, a)</span>; <span class="math-inline" data-math="Q_w(.)">Q_w(.)</span> is a action value function parameterized by <span class="math-inline" data-math="w">w</span>.</td>
+</tr>
+<tr>
+<td><span class="math-inline" data-math="Q^\pi(s, a)">Q^\pi(s, a)</span></td>
+<td>Similar to <span class="math-inline" data-math="V^\pi(.)">V^\pi(.)</span>, the value of (state, action) pair when we follow a policy <span class="math-inline" data-math="\pi">\pi</span>; <span class="math-inline" data-math="Q^\pi(s, a) = \mathbb{E}_{a\sim \pi} [G_t \vert S_t = s, A_t = a]">Q^\pi(s, a) = \mathbb{E}_{a\sim \pi} [G_t \vert S_t = s, A_t = a]</span>.</td>
+</tr>
+<tr>
+<td><span class="math-inline" data-math="A(s, a)">A(s, a)</span></td>
+<td>Advantage function, <span class="math-inline" data-math="A(s, a) = Q(s, a) - V(s)">A(s, a) = Q(s, a) - V(s)</span>; it can be considered as another version of Q-value with lower variance by taking the state-value off as the baseline.</td>
+</tr>
+</tbody>
+</table></div>
+      
+    
+      
+        <h2>策略梯度</h2>
+        
+      
+    
+      
+        <p>强化学习的目标是为智能体找到最优的行为策略，从而获得最优的回报。策略梯度方法直接对策略进行建模和优化。策略通常被建模为关于参数 <span class="math-inline" data-math="\theta">\theta</span> 的参数化函数 <span class="math-inline" data-math="\pi_\theta(a \vert s)">\pi_\theta(a \vert s)</span>。回报（目标）函数的值取决于该策略，随后可以使用各种算法来优化 <span class="math-inline" data-math="\theta">\theta</span> 以获得最佳回报。</p>
+      
+    
+      
+        <p>回报函数定义为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+J(\theta) 
+= \sum_{s \in \mathcal{S}} d^\pi(s) V^\pi(s) 
+= \sum_{s \in \mathcal{S}} d^\pi(s) \sum_{a \in \mathcal{A}} \pi_\theta(a \vert s) Q^\pi(s, a)
+">
+J(\theta) 
+= \sum_{s \in \mathcal{S}} d^\pi(s) V^\pi(s) 
+= \sum_{s \in \mathcal{S}} d^\pi(s) \sum_{a \in \mathcal{A}} \pi_\theta(a \vert s) Q^\pi(s, a)
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="d^\pi(s)">d^\pi(s)</span> 是马尔可夫链在策略 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span> 下的平稳分布（on-policy 状态分布）。为简便起见，当策略出现在其他函数的下标中时，参数 <span class="math-inline" data-math="\theta">\theta</span> 将被省略；例如，<span class="math-inline" data-math="d^{\pi}">d^{\pi}</span> 和 <span class="math-inline" data-math="Q^\pi">Q^\pi</span> 完整写法应为 <span class="math-inline" data-math="d^{\pi_\theta}">d^{\pi_\theta}</span> 和 <span class="math-inline" data-math="Q^{\pi_\theta}">Q^{\pi_\theta}</span>。<span class="math-inline" data-math="\pi">\pi</span><span class="math-inline" data-math="\pi_\theta">\pi_\theta</span></p>
+      
+    
+      
+        <p>可以想象你能永远沿着马尔可夫链的状态旅行，随着时间推移，最终到达某个状态的概率会趋于稳定——这就是 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span> 的平稳概率。<span class="math-inline" data-math="d^\pi(s) = \lim_{t \to \infty} P(s_t = s \vert s_0, \pi_\theta)">d^\pi(s) = \lim_{t \to \infty} P(s_t = s \vert s_0, \pi_\theta)</span> 是从状态 <span class="math-inline" data-math="s_0">s_0</span> 出发，遵循策略 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span> 走 t 步后到达状态 <span class="math-inline" data-math="s_t=s">s_t=s</span> 的概率。实际上，马尔可夫链平稳分布的存在是 PageRank 算法能够工作的主要原因之一。如果你想了解更多，可以阅读<a href="https://jeremykun.com/2015/04/06/markov-chain-monte-carlo-without-all-the-bullshit/" target="_blank" rel="noopener">这篇文章</a>。</p>
+      
+    
+      
+        <p>很自然地，我们会认为基于策略的方法在连续空间中更有用。因为动作和（或）状态的数量是无限的，对它们的值进行估计会导致基于价值的方法在计算上过于昂贵。例如，在中，策略改进步骤 <span class="math-inline" data-math="\arg\max_{a \in \mathcal{A}} Q^\pi(s, a)">\arg\max_{a \in \mathcal{A}} Q^\pi(s, a)</span> 需要完整扫描整个动作空间，会遭受<a href="https://en.wikipedia.org/wiki/Curse_of_dimensionality" target="_blank" rel="noopener">维度灾难</a>。<a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a></p>
+      
+    
+      
+        <p>使用梯度上升，我们可以让 <span class="math-inline" data-math="\theta">\theta</span> 沿着梯度 <span class="math-inline" data-math="\nabla_\theta J(\theta)">\nabla_\theta J(\theta)</span> 所指示的方向移动，以找到能产生最高回报的最优 <span class="math-inline" data-math="\theta">\theta</span>。<span class="math-inline" data-math="\pi_\theta">\pi_\theta</span></p>
+      
+    
+      
+        <h2>策略梯度定理</h2>
+        
+      
+    
+      
+        <p>计算梯度 <span class="math-inline" data-math="\nabla_\theta J(\theta)">\nabla_\theta J(\theta)</span> 非常棘手，因为它同时依赖于动作选择（由 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span> 直接决定）和目标选择行为下状态的平稳分布（由 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span> 间接决定）。由于环境通常是未知的，很难估计策略更新对状态分布的影响。</p>
+      
+    
+      
+        <p>幸运的是，策略梯度定理来拯救世界了！它对目标函数的导数进行了优雅的改写，使其不再涉及状态分布 <span class="math-inline" data-math="d^\pi(.)">d^\pi(.)</span> 的导数，从而大大简化了梯度计算 <span class="math-inline" data-math="\nabla_\theta J(\theta)">\nabla_\theta J(\theta)</span>。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\nabla_\theta J(\theta) 
+&amp;= \nabla_\theta \sum_{s \in \mathcal{S}} d^\pi(s) \sum_{a \in \mathcal{A}} Q^\pi(s, a) \pi_\theta(a \vert s) \\
+&amp;\propto \sum_{s \in \mathcal{S}} d^\pi(s) \sum_{a \in \mathcal{A}} Q^\pi(s, a) \nabla_\theta \pi_\theta(a \vert s) 
+\end{aligned}
+">
+\begin{aligned}
+\nabla_\theta J(\theta) 
+&amp;= \nabla_\theta \sum_{s \in \mathcal{S}} d^\pi(s) \sum_{a \in \mathcal{A}} Q^\pi(s, a) \pi_\theta(a \vert s) \\
+&amp;\propto \sum_{s \in \mathcal{S}} d^\pi(s) \sum_{a \in \mathcal{A}} Q^\pi(s, a) \nabla_\theta \pi_\theta(a \vert s) 
+\end{aligned}
+</span></div>
+      
+    
+      
+        <h2>策略梯度定理的证明</h2>
+        
+      
+    
+      
+        <p>本节内容比较密集，因为我们将一起走过证明过程（<a href="http://incompleteideas.net/book/bookdraft2017nov5.pdf" target="_blank" rel="noopener">Sutton &amp;amp; Barto, 2017</a>；第 13.1 节），并搞清楚为什么策略梯度定理是正确的。</p>
+      
+    
+      
+        <p>我们首先从状态价值函数的导数开始：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+&amp; \nabla_\theta V^\pi(s) \\
+=&amp; \nabla_\theta \Big(\sum_{a \in \mathcal{A}} \pi_\theta(a \vert s)Q^\pi(s, a) \Big) &amp; \\
+=&amp; \sum_{a \in \mathcal{A}} \Big( \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a) + \pi_\theta(a \vert s) \color{red}{\nabla_\theta Q^\pi(s, a)} \Big) &amp; \scriptstyle{\text{; Derivative product rule.}} \\
+=&amp; \sum_{a \in \mathcal{A}} \Big( \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a) + \pi_\theta(a \vert s) \color{red}{\nabla_\theta \sum_{s&#x27;, r} P(s&#x27;,r \vert s,a)(r + V^\pi(s&#x27;))} \Big) &amp; \scriptstyle{\text{; Extend } Q^\pi \text{ with future state value.}} \\
+=&amp; \sum_{a \in \mathcal{A}} \Big( \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a) + \pi_\theta(a \vert s) \color{red}{\sum_{s&#x27;, r} P(s&#x27;,r \vert s,a) \nabla_\theta V^\pi(s&#x27;)} \Big) &amp; \scriptstyle{P(s&#x27;,r \vert s,a) \text{ or } r \text{ is not a func of }\theta}\\
+=&amp; \sum_{a \in \mathcal{A}} \Big( \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a) + \pi_\theta(a \vert s) \color{red}{\sum_{s&#x27;} P(s&#x27; \vert s,a) \nabla_\theta V^\pi(s&#x27;)} \Big) &amp; \scriptstyle{\text{; Because }  P(s&#x27; \vert s, a) = \sum_r P(s&#x27;, r \vert s, a)}
+\end{aligned}
+">
+\begin{aligned}
+&amp; \nabla_\theta V^\pi(s) \\
+=&amp; \nabla_\theta \Big(\sum_{a \in \mathcal{A}} \pi_\theta(a \vert s)Q^\pi(s, a) \Big) &amp; \\
+=&amp; \sum_{a \in \mathcal{A}} \Big( \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a) + \pi_\theta(a \vert s) \color{red}{\nabla_\theta Q^\pi(s, a)} \Big) &amp; \scriptstyle{\text{; Derivative product rule.}} \\
+=&amp; \sum_{a \in \mathcal{A}} \Big( \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a) + \pi_\theta(a \vert s) \color{red}{\nabla_\theta \sum_{s&#x27;, r} P(s&#x27;,r \vert s,a)(r + V^\pi(s&#x27;))} \Big) &amp; \scriptstyle{\text{; Extend } Q^\pi \text{ with future state value.}} \\
+=&amp; \sum_{a \in \mathcal{A}} \Big( \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a) + \pi_\theta(a \vert s) \color{red}{\sum_{s&#x27;, r} P(s&#x27;,r \vert s,a) \nabla_\theta V^\pi(s&#x27;)} \Big) &amp; \scriptstyle{P(s&#x27;,r \vert s,a) \text{ or } r \text{ is not a func of }\theta}\\
+=&amp; \sum_{a \in \mathcal{A}} \Big( \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a) + \pi_\theta(a \vert s) \color{red}{\sum_{s&#x27;} P(s&#x27; \vert s,a) \nabla_\theta V^\pi(s&#x27;)} \Big) &amp; \scriptstyle{\text{; Because }  P(s&#x27; \vert s, a) = \sum_r P(s&#x27;, r \vert s, a)}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>现在我们有：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\color{red}{\nabla_\theta V^\pi(s)} 
+= \sum_{a \in \mathcal{A}} \Big( \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a) + \pi_\theta(a \vert s) \sum_{s&#x27;} P(s&#x27; \vert s,a) \color{red}{\nabla_\theta V^\pi(s&#x27;)} \Big)
+">
+\color{red}{\nabla_\theta V^\pi(s)} 
+= \sum_{a \in \mathcal{A}} \Big( \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a) + \pi_\theta(a \vert s) \sum_{s&#x27;} P(s&#x27; \vert s,a) \color{red}{\nabla_\theta V^\pi(s&#x27;)} \Big)
+</span></div>
+      
+    
+      
+        <p>这个方程具有很好的递归形式（见红色部分！），未来的状态价值函数 <span class="math-inline" data-math="V^\pi(s’)">V^\pi(s’)</span> 可以按照同样的方程不断展开。</p>
+      
+    
+      
+        <p>让我们考虑以下访问序列，并将遵循策略 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span> 从状态 s 到状态 x 经过 k 步的转移概率标记为 <span class="math-inline" data-math="\rho^\pi(s \to x, k)">\rho^\pi(s \to x, k)</span>。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+s \xrightarrow[]{a \sim \pi_\theta(.\vert s)} s&#x27; \xrightarrow[]{a \sim \pi_\theta(.\vert s&#x27;)} s&#x27;&#x27; \xrightarrow[]{a \sim \pi_\theta(.\vert s&#x27;&#x27;)} \dots
+">
+s \xrightarrow[]{a \sim \pi_\theta(.\vert s)} s&#x27; \xrightarrow[]{a \sim \pi_\theta(.\vert s&#x27;)} s&#x27;&#x27; \xrightarrow[]{a \sim \pi_\theta(.\vert s&#x27;&#x27;)} \dots
+</span></div>
+      
+    
+      
+        <div class="list-content">当 k = 0 时：<span class="math-inline" data-math="\rho^\pi(s \to s, k=0) = 1">\rho^\pi(s \to s, k=0) = 1</span>。
+当 k = 1 时，我们遍历所有可能的动作并对转移到目标状态的概率求和：<span class="math-inline" data-math="\rho^\pi(s \to s’, k=1) = \sum_a \pi_\theta(a \vert s) P(s’ \vert s, a)">\rho^\pi(s \to s’, k=1) = \sum_a \pi_\theta(a \vert s) P(s’ \vert s, a)</span>。
+假设目标是从状态 s 出发，经过 k+1 步到达状态 x，同时遵循策略 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span>。我们可以先从 s 经过 k 步到达中间状态 s&#x27;（任意状态都可以是中间点，<span class="math-inline" data-math="s’ \in \mathcal{S}">s’ \in \mathcal{S}</span>），然后在最后一步到达最终状态 x。这样我们就可以递归地更新访问概率：<span class="math-inline" data-math="\rho^\pi(s \to x, k+1) = \sum_{s’} \rho^\pi(s \to s’, k) \rho^\pi(s’ \to x, 1)">\rho^\pi(s \to x, k+1) = \sum_{s’} \rho^\pi(s \to s’, k) \rho^\pi(s’ \to x, 1)</span>。</div>
+      
+    
+      
+        <p>然后我们回到对 <span class="math-inline" data-math="\nabla_\theta V^\pi(s)">\nabla_\theta V^\pi(s)</span> 的递归表达式进行展开！令 <span class="math-inline" data-math="\phi(s) = \sum_{a \in \mathcal{A}} \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a)">\phi(s) = \sum_{a \in \mathcal{A}} \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a)</span> 来简化数学表达式。如果我们将 <span class="math-inline" data-math="\nabla_\theta V^\pi(.)">\nabla_\theta V^\pi(.)</span> 无限延伸下去，很容易发现我们可以从起始状态 s 经过任意步数转移到任意状态，通过对所有访问概率求和，我们得到 <span class="math-inline" data-math="\nabla_\theta V^\pi(s)">\nabla_\theta V^\pi(s)</span>！</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+&amp; \color{red}{\nabla_\theta V^\pi(s)} \\
+=&amp; \phi(s) + \sum_a \pi_\theta(a \vert s) \sum_{s&#x27;} P(s&#x27; \vert s,a) \color{red}{\nabla_\theta V^\pi(s&#x27;)} \\
+=&amp; \phi(s) + \sum_{s&#x27;} \sum_a \pi_\theta(a \vert s) P(s&#x27; \vert s,a) \color{red}{\nabla_\theta V^\pi(s&#x27;)} \\
+=&amp; \phi(s) + \sum_{s&#x27;} \rho^\pi(s \to s&#x27;, 1) \color{red}{\nabla_\theta V^\pi(s&#x27;)} \\
+=&amp; \phi(s) + \sum_{s&#x27;} \rho^\pi(s \to s&#x27;, 1) \color{red}{\sum_{a \in \mathcal{A}} \Big( \nabla_\theta \pi_\theta(a \vert s&#x27;)Q^\pi(s&#x27;, a) + \pi_\theta(a \vert s&#x27;) \sum_{s&#x27;} P(s&#x27;&#x27; \vert s&#x27;,a) \nabla_\theta V^\pi(s&#x27;&#x27;) \Big)} \\
+=&amp; \phi(s) + \sum_{s&#x27;} \rho^\pi(s \to s&#x27;, 1) \color{red}{[ \phi(s&#x27;) + \sum_{s&#x27;&#x27;} \rho^\pi(s&#x27; \to s&#x27;&#x27;, 1) \nabla_\theta V^\pi(s&#x27;&#x27;)]} \\
+=&amp; \phi(s) + \sum_{s&#x27;} \rho^\pi(s \to s&#x27;, 1) \phi(s&#x27;) + \sum_{s&#x27;&#x27;} \rho^\pi(s \to s&#x27;&#x27;, 2)\color{red}{\nabla_\theta V^\pi(s&#x27;&#x27;)} \scriptstyle{\text{ ; Consider }s&#x27;\text{ as the middle point for }s \to s&#x27;&#x27;}\\
+=&amp; \phi(s) + \sum_{s&#x27;} \rho^\pi(s \to s&#x27;, 1) \phi(s&#x27;) + \sum_{s&#x27;&#x27;} \rho^\pi(s \to s&#x27;&#x27;, 2)\phi(s&#x27;&#x27;) + \sum_{s&#x27;&#x27;&#x27;} \rho^\pi(s \to s&#x27;&#x27;&#x27;, 3)\color{red}{\nabla_\theta V^\pi(s&#x27;&#x27;&#x27;)} \\
+=&amp; \dots \scriptstyle{\text{; Repeatedly unrolling the part of }\nabla_\theta V^\pi(.)} \\
+=&amp; \sum_{x\in\mathcal{S}}\sum_{k=0}^\infty \rho^\pi(s \to x, k) \phi(x)
+\end{aligned}
+">
+\begin{aligned}
+&amp; \color{red}{\nabla_\theta V^\pi(s)} \\
+=&amp; \phi(s) + \sum_a \pi_\theta(a \vert s) \sum_{s&#x27;} P(s&#x27; \vert s,a) \color{red}{\nabla_\theta V^\pi(s&#x27;)} \\
+=&amp; \phi(s) + \sum_{s&#x27;} \sum_a \pi_\theta(a \vert s) P(s&#x27; \vert s,a) \color{red}{\nabla_\theta V^\pi(s&#x27;)} \\
+=&amp; \phi(s) + \sum_{s&#x27;} \rho^\pi(s \to s&#x27;, 1) \color{red}{\nabla_\theta V^\pi(s&#x27;)} \\
+=&amp; \phi(s) + \sum_{s&#x27;} \rho^\pi(s \to s&#x27;, 1) \color{red}{\sum_{a \in \mathcal{A}} \Big( \nabla_\theta \pi_\theta(a \vert s&#x27;)Q^\pi(s&#x27;, a) + \pi_\theta(a \vert s&#x27;) \sum_{s&#x27;} P(s&#x27;&#x27; \vert s&#x27;,a) \nabla_\theta V^\pi(s&#x27;&#x27;) \Big)} \\
+=&amp; \phi(s) + \sum_{s&#x27;} \rho^\pi(s \to s&#x27;, 1) \color{red}{[ \phi(s&#x27;) + \sum_{s&#x27;&#x27;} \rho^\pi(s&#x27; \to s&#x27;&#x27;, 1) \nabla_\theta V^\pi(s&#x27;&#x27;)]} \\
+=&amp; \phi(s) + \sum_{s&#x27;} \rho^\pi(s \to s&#x27;, 1) \phi(s&#x27;) + \sum_{s&#x27;&#x27;} \rho^\pi(s \to s&#x27;&#x27;, 2)\color{red}{\nabla_\theta V^\pi(s&#x27;&#x27;)} \scriptstyle{\text{ ; Consider }s&#x27;\text{ as the middle point for }s \to s&#x27;&#x27;}\\
+=&amp; \phi(s) + \sum_{s&#x27;} \rho^\pi(s \to s&#x27;, 1) \phi(s&#x27;) + \sum_{s&#x27;&#x27;} \rho^\pi(s \to s&#x27;&#x27;, 2)\phi(s&#x27;&#x27;) + \sum_{s&#x27;&#x27;&#x27;} \rho^\pi(s \to s&#x27;&#x27;&#x27;, 3)\color{red}{\nabla_\theta V^\pi(s&#x27;&#x27;&#x27;)} \\
+=&amp; \dots \scriptstyle{\text{; Repeatedly unrolling the part of }\nabla_\theta V^\pi(.)} \\
+=&amp; \sum_{x\in\mathcal{S}}\sum_{k=0}^\infty \rho^\pi(s \to x, k) \phi(x)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>上述优雅的重写使我们能够排除 Q 值函数的导数 <span class="math-inline" data-math="\nabla_\theta Q^\pi(s, a)">\nabla_\theta Q^\pi(s, a)</span>。将其代入目标函数 <span class="math-inline" data-math="J(\theta)">J(\theta)</span> 后，我们得到以下形式：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\nabla_\theta J(\theta)
+&amp;= \nabla_\theta V^\pi(s_0) &amp; \scriptstyle{\text{; Starting from a random state } s_0} \\
+&amp;= \sum_{s}\color{blue}{\sum_{k=0}^\infty \rho^\pi(s_0 \to s, k)} \phi(s) &amp;\scriptstyle{\text{; Let }\color{blue}{\eta(s) = \sum_{k=0}^\infty \rho^\pi(s_0 \to s, k)}} \\
+&amp;= \sum_{s}\eta(s) \phi(s) &amp; \\
+&amp;= \Big( {\sum_s \eta(s)} \Big)\sum_{s}\frac{\eta(s)}{\sum_s \eta(s)} \phi(s) &amp; \scriptstyle{\text{; Normalize } \eta(s), s\in\mathcal{S} \text{ to be a probability distribution.}}\\
+&amp;\propto \sum_s \frac{\eta(s)}{\sum_s \eta(s)} \phi(s) &amp; \scriptstyle{\sum_s \eta(s)\text{  is a constant}} \\
+&amp;= \sum_s d^\pi(s) \sum_a \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a) &amp; \scriptstyle{d^\pi(s) = \frac{\eta(s)}{\sum_s \eta(s)}\text{ is stationary distribution.}}
+\end{aligned}
+">
+\begin{aligned}
+\nabla_\theta J(\theta)
+&amp;= \nabla_\theta V^\pi(s_0) &amp; \scriptstyle{\text{; Starting from a random state } s_0} \\
+&amp;= \sum_{s}\color{blue}{\sum_{k=0}^\infty \rho^\pi(s_0 \to s, k)} \phi(s) &amp;\scriptstyle{\text{; Let }\color{blue}{\eta(s) = \sum_{k=0}^\infty \rho^\pi(s_0 \to s, k)}} \\
+&amp;= \sum_{s}\eta(s) \phi(s) &amp; \\
+&amp;= \Big( {\sum_s \eta(s)} \Big)\sum_{s}\frac{\eta(s)}{\sum_s \eta(s)} \phi(s) &amp; \scriptstyle{\text{; Normalize } \eta(s), s\in\mathcal{S} \text{ to be a probability distribution.}}\\
+&amp;\propto \sum_s \frac{\eta(s)}{\sum_s \eta(s)} \phi(s) &amp; \scriptstyle{\sum_s \eta(s)\text{  is a constant}} \\
+&amp;= \sum_s d^\pi(s) \sum_a \nabla_\theta \pi_\theta(a \vert s)Q^\pi(s, a) &amp; \scriptstyle{d^\pi(s) = \frac{\eta(s)}{\sum_s \eta(s)}\text{ is stationary distribution.}}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>在 episodic 场景下，比例常数（<span class="math-inline" data-math="\sum_s \eta(s)">\sum_s \eta(s)</span>）是 episode 的平均长度；在 continuing 场景下，它是 1（<a href="http://incompleteideas.net/book/bookdraft2017nov5.pdf" target="_blank" rel="noopener">Sutton &amp;amp; Barto, 2017</a>；第 13.2 节）。梯度可以进一步写为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\nabla_\theta J(\theta) 
+&amp;\propto \sum_{s \in \mathcal{S}} d^\pi(s) \sum_{a \in \mathcal{A}} Q^\pi(s, a) \nabla_\theta \pi_\theta(a \vert s)  &amp;\\
+&amp;= \sum_{s \in \mathcal{S}} d^\pi(s) \sum_{a \in \mathcal{A}} \pi_\theta(a \vert s) Q^\pi(s, a) \frac{\nabla_\theta \pi_\theta(a \vert s)}{\pi_\theta(a \vert s)} &amp;\\
+&amp;= \mathbb{E}_\pi [Q^\pi(s, a) \nabla_\theta \ln \pi_\theta(a \vert s)] &amp; \scriptstyle{\text{; Because } (\ln x)&#x27; = 1/x}
+\end{aligned}
+">
+\begin{aligned}
+\nabla_\theta J(\theta) 
+&amp;\propto \sum_{s \in \mathcal{S}} d^\pi(s) \sum_{a \in \mathcal{A}} Q^\pi(s, a) \nabla_\theta \pi_\theta(a \vert s)  &amp;\\
+&amp;= \sum_{s \in \mathcal{S}} d^\pi(s) \sum_{a \in \mathcal{A}} \pi_\theta(a \vert s) Q^\pi(s, a) \frac{\nabla_\theta \pi_\theta(a \vert s)}{\pi_\theta(a \vert s)} &amp;\\
+&amp;= \mathbb{E}_\pi [Q^\pi(s, a) \nabla_\theta \ln \pi_\theta(a \vert s)] &amp; \scriptstyle{\text{; Because } (\ln x)&#x27; = 1/x}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\mathbb{E}_\pi">\mathbb{E}_\pi</span> 表示当状态和动作的分布都遵循策略 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span>（on policy）时的 <span class="math-inline" data-math="\mathbb{E}_{s \sim d_\pi, a \sim \pi_\theta}">\mathbb{E}_{s \sim d_\pi, a \sim \pi_\theta}</span>。</p>
+      
+    
+      
+        <p>策略梯度定理为各种策略梯度算法奠定了理论基础。这种 vanilla policy gradient 更新是无偏的，但方差很高。随后提出的许多算法旨在降低方差，同时保持偏差不变。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\nabla_\theta J(\theta)  = \mathbb{E}_\pi [Q^\pi(s, a) \nabla_\theta \ln \pi_\theta(a \vert s)]
+">
+\nabla_\theta J(\theta)  = \mathbb{E}_\pi [Q^\pi(s, a) \nabla_\theta \ln \pi_\theta(a \vert s)]
+</span></div>
+      
+    
+      
+        <p>以下是对策略梯度方法一般形式的良好总结，来自<a href="https://arxiv.org/pdf/1506.02438.pdf" target="_blank" rel="noopener">GAE</a>（广义优势估计）论文（<a href="https://arxiv.org/abs/1506.02438" target="_blank" rel="noopener">Schulman et al., 2016</a>），以及<a href="https://danieltakeshi.github.io/2017/04/02/notes-on-the-generalized-advantage-estimation-paper/" target="_blank" rel="noopener">这篇文章</a>对 GAE 中的几个组成部分进行了深入讨论，非常推荐阅读。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-04-08-policy-gradient/general_form_policy_gradient.png" alt="">
+          <figcaption>A general form of policy gradient methods. (Image source:Schulman et al., 2016)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>策略梯度算法</h2>
+        
+      
+    
+      
+        <p>近年来提出了大量策略梯度算法，我不可能全部介绍。这里只介绍一些我恰好了解和阅读过的。</p>
+      
+    
+      
+        <h2>REINFORCE</h2>
+        
+      
+    
+      
+        <p>REINFORCE（蒙特卡洛策略梯度）依赖于使用<a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a>方法通过 episode 样本来估计回报，并据此更新策略参数 <span class="math-inline" data-math="\theta">\theta</span>。REINFORCE 之所以有效，是因为样本梯度的期望等于真实梯度：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\nabla_\theta J(\theta)
+&amp;= \mathbb{E}_\pi [Q^\pi(s, a) \nabla_\theta \ln \pi_\theta(a \vert s)] &amp; \\
+&amp;= \mathbb{E}_\pi [G_t \nabla_\theta \ln \pi_\theta(A_t \vert S_t)] &amp; \scriptstyle{\text{; Because } Q^\pi(S_t, A_t) = \mathbb{E}_\pi[G_t \vert S_t, A_t]}
+\end{aligned}
+">
+\begin{aligned}
+\nabla_\theta J(\theta)
+&amp;= \mathbb{E}_\pi [Q^\pi(s, a) \nabla_\theta \ln \pi_\theta(a \vert s)] &amp; \\
+&amp;= \mathbb{E}_\pi [G_t \nabla_\theta \ln \pi_\theta(A_t \vert S_t)] &amp; \scriptstyle{\text{; Because } Q^\pi(S_t, A_t) = \mathbb{E}_\pi[G_t \vert S_t, A_t]}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>因此我们能够从真实样本轨迹中测量 <span class="math-inline" data-math="G_t">G_t</span>，并用它来更新策略梯度。它依赖于完整的轨迹，这就是为什么它是一种蒙特卡洛方法。</p>
+      
+    
+      
+        <p>其流程非常直接：</p>
+      
+    
+      
+        <div class="list-content">随机初始化策略参数 <span class="math-inline" data-math="\theta">\theta</span>。
+根据策略 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span> 生成一条轨迹：<span class="math-inline" data-math="S_1, A_1, R_2, S_2, A_2, \dots, S_T">S_1, A_1, R_2, S_2, A_2, \dots, S_T</span>。
+对于 t=1, 2, … , T：
+
+估计回报 <span class="math-inline" data-math="G_t">G_t</span>；
+更新策略参数：<span class="math-inline" data-math="\theta \leftarrow \theta + \alpha \gamma^t G_t \nabla_\theta \ln \pi_\theta(A_t \vert S_t)">\theta \leftarrow \theta + \alpha \gamma^t G_t \nabla_\theta \ln \pi_\theta(A_t \vert S_t)</span></div>
+      
+    
+      
+        <p>REINFORCE 的一种广泛使用的变体是从回报 <span class="math-inline" data-math="G_t">G_t</span> 中减去一个基线值，以降低梯度估计的方差，同时保持偏差不变（记住，只要可能我们都想这样做）。例如，一个常见的基线是从动作价值中减去状态价值，如果应用的话，我们会在梯度上升更新中使用优势 <span class="math-inline" data-math="A(s, a) = Q(s, a) - V(s)">A(s, a) = Q(s, a) - V(s)</span>。<a href="https://danieltakeshi.github.io/2017/03/28/going-deeper-into-reinforcement-learning-fundamentals-of-policy-gradients/" target="_blank" rel="noopener">这篇文章</a>很好地解释了为什么基线能降低方差，同时也介绍了策略梯度的基本知识。</p>
+      
+    
+      
+        <h2>Actor-Critic</h2>
+        
+      
+    
+      
+        <p>策略梯度中的两个主要组成部分是策略模型和价值函数。除了策略之外，学习价值函数是非常有意义的，因为知道价值函数可以帮助策略更新，例如降低 vanilla policy gradient 中的梯度方差，而这正是 Actor-Critic 方法所做的。</p>
+      
+    
+      
+        <p>Actor-Critic 方法包含两个模型，它们可以选择性地共享参数：</p>
+      
+    
+      
+        <div class="list-content">Critic 更新价值函数参数 w，根据算法不同，它可以是动作价值 <span class="math-inline" data-math="Q_w(a \vert s)">Q_w(a \vert s)</span> 或状态价值 <span class="math-inline" data-math="V_w(s)">V_w(s)</span>。
+Actor 根据 Critic 给出的方向更新策略参数 <span class="math-inline" data-math="\theta">\theta</span> 用于 <span class="math-inline" data-math="\pi_\theta(a \vert s)">\pi_\theta(a \vert s)</span>。</div>
+      
+    
+      
+        <p>让我们看看一个简单的动作价值 Actor-Critic 算法是如何工作的。</p>
+      
+    
+      
+        <div class="list-content">随机初始化 <span class="math-inline" data-math="s, \theta, w">s, \theta, w</span>；采样 <span class="math-inline" data-math="a \sim \pi_\theta(a \vert s)">a \sim \pi_\theta(a \vert s)</span>。
+对于 <span class="math-inline" data-math="t = 1 \dots T">t = 1 \dots T</span>：
+
+采样奖励 <span class="math-inline" data-math="r_t \sim R(s, a)">r_t \sim R(s, a)</span> 和下一个状态 <span class="math-inline" data-math="s’ \sim P(s’ \vert s, a)">s’ \sim P(s’ \vert s, a)</span>；
+然后采样下一个动作 <span class="math-inline" data-math="a’ \sim \pi_\theta(a’ \vert s’)">a’ \sim \pi_\theta(a’ \vert s’)</span>；
+更新策略参数：<span class="math-inline" data-math="\theta \leftarrow \theta + \alpha_\theta Q_w(s, a) \nabla_\theta \ln \pi_\theta(a \vert s)">\theta \leftarrow \theta + \alpha_\theta Q_w(s, a) \nabla_\theta \ln \pi_\theta(a \vert s)</span>；
+计算 t 时刻动作价值的校正量（TD error）：<span class="math-inline" data-math="\delta_t = r_t + \gamma Q_w(s’, a’) - Q_w(s, a)">\delta_t = r_t + \gamma Q_w(s’, a’) - Q_w(s, a)</span>，并用它更新动作价值函数的参数：<span class="math-inline" data-math="w \leftarrow w + \alpha_w \delta_t \nabla_w Q_w(s, a)">w \leftarrow w + \alpha_w \delta_t \nabla_w Q_w(s, a)</span>
+更新 <span class="math-inline" data-math="a \leftarrow a’">a \leftarrow a’</span> 和 <span class="math-inline" data-math="s \leftarrow s’">s \leftarrow s’</span>。</div>
+      
+    
+      
+        <p>分别为策略和价值函数的参数更新预先定义了两个学习率 <span class="math-inline" data-math="\alpha_\theta">\alpha_\theta</span> 和 <span class="math-inline" data-math="\alpha_w">\alpha_w</span>。</p>
+      
+    
+      
+        <h2>Off-Policy Policy Gradient</h2>
+        
+      
+    
+      
+        <p>REINFORCE 和 vanilla 版本的 actor-critic 方法都是 on-policy 的：训练样本是根据目标策略收集的——也就是我们试图优化的那个策略。而 off-policy 方法则带来了几个额外优势：</p>
+      
+    
+      
+        <div class="list-content">Off-policy 方法不需要完整的轨迹，可以重用任何过去的 episode（），从而获得更高的样本效率。
+样本收集遵循与目标策略不同的行为策略，从而带来更好的。<a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a><a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a></div>
+      
+    
+      
+        <p>现在让我们看看 off-policy 策略梯度是如何计算的。用于收集样本的行为策略是一个已知的策略（像超参数一样预先定义），记为 <span class="math-inline" data-math="\beta(a \vert s)">\beta(a \vert s)</span>。目标函数对由该行为策略定义的状态分布上的奖励进行求和：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+J(\theta)
+= \sum_{s \in \mathcal{S}} d^\beta(s) \sum_{a \in \mathcal{A}} Q^\pi(s, a) \pi_\theta(a \vert s)
+= \mathbb{E}_{s \sim d^\beta} \big[ \sum_{a \in \mathcal{A}} Q^\pi(s, a) \pi_\theta(a \vert s) \big]
+">
+J(\theta)
+= \sum_{s \in \mathcal{S}} d^\beta(s) \sum_{a \in \mathcal{A}} Q^\pi(s, a) \pi_\theta(a \vert s)
+= \mathbb{E}_{s \sim d^\beta} \big[ \sum_{a \in \mathcal{A}} Q^\pi(s, a) \pi_\theta(a \vert s) \big]
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="d^\beta(s)">d^\beta(s)</span> 是行为策略 <span class="math-inline" data-math="\beta">\beta</span> 的平稳分布；回忆 <span class="math-inline" data-math="d^\beta(s) = \lim_{t \to \infty} P(S_t = s \vert S_0, \beta)">d^\beta(s) = \lim_{t \to \infty} P(S_t = s \vert S_0, \beta)</span>；<span class="math-inline" data-math="Q^\pi">Q^\pi</span> 是针对目标策略 <span class="math-inline" data-math="\pi">\pi</span>（而非行为策略！）估计的动作价值函数。</p>
+      
+    
+      
+        <p>由于训练观测是由 <span class="math-inline" data-math="a \sim \beta(a \vert s)">a \sim \beta(a \vert s)</span> 采样的，我们可以将梯度重写为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\nabla_\theta J(\theta)
+&amp;= \nabla_\theta \mathbb{E}_{s \sim d^\beta} \Big[ \sum_{a \in \mathcal{A}} Q^\pi(s, a) \pi_\theta(a \vert s)  \Big] &amp; \\ 
+&amp;= \mathbb{E}_{s \sim d^\beta} \Big[ \sum_{a \in \mathcal{A}} \big( Q^\pi(s, a) \nabla_\theta \pi_\theta(a \vert s) + \color{red}{\pi_\theta(a \vert s) \nabla_\theta Q^\pi(s, a)} \big) \Big] &amp; \scriptstyle{\text{; Derivative product rule.}}\\
+&amp;\stackrel{(i)}{\approx} \mathbb{E}_{s \sim d^\beta} \Big[ \sum_{a \in \mathcal{A}} Q^\pi(s, a) \nabla_\theta \pi_\theta(a \vert s) \Big] &amp; \scriptstyle{\text{; Ignore the red part: } \color{red}{\pi_\theta(a \vert s) \nabla_\theta Q^\pi(s, a)}}. \\
+&amp;= \mathbb{E}_{s \sim d^\beta} \Big[ \sum_{a \in \mathcal{A}} \beta(a \vert s) \frac{\pi_\theta(a \vert s)}{\beta(a \vert s)} Q^\pi(s, a) \frac{\nabla_\theta \pi_\theta(a \vert s)}{\pi_\theta(a \vert s)} \Big] &amp; \\
+&amp;= \mathbb{E}_\beta \Big[\frac{\color{blue}{\pi_\theta(a \vert s)}}{\color{blue}{\beta(a \vert s)}} Q^\pi(s, a) \nabla_\theta \ln \pi_\theta(a \vert s) \Big] &amp; \scriptstyle{\text{; The blue part is the importance weight.}}
+\end{aligned}
+">
+\begin{aligned}
+\nabla_\theta J(\theta)
+&amp;= \nabla_\theta \mathbb{E}_{s \sim d^\beta} \Big[ \sum_{a \in \mathcal{A}} Q^\pi(s, a) \pi_\theta(a \vert s)  \Big] &amp; \\ 
+&amp;= \mathbb{E}_{s \sim d^\beta} \Big[ \sum_{a \in \mathcal{A}} \big( Q^\pi(s, a) \nabla_\theta \pi_\theta(a \vert s) + \color{red}{\pi_\theta(a \vert s) \nabla_\theta Q^\pi(s, a)} \big) \Big] &amp; \scriptstyle{\text{; Derivative product rule.}}\\
+&amp;\stackrel{(i)}{\approx} \mathbb{E}_{s \sim d^\beta} \Big[ \sum_{a \in \mathcal{A}} Q^\pi(s, a) \nabla_\theta \pi_\theta(a \vert s) \Big] &amp; \scriptstyle{\text{; Ignore the red part: } \color{red}{\pi_\theta(a \vert s) \nabla_\theta Q^\pi(s, a)}}. \\
+&amp;= \mathbb{E}_{s \sim d^\beta} \Big[ \sum_{a \in \mathcal{A}} \beta(a \vert s) \frac{\pi_\theta(a \vert s)}{\beta(a \vert s)} Q^\pi(s, a) \frac{\nabla_\theta \pi_\theta(a \vert s)}{\pi_\theta(a \vert s)} \Big] &amp; \\
+&amp;= \mathbb{E}_\beta \Big[\frac{\color{blue}{\pi_\theta(a \vert s)}}{\color{blue}{\beta(a \vert s)}} Q^\pi(s, a) \nabla_\theta \ln \pi_\theta(a \vert s) \Big] &amp; \scriptstyle{\text{; The blue part is the importance weight.}}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\frac{\pi_\theta(a \vert s)}{\beta(a \vert s)}">\frac{\pi_\theta(a \vert s)}{\beta(a \vert s)}</span> 是<a href="http://timvieira.github.io/blog/post/2014/12/21/importance-sampling/" target="_blank" rel="noopener">重要性权重</a>。因为 <span class="math-inline" data-math="Q^\pi">Q^\pi</span> 是目标策略的函数，因此也是策略参数 <span class="math-inline" data-math="\theta">\theta</span> 的函数，根据乘法法则我们也应该对 <span class="math-inline" data-math="\nabla_\theta Q^\pi(s, a)">\nabla_\theta Q^\pi(s, a)</span> 求导。然而，在现实中计算 <span class="math-inline" data-math="\nabla_\theta Q^\pi(s, a)">\nabla_\theta Q^\pi(s, a)</span> 非常困难。幸运的是，如果我们使用忽略 Q 梯度的近似梯度，仍然能保证策略改进，并最终达到真实的局部最优。这在<a href="https://arxiv.org/pdf/1205.4839.pdf" target="_blank" rel="noopener">这篇论文</a>（Degris, White &amp; Sutton, 2012）中得到了证明。</p>
+      
+    
+      
+        <p>总之，在 off-policy 设置下应用策略梯度时，我们可以简单地用一个加权求和来调整它，权重是目标策略与行为策略的比率 <span class="math-inline" data-math="\frac{\pi_\theta(a \vert s)}{\beta(a \vert s)}">\frac{\pi_\theta(a \vert s)}{\beta(a \vert s)}</span>。</p>
+      
+    
+      
+        <h2>A3C</h2>
+        
+      
+    
+      
+        <p>[<a href="https://arxiv.org/abs/1602.01783" target="_blank" rel="noopener">论文</a>|<a href="https://github.com/dennybritz/reinforcement-learning/tree/master/PolicyGradient/a3c" target="_blank" rel="noopener">代码</a>]</p>
+      
+    
+      
+        <p>异步优势 Actor-Critic（<a href="https://arxiv.org/abs/1602.01783" target="_blank" rel="noopener">Mnih et al., 2016</a>），简称 A3C，是一种经典的策略梯度方法，特别注重并行训练。</p>
+      
+    
+      
+        <p>在 A3C 中，Critic 学习价值函数，而多个 Actor 并行训练，并不时地与全局参数同步。因此，A3C 被设计为适合并行训练。</p>
+      
+    
+      
+        <p>我们以状态价值函数为例。状态价值的损失函数是最小化均方误差 <span class="math-inline" data-math="J_v(w) = (G_t - V_w(s))^2">J_v(w) = (G_t - V_w(s))^2</span>，可以使用梯度下降来找到最优的 w。这个状态价值函数在策略梯度更新中被用作基线。</p>
+      
+    
+      
+        <p>以下是算法概要：</p>
+      
+    
+      
+        <div class="list-content">我们有全局参数 <span class="math-inline" data-math="\theta">\theta</span> 和 <span class="math-inline" data-math="w">w</span>；类似的线程特定参数 <span class="math-inline" data-math="\theta’">\theta’</span> 和 <span class="math-inline" data-math="w’">w’</span>。
+
+
+初始化时间步 <span class="math-inline" data-math="t = 1">t = 1</span>
+
+
+当 <span class="math-inline" data-math="T \leq T_\text{MAX}">T \leq T_\text{MAX}</span> 时：
+
+重置梯度：<span class="math-inline" data-math="\mathrm{d}\theta = 0">\mathrm{d}\theta = 0</span> 和 <span class="math-inline" data-math="\mathrm{d}w = 0">\mathrm{d}w = 0</span>。
+将线程特定参数与全局参数同步：<span class="math-inline" data-math="\theta’ = \theta">\theta’ = \theta</span> 和 <span class="math-inline" data-math="w’ = w">w’ = w</span>。
+<span class="math-inline" data-math="t_\text{start}">t_\text{start}</span> = t 并采样起始状态 <span class="math-inline" data-math="s_t">s_t</span>。
+当（<span class="math-inline" data-math="s_t">s_t</span> != TERMINAL）且 <span class="math-inline" data-math="t - t_\text{start} \leq t_\text{max}">t - t_\text{start} \leq t_\text{max}</span> 时：
+
+选择动作 <span class="math-inline" data-math="A_t \sim \pi_{\theta’}(A_t \vert S_t)">A_t \sim \pi_{\theta’}(A_t \vert S_t)</span> 并接收新的奖励 <span class="math-inline" data-math="R_t">R_t</span> 和新的状态 <span class="math-inline" data-math="s_{t+1}">s_{t+1}</span>。
+更新 <span class="math-inline" data-math="t = t + 1">t = t + 1</span> 和 <span class="math-inline" data-math="T = T + 1">T = T + 1</span>
+
+
+初始化保存回报估计的变量</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+ R = \begin{cases} 
+ 0 &amp; \text{if } s_t \text{ is TERMINAL} \\
+ V_{w&#x27;}(s_t) &amp; \text{otherwise}
+ \end{cases}
+ ">
+ R = \begin{cases} 
+ 0 &amp; \text{if } s_t \text{ is TERMINAL} \\
+ V_{w&#x27;}(s_t) &amp; \text{otherwise}
+ \end{cases}
+ </span></div>
+      
+    
+      
+        <div class="list-content">6. 对于 <span class="math-inline" data-math="i = t-1, \dots, t\_\text{start}">i = t-1, \dots, t\_\text{start}</span>：
+     1. <span class="math-inline" data-math="R \leftarrow \gamma R + R\_i">R \leftarrow \gamma R + R\_i</span>；这里 R 是 <span class="math-inline" data-math="G\_i">G\_i</span> 的蒙特卡洛估计。
+     2. 累积关于 <span class="math-inline" data-math="\theta&#x27;">\theta&#x27;</span> 的梯度：<span class="math-inline" data-math="d\theta \leftarrow d\theta + \nabla\_{\theta&#x27;} \log \pi\_{\theta&#x27;}(a\_i \vert s\_i)(R - V\_{w&#x27;}(s\_i))">d\theta \leftarrow d\theta + \nabla\_{\theta&#x27;} \log \pi\_{\theta&#x27;}(a\_i \vert s\_i)(R - V\_{w&#x27;}(s\_i))</span>；累积关于 w&#x27; 的梯度：<span class="math-inline" data-math="dw \leftarrow dw + 2 (R - V\_{w&#x27;}(s\_i)) \nabla\_{w&#x27;} (R - V\_{w&#x27;}(s\_i))">dw \leftarrow dw + 2 (R - V\_{w&#x27;}(s\_i)) \nabla\_{w&#x27;} (R - V\_{w&#x27;}(s\_i))</span>。
+
+异步地使用 <span class="math-inline" data-math="\mathrm{d}\theta">\mathrm{d}\theta</span> 更新 <span class="math-inline" data-math="\theta">\theta</span>，并使用 <span class="math-inline" data-math="\mathrm{d}w">\mathrm{d}w</span> 更新 <span class="math-inline" data-math="w">w</span>。</div>
+      
+    
+      
+        <p>A3C 实现了多智能体训练的并行化。梯度累积步骤（6.2）可以看作是基于 minibatch 的随机梯度更新的并行化形式：<span class="math-inline" data-math="w">w</span> 或 <span class="math-inline" data-math="\theta">\theta</span> 的值被每个训练线程独立地朝某个方向稍微校正。</p>
+      
+    
+      
+        <h2>A2C</h2>
+        
+      
+    
+      
+        <p>[<a href="https://arxiv.org/abs/1602.01783" target="_blank" rel="noopener">论文</a>|<a href="https://github.com/openai/baselines/blob/master/baselines/a2c/a2c.py" target="_blank" rel="noopener">代码</a>]</p>
+      
+    
+      
+        <p>A2C 是 A3C 的同步、确定性版本；这就是为什么它被称为“A2C”，去掉了第一个“A”（“asynchronous”）。在 A3C 中，每个智能体独立地与全局参数通信，因此有时线程特定的智能体可能会使用不同版本的策略进行交互，从而导致聚合更新不是最优的。为了解决这种不一致性，A2C 中的协调器会等待所有并行 Actor 完成它们的工作后再更新全局参数，然后在下一次迭代中所有并行 Actor 从相同的策略开始。同步的梯度更新使训练更加连贯，并有可能加速收敛。</p>
+      
+    
+      
+        <p>A2C 已被<a href="https://blog.openai.com/baselines-acktr-a2c/" target="_blank" rel="noopener">证明</a>能够更高效地利用 GPU，并在使用较大 batch size 时表现更好，同时达到与 A3C 相同或更好的性能。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-04-08-policy-gradient/A3C_vs_A2C.png" alt="">
+          <figcaption>The architecture of A3C versus A2C.</figcaption>
+        </figure>
+      
+    
+      
+        <h2>DPG</h2>
+        
+      
+    
+      
+        <p>[<a href="https://hal.inria.fr/file/index/docid/938992/filename/dpg-icml2014.pdf" target="_blank" rel="noopener">论文</a>|代码]</p>
+      
+    
+      
+        <p>在上述方法中，策略函数 <span class="math-inline" data-math="\pi(. \vert s)">\pi(. \vert s)</span> 始终被建模为给定当前状态下动作 <span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 的概率分布，因此它是随机的。而确定性策略梯度（DPG）则将策略建模为确定性决策：<span class="math-inline" data-math="a = \mu(s)">a = \mu(s)</span>。这看起来可能有些奇怪——当它只输出一个动作时，你如何计算动作概率的梯度呢？让我们一步步来看。</p>
+      
+    
+      
+        <p>刷新几个符号以便讨论：</p>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="\rho_0(s)">\rho_0(s)</span>：状态的初始分布
+<span class="math-inline" data-math="\rho^\mu(s \to s’, k)">\rho^\mu(s \to s’, k)</span>：从状态 s 出发，遵循策略 <span class="math-inline" data-math="\mu">\mu</span> 移动 k 步后到达状态 s&#x27; 的访问概率密度。
+<span class="math-inline" data-math="\rho^\mu(s’)">\rho^\mu(s’)</span>：折扣状态分布，定义为 <span class="math-inline" data-math="\rho^\mu(s’) = \int_\mathcal{S} \sum_{k=1}^\infty \gamma^{k-1} \rho_0(s) \rho^\mu(s \to s’, k) ds">\rho^\mu(s’) = \int_\mathcal{S} \sum_{k=1}^\infty \gamma^{k-1} \rho_0(s) \rho^\mu(s \to s’, k) ds</span>。</div>
+      
+    
+      
+        <p>需要优化的目标函数如下：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+J(\theta) = \int_\mathcal{S} \rho^\mu(s) Q(s, \mu_\theta(s)) ds
+">
+J(\theta) = \int_\mathcal{S} \rho^\mu(s) Q(s, \mu_\theta(s)) ds
+</span></div>
+      
+    
+      
+        <p>确定性策略梯度定理：现在是计算梯度的时候了！根据链式法则，我们首先对 Q 关于动作 a 求梯度，然后对确定性策略函数 <span class="math-inline" data-math="\mu">\mu</span> 关于 <span class="math-inline" data-math="\theta">\theta</span> 求梯度：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\nabla_\theta J(\theta) 
+&amp;= \int_\mathcal{S} \rho^\mu(s) \nabla_a Q^\mu(s, a) \nabla_\theta \mu_\theta(s) \rvert_{a=\mu_\theta(s)} ds \\
+&amp;= \mathbb{E}_{s \sim \rho^\mu} [\nabla_a Q^\mu(s, a) \nabla_\theta \mu_\theta(s) \rvert_{a=\mu_\theta(s)}]
+\end{aligned}
+">
+\begin{aligned}
+\nabla_\theta J(\theta) 
+&amp;= \int_\mathcal{S} \rho^\mu(s) \nabla_a Q^\mu(s, a) \nabla_\theta \mu_\theta(s) \rvert_{a=\mu_\theta(s)} ds \\
+&amp;= \mathbb{E}_{s \sim \rho^\mu} [\nabla_a Q^\mu(s, a) \nabla_\theta \mu_\theta(s) \rvert_{a=\mu_\theta(s)}]
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>我们可以将确定性策略视为随机策略的一种特殊情况，即概率分布在某个动作上只包含一个极端的非零值。实际上，在 DPG<a href="https://hal.inria.fr/file/index/docid/938992/filename/dpg-icml2014.pdf" target="_blank" rel="noopener">论文</a>中，作者证明如果将随机策略 <span class="math-inline" data-math="\pi_{\mu_\theta, \sigma}">\pi_{\mu_\theta, \sigma}</span> 通过确定性策略 <span class="math-inline" data-math="\mu_\theta">\mu_\theta</span> 和一个变分变量 <span class="math-inline" data-math="\sigma">\sigma</span> 重新参数化，当 <span class="math-inline" data-math="\sigma=0">\sigma=0</span> 时，随机策略最终等价于确定性情况。与确定性策略相比，我们预期随机策略需要更多样本，因为它要在整个状态和动作空间上进行积分。</p>
+      
+    
+      
+        <p>确定性策略梯度定理可以被插入到常见的策略梯度框架中。</p>
+      
+    
+      
+        <p>让我们以 on-policy actor-critic 算法为例来说明这个过程。在 on-policy actor-critic 的每次迭代中，两个动作都是确定性选择的 <span class="math-inline" data-math="a = \mu_\theta(s)">a = \mu_\theta(s)</span>，策略参数上的<a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a>更新依赖于我们刚刚计算出的新梯度：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\delta_t &amp;= R_t + \gamma Q_w(s_{t+1}, a_{t+1}) - Q_w(s_t, a_t) &amp; \small{\text{; TD error in SARSA}}\\
+w_{t+1} &amp;= w_t + \alpha_w \delta_t \nabla_w Q_w(s_t, a_t) &amp; \\
+\theta_{t+1} &amp;= \theta_t + \alpha_\theta \color{red}{\nabla_a Q_w(s_t, a_t) \nabla_\theta \mu_\theta(s) \rvert_{a=\mu_\theta(s)}} &amp; \small{\text{; Deterministic policy gradient theorem}}
+\end{aligned}
+">
+\begin{aligned}
+\delta_t &amp;= R_t + \gamma Q_w(s_{t+1}, a_{t+1}) - Q_w(s_t, a_t) &amp; \small{\text{; TD error in SARSA}}\\
+w_{t+1} &amp;= w_t + \alpha_w \delta_t \nabla_w Q_w(s_t, a_t) &amp; \\
+\theta_{t+1} &amp;= \theta_t + \alpha_\theta \color{red}{\nabla_a Q_w(s_t, a_t) \nabla_\theta \mu_\theta(s) \rvert_{a=\mu_\theta(s)}} &amp; \small{\text{; Deterministic policy gradient theorem}}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>然而，除非环境中存在足够的噪声，否则由于策略的确定性，很难保证足够的。我们可以在策略中加入噪声（讽刺的是这会使其变为非确定性的！），或者通过遵循不同的随机行为策略来 off-policy 地学习并收集样本。<a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a></p>
+      
+    
+      
+        <p>例如，在 off-policy 方法中，训练轨迹由随机策略 <span class="math-inline" data-math="\beta(a \vert s)">\beta(a \vert s)</span> 生成，因此状态分布遵循相应的折扣状态密度 <span class="math-inline" data-math="\rho^\beta">\rho^\beta</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+J_\beta(\theta) &amp;= \int_\mathcal{S} \rho^\beta Q^\mu(s, \mu_\theta(s)) ds \\
+\nabla_\theta J_\beta(\theta) &amp;= \mathbb{E}_{s \sim \rho^\beta} [\nabla_a Q^\mu(s, a) \nabla_\theta \mu_\theta(s)  \rvert_{a=\mu_\theta(s)} ]
+\end{aligned}
+">
+\begin{aligned}
+J_\beta(\theta) &amp;= \int_\mathcal{S} \rho^\beta Q^\mu(s, \mu_\theta(s)) ds \\
+\nabla_\theta J_\beta(\theta) &amp;= \mathbb{E}_{s \sim \rho^\beta} [\nabla_a Q^\mu(s, a) \nabla_\theta \mu_\theta(s)  \rvert_{a=\mu_\theta(s)} ]
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>注意因为策略是确定性的，我们只需要 <span class="math-inline" data-math="Q^\mu(s, \mu_\theta(s))">Q^\mu(s, \mu_\theta(s))</span> 而不是 <span class="math-inline" data-math="\sum_a \pi(a \vert s) Q^\pi(s, a)">\sum_a \pi(a \vert s) Q^\pi(s, a)</span> 作为给定状态 s 的估计回报。
+在带有随机策略的 off-policy 方法中，通常会使用重要性采样来修正行为策略和目标策略之间的不匹配，就像我们之前描述的那样。然而，由于确定性策略梯度去掉了对动作的积分，我们可以避免使用重要性采样。</p>
+      
+    
+      
+        <h2>DDPG</h2>
+        
+      
+    
+      
+        <p>[<a href="https://arxiv.org/pdf/1509.02971.pdf" target="_blank" rel="noopener">论文</a>|<a href="https://github.com/openai/baselines/tree/master/baselines/ddpg" target="_blank" rel="noopener">代码</a>]</p>
+      
+    
+      
+        <p>DDPG（<a href="https://arxiv.org/pdf/1509.02971.pdf" target="_blank" rel="noopener">Lillicrap, et al., 2015</a>），全称为 Deep Deterministic Policy Gradient，是一种无模型的 off-policy actor-critic 算法，将 DPG 与<a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a>相结合。回忆一下，DQN（Deep Q-Network）通过经验回放和冻结的目标网络来稳定 Q 函数的学习。原始 DQN 工作在离散空间，而 DDPG 通过 actor-critic 框架将其扩展到连续空间，同时学习一个确定性策略。</p>
+      
+    
+      
+        <p>为了更好地进行探索，通过添加噪声 <span class="math-inline" data-math="\mathcal{N}">\mathcal{N}</span> 来构造探索策略 <span class="math-inline" data-math="\mu’">\mu’</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mu&#x27;(s) = \mu_\theta(s) + \mathcal{N}
+">
+\mu&#x27;(s) = \mu_\theta(s) + \mathcal{N}
+</span></div>
+      
+    
+      
+        <p>此外，DDPG 对 actor 和 critic 的参数进行软更新（“保守策略迭代”），使用 <span class="math-inline" data-math="\tau \ll 1">\tau \ll 1</span>：<span class="math-inline" data-math="\theta’ \leftarrow \tau \theta + (1 - \tau) \theta’">\theta’ \leftarrow \tau \theta + (1 - \tau) \theta’</span>。这样，目标网络的值被约束为缓慢变化，这与 DQN 中目标网络在一段时间内保持冻结的设计不同。</p>
+      
+    
+      
+        <p>论文中特别对机器人领域有用的一点是关于如何归一化低维特征的不同物理单位。例如，一个模型被设计为学习以机器人的位置和速度作为输入的策略；这些物理统计量本质上是不同的，即使是同一类型的统计量在多个机器人之间也可能差异很大。<a href="http://proceedings.mlr.press/v37/ioffe15.pdf" target="_blank" rel="noopener">Batch normalization</a>通过在同一个 minibatch 的样本上对每个维度进行归一化来解决这个问题。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-04-08-policy-gradient/DDPG_algo.png" alt="">
+          <figcaption>Fig 3. DDPG Algorithm. (Image source:Lillicrap, et al., 2015)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>D4PG</h2>
+        
+      
+    
+      
+        <p>[<a href="https://openreview.net/forum?id=SyZipzbCb" target="_blank" rel="noopener">论文</a>|代码（搜索“github d4pg”就能看到几个实现。）]</p>
+      
+    
+      
+        <p>分布式分布 DDPG（D4PG）在 DDPG 上应用了一系列改进，使其以分布式的形式运行。</p>
+      
+    
+      
+        <p>(1) 分布式 Critic：Critic 将期望的 Q 值估计为一个随机变量 ~ 由 <span class="math-inline" data-math="w">w</span> 参数化的分布 <span class="math-inline" data-math="Z_w">Z_w</span>，因此 <span class="math-inline" data-math="Q_w(s, a) = \mathbb{E} Z_w(x, a)">Q_w(s, a) = \mathbb{E} Z_w(x, a)</span>。学习分布参数的损失是最小化两个分布之间某种距离度量——分布式的 TD 误差：<span class="math-inline" data-math="L(w) = \mathbb{E}[d(\mathcal{T}_{\mu_\theta}, Z_{w’}(s, a), Z_w(s, a)]">L(w) = \mathbb{E}[d(\mathcal{T}_{\mu_\theta}, Z_{w’}(s, a), Z_w(s, a)]</span>，其中 <span class="math-inline" data-math="\mathcal{T}_{\mu_\theta}">\mathcal{T}_{\mu_\theta}</span> 是 Bellman 算子。</p>
+      
+    
+      
+        <p>确定性策略梯度更新变为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\nabla_\theta J(\theta) 
+&amp;\approx \mathbb{E}_{\rho^\mu} [\nabla_a Q_w(s, a) \nabla_\theta \mu_\theta(s) \rvert_{a=\mu_\theta(s)}] &amp; \scriptstyle{\text{; gradient update in DPG}} \\
+&amp;= \mathbb{E}_{\rho^\mu} [\mathbb{E}[\nabla_a Z_w(s, a)] \nabla_\theta \mu_\theta(s) \rvert_{a=\mu_\theta(s)}] &amp; \scriptstyle{\text{; expectation of the Q-value distribution.}}
+\end{aligned}
+">
+\begin{aligned}
+\nabla_\theta J(\theta) 
+&amp;\approx \mathbb{E}_{\rho^\mu} [\nabla_a Q_w(s, a) \nabla_\theta \mu_\theta(s) \rvert_{a=\mu_\theta(s)}] &amp; \scriptstyle{\text{; gradient update in DPG}} \\
+&amp;= \mathbb{E}_{\rho^\mu} [\mathbb{E}[\nabla_a Z_w(s, a)] \nabla_\theta \mu_\theta(s) \rvert_{a=\mu_\theta(s)}] &amp; \scriptstyle{\text{; expectation of the Q-value distribution.}}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>(2) <span class="math-inline" data-math="N">N</span> 步回报：在计算 TD 误差时，D4PG 计算 <span class="math-inline" data-math="N">N</span> 步 TD 目标而不是单步，以纳入更多未来步骤的奖励。因此新的 TD 目标是：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+r(s_0, a_0) + \mathbb{E}[\sum_{n=1}^{N-1} r(s_n, a_n) + \gamma^N Q(s_N, \mu_\theta(s_N)) \vert s_0, a_0 ]
+">
+r(s_0, a_0) + \mathbb{E}[\sum_{n=1}^{N-1} r(s_n, a_n) + \gamma^N Q(s_N, \mu_\theta(s_N)) \vert s_0, a_0 ]
+</span></div>
+      
+    
+      
+        <p>(3) 多个分布式并行 Actor：D4PG 使用 <span class="math-inline" data-math="K">K</span> 个独立的 Actor，并行收集经验并将数据放入同一个 replay buffer。</p>
+      
+    
+      
+        <p>(4) 优先经验回放（<a href="https://arxiv.org/abs/1511.05952" target="_blank" rel="noopener">PER</a>）：最后一个修改是从大小为 <span class="math-inline" data-math="R">R</span> 的 replay buffer 中以非均匀概率 <span class="math-inline" data-math="p_i">p_i</span> 进行采样。这样，一个样本 <span class="math-inline" data-math="i">i</span> 被选中的概率为 <span class="math-inline" data-math="(Rp_i)^{-1}">(Rp_i)^{-1}</span>，因此重要性权重是 <span class="math-inline" data-math="(Rp_i)^{-1}">(Rp_i)^{-1}</span>。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-04-08-policy-gradient/D4PG_algo.png" alt="">
+          <figcaption>D4PG algorithm (Image source:Barth-Maron, et al. 2018); Note that in the original paper, the variable letters are chosen slightly differently from what in the post; i.e. I use <span class="math-inline" data-math="\mu(.)">\mu(.)</span> for representing a deterministic policy instead of <span class="math-inline" data-math="\pi(.)">\pi(.)</span>.</figcaption>
+        </figure>
+      
+    
+      
+        <h2>MADDPG</h2>
+        
+      
+    
+      
+        <p>[<a href="https://arxiv.org/pdf/1706.02275.pdf" target="_blank" rel="noopener">论文</a>|<a href="https://github.com/openai/maddpg" target="_blank" rel="noopener">代码</a>]</p>
+      
+    
+      
+        <p>多智能体 DDPG（MADDPG）（<a href="https://arxiv.org/pdf/1706.02275.pdf" target="_blank" rel="noopener">Lowe et al., 2017</a>）将 DDPG 扩展到多个智能体仅使用局部信息进行协作完成任务的环境。从一个智能体的视角来看，环境是非平稳的，因为其他智能体的策略在快速更新且保持未知。MADDPG 是一种特别为处理这种变化环境和智能体间交互而重新设计的 actor-critic 模型。</p>
+      
+    
+      
+        <p>该问题可以在多智能体版本的 MDP（也称为 Markov games）中形式化。MADDPG 是针对部分可观测 Markov games 提出的。假设总共有 N 个智能体，具有一组状态 <span class="math-inline" data-math="\mathcal{S}">\mathcal{S}</span>。每个智能体拥有一组可能的动作 <span class="math-inline" data-math="\mathcal{A}_1, \dots, \mathcal{A}_N">\mathcal{A}_1, \dots, \mathcal{A}_N</span> 和一组观测 <span class="math-inline" data-math="\mathcal{O}_1, \dots, \mathcal{O}_N">\mathcal{O}_1, \dots, \mathcal{O}_N</span>。状态转移函数涉及所有状态、动作和观测空间 <span class="math-inline" data-math="\mathcal{T}: \mathcal{S} \times \mathcal{A}_1 \times \dots \mathcal{A}_N \mapsto \mathcal{S}">\mathcal{T}: \mathcal{S} \times \mathcal{A}_1 \times \dots \mathcal{A}_N \mapsto \mathcal{S}</span>。每个智能体的随机策略只涉及它自己的状态和动作：<span class="math-inline" data-math="\pi_{\theta_i}: \mathcal{O}_i \times \mathcal{A}_i \mapsto [0, 1]">\pi_{\theta_i}: \mathcal{O}_i \times \mathcal{A}_i \mapsto [0, 1]</span>，即给定其自身观测的动作概率分布，或者确定性策略：<span class="math-inline" data-math="\mu_{\theta_i}: \mathcal{O}_i \mapsto \mathcal{A}_i">\mu_{\theta_i}: \mathcal{O}_i \mapsto \mathcal{A}_i</span>。</p>
+      
+    
+      
+        <p>令 <span class="math-inline" data-math="\vec{o} = {o_1, \dots, o_N}">\vec{o} = {o_1, \dots, o_N}</span>、<span class="math-inline" data-math="\vec{\mu} = {\mu_1, \dots, \mu_N}">\vec{\mu} = {\mu_1, \dots, \mu_N}</span> 且策略由 <span class="math-inline" data-math="\vec{\theta} = {\theta_1, \dots, \theta_N}">\vec{\theta} = {\theta_1, \dots, \theta_N}</span> 参数化。</p>
+      
+    
+      
+        <p>MADDPG 中的 Critic 为第 i 个智能体学习一个中心化的动作价值函数 <span class="math-inline" data-math="Q^\vec{\mu}_i(\vec{o}, a_1, \dots, a_N)">Q^\vec{\mu}_i(\vec{o}, a_1, \dots, a_N)</span>，其中 <span class="math-inline" data-math="a_1 \in \mathcal{A}_1, \dots, a_N \in \mathcal{A}_N">a_1 \in \mathcal{A}_1, \dots, a_N \in \mathcal{A}_N</span> 是所有智能体的动作。每个 <span class="math-inline" data-math="Q^\vec{\mu}_i">Q^\vec{\mu}_i</span> 都是针对 <span class="math-inline" data-math="i=1, \dots, N">i=1, \dots, N</span> 单独学习的，因此多个智能体可以具有任意的奖励结构，包括在竞争环境中相互冲突的奖励。同时，每个智能体对应一个 Actor，分别探索并更新自己的策略参数 <span class="math-inline" data-math="\theta_i">\theta_i</span>。</p>
+      
+    
+      
+        <p>Actor 更新：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\nabla_{\theta_i} J(\theta_i) = \mathbb{E}_{\vec{o}, a \sim \mathcal{D}} [\nabla_{a_i} Q^{\vec{\mu}}_i (\vec{o}, a_1, \dots, a_N) \nabla_{\theta_i} \mu_{\theta_i}(o_i) \rvert_{a_i=\mu_{\theta_i}(o_i)} ]
+">
+\nabla_{\theta_i} J(\theta_i) = \mathbb{E}_{\vec{o}, a \sim \mathcal{D}} [\nabla_{a_i} Q^{\vec{\mu}}_i (\vec{o}, a_1, \dots, a_N) \nabla_{\theta_i} \mu_{\theta_i}(o_i) \rvert_{a_i=\mu_{\theta_i}(o_i)} ]
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\mathcal{D}">\mathcal{D}</span> 是用于经验回放的记忆缓存，包含多个 episode 样本 <span class="math-inline" data-math="(\vec{o}, a_1, \dots, a_N, r_1, \dots, r_N, \vec{o}’)">(\vec{o}, a_1, \dots, a_N, r_1, \dots, r_N, \vec{o}’)</span>——给定当前观测 <span class="math-inline" data-math="\vec{o}">\vec{o}</span>，智能体采取动作 <span class="math-inline" data-math="a_1, \dots, a_N">a_1, \dots, a_N</span> 并获得奖励 <span class="math-inline" data-math="r_1, \dots, r_N">r_1, \dots, r_N</span>，导致新的观测 <span class="math-inline" data-math="\vec{o}’">\vec{o}’</span>。</p>
+      
+    
+      
+        <p>Critic 更新：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\mathcal{L}(\theta_i) &amp;= \mathbb{E}_{\vec{o}, a_1, \dots, a_N, r_1, \dots, r_N, \vec{o}&#x27;}[ (Q^{\vec{\mu}}_i(\vec{o}, a_1, \dots, a_N) - y)^2 ] &amp; \\
+\text{where } y &amp;= r_i + \gamma Q^{\vec{\mu}&#x27;}_i (\vec{o}&#x27;, a&#x27;_1, \dots, a&#x27;_N) \rvert_{a&#x27;_j = \mu&#x27;_{\theta_j}} &amp; \scriptstyle{\text{; TD target!}}
+\end{aligned}
+">
+\begin{aligned}
+\mathcal{L}(\theta_i) &amp;= \mathbb{E}_{\vec{o}, a_1, \dots, a_N, r_1, \dots, r_N, \vec{o}&#x27;}[ (Q^{\vec{\mu}}_i(\vec{o}, a_1, \dots, a_N) - y)^2 ] &amp; \\
+\text{where } y &amp;= r_i + \gamma Q^{\vec{\mu}&#x27;}_i (\vec{o}&#x27;, a&#x27;_1, \dots, a&#x27;_N) \rvert_{a&#x27;_j = \mu&#x27;_{\theta_j}} &amp; \scriptstyle{\text{; TD target!}}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\vec{\mu}’">\vec{\mu}’</span> 是具有延迟软更新的目标策略。</p>
+      
+    
+      
+        <p>如果在 Critic 更新期间策略 <span class="math-inline" data-math="\vec{\mu}">\vec{\mu}</span> 是未知的，我们可以让每个智能体学习并演化对其他智能体策略的近似估计。使用这些近似的策略，MADDPG 仍然可以有效地学习，尽管推断出的策略可能不够准确。</p>
+      
+    
+      
+        <p>为了缓解环境中竞争或协作智能体交互引发的高方差，MADDPG 提出了一个额外的元素——策略集成：</p>
+      
+    
+      
+        <div class="list-content">为一个智能体训练 K 个策略；
+在 episode rollout 时随机选择一个策略；
+对这 K 个策略进行集成来做梯度更新。</div>
+      
+    
+      
+        <p>总之，MADDPG 在 DDPG 的基础上增加了三个额外成分，使其适应多智能体环境：</p>
+      
+    
+      
+        <div class="list-content">中心化 Critic + 去中心化 Actor；
+Actor 能够使用其他智能体的估计策略进行学习；
+策略集成有助于降低方差。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-04-08-policy-gradient/MADDPG.png" alt="">
+          <figcaption>The architecture design of MADDPG. (Image source:Lowe et al., 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>TRPO</h2>
+        
+      
+    
+      
+        <p>[<a href="https://arxiv.org/pdf/1502.05477.pdf" target="_blank" rel="noopener">论文</a>|<a href="https://github.com/openai/baselines/tree/master/baselines/trpo_mpi" target="_blank" rel="noopener">代码</a>]</p>
+      
+    
+      
+        <p>为了提高训练稳定性，我们应该避免那些会让策略在一步内发生太大变化的参数更新。信任区域策略优化（TRPO）（<a href="https://arxiv.org/pdf/1502.05477.pdf" target="_blank" rel="noopener">Schulman, et al., 2015</a>）通过在每次迭代中对策略更新的大小施加约束来实现这一思想。<a href="posts-2017-08-20-gan.html">从 GAN 到 WGAN</a></p>
+      
+    
+      
+        <p>考虑我们在做 off-policy RL 的情况，用于在 rollout worker 上收集轨迹的策略 <span class="math-inline" data-math="\beta">\beta</span> 与我们要优化的策略 <span class="math-inline" data-math="\pi">\pi</span> 是不同的。off-policy 模型中的目标函数衡量在状态访问分布和动作上的总优势，而训练数据分布与真实策略状态分布之间的不匹配由重要性采样估计器来补偿：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+J(\theta)
+&amp;= \sum_{s \in \mathcal{S}} \rho^{\pi_{\theta_\text{old}}} \sum_{a \in \mathcal{A}} \big( \pi_\theta(a \vert s) \hat{A}_{\theta_\text{old}}(s, a) \big) &amp; \\
+&amp;= \sum_{s \in \mathcal{S}} \rho^{\pi_{\theta_\text{old}}} \sum_{a \in \mathcal{A}} \big( \beta(a \vert s) \frac{\pi_\theta(a \vert s)}{\beta(a \vert s)} \hat{A}_{\theta_\text{old}}(s, a) \big) &amp; \scriptstyle{\text{; Importance sampling}} \\
+&amp;= \mathbb{E}_{s \sim \rho^{\pi_{\theta_\text{old}}}, a \sim \beta} \big[ \frac{\pi_\theta(a \vert s)}{\beta(a \vert s)} \hat{A}_{\theta_\text{old}}(s, a) \big] &amp;
+\end{aligned}
+">
+\begin{aligned}
+J(\theta)
+&amp;= \sum_{s \in \mathcal{S}} \rho^{\pi_{\theta_\text{old}}} \sum_{a \in \mathcal{A}} \big( \pi_\theta(a \vert s) \hat{A}_{\theta_\text{old}}(s, a) \big) &amp; \\
+&amp;= \sum_{s \in \mathcal{S}} \rho^{\pi_{\theta_\text{old}}} \sum_{a \in \mathcal{A}} \big( \beta(a \vert s) \frac{\pi_\theta(a \vert s)}{\beta(a \vert s)} \hat{A}_{\theta_\text{old}}(s, a) \big) &amp; \scriptstyle{\text{; Importance sampling}} \\
+&amp;= \mathbb{E}_{s \sim \rho^{\pi_{\theta_\text{old}}}, a \sim \beta} \big[ \frac{\pi_\theta(a \vert s)}{\beta(a \vert s)} \hat{A}_{\theta_\text{old}}(s, a) \big] &amp;
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\theta_\text{old}">\theta_\text{old}</span> 是更新前的策略参数，因此是我们已知的；<span class="math-inline" data-math="\rho^{\pi_{\theta_\text{old}}}">\rho^{\pi_{\theta_\text{old}}}</span> 的定义与上面相同；<span class="math-inline" data-math="\beta(a \vert s)">\beta(a \vert s)</span> 是用于收集轨迹的行为策略。注意我们使用的是估计的优势 <span class="math-inline" data-math="\hat{A}(.)">\hat{A}(.)</span> 而不是真实的优势函数 <span class="math-inline" data-math="A(.)">A(.)</span>，因为真实奖励通常是未知的。</p>
+      
+    
+      
+        <p>在 on-policy 训练时，理论上收集数据的策略与我们要优化的策略是相同的。然而，当 rollout worker 和优化器并行异步运行时，行为策略可能会过时。TRPO 考虑到了这种细微差别：它将行为策略标记为 <span class="math-inline" data-math="\pi_{\theta_\text{old}}(a \vert s)">\pi_{\theta_\text{old}}(a \vert s)</span>，因此目标函数变为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+J(\theta) = \mathbb{E}_{s \sim \rho^{\pi_{\theta_\text{old}}}, a \sim \pi_{\theta_\text{old}}} \big[ \frac{\pi_\theta(a \vert s)}{\pi_{\theta_\text{old}}(a \vert s)} \hat{A}_{\theta_\text{old}}(s, a) \big]
+">
+J(\theta) = \mathbb{E}_{s \sim \rho^{\pi_{\theta_\text{old}}}, a \sim \pi_{\theta_\text{old}}} \big[ \frac{\pi_\theta(a \vert s)}{\pi_{\theta_\text{old}}(a \vert s)} \hat{A}_{\theta_\text{old}}(s, a) \big]
+</span></div>
+      
+    
+      
+        <p>TRPO 旨在最大化目标函数 <span class="math-inline" data-math="J(\theta)">J(\theta)</span>，同时满足信任区域约束，该约束要求旧策略和新策略之间用<a href="https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence" target="_blank" rel="noopener">KL 散度</a>衡量的距离足够小，在参数 δ 以内：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbb{E}_{s \sim \rho^{\pi_{\theta_\text{old}}}} [D_\text{KL}(\pi_{\theta_\text{old}}(.\vert s) \| \pi_\theta(.\vert s)] \leq \delta
+">
+\mathbb{E}_{s \sim \rho^{\pi_{\theta_\text{old}}}} [D_\text{KL}(\pi_{\theta_\text{old}}(.\vert s) \| \pi_\theta(.\vert s)] \leq \delta
+</span></div>
+      
+    
+      
+        <p>这样，当满足这个硬约束时，旧策略和新策略就不会偏离太远。同时，TRPO 仍然可以保证策略迭代的单调改进（很巧妙，对吧？）。如果感兴趣，请阅读<a href="https://arxiv.org/pdf/1502.05477.pdf" target="_blank" rel="noopener">论文</a>中的证明 :)</p>
+      
+    
+      
+        <h2>PPO</h2>
+        
+      
+    
+      
+        <p>[<a href="https://arxiv.org/pdf/1707.06347.pdf" target="_blank" rel="noopener">论文</a>|<a href="https://github.com/openai/baselines/tree/master/baselines/ppo1" target="_blank" rel="noopener">代码</a>]</p>
+      
+    
+      
+        <p>鉴于 TRPO 相对复杂，而我们仍然希望实现类似的约束，近端策略优化（PPO）通过使用裁剪的代理目标函数来简化它，同时保持相似的性能。</p>
+      
+    
+      
+        <p>首先，让我们将新旧策略之间的概率比率记为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+r(\theta) = \frac{\pi_\theta(a \vert s)}{\pi_{\theta_\text{old}}(a \vert s)}
+">
+r(\theta) = \frac{\pi_\theta(a \vert s)}{\pi_{\theta_\text{old}}(a \vert s)}
+</span></div>
+      
+    
+      
+        <p>然后，TRPO（on policy）的目标函数变为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+J^\text{TRPO} (\theta) = \mathbb{E} [ r(\theta) \hat{A}_{\theta_\text{old}}(s, a) ]
+">
+J^\text{TRPO} (\theta) = \mathbb{E} [ r(\theta) \hat{A}_{\theta_\text{old}}(s, a) ]
+</span></div>
+      
+    
+      
+        <p>如果不对 <span class="math-inline" data-math="\theta_\text{old}">\theta_\text{old}</span> 和 <span class="math-inline" data-math="\theta">\theta</span> 之间的距离加以限制，最大化 <span class="math-inline" data-math="J^\text{TRPO} (\theta)">J^\text{TRPO} (\theta)</span> 将导致极端的参数更新和很大的策略比率，从而造成不稳定。PPO 通过强制 <span class="math-inline" data-math="r(\theta)">r(\theta)</span> 保持在 1 周围的一个小区间内来施加约束，即 <span class="math-inline" data-math="[1-\epsilon, 1+\epsilon]">[1-\epsilon, 1+\epsilon]</span>，其中 <span class="math-inline" data-math="\epsilon">\epsilon</span> 是一个超参数。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+J^\text{CLIP} (\theta) = \mathbb{E} [ \min( r(\theta) \hat{A}_{\theta_\text{old}}(s, a), \text{clip}(r(\theta), 1 - \epsilon, 1 + \epsilon) \hat{A}_{\theta_\text{old}}(s, a))]
+">
+J^\text{CLIP} (\theta) = \mathbb{E} [ \min( r(\theta) \hat{A}_{\theta_\text{old}}(s, a), \text{clip}(r(\theta), 1 - \epsilon, 1 + \epsilon) \hat{A}_{\theta_\text{old}}(s, a))]
+</span></div>
+      
+    
+      
+        <p>函数 <span class="math-inline" data-math="\text{clip}(r(\theta), 1 - \epsilon, 1 + \epsilon)">\text{clip}(r(\theta), 1 - \epsilon, 1 + \epsilon)</span> 将比率裁剪为不大于 <span class="math-inline" data-math="1+\epsilon">1+\epsilon</span> 且不小于 <span class="math-inline" data-math="1-\epsilon">1-\epsilon</span>。PPO 的目标函数取原始值和裁剪版本中的较小者，因此我们失去了将策略更新推向极端以获得更好回报的动机。</p>
+      
+    
+      
+        <p>当在同时用于策略（actor）和价值（critic）函数的共享参数网络架构上应用 PPO 时，除了裁剪的奖励外，目标函数还增加了价值估计的误差项（红色公式）和一个熵项（蓝色公式），以鼓励充分的探索。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+J^\text{CLIP&#x27;} (\theta) = \mathbb{E} [ J^\text{CLIP} (\theta) - \color{red}{c_1 (V_\theta(s) - V_\text{target})^2} + \color{blue}{c_2 H(s, \pi_\theta(.))} ]
+">
+J^\text{CLIP&#x27;} (\theta) = \mathbb{E} [ J^\text{CLIP} (\theta) - \color{red}{c_1 (V_\theta(s) - V_\text{target})^2} + \color{blue}{c_2 H(s, \pi_\theta(.))} ]
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="c_1">c_1</span> 和 <span class="math-inline" data-math="c_2">c_2</span> 是两个超参数常数。</p>
+      
+    
+      
+        <p>PPO 已经在一些基准任务上进行了测试，并被证明能以更高的简洁性产生出色的结果。</p>
+      
+    
+      
+        <p>在随后的一篇论文中，<a href="https://arxiv.org/abs/2009.10897" target="_blank" rel="noopener">Hsu et al., 2020</a> 重新审视了 PPO 中的两个常见设计选择，即 (1) 用于策略正则化的裁剪概率比率，以及 (2) 使用连续高斯或离散 softmax 分布来参数化策略动作空间。他们首先识别了 PPO 中的三种失败模式，并为这两个设计提出了替代方案。</p>
+      
+    
+      
+        <p>失败模式包括：</p>
+      
+    
+      
+        <div class="list-content">在连续动作空间中，当奖励在有界支持之外消失时，标准 PPO 不稳定。
+在具有稀疏高奖励的离散动作空间中，标准 PPO 经常卡在次优动作上。
+当初始化附近存在局部最优动作时，策略对初始化非常敏感。</div>
+      
+    
+      
+        <p>将动作空间离散化或使用 Beta 分布有助于避免与高斯策略相关的失败模式 1 和 3。使用 KL 正则化（与 TRPO 中的动机相同）作为替代的代理模型有助于解决失败模式 1 和 2。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-04-08-policy-gradient/ppo-loss-functions.png" alt="">
+          <figcaption>The algorithm of PPG. (Image source:Cobbe, et al 2020)</figcaption>
+        </figure>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

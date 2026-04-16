@@ -103,6 +103,24 @@ def render_segment_html(text: str, footnote_ids: set[str], valid_slugs: set[str]
     rendered = re.sub(r'\{\{MATH:\d+\}\}', '', rendered)
     rendered = re.sub(r'\{\{CITE:\d+\}\}', '', rendered)
     rendered = re.sub(r'\{\{CODE:\d+\}\}', '', rendered)
+    # EXTLINK: try to recover mangled placeholders (translator may change | to :)
+    def _recover_extlink(m):
+        content = m.group(1)
+        # Try pipe-delimited first
+        if "|" in content:
+            parts = content.split("|", 1)
+            return f'<a href="{escape(parts[0])}" target="_blank" rel="noopener">{escape(parts[1])}</a>'
+        # Try colon-delimited (mangled by translator)
+        if "://" in content:
+            # URL contains ://, split after the URL
+            url_match = re.match(r'(https?://[^:：]+)[：:](.+)', content)
+            if url_match:
+                return f'<a href="{escape(url_match.group(1))}" target="_blank" rel="noopener">{escape(url_match.group(2))}</a>'
+        return content
+    rendered = re.sub(r'\{\{EXTLINK[|:]([^}]+)\}\}', _recover_extlink, rendered)
+    # Clean up truncated/malformed placeholders (translator may drop closing }})
+    rendered = re.sub(r'\{\{EXTLINK[|:][^}]*$', '', rendered)
+    rendered = re.sub(r'\{\{EXTLINK[|:][^}]*(?=<)', '', rendered)
 
     return rendered
 
@@ -176,7 +194,7 @@ def prepare_article(article: dict, valid_slugs: set[str], title_map: dict[str, s
             continue
         if seg_type == "figure":
             caption = seg.get("caption") or seg.get("text_zh") or seg.get("text", "")
-            if caption and any(ph in caption for ph in ("{{MATH:", "{{CITE:", "{{CODE:", "{{LINK:")):
+            if caption and any(ph in caption for ph in ("{{MATH:", "{{CITE:", "{{CODE:", "{{LINK:", "{{EXTLINK")):
                 seg["rendered_html"] = render_segment_html(
                     caption, footnote_ids, valid_slugs, title_map_with_slug, math_registry)
             else:

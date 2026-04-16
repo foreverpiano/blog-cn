@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用 Tensorflow 和 OpenAI Gym 实现深度强化学习模型 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>使用 Tensorflow 和 OpenAI Gym 实现深度强化学习模型</h1>
+    <div class="meta">
+      2018-05-05 · 
+      <a href="https://lilianweng.github.io/posts/2018-05-05-drl-implementation/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">环境搭建
+
+Gym 环境
+
+朴素 Q-Learning
+
+Deep Q-Network
+
+Double Q-Learning
+
+Dueling Q-Network
+
+
+Monte-Carlo Policy Gradient
+
+Actor-Critic
+
+参考文献</div>
+      
+    
+      
+        <p>让我们来看看如何用代码实现一系列经典的深度强化学习模型。</p>
+      
+    
+      
+        <p>完整实现可在 <a href="https://github.com/lilianweng/deep-reinforcement-learning-gym" target="_blank" rel="noopener">lilianweng/deep-reinforcement-learning-gym</a> 获取。</p>
+      
+    
+      
+        <p>在前两篇文章中，我介绍了许多深度强化学习模型的算法。现在是时候动手实践，在实际环境中实现这些模型了。本教程的实现基于 Tensorflow 和 OpenAI <a href="https://github.com/openai/gym" target="_blank" rel="noopener">gym</a> 环境。完整代码可在 <a href="https://github.com/lilianweng/deep-reinforcement-learning-gym" target="_blank" rel="noopener">[lilian/deep-reinforcement-learning-gym]</a> 中找到。</p>
+      
+    
+      
+        <h2>环境搭建</h2>
+        
+      
+    
+      
+        <div class="list-content">请确保已安装 <a href="https://docs.brew.sh/Installation" target="_blank" rel="noopener">Homebrew</a>：</div>
+      
+    
+      
+        <pre><code>/usr/bin/ruby -e &quot;$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)&quot;
+</code></pre>
+      
+    
+      
+        <div class="list-content">我建议为开发创建一个 virtualenv。当你同时维护多个项目且依赖冲突时（例如一个项目需要 Python 2.7，另一个只兼容 Python 3.5+），它能让生活轻松很多。</div>
+      
+    
+      
+        <pre><code># Install python virtualenv
+brew install pyenv-virtualenv
+# Create a virtual environment of any name you like with Python 3.6.4 support
+pyenv virtualenv 3.6.4 workspace
+# Activate the virtualenv named &quot;workspace&quot;
+pyenv activate workspace
+</code></pre>
+      
+    
+      
+        <p>[*] 下面每次安装新包时，请确保处于 virtualenv 环境中。</p>
+      
+    
+      
+        <div class="list-content">根据 <a href="https://github.com/openai/gym#installation" target="_blank" rel="noopener">官方说明</a> 安装 OpenAI Gym。最小化安装可执行：</div>
+      
+    
+      
+        <pre><code>git clone https://github.com/openai/gym.git 
+cd gym 
+pip install -e .
+</code></pre>
+      
+    
+      
+        <p>如果你想玩 Atari 游戏或其他高级功能包，请继续安装下面几个系统依赖。</p>
+      
+    
+      
+        <pre><code>brew install cmake boost boost-python sdl2 swig wget
+</code></pre>
+      
+    
+      
+        <p>对于 Atari，先进入 gym 目录并用 pip 安装。如果你在安装 ALE（Arcade Learning Environment）时遇到问题，这篇 <a href="http://alvinwan.com/installing-arcade-learning-environment-with-python3-on-macosx/" target="_blank" rel="noopener">文章</a> 会很有帮助。</p>
+      
+    
+      
+        <pre><code>pip install -e &#x27;.[atari]&#x27;
+</code></pre>
+      
+    
+      
+        <div class="list-content">最后克隆“playground”代码并安装依赖。</div>
+      
+    
+      
+        <pre><code>git clone git@github.com:lilianweng/deep-reinforcement-learning-gym.git
+cd deep-reinforcement-learning-gym
+pip install -e .  # install the &quot;playground&quot; project.
+pip install -r requirements.txt  # install required packages.
+</code></pre>
+      
+    
+      
+        <h2>Gym 环境</h2>
+        
+      
+    
+      
+        <p><a href="https://gym.openai.com/" target="_blank" rel="noopener">OpenAI Gym</a> 工具包提供了一系列物理仿真环境、游戏和机器人模拟器，我们可以在其中设计和训练强化学习智能体。可以通过 gym.make(&quot;环境名称&quot;) 来初始化一个环境对象：</p>
+      
+    
+      
+        <pre><code>import gym
+env = gym.make(&quot;MsPacman-v0&quot;)
+</code></pre>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-05-05-drl-implementation/pacman-original.gif" alt="">
+          <figcaption>(Image source:tf.gather() docs)</figcaption>
+        </figure>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>深度强化学习中的探索策略 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>深度强化学习中的探索策略</h1>
+    <div class="meta">
+      2020-06-07 · 
+      <a href="https://lilianweng.github.io/posts/2020-06-07-exploration-drl/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">经典探索策略
+
+关键探索问题
+
+困难探索问题
+
+噪声电视问题
+
+
+将内在奖励作为探索加成
+
+基于计数的探索
+
+通过密度模型计数
+
+哈希后计数
+
+
+基于预测的探索
+
+前向动力学
+
+随机网络
+
+物理属性
+
+
+
+基于记忆的探索
+
+情景记忆
+
+直接探索
+
+
+Q值探索
+
+变分选项
+
+引用
+
+参考文献</div>
+      
+    
+      
+        <p>在强化学习中，利用（exploitation）与探索（exploration）是一个关键课题。本文介绍了深度强化学习（Deep RL）中几种常见的提升探索效果的方法。</p>
+      
+    
+      
+        <p>[2020-06-17 更新：在“前向动力学”一节中增加了“通过不一致性进行探索”的内容。]</p>
+      
+    
+      
+        <p>是强化学习中的核心话题。我们希望强化学习代理能够尽快找到最佳解决方案。然而，如果过早地只利用已有方案而缺乏足够探索，也会产生严重问题，可能导致陷入局部最优甚至完全失败。现代（RL）在优化回报方面已经能高效实现利用，而探索仍是一个开放性课题。<a href="posts-2018-01-23-multi-armed-bandit.html">多臂老虎机问题及其解决方案</a><a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a><a href="posts-2018-04-08-policy-gradient.html">策略梯度算法</a></p>
+      
+    
+      
+        <p>本文将讨论深度强化学习中几种常见的探索策略。由于这是一个非常大的领域，文章不可能涵盖所有重要子主题。我计划定期更新，逐步丰富和完善内容。</p>
+      
+    
+      
+        <h2>经典探索策略#</h2>
+        
+      
+    
+      
+        <p>作为快速回顾，我们先介绍几种在多臂老虎机问题或简单表格型强化学习中表现良好的经典探索算法。</p>
+      
+    
+      
+        <div class="list-content">ε-greedy：代理以概率<span class="math-inline" data-math="\epsilon">\epsilon</span>进行随机探索，其余大部分时间以概率<span class="math-inline" data-math="1-\epsilon">1-\epsilon</span>选择最优动作。
+置信上限（UCB）：代理选择能最大化置信上限<span class="math-inline" data-math="\hat{Q}_t(a) + \hat{U}_t(a)">\hat{Q}_t(a) + \hat{U}_t(a)</span>的贪婪动作，其中<span class="math-inline" data-math="\hat{Q}_t(a)">\hat{Q}_t(a)</span>是截至时间<span class="math-inline" data-math="t">t</span>动作<span class="math-inline" data-math="a">a</span>的平均奖励，<span class="math-inline" data-math="\hat{U}_t(a)">\hat{U}_t(a)</span>是一个与动作<span class="math-inline" data-math="a">a</span>被选择次数成反比的函数。更多细节见。
+Boltzmann探索：代理根据学习到的Q值，按Boltzmann分布（即softmax）抽样动作，由温度参数<span class="math-inline" data-math="\tau">\tau</span>调节。
+Thompson采样：代理维护一个关于最优动作概率的信念分布，并从中进行采样。更多细节见。<a href="posts-2018-01-23-multi-armed-bandit.html">多臂老虎机问题及其解决方案</a><a href="posts-2018-01-23-multi-armed-bandit.html">多臂老虎机问题及其解决方案</a></div>
+      
+    
+      
+        <p>当使用神经网络作为函数逼近器时，以下策略可用于提升深度强化学习训练中的探索效果：</p>
+      
+    
+      
+        <div class="list-content">熵损失项：在损失函数中加入熵项<span class="math-inline" data-math="H(\pi(a \vert s))">H(\pi(a \vert s))</span>，鼓励策略采取更多样化的动作。
+基于噪声的探索：在观测、动作甚至参数空间中加入噪声（<a href="https://arxiv.org/abs/1706.10295" target="_blank" rel="noopener">Fortunato等人，2017</a>，<a href="https://arxiv.org/abs/1706.01905" target="_blank" rel="noopener">Plappert等人，2017</a>）。</div>
+      
+    
+      
+        <h2>关键探索问题#</h2>
+        
+      
+    
+      
+        <p>当环境很少提供奖励反馈，或存在大量干扰噪声时，良好的探索会变得特别困难。许多探索策略被提出用于解决以下一个或两个问题。</p>
+      
+    
+      
+        <h2>困难探索问题#</h2>
+        
+      
+    
+      
+        <p>“困难探索”问题指的是在奖励极其稀疏甚至具有欺骗性的环境中进行探索。这种情况非常困难，因为随机探索几乎无法发现成功状态或获得有意义的反馈。</p>
+      
+    
+      
+        <p><a href="https://en.wikipedia.org/wiki/Montezuma%27s_Revenge_(video_game)" target="_blank" rel="noopener">蒙特祖玛的复仇</a>（Montezuma’s Revenge）是困难探索问题的一个典型例子。它仍是Atari游戏中少数几个深度强化学习难以解决的挑战性游戏。许多论文都用它来验证算法效果。</p>
+      
+    
+      
+        <h2>噪声电视问题#</h2>
+        
+      
+    
+      
+        <p>“噪声电视”问题最初源于<a href="https://arxiv.org/abs/1810.12894" target="_blank" rel="noopener">Burda等人（2018）</a>的一个思想实验。想象一个强化学习代理通过寻找新奇体验来获得奖励，那么一台无法控制且输出不可预测随机噪声的电视就能永远吸引它的注意力。代理会持续从噪声电视中获得新奖励，但无法取得任何有意义的进展，最终变成“沙发土豆”。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/the-noisy-TV-problem.gif" alt="">
+          <figcaption>An agent is rewarded with novel experience in the experiment. If a maze has a noisy TC set up, the agent would be attracted and stop moving in the maze. (Image source: OpenAI Blog:&quot;Reinforcement Learning with Prediction-Based Rewards&quot;)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>将内在奖励作为探索加成#</h2>
+        
+      
+    
+      
+        <p>改善探索（尤其是解决困难探索问题）的一种常用方法，是在环境奖励之外附加一个额外的奖励信号，以鼓励更多探索。因此，策略会基于由两部分组成的奖励进行训练：<span class="math-inline" data-math="r_t = r^e_t + \beta r^i_t">r_t = r^e_t + \beta r^i_t</span>，其中<span class="math-inline" data-math="\beta">\beta</span>是一个超参数，用于调节利用与探索之间的平衡。</p>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="r^e_t">r^e_t</span>是环境在时间<span class="math-inline" data-math="t">t</span>给出的外在奖励，根据具体任务定义。
+<span class="math-inline" data-math="r^i_t">r^i_t</span>是时间<span class="math-inline" data-math="t">t</span>的内在探索奖励。</div>
+      
+    
+      
+        <p>这种内在奖励的思路一定程度上受到心理学中内在动机（<a href="https://www.researchgate.net/profile/Pierre-Yves_Oudeyer/publication/29614795_How_can_we_define_intrinsic_motivation/links/09e415107f1b4c8041000000/How-can-we-define-intrinsic-motivation.pdf" target="_blank" rel="noopener">Oudeyer &amp;amp; Kaplan, 2008</a>）的启发。由好奇心驱动的探索可能是儿童成长和学习的重要方式。换句话说，在人类心智中，探索行为本身就应具有内在奖励，以鼓励这种行为。内在奖励可能与好奇心、惊讶程度、对状态的熟悉度以及许多其他因素相关。</p>
+      
+    
+      
+        <p>相同的思路也可以应用于强化学习算法。接下来的章节中，基于奖励加成的探索方法大致分为两类：</p>
+      
+    
+      
+        <div class="list-content">发现新奇状态
+提升代理对环境的知识理解。</div>
+      
+    
+      
+        <h2>基于计数的探索#</h2>
+        
+      
+    
+      
+        <p>如果我们把内在奖励看作是对让我们感到惊讶的情境的奖励，那么就需要一种方法来衡量某个状态是否新奇或出现频率高。一个直观的方法是统计一个状态被访问的次数，并据此分配奖励。这种奖励会引导代理更倾向于访问很少去过的状态，而不是常见状态。这就是所谓的基于计数的探索方法。</p>
+      
+    
+      
+        <p>令<span class="math-inline" data-math="N_n(s)">N_n(s)</span>为经验计数函数，记录状态<span class="math-inline" data-math="s">s</span>在序列<span class="math-inline" data-math="s_{1:n}">s_{1:n}</span>中实际被访问的次数。不幸的是，直接使用<span class="math-inline" data-math="N_n(s)">N_n(s)</span>进行探索并不现实，因为大多数状态的计数都会是<span class="math-inline" data-math="N_n(s)=0">N_n(s)=0</span>，尤其当状态空间是连续或高维的时候。我们需要为大多数状态赋予一个非零的计数，即使它们之前从未被见过。</p>
+      
+    
+      
+        <h3>通过密度模型计数#</h3>
+        
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1606.01868" target="_blank" rel="noopener">Bellemare等人（2016）</a>使用密度模型来近似状态访问频率，并提出了一种从密度模型中推导出伪计数的创新算法。首先定义状态空间上的条件概率，<span class="math-inline" data-math="\rho_n(s) = \rho(s \vert s_{1:n})">\rho_n(s) = \rho(s \vert s_{1:n})</span>表示在已观测前<span class="math-inline" data-math="n">n</span>个状态为<span class="math-inline" data-math="s_{1:n}">s_{1:n}</span>的条件下，第<span class="math-inline" data-math="(n+1)">(n+1)</span>个状态为<span class="math-inline" data-math="s">s</span>的概率。经验上可以用<span class="math-inline" data-math="N_n(s)/n">N_n(s)/n</span>来衡量。</p>
+      
+    
+      
+        <p>再定义一个状态<span class="math-inline" data-math="s">s</span>的重编码概率，即在观察到新的<span class="math-inline" data-math="s">s</span>后，密度模型对<span class="math-inline" data-math="s">s</span>分配的概率，记为<span class="math-inline" data-math="\rho’_n(s) = \rho(s \vert s_{1:n}s)">\rho’_n(s) = \rho(s \vert s_{1:n}s)</span>。</p>
+      
+    
+      
+        <p>论文引入了两个概念来更好地规范密度模型：伪计数函数<span class="math-inline" data-math="\hat{N}_n(s)">\hat{N}_n(s)</span>和伪计数总量<span class="math-inline" data-math="\hat{n}">\hat{n}</span>。由于它们旨在模仿经验计数函数，因此有：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\rho_n(s) = \frac{\hat{N}_n(s)}{\hat{n}} \leq \rho&#x27;_n(s) = \frac{\hat{N}_n(s) + 1}{\hat{n} + 1}
+">
+\rho_n(s) = \frac{\hat{N}_n(s)}{\hat{n}} \leq \rho&#x27;_n(s) = \frac{\hat{N}_n(s) + 1}{\hat{n} + 1}
+</span></div>
+      
+    
+      
+        <p><span class="math-inline" data-math="\rho_n(x)">\rho_n(x)</span>与<span class="math-inline" data-math="\rho’_n(x)">\rho’_n(x)</span>之间的关系要求密度模型是“学习正向”的：对所有<span class="math-inline" data-math="s_{1:n} \in \mathcal{S}^n">s_{1:n} \in \mathcal{S}^n</span>和所有<span class="math-inline" data-math="s \in \mathcal{S}">s \in \mathcal{S}</span>，都有<span class="math-inline" data-math="\rho_n(s) \leq \rho’_n(s)">\rho_n(s) \leq \rho’_n(s)</span>。换句话说，在观察到一个实例<span class="math-inline" data-math="s">s</span>后，密度模型对同一<span class="math-inline" data-math="s">s</span>的预测概率应该增加。除此之外，密度模型必须完全在线训练，使用非随机化的经验状态小批量，因此自然有<span class="math-inline" data-math="\rho’_n = \rho_{n+1}">\rho’_n = \rho_{n+1}</span>。</p>
+      
+    
+      
+        <p>伪计数可以通过求解上述线性方程组，从<span class="math-inline" data-math="\rho_n(s)">\rho_n(s)</span>和<span class="math-inline" data-math="\rho’_n(s)">\rho’_n(s)</span>中计算得到：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\hat{N}_n(s) = \hat{n} \rho_n(s) = \frac{\rho_n(s)(1 - \rho&#x27;_n(s))}{\rho&#x27;_n(s) - \rho_n(s)} 
+">
+\hat{N}_n(s) = \hat{n} \rho_n(s) = \frac{\rho_n(s)(1 - \rho&#x27;_n(s))}{\rho&#x27;_n(s) - \rho_n(s)} 
+</span></div>
+      
+    
+      
+        <p>或者通过预测增益（PG）来估计：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\hat{N}_n(s) \approx (e^{\text{PG}_n(s)} - 1)^{-1} = (e^{\log \rho&#x27;_n(s) - \log \rho(s)} - 1)^{-1}
+">
+\hat{N}_n(s) \approx (e^{\text{PG}_n(s)} - 1)^{-1} = (e^{\log \rho&#x27;_n(s) - \log \rho(s)} - 1)^{-1}
+</span></div>
+      
+    
+      
+        <p>一种常见的基于计数的内在奖励是<span class="math-inline" data-math="r^i_t = N(s_t, a_t)^{-1/2}">r^i_t = N(s_t, a_t)^{-1/2}</span>（如MBIE-EB中；<a href="https://www.ics.uci.edu/~dechter/courses/ics-295/fall-2019/papers/2008-littman-aij-main.pdf" target="_blank" rel="noopener">Strehl &amp;amp; Littman, 2008</a>）。伪计数形式的探索奖励形状类似：<span class="math-inline" data-math="r^i_t = \big(\hat{N}_n(s_t, a_t) + 0.01 \big)^{-1/2}">r^i_t = \big(\hat{N}_n(s_t, a_t) + 0.01 \big)^{-1/2}</span>。</p>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1606.01868" target="_blank" rel="noopener">Bellemare等人（2016）</a>的实验采用了一种简单的<a href="http://proceedings.mlr.press/v32/bellemare14.html" target="_blank" rel="noopener">CTS</a>（上下文树切换）密度模型来估计伪计数。CTS模型以2D图像为输入，根据位置相关的L型滤波器乘积为其分配概率，每个滤波器的预测由在过去图像上训练的CTS算法给出。CTS模型简单，但在表达能力、可扩展性和数据效率上存在局限。在后续论文中，<a href="https://arxiv.org/abs/1703.01310" target="_blank" rel="noopener">Georg Ostrovski等人（2017）</a>通过训练PixelCNN（<a href="https://arxiv.org/abs/1606.05328" target="_blank" rel="noopener">van den Oord等人，2016</a>）作为密度模型改进了该方法。</p>
+      
+    
+      
+        <p>密度模型也可以是高斯混合模型，如<a href="https://arxiv.org/abs/1902.08039" target="_blank" rel="noopener">Zhao &amp;amp; Tresp（2018）</a>中所做。他们使用变分高斯混合模型估计轨迹（例如连续状态序列）的密度，并用预测概率在离策略设定中指导经验回放的优先级排序。</p>
+      
+    
+      
+        <h3>哈希后计数#</h3>
+        
+      
+    
+      
+        <p>另一种使高维状态可计数的方法是将状态映射为哈希码，从而让状态出现次数变得可跟踪（<a href="https://arxiv.org/abs/1611.04717" target="_blank" rel="noopener">Tang等人，2017</a>）。状态空间通过哈希函数<span class="math-inline" data-math="\phi: \mathcal{S} \mapsto \mathbb{Z}^k">\phi: \mathcal{S} \mapsto \mathbb{Z}^k</span>被离散化。在奖励函数中加入探索奖励<span class="math-inline" data-math="r^{i}: \mathcal{S} \mapsto \mathbb{R}">r^{i}: \mathcal{S} \mapsto \mathbb{R}</span>，定义为<span class="math-inline" data-math="r^{i}(s) = {N(\phi(s))}^{-1/2}">r^{i}(s) = {N(\phi(s))}^{-1/2}</span>，其中<span class="math-inline" data-math="N(\phi(s))">N(\phi(s))</span>是状态<span class="math-inline" data-math="\phi(s)">\phi(s)</span>出现的经验计数。</p>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1611.04717" target="_blank" rel="noopener">Tang等人（2017）</a>提出使用局部敏感哈希（<a href="https://en.wikipedia.org/wiki/Locality-sensitive_hashing" target="_blank" rel="noopener">LSH</a>）将连续高维数据转换为离散哈希码。LSH是一类基于特定相似度度量查询最近邻的流行哈希函数。如果一个哈希方案<span class="math-inline" data-math="x \mapsto h(x)">x \mapsto h(x)</span>是局部敏感的，它就会保留数据点之间的距离信息，使得相近的向量得到相似的哈希，而相距较远的向量哈希差异很大。（如果感兴趣，可参考LSH在中的应用。）<a href="https://www.cs.princeton.edu/courses/archive/spr04/cos598B/bib/CharikarEstim.pdf" target="_blank" rel="noopener">SimHash</a>是一种计算高效的LSH，它通过角度距离衡量相似性：<a href="posts-2020-04-07-the-transformer-family.html">Transformer 家族</a></p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\phi(s) = \text{sgn}(A g(s)) \in \{-1, 1\}^k
+">
+\phi(s) = \text{sgn}(A g(s)) \in \{-1, 1\}^k
+</span></div>
+      
+    
+      
+        <p>其中<span class="math-inline" data-math="A \in \mathbb{R}^{k \times D}">A \in \mathbb{R}^{k \times D}</span>是一个每个元素都从标准高斯分布独立同分布采样的矩阵，<span class="math-inline" data-math="g: \mathcal{S} \mapsto \mathbb{R}^D">g: \mathcal{S} \mapsto \mathbb{R}^D</span>是一个可选的预处理函数。二进制码的维度是<span class="math-inline" data-math="k">k</span>，控制着状态空间离散化的粒度。更高的<span class="math-inline" data-math="k">k</span>意味着更高的粒度和更少的哈希冲突。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/count-hashing-exploration.png" alt="">
+          <figcaption>Algorithm of count-based exploration through hashing high-dimensional states by SimHash. (Image source:Tang et al. 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>对于高维图像，SimHash在原始像素级别可能效果不佳。<a href="https://arxiv.org/abs/1611.04717" target="_blank" rel="noopener">Tang等人（2017）</a>设计了一个自编码器（AE），输入状态<span class="math-inline" data-math="s">s</span>来学习哈希码。它在中间有一个由<span class="math-inline" data-math="k">k</span>个sigmoid函数组成的特殊全连接层作为隐状态，然后将该层的sigmoid激活值<span class="math-inline" data-math="b(s)">b(s)</span>四舍五入到最近的二进制数<span class="math-inline" data-math="\lfloor b(s)\rceil \in \{0, 1\}^D">\lfloor b(s)\rceil \in \{0, 1\}^D</span>，作为状态<span class="math-inline" data-math="s">s</span>的二进制哈希码。对<span class="math-inline" data-math="n">n</span>个状态的自编码器损失包含两项：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}(\{s_n\}_{n=1}^N) = \underbrace{-\frac{1}{N} \sum_{n=1}^N \log p(s_n)}_\text{reconstruction loss} + \underbrace{\frac{1}{N} \frac{\lambda}{K} \sum_{n=1}^N\sum_{i=1}^k \min \big \{ (1-b_i(s_n))^2, b_i(s_n)^2 \big\}}_\text{sigmoid activation being closer to binary}
+">
+\mathcal{L}(\{s_n\}_{n=1}^N) = \underbrace{-\frac{1}{N} \sum_{n=1}^N \log p(s_n)}_\text{reconstruction loss} + \underbrace{\frac{1}{N} \frac{\lambda}{K} \sum_{n=1}^N\sum_{i=1}^k \min \big \{ (1-b_i(s_n))^2, b_i(s_n)^2 \big\}}_\text{sigmoid activation being closer to binary}
+</span></div>
+      
+    
+      
+        <p>这种方法的一个问题是，不相似的输入<span class="math-inline" data-math="s_i, s_j">s_i, s_j</span>可能被映射到相同的哈希码，但自编码器仍能完美重建它们。可以想象将瓶颈层<span class="math-inline" data-math="b(s)">b(s)</span>替换为哈希码<span class="math-inline" data-math="\lfloor b(s)\rceil">\lfloor b(s)\rceil</span>，但这样梯度就无法通过取整函数反向传播。注入均匀噪声可以缓解这个问题，因为自编码器必须学会将隐变量推得更远以抵消噪声影响。</p>
+      
+    
+      
+        <h2>基于预测的探索#</h2>
+        
+      
+    
+      
+        <p>第二类内在探索奖励是基于代理对环境知识的提升。代理对环境动态的熟悉程度可以通过预测模型来估计。使用预测模型衡量好奇心的想法其实很早就被提出（<a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.45.957" target="_blank" rel="noopener">Schmidhuber，1991</a>）。</p>
+      
+    
+      
+        <h3>前向动力学#</h3>
+        
+      
+    
+      
+        <p>学习前向动力学预测模型是近似模型对环境和任务MDP了解程度的一个极好方法。它捕捉了代理预测自身行为后果<span class="math-inline" data-math="f: (s_t, a_t) \mapsto s_{t+1}">f: (s_t, a_t) \mapsto s_{t+1}</span>的能力。这种模型不可能完美（例如由于部分可观测性），其误差<span class="math-inline" data-math="e(s_t, a_t) = | f(s_t, a_t) - s_{t+1} |^2_2">e(s_t, a_t) = | f(s_t, a_t) - s_{t+1} |^2_2</span>可以用来提供内在探索奖励。预测误差越高，我们对该状态就越不熟悉。误差率下降越快，我们获得的“学习进展”信号就越多。</p>
+      
+    
+      
+        <p>智能自适应好奇心（IAC；<a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.177.7661&amp;amp;rep=rep1&amp;amp;type=pdf" target="_blank" rel="noopener">Oudeyer等人，2007</a>）提出了使用前向动力学预测模型估计学习进展，并据此分配内在探索奖励的想法。</p>
+      
+    
+      
+        <p>IAC依赖于一个存储机器人所有经历的记忆<span class="math-inline" data-math="M=\{(s_t, a_t, s_{t+1})\}">M=\{(s_t, a_t, s_{t+1})\}</span>和一个前向动力学模型<span class="math-inline" data-math="f">f</span>。IAC根据转移样本，将状态空间（即论文中讨论的机器人传感-运动空间）增量式地分割成不同区域，过程类似于决策树的分割：当样本数超过阈值且每个叶节点中状态的方差最小时进行分割。每个树节点由其专属样本集刻画，并拥有自己的前向动力学预测器<span class="math-inline" data-math="f">f</span>，称为“专家”。</p>
+      
+    
+      
+        <p>专家的预测误差<span class="math-inline" data-math="e_t">e_t</span>被放入与每个区域关联的列表中。学习进展则被定义为带有偏移<span class="math-inline" data-math="\tau">\tau</span>的移动窗口平均误差率与当前移动窗口的差值。内在奖励用于跟踪学习进展：<span class="math-inline" data-math="r^i_t = \frac{1}{k}\sum_{i=0}^{k-1}(e_{t-i-\tau} - e_{t-i})">r^i_t = \frac{1}{k}\sum_{i=0}^{k-1}(e_{t-i-\tau} - e_{t-i})</span>，其中<span class="math-inline" data-math="k">k</span>是移动窗口大小。因此，我们能实现的预测误差率下降越大，赋予代理的内在奖励就越高。换句话说，代理被鼓励采取能快速学习环境的动作。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/IAC.png" alt="">
+          <figcaption>Architecture of the IAC (Intelligent Adaptive Curiosity) module: the intrinsic reward is assigned w.r.t the learning progress in reducing prediction error of the dynamics model. (Image source:Oudeyer, et al. 2007)</figcaption>
+        </figure>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1507.00814" target="_blank" rel="noopener">Stadie等人（2015）</a>在由<span class="math-inline" data-math="\phi">\phi</span>、<span class="math-inline" data-math="f_\phi: (\phi(s_t), a_t) \mapsto \phi(s_{t+1})">f_\phi: (\phi(s_t), a_t) \mapsto \phi(s_{t+1})</span>定义的编码空间中训练前向动力学模型。模型在时间<span class="math-inline" data-math="T">T</span>的预测误差用截至时间<span class="math-inline" data-math="t">t</span>的最大误差进行归一化，得到<span class="math-inline" data-math="\bar{e}_t = \frac{e_t}{\max_{i \leq t} e_i}">\bar{e}_t = \frac{e_t}{\max_{i \leq t} e_i}</span>，因此它始终在0到1之间。内在奖励据此定义为：<span class="math-inline" data-math="r^i_t = (\frac{\bar{e}_t(s_t, a_t)}{t \cdot C})">r^i_t = (\frac{\bar{e}_t(s_t, a_t)}{t \cdot C})</span>，其中<span class="math-inline" data-math="C &gt; 0">C &gt; 0</span>是一个衰减常数。</p>
+      
+    
+      
+        <p>通过<span class="math-inline" data-math="\phi(.)">\phi(.)</span>对状态空间进行编码是必要的，因为论文中的实验表明，直接在原始像素上训练的动力学模型表现很差——会给所有状态分配相同的探索奖励。在<a href="https://arxiv.org/abs/1507.00814" target="_blank" rel="noopener">Stadie等人（2015）</a>中，编码函数<span class="math-inline" data-math="\phi">\phi</span>通过自编码器（AE）学习，<span class="math-inline" data-math="\phi(.)">\phi(.)</span>是AE的一个输出层。自编码器可以使用随机代理收集的图像集进行静态训练，也可以与策略一起动态训练，其中早期帧使用<span class="math-inline" data-math="\epsilon">\epsilon</span>-greedy探索收集。</p>
+      
+    
+      
+        <p>与自编码器不同，内在好奇心模块（ICM；<a href="https://arxiv.org/abs/1705.05363" target="_blank" rel="noopener">Pathak等人，2017</a>）通过自监督的反向动力学模型来学习状态空间编码<span class="math-inline" data-math="\phi(.)">\phi(.)</span>。给定代理自身的动作来预测下一个状态并不容易，尤其是考虑到环境中有些因素是代理无法控制或不影响代理的。ICM认为，一个好的状态特征空间应该排除这些因素，因为它们无法影响代理的行为，代理也就没有动机去学习它们。通过学习反向动力学模型<span class="math-inline" data-math="g: (\phi(s_t), \phi(s_{t+1})) \mapsto a_t">g: (\phi(s_t), \phi(s_{t+1})) \mapsto a_t</span>，特征空间只捕捉环境中与代理动作相关的变化，而忽略其他部分。</p>
+      
+    
+      
+        <p>给定前向模型<span class="math-inline" data-math="f">f</span>、反向动力学模型<span class="math-inline" data-math="g">g</span>和观测<span class="math-inline" data-math="(s_t, a_t, s_{t+1})">(s_t, a_t, s_{t+1})</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+g_{\psi_I}(\phi(s_t), \phi(s_{t+1})) = \hat{a}_t \quad
+f_{\psi_F}(\phi(s_t), a_t) = \hat{\phi}(s_{t+1}) \quad
+r_t^i = \| \hat{\phi}(s_{t+1}) - \phi(s_{t+1}) \|_2^2
+">
+g_{\psi_I}(\phi(s_t), \phi(s_{t+1})) = \hat{a}_t \quad
+f_{\psi_F}(\phi(s_t), a_t) = \hat{\phi}(s_{t+1}) \quad
+r_t^i = \| \hat{\phi}(s_{t+1}) - \phi(s_{t+1}) \|_2^2
+</span></div>
+      
+    
+      
+        <p>这样的<span class="math-inline" data-math="\phi(.)">\phi(.)</span>被期望对环境中不可控的部分具有鲁棒性。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/ICM.png" alt="">
+          <figcaption>ICM (Intrinsic Curiosity Module) assigns the forward dynamics prediction error to the agent as the intrinsic reward. This dynamics model operates in a state encoding space learned through an inverse dynamics model to exclude environmental factors that do not affect the agent&#x27;s behavior. (Image source:Pathak, et al. 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1808.04355" target="_blank" rel="noopener">Burda, Edwards &amp;amp; Pathak等人（2018）</a>对纯好奇心驱动的学习进行了大规模对比实验，即只向代理提供内在奖励。在这项研究中，奖励是<span class="math-inline" data-math="r_t = r^i_t = | f(s_t, a_t) - \phi(s_{t+1})|_2^2">r_t = r^i_t = | f(s_t, a_t) - \phi(s_{t+1})|_2^2</span>。选择合适的<span class="math-inline" data-math="\phi">\phi</span>对学习前向动力学至关重要，它应紧凑、充分且稳定，从而使预测任务更易处理，并过滤掉无关观测。</p>
+      
+    
+      
+        <p>在四种编码函数的对比中：</p>
+      
+    
+      
+        <div class="list-content">原始图像像素：不进行编码，<span class="math-inline" data-math="\phi(x) = x">\phi(x) = x</span>。
+随机特征（RF）：每个状态通过一个固定的随机神经网络进行压缩。
+<a href="posts-2018-08-12-vae.html">从自编码器到 Beta-VAE</a>：使用概率编码器进行编码，<span class="math-inline" data-math="\phi(x) = q(z \vert x)">\phi(x) = q(z \vert x)</span>。
+反向动力学特征（IDF）：与ICM中使用的特征空间相同。</div>
+      
+    
+      
+        <p>所有实验都使用累积回报标准差的运行估计对奖励信号进行归一化。所有实验都在无限时域设置下运行，以避免“done”标志泄露信息。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/large-scale-curiosity-learning.png" alt="">
+          <figcaption>The mean reward in different games when training with only curiosity signals, generated by different state encoding functions. (Image source:Burda, Edwards &amp; Pathak, et al. 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>有趣的是，随机特征表现相当有竞争力，但在特征迁移实验（即在超级马里奥兄弟1-1关卡训练，然后在另一关卡测试）中，学习到的IDF特征能更好地泛化。</p>
+      
+    
+      
+        <p>他们还在开启噪声电视的环境中比较了RF和IDF。毫不意外，噪声电视会显著减慢学习速度，外在奖励会随时间大幅降低。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/noisy-TV-experiment.png" alt="">
+          <figcaption>Experiments using RF and IDF feature encoding in an environment with noisy TV on or off. The plot tracks extrinsic reward per episode as the training progresses. (Image source:Burda, Edwards &amp; Pathak, et al. 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>前向动力学优化也可以通过变分推断来建模。VIME（“变分信息最大化探索”的缩写；<a href="https://arxiv.org/abs/1605.09674" target="_blank" rel="noopener">Houthooft等人，2017</a>）是一种基于最大化关于代理对环境动力学信念的信息增益的探索策略。关于前向动力学获得多少额外信息，可以通过熵的减少来衡量。</p>
+      
+    
+      
+        <p>令<span class="math-inline" data-math="\mathcal{P}">\mathcal{P}</span>为环境转移函数，<span class="math-inline" data-math="p(s_{t+1}\vert s_t, a_t; \theta)">p(s_{t+1}\vert s_t, a_t; \theta)</span>为由<span class="math-inline" data-math="\theta \in \Theta">\theta \in \Theta</span>参数化的前向预测模型，<span class="math-inline" data-math="\xi_t = \{s_1, a_1, \dots, s_t\}">\xi_t = \{s_1, a_1, \dots, s_t\}</span>为轨迹历史。我们希望在采取新动作并观测到下一个状态后减少熵，也就是要最大化以下目标：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+&amp;\sum_t H(\Theta \vert \xi_t, a_t) - H(\Theta \vert S_{t+1}, \xi_t, a_t) \\
+=&amp; I(\Theta; S_{t+1} \vert \xi_t, a_t) \quad \scriptstyle{\text{; because } I(X; Y) = I(X) - I(X \vert Y)} \\
+=&amp; \mathbb{E}_{s_{t+1} \sim \mathcal{P}(.\vert\xi_t,a_t)} [D_\text{KL}(p(\theta \vert \xi_t, a_t, s_{t+1}) \| p(\theta \vert \xi_t, a_t))] \quad \scriptstyle{\text{; because } I(X; Y) = \mathbb{E}_Y [D_\text{KL} (p_{X \vert Y} \| p_X)]} \\
+=&amp; \mathbb{E}_{s_{t+1} \sim \mathcal{P}(.\vert\xi_t,a_t)} [D_\text{KL}(p(\theta \vert \xi_t, a_t, s_{t+1}) \| p(\theta \vert \xi_t))] \quad \scriptstyle{\text{; because } \theta \text{ does not depend on } a_t}
+\end{aligned}
+">
+\begin{aligned}
+&amp;\sum_t H(\Theta \vert \xi_t, a_t) - H(\Theta \vert S_{t+1}, \xi_t, a_t) \\
+=&amp; I(\Theta; S_{t+1} \vert \xi_t, a_t) \quad \scriptstyle{\text{; because } I(X; Y) = I(X) - I(X \vert Y)} \\
+=&amp; \mathbb{E}_{s_{t+1} \sim \mathcal{P}(.\vert\xi_t,a_t)} [D_\text{KL}(p(\theta \vert \xi_t, a_t, s_{t+1}) \| p(\theta \vert \xi_t, a_t))] \quad \scriptstyle{\text{; because } I(X; Y) = \mathbb{E}_Y [D_\text{KL} (p_{X \vert Y} \| p_X)]} \\
+=&amp; \mathbb{E}_{s_{t+1} \sim \mathcal{P}(.\vert\xi_t,a_t)} [D_\text{KL}(p(\theta \vert \xi_t, a_t, s_{t+1}) \| p(\theta \vert \xi_t))] \quad \scriptstyle{\text{; because } \theta \text{ does not depend on } a_t}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>在对新可能状态取期望的同时，代理应采取新动作来增加其对预测模型新信念与旧信念之间的KL散度（“信息增益”）。这一项可以作为内在奖励加入奖励函数：<span class="math-inline" data-math="r^i_t = D_\text{KL} [p(\theta \vert \xi_t, a_t, s_{t+1}) | p(\theta \vert \xi_t))]">r^i_t = D_\text{KL} [p(\theta \vert \xi_t, a_t, s_{t+1}) | p(\theta \vert \xi_t))]</span>。</p>
+      
+    
+      
+        <p>然而，计算后验<span class="math-inline" data-math="p(\theta \vert \xi_t, a_t, s_{t+1})">p(\theta \vert \xi_t, a_t, s_{t+1})</span>通常是不可行的。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+p(\theta \vert \xi_t, a_t, s_{t+1}) 
+&amp;= \frac{p(\theta \vert \xi_t, a_t) p(s_{t+1} \vert \xi_t, a_t; \theta)}{p(s_{t+1}\vert\xi_t, a_t)} \\
+&amp;= \frac{p(\theta \vert \xi_t) p(s_{t+1} \vert \xi_t, a_t; \theta)}{p(s_{t+1}\vert\xi_t, a_t)} &amp; \scriptstyle{\text{; because action doesn&#x27;t affect the belief.}} \\
+&amp;= \frac{\color{red}{p(\theta \vert \xi_t)} p(s_{t+1} \vert \xi_t, a_t; \theta)}{\int_\Theta p(s_{t+1}\vert\xi_t, a_t; \theta) \color{red}{p(\theta \vert \xi_t)} d\theta} &amp; \scriptstyle{\text{; red part is hard to compute directly.}}
+\end{aligned}
+">
+\begin{aligned}
+p(\theta \vert \xi_t, a_t, s_{t+1}) 
+&amp;= \frac{p(\theta \vert \xi_t, a_t) p(s_{t+1} \vert \xi_t, a_t; \theta)}{p(s_{t+1}\vert\xi_t, a_t)} \\
+&amp;= \frac{p(\theta \vert \xi_t) p(s_{t+1} \vert \xi_t, a_t; \theta)}{p(s_{t+1}\vert\xi_t, a_t)} &amp; \scriptstyle{\text{; because action doesn&#x27;t affect the belief.}} \\
+&amp;= \frac{\color{red}{p(\theta \vert \xi_t)} p(s_{t+1} \vert \xi_t, a_t; \theta)}{\int_\Theta p(s_{t+1}\vert\xi_t, a_t; \theta) \color{red}{p(\theta \vert \xi_t)} d\theta} &amp; \scriptstyle{\text{; red part is hard to compute directly.}}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>由于难以直接计算<span class="math-inline" data-math="p(\theta\vert\xi_t)">p(\theta\vert\xi_t)</span>，一个自然的选择是用另一个分布<span class="math-inline" data-math="q_\phi(\theta)">q_\phi(\theta)</span>来近似它。根据变分下界，我们知道最大化<span class="math-inline" data-math="q_\phi(\theta)">q_\phi(\theta)</span>等价于最大化<span class="math-inline" data-math="p(\xi_t\vert\theta)">p(\xi_t\vert\theta)</span>并最小化<span class="math-inline" data-math="D_\text{KL}[q_\phi(\theta) | p(\theta)]">D_\text{KL}[q_\phi(\theta) | p(\theta)]</span>。</p>
+      
+    
+      
+        <p>使用近似分布<span class="math-inline" data-math="q">q</span>，内在奖励变为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+r^i_t = D_\text{KL} [q_{\phi_{t+1}}(\theta) \| q_{\phi_t}(\theta))]
+">
+r^i_t = D_\text{KL} [q_{\phi_{t+1}}(\theta) \| q_{\phi_t}(\theta))]
+</span></div>
+      
+    
+      
+        <p>其中<span class="math-inline" data-math="\phi_{t+1}">\phi_{t+1}</span>表示看到<span class="math-inline" data-math="a_t">a_t</span>和<span class="math-inline" data-math="s_{t+1}">s_{t+1}</span>后与新信念相关的<span class="math-inline" data-math="q">q</span>的参数。当用作探索加成时，它通过除以该KL散度值的移动中位数来进行归一化。</p>
+      
+    
+      
+        <p>这里的动力学模型被参数化为<a href="https://link.springer.com/book/10.1007/978-1-4612-0745-0" target="_blank" rel="noopener">贝叶斯神经网络</a>（BNN），因为它维护了权重上的分布。BNN权重分布<span class="math-inline" data-math="q_\phi(\theta)">q_\phi(\theta)</span>被建模为完全因子分解的高斯分布，具有<span class="math-inline" data-math="\phi = \{\mu, \sigma\}">\phi = \{\mu, \sigma\}</span>，我们可以轻松采样<span class="math-inline" data-math="\theta \sim q_\phi(.)">\theta \sim q_\phi(.)</span>。在应用二阶泰勒展开后，KL项<span class="math-inline" data-math="D_\text{KL}[q_{\phi + \lambda \Delta\phi}(\theta) | q_{\phi}(\theta)]">D_\text{KL}[q_{\phi + \lambda \Delta\phi}(\theta) | q_{\phi}(\theta)]</span>可以使用<span class="math-inline" data-math="\mathbf{F}_\phi">\mathbf{F}_\phi</span>来估计，这很容易计算，因为<span class="math-inline" data-math="q_\phi">q_\phi</span>是因子分解的高斯，因此协方差矩阵只是一个对角矩阵。更多细节见<a href="https://arxiv.org/abs/1605.09674" target="_blank" rel="noopener">论文</a>，尤其是2.3-2.5节。<a href="posts-2019-09-05-evolution-strategies.html">进化策略</a></p>
+      
+    
+      
+        <p>以上所有方法都依赖于单个预测模型。如果我们有多个这样的模型，就可以使用模型之间的不一致性来设置探索奖励（<a href="https://arxiv.org/abs/1906.04161" target="_blank" rel="noopener">Pathak等人，2019</a>）。高不一致性表明预测置信度低，因此需要更多探索。<a href="https://arxiv.org/abs/1906.04161" target="_blank" rel="noopener">Pathak等人（2019）</a>提出训练一组前向动力学模型，并使用模型输出集合的方差作为<span class="math-inline" data-math="r_t^i">r_t^i</span>。具体来说，他们用随机特征对状态空间进行编码，并在集成中学习5个模型。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/exploration-via-disagreement.png" alt="">
+          <figcaption>Illustration of training architecture for self-supervised exploration via disagreement. (Image source:Pathak, et al. 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>由于<span class="math-inline" data-math="r^i_t">r^i_t</span>是可微的，模型中的内在奖励可以直接通过梯度下降进行优化，从而告知策略代理改变动作。这种可微探索方法非常高效，但受限于探索视野较短。</p>
+      
+    
+      
+        <h3>随机网络#</h3>
+        
+      
+    
+      
+        <p>但是，如果预测任务根本与环境动力学无关呢？事实证明，当预测任务是随机的，它仍然可以帮助探索。</p>
+      
+    
+      
+        <p>DORA（“定向延伸强化动作选择”的缩写；<a href="https://arxiv.org/abs/1804.04012" target="_blank" rel="noopener">Fox &amp;amp; Choshen等人，2018</a>）是一个新颖的框架，它基于一个新引入的、与任务无关的MDP来注入探索信号。DORA的思想依赖于两个并行的MDP：</p>
+      
+    
+      
+        <div class="list-content">一个是原始的任务MDP；
+另一个是相同的MDP但不附加任何奖励：相反，每个状态-动作对都被设计为具有值0。为第二个MDP学习的Q值被称为E值。如果模型不能完美地将E值预测为零，则说明它仍然缺少信息。</div>
+      
+    
+      
+        <p>初始时E值被赋值为1。这种正向初始化可以鼓励定向探索以更好地预测E值。具有高E值估计的状态-动作对还没有收集到足够的信息，至少不足以排除它们的高E值。在某种程度上，E值的对数可以被视为访问计数器的一种泛化。</p>
+      
+    
+      
+        <p>当使用神经网络对E值进行函数逼近时，会增加另一个价值头来预测E值，并简单地期望它预测零。给定预测的E值<span class="math-inline" data-math="E(s_t, a_t)">E(s_t, a_t)</span>，探索奖励为<span class="math-inline" data-math="r^i_t = \frac{1}{\sqrt{-\log E(s_t, a_t)}}">r^i_t = \frac{1}{\sqrt{-\log E(s_t, a_t)}}</span>。</p>
+      
+    
+      
+        <p>与DORA类似，随机网络蒸馏（RND；<a href="https://arxiv.org/abs/1810.12894" target="_blank" rel="noopener">Burda等人，2018</a>）引入了一个独立于主要任务的预测任务。RND探索奖励被定义为一个神经网络<span class="math-inline" data-math="\hat{f}(s_t)">\hat{f}(s_t)</span>预测由固定随机初始化神经网络<span class="math-inline" data-math="f(s_t)">f(s_t)</span>生成的观测特征时的误差。其动机是：给定一个新状态，如果过去已经多次访问过相似状态，预测应该更容易，误差也就更低。探索奖励为<span class="math-inline" data-math="r^i(s_t) = |\hat{f}(s_t; \theta) - f(s_t) |_2^2">r^i(s_t) = |\hat{f}(s_t; \theta) - f(s_t) |_2^2</span>。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/RND.png" alt="">
+          <figcaption>How RND (Random Network Distillation) works for providing an intrinsic reward. The features <span class="math-inline" data-math="O_{i+1} \mapsto f_{i+1}">O_{i+1} \mapsto f_{i+1}</span> are generated by a fixed random neural network. (Image source: OpenAI Blog:&quot;Reinforcement Learning with Prediction-Based Rewards&quot;)</figcaption>
+        </figure>
+      
+    
+      
+        <p>RND实验中有两个重要因素：</p>
+      
+    
+      
+        <div class="list-content">非情景设置能带来更好的探索，尤其是在不使用任何外在奖励时。这意味着回报不会在“游戏结束”时被截断，内在回报可以在多个episode之间传播。
+归一化很重要，因为以随机神经网络作为预测目标时，奖励的尺度很难调整。内在奖励通过除以内在回报标准差的运行估计来进行归一化。</div>
+      
+    
+      
+        <p>RND设置在解决困难探索问题上表现良好。例如，最大化RND探索奖励能够持续发现蒙特祖玛的复仇中超过一半的房间。</p>
+      
+    
+      
+        <h3>物理属性#</h3>
+        
+      
+    
+      
+        <p>与模拟器中的游戏不同，一些强化学习应用（如机器人技术）需要理解物理世界中的物体和直观推理。一些预测任务要求代理与环境进行一系列交互并观察相应结果，例如估计物理中的某些隐藏属性（例如质量、摩擦力等）。</p>
+      
+    
+      
+        <p>受这些想法启发，<a href="https://arxiv.org/abs/1611.01843" target="_blank" rel="noopener">Denil等人（2017）</a>发现深度强化学习代理能够学会进行必要的探索来发现这些隐藏属性。具体来说，他们考虑了两个实验：</p>
+      
+    
+      
+        <div class="list-content">“哪个更重？”——代理必须与方块互动并推断哪一个更重。
+“塔”——代理需要通过撞倒塔来推断它由多少个刚体组成。</div>
+      
+    
+      
+        <p>实验中的代理首先经历一个探索阶段，与环境互动并收集信息。一旦探索阶段结束，代理被要求输出一个标记动作来回答问题。如果答案正确，则给予正奖励；否则给予负奖励。由于回答问题需要与场景中的物体进行大量交互，代理必须学会高效地摆弄它们，以弄清楚物理规律并给出正确答案。探索就这样自然发生了。</p>
+      
+    
+      
+        <p>在他们的实验中，代理能够在两个任务中学习，性能随任务难度而变化。虽然论文没有将物理预测任务用于在另一个学习任务的外在奖励之外提供内在奖励加成，而是专注于探索任务本身，但我很欣赏通过预测环境中隐藏物理属性来鼓励复杂探索行为的想法。</p>
+      
+    
+      
+        <h2>基于记忆的探索#</h2>
+        
+      
+    
+      
+        <p>基于奖励的探索存在几个缺点：</p>
+      
+    
+      
+        <div class="list-content">函数逼近追赶速度慢。
+探索奖励是非平稳的。
+知识会淡化，即状态不再新奇，无法及时提供内在奖励信号。</div>
+      
+    
+      
+        <p>本节的方法依赖外部记忆来解决基于奖励加成探索的缺点。</p>
+      
+    
+      
+        <h2>情景记忆#</h2>
+        
+      
+    
+      
+        <p>如上所述，RND在非情景设置下运行得更好，这意味着预测知识会在多个episode之间累积。探索策略“永不放弃”（NGU；<a href="https://arxiv.org/abs/2002.06038" target="_blank" rel="noopener">Badia等人，2020a</a>）结合了一个能在单个episode内快速适应的情景新奇模块和作为终身新奇模块的RND。</p>
+      
+    
+      
+        <p>具体来说，NGU中的内在奖励由两个模块提供的两个探索奖励组成，分别来自单个episode内和跨多个episode。</p>
+      
+    
+      
+        <p>短期的每个episode奖励由情景新奇模块提供。它包含一个情景记忆<span class="math-inline" data-math="M">M</span>（一个动态大小的基于槽位的记忆）和一个IDF（反向动力学特征）嵌入函数<span class="math-inline" data-math="\phi">\phi</span>，与ICM中的特征编码相同。</p>
+      
+    
+      
+        <div class="list-content">在每一步，当前状态嵌入<span class="math-inline" data-math="\phi(s_t)">\phi(s_t)</span>都会被加入<span class="math-inline" data-math="M">M</span>。<span class="math-inline" data-math="M">M</span></div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+ r^\text{episodic}_t \approx \frac{1}{\sqrt{\sum_{\phi_i \in N_k} K(\phi(x_t), \phi_i)} + c}
+ ">
+ r^\text{episodic}_t \approx \frac{1}{\sqrt{\sum_{\phi_i \in N_k} K(\phi(x_t), \phi_i)} + c}
+ </span></div>
+      
+    
+      
+        <div class="list-content">其中<span class="math-inline" data-math="K(x, y)">K(x, y)</span>是一个用于衡量两个样本之间距离的核函数。<span class="math-inline" data-math="N_k">N_k</span>是根据<span class="math-inline" data-math="K(., .)">K(., .)</span>在<span class="math-inline" data-math="M">M</span>中找到的<span class="math-inline" data-math="k">k</span>个最近邻的集合。<span class="math-inline" data-math="c">c</span>是一个小常数，用于保持分母非零。在论文中，<span class="math-inline" data-math="K(x, y)">K(x, y)</span>被配置为逆核：</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+ K(x, y) = \frac{\epsilon}{\frac{d^2(x, y)}{d^2_m} + \epsilon}
+ ">
+ K(x, y) = \frac{\epsilon}{\frac{d^2(x, y)}{d^2_m} + \epsilon}
+ </span></div>
+      
+    
+      
+        <div class="list-content">其中<span class="math-inline" data-math="d(.,.)">d(.,.)</span>是两个样本之间的欧氏距离，<span class="math-inline" data-math="d_m">d_m</span>是第k个最近邻平方欧氏距离的运行平均值，以提高鲁棒性。<span class="math-inline" data-math="\epsilon">\epsilon</span>是一个小常数。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/NGU.png" alt="">
+          <figcaption>The architecture of NGU&#x27;s embedding function (left) and reward generator (right). (Image source:Badia, et al. 2020a)</figcaption>
+        </figure>
+      
+    
+      
+        <p>长期跨episode的新奇性依赖于终身新奇模块中RND的预测误差。探索奖励为<span class="math-inline" data-math="\alpha_t = 1 + \frac{e^\text{RND}(s_t) - \mu_e}{\sigma_e}">\alpha_t = 1 + \frac{e^\text{RND}(s_t) - \mu_e}{\sigma_e}</span>，其中<span class="math-inline" data-math="\mu_e">\mu_e</span>和<span class="math-inline" data-math="\sigma_e">\sigma_e</span>分别是RND误差<span class="math-inline" data-math="e^\text{RND}(s_t)">e^\text{RND}(s_t)</span>的运行均值和标准差。</p>
+      
+    
+      
+        <blockquote>然而，在<a href="https://arxiv.org/abs/1810.12894" target="_blank" rel="noopener">RND论文</a>的结论部分，我注意到以下表述：
+“我们发现RND探索奖励足以处理局部探索，即探索短期决策的结果，比如是否与某个特定物体交互或避开它。然而，涉及长时间跨度协调决策的全局探索超出了我们方法的能力范围。”
+这让我有些困惑RND如何能作为一个好的终身新奇奖励提供者。如果你知道原因，欢迎在下方留言。</blockquote>
+      
+    
+      
+        <p>最终组合的内在奖励是<span class="math-inline" data-math="r^i_t = r^\text{episodic}_t \cdot \text{clip}(\alpha_t, 1, L)">r^i_t = r^\text{episodic}_t \cdot \text{clip}(\alpha_t, 1, L)</span>，其中<span class="math-inline" data-math="L">L</span>是一个常量最大奖励标量。</p>
+      
+    
+      
+        <p>NGU的设计使其具有两个优良特性：</p>
+      
+    
+      
+        <div class="list-content">能快速阻止在同一episode内重复访问相同状态；
+能缓慢阻止跨episode多次访问过的状态。</div>
+      
+    
+      
+        <p>后来，基于NGU，DeepMind提出了“Agent57”（<a href="https://arxiv.org/abs/2003.13350" target="_blank" rel="noopener">Badia等人，2020b</a>），这是第一个在全部57个Atari游戏上超越标准人类基准的深度强化学习代理。Agent57相对于NGU的两个主要改进是：</p>
+      
+    
+      
+        <div class="list-content">在Agent57中训练了一组策略，每个策略配备不同的探索参数对<span class="math-inline" data-math="\{(\beta_j, \gamma_j)\}_{j=1}^N">\{(\beta_j, \gamma_j)\}_{j=1}^N</span>。回想一下，给定<span class="math-inline" data-math="\beta_j">\beta_j</span>，奖励被构造为<span class="math-inline" data-math="r_{j,t} = r_t^e + \beta_j r^i_t">r_{j,t} = r_t^e + \beta_j r^i_t</span>，<span class="math-inline" data-math="\gamma_j">\gamma_j</span>是奖励折扣因子。自然可以预期，具有较高<span class="math-inline" data-math="\beta_j">\beta_j</span>和较低<span class="math-inline" data-math="\gamma_j">\gamma_j</span>的策略在训练早期会取得更多进展，而随着训练进行则相反。一个元控制器（<a href="https://arxiv.org/pdf/0805.3415.pdf" target="_blank" rel="noopener">滑动窗口UCB老虎机算法</a>）被训练来选择应该优先使用哪些策略。
+第二个改进是一种新的Q值函数参数化方法，它以与捆绑奖励类似的形式分解内在和外在奖励的贡献：<span class="math-inline" data-math="Q(s, a; \theta_j) = Q(s, a; \theta_j^e) + \beta_j Q(s, a; \theta_j^i)">Q(s, a; \theta_j) = Q(s, a; \theta_j^e) + \beta_j Q(s, a; \theta_j^i)</span>。在训练期间，<span class="math-inline" data-math="Q(s, a; \theta_j^e)">Q(s, a; \theta_j^e)</span>和<span class="math-inline" data-math="Q(s, a; \theta_j^i)">Q(s, a; \theta_j^i)</span>分别使用奖励<span class="math-inline" data-math="r_j^e">r_j^e</span>和<span class="math-inline" data-math="r_j^i">r_j^i</span>进行单独优化。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/agent57.png" alt="">
+          <figcaption>A pretty cool illustration of techniques developed in time since DQN in 2015, eventually leading to Agent57. (Image source: DeepMind Blog:&quot;Agent57: Outperforming the human Atari benchmark&quot;)</figcaption>
+        </figure>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1810.02274" target="_blank" rel="noopener">Savinov等人（2019）</a>没有使用欧氏距离来衡量情景记忆中状态的接近程度，而是将状态之间的转移纳入考虑，提出了一种衡量从记忆中其他状态到达某个状态所需步数的方法，称为情景好奇心（EC）模块。新奇奖励取决于状态之间的可达性。</p>
+      
+    
+      
+        <div class="list-content">在每个episode开始时，代理从一个空的情景记忆<span class="math-inline" data-math="M">M</span>开始。
+在每一步，代理将当前状态与记忆中保存的状态进行比较以确定新奇奖励：如果当前状态是新奇的（即，从记忆中的观测到达它所需的步数超过阈值），则代理获得奖励。
+如果新奇奖励足够高，则将当前状态加入情景记忆。（想象一下，如果所有状态都被加入记忆，那么任何新状态都可以在1步内到达。）
+重复1-3直到本episode结束。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/transition-graph.png" alt="">
+          <figcaption>The nodes in the graph are states, the edges are possible transitions. The blue nodes are states in memory. The green nodes are reachable from the memory within <span class="math-inline" data-math="k = 2">k = 2</span> steps (not novel). The orange nodes are further away, so they are considered as novel states. (Image source:Savinov, et al. 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>为了估计状态之间的可达性，我们需要访问转移图，但不幸的是它并不完全已知。因此，<a href="https://arxiv.org/abs/1810.02274" target="_blank" rel="noopener">Savinov等人（2019）</a>训练了一个神经网络来预测两个状态之间相隔多少步。它包含一个嵌入网络<span class="math-inline" data-math="\phi: \mathcal{S} \mapsto \mathbb{R}^n">\phi: \mathcal{S} \mapsto \mathbb{R}^n</span>先将状态编码为特征向量，然后是一个比较网络<span class="math-inline" data-math="C: \mathbb{R}^n \times \mathbb{R}^n \mapsto [0, 1]">C: \mathbb{R}^n \times \mathbb{R}^n \mapsto [0, 1]</span>，输出一个二元标签，判断两个状态在转移图中是否足够接近（即在<span class="math-inline" data-math="k">k</span>步内可达），记为<span class="math-inline" data-math="C(\phi(s_i), \phi(s_j)) \mapsto [0, 1]">C(\phi(s_i), \phi(s_j)) \mapsto [0, 1]</span>。<a href="posts-2018-11-30-meta-learning.html">元学习：学会快速学习</a></p>
+      
+    
+      
+        <p>一个情景记忆缓冲区<span class="math-inline" data-math="M">M</span>存储同一episode内一些过去观测的嵌入。新观测将通过<span class="math-inline" data-math="C">C</span>与现有的状态嵌入进行比较，结果被聚合（例如取最大值、第90百分位）以提供可达性分数<span class="math-inline" data-math="C^M(\phi(s_t))">C^M(\phi(s_t))</span>。探索奖励为<span class="math-inline" data-math="r^i_t = \big(C’ - C^M(f(s_t))\big)">r^i_t = \big(C’ - C^M(f(s_t))\big)</span>，其中<span class="math-inline" data-math="C’">C’</span>是一个预定义的阈值，用于确定奖励的符号（例如<span class="math-inline" data-math="C’=0.5">C’=0.5</span>对固定时长的episode效果良好）。当新状态不容易从记忆缓冲区中的状态到达时，会获得高奖励。</p>
+      
+    
+      
+        <p>他们声称EC模块可以克服噪声电视问题。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/episodic-memory-overview.png" alt="">
+          <figcaption>The architecture of episodic curiosity (EC) module for intrinsic reward generation.  (Image source:Savinov, et al. 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>直接探索#</h2>
+        
+      
+    
+      
+        <p>Go-Explore（<a href="https://arxiv.org/abs/1901.10995" target="_blank" rel="noopener">Ecoffet等人，2019</a>）是一种旨在解决“困难探索”问题的算法。它由以下两个阶段组成。</p>
+      
+    
+      
+        <p>第一阶段（“探索直到解决”）感觉很像<a href="https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm" target="_blank" rel="noopener">Dijkstra算法</a>在图中寻找最短路径。事实上，第一阶段不涉及任何神经网络。通过维护有趣状态及其到达轨迹的记忆，代理可以返回（假设模拟器是确定的）到有希望的状态，并从那里继续进行随机探索。状态被映射为一个简短的离散化编码（称为“单元”）以便记忆。如果出现新状态或找到更好/更短的轨迹，则更新记忆。在选择要返回的过去状态时，代理可能会均匀地从记忆中选择，或者根据最近性、访问计数、记忆中邻居数量等启发式方法选择。这个过程重复直到任务被解决并至少找到一条解决方案轨迹。</p>
+      
+    
+      
+        <p>上述找到的高性能轨迹在任何具有随机性的评估环境中都不会表现良好。因此，需要第二阶段（“鲁棒化”）通过模仿学习来使解决方案变得鲁棒。他们采用了<a href="https://arxiv.org/abs/1812.03381" target="_blank" rel="noopener">Backward Algorithm</a>，其中代理从轨迹中最后一个状态附近开始，然后从那里运行强化学习优化。</p>
+      
+    
+      
+        <p>第一阶段的一个重要注意事项是：为了在没有探索的情况下确定性地返回到某个状态，Go-Explore依赖于一个可重置且确定的模拟器，这是一个很大的缺点。</p>
+      
+    
+      
+        <p>为了使该算法对具有随机性的环境更具普适性，后来提出了Go-Explore的增强版本（<a href="https://arxiv.org/abs/2004.12919" target="_blank" rel="noopener">Ecoffet等人，2020</a>），称为基于策略的Go-Explore。</p>
+      
+    
+      
+        <div class="list-content">基于策略的Go-Explore不再轻松重置模拟器状态，而是学习一个目标条件策略，并用它来反复访问记忆中的已知状态。目标条件策略被训练来跟随之前引导到记忆中选定状态的最佳轨迹。他们加入了自模仿学习（SIL；<a href="https://arxiv.org/abs/1806.05635" target="_blank" rel="noopener">Oh等人，2018</a>）损失，以帮助从成功轨迹中提取尽可能多的信息。
+此外，他们发现当代理返回到有希望的状态继续探索时，从策略中采样比随机动作效果更好。
+基于策略的Go-Explore的另一个改进是使图像到单元的下采样函数可调整。它经过优化，以确保记忆中既不会太多也不会太少单元。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/policy-based-Go-Explore.png" alt="">
+          <figcaption>An overview of the Go-Explore algorithm. (Image source:Ecoffet, et al., 2020)</figcaption>
+        </figure>
+      
+    
+      
+        <p>在原始Go-Explore之后，<a href="https://arxiv.org/abs/1907.10247" target="_blank" rel="noopener">Yijie Guo等人（2019）</a>提出了DTSIL（多样轨迹条件自模仿学习），其思路与上述基于策略的Go-Explore类似。DTSIL维护一个在训练期间收集的多样示范记忆，并使用它们通过<a href="https://arxiv.org/abs/1806.05635" target="_blank" rel="noopener">SIL</a>训练一个轨迹条件策略。他们在采样时优先选择以稀有状态结束的轨迹。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/DTSIL-algo.png" alt="">
+          <figcaption>Algorithm of DTSIL (Diverse Trajectory-conditioned Self-Imitation Learning). (Image source:Yijie Guo, et al. 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>类似的方法也出现在<a href="https://arxiv.org/abs/1906.07805" target="_blank" rel="noopener">Guo等人（2019）</a>中。主要思想是将具有高不确定性的目标存储在记忆中，以便后续代理可以通过目标条件策略反复重访这些目标状态。在每个episode中，代理抛硬币（概率0.5）来决定是根据策略贪婪行动，还是从记忆中采样目标进行定向探索。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/directed-exploration.png" alt="">
+          <figcaption>Different components in directed exploration with function approximation. (Image source:Guo, et al. 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>状态的不确定性度量可以是简单的基于计数的奖励，也可以是复杂的如密度或贝叶斯模型。论文训练了一个前向动力学模型，并将其预测误差作为不确定性度量。</p>
+      
+    
+      
+        <h2>Q值探索#</h2>
+        
+      
+    
+      
+        <p>受的启发，Bootstrapped DQN（<a href="https://arxiv.org/abs/1602.04621" target="_blank" rel="noopener">Osband等人，2016</a>）通过使用<a href="https://en.wikipedia.org/wiki/Bootstrapping_(statistics)" target="_blank" rel="noopener">自助法</a>在经典<a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a>的Q值逼近中引入了不确定性概念。自助法是通过从同一总体中有放回地多次采样并聚合结果来近似分布。<a href="posts-2018-01-23-multi-armed-bandit.html">多臂老虎机问题及其解决方案</a></p>
+      
+    
+      
+        <p>多个Q值头并行训练，但每个只使用自助子采样数据集，并且每个都有自己对应的目标网络。所有Q值头共享相同的主干网络。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/bootstrapped-DQN-algo.png" alt="">
+          <figcaption>The algorithm of Bootstrapped DQN. (Image source:Osband, et al. 2016)</figcaption>
+        </figure>
+      
+    
+      
+        <p>在一个episode开始时，均匀采样一个Q值头，并在该episode中负责收集经验数据。然后从掩码分布<span class="math-inline" data-math="m \sim \mathcal{M}">m \sim \mathcal{M}</span>中采样一个二进制掩码，决定哪些头可以使用这些数据进行训练。掩码分布<span class="math-inline" data-math="\mathcal{M}">\mathcal{M}</span>的选择决定了自助样本的生成方式；例如：</p>
+      
+    
+      
+        <div class="list-content">如果<span class="math-inline" data-math="\mathcal{M}">\mathcal{M}</span>是参数为<span class="math-inline" data-math="p=0.5">p=0.5</span>的独立伯努利分布，则对应于double-or-nothing自助法。
+如果<span class="math-inline" data-math="\mathcal{M}">\mathcal{M}</span>始终返回全1掩码，则算法退化为集成方法。</div>
+      
+    
+      
+        <p>然而，这种探索仍然是受限的，因为由自助法引入的不确定性完全依赖于训练数据。最好注入一些独立于数据的先验信息。这种“噪声”先验有望在奖励稀疏时驱动代理持续探索。将随机先验加入Bootstrapped DQN以实现更好探索的算法（<a href="https://arxiv.org/abs/1806.03335" target="_blank" rel="noopener">Osband等人，2018</a>）依赖于贝叶斯线性回归。贝叶斯回归的核心思想是：“我们可以通过在数据的噪声版本上训练，并加上一些随机正则化，来生成后验样本”。</p>
+      
+    
+      
+        <p>令<span class="math-inline" data-math="\theta">\theta</span>为Q函数参数，<span class="math-inline" data-math="\theta^-">\theta^-</span>为目标Q，使用随机化先验函数<span class="math-inline" data-math="p">p</span>的损失函数为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}(\theta, \theta^{-}, p, \mathcal{D}; \gamma) = \sum_{t\in\mathcal{D}}\Big( r_t + \gamma \max_{a&#x27;\in\mathcal{A}} (\underbrace{Q_{\theta^-} + p)}_\text{target Q}(s&#x27;_t, a&#x27;) - \underbrace{(Q_\theta + p)}_\text{Q to optimize}(s_t, a_t) \Big)^2
+">
+\mathcal{L}(\theta, \theta^{-}, p, \mathcal{D}; \gamma) = \sum_{t\in\mathcal{D}}\Big( r_t + \gamma \max_{a&#x27;\in\mathcal{A}} (\underbrace{Q_{\theta^-} + p)}_\text{target Q}(s&#x27;_t, a&#x27;) - \underbrace{(Q_\theta + p)}_\text{Q to optimize}(s_t, a_t) \Big)^2
+</span></div>
+      
+    
+      
+        <h2>变分选项#</h2>
+        
+      
+    
+      
+        <p>选项是带有终止条件的策略。在搜索空间中存在大量选项，它们独立于代理的意图。通过显式地将内在选项纳入建模，代理可以获得用于探索的内在奖励。</p>
+      
+    
+      
+        <p>VIC（“变分内在控制”的缩写；<a href="https://arxiv.org/abs/1611.07507" target="_blank" rel="noopener">Gregor等人，2017</a>）就是一个这样的框架，它通过对选项建模并学习以选项为条件的策略来为代理提供内在探索奖励。令<span class="math-inline" data-math="\Omega">\Omega</span>表示一个从<span class="math-inline" data-math="s_0">s_0</span>开始并在<span class="math-inline" data-math="s_f">s_f</span>结束的选项。环境概率分布<span class="math-inline" data-math="p^J(s_f \vert s_0, \Omega)">p^J(s_f \vert s_0, \Omega)</span>定义了给定起始状态<span class="math-inline" data-math="s_0">s_0</span>时选项<span class="math-inline" data-math="\Omega">\Omega</span>在何处终止。可控性分布<span class="math-inline" data-math="p^C(\Omega \vert s_0)">p^C(\Omega \vert s_0)</span>定义了我们可以从中采样的选项的概率分布。根据定义有<span class="math-inline" data-math="p(s_f, \Omega \vert s_0) = p^J(s_f \vert s_0, \Omega) p^C(\Omega \vert s_0)">p(s_f, \Omega \vert s_0) = p^J(s_f \vert s_0, \Omega) p^C(\Omega \vert s_0)</span>。</p>
+      
+    
+      
+        <p>在选择选项时，我们希望实现两个目标：</p>
+      
+    
+      
+        <div class="list-content">从<span class="math-inline" data-math="s_0">s_0</span>获得多样化的最终状态集合 ⇨ 最大化<span class="math-inline" data-math="H(s_f \vert s_0)">H(s_f \vert s_0)</span>。
+精确知道给定选项<span class="math-inline" data-math="\Omega">\Omega</span>可以结束于哪个状态 ⇨ 最小化<span class="math-inline" data-math="H(s_f \vert s_0, \Omega)">H(s_f \vert s_0, \Omega)</span>。</div>
+      
+    
+      
+        <p>将两者结合，我们得到要最大化的互信息<span class="math-inline" data-math="I(\Omega; s_f \vert s_0)">I(\Omega; s_f \vert s_0)</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+I(\Omega; s_f \vert s_0)
+&amp;= H(s_f \vert s_0) - H(s_f \vert s_0, \Omega) \\
+&amp;= - \sum_{s_f} p(s_f \vert s_0) \log p(s_f \vert s_0) + \sum_{s_f, \Omega} p(s_f, \Omega \vert s_0) \log \frac{p(s_f, \Omega \vert s_0)}{p^C(\Omega \vert s_0)} \\
+&amp;= - \sum_{s_f} p(s_f \vert s_0) \log p(s_f \vert s_0) + \sum_{s_f, \Omega} p^J(s_f \vert s_0, \Omega) p^C(\Omega \vert s_0) \log p^J(s_f \vert s_0, \Omega) \\
+\end{aligned}
+">
+\begin{aligned}
+I(\Omega; s_f \vert s_0)
+&amp;= H(s_f \vert s_0) - H(s_f \vert s_0, \Omega) \\
+&amp;= - \sum_{s_f} p(s_f \vert s_0) \log p(s_f \vert s_0) + \sum_{s_f, \Omega} p(s_f, \Omega \vert s_0) \log \frac{p(s_f, \Omega \vert s_0)}{p^C(\Omega \vert s_0)} \\
+&amp;= - \sum_{s_f} p(s_f \vert s_0) \log p(s_f \vert s_0) + \sum_{s_f, \Omega} p^J(s_f \vert s_0, \Omega) p^C(\Omega \vert s_0) \log p^J(s_f \vert s_0, \Omega) \\
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>由于互信息是对称的，我们可以在几个地方交换<span class="math-inline" data-math="s_f">s_f</span>和<span class="math-inline" data-math="\Omega">\Omega</span>而不破坏等价性。同时因为<span class="math-inline" data-math="p(\Omega \vert s_0, s_f)">p(\Omega \vert s_0, s_f)</span>难以观测，让我们用近似分布<span class="math-inline" data-math="q">q</span>替换它。根据变分下界，我们有<span class="math-inline" data-math="I(\Omega; s_f \vert s_0) \geq I^{VB}(\Omega; s_f \vert s_0)">I(\Omega; s_f \vert s_0) \geq I^{VB}(\Omega; s_f \vert s_0)</span>。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+I(\Omega; s_f \vert s_0)
+&amp;= I(s_f; \Omega \vert s_0) \\
+&amp;= - \sum_{\Omega} p(\Omega \vert s_0) \log p(\Omega \vert s_0) + \sum_{s_f, \Omega} p^J(s_f \vert s_0, \Omega) p^C(\Omega \vert s_0) \log \color{red}{p(\Omega \vert s_0, s_f)}\\
+I^{VB}(\Omega; s_f \vert s_0)
+&amp;= - \sum_{\Omega} p(\Omega \vert s_0) \log p(\Omega \vert s_0) + \sum_{s_f, \Omega} p^J(s_f \vert s_0, \Omega) p^C(\Omega \vert s_0) \log \color{red}{q(\Omega \vert s_0, s_f)} \\
+I(\Omega; s_f \vert s_0) &amp;\geq I^{VB}(\Omega; s_f \vert s_0)
+\end{aligned}
+">
+\begin{aligned}
+I(\Omega; s_f \vert s_0)
+&amp;= I(s_f; \Omega \vert s_0) \\
+&amp;= - \sum_{\Omega} p(\Omega \vert s_0) \log p(\Omega \vert s_0) + \sum_{s_f, \Omega} p^J(s_f \vert s_0, \Omega) p^C(\Omega \vert s_0) \log \color{red}{p(\Omega \vert s_0, s_f)}\\
+I^{VB}(\Omega; s_f \vert s_0)
+&amp;= - \sum_{\Omega} p(\Omega \vert s_0) \log p(\Omega \vert s_0) + \sum_{s_f, \Omega} p^J(s_f \vert s_0, \Omega) p^C(\Omega \vert s_0) \log \color{red}{q(\Omega \vert s_0, s_f)} \\
+I(\Omega; s_f \vert s_0) &amp;\geq I^{VB}(\Omega; s_f \vert s_0)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/VIC-explicit-options.png" alt="">
+          <figcaption>The algorithm for VIC (Variational Intrinsic Control). (Image source:Gregor, et al. 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>这里<span class="math-inline" data-math="\pi(a \vert \Omega, s)">\pi(a \vert \Omega, s)</span>可以用任何强化学习算法进行优化。选项推断函数<span class="math-inline" data-math="q(\Omega \vert s_0, s_f)">q(\Omega \vert s_0, s_f)</span>进行监督学习。先验<span class="math-inline" data-math="p^C">p^C</span>被更新，以便倾向于选择具有更高奖励的<span class="math-inline" data-math="\Omega">\Omega</span>。注意<span class="math-inline" data-math="p^C">p^C</span>也可以是固定的（例如高斯分布）。不同的<span class="math-inline" data-math="\Omega">\Omega</span>通过学习会产生不同的行为。此外，<a href="https://arxiv.org/abs/1611.07507" target="_blank" rel="noopener">Gregor等人（2017）</a>观察到，使用显式选项的VIC在实践中用函数逼近难以奏效，因此他们还提出了另一种使用隐式选项的VIC版本。</p>
+      
+    
+      
+        <p>与仅基于起始和结束状态对<span class="math-inline" data-math="\Omega">\Omega</span>建模的VIC不同，VALOR（“通过强化学习的变分自编码选项学习”的缩写；<a href="https://arxiv.org/abs/1807.10299" target="_blank" rel="noopener">Achiam等人，2018</a>）依赖于整个轨迹来提取选项上下文<span class="math-inline" data-math="c">c</span>，该上下文从固定的高斯分布中采样。在VALOR中：</p>
+      
+    
+      
+        <div class="list-content">一个策略作为编码器，将来自噪声分布的上下文转换为轨迹；
+一个解码器尝试从轨迹中恢复上下文，并通过使上下文更容易区分来奖励策略。解码器在训练期间从不看到动作，因此代理必须以一种便于与解码器沟通以获得更好预测的方式与环境交互。此外，解码器循环地接收一个轨迹中的一系列步骤，以更好地建模时间步之间的相关性。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-06-07-exploration-drl/VALOR-decoder.png" alt="">
+          <figcaption>The decoder of VALOR is a biLSTM which takes <span class="math-inline" data-math="N = 11">N = 11</span> equally spaced observations from one trajectory as inputs. (Image source:Achiam, et al. 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>DIAYN（“多样性就是一切所需”；<a href="https://arxiv.org/abs/1802.06070" target="_blank" rel="noopener">Eysenbach等人，2018</a>）的思想方向相同，尽管名字不同——DIAYN对以潜在技能变量为条件的策略进行建模。更多细节见我的。<a href="posts-2019-06-23-meta-rl.html">元强化学习</a></p>
+      
+    
+      
+        <h2>引用#</h2>
+        
+      
+    
+      
+        <p>引用格式：</p>
+      
+    
+      
+        <blockquote>Weng, Lilian. (Jun 2020). Exploration strategies in deep reinforcement learning. Lil’Log. https://lilianweng.github.io/posts/2020-06-07-exploration-drl/.</blockquote>
+      
+    
+      
+        <pre><code>@article{weng2020exploration,
+  title   = &quot;Exploration Strategies in Deep Reinforcement Learning&quot;,
+  author  = &quot;Weng, Lilian&quot;,
+  journal = &quot;lilianweng.github.io&quot;,
+  year    = &quot;2020&quot;,
+  month   = &quot;Jun&quot;,
+  url     = &quot;https://lilianweng.github.io/posts/2020-06-07-exploration-drl/&quot;
+}
+</code></pre>
+      
+    
+      
+        <h2>参考文献#</h2>
+        
+      
+    
+      
+        <p>[1] Pierre-Yves Oudeyer &amp; Frederic Kaplan. <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.567.6524&amp;amp;rep=rep1&amp;amp;type=pdf" target="_blank" rel="noopener">“How can we define intrinsic motivation?”</a> Conf. on Epigenetic Robotics, 2008.</p>
+      
+    
+      
+        <p>[2] Marc G. Bellemare, et al. <a href="https://arxiv.org/abs/1606.01868" target="_blank" rel="noopener">“Unifying Count-Based Exploration and Intrinsic Motivation”</a>. NIPS 2016.</p>
+      
+    
+      
+        <p>[3] Georg Ostrovski, et al. <a href="https://arxiv.org/abs/1703.01310" target="_blank" rel="noopener">“Count-Based Exploration with Neural Density Models”</a>. PMLR 2017.</p>
+      
+    
+      
+        <p>[4] Rui Zhao &amp; Volker Tresp. <a href="https://arxiv.org/abs/1902.08039" target="_blank" rel="noopener">“Curiosity-Driven Experience Prioritization via Density Estimation”</a>. NIPS 2018.</p>
+      
+    
+      
+        <p>[5] Haoran Tang, et al. <a href="https://arxiv.org/abs/1611.04717" target="_blank" rel="noopener">&amp;quot;#Exploration: A Study of Count-Based Exploration for Deep Reinforcement Learning”</a>. NIPS 2017.</p>
+      
+    
+      
+        <p>[6] Jürgen Schmidhuber. <a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.45.957" target="_blank" rel="noopener">“A possibility for implementing curiosity and boredom in model-building neural controllers”</a> 1991.</p>
+      
+    
+      
+        <p>[7] Pierre-Yves Oudeyer, et al. <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.177.7661&amp;amp;rep=rep1&amp;amp;type=pdf" target="_blank" rel="noopener">“Intrinsic Motivation Systems for Autonomous Mental Development”</a> IEEE Transactions on Evolutionary Computation, 2007.</p>
+      
+    
+      
+        <p>[8] Bradly C. Stadie, et al. <a href="https://arxiv.org/abs/1507.00814" target="_blank" rel="noopener">“Incentivizing Exploration In Reinforcement Learning With Deep Predictive Models”</a>. ICLR 2016.</p>
+      
+    
+      
+        <p>[9] Deepak Pathak, et al. <a href="https://arxiv.org/abs/1705.05363" target="_blank" rel="noopener">“Curiosity-driven Exploration by Self-supervised Prediction”</a>. CVPR 2017.</p>
+      
+    
+      
+        <p>[10] Yuri Burda, Harri Edwards &amp; Deepak Pathak, et al. <a href="https://arxiv.org/abs/1808.04355" target="_blank" rel="noopener">“Large-Scale Study of Curiosity-Driven Learning”</a>. arXiv 1808.04355 (2018).</p>
+      
+    
+      
+        <p>[11] Joshua Achiam &amp; Shankar Sastry. <a href="https://arxiv.org/abs/1703.01732" target="_blank" rel="noopener">“Surprise-Based Intrinsic Motivation for Deep Reinforcement Learning”</a> NIPS 2016 Deep RL Workshop.</p>
+      
+    
+      
+        <p>[12] Rein Houthooft, et al. <a href="https://arxiv.org/abs/1605.09674" target="_blank" rel="noopener">“VIME: Variational information maximizing exploration”</a>. NIPS 2016.</p>
+      
+    
+      
+        <p>[13] Leshem Choshen, Lior Fox &amp; Yonatan Loewenstein. <a href="https://arxiv.org/abs/1804.04012" target="_blank" rel="noopener">“DORA the explorer: Directed outreaching reinforcement action-selection”</a>. ICLR 2018</p>
+      
+    
+      
+        <p>[14] Yuri Burda, et al. <a href="https://arxiv.org/abs/1810.12894" target="_blank" rel="noopener">“Exploration by Random Network Distillation”</a> ICLR 2019.</p>
+      
+    
+      
+        <p>[15] OpenAI Blog: <a href="https://openai.com/blog/reinforcement-learning-with-prediction-based-rewards/" target="_blank" rel="noopener">“Reinforcement Learning with Prediction-Based Rewards”</a> Oct, 2018.</p>
+      
+    
+      
+        <p>[16] Misha Denil, et al. <a href="https://arxiv.org/abs/1611.01843" target="_blank" rel="noopener">“Learning to Perform Physics Experiments via Deep Reinforcement Learning”</a>. ICLR 2017.</p>
+      
+    
+      
+        <p>[17] Ian Osband, et al. <a href="https://arxiv.org/abs/1602.04621" target="_blank" rel="noopener">“Deep Exploration via Bootstrapped DQN”</a>. NIPS 2016.</p>
+      
+    
+      
+        <p>[18] Ian Osband, John Aslanides &amp; Albin Cassirer. <a href="https://arxiv.org/abs/1806.03335" target="_blank" rel="noopener">“Randomized Prior Functions for Deep Reinforcement Learning”</a>. NIPS 2018.</p>
+      
+    
+      
+        <p>[19] Karol Gregor, Danilo Jimenez Rezende &amp; Daan Wierstra. <a href="https://arxiv.org/abs/1611.07507" target="_blank" rel="noopener">“Variational Intrinsic Control”</a>. ICLR 2017.</p>
+      
+    
+      
+        <p>[20] Joshua Achiam, et al. <a href="https://arxiv.org/abs/1807.10299" target="_blank" rel="noopener">“Variational Option Discovery Algorithms”</a>. arXiv 1807.10299 (2018).</p>
+      
+    
+      
+        <p>[21] Benjamin Eysenbach, et al. <a href="https://arxiv.org/abs/1802.06070" target="_blank" rel="noopener">“Diversity is all you need: Learning skills without a reward function.”</a>. ICLR 2019.</p>
+      
+    
+      
+        <p>[22] Adrià Puigdomènech Badia, et al. <a href="https://arxiv.org/abs/2002.06038" target="_blank" rel="noopener">“Never Give Up (NGU): Learning Directed Exploration Strategies”</a> ICLR 2020.</p>
+      
+    
+      
+        <p>[23] Adrià Puigdomènech Badia, et al.  <a href="https://arxiv.org/abs/2003.13350" target="_blank" rel="noopener">“Agent57: Outperforming the Atari Human Benchmark”</a>. arXiv 2003.13350 (2020).</p>
+      
+    
+      
+        <p>[24] DeepMind Blog: <a href="https://deepmind.com/blog/article/Agent57-Outperforming-the-human-Atari-benchmark" target="_blank" rel="noopener">“Agent57: Outperforming the human Atari benchmark”</a> Mar 2020.</p>
+      
+    
+      
+        <p>[25] Nikolay Savinov, et al. <a href="https://arxiv.org/abs/1810.02274" target="_blank" rel="noopener">“Episodic Curiosity through Reachability”</a> ICLR 2019.</p>
+      
+    
+      
+        <p>[26] Adrien Ecoffet, et al. <a href="https://arxiv.org/abs/1901.10995" target="_blank" rel="noopener">“Go-Explore: a New Approach for Hard-Exploration Problems”</a>. arXiv 1901.10995 (2019).</p>
+      
+    
+      
+        <p>[27] Adrien Ecoffet, et al. <a href="https://arxiv.org/abs/2004.12919" target="_blank" rel="noopener">“First return then explore”</a>. arXiv 2004.12919 (2020).</p>
+      
+    
+      
+        <p>[28] Junhyuk Oh, et al. <a href="https://arxiv.org/abs/1806.05635" target="_blank" rel="noopener">“Self-Imitation Learning”</a>. ICML 2018.</p>
+      
+    
+      
+        <p>[29] Yijie Guo, et al. <a href="https://arxiv.org/abs/1907.10247" target="_blank" rel="noopener">“Self-Imitation Learning via Trajectory-Conditioned Policy for Hard-Exploration Tasks”</a>. arXiv 1907.10247 (2019).</p>
+      
+    
+      
+        <p>[30] Zhaohan Daniel Guo &amp; Emma Brunskill. <a href="https://arxiv.org/abs/1906.07805" target="_blank" rel="noopener">“Directed Exploration for Reinforcement Learning”</a>. arXiv 1906.07805 (2019).</p>
+      
+    
+      
+        <p>[31] Deepak Pathak, et al. <a href="https://arxiv.org/abs/1906.04161" target="_blank" rel="noopener">“Self-Supervised Exploration via Disagreement.”</a> ICML 2019.</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

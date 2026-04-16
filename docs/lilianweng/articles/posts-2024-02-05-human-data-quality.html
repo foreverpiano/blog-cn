@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>思考高质量人类数据 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>思考高质量人类数据</h1>
+    <div class="meta">
+      2024-02-05 · 
+      <a href="https://lilianweng.github.io/posts/2024-02-05-human-data-quality/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">人类标注者 ↔ 数据质量
+
+群体的智慧
+
+标注者一致性
+
+标注者分歧与两种范式
+
+
+数据质量 ↔ 模型训练
+
+影响力函数
+
+训练过程中的预测变化
+
+噪声交叉验证
+
+
+引用
+
+参考文献</div>
+      
+    
+      
+        <p>[特别感谢 <a href="https://scholar.google.com/citations?user=FRBObOwAAAAJ&amp;amp;hl=en" target="_blank" rel="noopener">Ian Kivlichan</a> 提供了许多有用的指引（例如那篇100多年前发表在 Nature 上的论文“Vox populi”）以及宝贵的反馈。🙏 ]</p>
+      
+    
+      
+        <p>高质量数据是现代深度学习模型训练的燃料。大多数特定任务的标注数据都来自人类标注，例如分类任务或用于 LLM 对齐训练的 <a href="posts-2021-01-02-controllable-text-generation.html">可控神经文本生成</a> 标注（可构造为分类形式）。本文介绍的许多机器学习技术都能帮助提升数据质量，但从根本上说，人类数据收集需要注重细节和谨慎执行。社区都知道高质量数据的价值，但我们却隐约有这样一种印象：“人人都想做模型工作，不想做数据工作”（<a href="https://dl.acm.org/doi/abs/10.1145/3411764.3445518" target="_blank" rel="noopener">Sambasivan et al. 2021</a>）。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/overview.png" alt="">
+          <figcaption>Two directions to approach high data quality.</figcaption>
+        </figure>
+      
+    
+      
+        <h2>人类标注者 ↔ 数据质量#</h2>
+        
+      
+    
+      
+        <p>收集人类数据涉及一系列操作步骤，每个步骤都对数据质量产生影响：</p>
+      
+    
+      
+        <div class="list-content">任务设计：设计任务流程以提高清晰度并降低复杂度。详细的指导原则很有帮助，但过长且复杂的指南需要进行大量培训才能发挥作用。
+选择并培训标注者池：选择技能匹配且一致性好的标注者。培训环节必不可少。上岗后，还需要定期反馈和校准会议。
+收集并聚合数据。在此阶段可以应用更多机器学习技术来清洗、过滤并智能聚合数据，以确定真实标签。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/qualit_assurance.png" alt="">
+          <figcaption>Quality assurance refers to a set of actions that allow one to improve quality by acting on the quality attributes identified in the quality model. (Image source:Daniel et al. 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>群体的智慧#</h2>
+        
+      
+    
+      
+        <p><a href="https://en.wikipedia.org/wiki/Vox_populi" target="_blank" rel="noopener">Vox populi</a>（原为“Vox populi, vox Dei”），是一句拉丁语，意思是“人民的声音”。1907 年，《自然》杂志发表了一篇同名短文。它记录了在一次年度展览上，人们猜测一头肥牛重量以赢得奖品的事件。中位数估计被视为“人民的声音”，结果与真实重量非常接近。作者总结道：“我认为，这个结果比预期的更能证明民主判断的可信度。” 这可能是最早提及众包（“群体的智慧”）如何发挥作用的文献。</p>
+      
+    
+      
+        <p>将近100年后，<a href="https://aclanthology.org/D09-1030/" target="_blank" rel="noopener">Callison-Burch (2009)</a> 较早地研究了使用 Amazon Mechanical Turk (AMT) 让非专家进行机器翻译（MT）任务的人类评估，甚至依靠非专家创建新的黄金参考译文。人类评估的设置很简单：每个 turker 看到一个源句、一个参考译文，以及 5 个来自 5 个机器翻译系统的译文。他们被要求将 5 个译文从最好到最差进行排序。每项任务由 5 名 turker 完成。</p>
+      
+    
+      
+        <p>不出意外，存在为了追求数量而产生低质量标注的“刷子”。因此在衡量专家与非专家之间的一致性时，需要采用不同的加权方案来降低刷子的贡献：(1)“按专家加权”：基于在 10 个黄金样本上与专家的一致率；(2)“按非专家加权”：依赖于与其他 turker 在整个数据集上的一致率。</p>
+      
+    
+      
+        <p>在更难的任务中，非专家人类标注者被要求创建新的黄金参考译文。Callison-Burch 将任务设计为两个阶段，第一阶段参考机器翻译输出创建新译文，第二阶段过滤那些看起来像是机器翻译系统生成的译文。专家与众包译文之间的相关性高于专家与机器翻译系统输出之间的相关性。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/AMT_exp.png" alt="">
+          <figcaption>(Left) The agreement rate is measured by comparing each pair of translation sentences (&quot;A &gt; B&quot;, &quot;A=B&quot;, &quot;A &lt; B&quot;) and thus chance agreement is 1/3. The upper bound is set by the expert-expert agreement rate. (Right) Comparison of BLEU score between translations from different sources. LCD (Linguistic Data Consortium) translators provide expert translations. (Image source:Callison-Burch 2009)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>标注者一致性#</h2>
+        
+      
+    
+      
+        <p>我们通常认为标注的目标是单一的真实答案，并试图用一致的标准对照一个黄金答案来评估质量。寻找可靠真实标签的常见做法是从多个标注者那里收集多个标签。假设每个标注者的质量水平不同，我们可以使用标注的加权平均，其中权重由熟练度分数决定。这个分数通常通过一个标注者与其他人的同意频率来近似。</p>
+      
+    
+      
+        <p>多数投票：采用多数投票是最简单的聚合方式，等价于取一组标签的 <a href="https://en.wikipedia.org/wiki/Mode_(statistics)" target="_blank" rel="noopener">众数</a>。在这种设定下，每个标注者的贡献是相等的。</p>
+      
+    
+      
+        <p>原始一致性（<a href="https://aclanthology.org/P10-1070/" target="_blank" rel="noopener">Tratz &amp;amp; Hovy, 2010</a>）：原始一致性统计其他人同意他们的百分比。这与多数投票有间接相关性，因为多数类别的所有成员预计会获得更高的标注者间一致率。</p>
+      
+    
+      
+        <p>Cohen’s Kappa（<a href="https://www.jstor.org/stable/2529310" target="_blank" rel="noopener">Landis &amp;amp; Koch, 1977</a>）：Cohen’s kappa 以 <span class="math-inline" data-math="\kappa = (p_o - p_e) / (1 - p_c)">\kappa = (p_o - p_e) / (1 - p_c)</span> 的形式衡量标注者间一致性，其中 <span class="math-inline" data-math="p_o">p_o</span> 是原始一致率，<span class="math-inline" data-math="p_e">p_e</span> 是随机一致率。Cohen’s kappa 对随机一致进行了修正，但如果某个标签更常见，这个修正项可能会被高估。</p>
+      
+    
+      
+        <p>概率图模型：有大量工作依赖 <a href="https://en.wikipedia.org/wiki/Graphical_model" target="_blank" rel="noopener">概率图模型</a> 来建模标注决策中的不同因素，例如任务难度、任务潜在主题、标注者偏差、标注者信心，然后据此预测真实标签。<a href="https://dl.acm.org/doi/abs/10.14778/3055540.3055547" target="_blank" rel="noopener">Zheng et al. (2017)</a> 比较了 17 种众包真实标签推断算法，其中大多数是概率图模型。</p>
+      
+    
+      
+        <div class="list-content">MACE（Multi-Annotator Competence Estimation；<a href="https://aclanthology.org/N13-1132" target="_blank" rel="noopener">Hovy et al. 2013</a>）是早期使用图模型估计某人是否像“刷子”一样随机打标签的例子。不出意外，当激励机制不对齐时，有些标注者可能会表现得像“刷子”，以完成更多任务来获得更高报酬。MACE 的目标是识别刷子。给定一个任务 <span class="math-inline" data-math="i">i</span> 和一个标注者 <span class="math-inline" data-math="j">j</span>，<span class="math-inline" data-math="T_i">T_i</span> 是真实标签，<span class="math-inline" data-math="A_{ij}">A_{ij}</span> 是分配的标签，<span class="math-inline" data-math="S_{ij}">S_{ij}</span> 建模标注者 <span class="math-inline" data-math="j">j</span> 刷标签的概率。随后可将生成过程表示如下。参数 <span class="math-inline" data-math="\theta_j">\theta_j</span> 定义了标注者 <span class="math-inline" data-math="j">j</span> 的可信度（不刷标签的概率），参数 <span class="math-inline" data-math="\xi_j">\xi_j</span> 定义了刷标签时的行为。</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align}
+&amp; \text{for } i = 1 \dots N : \\
+&amp; \quad T_i \sim \text{Uniform} \\
+&amp; \quad \text{for } j = 1 \dots M : \\
+&amp; \quad \quad S_{ij} \sim \text{Bernoulli}(1 - \theta_j) \\
+&amp; \quad \quad \text{if } S_{ij} = 0 : \\
+&amp; \quad \quad \quad A_{ij} = T_i \\
+&amp; \quad \quad \text{else } : \\
+&amp; \quad \quad \quad A_{ij} \sim \text{Multinomial}(\xi_j) \\
+\end{align}
+">
+\begin{align}
+&amp; \text{for } i = 1 \dots N : \\
+&amp; \quad T_i \sim \text{Uniform} \\
+&amp; \quad \text{for } j = 1 \dots M : \\
+&amp; \quad \quad S_{ij} \sim \text{Bernoulli}(1 - \theta_j) \\
+&amp; \quad \quad \text{if } S_{ij} = 0 : \\
+&amp; \quad \quad \quad A_{ij} = T_i \\
+&amp; \quad \quad \text{else } : \\
+&amp; \quad \quad \quad A_{ij} \sim \text{Multinomial}(\xi_j) \\
+\end{align}
+</span></div>
+      
+    
+      
+        <p>然后我们可以通过最大化观测数据的边际似然来学习 <span class="math-inline" data-math="\theta, \xi">\theta, \xi</span>，其中 <span class="math-inline" data-math="A">A</span> 是标注矩阵，<span class="math-inline" data-math="S">S</span> 是能力指示矩阵，<span class="math-inline" data-math="T">T</span> 是真实标签矩阵：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+P(A; \theta, \xi) = \sum_{T, S} \big[ \prod_{i=1}^N P(T_i) \cdot \prod_{j=1}^M P(S_{ij}; \theta_j) \cdot P(A_{ij} \vert S_{ij}, T_i; \xi_j) \big]
+">
+P(A; \theta, \xi) = \sum_{T, S} \big[ \prod_{i=1}^N P(T_i) \cdot \prod_{j=1}^M P(S_{ij}; \theta_j) \cdot P(A_{ij} \vert S_{ij}, T_i; \xi_j) \big]
+</span></div>
+      
+    
+      
+        <p>可以使用 EM（期望最大化）或 VB（变分贝叶斯）来最大化上述边际似然。在 EM 优化中，M-step 会在归一化前对分数计数增加一个固定值 <span class="math-inline" data-math="\delta">\delta</span>。在 VB 训练中，他们对 <span class="math-inline" data-math="\theta_j">\theta_j</span> 使用对称 Beta 先验，对 <span class="math-inline" data-math="\xi_j">\xi_j</span> 使用对称 Dirichlet 先验。在恢复正确答案时，我们可以采用按标注者 <span class="math-inline" data-math="\theta">\theta</span> 估计值加权的多数投票。</p>
+      
+    
+      
+        <h2>标注者分歧与两种范式#</h2>
+        
+      
+    
+      
+        <p>上述聚合过程依赖于存在单一底层黄金答案的假设，因此我们可以据此评估标注者的表现。然而，在许多主题中，尤其是在安全、社会或文化领域，人们可能会产生分歧，而且这种分歧往往是合理的，这就归结为我们是想严格执行规则，还是拥抱多样性。</p>
+      
+    
+      
+        <p><a href="https://ojs.aaai.org/aimagazine/index.php/aimagazine/article/view/2564" target="_blank" rel="noopener">Aroyo &amp;amp; Welty (2015)</a> 讨论了人类标注收集实践中的一系列“神话”，发现它们都存在一定的不准确性，主要发现包括：</p>
+      
+    
+      
+        <div class="list-content">对于某些样本，往往存在不止一种正确的解读。我们需要通过让多人审查标注质量等方式引入多样化视角。
+分歧并不总是坏事。我们应该减少由错误或设计不良流程导致的分歧，但其他分歧能为我们提供丰富的信息。
+
+如果分歧源于任务定义不清晰，我们应该改进说明。然而，更详细的指导原则并不能消除意见中固有的多样性。
+
+
+专家并不总是优于普通人，但在考虑什么重要方面，他们之间存在巨大差距。
+真实标注会随时间变化，尤其是那些与时事或新闻相关的内容。</div>
+      
+    
+      
+        <p>后来，<a href="https://arxiv.org/abs/2112.07475" target="_blank" rel="noopener">Rottger et al. (2021)</a> 将这种差异形式化为主观 NLP 任务数据标注的两种对立范式。</p>
+      
+    
+      
+        <div class="table-container"><table>
+<thead>
+<tr>
+<th></th>
+<th>Descriptive</th>
+<th>Prescriptive</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Definition</td>
+<td>Encourage annotator subjectivity, trying to model many beliefs.</td>
+<td>Discourage annotator subjectivity, trying to consistently apply one belief.</td>
+</tr>
+<tr>
+<td>Pros</td>
+<td>- Can help to identify which entries are more subjective;<br/>- Embrace diversity<br/></td>
+<td>- More aligned with standard NLP setup. <br/>- Easier to do QC by measuring disagreement or doing label aggregation.<br/></td>
+</tr>
+<tr>
+<td>Cons</td>
+<td>- Metrics like rater disagreement cannot be used to measure data quality or annotator performance; <br/>- Cannot be used for training models that are optimized for outputting one preset behavior.<br/></td>
+<td>- Expensive and challenging to create high-quality annotation guidelines, which can never be perfect, in practice;<br/>- Training annotators to get familiar with guideline in order to apply it properly is also challenging;<br/>- Cannot capture an interpretable diversity of beliefs or consistently encode one specific belief.<br/></td>
+</tr>
+</tbody>
+</table></div>
+      
+    
+      
+        <p>描述性范式让我们能够理解多种重要效应，并考虑到不同的视角。例如，标注者的身份（例如非裔美国人、LGBTQ）被发现是影响他们如何将身份相关内容标记为有毒的统计显著因素（<a href="https://arxiv.org/abs/2205.00501" target="_blank" rel="noopener">Goyal et al. 2022</a>）。主题可能是导致意见多样性的另一个主要驱动因素。<a href="https://research.google/pubs/all-that-agrees-is-not-gold-evaluating-ground-truth-labels-and-dialogue-content-for-safety/" target="_blank" rel="noopener">Wang et al. (2023)</a> 研究了 AI 对话系统安全性的人类评估流程，并比较了 Trust &amp; Safety (T&amp;S) 专业人员与众包标注者的标注结果。他们有意收集了与众包标注者相关的丰富元数据，如人口统计或行为信息。对比 T&amp;S 专家标注与众包标注后发现，一致率在不同语义主题和严重程度下差异显著：</p>
+      
+    
+      
+        <div class="list-content">不同主题间的一致率差异很大；从暴力/血腥主题的 0.96 到个人话题的 0.25 不等。
+在“极端”和“良性”对话上，一致率更高（给定四个标签选项：“良性”、“可辩论”、“中等”到“极端”）。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/topic_agreement.png" alt="">
+          <figcaption>Correlations between non-expert and expert annotations vary a lot across topics. (Image source:Wang et al. 2023)</figcaption>
+        </figure>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/2311.04345" target="_blank" rel="noopener">Zhang et al. (2023)</a> 提出了一种标注者分歧分类法来分析根本原因。在列出的原因中，由于随机错误或个体层面不一致导致的分歧应当避免。当一个标注者在多次被问到同一任务时给出不同标签，其中一些最可能是人为错误所致。基于这一直觉，分歧解卷积方法（<a href="https://dl.acm.org/doi/abs/10.1145/3411764.3445423" target="_blank" rel="noopener">Gordon et al. 2021</a>）通过将每个人的意见锚定在其主要标签上，从而鼓励标注者内部一致性，进而将稳定意见与错误区分开来。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/taxonomy.png" alt="">
+          <figcaption>A taxonomy of causes for rater disagreement. (Image source:Zhang et al. 2023)</figcaption>
+        </figure>
+      
+    
+      
+        <p>分歧解卷积依赖于概率图模型：</p>
+      
+    
+      
+        <div class="list-content">估计标注者返回非主要标签的频率 <span class="math-inline" data-math="p_\text{flip}">p_\text{flip}</span>
+对每个样本，根据 <span class="math-inline" data-math="p_\text{flip}">p_\text{flip}</span> 得到调整后的主要标签分布 <span class="math-inline" data-math="p^*">p^*</span>
+从 <span class="math-inline" data-math="p^*">p^*</span> 中采样作为新的测试集。
+针对新的测试集衡量性能指标。</div>
+      
+    
+      
+        <p>给定 <span class="math-inline" data-math="C">C</span> 类分类问题，该生成模型的采样过程如下所述：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+y^*\mid x &amp;\sim \text{Categorial}([C], p^*(y\mid x)) \\
+y_\text{other}\mid y^* &amp;\sim \text{Categorial}([C]\setminus\{y^*\}, \frac{1}{C-1}) \\
+z_\text{flip} \mid x &amp;\sim \text{Bernoulli}(p_\text{flip}(x)) \\
+y\mid y^*, y_\text{other}, z_\text{flip} &amp;= y^* (1 - z_\text{flip}) + y_\text{other} z_\text{flip}
+\end{aligned}
+">
+\begin{aligned}
+y^*\mid x &amp;\sim \text{Categorial}([C], p^*(y\mid x)) \\
+y_\text{other}\mid y^* &amp;\sim \text{Categorial}([C]\setminus\{y^*\}, \frac{1}{C-1}) \\
+z_\text{flip} \mid x &amp;\sim \text{Bernoulli}(p_\text{flip}(x)) \\
+y\mid y^*, y_\text{other}, z_\text{flip} &amp;= y^* (1 - z_\text{flip}) + y_\text{other} z_\text{flip}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>给定可从数据中估计的真实 <span class="math-inline" data-math="p(y\mid x)">p(y\mid x)</span> 和 <span class="math-inline" data-math="p_\text{flip}">p_\text{flip}</span>，我们将更新主要标签的分布：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+p^*(y\mid x) = \frac{p(y\mid x) - \frac{p_\text{flip}(x)}{C-1}}{1 - \frac{C \cdot p_\text{flip}(x)}{C - 1}}
+">
+p^*(y\mid x) = \frac{p(y\mid x) - \frac{p_\text{flip}(x)}{C-1}}{1 - \frac{C \cdot p_\text{flip}(x)}{C - 1}}
+</span></div>
+      
+    
+      
+        <p>从 <span class="math-inline" data-math="p^*(y \mid x)">p^*(y \mid x)</span> 中采样的新测试集代表了去除个体不一致噪声后的主要标签。它可以作为无噪声测试集用于评估。</p>
+      
+    
+      
+        <p>为了在学习预测标签时捕捉标注者之间的系统性分歧，<a href="https://arxiv.org/abs/2110.05719" target="_blank" rel="noopener">Davani et al. (2021)</a> 实验了一种多标注者模型，将预测每个标注者的标签视为一个子任务。假设分类任务定义在一个标注数据集 <span class="math-inline" data-math="D=(X, A, Y)">D=(X, A, Y)</span> 上，其中 <span class="math-inline" data-math="X">X</span> 是文本实例，<span class="math-inline" data-math="A">A</span> 是标注者集合，<span class="math-inline" data-math="Y">Y</span> 是标注矩阵，<span class="math-inline" data-math="y_{ij} \in Y">y_{ij} \in Y</span> 表示标注者 <span class="math-inline" data-math="a_j \in A">a_j \in A</span> 给样本 <span class="math-inline" data-math="x_i \in X">x_i \in X</span> 分配的二元标签。对 <span class="math-inline" data-math="x_i">x_i</span> 的多数投票记为 <span class="math-inline" data-math="\bar{y}_{i,}">\bar{y}_{i,}</span>。实验在预训练 BERT 模型之上训练一个分类头，并比较了 4 种设置：</p>
+      
+    
+      
+        <div class="list-content">基线：直接预测多数投票 <span class="math-inline" data-math="\bar{y}_i">\bar{y}_i</span>，不使用完整的标注矩阵 <span class="math-inline" data-math="Y">Y</span>。
+集成：为每个标注者单独训练一个模型来预测 <span class="math-inline" data-math="y_{ij}">y_{ij}</span>，然后通过多数投票聚合结果。
+多标签：学习预测 <span class="math-inline" data-math="\vert A \vert">\vert A \vert</span> 个标签以表示每个样本 <span class="math-inline" data-math="\langle y_{i1}, \dots, y_{i\vert A \vert} \rangle">\langle y_{i1}, \dots, y_{i\vert A \vert} \rangle</span> 的所有标注者标签，使用共享的 MLP 层，然后聚合输出。
+多任务：与多标签类似，但每个标注者的预测头使用独立的 MLP 层学习，从而分配额外计算来学习标注者之间的差异。</div>
+      
+    
+      
+        <p>在 <a href="https://osf.io/edua3/" target="_blank" rel="noopener">GHC (Gab Hate Corpus)</a> 数据集上的实验结果表明，多任务模型取得了最好的 F1 分数，并且能够自然地提供预测不确定性估计，与标注分歧相关。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/multi_annotator_model.png" alt="">
+          <figcaption>Illustration of different architectures for modeling multiple annotators&#x27; labels. (Image source:Davani et al. 2021)</figcaption>
+        </figure>
+      
+    
+      
+        <p>Jury Learning（<a href="https://arxiv.org/abs/2202.02950" target="_blank" rel="noopener">Gordon et al. 2022</a>）通过对不同标注者的标注行为进行建模（条件于他们的特征）来模拟 <a href="https://www.uscourts.gov/services-forms/jury-service/juror-selection-process" target="_blank" rel="noopener">陪审团流程</a>。从包含每个标注者标签和人口统计特征的数据集开始，我们训练一个模型来预测每个个体标注者（视作潜在陪审员）给出的标签。在决策时，实践者可以指定一组陪审员的构成来确定采样策略。最终决策通过聚合多次试验中陪审员的标签得出。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/jury.png" alt="">
+          <figcaption>Illustration of how jury learning works. (Image source:Gordon et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>Jury Learning 模型是一个 <a href="https://arxiv.org/abs/2008.13535" target="_blank" rel="noopener">DCN (Deep &amp;amp; Cross Network)</a>，常用于推荐场景，它被联合训练以学习评论嵌入、标注者嵌入和群体（标注者特征）嵌入。文本内容由预训练 BERT 处理，该 BERT 也会被联合微调，但微调时间较短以避免过拟合。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/jury_model.png" alt="">
+          <figcaption>DCN model architecture for jury learning. (Image source:Gordon et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>他们的实验在 <a href="https://data.esrg.stanford.edu/study/toxicity-perspectives" target="_blank" rel="noopener">toxicity diversity dataset</a> 上运行，并将 Jury Learning 与一个不使用元数据的微调 BERT 基线模型（用于预测个体标注者标签）进行比较。性能以 MAE（平均绝对误差）衡量。Jury Learning 在完整测试集以及每个群体分段上均持续优于不区分标注者的基线。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/jury_exp.png" alt="">
+          <figcaption>Experiment results comparing an annotator-agnostic baseline with jury learning. (Image source:Gordon et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>数据质量 ↔ 模型训练#</h2>
+        
+      
+    
+      
+        <p>一旦构建好数据集，许多方法可以根据训练动态帮助识别错误标签。注意，我们只关注找出并排除可能标签错误的数据点，而非讨论 。<a href="posts-2022-04-15-data-gen.html">数据生成：少样本学习系列之三</a></p>
+      
+    
+      
+        <h2>影响力函数#</h2>
+        
+      
+    
+      
+        <p>影响力函数是稳健统计学中的经典技术（<a href="https://www.jstor.org/stable/2285666" target="_blank" rel="noopener">Hampel, 1974</a>），通过描述当我们以无穷小量提高某个训练样本权重时模型参数如何变化，来衡量训练数据点的影响。<a href="https://arxiv.org/abs/1703.04730" target="_blank" rel="noopener">Koh &amp;amp; Liang (2017)</a> 将这一概念引入深度神经网络。</p>
+      
+    
+      
+        <p>给定训练集中 <span class="math-inline" data-math="n">n</span> 个样本，对每个 <span class="math-inline" data-math="i =1, \dots, n">i =1, \dots, n</span> 有 <span class="math-inline" data-math="z_i = (x_i, y_i)">z_i = (x_i, y_i)</span>，模型参数 <span class="math-inline" data-math="\theta">\theta</span> 通过最小化损失 <span class="math-inline" data-math="\hat{\theta} = \arg\min_{\theta \in \Theta} \frac{1}{n}\sum_{i=1}^n \mathcal{L}(z_i, \theta)">\hat{\theta} = \arg\min_{\theta \in \Theta} \frac{1}{n}\sum_{i=1}^n \mathcal{L}(z_i, \theta)</span> 进行优化。移除单个数据点 <span class="math-inline" data-math="z">z</span> 后模型参数的变化记为 <span class="math-inline" data-math="\hat{\theta}_{-z} - \hat{\theta}">\hat{\theta}_{-z} - \hat{\theta}</span>，其中 <span class="math-inline" data-math="\hat{\theta}_{-z} = \arg\min_{\theta \in \Theta} \frac{1}{n} \sum_{z_i \neq z} \mathcal{L}(z_i, \theta)">\hat{\theta}_{-z} = \arg\min_{\theta \in \Theta} \frac{1}{n} \sum_{z_i \neq z} \mathcal{L}(z_i, \theta)</span>。然而，对每个样本都直接计算代价太高。一种近似方法是计算给样本 <span class="math-inline" data-math="z">z</span> 一个很小的权重提升 <span class="math-inline" data-math="\epsilon">\epsilon</span> 时的参数变化。根据定义，提升 <span class="math-inline" data-math="z">z</span> 权重 <span class="math-inline" data-math="\epsilon">\epsilon</span> 的影响力由以下公式给出：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{I}_{\text{up,params}}(z) = \frac{d\hat{\theta}_{\epsilon,z}}{d\epsilon}\bigg\vert_{\epsilon=0}=-\mathbf{H}^{-1}_{\hat{\theta}} \nabla_\theta \mathcal{L}(z, \hat{\theta})
+">
+\mathcal{I}_{\text{up,params}}(z) = \frac{d\hat{\theta}_{\epsilon,z}}{d\epsilon}\bigg\vert_{\epsilon=0}=-\mathbf{H}^{-1}_{\hat{\theta}} \nabla_\theta \mathcal{L}(z, \hat{\theta})
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\hat{\theta}_{\epsilon,z} = \arg\min_{\theta \in \Theta} \frac{1}{n}\sum_{i=1}^n \mathcal{L}(z_i, \theta) + \epsilon L(z, \theta)">\hat{\theta}_{\epsilon,z} = \arg\min_{\theta \in \Theta} \frac{1}{n}\sum_{i=1}^n \mathcal{L}(z_i, \theta) + \epsilon L(z, \theta)</span> 和 <span class="math-inline" data-math="\mathbf{H}^{-1}_{\hat{\theta}} = \frac{1}{n}\sum_{i=1}^n \nabla^2_\theta \mathcal{L}(z_i, \hat{\theta})">\mathbf{H}^{-1}_{\hat{\theta}} = \frac{1}{n}\sum_{i=1}^n \nabla^2_\theta \mathcal{L}(z_i, \hat{\theta})</span>。
+移除一个数据点 <span class="math-inline" data-math="x">x</span> 等价于将其权重提高 <span class="math-inline" data-math="\epsilon = -\frac{1}{n}">\epsilon = -\frac{1}{n}</span>，因此 <span class="math-inline" data-math="\hat{\theta}_{-z} - \hat{\theta} \approx -\frac{1}{n} \mathcal{I}_{\text{up,params}}(z)">\hat{\theta}_{-z} - \hat{\theta} \approx -\frac{1}{n} \mathcal{I}_{\text{up,params}}(z)</span>。</p>
+      
+    
+      
+        <p>对测试点 <span class="math-inline" data-math="z_\text{test}">z_\text{test}</span> 的损失施加权重提升 <span class="math-inline" data-math="z">z</span> 的影响可通过链式法则得到：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\mathcal{I}_{\text{up,loss}}(z, z_\text{test}) 
+&amp;= \frac{d \mathcal{L}(z_\text{test}, \hat{\theta}_{\epsilon,z})}{d\epsilon}\bigg\vert_{\epsilon=0} \\
+&amp;= \nabla_\theta \mathcal{L}(z_\text{test}, \hat{\theta})^\top \frac{d \hat{\theta}_{\epsilon,z}}{d\epsilon}\bigg\vert_{\epsilon=0} \\
+&amp;= - \nabla_\theta \mathcal{L}(z_\text{test}, \hat{\theta})^\top \mathbf{H}^{-1}_{\hat{\theta}} \nabla_\theta \mathcal{L}(z, \hat{\theta})
+\end{aligned}
+">
+\begin{aligned}
+\mathcal{I}_{\text{up,loss}}(z, z_\text{test}) 
+&amp;= \frac{d \mathcal{L}(z_\text{test}, \hat{\theta}_{\epsilon,z})}{d\epsilon}\bigg\vert_{\epsilon=0} \\
+&amp;= \nabla_\theta \mathcal{L}(z_\text{test}, \hat{\theta})^\top \frac{d \hat{\theta}_{\epsilon,z}}{d\epsilon}\bigg\vert_{\epsilon=0} \\
+&amp;= - \nabla_\theta \mathcal{L}(z_\text{test}, \hat{\theta})^\top \mathbf{H}^{-1}_{\hat{\theta}} \nabla_\theta \mathcal{L}(z, \hat{\theta})
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>使用影响力函数，我们可以用闭式形式衡量单个数据点对模型参数和损失函数的影响。它可以近似 leave-one-out 重新训练，而无需真正运行所有重新训练。要识别错误标注数据，我们可以计算 <span class="math-inline" data-math="\mathcal{I}_\text{up,loss}(z_i, z_i)">\mathcal{I}_\text{up,loss}(z_i, z_i)</span>，近似如果从训练集中移除 <span class="math-inline" data-math="z_i">z_i</span> 后在 <span class="math-inline" data-math="z_i">z_i</span> 上的预测误差。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/influence.png" alt="">
+          <figcaption>Influence functions values match leave-one-out training results on 10-class MNIST. (Image source:Kohn &amp; Liang, 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>尽管有闭式形式，影响力函数仍难以扩展，因为逆 Hessian 向量积难以计算。<a href="https://arxiv.org/abs/2308.03296" target="_blank" rel="noopener">Grosse et al. (2023)</a> 尝试使用 EK-FAC（Eigenvalue-corrected Kronecker-Factored Approximate Curvature；<a href="https://arxiv.org/abs/1806.03884" target="_blank" rel="noopener">George et al. 2018</a>）近似来替代。</p>
+      
+    
+      
+        <h2>训练过程中的预测变化#</h2>
+        
+      
+    
+      
+        <p>另一类方法是跟踪训练过程中模型预测的变化，以识别那些似乎难以学习的样本。Data Maps（<a href="https://arxiv.org/abs/2009.10795" target="_blank" rel="noopener">Swayamdipta et al. 2020</a>）跟踪训练期间模型行为动态的两个属性来分析数据集质量：</p>
+      
+    
+      
+        <div class="list-content">置信度：模型对真实标签的置信度，定义为各 epoch 中真实标签模型概率的均值。他们还使用了一个粗粒度指标“正确性”，定义为各 epoch 中模型预测正确标签的比例。
+变异性：置信度的变化，定义为各 epoch 中真实标签模型概率的标准差。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/data_map.png" alt="">
+          <figcaption>Data map for SNLI training set, based on a RoBERTa classifier. (Image source:Swayamdipta et al. 2020)</figcaption>
+        </figure>
+      
+    
+      
+        <p>难学样本（低置信度、低变异性）更可能是被错误标注的。他们在 WinoGrande 数据集上进行了实验，将 1% 的标签翻转。经过重新训练后，被翻转的样本移到了低置信度且变异性略高的区域，表明难学区域包含错误标注样本。基于此，我们可以用置信度分数（论文未解释为何不用置信度和变异性两者作为特征）在等量翻转标签和干净样本上训练一个分类器。这个简单的噪声分类器随后可用于原始数据集来识别潜在的错误标注样本。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/flip_exp.png" alt="">
+          <figcaption>Data points originally with high confidence and low variability scores moved to low confidence, slightly higher variability regions after labels get flipped. (Image source:Swayamdipta et al. 2020)</figcaption>
+        </figure>
+      
+    
+      
+        <p>然而，我们不应认为所有难学样本都是错误的。事实上，论文假设模糊（高变异性）和难学（低置信度、低变异性）样本对学习更有信息量。实验表明，它们有利于 OOD 泛化，即使与 100% 训练集相比，也能在 OOD 评估上取得更好的结果。</p>
+      
+    
+      
+        <p>为了研究神经网络是否倾向于遗忘先前学到的信息，<a href="https://arxiv.org/abs/1812.05159" target="_blank" rel="noopener">Toneva et al. (2019)</a> 设计了一个实验：他们在训练过程中跟踪每个样本的模型预测，并统计每个样本从正确分类到错误分类或反之的转换次数。然后可以据此对样本进行分类：</p>
+      
+    
+      
+        <div class="list-content">可遗忘（冗余）样本：如果类别标签在训练 epoch 间发生变化。
+不可遗忘样本：如果类别标签分配在整个训练过程中保持一致。这些样本一旦学会就永远不会被遗忘。</div>
+      
+    
+      
+        <p>他们发现存在大量一旦学会就永远不会被遗忘的不可遗忘样本。带有噪声标签或具有“不常见”特征（视觉上难以分类）的图像是最常被遗忘的样本。实验从经验上验证了不可遗忘样本可以安全移除而不会损害模型性能。</p>
+      
+    
+      
+        <p>在实现中，仅当样本出现在当前训练批次中时才统计遗忘事件；即他们在后续小批次呈现同一样本时计算跨批次的遗忘。每个样本的遗忘事件数量在不同随机种子下相当稳定，可遗忘样本有较小的倾向在训练后期才首次被学会。遗忘事件也被发现可以在整个训练期间以及不同架构之间迁移。</p>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/2001.10528" target="_blank" rel="noopener">Pleiss, et al. (2020)</a> 提出了一种名为 AUM（Area under the Margin，边际曲线下面积）的方法，根据以下假设来发现错误标签：假设一张 BIRD 图片被错误标记为 DOG。梯度更新会鼓励从其他 BIRD 图片泛化到这张 BIRD 图片，而 DOG 标签则提供错误的监督信号，促使更新走向另一个方向。因此，在梯度更新信号中存在泛化与（错误）预测之间的张力。</p>
+      
+    
+      
+        <p>给定分类数据集 <span class="math-inline" data-math="(\mathbf{x}, y) \in \mathcal{D}_\text{train}">(\mathbf{x}, y) \in \mathcal{D}_\text{train}</span>，令 <span class="math-inline" data-math="z^{(t)}_i(\mathbf{x}) \in \mathbb{R}">z^{(t)}_i(\mathbf{x}) \in \mathbb{R}</span> 为第 <span class="math-inline" data-math="t">t</span> 个 epoch 中类别 <span class="math-inline" data-math="i">i</span> 对应的 logit。第 <span class="math-inline" data-math="t">t</span> 个 epoch 的边际是分配的 logit 与下一个最大 logit 之间的差值：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+M^{(t)}(\mathbf{x}, y) = z_y^{(t)}(\mathbf{x}) - \max_{i \neq y} z^{(t)}_i(\mathbf{x}),\quad
+\text{AUM}(\mathbf{x}, y) = \frac{1}{T} \sum^T_{t=1} M^{(t)}(\mathbf{x}, y)
+">
+M^{(t)}(\mathbf{x}, y) = z_y^{(t)}(\mathbf{x}) - \max_{i \neq y} z^{(t)}_i(\mathbf{x}),\quad
+\text{AUM}(\mathbf{x}, y) = \frac{1}{T} \sum^T_{t=1} M^{(t)}(\mathbf{x}, y)
+</span></div>
+      
+    
+      
+        <p>负边际表示预测错误，正边际较大则表示对正确预测有高置信度。假设是，由于其他样本通过 SGD 触发的泛化张力，错误标注样本的边际会比正确样本小。</p>
+      
+    
+      
+        <p>为了确定阈值，他们插入了名为“阈值样本”的伪数据来确定阈值：</p>
+      
+    
+      
+        <div class="list-content">创建一个阈值样本子集 <span class="math-inline" data-math="\mathcal{D}_\text{thr}">\mathcal{D}_\text{thr}</span>。如果有 <span class="math-inline" data-math="N">N</span> 个属于 <span class="math-inline" data-math="C">C</span> 个类别的训练样本，我们随机采样 <span class="math-inline" data-math="N/(C+1)">N/(C+1)</span> 个样本并将其所有标签切换到一个伪新类别 <span class="math-inline" data-math="C+1">C+1</span>。
+将阈值样本合并到原始数据集中：<span class="math-inline" data-math="\mathcal{D}’ = { (\mathbf{x}, C+1): \mathbf{x} \in \mathcal{D}_\text{thr}} \cup (\mathcal{D} \setminus\mathcal{D}_\text{thr})">\mathcal{D}’ = { (\mathbf{x}, C+1): \mathbf{x} \in \mathcal{D}_\text{thr}} \cup (\mathcal{D} \setminus\mathcal{D}_\text{thr})</span>；
+在 <span class="math-inline" data-math="\mathcal{D}’">\mathcal{D}’</span> 上训练模型并测量所有数据的 AUM；
+将阈值 <span class="math-inline" data-math="\alpha">\alpha</span> 计算为阈值样本 AUM 的第 99 百分位；
+使用 <span class="math-inline" data-math="\alpha">\alpha</span> 阈值识别错误标注数据：<span class="math-inline" data-math="{(\mathbf{x}, y) \in \mathcal{D} \setminus \mathcal{D}_\text{thr}: \text{AUM}_{\mathbf{x}, y} \leq \alpha}">{(\mathbf{x}, y) \in \mathcal{D} \setminus \mathcal{D}_\text{thr}: \text{AUM}_{\mathbf{x}, y} \leq \alpha}</span></div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/AUM_threshold.png" alt="">
+          <figcaption>How the AUM of threshold samples help separate out mislabeled samples. (Image source:Pleiss et al. 2020)</figcaption>
+        </figure>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/AUM_exp.png" alt="">
+          <figcaption>Test error on CIFAR 10/100 with randomly mislabeled samples, comparing different methods for data filter or noisy data training. (Image source:Pleiss et al. 2020)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>噪声交叉验证#</h2>
+        
+      
+    
+      
+        <p>NCV（Noisy Cross-Validation，噪声交叉验证）方法（<a href="https://arxiv.org/abs/1905.05040" target="_blank" rel="noopener">Chen et al. 2019</a>）将数据集随机分成两半，然后如果样本的标签与其仅在另一半数据集上训练的模型所预测的标签一致，则将其识别为“干净”样本。干净样本被认为更可信。INCV（Iterative Noisy Cross-Validation，迭代噪声交叉验证）迭代运行 NCV，将更多干净样本加入可信候选集 <span class="math-inline" data-math="\mathcal{C}">\mathcal{C}</span>，并移除更多噪声样本。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2024-02-05-human-data-quality/INCV_algo.png" alt="">
+          <figcaption>Algorithm of INCV (iterative noisy cross-validation). (Image source:Chen et al. 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>引用#</h2>
+        
+      
+    
+      
+        <p>引用方式：</p>
+      
+    
+      
+        <blockquote>Weng, Lilian. (2024 年 2 月). “Thinking about High-Quality Human Data”. Lil’Log. https://lilianweng.github.io/posts/2024-02-05-human-data-quality/.</blockquote>
+      
+    
+      
+        <pre><code>@article{weng2024humandata,
+  title   = &quot;Thinking about High-Quality Human Data&quot;,
+  author  = &quot;Weng, Lilian&quot;,
+  journal = &quot;lilianweng.github.io&quot;,
+  year    = &quot;2024&quot;,
+  month   = &quot;Feb&quot;,
+  url     = &quot;https://lilianweng.github.io/posts/2024-02-05-human-data-quality/&quot;
+}
+</code></pre>
+      
+    
+      
+        <h2>参考文献#</h2>
+        
+      
+    
+      
+        <p>[1] Francis Galton <a href="https://www.nature.com/articles/075450a0" target="_blank" rel="noopener">“Vox populi”</a> Nature 75, 450-451 (1907).</p>
+      
+    
+      
+        <p>[2] Sambasivan et al. <a href="https://dl.acm.org/doi/10.1145/3411764.3445518" target="_blank" rel="noopener">“Everyone wants to do the model work, not the data work”: Data Cascades in High-Stakes AI&amp;quot;</a> CHI 2021</p>
+      
+    
+      
+        <p>[3] Chris Callison-Burch. <a href="https://aclanthology.org/D09-1030/" target="_blank" rel="noopener">“Fast, Cheap, and Creative: Evaluating Translation Quality Using Amazon’s Mechanical Turk”</a> EMNLP 2009</p>
+      
+    
+      
+        <p>[4] Rottger et al. <a href="https://arxiv.org/abs/2112.07475" target="_blank" rel="noopener">“Two Contrasting Data Annotation Paradigms for Subjective NLP Tasks”</a> NAACL 2022.</p>
+      
+    
+      
+        <p>[5] Aroyo &amp; Welty <a href="https://ojs.aaai.org/aimagazine/index.php/aimagazine/article/view/2564" target="_blank" rel="noopener">“Truth Is a Lie: Crowd Truth and the Seven Myths of Human Annotation”</a> AI Magazine 36.1: 15-24 (2015).</p>
+      
+    
+      
+        <p>[6] Hovy et al. <a href="https://aclanthology.org/N13-1132.pdf" target="_blank" rel="noopener">“Learning Whom to Trust with MACE”</a> NAACL-HLT 2013.</p>
+      
+    
+      
+        <p>[7] Wang et al. <a href="https://research.google/pubs/all-that-agrees-is-not-gold-evaluating-ground-truth-labels-and-dialogue-content-for-safety/" target="_blank" rel="noopener">“All that Agrees Is Not Gold: Evaluating Ground Truth Labels and Dialogue Content for Safety”</a> 2023.</p>
+      
+    
+      
+        <p>[8] Zhang et al. <a href="https://arxiv.org/abs/2311.04345" target="_blank" rel="noopener">“A Taxonomy of Rater Disagreements: Surveying Challenges &amp;amp; Opportunities from the Perspective of Annotating Online Toxicity”</a> arXiv preprint arXiv:2311.04345 (2023).</p>
+      
+    
+      
+        <p>[9] Davani et al. <a href="https://arxiv.org/abs/2110.05719" target="_blank" rel="noopener">“Dealing with disagreements: Looking beyond the majority vote in subjective annotations”</a> ACL 2022.</p>
+      
+    
+      
+        <p>[10] Gordon et al. <a href="https://arxiv.org/abs/2202.02950" target="_blank" rel="noopener">“Jury Learning: Integrating Dissenting Voices into Machine Learning Models”</a> CHI 2022.</p>
+      
+    
+      
+        <p>[11] Gordon et al. <a href="https://dl.acm.org/doi/abs/10.1145/3411764.3445423" target="_blank" rel="noopener">“The Disagreement Deconvolution: Bringing Machine Learning Performance Metrics In Line With Reality”</a> CHI 2021</p>
+      
+    
+      
+        <p>[12] Daniel et al. 2018 <a href="https://arxiv.org/abs/1801.02546" target="_blank" rel="noopener">“Quality Control in Crowdsourcing: A Survey of Quality Attributes, Assessment Techniques, and Assurance Actions”</a> ACM Computing Surveys (CSUR), 51(1), 1-40 (2018).</p>
+      
+    
+      
+        <p>[13] Koh &amp; Liang. <a href="https://arxiv.org/abs/1703.04730" target="_blank" rel="noopener">“Understanding Black-box Predictions via Influence Functions”</a> ICML 2017.</p>
+      
+    
+      
+        <p>[14] Grosse et al. <a href="https://arxiv.org/abs/2308.03296" target="_blank" rel="noopener">“Studying Large Language Model Generalization with Influence Functions”</a> arXiv preprint arXiv:2308.03296 (2023).</p>
+      
+    
+      
+        <p>[15] Swayamdipta et al. <a href="https://arxiv.org/abs/2009.10795" target="_blank" rel="noopener">“Dataset Cartography: Mapping and Diagnosing Datasets with Training Dynamics”</a> EMNLP 2020.</p>
+      
+    
+      
+        <p>[16] Toneva, et al. <a href="https://arxiv.org/abs/1812.05159" target="_blank" rel="noopener">“An Empirical Study of Example Forgetting during Deep Neural Network Learning”</a> ICLR 2019.</p>
+      
+    
+      
+        <p>[17] Pleiss, et al. <a href="https://arxiv.org/abs/2001.10528" target="_blank" rel="noopener">“Identifying Mislabeled Data using the Area Under the Margin Ranking”</a> NeurIPS 2020.</p>
+      
+    
+      
+        <p>[18] Chen et al. <a href="https://arxiv.org/abs/1905.05040" target="_blank" rel="noopener">“Understanding and utilizing deep neural networks trained with noisy labels”</a> ICML 2019.</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

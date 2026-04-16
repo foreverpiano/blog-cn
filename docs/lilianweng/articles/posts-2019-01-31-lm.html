@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>泛化语言模型 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>泛化语言模型</h1>
+    <div class="meta">
+      2019-01-31 · 
+      <a href="https://lilianweng.github.io/posts/2019-01-31-lm/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">CoVe
+
+NMT 回顾
+
+在下游任务中使用 CoVe
+
+
+ELMo
+
+双向语言模型
+
+ELMo 表示
+
+在下游任务中使用 ELMo
+
+
+Cross-View Training
+
+模型架构
+
+多任务学习
+
+在下游任务中使用 CVT
+
+
+ULMFiT
+
+GPT
+
+用 Transformer Decoder 作为语言模型
+
+字节对编码
+
+有监督微调
+
+
+BERT
+
+预训练任务
+
+输入嵌入
+
+在下游任务中使用 BERT
+
+
+ALBERT
+
+因子分解嵌入参数化
+
+跨层参数共享
+
+句子顺序预测 (SOP)
+
+
+GPT-2
+
+零样本迁移
+
+基于字节序列的 BPE
+
+模型修改
+
+
+RoBERTa
+
+T5
+
+GPT-3
+
+XLNet
+
+BART
+
+ELECTRA
+
+总结
+
+指标：困惑度
+
+常见任务与数据集
+
+参考文献</div>
+      
+    
+      
+        <p>作为词嵌入文章的后续，我们将讨论学习上下文相关词向量的模型，以及大规模无监督预训练语言模型的最新趋势，这些模型在各种语言任务上取得了惊人的 SOTA 结果。</p>
+      
+    
+      
+        <p>[2019-02-14 更新：添加 ULMFiT 和 GPT-2。]
+[2020-02-29 更新：添加 ALBERT。]
+[2020-10-25 更新：添加 RoBERTa。]
+[2020-12-13 更新：添加 T5。]
+[2020-12-30 更新：添加 GPT-3。]
+[2021-11-13 更新：添加 XLNet、BART 和 ELECTRA；同时更新了总结部分。]</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-01-31-lm/elmo-and-bert.png" alt="">
+          <figcaption>I guess they are Elmo &amp; Bert? (Image source:here)</figcaption>
+        </figure>
+      
+    
+      
+        <p>2018 年我们在 NLP 领域看到了惊人的进展。像 <a href="https://blog.openai.com/language-unsupervised/" target="_blank" rel="noopener">OpenAI GPT</a> 和 <a href="https://arxiv.org/abs/1810.04805" target="_blank" rel="noopener">BERT</a> 这样的大规模预训练语言模型，使用通用的模型架构，在各种语言任务上都取得了极佳的性能。其核心思想类似于 ImageNet 分类预训练对众多视觉任务的帮助（*）。比视觉分类预训练更好的是，这种在 NLP 中简单而强大的方法不需要带标签的数据进行预训练，让我们可以将训练规模不断扩大，直到硬件极限。</p>
+      
+    
+      
+        <p>(*) He et al. (2018) <a href="https://arxiv.org/abs/1811.08883" target="_blank" rel="noopener">发现</a>，在图像分割任务中预训练可能并非必需。</p>
+      
+    
+      
+        <p>在我之前关于 NLP 的文章中，所介绍的嵌入并不是上下文相关的——它们仅基于词的共现关系学习，而没有考虑序列上下文。因此在“我正在吃一个 apple”和“我有一部 Apple 手机”这两句话中，两个“apple”指代完全不同的事物，却会共享相同的词嵌入向量。<a href="posts-2017-10-15-word-embedding.html">学习词嵌入</a></p>
+      
+    
+      
+        <p>尽管如此，早期在解决问题时采用词嵌入的方式主要是将其作为现有特定任务模型的额外特征，因此性能提升是有限的。</p>
+      
+    
+      
+        <p>在这篇文章中，我们将讨论各种方法如何让嵌入依赖于上下文，并让它们以更通用、更容易、更低成本的形式应用于下游任务。</p>
+      
+    
+      
+        <h2>CoVe#</h2>
+        
+      
+    
+      
+        <p>CoVe（<a href="https://arxiv.org/abs/1708.00107" target="_blank" rel="noopener">McCann et al. 2017</a>），全称 Contextual Word Vectors，是一种由  机器翻译模型中的编码器学习得到的词嵌入。与之前介绍的传统词嵌入  不同，CoVe 词表示是整个输入句子的函数。<a href="posts-2018-06-24-attention.html">注意力？注意力！</a><a href="posts-2017-10-15-word-embedding.html">学习词嵌入</a></p>
+      
+    
+      
+        <h2>NMT 回顾#</h2>
+        
+      
+    
+      
+        <p>这里的神经机器翻译（<a href="https://github.com/THUNLP-MT/MT-Reading-List" target="_blank" rel="noopener">NMT</a>）模型由一个标准的两层双向 LSTM 编码器和一个带注意力机制的两层单向 LSTM 解码器组成。它在英德翻译任务上进行预训练。编码器学习并优化英文词的嵌入向量，以便将其翻译成德文。基于“编码器在把词转换成另一种语言前应该先捕捉高层语义和句法含义”的直觉，编码器的输出被用来为各种下游语言任务提供上下文相关的词嵌入。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-01-31-lm/nmt-recap.png" alt="">
+          <figcaption>The NMT base model used in CoVe.</figcaption>
+        </figure>
+      
+    
+      
+        <div class="list-content">源语言（英文）中长度为 <span class="math-inline" data-math="n">n</span> 的词序列：<span class="math-inline" data-math="x = [x_1, \dots, x_n]">x = [x_1, \dots, x_n]</span>。
+目标语言（德文）中长度为 <span class="math-inline" data-math="m">m</span> 的词序列：<span class="math-inline" data-math="y = [y_1, \dots, y_m]">y = [y_1, \dots, y_m]</span>。
+源语言词的 <a href="posts-2017-10-15-word-embedding.html">学习词嵌入</a> 向量：<span class="math-inline" data-math="\text{GloVe}(x)">\text{GloVe}(x)</span>。
+随机初始化的目标语言词嵌入向量：<span class="math-inline" data-math="z = [z_1, \dots, z_m]">z = [z_1, \dots, z_m]</span>。
+双向 LSTM 编码器输出的隐藏状态序列：<span class="math-inline" data-math="h = [h_1, \dots, h_n] = \text{biLSTM}(\text{GloVe}(x))">h = [h_1, \dots, h_n] = \text{biLSTM}(\text{GloVe}(x))</span> 和 <span class="math-inline" data-math="h_t = [\overrightarrow{h}_t; \overleftarrow{h}_t]">h_t = [\overrightarrow{h}_t; \overleftarrow{h}_t]</span>，其中前向 LSTM 计算 <span class="math-inline" data-math="\overrightarrow{h}_t = \text{LSTM}(x_t, \overrightarrow{h}_{t-1})">\overrightarrow{h}_t = \text{LSTM}(x_t, \overrightarrow{h}_{t-1})</span>，后向计算得到 <span class="math-inline" data-math="\overleftarrow{h}_t = \text{LSTM}(x_t, \overleftarrow{h}_{t-1})">\overleftarrow{h}_t = \text{LSTM}(x_t, \overleftarrow{h}_{t-1})</span>。
+带注意力机制的解码器输出词上的概率分布：<span class="math-inline" data-math="p(y_t \mid H, y_1, \dots, y_{t-1})">p(y_t \mid H, y_1, \dots, y_{t-1})</span>，其中 <span class="math-inline" data-math="H">H</span> 是沿时间维度堆叠的隐藏状态 <span class="math-inline" data-math="\{h\}">\{h\}</span>：</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\text{decoder hidden state: } s_t &amp;= \text{LSTM}([z_{t-1}; \tilde{h}_{t-1}], s_{t-1}) \\
+\text{attention weights: } \alpha_t &amp;= \text{softmax}(H(W_1 s_t + b_1)) \\
+\text{context-adjusted hidden state: } \tilde{h}_t &amp;= \tanh(W_2[H^\top\alpha_t;s_t] + b_2) \\
+\text{decoder output: } p(y_t\mid H, y_1, \dots, y_{t-1}) &amp;= \text{softmax}(W_\text{out} \tilde{h}_t + b_\text{out})
+\end{aligned}
+">
+\begin{aligned}
+\text{decoder hidden state: } s_t &amp;= \text{LSTM}([z_{t-1}; \tilde{h}_{t-1}], s_{t-1}) \\
+\text{attention weights: } \alpha_t &amp;= \text{softmax}(H(W_1 s_t + b_1)) \\
+\text{context-adjusted hidden state: } \tilde{h}_t &amp;= \tanh(W_2[H^\top\alpha_t;s_t] + b_2) \\
+\text{decoder output: } p(y_t\mid H, y_1, \dots, y_{t-1}) &amp;= \text{softmax}(W_\text{out} \tilde{h}_t + b_\text{out})
+\end{aligned}
+</span></div>
+      
+    
+      
+        <h2>在下游任务中使用 CoVe#</h2>
+        
+      
+    
+      
+        <p>NMT 编码器的隐藏状态被定义为其他语言任务的上下文向量：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\text{CoVe}(x) = \text{biLSTM}(\text{GloVe}(x))
+">
+\text{CoVe}(x) = \text{biLSTM}(\text{GloVe}(x))
+</span></div>
+      
+    
+      
+        <p>论文提出在问答和分类任务中使用 GloVe 和 CoVe 的拼接向量。GloVe 从全局词共现比率中学习，因此没有句子上下文；而 CoVe 通过处理文本序列生成，能够捕捉上下文信息。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+v = [\text{GloVe}(x); \text{CoVe}(x)]
+">
+v = [\text{GloVe}(x); \text{CoVe}(x)]
+</span></div>
+      
+    
+      
+        <p>对于给定的下游任务，我们首先生成输入词的 GloVe + CoVe 拼接向量，然后将它们作为额外特征输入到特定任务的模型中。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-01-31-lm/CoVe.png" alt="">
+          <figcaption>The CoVe embeddings are generated by an encoder trained for machine translation task. The encoder can be plugged into any downstream task-specific model. (Image source:original paper)</figcaption>
+        </figure>
+      
+    
+      
+        <p>总结：CoVe 的局限性很明显：(1) 预训练受限于有监督翻译任务的可用数据集；(2) CoVe 对最终性能的贡献受特定任务模型架构的制约。</p>
+      
+    
+      
+        <p>在接下来的章节中，我们会看到 ELMo 通过无监督预训练解决了问题 (1)，而 OpenAI GPT 和 BERT 则通过无监督预训练 + 使用生成式模型架构进一步同时解决了这两个问题。</p>
+      
+    
+      
+        <h2>ELMo#</h2>
+        
+      
+    
+      
+        <p>ELMo，全称 Embeddings from Language Model（<a href="https://arxiv.org/abs/1802.05365" target="_blank" rel="noopener">Peters, et al, 2018</a>），通过以无监督方式预训练语言模型来学习上下文相关的词表示。</p>
+      
+    
+      
+        <h2>双向语言模型#</h2>
+        
+      
+    
+      
+        <p>双向语言模型（biLM）是 ELMo 的基础。输入是一个由 <span class="math-inline" data-math="n">n</span> 个 token 组成的序列 <span class="math-inline" data-math="(x_1, \dots, x_n)">(x_1, \dots, x_n)</span>，语言模型需要根据历史信息预测下一个 token 的概率。</p>
+      
+    
+      
+        <p>在前向传递中，历史包含目标 token 之前的词，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+p(x_1, \dots, x_n) = \prod_{i=1}^n p(x_i \mid x_1, \dots, x_{i-1})
+">
+p(x_1, \dots, x_n) = \prod_{i=1}^n p(x_i \mid x_1, \dots, x_{i-1})
+</span></div>
+      
+    
+      
+        <p>在后向传递中，历史包含目标 token 之后的词，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+p(x_1, \dots, x_n) = \prod_{i=1}^n p(x_i \mid x_{i+1}, \dots, x_n)
+">
+p(x_1, \dots, x_n) = \prod_{i=1}^n p(x_i \mid x_{i+1}, \dots, x_n)
+</span></div>
+      
+    
+      
+        <p>两个方向的预测都由多层 LSTM 建模，对于第 <span class="math-inline" data-math="\ell=1,\dots,L">\ell=1,\dots,L</span> 层的输入 token <span class="math-inline" data-math="x_i">x_i</span>，其隐藏状态分别为 <span class="math-inline" data-math="\overrightarrow{\mathbf{h}}_{i,\ell}">\overrightarrow{\mathbf{h}}_{i,\ell}</span> 和 <span class="math-inline" data-math="\overleftarrow{\mathbf{h}}_{i,\ell}">\overleftarrow{\mathbf{h}}_{i,\ell}</span>。
+最后一层的隐藏状态 <span class="math-inline" data-math="\mathbf{h}_{i,L} = [\overrightarrow{\mathbf{h}}_{i,L}; \overleftarrow{\mathbf{h}}_{i,L}]">\mathbf{h}_{i,L} = [\overrightarrow{\mathbf{h}}_{i,L}; \overleftarrow{\mathbf{h}}_{i,L}]</span> 在经过 softmax 归一化后用于输出 token 概率。它们共享嵌入层和 softmax 层，分别由 <span class="math-inline" data-math="\Theta_e">\Theta_e</span> 和 <span class="math-inline" data-math="\Theta_s">\Theta_s</span> 参数化。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-01-31-lm/ELMo-biLSTM.png" alt="">
+          <figcaption>The biLSTM base model of ELMo. (Image source: recreated based on the figure in [&quot;Neural Networks, Types, and Functional Programming&quot;](http://colah.github.io/posts/2015-09-NN-Types-FP/) by Christopher Olah.)</figcaption>
+        </figure>
+      
+    
+      
+        <p>模型训练目标是最小化两个方向的负对数似然（即最大化真实词的对数似然）：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\mathcal{L} = - \sum_{i=1}^n \Big( 
+\log p(x_i \mid x_1, \dots, x_{i-1}; \Theta_e, \overrightarrow{\Theta}_\text{LSTM}, \Theta_s) + \\
+\log p(x_i \mid x_{i+1}, \dots, x_n; \Theta_e, \overleftarrow{\Theta}_\text{LSTM}, \Theta_s) \Big)
+\end{aligned}
+">
+\begin{aligned}
+\mathcal{L} = - \sum_{i=1}^n \Big( 
+\log p(x_i \mid x_1, \dots, x_{i-1}; \Theta_e, \overrightarrow{\Theta}_\text{LSTM}, \Theta_s) + \\
+\log p(x_i \mid x_{i+1}, \dots, x_n; \Theta_e, \overleftarrow{\Theta}_\text{LSTM}, \Theta_s) \Big)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <h2>ELMo 表示#</h2>
+        
+      
+    
+      
+        <p>在 <span class="math-inline" data-math="L">L</span> 层 biLM 的基础上，ELMo 通过学习特定任务的线性组合，将所有层的隐藏状态堆叠起来。token <span class="math-inline" data-math="x_i">x_i</span> 的隐藏状态表示包含 <span class="math-inline" data-math="2L+1">2L+1</span> 个向量：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+R_i = \{ \mathbf{h}_{i,\ell} \mid \ell = 0, \dots, L \}
+">
+R_i = \{ \mathbf{h}_{i,\ell} \mid \ell = 0, \dots, L \}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\mathbf{h}_{0, \ell}">\mathbf{h}_{0, \ell}</span> 是嵌入层输出，<span class="math-inline" data-math="\mathbf{h}_{i, \ell} = [\overrightarrow{\mathbf{h}}_{i,\ell}; \overleftarrow{\mathbf{h}}_{i,\ell}]">\mathbf{h}_{i, \ell} = [\overrightarrow{\mathbf{h}}_{i,\ell}; \overleftarrow{\mathbf{h}}_{i,\ell}]</span>。</p>
+      
+    
+      
+        <p>线性组合中的权重 <span class="math-inline" data-math="\mathbf{s}^\text{task}">\mathbf{s}^\text{task}</span> 是针对每个终端任务学习的，并通过 softmax 归一化。缩放因子 <span class="math-inline" data-math="\gamma^\text{task}">\gamma^\text{task}</span> 用于校正 biLM 隐藏状态分布与任务特定表示分布之间的错位。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+v_i = f(R_i; \Theta^\text{task}) = \gamma^\text{task} \sum_{\ell=0}^L s^\text{task}_i \mathbf{h}_{i,\ell}
+">
+v_i = f(R_i; \Theta^\text{task}) = \gamma^\text{task} \sum_{\ell=0}^L s^\text{task}_i \mathbf{h}_{i,\ell}
+</span></div>
+      
+    
+      
+        <p>为了评估不同层隐藏状态捕捉到的信息类型，ELMo 分别在语义密集型和句法密集型任务上使用 biLM 不同层的表示进行测试：</p>
+      
+    
+      
+        <div class="list-content">语义任务：词义消歧（WSD）任务强调给定上下文下的词义。biLM 顶层在此任务上表现优于第一层。
+句法任务：<a href="https://en.wikipedia.org/wiki/Part-of-speech_tagging" target="_blank" rel="noopener">词性标注</a>（POS tagging）任务旨在推断一个词在句子中的语法角色。使用 biLM 第一层比使用顶层能获得更高的准确率。</div>
+      
+    
+      
+        <p>对比研究表明，句法信息在较低层表达得更好，而语义信息则由较高层捕捉。由于不同层倾向于携带不同类型的信息，将它们叠加在一起是有帮助的。</p>
+      
+    
+      
+        <h2>在下游任务中使用 ELMo#</h2>
+        
+      
+    
+      
+        <p>与 CoVe 能帮助不同下游任务的方式类似，ELMo 嵌入向量被加入到特定任务模型的输入或较低层中。此外，对于某些任务（例如 SNLI 和 SQuAD，但不包括 SRL），将其加入到输出层也有帮助。</p>
+      
+    
+      
+        <p>ELMo 带来的提升在有监督数据集较小的任务上最为显著。有了 ELMo，我们还能用少得多的标注数据达到相近的性能。</p>
+      
+    
+      
+        <p>总结：语言模型预训练是无监督的，理论上可以无限扩大规模，因为无标注文本语料非常丰富。然而，它仍然依赖于为每个任务定制的模型，因此提升只是增量的，而为每个任务寻找一个好的模型架构仍然不是一件容易的事。</p>
+      
+    
+      
+        <h2>Cross-View Training#</h2>
+        
+      
+    
+      
+        <p>在 ELMo 中，无监督预训练和特定任务学习是在两个独立模型、两个独立训练阶段中进行的。Cross-View Training（简称 CVT；<a href="https://arxiv.org/abs/1809.08370" target="_blank" rel="noopener">Clark et al., 2018</a>）将两者合并为一个统一的半监督学习过程，通过有标签数据的监督学习和无标签数据的辅助任务的无监督学习共同改进双向 LSTM 编码器的表示。</p>
+      
+    
+      
+        <h2>模型架构#</h2>
+        
+      
+    
+      
+        <p>模型由一个两层双向 LSTM 编码器和一个主预测模块组成。在训练过程中，模型交替接收有标签和无标签的数据批次。</p>
+      
+    
+      
+        <div class="list-content">在有标签样本上，所有模型参数通过标准的监督学习进行更新，损失是标准的交叉熵。
+在无标签样本上，主预测模块仍能产生“软”目标，尽管我们无法确切知道它们的准确性。在几个辅助任务中，预测器只能看到并处理输入的受限视图，例如只使用编码器单方向的隐藏状态表示。辅助任务的输出期望与主预测目标（针对完整输入视图）匹配。通过这种方式，编码器被迫将完整上下文的知识提炼到部分表示中。在此阶段，只有双向 LSTM 编码器进行反向传播，而主预测模块保持固定。损失是最小化辅助预测与主预测之间的距离。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-01-31-lm/CVT.png" alt="">
+          <figcaption>The overview of semi-supervised language model cross-view training. (Image source:original paper)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>多任务学习#</h2>
+        
+      
+    
+      
+        <p>当同时训练多个任务时，CVT 会为额外任务增加几个额外的主预测模型。它们共享同一个句子表示编码器。
+在有监督训练中，一旦随机选择一个任务，就更新其对应预测器和表示编码器的参数。
+使用无标签数据样本时，编码器通过最小化每个任务的辅助输出与主预测之间的差异，在所有任务上联合优化。</p>
+      
+    
+      
+        <p>多任务学习鼓励表示具有更好的泛化性，同时产生一个很好的副产品：来自无标签数据的“全任务标注”样本。考虑到跨任务标签很有用但相当稀缺，这些数据标签非常宝贵。</p>
+      
+    
+      
+        <h2>在下游任务中使用 CVT#</h2>
+        
+      
+    
+      
+        <p>理论上主预测模块可以采用任何形式，通用的或任务特定的设计均可。CVT 论文中展示的例子同时包含了这两种情况。</p>
+      
+    
+      
+        <p>在序列标注任务（针对每个 token 的分类）如 NER 或 POS tagging 中，预测器模块包含两个全连接层和一个 softmax 层，用于在输出上产生类别标签的概率分布。
+对于每个 token <span class="math-inline" data-math="\mathbf{x}_i">\mathbf{x}_i</span>，我们取其在两层中的对应隐藏状态 <span class="math-inline" data-math="\mathbf{h}_1^{(i)}">\mathbf{h}_1^{(i)}</span> 和 <span class="math-inline" data-math="\mathbf{h}_2^{(i)}">\mathbf{h}_2^{(i)}</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+p_\theta(y_i \mid \mathbf{x}_i) 
+&amp;= \text{NN}(\mathbf{h}^{(i)}) \\
+&amp;= \text{NN}([\mathbf{h}_1^{(i)}; \mathbf{h}_2^{(i)}]) \\
+&amp;= \text{softmax} \big( \mathbf{W}\cdot\text{ReLU}(\mathbf{W&#x27;}\cdot[\mathbf{h}_1^{(i)}; \mathbf{h}_2^{(i)}]) + \mathbf{b} \big)
+\end{aligned}
+">
+\begin{aligned}
+p_\theta(y_i \mid \mathbf{x}_i) 
+&amp;= \text{NN}(\mathbf{h}^{(i)}) \\
+&amp;= \text{NN}([\mathbf{h}_1^{(i)}; \mathbf{h}_2^{(i)}]) \\
+&amp;= \text{softmax} \big( \mathbf{W}\cdot\text{ReLU}(\mathbf{W&#x27;}\cdot[\mathbf{h}_1^{(i)}; \mathbf{h}_2^{(i)}]) + \mathbf{b} \big)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>辅助任务只接收第一层的前向或后向 LSTM 状态。因为它们只能观察到部分上下文（左边或右边），所以必须像语言模型一样学习，在给定上下文的情况下预测下一个 token。前向和后向辅助任务各只使用一个方向，而未来和过去任务则分别在前向和后向方向上再往前走一步。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+p_\theta^\text{fwd}(y_i \mid \mathbf{x}_i) &amp;= \text{NN}^\text{fwd}(\overrightarrow{\mathbf{h}}^{(i)}) \\
+p_\theta^\text{bwd}(y_i \mid \mathbf{x}_i) &amp;= \text{NN}^\text{bwd}(\overleftarrow{\mathbf{h}}^{(i)}) \\
+p_\theta^\text{future}(y_i \mid \mathbf{x}_i) &amp;= \text{NN}^\text{future}(\overrightarrow{\mathbf{h}}^{(i-1)}) \\
+p_\theta^\text{past}(y_i \mid \mathbf{x}_i) &amp;= \text{NN}^\text{past}(\overleftarrow{\mathbf{h}}^{(i+1)})
+\end{aligned}
+">
+\begin{aligned}
+p_\theta^\text{fwd}(y_i \mid \mathbf{x}_i) &amp;= \text{NN}^\text{fwd}(\overrightarrow{\mathbf{h}}^{(i)}) \\
+p_\theta^\text{bwd}(y_i \mid \mathbf{x}_i) &amp;= \text{NN}^\text{bwd}(\overleftarrow{\mathbf{h}}^{(i)}) \\
+p_\theta^\text{future}(y_i \mid \mathbf{x}_i) &amp;= \text{NN}^\text{future}(\overrightarrow{\mathbf{h}}^{(i-1)}) \\
+p_\theta^\text{past}(y_i \mid \mathbf{x}_i) &amp;= \text{NN}^\text{past}(\overleftarrow{\mathbf{h}}^{(i+1)})
+\end{aligned}
+</span></div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-01-31-lm/CVT-example.png" alt="">
+          <figcaption>The sequential tagging task depends on four auxiliary prediction models, their inputs only involving hidden states in one direction: forward, backward, future and past. (Image source:original paper)</figcaption>
+        </figure>
+      
+    
+      
+        <p>请注意，如果主预测模块有 dropout，那么在用有标签数据训练时 dropout 层正常工作，但在用无标签数据训练并为辅助任务生成“软”目标时则不应用 dropout。</p>
+      
+    
+      
+        <p>在机器翻译任务中，主预测模块被替换为带注意力机制的标准单向 LSTM 解码器。有两个辅助任务：(1) 对注意力权重向量施加 dropout，随机将某些值置零；(2) 预测目标序列中的未来词。辅助任务要匹配的主预测是使用固定主解码器在输入序列上通过 <a href="https://en.wikipedia.org/wiki/Beam_search" target="_blank" rel="noopener">集束搜索</a> 生成的最佳预测目标序列。</p>
+      
+    
+      
+        <h2>ULMFiT#</h2>
+        
+      
+    
+      
+        <p>使用生成式预训练语言模型 + 特定任务微调的想法最早在 ULMFiT（<a href="https://arxiv.org/abs/1801.06146" target="_blank" rel="noopener">Howard &amp;amp; Ruder, 2018</a>）中被探索，其直接受 ImageNet 预训练在计算机视觉任务上取得成功的启发。其基础模型是 <a href="https://arxiv.org/abs/1708.02182" target="_blank" rel="noopener">AWD-LSTM</a>。</p>
+      
+    
+      
+        <p>ULMFiT 通过以下三个步骤在下游语言分类任务上取得良好的迁移学习效果：</p>
+      
+    
+      
+        <div class="list-content">通用语言模型预训练：在 Wikipedia 文本上进行。
+
+
+目标任务语言模型微调：ULMFiT 提出了两种训练技巧来稳定微调过程，见下文。</div>
+      
+    
+      
+        <div class="list-content">区分性微调（Discriminative fine-tuning）的动机是语言模型的不同层会捕捉不同类型的信息（见上文讨论）。ULMFiT 提出对每一层使用不同的学习率 <span class="math-inline" data-math="\{\eta^1, \dots, \eta^\ell, \dots, \eta^L\}">\{\eta^1, \dots, \eta^\ell, \dots, \eta^L\}</span>，其中 <span class="math-inline" data-math="\eta">\eta</span> 是第一层的基础学习率，<span class="math-inline" data-math="\eta^\ell">\eta^\ell</span> 是第 <span class="math-inline" data-math="\ell">\ell</span> 层的使用率，总共有 <span class="math-inline" data-math="L">L</span> 层。
+
+
+斜三角学习率（Slanted triangular learning rates, STLR）是一种特殊的学习率调度策略：先线性增加学习率，再线性衰减。增加阶段较短，以便模型快速收敛到适合当前任务的参数空间，而衰减阶段较长，以获得更好的微调效果。</div>
+      
+    
+      
+        <div class="list-content">目标任务分类器微调：在预训练语言模型后添加两个标准的前馈层，并在最后进行 softmax 归一化来预测目标标签分布。</div>
+      
+    
+      
+        <div class="list-content">Concat pooling 从隐藏状态的历史中提取最大池化和平均池化结果，并将其与最终隐藏状态拼接起来。
+
+
+渐进解冻（Gradual unfreezing）通过从最后一层开始逐步解冻模型层来避免灾难性遗忘。首先解冻最后一层并微调一个 epoch，然后解冻下一层，重复这个过程直到所有层都被微调。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-01-31-lm/ULMFiT.png" alt="">
+          <figcaption>Three training stages of ULMFiT. (Image source:original paper)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>GPT#</h2>
+        
+      
+    
+      
+        <p>延续 ELMo 的类似思路，OpenAI GPT（全称 Generative Pre-training Transformer，<a href="https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf" target="_blank" rel="noopener">Radford et al., 2018</a>）通过在一个巨型自由文本语料集合上训练，将无监督语言模型扩展到了更大的规模。尽管有相似之处，GPT 与 ELMo 存在两个主要区别。</p>
+      
+    
+      
+        <div class="list-content">模型架构不同：ELMo 使用浅层拼接的独立训练的从左到右和从右到左的多层 LSTM，而 GPT 是一个多层 Transformer Decoder。
+在下游任务中使用上下文嵌入的方式不同：ELMo 将嵌入作为额外特征输入到为特定任务定制的模型中，而 GPT 则是对所有终端任务微调同一个基础模型。</div>
+      
+    
+      
+        <h2>用 Transformer Decoder 作为语言模型#</h2>
+        
+      
+    
+      
+        <p>与 <a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">原始 Transformer</a> 架构相比，<a href="https://arxiv.org/abs/1801.10198" target="_blank" rel="noopener">Transformer Decoder</a> 模型舍弃了编码器部分，因此只有一个单独的输入句子，而不是两个独立的源序列和目标序列。</p>
+      
+    
+      
+        <p>该模型在输入序列的嵌入上应用多个 Transformer 块。每个块包含一个带掩码的多头自注意力层和一个逐点前馈层。最终输出在经过 softmax 归一化后产生目标 token 的概率分布。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-01-31-lm/OpenAI-GPT-transformer-decoder.png" alt="">
+          <figcaption>The transformer decoder model architecture in OpenAI GPT.</figcaption>
+        </figure>
+      
+    
+      
+        <p>损失函数是负对数似然，与 ELMo 相同，但没有反向计算。假设大小为 <span class="math-inline" data-math="k">k</span> 的上下文窗口位于目标词之前，则损失函数如下：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}_\text{LM} = -\sum_{i} \log p(x_i\mid x_{i-k}, \dots, x_{i-1})
+">
+\mathcal{L}_\text{LM} = -\sum_{i} \log p(x_i\mid x_{i-k}, \dots, x_{i-1})
+</span></div>
+      
+    
+      
+        <h2>字节对编码#</h2>
+        
+      
+    
+      
+        <p>字节对编码（<a href="https://arxiv.org/abs/1508.07909" target="_blank" rel="noopener">BPE</a>）用于对输入序列进行编码。BPE 最初在 20 世纪 90 年代被提出作为一种数据压缩算法，后来被用于解决机器翻译中的开放词汇问题，因为翻译到新语言时很容易遇到稀有词和未知词。基于“稀有词和未知词通常可以分解为多个子词”的直觉，BPE 通过迭代且贪心地合并频繁出现的字符对来找到最佳的词分割方式。</p>
+      
+    
+      
+        <h2>有监督微调#</h2>
+        
+      
+    
+      
+        <p>OpenAI GPT 提出的最实质性的升级是摆脱特定任务模型，直接使用预训练的语言模型！</p>
+      
+    
+      
+        <p>以分类任务为例。假设在标注数据集中，每个输入有 <span class="math-inline" data-math="n">n</span> 个 token <span class="math-inline" data-math="\mathbf{x} = (x_1, \dots, x_n)">\mathbf{x} = (x_1, \dots, x_n)</span>，以及一个标签 <span class="math-inline" data-math="y">y</span>。GPT 首先通过预训练的 Transformer Decoder 处理输入序列 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span>，最后一个 token <span class="math-inline" data-math="x_n">x_n</span> 在最后一层的输出是 <span class="math-inline" data-math="\mathbf{h}_L^{(n)}">\mathbf{h}_L^{(n)}</span>。然后只需要一个新的可训练权重矩阵 <span class="math-inline" data-math="\mathbf{W}_y">\mathbf{W}_y</span>，就能预测类别标签的分布。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-01-31-lm/GPT-classification.png" alt="">
+          <figcaption>Training objects in slightly modified GPT transformer models for downstream tasks. (Image source:original paper)</figcaption>
+        </figure>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

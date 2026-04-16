@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>理解 RL 视觉 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>理解 RL 视觉</h1>
+    <div class="meta">
+      2020-11-17 · 
+      <a href="https://distill.pub/2020/understanding-rl-vision" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>在这篇文章中，我们对一个训练来玩视频游戏 CoinRun [<cite>[coinrunpaper]</cite>] 的强化学习（RL）模型应用可解释性技术。结合使用归因 [<cite>[attribution1,attribution2,attribution3,gradcam,attribution4,attribution5,attribution6,integratedgradients]</cite>] 与 [<cite>[buildingblocks]</cite>] 中的降维方法，我们构建了一个界面来探索模型检测到的物体，以及这些物体如何影响其价值函数和策略。我们以多种方式利用这个界面。</p>
+      
+    
+      
+        <div class="list-content">剖析失败。我们对代理未能获得最大奖励的情况进行逐步分析，从而理解哪里出了问题，以及原因。例如，有一个失败案例是由障碍物暂时被遮挡导致的。
+幻觉。我们发现模型在观察中“幻觉”出并不存在的特征，从而解释了模型价值函数中的不准确之处。这些幻觉非常短暂，并未影响代理的行为。
+模型编辑。我们手动编辑模型的权重，使代理对某些危险视而不见，同时不改变代理的其他行为。我们通过检查哪些危险会导致新代理失败来验证这些编辑的效果。这种编辑只有在之前分析的基础上才可能实现，因此为该分析提供了定量验证。</div>
+      
+    
+      
+        <p>我们的结果依赖于 CoinRun 中程序生成的关卡，这促使我们提出了可解释性的多样性假设。如果该假设正确，那么随着训练环境变得更加多样化，我们可以预期 RL 模型会变得更易解释。我们通过衡量可解释性与泛化之间的关系，为这一假设提供了证据。</p>
+      
+    
+      
+        <p>最后，我们在 RL 视觉的背景下对几种可解释性技术进行了深入探究，并提出了一些有待进一步研究的问题。</p>
+      
+    
+      
+        <h2>我们的 CoinRun 模型</h2>
+        
+      
+    
+      
+        <p>CoinRun 是一款横版平台跳跃游戏，代理必须躲避敌人和其他陷阱，并在关卡结束时收集金币。</p>
+      
+    
+      
+        <p>CoinRun 是程序生成的，这意味着代理遇到的每个新关卡都是从零随机生成的。这激励模型学习如何识别游戏中不同类型的物体，因为它无法通过简单记住少量特定轨迹来过关 [<cite>[procgen]</cite>]。<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup></p>
+      
+    
+      
+        <p>以下是一些用于生成 CoinRun 关卡的物体示例，以及墙壁和地板。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-understanding-rl-vision/agent_0_human.png" alt="">
+          <figcaption>The agent, in mid air (left) and about to jump (right). The agent also appears in beige, blue and green.</figcaption>
+        </figure>
+      
+    
+      
+        <p>CoinRun 中代理有 9 个可用动作：</p>
+      
+    
+      
+        <p>我们使用 PPO [<cite>[ppo]</cite>]（一种 actor-critic 算法）在 CoinRun 上训练了一个卷积神经网络，大约训练了 20 亿步。<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup> 我们的网络架构在附录 C 中描述。我们使用了一个非循环网络，以避免同时可视化多帧。因此我们的模型观察单个下采样后的 64x64 图像，并输出一个价值函数（对未来总贴现奖励的估计）和一个策略（动作上的概率分布，下一个动作从中采样）。</p>
+      
+    
+      
+        <p>由于唯一的奖励是收集金币的固定加分，因此价值函数估计的是代理成功完成关卡的贴现<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup>概率。</p>
+      
+    
+      
+        <h2>模型分析</h2>
+        
+      
+    
+      
+        <p>在训练出一个强大的 RL 代理之后，我们很好奇它学到了什么。遵循 [<cite>[buildingblocks]</cite>] 的方法，我们开发了一个界面来检查代理玩游戏的轨迹。它整合了来自识别物体的隐藏层的归因，用于突出对特定网络输出产生正面或负面影响的物体。通过应用降维，我们获得了归因向量，其分量对应不同类型的物体，我们用不同颜色表示。</p>
+      
+    
+      
+        <p>以下是我们针对典型轨迹的界面，以价值函数作为网络输出。它显示模型使用障碍物、金币、敌人等来计算价值函数。</p>
+      
+    
+      
+        <h3>剖析失败</h3>
+        
+      
+    
+      
+        <p>我们训练好的模型大约每 200 个关卡中会有 1 个无法完成。我们使用界面探索了其中几个失败案例，并发现通常能够理解它们发生的原因。</p>
+      
+    
+      
+        <p>失败往往归结于模型没有记忆，因此必须仅基于当前观察来选择动作。代理策略中不幸的动作采样也常常部分导致了失败。</p>
+      
+    
+      
+        <p>以下是一些精选的失败示例，经过仔细的逐步分析。</p>
+      
+    
+      
+        <div class="table-container"><table style="margin-top: 1em; margin-bottom: 1em;">
+<tbody><tr>
+<td style="width: 50%; vertical-align: top;">
+<label id="interface-failure-obscured-label" style="color: black;">
+<b><input checked="" id="interface-failure-obscured-option" name="interface-failure-options" type="radio"/> Buzzsaw obstacle obscured by enemy</b>
+</label><br/>
+<label id="interface-failure-down-label" style="color: lightgray;">
+<b><input id="interface-failure-down-option" name="interface-failure-options" type="radio"/> Stepping down to avoid jumping</b>
+</label><br/>
+<label id="interface-failure-offscreen-label" style="color: lightgray;">
+<b><input id="interface-failure-offscreen-option" name="interface-failure-options" type="radio"/> Landing platform moving off-screen</b>
+</label>
+</td>
+<td style="vertical-align: top;">
+<div style="min-height: 7.5em;">
+<div id="interface-failure-obscured-text" style="display: block;">
+              The agent moves too far to the right while in mid-air as a result of a buzzsaw obstacle being temporarily hidden from view by a moving enemy. The buzzsaw comes back into view, but too late to avoid a collision.
+            </div>
+<div id="interface-failure-down-text" style="display: none;">
+              The agent presses down in a bid to delay a jump. This causes the agent to inadvertently step down from a box and onto an enemy.
+            </div>
+<div id="interface-failure-offscreen-text" style="display: none;">
+              The agent fails to move far enough to the right while in mid-air, as a result of the platform where it was intending to land moving below the field of view.
+            </div>
+</div>
+</td>
+</tr>
+</tbody></table></div>
+      
+    
+      
+        <p>上一个</p>
+      
+    
+      
+        <p>开始</p>
+      
+    
+      
+        <p>下一个</p>
+      
+    
+      
+        <p>结束</p>
+      
+    
+      
+        <h3>幻觉</h3>
+        
+      
+    
+      
+        <p>我们使用广义优势估计（GAE）[<cite>[gae]</cite>]<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup>来寻找模型中的错误，该方法衡量每个动作相对于代理预期的实际表现。异常高或低的 GAE 表明要么发生了意外事件，要么代理的预期未校准。因此，筛选这类时间步可以发现价值函数或策略的问题。</p>
+      
+    
+      
+        <p>使用我们的界面，我们发现了几种模型“幻觉”出观察中不存在的特征的情况，导致价值函数突然升高。</p>
+      
+    
+      
+        <div class="table-container"><table style="margin-top: 1em; margin-bottom: 0em;">
+<tbody><tr>
+<td style="width: 30%; vertical-align: top;">
+<label id="interface-bug-coin-label" style="color: black;">
+<b><input checked="" id="interface-bug-coin-option" name="interface-bug-options" type="radio"/> Coin hallucination</b>
+</label><br/>
+<label id="interface-bug-saw-label" style="color: lightgray;">
+<b><input id="interface-bug-saw-option" name="interface-bug-options" type="radio"/> Buzzsaw hallucination</b>
+</label>
+</td>
+<td style="vertical-align: top;">
+<div>
+<div id="interface-bug-coin-text" style="display: block;">
+              At one point the value function spiked upwards from 95% to 98% for a single timestep. This was due to a curved yellow-brown shape in the background, which happened to appear next to a wall, being mistaken for a coin.
+            </div>
+<div id="interface-bug-saw-text" style="display: none;">
+              At another point the value function spiked downwards from 94% to 85% for a single timestep. This was due to the agent, colored in gray-blue and crouching against a mottled background, being mistaken for a buzzsaw obstacle. An actual buzzsaw was also present in the observation, but the main effect was from the misjudged agent, as shown by the larger red circle around the agent (hover over the first legend item to isolate).
+            </div>
+</div>
+</td>
+</tr>
+</tbody></table></div>
+      
+    
+      
+        <h3>模型编辑</h3>
+        
+      
+    
+      
+        <p>到目前为止，我们的分析主要是定性的。为了定量验证我们的分析，我们手动编辑模型，使代理对界面识别出的某些特征视而不见：一个是锯齿障碍物，另一个是向左移动的敌人。我们的方法可以看作是 <a href="2020-circuits.html">线程：电路</a> 编辑 [<cite>[circuits]</cite>] 的原始形式，我们在附录 A 中详细解释了它。</p>
+      
+    
+      
+        <p>我们通过测量新代理未能完成的关卡百分比（按导致失败的碰撞物体细分）来评估每次编辑。我们的结果表明，这些编辑是成功且有针对性的，对代理的其他能力没有可统计测量的影响。<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup></p>
+      
+    
+      
+        <p>然而，我们并未实现完全视而不见：经过锯齿编辑的模型在锯齿完全不可见的情况下，仍明显优于原始模型的表现。<sup id="fnref-f8n"><a href="#f8n">[8]</a></sup> 这表明模型除了界面识别的特征外，还有其他检测锯齿的方法。</p>
+      
+    
+      
+        <p>以下是原始模型和编辑后模型在一些精选关卡中的表现。</p>
+      
+    
+      
+        <h2>多样性假设</h2>
+        
+      
+    
+      
+        <p>以上所有分析都使用我们网络的同一个隐藏层——五个卷积层中的第三个，因为在其他层上发现可解释特征要困难得多。有趣的是，该层所操作的抽象层次——找到游戏中各种物体的位置——恰好是 CoinRun 关卡通过程序生成进行随机化的层次。此外，我们发现训练大量随机关卡对我们能够发现任何可解释特征至关重要。</p>
+      
+    
+      
+        <p>这使我们怀疑 CoinRun 随机化引入的多样性与可解释特征的形成有关。我们称之为多样性假设：</p>
+      
+    
+      
+        <blockquote>可解释特征倾向于出现（在给定抽象层次上），当且仅当训练分布足够多样（在该抽象层次上）。</blockquote>
+      
+    
+      
+        <p>我们对这一假设的解释如下。对于正向蕴涵（“仅当”），我们只有在特征足够通用时才预期它们是可解释的，而当训练分布不够多样时，模型没有动机去开发能够泛化的特征而不是过拟合。对于反向蕴涵（“如果”），我们不期望它在严格意义上成立：多样性本身不足以保证可解释特征的发展，因为它们还必须与任务相关。相反，我们使用反向蕴涵的意图是假设它在实践中经常成立，这是因为泛化被多样性所瓶颈。</p>
+      
+    
+      
+        <p>在 CoinRun 中，程序生成被用来激励模型学习能够泛化到未见过关卡的技能 [<cite>[procgen,gvgai,obstacletower]</cite>]。然而，只有每个关卡的布局被随机化，相应地，我们只能在物体抽象层次上找到可解释特征。在更低层次上，游戏中只有少数视觉模式，我们模型的低层特征似乎主要由用于挑选这些模式的记忆颜色配置组成。类似地，游戏的高层动态遵循几个简单规则，因此我们模型的高层特征似乎涉及难以解读的物体组合混合。要探索其他卷积层，请参见<a href="https://openaipublic.blob.core.windows.net/rl-clarity/attribution/demo/interface.html" target="_blank" rel="noopener">此界面</a>。</p>
+      
+    
+      
+        <h3>可解释性与泛化</h3>
+        
+      
+    
+      
+        <p>为了测试我们的假设，我们通过在固定的 100 个关卡上训练代理来降低训练分布的多样性。这显著降低了我们解释模型特征的能力。这里我们展示了一个为新模型生成的界面，与上面的界面生成方式相同。平滑上升的价值函数表明模型记住了关卡结束前的步数，它用于此的特征集中在无关的背景物体上。在关卡数量有限的其他视频游戏中也出现了类似的过拟合 [<cite>[sonicsaliency]</cite>]。</p>
+      
+    
+      
+        <p>我们尝试通过改变训练代理使用的关卡数量来量化这一效果，并根据界面识别的 8 个特征的可解释程度对其进行评估。<sup id="fnref-f9n"><a href="#f9n">[9]</a></sup> 特征评分基于它们是否一致地聚焦于相同物体，以及价值函数归因是否合理——例如，背景物体不应相关。这个过程是主观且有噪声的，但这可能是不可避免的。我们还通过在未见关卡上测试代理来衡量每个模型的泛化能力 [<cite>[coinrunpaper]</cite>]。<sup id="fnref-f10n"><a href="#f10n">[10]</a></sup></p>
+      
+    
+      
+        <p>我们的结果说明了多样性如何通过泛化导致可解释特征，从而为多样性假设提供了支持。尽管如此，我们仍认为该假设远未得到充分证明。</p>
+      
+    
+      
+        <h2>特征可视化</h2>
+        
+      
+    
+      
+        <p><a href="2017-feature-visualization.html">特征可视化</a> [<cite>[attribution1,featurevis,featurevis1,featurevis2,featurevis3,featurevis4]</cite>] 通过生成示例来回答网络某些部分在寻找什么。这可以通过对输入图像应用梯度下降（从随机噪声开始），目标是激活特定神经元或神经元组来实现。虽然这种方法对在 ImageNet 上训练的图像分类器 [<cite>[imagenet]</cite>] 效果很好，但对我们的 CoinRun 模型，它只产生无特征的颜色云。只有第一层（计算输入的简单卷积）的方法为两个模型产生了可比较的可视化。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-understanding-rl-vision/imagenet_first_0.png" alt="">
+          <figcaption>Comparison of gradient-based feature visualization for CNNs trained on ImageNet (GoogLeNet [<cite>[googlenet]</cite>]) and on CoinRun (architecture described below). Each image was chosen to activate a neuron in the center, with the 3 images corresponding to the first 3 channels. Jittering was applied between optimization steps of up to 2 pixels for the first layer, and up to 8 pixels for the intermediate layer (mixed4a for ImageNet, 2b for CoinRun).</figcaption>
+        </figure>
+      
+    
+      
+        <p>基于梯度的特征可视化此前已被证明在 Atari 游戏上训练的 RL 模型中表现不佳 [<cite>[atarimodelzoo,atarifeaturevis]</cite>]。为了尝试让它在 CoinRun 上工作，我们以多种方式改变了该方法。我们尝试的一切都没有对可视化质量产生明显影响。</p>
+      
+    
+      
+        <div class="list-content">变换鲁棒性。这是随机抖动、旋转和缩放图像在优化步骤之间的方法，以寻找对这些变换鲁棒的示例 [<cite>[featurevis]</cite>]。我们尝试了增加和减少抖动的大小。旋转和缩放对 CoinRun 来说不太合适，因为观察本身对这些变换并不不变。
+惩罚极端颜色。<sup id="fnref-f12n"><a href="#f12n">[12]</a></sup> 注意到我们的可视化倾向于在中间使用极端颜色，我们尝试在可视化目标中加入对第一层激活的不同强度的 L2 惩罚，这成功减小了极端颜色区域的大小，但没有其他帮助。
+替代目标。我们尝试使用替代优化目标 [<cite>[featurevis]</cite>]，如漫画目标。<sup id="fnref-f13n"><a href="#f13n">[13]</a></sup> 我们还尝试使用下面描述的降维方法来选择激活空间中非轴对齐的方向进行最大化。
+低层视觉多样性。为了拓宽模型看到的图像分布，我们在一个具有程序生成精灵的游戏版本上重新训练了它。我们还尝试向图像添加噪声，包括独立的逐像素噪声和空间相关的噪声。最后，我们简要尝试了对抗训练 [<cite>[adversarialtraining]</cite>]，尽管我们没有深入探究这条路线。</div>
+      
+    
+      
+        <p>如下面所示，我们能够使用数据集示例来识别出一些挑选出人类可解释特征的通道。因此，基于梯度的方法对我们的努力表现出惊人的抵抗力，这一点令人印象深刻。我们认为这是因为解决 CoinRun 最终并不需要太多的视觉能力。即使进行了修改，仍然可以使用简单的视觉捷径来解决游戏，例如挑选某些小的像素配置。这些捷径在模型训练的狭窄图像分布上效果很好，但在基于梯度的优化发生的完整图像空间中行为不可预测。</p>
+      
+    
+      
+        <p>我们这里的分析为多样性假设提供了进一步的洞见。为了支持该假设，我们有在缺乏多样性时难以解释的特征的例子。但也有证据表明该假设可能需要改进。首先，似乎是低抽象层次上缺乏多样性损害了我们在所有抽象层次上解释特征的能力，这可能是因为基于梯度的特征可视化需要通过早期层反向传播。其次，我们增加低层视觉多样性的努力失败表明，多样性可能需要在任务需求的情境中进行评估。</p>
+      
+    
+      
+        <h3>基于数据集示例的特征可视化</h3>
+        
+      
+    
+      
+        <p>作为基于梯度的特征可视化的替代方案，我们使用数据集示例。这个想法有很长的历史，可以看作是特征可视化的一种 heavily-regularized 形式 [<cite>[featurevis,featurevisadversarial]</cite>]。更详细地说，我们从代理玩游戏的过程中不频繁地采样几千个观察，并将它们通过模型。然后我们对激活通道应用一种称为非负矩阵分解（NMF）的降维方法 [<cite>[buildingblocks]</cite>]。<sup id="fnref-f14n"><a href="#f14n">[14]</a></sup> 对于得到的每个通道（对应原始通道的加权组合），我们选择激活最强的观察和空间位置（每个位置限制示例数量以保证多样性），并显示该位置观察中的一个补丁。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-understanding-rl-vision/layer_2b_feature_0.png" alt="">
+          <figcaption>Dataset example-based feature visualizations for 16 NMF directions of layer 2b of our CoinRun model. The grey-white checkerboard represents the edge of the screen. The labels are hand-composed.</figcaption>
+        </figure>
+      
+    
+      
+        <p>与基于梯度的特征可视化不同，这种方法为激活空间中的不同方向找到了一些意义。然而，它可能仍无法为每个方向提供完整画面，因为它只显示有限数量的数据集示例，且上下文有限。</p>
+      
+    
+      
+        <h3>空间感知的特征可视化</h3>
+        
+      
+    
+      
+        <p>CoinRun 观察与自然图像的不同之处在于它们的空间不变性要低得多。例如，代理始终出现在中心，代理的速度始终编码在左上角。因此，一些特征在不同空间位置检测不相关的事物，例如在左上角读取代理速度，同时在其他地方检测不相关的物体。为了解决这个问题，我们开发了一个空间感知版本的基于数据集示例的特征可视化，其中我们依次固定每个空间位置，并选择在该位置激活最强的观察（对同一观察限制重用次数以保证多样性）。这在可视化和观察之间创建了空间对应关系。</p>
+      
+    
+      
+        <p>这是一个对金币响应强烈的特征的可视化。左上角的白色方块表明该特征对白色时的水平速度信息也响应强烈，对应代理以全速向右移动。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-understanding-rl-vision/feature_vis_spatial.png" alt="">
+          <figcaption>Spatially-aware dataset example-based feature visualization for the coin-detecting NMF direction of layer 2b. Transparency (revealing the diagonally-striped background) indicates a weak response, so the left half of the visualization is mostly transparent because coins never appear in the left half of observations.</figcaption>
+        </figure>
+      
+    
+      
+        <h2>归因</h2>
+        
+      
+    
+      
+        <p>归因 [<cite>[attribution1,attribution2,attribution3,gradcam,attribution4,attribution5,attribution6,integratedgradients]</cite>] 回答神经元之间关系的问题。它最常用于查看网络输入如何影响特定输出——例如在 RL 中 [<cite>[perturbationsaliency,sarfa]</cite>]——但也可以应用于隐藏层的激活 [<cite>[buildingblocks]</cite>]。虽然我们可以采用许多归因方法，但我们选择了积分梯度方法 [<cite>[integratedgradients]</cite>]。我们在附录 B 中解释了如何将此方法应用于隐藏层，以及如何将正的价值函数归因视为“好消息”，负的价值函数归因视为“坏消息”。</p>
+      
+    
+      
+        <h3>用于归因的降维</h3>
+        
+      
+    
+      
+        <p>我们上面展示了非负矩阵分解（NMF）这种降维方法可以应用于激活通道，以在激活空间中产生有意义的方向 [<cite>[buildingblocks]</cite>]。我们发现，将 NMF 应用于价值函数归因<sup id="fnref-f15n"><a href="#f15n">[15]</a></sup> 而非激活甚至更有效（绕过了 NMF 只能应用于非负矩阵的事实<sup id="fnref-f16n"><a href="#f16n">[16]</a></sup>）。两种方法都倾向于产生接近 one-hot 的 NMF 方向，因此可以看作是挑选出最相关的通道。然而，当降维到少量维度时，使用归因通常会挑选出更显著的特征，因为归因不仅考虑神经元对什么有响应，还考虑它们的响应是否重要。</p>
+      
+    
+      
+        <p>遵循 [<cite>[buildingblocks]</cite>]，在对归因应用 NMF 后，我们通过为每个得到的通道分配不同颜色来可视化它们。我们将这些可视化叠加在观察上 [<cite>[gradcam]</cite>]，并使用基于数据集示例的特征可视化 [<cite>[buildingblocks]</cite>] 来为每个通道提供上下文。这给出了我们界面的基本版本，使我们能够看到主要特征在不同空间位置的影响。</p>
+      
+    
+      
+        <p>对于我们界面的完整版本，我们只需对代理玩游戏的整个轨迹重复这一过程。我们还加入了视频控制、压缩观察的时间线视图 [<cite>[rmo]</cite>] 以及额外信息，如模型输出和采样的动作。这些共同允许轨迹被轻松探索和理解。</p>
+      
+    
+      
+        <h3>归因讨论</h3>
+        
+      
+    
+      
+        <p>我们 CoinRun 模型的归因具有一些在 ImageNet 模型中不常见的有趣特性。</p>
+      
+    
+      
+        <div class="list-content">稀疏性。归因倾向于集中在极少数空间位置和（NMF 后）通道上。例如，在上图中，前 10 个位置-通道对占总绝对归因的 80% 以上。这可能可以用我们之前的假设来解释，即模型通过挑选某些小的像素配置来识别物体。由于这种稀疏性，我们在界面的完整版本中对附近空间位置的归因进行平滑，以便可以用占据的视觉空间大小来判断归因强度。这以牺牲一些空间精度换取更高的幅度精度。
+意外符号。价值函数归因通常具有预期的符号：金币为正，敌人为负，等等。然而，有时并非如此。例如，在上图中，检测锯齿障碍物的红色通道在左侧两个相邻空间位置上同时具有正和负归因。我们最好的猜测是，这种现象是统计 <a href="https://en.wikipedia.org/wiki/Multicollinearity" target="_blank" rel="noopener">多重共线性</a> 的结果，由程序关卡生成中的某些相关性以及代理的行为共同引起。这些相关性可以是视觉上的（如附近像素之间的相关性），也可以是更抽象的（如每个关卡结束时都会出现金币和长墙）。作为一个玩具例子，假设当关卡结束变得可见时价值函数应该增加 2%，模型可以为金币增加 1% 并为长墙增加 1%，或者为金币增加 3% 并为长墙减少 1%，效果是相似的。
+异常帧。当异常事件导致网络输出极端值时，归因可能表现得特别奇怪。例如，在锯齿幻觉帧中，大多数特征同时具有大量正和负归因。我们对此没有很好的解释，但也许特征以比平时更复杂的方式相互作用。此外，在这些情况下，归因往往有很大一部分位于 NMF 方向所跨越的空间之外，我们将其显示为额外的“残差”特征。这可能是因为计算 NMF 时每个帧被同等加权，因此异常帧对 NMF 方向的影响很小。</div>
+      
+    
+      
+        <p>这些考量表明，在解释归因时可能需要一些谨慎。</p>
+      
+    
+      
+        <h2>有待进一步研究的问题</h2>
+        
+      
+    
+      
+        <h3>多样性假设</h3>
+        
+      
+    
+      
+        <div class="list-content">有效性。多样性假设是否在其他情境中成立，包括强化学习内外？
+与泛化的关系。多样性、可解释特征和泛化之间的三方关系是什么？不可解释特征是否表明模型将在某些方面无法泛化？泛化隐含地指一个底层分布——应该如何选择这个分布？<sup id="fnref-f17n"><a href="#f17n">[17]</a></sup>
+注意事项。可解释特征如何受其他因素影响，如任务或算法的选择，以及这些如何与多样性相互作用？推测性地，足够大的模型是否即使在缺乏多样性的情况下也能通过双下降现象 [<cite>[doubledescent]</cite>] 获得可解释特征？
+量化。我们能否使用泛化指标定量预测获得可解释特征需要多少多样性？我们能否精确定义“可解释特征”和“抽象层次”的含义？</div>
+      
+    
+      
+        <h3>在缺乏多样性时的可解释性</h3>
+        
+      
+    
+      
+        <div class="list-content">非多样特征的普遍性。我们所说的“非多样特征”（即在缺乏多样性时倾向于出现的难以解释的特征）在存在多样性时是否仍然存在？这些非多样特征与被认为能解释对抗样本的“非鲁棒特征” [<cite>[advexfeatures,advexfeaturesdiscussion]</cite>] 之间是否有联系？
+应对非多样抽象层次。是否存在即使像 ImageNet 这样广泛的分布在某些抽象层次上仍缺乏多样性的情况，我们如何在这些抽象层次上最好地解释模型？
+基于梯度的特征可视化。为什么基于梯度的特征可视化在缺乏多样性时会失效，能否通过变换鲁棒性、正则化、数据增强、对抗训练或其他技术使其工作？导致极端颜色云的优化属性是什么？
+基于数据集示例和归因的可信度。我们能使 heavily-regularized 的特征可视化版本（如基于数据集示例的那些）变得多么可靠和可信？<sup id="fnref-f18n"><a href="#f18n">[18]</a></sup> 是什么解释了归因的奇怪行为，以及它的可信度如何？</div>
+      
+    
+      
+        <h3>RL 框架中的可解释性</h3>
+        
+      
+    
+      
+        <div class="list-content">非视觉和抽象特征。对于具有非视觉输入的模型，最好的解释方法是什么？即使是视觉模型也可能具有可解释的抽象特征，如物体之间的关系或预期事件：生成示例的任何方法是否足以理解这些，还是我们需要一种全新的方法？对于具有记忆的模型，我们如何解释它们的隐藏状态 [<cite>[capturetheflag,rubik,dota]</cite>]？
+提高可靠性。我们如何最好地识别、理解和纠正 RL 模型中的罕见失败和其他错误？我们能否通过模型编辑实际改进模型，而不是仅仅降低其性能？
+修改训练。我们可以通过什么方式训练 RL 模型，使它们更易解释而不会显著牺牲性能，例如改变架构或添加辅助预测损失？
+利用环境。我们如何使用 RL 特定的数据（如代理-环境交互轨迹、状态分布和优势估计）来丰富界面？纳入用户-环境交互（如用于探索反事实）的好处是什么？</div>
+      
+    
+      
+        <h3>我们希望从进一步研究中看到什么以及原因</h3>
+        
+      
+    
+      
+        <p>我们有两个动机来研究 RL 的可解释性。</p>
+      
+    
+      
+        <div class="list-content">为了能够解释 RL 模型。RL 可以应用于极其多样的任务，并且似乎很可能成为越来越有影响力的 AI 系统的一部分。因此，能够仔细审查 RL 模型并理解它们可能如何失败非常重要。这还可能通过更好地理解不同算法和环境的陷阱来促进 RL 研究。
+作为可解释性技术的测试平台。RL 模型对可解释性技术提出了一些独特的挑战。特别是，像 CoinRun 这样的环境处于记忆和泛化之间的边界，使它们成为研究多样性假设及相关想法的有用工具。</div>
+      
+    
+      
+        <p>我们认为大型神经网络目前是最可能在未来用于高度强大且有影响力的 AI 系统的模型类型。与传统上将神经网络视为黑箱的认知相反，我们认为我们有相当大的机会能够清晰而彻底地理解即使是非常大型网络的行为。因此，我们最感兴趣的是根据以下标准得分高的神经网络可解释性研究。</p>
+      
+    
+      
+        <div class="list-content">可扩展性。研究的结果应该有一定机会扩展到更难的问题和更大的网络。如果技术本身不可扩展，至少应该揭示一些相关的洞见。
+可信度。解释应该忠实于模型。即使它们没有讲述完整的故事，至少也不应以某种致命的方式存在偏差（例如使用基于认可的目标导致听起来不错但糟糕的解释，或依赖另一个严重扭曲信息的模型）。
+穷尽性。这在大规模下可能被证明是不可能的，但我们应该努力开发能够解释模型每一个本质特征的技术。如果存在穷尽性的理论限制，我们应该尝试理解这些限制。
+低成本。我们的技术在计算上不应显著比训练模型更昂贵。我们希望不需要以不同方式训练模型才能使其可解释，但如果需要，我们应该尽量减少计算开销和任何性能成本，以便可解释模型不会在实践中被 disincentivized。</div>
+      
+    
+      
+        <p>我们提出的问题反映了这一视角。我们强调多样性的原因之一与穷尽性有关。如果“非多样特征”在存在多样性时仍然存在，那么我们当前的技术就不够穷尽，并且可能最终错过更有能力模型的重要特征。开发理解非多样特征的工具可能会揭示这是否可能成为一个问题。</p>
+      
+    
+      
+        <p>我们认为，简单地将现有可解释性技术细致地应用于更多模型，可能会有很大的收获。事实上，这是我们最初接触这个项目时的心态。如果多样性假设是正确的，那么随着我们训练模型执行更复杂的任务，这可能会变得更容易。就像早期生物学家遇到新物种一样，通过用放大镜观察我们面前的生物，我们可能能够获得很多信息。</p>
+      
+    
+      
+        <h2>补充材料</h2>
+        
+      
+    
+      
+        <div class="list-content">代码。用于计算我们模型的特征可视化、归因和降维的工具可以在 Lucid 的子模块 lucid.scratch.rl_util 中找到。我们在一个<a href="https://colab.research.google.com/github/tensorflow/lucid/blob/master/notebooks/misc/rl_util.ipynb" target="_blank" rel="noopener">notebook</a>中演示了这些。
+模型权重。我们模型的权重可供下载，同时还有其他一些模型的权重，包括在不同数量关卡上训练的模型、编辑后的模型，以及在 Procgen Benchmark [<cite>[procgen]</cite>] 的全部 16 个游戏上训练的模型。这些可在<a href="https://openaipublic.blob.core.windows.net/rl-clarity/attribution/models/index.html" target="_blank" rel="noopener">此处</a>索引。
+更多界面。我们为模型中的每个卷积层生成了扩展版本的界面，可以在<a href="https://openaipublic.blob.core.windows.net/rl-clarity/attribution/demo/interface.html" target="_blank" rel="noopener">此处</a>找到。我们还为其他每个模型生成了类似的界面，索引在<a href="https://openaipublic.blob.core.windows.net/rl-clarity/attribution/index.html" target="_blank" rel="noopener">此处</a>。
+界面代码。用于生成我们界面扩展版本的代码可以在<a href="https://github.com/openai/understanding-rl-vision" target="_blank" rel="noopener">此处</a>找到。</div>
+      
+    
+  </div>
+
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <a href="#fnref-f1n">[1]</a> 我们使用 CoinRun 的原始版本 [<cite>[coinrunpaper]</cite>]，而不是 Procgen Benchmark [<cite>[procgen]</cite>] 中的版本，后者略有不同。要亲自玩 CoinRun，请按照此处的说明操作。
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <span class="fn-num">[2]</span> 在速度信息上“涂色”允许模型从单帧推断代理的运动。左侧方块的深浅表示代理的水平速度（全速向左为黑色，全速向右为白色），右侧方块的深浅表示代理的垂直速度（全速向下为黑色，全速向上为白色）。在这个例子中，代理正在向前移动并即将着陆（因此向右且向下）。
+    </div>
+    
+    <div class="footnote-item" id="f3n">
+      <span class="fn-num">[3]</span> CoinRun 的原始版本只有一个“什么都不做”动作，但当为其他游戏添加“A”和“B”动作后，我们的版本最终变成了 3 个。为了一致性，我们将原始的“什么都不做”动作重新标记为“C”。
+    </div>
+    
+    <div class="footnote-item" id="f4n">
+      <a href="#fnref-f4n">[4]</a> 我们使用了 CoinRun 的标准 PPO 超参数 [<cite>[coinrunpaper]</cite>]，只是每个 worker 使用了两倍的环境副本，并且 worker 数量也翻倍。这些更改的效果是增加了有效批量大小，这似乎对使用我们较小架构达到相同性能是必要的。
+    </div>
+    
+    <div class="footnote-item" id="f5n">
+      <a href="#fnref-f5n">[5]</a> 我们使用每步 0.999 的折扣率。
+    </div>
+    
+    <div class="footnote-item" id="f6n">
+      <a href="#fnref-f6n">[6]</a> 我们使用与训练中相同的 GAE 超参数，即 <span class="math-inline" data-math="\gamma=0.999">\gamma=0.999</span> 和 <span class="math-inline" data-math="\lambda=0.95">\lambda=0.95</span>。
+    </div>
+    
+    <div class="footnote-item" id="f7n">
+      <a href="#fnref-f7n">[7]</a> 该图的数据如下。失败关卡百分比（由于）：锯齿障碍物 / 向左移动的敌人 / 向右移动的敌人 / 多个或其他：- 原始模型：0.37% / 0.16% / 0.12% / 0.08%- 锯齿障碍物盲：12.76% / 0.16% / 0.08% / 0.05%- 向左移动敌人盲：0.36% / 4.69% / 0.97% / 0.07%每个模型都在 10,000 个关卡上进行了测试。
+    </div>
+    
+    <div class="footnote-item" id="f8n">
+      <a href="#fnref-f8n">[8]</a> 我们在锯齿不可见的游戏版本上的结果如下。失败关卡百分比（由于）：锯齿障碍物 / 向左移动的敌人 / 向右移动的敌人 / 多个或其他：原始模型，不可見锯齿：32.20% / 0.05% / 0.05% / 0.05%我们在 10,000 个关卡上测试了模型。我们简要尝试了迭代编辑过程，但未能通过这个指标实现超过约 50% 的锯齿盲而不影响模型的其他能力。
+    </div>
+    
+    <div class="footnote-item" id="f9n">
+      <a href="#fnref-f9n">[9]</a> 用于此评估的界面可在此处找到。
+    </div>
+    
+    <div class="footnote-item" id="f10n">
+      <a href="#fnref-f10n">[10]</a> 该图的数据如下。- 训练关卡数量：100 / 300 / 1000 / 3,000 / 10,000 / 30,000 / 100,000- 完成关卡百分比（训练，运行 1）：99.96% / 99.82% / 99.67% / 99.65% / 99.47% / 99.55% / 99.57%- 完成关卡百分比（训练，运行 2）：99.97% / 99.86% / 99.70% / 99.46% / 99.39% / 99.50% / 99.37%- 完成关卡百分比（测试，运行 1）：61.81% / 66.95% / 74.93% / 89.87% / 97.53% / 98.66% / 99.25%- 完成关卡百分比（测试，运行 2）：64.13% / 67.64% / 73.46% / 90.36% / 97.44% / 98.89% / 99.35%- 可解释特征百分比（研究者 1，运行 1）：52.5% / 22.5% / 11.25% / 45% / 90% / 75% / 91.25%- 可解释特征百分比（研究者 2，运行 1）：8.75% / 8.75% / 10% / 26.25% / 56.25% / 90% / 70%- 可解释特征百分比（研究者 1，运行 2）：15% / 13.75% / 15% / 23.75% / 53.75% / 90% / 96.25%- 可解释特征百分比（研究者 2，运行 2）：3.75% / 6.25% / 21.25% / 45% / 72.5% / 83.75% / 77.5%完成关卡百分比通过对 10,000 个关卡进行有放回采样来估计。
+    </div>
+    
+    <div class="footnote-item" id="f11n">
+      <span class="fn-num">[11]</span> 我们的方法存在一些缺陷。首先，研究者并非完全对关卡数量盲：例如，从价值函数图的平滑度可以推断出关于关卡数量的信息，因为关卡越少，模型就越能记住关卡结束前的步数。其次，由于评估有些繁琐，我们一旦认为趋势已经明确就停止了评估，引入了一些选择偏差。因此，这些结果应主要视为说明性的。
+    </div>
+    
+    <div class="footnote-item" id="f12n">
+      <a href="#fnref-f12n">[12]</a> 我们所说的“极端”颜色是指 RGB 值最大或最小的 8 种颜色之一（黑、白、红、绿、蓝、黄、青、洋红）。
+    </div>
+    
+    <div class="footnote-item" id="f13n">
+      <a href="#fnref-f13n">[13]</a> 漫画目标是最大化输入图像激活与参考图像激活之间的点积。漫画通常是一种特别容易让特征可视化工作起来的类型，有助于初步了解模型具有什么特征。它们在这个 notebook 中得到了展示。其作者的一篇更详细的手稿 [<cite>[caricatures]</cite>] 即将发表。
+    </div>
+    
+    <div class="footnote-item" id="f14n">
+      <a href="#fnref-f14n">[14]</a> 更准确地说，我们找到了通过将激活的空间维度展平到批量维度得到的矩阵的非负近似低秩分解。该矩阵每行对应每个观察的每个空间位置，每列对应每个通道：因此降维不使用空间信息。
+    </div>
+    
+    <div class="footnote-item" id="f15n">
+      <a href="#fnref-f15n">[15]</a> 如前所述，我们通过从代理玩游戏的过程中不频繁采样几千个观察、计算归因、将空间维度展平到批量维度，然后应用 NMF 来获得 NMF 方向。
+    </div>
+    
+    <div class="footnote-item" id="f16n">
+      <a href="#fnref-f16n">[16]</a> 我们的变通方法是将归因的正负部分分开，并沿批量维度连接它们。我们也可以沿通道维度连接它们。
+    </div>
+    
+    <div class="footnote-item" id="f17n">
+      <a href="#fnref-f17n">[17]</a> 例如，为了衡量在有限关卡上训练的 CoinRun 模型的泛化，我们使用了所有可能的程序生成关卡的分布。然而，为了形式化 CoinRun 在其视觉模式或动态规则上缺乏多样性的意义，需要一个来自更广泛游戏类别的关卡分布。
+    </div>
+    
+    <div class="footnote-item" id="f18n">
+      <a href="#fnref-f18n">[18]</a> heavily-regularized 的特征可视化可能不可信，因为它无法将导致某些行为的事物与仅仅与这些原因相关的其他事物区分开来 [<cite>[featurevis]</cite>]。
+    </div>
+    
+  </section>
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

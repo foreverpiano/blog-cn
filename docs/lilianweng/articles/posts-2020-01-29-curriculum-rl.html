@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>强化学习的课程设计 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>强化学习的课程设计</h1>
+    <div class="meta">
+      2020-01-29 · 
+      <a href="https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">特定任务课程  
+教师引导课程  
+通过自我博弈构建课程  
+自动目标生成  
+基于技能的课程  
+通过蒸馏构建课程  
+引用  
+参考文献</div>
+      
+    
+      
+        <p>课程是人类从简单概念逐步学习到困难问题的高效工具。它将复杂知识分解成一系列难度递增的学习步骤。在这篇文章中，我们将探讨课程的思想如何帮助强化学习模型学会解决复杂任务。</p>
+      
+    
+      
+        <p>[2020-02-03 更新：在“特定任务课程”部分提及 PCG。  
+[2020-02-04 更新：新增“通过蒸馏构建课程”部分。</p>
+      
+    
+      
+        <p>如果我们想教一个连基本算术都不懂的三岁小孩积分或导数，听起来几乎是不可能完成的任务。这就是教育的重要性，它提供了一种系统化的方法来分解复杂知识，并设计出从简单到困难的良好课程。课程让人类学习困难事物变得更容易且可行。那么，机器学习模型呢？我们能否通过课程让模型学习得更高效？我们能否设计课程来加速学习过程？</p>
+      
+    
+      
+        <p>早在 1993 年，Jeffrey Elman 就提出了使用课程训练神经网络的想法。他早期关于学习简单语言语法的工作展示了这种策略的重要性：从受限的简单数据集开始，逐步增加训练样本的复杂性；否则模型根本无法学会。</p>
+      
+    
+      
+        <p>与不使用课程的训练相比，我们期望采用课程能够加快收敛速度，并可能（也可能不）提升最终模型性能。设计一个高效且有效的课程并不容易。请记住，一个糟糕的课程甚至可能阻碍学习。</p>
+      
+    
+      
+        <p>接下来，我们将介绍几类课程学习方法，如下图所示。大多数案例应用于强化学习，少数例外是监督学习。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-01-29-curriculum-rl/types-of-curriculum-2.png" alt="">
+          <figcaption>Five types of curriculum for reinforcement learning.</figcaption>
+        </figure>
+      
+    
+      
+        <p>在“The importance of starting small”论文（<a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.128.4487&amp;amp;rep=rep1&amp;amp;type=pdf" target="_blank" rel="noopener">Elman 1993</a>）中，我特别喜欢开头的句子，觉得既鼓舞人心又发人深省：</p>
+      
+    
+      
+        <blockquote>“人类与其他物种在许多维度上存在差异，但有两个维度特别值得注意。人类展现出非凡的学习能力；而且人类达到成熟所需的时间异常漫长。学习带来的适应性优势显而易见，也可以说，通过文化，学习创造了非基因基础的行为传递机制，这可能加速我们物种的进化。”</blockquote>
+      
+    
+      
+        <p>的确，学习可能是我们人类拥有的最佳“超能力”。</p>
+      
+    
+      
+        <h2>特定任务课程#</h2>
+        
+      
+    
+      
+        <p><a href="https://www.researchgate.net/profile/Y_Bengio/publication/221344862_Curriculum_learning/links/546cd2570cf2193b94c577ac/Curriculum-learning.pdf" target="_blank" rel="noopener">Bengio, et al. (2009)</a> 对早期课程学习进行了很好的综述。该论文通过在人工设计的特定任务上进行玩具实验，提出了两个想法：</p>
+      
+    
+      
+        <div class="list-content">更干净的样本可能带来更快更好的泛化。  
+逐步引入更困难的样本能加速在线训练。</div>
+      
+    
+      
+        <p>有些课程策略可能是无用甚至有害的。在该领域一个值得回答的好问题是：什么是一般性原则，能让某些课程策略比其他策略更有效？Bengio 2009 的论文假设，让学习聚焦于那些“不算太难也不算太容易”的“有趣”样本是有益的。</p>
+      
+    
+      
+        <p>如果我们朴素的课程策略是让模型在复杂度逐渐增加的样本上训练，首先需要一种量化任务难度的办法。一个想法是使用另一个在其他任务上预训练的模型对当前任务的最小损失（<a href="https://arxiv.org/abs/1802.03796" target="_blank" rel="noopener">Weinshall, et al. 2018</a>）。通过这种方式，预训练模型的知识可以通过提供训练样本排序的方式转移到新模型上。图 2 显示了课程组（绿色）相较于对照组（随机顺序；黄色）和反课程组（反序；红色）的有效性。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-01-29-curriculum-rl/curriculum-by-transfer-learning.png" alt="">
+          <figcaption>Image classification accuracy on test image set (5 member classes of &quot;small mammals&quot; in CIFAR100). There are 4 experimental groups, (a) `curriculum`: sort the labels by the confidence of another trained classifier (e.g. the margin of an SVM); (b) `control-curriculum`: sort the labels randomly; (c) `anti-curriculum`: sort the labels reversely; (d) `None`: no curriculum. (Image source:Weinshall, et al. 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1410.4615" target="_blank" rel="noopener">Zaremba &amp;amp; Sutskever (2014)</a> 做了一个有趣的实验：训练 LSTM 在不实际执行代码的情况下预测一段简短 Python 程序的数学运算结果。他们发现课程对学习是必要的。程序的复杂度由两个参数控制：长度 ∈ [1, a] 和嵌套层数 ∈ [1, b]。他们考虑了三种策略：</p>
+      
+    
+      
+        <div class="list-content">朴素课程：先增加长度直到达到 a，然后增加嵌套层数并将长度重置为 1；重复此过程直到两者都达到最大值。  
+混合课程：从 [1, a] 中采样长度，从 [1, b] 中采样嵌套层数。  
+组合策略：朴素 + 混合。</div>
+      
+    
+      
+        <p>他们注意到组合策略总是优于朴素课程，并且通常（但并非总是）优于混合策略——这表明在训练中混入简单任务以避免遗忘非常重要。</p>
+      
+    
+      
+        <p>程序化内容生成（<a href="https://en.wikipedia.org/wiki/Procedural_generation" target="_blank" rel="noopener">PCG</a>）是创建不同难度关卡视频游戏的流行方法。PCG 涉及算法随机性和大量人类在设计游戏元素及其依赖关系上的专业知识。程序化生成的关卡已被引入多个基准环境中，用于评估强化学习智能体是否能泛化到未训练过的新关卡（<a href="posts-2019-06-23-meta-rl.html">元强化学习</a>！），例如 <a href="http://www.gvgai.net/" target="_blank" rel="noopener">GVGAI</a>、OpenAI <a href="https://openai.com/blog/quantifying-generalization-in-reinforcement-learning/" target="_blank" rel="noopener">CoinRun</a> 和 <a href="https://openai.com/blog/procgen-benchmark/" target="_blank" rel="noopener">Procgen benchmark</a>。使用 GVGAI，<a href="https://arxiv.org/abs/1806.10729" target="_blank" rel="noopener">Justesen, et al. (2018)</a> 证明强化学习策略很容易对特定游戏过拟合，但使用一个随模型性能同步提升任务难度的简单课程训练，能帮助其泛化到新的人类设计的关卡。在 CoinRun 中也发现了类似结果（<a href="https://arxiv.org/abs/1812.02341" target="_blank" rel="noopener">Cobbe, et al. 2018</a>）。POET（<a href="https://arxiv.org/abs/1901.01753" target="_blank" rel="noopener">Wang et al, 2019</a>）是另一个利用进化算法和程序化生成关卡来提升强化学习泛化能力的例子，我在<a href="posts-2019-06-23-meta-rl.html">元强化学习</a>中已详细描述过。</p>
+      
+    
+      
+        <p>要遵循上述课程学习方法，通常需要在训练过程中解决两个问题：</p>
+      
+    
+      
+        <div class="list-content">设计一个度量来量化任务难度，以便据此对任务排序。  
+在训练过程中向模型提供一系列难度递增的任务序列。</div>
+      
+    
+      
+        <p>然而，任务的顺序不必是严格顺序的。在我们的魔方论文（<a href="https://arxiv.org/abs/1910.07113." target="_blank" rel="noopener">OpenAI et al, 2019</a>）中，我们依赖自动领域随机化（ADR）通过不断扩展一个复杂度递增的环境分布来生成课程。每个任务（即在一组环境中解魔方）的难度取决于各种环境参数的随机化范围。即使在所有环境参数不相关的简化假设下，我们也能为机器手创建一个相当不错的课程来学习该任务。</p>
+      
+    
+      
+        <h2>教师引导课程#</h2>
+        
+      
+    
+      
+        <p>自动课程学习的概念由 <a href="https://arxiv.org/abs/1704.03003" target="_blank" rel="noopener">Graves, et al. 2017</a> 稍早提出。它将 N 任务课程视为一个 <a href="posts-2018-01-23-multi-armed-bandit.html">多臂老虎机问题及其解决方案</a>-armed bandit}} 问题，并使用一个自适应策略来优化从这个 bandit 中获得的回报。<span class="math-inline" data-math="N">N</span></p>
+      
+    
+      
+        <p>论文中考虑了两类学习信号：</p>
+      
+    
+      
+        <div class="list-content">损失驱动的进度：一次梯度更新前后的损失函数变化。这类奖励信号跟踪学习过程的速度，因为最大的任务损失下降等价于最快的学习。  
+复杂度驱动的进度：网络权重后验分布与先验分布之间的 KL 散度。这类学习信号受 <a href="https://en.wikipedia.org/wiki/Minimum_description_length" target="_blank" rel="noopener">MDL</a> 原则启发，“只有当模型复杂度增加一定量能带来更大的数据压缩时，这种增加才值得”。因此，模型复杂度预计会在模型很好地泛化到训练样本时增加最多。</div>
+      
+    
+      
+        <p>通过另一个强化学习智能体自动提出课程的框架被形式化为教师-学生课程学习（TSCL；<a href="https://arxiv.org/abs/1707.00183" target="_blank" rel="noopener">Matiisen, et al. 2017</a>）。在 TSCL 中，学生是一个在实际任务上工作的强化学习智能体，而教师智能体是一个选择任务的策略。学生目标是掌握一个直接学习可能很困难的复杂任务。为了让这个任务更容易学习，我们设置教师智能体通过挑选合适的子任务来引导学生的训练过程。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-01-29-curriculum-rl/teacher-student-curriculum.png" alt="">
+          <figcaption>The setup of teacher-student curriculum learning. (Image source:Matiisen, et al. 2017+ my annotation in red.)</figcaption>
+        </figure>
+      
+    
+      
+        <p>在这个过程中，学生应该学习以下任务：</p>
+      
+    
+      
+        <div class="list-content">能帮助学生取得最快学习进步的任务，或  
+有被遗忘风险的任务。</div>
+      
+    
+      
+        <blockquote>注：将教师模型建模为强化学习问题的设置与神经架构搜索（NAS）非常相似，但不同的是 TSCL 中的强化学习模型在任务空间上操作，而 NAS 在主模型架构空间上操作。</blockquote>
+      
+    
+      
+        <p>训练教师模型相当于解决一个 <a href="https://en.wikipedia.org/wiki/Partially_observable_Markov_decision_process" target="_blank" rel="noopener">POMDP</a> 问题：</p>
+      
+    
+      
+        <div class="list-content">不可观测的 <span class="math-inline" data-math="s_t">s_t</span> 是学生模型的完整状态。  
+可观测的 <span class="math-inline" data-math="o = (x_t^{(1)}, \dots, x_t^{(N)})">o = (x_t^{(1)}, \dots, x_t^{(N)})</span> 是 <span class="math-inline" data-math="N">N</span> 个任务的分数列表。  
+动作 <span class="math-inline" data-math="a">a</span> 是选择一个子任务。  
+每步的奖励是分数变化。<span class="math-inline" data-math="r_t = \sum_{i=1}^N x_t^{(i)} - x_{t-1}^{(i)}">r_t = \sum_{i=1}^N x_t^{(i)} - x_{t-1}^{(i)}</span>（即等价于在 episode 结束时最大化所有任务的分数）。</div>
+      
+    
+      
+        <p>从有噪声的任务分数中估计学习进度，同时平衡探索与利用的方法可以从非平稳多臂老虎机问题中借鉴——使用 <a href="posts-2018-01-23-multi-armed-bandit.html">多臂老虎机问题及其解决方案</a> 或 <a href="posts-2018-01-23-multi-armed-bandit.html">多臂老虎机问题及其解决方案</a>。</p>
+      
+    
+      
+        <p>核心思想概括来说，就是用一个策略为另一个策略提出任务以使其更好地学习。有趣的是，上述两项工作（在离散任务空间中）都发现，从所有任务中均匀采样是一个出奇强大的基准。</p>
+      
+    
+      
+        <p>如果任务空间是连续的呢？<a href="https://arxiv.org/abs/1910.07224" target="_blank" rel="noopener">Portelas, et al. (2019)</a> 研究了一个连续的教师-学生框架，其中教师必须从连续的任务空间中采样参数来生成学习课程。给定一个新采样的参数 <span class="math-inline" data-math="p">p</span>，绝对学习进度（简称 ALP）被定义为 <span class="math-inline" data-math="\text{ALP}_p = \vert r - r_\text{old} \vert">\text{ALP}_p = \vert r - r_\text{old} \vert</span>，其中 <span class="math-inline" data-math="r">r</span> 是与 <span class="math-inline" data-math="p">p</span> 关联的 episode 奖励，<span class="math-inline" data-math="r_\text{old}">r_\text{old}</span> 是与 <span class="math-inline" data-math="p_\text{old}">p_\text{old}</span> 关联的奖励。这里 <span class="math-inline" data-math="p_\text{old}">p_\text{old}</span> 是在任务空间中离 <span class="math-inline" data-math="p">p</span> 最近的前一个采样参数，可通过最近邻检索获得。注意这个 ALP 分数与前面 TSCL 或 Grave 等 2017 年的学习信号不同：ALP 分数衡量的是两个任务之间的奖励差异，而不是同一任务在两个时间点上的性能差异。</p>
+      
+    
+      
+        <p>在任务参数空间之上，训练一个高斯混合模型来拟合 <span class="math-inline" data-math="\text{ALP}_p">\text{ALP}_p</span> 在 <span class="math-inline" data-math="p">p</span> 上的分布。采样任务时使用 ε-greedy：以一定概率采样随机任务，否则按 ALP 分数从 GMM 模型中按比例采样。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-01-29-curriculum-rl/ALP-GMM-algorithm.png" alt="">
+          <figcaption>The algorithm of ALP-GMM (absolute learning progress Gaussian mixture model). (Image source:Portelas, et al., 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>通过自我博弈构建课程#</h2>
+        
+      
+    
+      
+        <p>与教师-学生框架不同的是，两个智能体在做截然不同的事情。教师在不了解实际任务内容的情况下学会为学生挑选任务。如果我们希望两者都直接在主任务上训练呢？甚至让它们互相竞争呢？</p>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1703.05407" target="_blank" rel="noopener">Sukhbaatar, et al. (2017)</a> 提出了一种通过非对称自我博弈进行自动课程学习的框架。两个智能体 Alice 和 Bob 在同一个任务上以不同目标进行博弈：Alice 挑战 Bob 达到同一个状态，而 Bob 则试图尽快完成它。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-01-29-curriculum-rl/self-play-maze.png" alt="">
+          <figcaption>Illustration of the self-play setup when training two agents. The example task isMazeBase: An agent is asked to reach a goal flag in a maze with a light switch, a key and a wall with a door. Toggling the key switch can open or close the door and Turning off the light makes only the glowing light switch available to the agent. (Image source:Sukhbaatar, et al. 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>我们可以将 Alice 和 Bob 视为同一个强化学习智能体的两个独立副本，它们在相同环境中训练但拥有不同的大脑。它们各自拥有独立的参数和损失目标。自我博弈驱动的训练包含两类 episode：</p>
+      
+    
+      
+        <div class="list-content">在自我博弈 episode 中，Alice 将状态从 <span class="math-inline" data-math="s_0">s_0</span> 改变为 <span class="math-inline" data-math="s_t">s_t</span>，然后要求 Bob 将环境恢复到原始状态 <span class="math-inline" data-math="s_0">s_0</span> 以获得内部奖励。  
+在目标任务 episode 中，如果 Bob 到达目标旗帜，则获得外部奖励。</div>
+      
+    
+      
+        <p>注意由于 B 必须重复 A 在同一对 <span class="math-inline" data-math="(s_0, s_t)">(s_0, s_t)</span> 之间的动作，这个框架只适用于可逆或可重置的环境。</p>
+      
+    
+      
+        <p>Alice 应该学会把 Bob 推出他的舒适区，但不能给他不可能完成的任务。Bob 的奖励被设为 <span class="math-inline" data-math="R_B = -\gamma t_B">R_B = -\gamma t_B</span>，Alice 的奖励是 <span class="math-inline" data-math="R_A = \gamma \max(0, t_B - t_A)">R_A = \gamma \max(0, t_B - t_A)</span>，其中 <span class="math-inline" data-math="t_B">t_B</span> 是 B 完成任务的总时间，<span class="math-inline" data-math="t_A">t_A</span> 是 Alice 执行 STOP 动作前的时间，<span class="math-inline" data-math="\gamma">\gamma</span> 是一个标量常数，用于将奖励缩放到与外部任务奖励可比。如果 B 失败了任务，则 <span class="math-inline" data-math="t_B = t_\max - t_A">t_B = t_\max - t_A</span>。  
+两个策略都是目标条件化的。损失函数意味着：</p>
+      
+    
+      
+        <div class="list-content">B 希望尽快完成任务。  
+A 偏好让 B 花费更多时间的任务。  
+当 B 失败时，A 不希望采取太多步骤。</div>
+      
+    
+      
+        <p>通过这种方式，Alice 和 Bob 之间的交互自动构建了一个难度逐渐增加的任务课程。同时，由于 A 在向 B 提出任务之前自己已经完成过该任务，因此任务保证是可解的。</p>
+      
+    
+      
+        <p>A 提出任务然后 B 解决任务的范式听起来与教师-学生框架类似。然而，在非对称自我博弈中，扮演教师角色的 Alice 也在同一个任务上工作以找到对 Bob 有挑战性的案例，而不是显式地优化 B 的学习过程。</p>
+      
+    
+      
+        <h2>自动目标生成#</h2>
+        
+      
+    
+      
+        <p>强化学习策略通常需要能够在一组任务上执行。目标必须被精心选择，以确保在每个训练阶段，对当前策略来说既不会太难也不会太容易。一个目标 <span class="math-inline" data-math="g \in \mathcal{G}">g \in \mathcal{G}</span> 可以被定义为一组状态 <span class="math-inline" data-math="S^g">S^g</span>，当智能体到达其中任何一个状态时，就认为目标已达成。</p>
+      
+    
+      
+        <p>生成式目标学习方法（<a href="https://arxiv.org/abs/1705.06366" target="_blank" rel="noopener">Florensa, et al. 2018</a>）依赖于一个 Goal GAN 来自动生成所需的目标。在他们的实验中，奖励非常稀疏，只是一个目标是否达成的二进制标志，并且策略是条件于目标的，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\pi^{*}(a_t\vert s_t, g) &amp;= \arg\max_\pi \mathbb{E}_{g\sim p_g(.)} R^g(\pi) \\
+\text{where }R^g(\pi) &amp;= \mathbb{E}_\pi(.\mid s_t, g) \mathbf{1}[\exists t \in [1,\dots, T]: s_t \in S^g]
+\end{aligned}
+">
+\begin{aligned}
+\pi^{*}(a_t\vert s_t, g) &amp;= \arg\max_\pi \mathbb{E}_{g\sim p_g(.)} R^g(\pi) \\
+\text{where }R^g(\pi) &amp;= \mathbb{E}_\pi(.\mid s_t, g) \mathbf{1}[\exists t \in [1,\dots, T]: s_t \in S^g]
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>这里 <span class="math-inline" data-math="R^g(\pi)">R^g(\pi)</span> 是期望回报，也等价于成功概率。给定从当前策略中采样的轨迹，只要任意状态属于目标集合，回报就会为正。</p>
+      
+    
+      
+        <p>他们的方法迭代以下 3 个步骤直到策略收敛：</p>
+      
+    
+      
+        <div class="list-content">根据当前策略是否处于合适难度水平，对一组目标进行标注。</div>
+      
+    
+      
+        <div class="list-content">处于合适难度水平的目标集合被称为 GOID（“中间难度目标”的缩写）。<span class="math-inline" data-math="\text{GOID}_i := \{g : R_\text{min} \leq R^g(\pi_i) \leq R_\text{max} \} \subseteq G">\text{GOID}_i := \{g : R_\text{min} \leq R^g(\pi_i) \leq R_\text{max} \} \subseteq G</span>  
+这里 <span class="math-inline" data-math="R_\text{min}">R_\text{min}</span> 和 <span class="math-inline" data-math="R_\text{max}">R_\text{max}</span> 可以解释为在 T 个时间步内到达目标的最小和最大概率。</div>
+      
+    
+      
+        <div class="list-content">使用步骤 1 中标注的目标训练 Goal GAN 模型以生成新目标。  
+使用这些新目标训练策略，提升其覆盖目标。</div>
+      
+    
+      
+        <p>Goal GAN 自动生成课程：</p>
+      
+    
+      
+        <div class="list-content">生成器 <span class="math-inline" data-math="G(z)">G(z)</span>：产生一个新目标。=&gt; 期望是从 <span class="math-inline" data-math="GOID">GOID</span> 集合中均匀采样的目标。  
+判别器 <span class="math-inline" data-math="D(g)">D(g)</span>：评估一个目标是否可达成。=&gt; 期望判断一个目标是否来自 <span class="math-inline" data-math="GOID">GOID</span> 集合。</div>
+      
+    
+      
+        <p>Goal GAN 的构造类似于 LSGAN（最小二乘 GAN；<a href="https://arxiv.org/abs/1611.04076" target="_blank" rel="noopener">Mao et al., (2017)</a>），其学习稳定性优于 vanilla GAN。根据 LSGAN，我们应该分别为 <span class="math-inline" data-math="D">D</span> 和 <span class="math-inline" data-math="G">G</span> 最小化以下损失：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\mathcal{L}_\text{LSGAN}(D) &amp;= \frac{1}{2} \mathbb{E}_{g \sim p_\text{data}(g)} [ (D(g) - b)^2] + \frac{1}{2} \mathbb{E}_{z \sim p_z(z)} [ (D(G(z)) - a)^2] \\
+\mathcal{L}_\text{LSGAN}(G) &amp;= \frac{1}{2} \mathbb{E}_{z \sim p_z(z)} [ (D(G(z)) - c)^2]
+\end{aligned}
+">
+\begin{aligned}
+\mathcal{L}_\text{LSGAN}(D) &amp;= \frac{1}{2} \mathbb{E}_{g \sim p_\text{data}(g)} [ (D(g) - b)^2] + \frac{1}{2} \mathbb{E}_{z \sim p_z(z)} [ (D(G(z)) - a)^2] \\
+\mathcal{L}_\text{LSGAN}(G) &amp;= \frac{1}{2} \mathbb{E}_{z \sim p_z(z)} [ (D(G(z)) - c)^2]
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="a">a</span> 是假数据的标签，<span class="math-inline" data-math="b">b</span> 是真实数据的标签，<span class="math-inline" data-math="c">c</span> 是 <span class="math-inline" data-math="G">G</span> 希望 <span class="math-inline" data-math="D">D</span> 相信假数据的值。在 LSGAN 论文的实验中，他们使用 <span class="math-inline" data-math="a=-1, b=1, c=0">a=-1, b=1, c=0</span>。</p>
+      
+    
+      
+        <p>Goal GAN 引入了一个额外的二进制标志 <span class="math-inline" data-math="y_b">y_b</span> 来指示目标 <span class="math-inline" data-math="g">g</span> 是真实的（<span class="math-inline" data-math="y_g = 1">y_g = 1</span>）还是假的（<span class="math-inline" data-math="y_g = 0">y_g = 0</span>），这样模型就可以使用负样本来训练：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\mathcal{L}_\text{GoalGAN}(D) &amp;= \frac{1}{2} \mathbb{E}_{g \sim p_\text{data}(g)} [ (D(g) - b)^2 + (1-y_g) (D(g) - a)^2] + \frac{1}{2} \mathbb{E}_{z \sim p_z(z)} [ (D(G(z)) - a)^2] \\
+\mathcal{L}_\text{GoalGAN}(G) &amp;= \frac{1}{2} \mathbb{E}_{z \sim p_z(z)} [ (D(G(z)) - c)^2]
+\end{aligned}
+">
+\begin{aligned}
+\mathcal{L}_\text{GoalGAN}(D) &amp;= \frac{1}{2} \mathbb{E}_{g \sim p_\text{data}(g)} [ (D(g) - b)^2 + (1-y_g) (D(g) - a)^2] + \frac{1}{2} \mathbb{E}_{z \sim p_z(z)} [ (D(G(z)) - a)^2] \\
+\mathcal{L}_\text{GoalGAN}(G) &amp;= \frac{1}{2} \mathbb{E}_{z \sim p_z(z)} [ (D(G(z)) - c)^2]
+\end{aligned}
+</span></div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-01-29-curriculum-rl/generative-goal-learning-algorithm.png" alt="">
+          <figcaption>The algorithm of Generative Goal Learning. (Image source: (Florensa, et al. 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>遵循同样的思路，<a href="https://arxiv.org/abs/1909.12892" target="_blank" rel="noopener">Racaniere &amp;amp; Lampinen, et al. (2019)</a> 设计了一种方法，使目标生成器的目标更加复杂。他们的方法包含三个组件，与上面的生成式目标学习相同：</p>
+      
+    
+      
+        <div class="list-content">求解器/策略 <span class="math-inline" data-math="\pi">\pi</span>：在每个 episode 开始时，求解器获得一个目标 <span class="math-inline" data-math="g">g</span>，并在结束时获得一个二进制奖励 <span class="math-inline" data-math="R^g">R^g</span>。  
+裁判/判别器 <span class="math-inline" data-math="D(.)">D(.)</span>：一个分类器，用于预测二进制奖励（目标是否可达成）；精确地说，它输出达成给定目标概率的对数几率 <span class="math-inline" data-math="\sigma(D(g)) = p(R^g=1\vert g)">\sigma(D(g)) = p(R^g=1\vert g)</span>，其中 <span class="math-inline" data-math="\sigma">\sigma</span> 是 sigmoid 函数。  
+设置器/生成器 <span class="math-inline" data-math="G(.)">G(.)</span>：目标设置器以期望的可行性分数 <span class="math-inline" data-math="f \in \text{Unif}(0, 1)">f \in \text{Unif}(0, 1)</span> 为输入，生成 <span class="math-inline" data-math="g = G(z, f)">g = G(z, f)</span>，其中潜在变量 <span class="math-inline" data-math="z">z</span> 通过 <span class="math-inline" data-math="z \sim \mathcal{N}(0, I)">z \sim \mathcal{N}(0, I)</span> 采样。目标生成器被设计为可逆的，因此 <span class="math-inline" data-math="G^{-1}">G^{-1}</span> 可以从目标 <span class="math-inline" data-math="g">g</span> 反向映射到潜在变量 <span class="math-inline" data-math="z = G^{-1}(g, f)">z = G^{-1}(g, f)</span>。</div>
+      
+    
+      
+        <p>生成器用三个目标进行优化：</p>
+      
+    
+      
+        <div class="list-content">目标有效性：提出的目标应该能被专家策略达成。对应的生成损失被设计为增加生成那些求解器策略之前已经达成过的目标的似然（类似 <a href="https://arxiv.org/abs/1707.01495" target="_blank" rel="noopener">HER</a>）。
+
+<span class="math-inline" data-math="\mathcal{L}_\text{val}">\mathcal{L}_\text{val}</span> 是过去已被求解器解决的生成目标的负对数似然。</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align*}
+\mathcal{L}_\text{val} = \mathbb{E}_{\substack{
+  g \sim \text{ achieved by solver}, \\
+  \xi \in \text{Uniform}(0, \delta), \\
+  f \in \text{Uniform}(0, 1)
+}} \big[ -\log p(G^{-1}(g + \xi, f)) \big]
+\end{align*}
+">
+\begin{align*}
+\mathcal{L}_\text{val} = \mathbb{E}_{\substack{
+  g \sim \text{ achieved by solver}, \\
+  \xi \in \text{Uniform}(0, \delta), \\
+  f \in \text{Uniform}(0, 1)
+}} \big[ -\log p(G^{-1}(g + \xi, f)) \big]
+\end{align*}
+</span></div>
+      
+    
+      
+        <div class="list-content">目标可行性：提出的目标应该能被当前策略达成；即难度水平应该合适。
+
+<span class="math-inline" data-math="\mathcal{L}_\text{feas}">\mathcal{L}_\text{feas}</span> 是裁判模型 <span class="math-inline" data-math="D">D</span> 在生成的目标 <span class="math-inline" data-math="G(z, f)">G(z, f)</span> 上的输出概率，应该匹配期望的 <span class="math-inline" data-math="f">f</span>。</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align*}
+\mathcal{L}_\text{feas} = \mathbb{E}_{\substack{
+  z \in \mathcal{N}(0, 1), \\
+  f \in \text{Uniform}(0, 1)
+}} \big[ D(G(z, f)) - \sigma^{-1}(f)^2 \big]
+\end{align*}
+">
+\begin{align*}
+\mathcal{L}_\text{feas} = \mathbb{E}_{\substack{
+  z \in \mathcal{N}(0, 1), \\
+  f \in \text{Uniform}(0, 1)
+}} \big[ D(G(z, f)) - \sigma^{-1}(f)^2 \big]
+\end{align*}
+</span></div>
+      
+    
+      
+        <div class="list-content">目标覆盖率：我们应该最大化生成目标的熵，以鼓励目标的多样性并提升对目标空间的覆盖。</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align*}
+\mathcal{L}_\text{cov} = \mathbb{E}_{\substack{
+  z \in \mathcal{N}(0, 1), \\
+  f \in \text{Uniform}(0, 1)
+}} \big[ \log p(G(z, f)) \big]
+\end{align*}
+">
+\begin{align*}
+\mathcal{L}_\text{cov} = \mathbb{E}_{\substack{
+  z \in \mathcal{N}(0, 1), \\
+  f \in \text{Uniform}(0, 1)
+}} \big[ \log p(G(z, f)) \big]
+\end{align*}
+</span></div>
+      
+    
+      
+        <p>他们的实验表明，复杂环境需要上述所有三个损失。当环境在 episode 之间发生变化时，目标生成器和判别器都需要以环境观测为条件才能产生更好的结果。如果存在期望的目标分布，可以添加一个额外的损失，使用 Wasserstein 距离来匹配期望的目标分布。使用这个损失，生成器可以更高效地将求解器推向掌握期望任务。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-01-29-curriculum-rl/setter-judge-goal-generation.png" alt="">
+          <figcaption>Training schematic for the (a) solver/policy, (b) judge/discriminator, and (c) setter/goal generator models. (Image source:Racaniere &amp; Lampinen, et al., 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>基于技能的课程#</h2>
+        
+      
+    
+      
+        <p>另一种观点是将智能体能够完成的事情分解成多种技能，每个技能集合都可以映射到一个任务。想象一下，当智能体以无监督的方式与环境交互时，是否有办法从这种交互中发现有用的技能，并进一步通过课程将其构建成更复杂任务的解决方案？</p>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1912.04226" target="_blank" rel="noopener">Jabri, et al. (2019)</a> 开发了一种自动课程 CARML（“无监督元强化学习课程”的缩写），通过将无监督轨迹建模到一个潜在技能空间中，重点训练 <a href="posts-2019-06-23-meta-rl.html">元强化学习</a> 策略（即能够迁移到未见过任务）。CARML 中训练环境的设置与 <a href="posts-2019-06-23-meta-rl.html">元强化学习</a> 类似。不同的是，CARML 在像素级观测上训练，而 DIAYN 在真实状态空间上操作。通过无监督交互训练的参数化为 <span class="math-inline" data-math="\theta">\theta</span> 的强化学习算法 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span> 被形式化为一个结合了习得奖励函数 <span class="math-inline" data-math="r">r</span> 的 CMP。这种设置天然适用于元学习目的，因为定制的奖励函数只在测试时给出。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-01-29-curriculum-rl/CARML.png" alt="">
+          <figcaption>An illustration of CARML, containing two steps: (1) organizing experiential data into the latent skill space; (2) meta-training the policy with the reward function constructed from the learned skills. (Image source:Jabri, et al 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>CARML 被形式化为一个 <a href="https://chrischoy.github.io/research/Expectation-Maximization-and-Variational-Inference/" target="_blank" rel="noopener">变分期望最大化 (EM)</a>。</p>
+      
+    
+      
+        <p>(1) E-Step：这是组织经验数据的阶段。收集到的轨迹被建模为潜在组件的混合，形成技能的 <a href="https://en.wikipedia.org/wiki/Basis_(linear_algebra)" target="_blank" rel="noopener">基</a>。</p>
+      
+    
+      
+        <p>令 <span class="math-inline" data-math="z">z</span> 为潜在任务变量，<span class="math-inline" data-math="q_\phi">q_\phi</span> 为 <span class="math-inline" data-math="z">z</span> 的变分分布，它可以是具有离散 <span class="math-inline" data-math="z">z</span> 的混合模型，或具有连续 <span class="math-inline" data-math="z">z</span> 的 VAE。一个变分后验 <span class="math-inline" data-math="q_\phi(z \vert s)">q_\phi(z \vert s)</span> 像一个分类器，根据状态预测技能，我们希望最大化 <span class="math-inline" data-math="q_\phi(z \vert s)">q_\phi(z \vert s)</span> 以尽可能地区分由不同技能产生的数据。在 E-step 中，<span class="math-inline" data-math="q_\phi">q_\phi</span> 被拟合到由 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span> 产生的一组轨迹上。</p>
+      
+    
+      
+        <p>准确地说，给定一条轨迹 <span class="math-inline" data-math="\tau = (s_1,\dots,s_T)">\tau = (s_1,\dots,s_T)</span>，我们希望找到 <span class="math-inline" data-math="\phi">\phi</span> 使得</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\max_\phi \mathbb{E}_{z\sim q_\phi(z)} \big[ \log q_\phi(\tau \vert z) \big]
+= \max_\phi \mathbb{E}_{z\sim q_\phi(z)} \big[ \sum_{s_i \in \tau} \log q_\phi(s_i \vert z) \big]
+">
+\max_\phi \mathbb{E}_{z\sim q_\phi(z)} \big[ \log q_\phi(\tau \vert z) \big]
+= \max_\phi \mathbb{E}_{z\sim q_\phi(z)} \big[ \sum_{s_i \in \tau} \log q_\phi(s_i \vert z) \big]
+</span></div>
+      
+    
+      
+        <p>这里做了一个简化假设，忽略一条轨迹中状态的顺序。</p>
+      
+    
+      
+        <p>(2) M-Step：这是使用 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span> 进行元强化学习训练的阶段。习得的技能空间被视为训练任务分布。CARML 对用于策略参数更新的元强化学习算法类型不做假设。</p>
+      
+    
+      
+        <p>给定一条轨迹 <span class="math-inline" data-math="\tau">\tau</span>，策略去最大化 <span class="math-inline" data-math="\tau">\tau</span> 和 <span class="math-inline" data-math="z">z</span> 之间的互信息 <span class="math-inline" data-math="I(\tau;z) = H(\tau) - H(\tau \vert z)">I(\tau;z) = H(\tau) - H(\tau \vert z)</span> 是合理的，因为：</p>
+      
+    
+      
+        <div class="list-content">最大化 <span class="math-inline" data-math="H(\tau)">H(\tau)</span> =&gt; 策略数据空间的多样性；预期较大。  
+最小化 <span class="math-inline" data-math="H(\tau \vert z)">H(\tau \vert z)</span> =&gt; 给定某个技能，行为应该受到限制；预期较小。</div>
+      
+    
+      
+        <p>于是我们有，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+I(\tau; z) 
+&amp;= \mathcal{H}(z) - \mathcal{H}(z \vert s_1,\dots, s_T) \\
+&amp;\geq \mathbb{E}_{s \in \tau} [\mathcal{H}(z) - \mathcal{H}(z\vert s)] &amp; \scriptstyle{\text{; discard the order of states.}} \\
+&amp;= \mathbb{E}_{s \in \tau} [\mathcal{H}(s_t) - \mathcal{H}(s\vert z)] &amp; \scriptstyle{\text{; by definition of MI.}} \\
+&amp;= \mathbb{E}_{z\sim q_\phi(z), s\sim \pi_\theta(s|z)} [\log q_\phi(s|z) - \log \pi_\theta(s)] \\
+&amp;\approx \mathbb{E}_{z\sim q_\phi(z), s\sim \pi_\theta(s|z)} [\color{green}{\log q_\phi(s|z) - \log q_\phi(s)}] &amp; \scriptstyle{\text{; assume learned marginal distr. matches policy.}}
+\end{aligned}
+">
+\begin{aligned}
+I(\tau; z) 
+&amp;= \mathcal{H}(z) - \mathcal{H}(z \vert s_1,\dots, s_T) \\
+&amp;\geq \mathbb{E}_{s \in \tau} [\mathcal{H}(z) - \mathcal{H}(z\vert s)] &amp; \scriptstyle{\text{; discard the order of states.}} \\
+&amp;= \mathbb{E}_{s \in \tau} [\mathcal{H}(s_t) - \mathcal{H}(s\vert z)] &amp; \scriptstyle{\text{; by definition of MI.}} \\
+&amp;= \mathbb{E}_{z\sim q_\phi(z), s\sim \pi_\theta(s|z)} [\log q_\phi(s|z) - \log \pi_\theta(s)] \\
+&amp;\approx \mathbb{E}_{z\sim q_\phi(z), s\sim \pi_\theta(s|z)} [\color{green}{\log q_\phi(s|z) - \log q_\phi(s)}] &amp; \scriptstyle{\text{; assume learned marginal distr. matches policy.}}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>我们可以将奖励设为 <span class="math-inline" data-math="\log q_\phi(s \vert z) - \log q_\phi(s)">\log q_\phi(s \vert z) - \log q_\phi(s)</span>，如上面方程中红色部分所示。为了在任务特定探索（如下面的红色部分）和潜在技能匹配（如下面的蓝色部分）之间取得平衡，加入了一个参数 <span class="math-inline" data-math="\lambda \in [0, 1]">\lambda \in [0, 1]</span>。<span class="math-inline" data-math="z \sim q_\phi(z)">z \sim q_\phi(z)</span> 的每个实现都会诱导一个奖励函数 <span class="math-inline" data-math="r_z(s)">r_z(s)</span>（记住奖励 + CMP =&gt; MDP），如下：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+r_z(s)
+&amp;= \lambda \log q_\phi(s|z) - \log q_\phi(s) \\
+&amp;= \lambda \log q_\phi(s|z) - \log \frac{q_\phi(s|z) q_\phi(z)}{q_\phi(z|s)} \\
+&amp;= \lambda \log q_\phi(s|z) - \log q_\phi(s|z) - \log q_\phi(z) + \log q_\phi(z|s) \\
+&amp;= (\lambda - 1) \log \color{red}{q_\phi(s|z)} + \color{blue}{\log q_\phi(z|s)} + C
+\end{aligned}
+">
+\begin{aligned}
+r_z(s)
+&amp;= \lambda \log q_\phi(s|z) - \log q_\phi(s) \\
+&amp;= \lambda \log q_\phi(s|z) - \log \frac{q_\phi(s|z) q_\phi(z)}{q_\phi(z|s)} \\
+&amp;= \lambda \log q_\phi(s|z) - \log q_\phi(s|z) - \log q_\phi(z) + \log q_\phi(z|s) \\
+&amp;= (\lambda - 1) \log \color{red}{q_\phi(s|z)} + \color{blue}{\log q_\phi(z|s)} + C
+\end{aligned}
+</span></div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-01-29-curriculum-rl/CARML-algorithm.png" alt="">
+          <figcaption>The algorithm of CARML. (Image source:Jabri, et al 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>学习潜在技能空间可以通过不同方式实现，例如 <a href="https://openreview.net/forum?id=rk07ZXZRb" target="_blank" rel="noopener">Hausman, et al. 2018</a>。他们方法的目标是学习一个任务条件化的策略 <span class="math-inline" data-math="\pi(a \vert s, t^{(i)})">\pi(a \vert s, t^{(i)})</span>，其中 <span class="math-inline" data-math="t^{(i)}">t^{(i)}</span> 来自离散的任务列表 <span class="math-inline" data-math="N">N</span>。然而，与其为每个任务学习 <span class="math-inline" data-math="N">N</span> 个独立解，不如学习一个潜在技能空间，使得每个任务都能用技能上的分布来表示，从而在任务之间复用技能。策略被定义为 <span class="math-inline" data-math="\pi_\theta(a \vert s,t) = \int \pi_\theta(a \vert z,s,t) p_\phi(z \vert t)\mathrm{d}z">\pi_\theta(a \vert s,t) = \int \pi_\theta(a \vert z,s,t) p_\phi(z \vert t)\mathrm{d}z</span>，其中 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span> 和 <span class="math-inline" data-math="p_\phi">p_\phi</span> 分别是需要学习的策略网络和嵌入网络。如果 <span class="math-inline" data-math="z">z</span> 是离散的，即从 <span class="math-inline" data-math="K">K</span> 个技能集合中抽取，则策略成为 <span class="math-inline" data-math="K">K</span> 个子策略的混合。策略训练使用 <a href="http://127.0.0.1:4000/lil-log/2018/04/07/policy-gradient-algorithms.html#sac" target="_blank" rel="noopener">SAC</a>，对 <span class="math-inline" data-math="z">z</span> 的依赖被引入到熵项中。<span class="math-inline" data-math="\mathcal{T} = [t^{(1)}, \dots, t^{(N)}]">\mathcal{T} = [t^{(1)}, \dots, t^{(N)}]</span></p>
+      
+    
+      
+        <h2>通过蒸馏构建课程#</h2>
+        
+      
+    
+      
+        <p>[这个小节的名字我想了很久，在 cloning、inheritance 和 distillation 之间犹豫，最终选择了 distillation，因为它听起来最酷 B-)]</p>
+      
+    
+      
+        <p>渐进式神经网络（<a href="https://arxiv.org/abs/1606.04671" target="_blank" rel="noopener">Rusu et al. 2016</a>）架构的动机，是在不同任务之间高效迁移习得的技能，同时避免灾难性遗忘。课程通过一组逐步堆叠的神经网络塔（或论文中所称的“列”）来实现。</p>
+      
+    
+      
+        <p>渐进式网络具有以下结构：</p>
+      
+    
+      
+        <div class="list-content">它从包含 <span class="math-inline" data-math="L">L</span> 层神经元的单个列开始，对应的激活层标记为 <span class="math-inline" data-math="h^{(1)}_i, i=1, \dots, L">h^{(1)}_i, i=1, \dots, L</span>。我们首先为一个任务训练这个单列网络直到收敛，得到参数配置 <span class="math-inline" data-math="\theta^{(1)}">\theta^{(1)}</span>。
+
+切换到下一个任务时，我们需要添加一个新列来适应新的上下文，同时冻结 <span class="math-inline" data-math="\theta^{(1)}">\theta^{(1)}</span> 以锁定从前一个任务中习得的技能。新列的激活层标记为 <span class="math-inline" data-math="h^{(2)}_i, i=1, \dots, L">h^{(2)}_i, i=1, \dots, L</span>，参数为 <span class="math-inline" data-math="\theta^{(2)}">\theta^{(2)}</span>。
+
+步骤 2 可以随着每个新任务重复。第 <span class="math-inline" data-math="k">k</span> 个列的第 <span class="math-inline" data-math="i">i</span> 层激活取决于所有现有列中的前一层激活：</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+ h^{(k)}_i = f(W^{(k)}_i h^{(k)}_{i-1} + \sum_{j &lt; k} U_i^{(k:j)} h^{(j)}_{i-1})
+ ">
+ h^{(k)}_i = f(W^{(k)}_i h^{(k)}_{i-1} + \sum_{j &lt; k} U_i^{(k:j)} h^{(j)}_{i-1})
+ </span></div>
+      
+    
+      
+        <div class="list-content">其中 <span class="math-inline" data-math="W^{(k)}_i">W^{(k)}_i</span> 是第 <span class="math-inline" data-math="k">k</span> 个列中第 <span class="math-inline" data-math="i">i</span> 层的权重矩阵；<span class="math-inline" data-math="U_i^{(k:j)}, j &lt; k">U_i^{(k:j)}, j &lt; k</span> 是将第 <span class="math-inline" data-math="j">j</span> 个列的第 <span class="math-inline" data-math="i-1">i-1</span> 层投影到第 <span class="math-inline" data-math="k">k</span> 个列的第 <span class="math-inline" data-math="i">i</span> 层的权重矩阵（<span class="math-inline" data-math=" j &lt; k "> j &lt; k </span>）。上述权重矩阵需要被学习。<span class="math-inline" data-math="f(.)">f(.)</span> 是可选择的非线性激活函数。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-01-29-curriculum-rl/progressive-networks.png" alt="">
+          <figcaption>The progressive neural network architecture. (Image source:Rusu, et al. 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>论文通过在多个 Atari 游戏上训练渐进式网络，实验验证了在一个游戏中学到的特征是否能迁移到另一个游戏。结果确实如此。虽然有趣的是，对前几列特征的高度依赖并不总是意味着在新任务上有好的迁移性能。一个假设是，从旧任务学到的特征可能会给新任务引入偏差，导致策略陷入次优解。总体而言，渐进式网络比只微调顶层表现更好，并且能达到与微调整个网络相似的迁移性能。</p>
+      
+    
+      
+        <p>渐进式网络的一个用例是实现 sim2real 迁移（<a href="https://arxiv.org/abs/1610.04286" target="_blank" rel="noopener">Rusu, et al. 2017</a>），其中第一列在模拟器中使用大量样本训练，然后添加额外的列（可以针对不同的现实世界任务）并使用少量真实数据样本进行训练。</p>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1806.01780" target="_blank" rel="noopener">Czarnecki, et al. (2018)</a> 提出了另一种强化学习训练框架 Mix &amp; Match（简称 M&amp;M），通过在智能体之间复制知识来提供课程。给定一个从简单到复杂的智能体序列 <span class="math-inline" data-math="\pi_1, \dots, \pi_K">\pi_1, \dots, \pi_K</span>，每个智能体用一些共享权重参数化（例如共享一些较低的公共层）。M&amp;M 训练一个智能体的混合，但只关心最复杂那个 <span class="math-inline" data-math="\pi_K">\pi_K</span> 的最终性能。</p>
+      
+    
+      
+        <p>与此同时，M&amp;M 学习一个类别分布 <span class="math-inline" data-math="c \sim \text{Categorical}(1, \dots, K \vert \alpha)">c \sim \text{Categorical}(1, \dots, K \vert \alpha)</span>，其 <a href="https://en.wikipedia.org/wiki/Probability_mass_function" target="_blank" rel="noopener">概率质量函数</a> <span class="math-inline" data-math="p(c=i) = \alpha_i">p(c=i) = \alpha_i</span> 决定在给定时刻选择哪个策略。混合的 M&amp;M 策略是一个简单的加权和：<span class="math-inline" data-math="\pi_\text{mm}(a \vert s) = \sum_{i=1}^K \alpha_i \pi_i(a \vert s)">\pi_\text{mm}(a \vert s) = \sum_{i=1}^K \alpha_i \pi_i(a \vert s)</span>。课程学习通过动态调整 <span class="math-inline" data-math="\alpha_i">\alpha_i</span> 从 <span class="math-inline" data-math="\alpha_K=0">\alpha_K=0</span> 到 <span class="math-inline" data-math="\alpha_K=1">\alpha_K=1</span> 来实现。<span class="math-inline" data-math="\alpha">\alpha</span> 的调优可以是手动的，也可以通过 <a href="posts-2019-09-05-evolution-strategies.html">进化策略</a>。</p>
+      
+    
+      
+        <p>为了鼓励策略之间合作而非竞争，除了强化学习损失 <span class="math-inline" data-math="\mathcal{L}_\text{RL}">\mathcal{L}_\text{RL}</span> 之外，还添加了一个类似 <a href="https://arxiv.org/abs/1511.06295" target="_blank" rel="noopener">蒸馏</a> 的损失 <span class="math-inline" data-math="\mathcal{L}_\text{mm}(\theta)">\mathcal{L}_\text{mm}(\theta)</span>。知识迁移损失 <span class="math-inline" data-math="\mathcal{L}_\text{mm}(\theta)">\mathcal{L}_\text{mm}(\theta)</span> 衡量两个策略 <span class="math-inline" data-math="\propto D_\text{KL}(\pi_{i}(. \vert s) | \pi_j(. \vert s))">\propto D_\text{KL}(\pi_{i}(. \vert s) | \pi_j(. \vert s))</span> 对于 <span class="math-inline" data-math="i &lt; j">i &lt; j</span> 之间的 KL 散度。它鼓励复杂智能体在早期匹配更简单的智能体。最终损失是 <span class="math-inline" data-math="\mathcal{L} = \mathcal{L}_\text{RL}(\theta \vert \pi_\text{mm}) + \lambda \mathcal{L}_\text{mm}(\theta)">\mathcal{L} = \mathcal{L}_\text{RL}(\theta \vert \pi_\text{mm}) + \lambda \mathcal{L}_\text{mm}(\theta)</span>。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-01-29-curriculum-rl/mix-and-match.png" alt="">
+          <figcaption>The Mix &amp; Match architecture for training a mixture of policies.  (Image source:Czarnecki, et al., 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>引用#</h2>
+        
+      
+    
+      
+        <p>引用格式：</p>
+      
+    
+      
+        <blockquote>Weng, Lilian. (Jan 2020). Curriculum for reinforcement learning. Lil’Log. https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/.</blockquote>
+      
+    
+      
+        <pre><code>@article{weng2020curriculum,
+  title   = &quot;Curriculum for Reinforcement Learning&quot;,
+  author  = &quot;Weng, Lilian&quot;,
+  journal = &quot;lilianweng.github.io&quot;,
+  year    = &quot;2020&quot;,
+  month   = &quot;Jan&quot;,
+  url     = &quot;https://lilianweng.github.io/posts/2020-01-29-curriculum-rl/&quot;
+}
+</code></pre>
+      
+    
+      
+        <h2>参考文献#</h2>
+        
+      
+    
+      
+        <p>[1] Jeffrey L. Elman. <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.128.4487&amp;amp;rep=rep1&amp;amp;type=pdf" target="_blank" rel="noopener">“Learning and development in neural networks: The importance of starting small.”</a> Cognition 48.1 (1993): 71-99.</p>
+      
+    
+      
+        <p>[2] Yoshua Bengio, et al. <a href="https://www.researchgate.net/profile/Y_Bengio/publication/221344862_Curriculum_learning/links/546cd2570cf2193b94c577ac/Curriculum-learning.pdf" target="_blank" rel="noopener">“Curriculum learning.”</a> ICML 2009.</p>
+      
+    
+      
+        <p>[3] Daphna Weinshall, Gad Cohen, and Dan Amir. <a href="https://arxiv.org/abs/1802.03796" target="_blank" rel="noopener">“Curriculum learning by transfer learning: Theory and experiments with deep networks.”</a> ICML 2018.</p>
+      
+    
+      
+        <p>[4] Wojciech Zaremba and Ilya Sutskever. <a href="https://arxiv.org/abs/1410.4615" target="_blank" rel="noopener">“Learning to execute.”</a> arXiv preprint arXiv:1410.4615 (2014).</p>
+      
+    
+      
+        <p>[5] Tambet Matiisen, et al. <a href="https://arxiv.org/abs/1707.00183" target="_blank" rel="noopener">“Teacher-student curriculum learning.”</a> IEEE Trans. on neural networks and learning systems (2017).</p>
+      
+    
+      
+        <p>[6] Alex Graves, et al. <a href="https://arxiv.org/abs/1704.03003" target="_blank" rel="noopener">“Automated curriculum learning for neural networks.”</a> ICML 2017.</p>
+      
+    
+      
+        <p>[7] Remy Portelas, et al. <a href="https://arxiv.org/abs/1910.07224" target="_blank" rel="noopener">Teacher algorithms for curriculum learning of Deep RL in continuously parameterized environments</a>. CoRL 2019.</p>
+      
+    
+      
+        <p>[8] Sainbayar Sukhbaatar, et al. <a href="https://arxiv.org/abs/1703.05407" target="_blank" rel="noopener">“Intrinsic Motivation and Automatic Curricula via Asymmetric Self-Play.”</a> ICLR 2018.</p>
+      
+    
+      
+        <p>[9] Carlos Florensa, et al. <a href="https://arxiv.org/abs/1705.06366" target="_blank" rel="noopener">“Automatic Goal Generation for Reinforcement Learning Agents”</a> ICML 2019.</p>
+      
+    
+      
+        <p>[10] Sebastien Racaniere &amp; Andrew K. Lampinen, et al. <a href="https://arxiv.org/abs/1909.12892" target="_blank" rel="noopener">“Automated Curriculum through Setter-Solver Interactions”</a> ICLR 2020.</p>
+      
+    
+      
+        <p>[11] Allan Jabri, et al. <a href="https://arxiv.org/abs/1912.04226" target="_blank" rel="noopener">“Unsupervised Curricula for Visual Meta-Reinforcement Learning”</a> NeuriPS 2019.</p>
+      
+    
+      
+        <p>[12] Karol Hausman, et al. <a href="https://openreview.net/forum?id=rk07ZXZRb" target="_blank" rel="noopener">“Learning an Embedding Space for Transferable Robot Skills “</a> ICLR 2018.</p>
+      
+    
+      
+        <p>[13] Josh Merel, et al. <a href="https://arxiv.org/abs/1911.06636" target="_blank" rel="noopener">“Reusable neural skill embeddings for vision-guided whole body movement and object manipulation”</a> arXiv preprint arXiv:1911.06636 (2019).</p>
+      
+    
+      
+        <p>[14] OpenAI, et al. <a href="https://arxiv.org/abs/1910.07113" target="_blank" rel="noopener">“Solving Rubik’s Cube with a Robot Hand.”</a> arXiv preprint arXiv:1910.07113 (2019).</p>
+      
+    
+      
+        <p>[15] Niels Justesen, et al. <a href="https://arxiv.org/abs/1806.10729" target="_blank" rel="noopener">“Illuminating Generalization in Deep Reinforcement Learning through Procedural Level Generation”</a> NeurIPS 2018 Deep RL Workshop.</p>
+      
+    
+      
+        <p>[16] Karl Cobbe, et al. <a href="https://arxiv.org/abs/1812.02341" target="_blank" rel="noopener">“Quantifying Generalization in Reinforcement Learning”</a> arXiv preprint arXiv:1812.02341 (2018).</p>
+      
+    
+      
+        <p>[17] Andrei A. Rusu et al. <a href="https://arxiv.org/abs/1606.04671" target="_blank" rel="noopener">“Progressive Neural Networks”</a> arXiv preprint arXiv:1606.04671 (2016).</p>
+      
+    
+      
+        <p>[18] Andrei A. Rusu et al. <a href="https://arxiv.org/abs/1610.04286" target="_blank" rel="noopener">“Sim-to-Real Robot Learning from Pixels with Progressive Nets.”</a> CoRL 2017.</p>
+      
+    
+      
+        <p>[19] Wojciech Marian Czarnecki, et al. <a href="https://arxiv.org/abs/1806.01780" target="_blank" rel="noopener">“Mix &amp;amp; Match – Agent Curricula for Reinforcement Learning.”</a> ICML 2018.</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

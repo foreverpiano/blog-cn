@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用信息论剖析深度学习 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>用信息论剖析深度学习</h1>
+    <div class="meta">
+      2017-09-28 · 
+      <a href="https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">基本概念
+
+将深度神经网络视为马尔可夫链
+
+信息平面定理
+
+两个优化阶段
+
+
+学习理论
+
+“旧的”泛化界
+
+“新的”输入压缩界
+
+
+网络规模与训练数据规模
+
+更多隐藏层的益处
+
+更多训练样本的益处
+
+
+参考文献</div>
+      
+    
+      
+        <p>本文是对 Naftali Tishby 教授最近题为“深度学习中的信息论”演讲的总结。它展示了如何将信息论应用于研究深度神经网络在训练过程中的增长和变换。</p>
+      
+    
+      
+        <p>Naftali Tishby 教授于 2021 年去世。希望这篇文章能让更多人了解他提出的信息瓶颈这一精彩思想。</p>
+      
+    
+      
+        <p>最近我观看了 Naftali Tishby 教授的演讲 <a href="https://youtu.be/bLqJHjXihK8" target="_blank" rel="noopener">“Information Theory in Deep Learning”</a>，觉得非常有启发。他展示了如何运用信息论来研究深度神经网络在训练过程中的增长与变换。利用 <a href="https://arxiv.org/pdf/physics/0004057.pdf" target="_blank" rel="noopener">Information Bottleneck (IB)</a> 方法，他为深度神经网络（DNN）提出了一种新的学习界，因为传统学习理论在参数数量呈指数级增长时已失效。另一个敏锐的观察是，DNN 的训练包含两个截然不同的阶段：首先，网络被训练来完整地表示输入数据并最小化泛化误差；随后，它通过压缩输入的表示来“遗忘”不相关细节。</p>
+      
+    
+      
+        <p>本文大部分内容来自 Tishby 教授的演讲及 <a href="posts-2017-09-28-information-bottleneck.html">用信息论剖析深度学习</a>。</p>
+      
+    
+      
+        <h2>基本概念#</h2>
+        
+      
+    
+      
+        <p><a href="https://en.wikipedia.org/wiki/Markov_chain" target="_blank" rel="noopener">Markov Chain</a></p>
+      
+    
+      
+        <p>马尔可夫过程是一种“无记忆”（也称“马尔可夫性质”）的随机过程。马尔可夫链是包含多个离散状态的一类马尔可夫过程。这意味着，过程未来状态的条件概率仅由当前状态决定，而与过去的状态无关。</p>
+      
+    
+      
+        <p><a href="https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence" target="_blank" rel="noopener">Kullback–Leibler (KL) Divergence</a></p>
+      
+    
+      
+        <p>KL 散度用于衡量一个概率分布 <span class="math-inline" data-math="p">p</span> 与另一个期望概率分布 <span class="math-inline" data-math="q">q</span> 之间的差异程度。它具有不对称性。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+D_{KL}(p \| q) &amp;= \sum_x p(x) \log \frac{p(x)}{q(x)} \\
+ &amp;= - \sum_x p(x)\log q(x) + \sum_x p(x)\log p(x) \\
+ &amp;= H(P, Q) - H(P)
+\end{aligned}
+">
+\begin{aligned}
+D_{KL}(p \| q) &amp;= \sum_x p(x) \log \frac{p(x)}{q(x)} \\
+ &amp;= - \sum_x p(x)\log q(x) + \sum_x p(x)\log p(x) \\
+ &amp;= H(P, Q) - H(P)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>当 <span class="math-inline" data-math="p(x)">p(x)</span> 在处处等于 <span class="math-inline" data-math="q(x)">q(x)</span> 时，<span class="math-inline" data-math="D_{KL}">D_{KL}</span> 取得最小值零。</p>
+      
+    
+      
+        <p><a href="https://en.wikipedia.org/wiki/Mutual_information" target="_blank" rel="noopener">Mutual Information</a></p>
+      
+    
+      
+        <p>互信息衡量两个变量之间的相互依赖程度。它量化了通过一个随机变量能获得关于另一个随机变量的“信息量”。互信息是对称的。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+I(X;Y) &amp;= D_{KL}[p(x,y) \| p(x)p(y)] \\
+ &amp;= \sum_{x \in X, y \in Y} p(x, y) \log(\frac{p(x, y)}{p(x)p(y)}) \\
+ &amp;= \sum_{x \in X, y \in Y} p(x, y) \log(\frac{p(x|y)}{p(x)}) \\ 
+ &amp;= H(X) - H(X|Y) \\
+\end{aligned}
+">
+\begin{aligned}
+I(X;Y) &amp;= D_{KL}[p(x,y) \| p(x)p(y)] \\
+ &amp;= \sum_{x \in X, y \in Y} p(x, y) \log(\frac{p(x, y)}{p(x)p(y)}) \\
+ &amp;= \sum_{x \in X, y \in Y} p(x, y) \log(\frac{p(x|y)}{p(x)}) \\ 
+ &amp;= H(X) - H(X|Y) \\
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p><a href="https://en.wikipedia.org/wiki/Data_processing_inequality" target="_blank" rel="noopener">Data Processing Inequality (DPI)</a></p>
+      
+    
+      
+        <p>对于任意马尔可夫链 <span class="math-inline" data-math="X \to Y \to Z">X \to Y \to Z</span>，我们有 <span class="math-inline" data-math="I(X; Y) \geq I(X; Z)">I(X; Y) \geq I(X; Z)</span>。</p>
+      
+    
+      
+        <p>深度神经网络可以被视为一个马尔可夫链，因此当我们沿 DNN 的层向下移动时，该层与输入之间的互信息只能不断减小。</p>
+      
+    
+      
+        <p><a href="https://en.wikipedia.org/wiki/Parametrization#Parametrization_invariance" target="_blank" rel="noopener">Reparametrization invariance</a></p>
+      
+    
+      
+        <p>对于两个可逆函数 <span class="math-inline" data-math="\phi">\phi</span>、<span class="math-inline" data-math="\psi">\psi</span>，互信息仍然成立：<span class="math-inline" data-math="I(X; Y) = I(\phi(X); \psi(Y))">I(X; Y) = I(\phi(X); \psi(Y))</span>。</p>
+      
+    
+      
+        <p>例如，如果我们打乱 DNN 某一层的权重，不会影响该层与其他层之间的互信息。</p>
+      
+    
+      
+        <h2>将深度神经网络视为马尔可夫链#</h2>
+        
+      
+    
+      
+        <p>训练数据包含来自联合分布 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 的采样观测。输入变量 <span class="math-inline" data-math="X">X</span> 和各隐藏层的权重都是高维随机变量。在分类任务中，真实目标 <span class="math-inline" data-math="Y">Y</span> 和模型预测值 <span class="math-inline" data-math="\hat{Y}">\hat{Y}</span> 是维度较低的随机变量。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-09-28-information-bottleneck/ib-dnn-structure.png" alt="">
+          <figcaption>The structure of a deep neural network, which consists of the target label <span class="math-inline" data-math="Y">Y</span>, input layer <span class="math-inline" data-math="X">X</span>, hidden layers <span class="math-inline" data-math="h\_1, \dots, h\_m">h\_1, \dots, h\_m</span> and the final prediction <span class="math-inline" data-math="\hat{Y}">\hat{Y}</span>. (Image source:Tishby and Zaslavsky, 2015)</figcaption>
+        </figure>
+      
+    
+      
+        <p>如果我们将 DNN 的隐藏层标记为 <span class="math-inline" data-math="h_1, h_2, \dots, h_m">h_1, h_2, \dots, h_m</span>（如图 1 所示），就可以将每一层视为马尔可夫链的一个状态：<span class="math-inline" data-math=" h_i \to h_{i+1}"> h_i \to h_{i+1}</span>。根据数据处理不等式，我们有：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+H(X) \geq I(X; h_1) \geq I(X; h_2) \geq \dots \geq I(X; h_m) \geq I(X; \hat{Y}) \\
+I(X; Y) \geq I(h_1; Y) \geq I(h_2; Y) \geq \dots \geq I(h_m; Y) \geq I(\hat{Y}; Y)
+\end{aligned}
+">
+\begin{aligned}
+H(X) \geq I(X; h_1) \geq I(X; h_2) \geq \dots \geq I(X; h_m) \geq I(X; \hat{Y}) \\
+I(X; Y) \geq I(h_1; Y) \geq I(h_2; Y) \geq \dots \geq I(h_m; Y) \geq I(\hat{Y}; Y)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>DNN 的设计目标是学会如何刻画 <span class="math-inline" data-math="X">X</span> 来预测 <span class="math-inline" data-math="Y">Y</span>，并最终将 <span class="math-inline" data-math="X">X</span> 压缩到只保留与 <span class="math-inline" data-math="Y">Y</span> 相关的信息。Tishby 将这一过程描述为“相关信息的逐次提炼”。</p>
+      
+    
+      
+        <h2>信息平面定理#</h2>
+        
+      
+    
+      
+        <p>DNN 对 <span class="math-inline" data-math="X">X</span> 拥有一系列内部表示，即一组隐藏层 <span class="math-inline" data-math="\{T_i\}">\{T_i\}</span>。信息平面定理通过编码器和解码器信息来刻画每一层。编码器是对输入数据 <span class="math-inline" data-math="X">X</span> 的表示，而解码器则将当前层的信息转换为目标输出 <span class="math-inline" data-math="Y">Y</span>。</p>
+      
+    
+      
+        <p>准确来说，在信息平面图中：</p>
+      
+    
+      
+        <div class="list-content">X 轴：<span class="math-inline" data-math="T_i">T_i</span> 的样本复杂度由编码器互信息 <span class="math-inline" data-math="I(X; T_i)">I(X; T_i)</span> 决定。样本复杂度指为达到一定准确率和泛化能力所需的数据样本数量。
+Y 轴：准确率（泛化误差）由解码器互信息 <span class="math-inline" data-math="I(T_i; Y)">I(T_i; Y)</span> 决定。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-09-28-information-bottleneck/ib-information-plane.png" alt="">
+          <figcaption>The encoder vs decoder mutual information of DNN hidden layers of 50 experiments. Different layers are color-coders, with green being the layer right next to the input and the orange being the furthest. There are three snapshots, at the initial epoch, 400 epochs and 9000 epochs respectively. (Image source:Shwartz-Ziv and Tishby, 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>图中每个点标记了一次网络模拟中某一隐藏层的编码器/解码器互信息（实验未使用正则化、无权重衰减、无 dropout 等）。随着训练进行，这些点向上移动，因为网络对真实标签的了解不断增加（准确率提升）。在早期阶段，隐藏层会学习大量关于输入 <span class="math-inline" data-math="X">X</span> 的信息，但之后它们开始进行压缩，遗忘输入中的部分信息。Tishby 认为“学习过程中最重要的部分实际上是遗忘”。可以观看这个 <a href="https://youtu.be/P1A1yNsxMjc" target="_blank" rel="noopener">精彩视频</a>，它直观展示了各层互信息随 epoch 的变化过程。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-09-28-information-bottleneck/ib-information-plane-merged.png" alt="">
+          <figcaption>Here is an aggregated view of Fig 2. The compression happens after the generalization error becomes very small. (Image source:Tishby’ talk 15:15)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>两个优化阶段#</h2>
+        
+      
+    
+      
+        <p>跟踪每一层权重在训练过程中的归一化均值和标准差，也能揭示训练过程的两个优化阶段。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-09-28-information-bottleneck/ib-mean-variation.png" alt="">
+          <figcaption>The norm of mean and standard deviation of each layer&#x27;s weight gradients for each layer as a function of training epochs. Different layers are color-coded. (Image source:Shwartz-Ziv and Tishby, 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>在训练早期，均值比标准差大三个数量级。经过足够多的 epoch 后，误差趋于饱和，此后标准差变得更加嘈杂。越远离输出层的层，噪声越明显，这是因为噪声会通过反向传播过程被放大和累积（而非由该层的宽度引起）。</p>
+      
+    
+      
+        <h2>学习理论#</h2>
+        
+      
+    
+      
+        <h2>“旧的”泛化界#</h2>
+        
+      
+    
+      
+        <p>经典学习理论定义的泛化界为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\epsilon^2 &lt; \frac{\log|H_\epsilon| + \log{1/\delta}}{2m}
+">
+\epsilon^2 &lt; \frac{\log|H_\epsilon| + \log{1/\delta}}{2m}
+</span></div>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="\epsilon">\epsilon</span>：训练误差与泛化误差之间的差异。泛化误差衡量算法对未见过数据的预测准确程度。
+<span class="math-inline" data-math="H_\epsilon">H_\epsilon</span>：假设类 <span class="math-inline" data-math="\epsilon">\epsilon</span>-覆盖。通常假设其大小为 <span class="math-inline" data-math="\vert H_\epsilon \vert \sim (1/\epsilon)^d">\vert H_\epsilon \vert \sim (1/\epsilon)^d</span>。
+<span class="math-inline" data-math="\delta">\delta</span>：置信度。
+<span class="math-inline" data-math="m">m</span>：训练样本数量。
+<span class="math-inline" data-math="d">d</span>：假设的 VC 维。</div>
+      
+    
+      
+        <p>该定义表明，训练误差与泛化误差之差被假设空间大小和数据集大小的一个函数所界定。假设空间越大，泛化误差的上界就越大。如果你对泛化界感兴趣，我推荐这篇机器学习理论教程 <a href="https://mostafa-samir.github.io/ml-theory-pt1/" target="_blank" rel="noopener">part1</a> 和 <a href="https://mostafa-samir.github.io/ml-theory-pt2/" target="_blank" rel="noopener">part2</a>。</p>
+      
+    
+      
+        <p>然而，这一界对深度学习并不适用。网络越大，需要学习的参数就越多。按照这一泛化界，更大的网络（更大的 <span class="math-inline" data-math="d">d</span>）会得到更差的界。这与我们直观认为更大网络表达能力更强、性能更优的认知相矛盾。</p>
+      
+    
+      
+        <h2>“新的”输入压缩界#</h2>
+        
+      
+    
+      
+        <p>为了解释这一反直觉的现象，Tishby 等人提出了一种新的针对 DNN 的输入压缩界。</p>
+      
+    
+      
+        <p>首先令 <span class="math-inline" data-math="T_\epsilon">T_\epsilon</span> 为输入变量 <span class="math-inline" data-math="X">X</span> 的一个 <span class="math-inline" data-math="\epsilon">\epsilon</span>-划分。该划分根据标签的同质性将输入压缩到较小的单元格中，所有单元格共同覆盖整个输入空间。若预测输出为二元值，我们可以用 <span class="math-inline" data-math="2^{\vert T_\epsilon \vert}">2^{\vert T_\epsilon \vert}</span> 代替假设类的基数 <span class="math-inline" data-math="\vert H_\epsilon \vert">\vert H_\epsilon \vert</span>。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+|H_\epsilon| \sim 2^{|X|} \to 2^{|T_\epsilon|}
+">
+|H_\epsilon| \sim 2^{|X|} \to 2^{|T_\epsilon|}
+</span></div>
+      
+    
+      
+        <p>当 <span class="math-inline" data-math="X">X</span> 较大时，<span class="math-inline" data-math="X">X</span> 的大小近似为 <span class="math-inline" data-math="2^{H(X)}">2^{H(X)}</span>。<span class="math-inline" data-math="\epsilon">\epsilon</span>-划分中每个单元格的大小约为 <span class="math-inline" data-math="2^{H(X \vert T_\epsilon)}">2^{H(X \vert T_\epsilon)}</span>。因此我们有 <span class="math-inline" data-math="\vert T_\epsilon \vert \sim \frac{2^{H(X)}}{2^{H(X \vert T_\epsilon)}} = 2^{I(T_\epsilon; X)}">\vert T_\epsilon \vert \sim \frac{2^{H(X)}}{2^{H(X \vert T_\epsilon)}} = 2^{I(T_\epsilon; X)}</span>，于是输入压缩界变为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\epsilon^2 &lt; \frac{2^{I(T_\epsilon; X)} + \log{1/\delta}}{2m}
+">
+\epsilon^2 &lt; \frac{2^{I(T_\epsilon; X)} + \log{1/\delta}}{2m}
+</span></div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-09-28-information-bottleneck/ib-bound.png" alt="">
+          <figcaption>The black line is the optimal achievable information bottleneck (IB) limit. The red line corresponds to the upper bound on the out-of-sample IB distortion, when trained on a finite sample set. <span class="math-inline" data-math="\Delta C">\Delta C</span> is the complexity gap and <span class="math-inline" data-math="\Delta G">\Delta G</span> is the generalization gap. (Recreated based onTishby’ talk 24:50)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>网络规模与训练数据规模#</h2>
+        
+      
+    
+      
+        <h2>更多隐藏层的益处#</h2>
+        
+      
+    
+      
+        <p>拥有更多层能带来计算上的优势，并加速实现良好泛化所需的训练过程。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-09-28-information-bottleneck/ib-layers.png" alt="">
+          <figcaption>The optimization time is much shorter (fewer epochs) with more hidden layers. (Image source:Shwartz-Ziv and Tishby, 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>通过随机松弛实现的压缩：根据 <a href="https://en.wikipedia.org/wiki/Fokker%E2%80%93Planck_equation" target="_blank" rel="noopener">扩散方程</a>，第 <span class="math-inline" data-math="k">k</span> 层的松弛时间与该层压缩量 <span class="math-inline" data-math="\Delta S_k">\Delta S_k</span> 的指数成正比：<span class="math-inline" data-math="\Delta t_k \sim \exp(\Delta S_k)">\Delta t_k \sim \exp(\Delta S_k)</span>。我们可以按 <span class="math-inline" data-math="\Delta S_k = I(X; T_k) - I(X; T_{k-1})">\Delta S_k = I(X; T_k) - I(X; T_{k-1})</span> 计算层的压缩量。由于 <span class="math-inline" data-math="\exp(\sum_k \Delta S_k) \geq \sum_k \exp(\Delta S_k)">\exp(\sum_k \Delta S_k) \geq \sum_k \exp(\Delta S_k)</span>，我们可以预期随着隐藏层增多（更大的 <span class="math-inline" data-math="k">k</span>），训练所需 epoch 数量呈指数级减少。</p>
+      
+    
+      
+        <h2>更多训练样本的益处#</h2>
+        
+      
+    
+      
+        <p>拟合更多训练数据需要隐藏层捕获更多信息。随着训练数据规模增大，解码器互信息（回想一下，它与泛化误差直接相关）<span class="math-inline" data-math="I(T; Y)">I(T; Y)</span> 被向上推高，并更接近理论的信息瓶颈界。Tishby 强调，决定泛化能力的是互信息，而非层的规模或 VC 维，这与传统理论不同。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-09-28-information-bottleneck/ib-training-size.png" alt="">
+          <figcaption>The training data of different sizes is color-coded. The information plane of multiple converged networks are plotted. More training data leads to better generalization. (Image source:Shwartz-Ziv and Tishby, 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>引用格式：</p>
+      
+    
+      
+        <pre><code>@article{weng2017infotheory,
+  title   = &quot;Anatomize Deep Learning with Information Theory&quot;,
+  author  = &quot;Weng, Lilian&quot;,
+  journal = &quot;lilianweng.github.io&quot;,
+  year    = &quot;2017&quot;,
+  url     = &quot;https://lilianweng.github.io/posts/2017-09-28-information-bottleneck/&quot;
+}
+</code></pre>
+      
+    
+      
+        <h2>参考文献#</h2>
+        
+      
+    
+      
+        <p>[1] Naftali Tishby. <a href="https://youtu.be/bLqJHjXihK8" target="_blank" rel="noopener">Information Theory of Deep Learning</a></p>
+      
+    
+      
+        <p>[2] <a href="https://mostafa-samir.github.io/ml-theory-pt1/" target="_blank" rel="noopener">Machine Learning Theory - Part 1: Introduction</a></p>
+      
+    
+      
+        <p>[3] <a href="https://mostafa-samir.github.io/ml-theory-pt2/" target="_blank" rel="noopener">Machine Learning Theory - Part 2: Generalization Bounds</a></p>
+      
+    
+      
+        <p>[4] <a href="https://www.quantamagazine.org/new-theory-cracks-open-the-black-box-of-deep-learning-20170921/" target="_blank" rel="noopener">New Theory Cracks Open the Black Box of Deep Learning</a> by Quanta Magazine.</p>
+      
+    
+      
+        <p>[5] Naftali Tishby and Noga Zaslavsky. <a href="https://arxiv.org/pdf/1503.02406.pdf" target="_blank" rel="noopener">“Deep learning and the information bottleneck principle.”</a> IEEE Information Theory Workshop (ITW), 2015.</p>
+      
+    
+      
+        <p>[6] Ravid Shwartz-Ziv and Naftali Tishby. <a href="https://arxiv.org/pdf/1703.00810.pdf" target="_blank" rel="noopener">“Opening the Black Box of Deep Neural Networks via Information.”</a> arXiv preprint arXiv:1703.00810, 2017.</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

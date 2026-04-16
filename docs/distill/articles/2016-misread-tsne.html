@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>如何有效使用 t-SNE · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>如何有效使用 t-SNE</h1>
+    <div class="meta">
+      2016-10-13 · 
+      <a href="http://distill.pub/2016/misread-tsne" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>Distill</p>
+      
+    
+      
+        <p>关于</p>
+      
+    
+      
+        <p>奖项</p>
+      
+    
+      
+        <p>投稿</p>
+      
+    
+      
+        <p>play_arrow</p>
+      
+    
+      
+        <p>pause</p>
+      
+    
+      
+        <p>refresh</p>
+      
+    
+      
+        <p>步骤：</p>
+      
+    
+      
+        <p>expand_less</p>
+      
+    
+      
+        <p>如何有效使用 t-SNE</p>
+      
+    
+      
+        <h2>尽管 t-SNE 在可视化高维数据方面极为有用，但它的图有时会显得神秘或容易误导。通过探索它在简单情况下的表现，我们可以学会更有效地使用它。</h2>
+        
+      
+    
+      
+        <p>play_arrow</p>
+      
+    
+      
+        <p>pause</p>
+      
+    
+      
+        <p>refresh</p>
+      
+    
+      
+        <p>步骤</p>
+      
+    
+      
+        <p>link</p>
+      
+    
+      
+        <p>分享此视图</p>
+      
+    
+      
+        <p>Martin Wattenberg</p>
+      
+    
+      
+        <p>Google Brain</p>
+      
+    
+      
+        <p>Fernanda Viégas</p>
+      
+    
+      
+        <p>Google Brain</p>
+      
+    
+      
+        <p>Ian Johnson</p>
+      
+    
+      
+        <p>Google Cloud</p>
+      
+    
+      
+        <p>10 月 13 日</p>
+      
+    
+      
+        <p>2016 年</p>
+      
+    
+      
+        <p>引用：</p>
+      
+    
+      
+        <p>Wattenberg 等，2016</p>
+      
+    
+      
+        <p>探索高维数据的一种流行方法叫做 t-SNE，由 van der Maaten 和 Hinton 在 2008 年提出 [1]。这项技术已在机器学习领域广泛应用，因为它拥有近乎神奇的能力，能将具有数百乃至数千维的数据转化为引人入胜的二维“地图”。
+尽管这些图像令人印象深刻，但也极易被误读。本文的目的就是避免一些常见的误读。</p>
+      
+    
+      
+        <p>我们将通过一系列简单示例来说明 t-SNE 图能展现什么、不能展现什么。t-SNE 技术确实非常有用——但前提是你知道如何解读它。</p>
+      
+    
+      
+        <p>在深入之前：如果你之前没接触过 t-SNE，以下是关于其数学原理的必要知识。它的目标是将高维空间中的一组点，在低维空间（通常是二维平面）中找到忠实的表示。该算法是非线性的，会根据数据的内在结构进行调整，对不同区域施加不同的变换。这些差异往往是造成困惑的主要来源。</p>
+      
+    
+      
+        <p>t-SNE 的另一个特点是存在一个可调节的参数“perplexity”（困惑度），它（粗略地）决定了如何平衡数据中局部与全局方面的关注度。从某种意义上说，这个参数是算法对每个点邻居数量的猜测。困惑度对最终图像有复杂的影响。原始论文中提到：“SNE 的性能对困惑度的变化相当稳健，典型值在 5 到 50 之间。”但实际情况更为微妙。要充分发挥 t-SNE 的作用，可能需要分析多个不同困惑度下的图像。</p>
+      
+    
+      
+        <p>复杂性还不止于此。t-SNE 算法在连续运行时并不总是产生相似的结果，此外优化过程还涉及其他超参数。</p>
+      
+    
+      
+        <h2>1. 这些超参数非常重要</h2>
+        
+      
+    
+      
+        <p>让我们从 t-SNE 的“hello world”开始：一个由两个相距很远的簇组成的数据集。为了尽量简化，我们考虑二维平面中的簇，如左图所示。（为清晰起见，两个簇使用了不同颜色。）右边的图展示了五种不同困惑度下的 t-SNE 结果。</p>
+      
+    
+      
+        <p>当困惑度在 van der Maaten &amp; Hinton 建议的范围（5–50）内时，图像确实能显示出这些簇，尽管形状差异很大。超出这个范围后，情况就开始变得奇怪。困惑度为 2 时，局部变化占主导。困惑度为 100 的图像中簇发生了合并，这揭示了一个陷阱：要让算法正常工作，困惑度应该小于数据点数量，否则实现可能会产生意外行为。</p>
+      
+    
+      
+        <p>以上每张图都是用 5000 次迭代、学习率（常称为“epsilon”）为 10 生成的，并在第 5000 步达到稳定状态。这些数值到底有多重要？根据我们的经验，最重要的是要迭代直到达到稳定的配置。</p>
+      
+    
+      
+        <p>上图展示了困惑度为 30 时的五次不同运行结果。前四次在稳定之前就停止了。在 10、20、60 和 120 步后，你会看到簇呈现出一维甚至点状的布局。如果你看到 t-SNE 图中出现奇怪的“收缩”形状，很可能是因为迭代过早终止。不幸的是，并不存在一个固定的步数能保证稳定结果。不同的数据集可能需要不同数量的迭代才能收敛。</p>
+      
+    
+      
+        <p>另一个自然的问题是，使用相同超参数的不同运行是否会产生相同的结果。在这个简单的双簇示例以及我们讨论的大多数其他例子中，多次运行会得到相同的全局形状。然而，某些数据集在不同运行中会产生明显不同的图；后面我们会给出一个这样的例子。</p>
+      
+    
+      
+        <p>从现在起，除非特别说明，我们都将展示 5000 次迭代的结果。这对于本文中（相对较小的）示例来说通常足以收敛。不过我们仍会展示一系列困惑度，因为它在每个案例中似乎都会产生很大差异。</p>
+      
+    
+      
+        <h2>2. t-SNE 图中的簇大小没有任何意义</h2>
+        
+      
+    
+      
+        <p>到目前为止还不错。但如果两个簇具有不同的标准差，因而大小不同呢？（这里的大小指包围盒度量，而非点的数量。）下面是二维平面中混合高斯分布的 t-SNE 图，其中一个簇的分散程度是另一个的 10 倍。</p>
+      
+    
+      
+        <p>令人惊讶的是，在 t-SNE 图中两个簇看起来差不多一样大。
+这是怎么回事？t-SNE 算法会根据数据集中的区域密度差异来调整其“距离”概念。因此，它会自然地扩展密集的簇，收缩稀疏的簇，从而均衡簇的大小。需要明确的是，这与任何降维技术都会扭曲距离这一常规事实不同。（毕竟在这个例子中，所有数据一开始就是二维的。）相反，这种密度均衡是 t-SNE 的设计意图，也是一个可预测的特性。</p>
+      
+    
+      
+        <p>然而，底线是：你无法从 t-SNE 图中看出簇的相对大小。</p>
+      
+    
+      
+        <h2>3. 簇之间的距离可能没有任何意义</h2>
+        
+      
+    
+      
+        <p>那么簇之间的距离呢？下面的图展示了三个各含 50 个点的高斯分布，其中一对簇之间的距离是另一对的 5 倍。</p>
+      
+    
+      
+        <p>在困惑度为 50 时，图像很好地反映了全局几何结构。在较低的困惑度下，簇看起来距离相等。当困惑度为 100 时，我们能看清全局几何，但其中一个簇显得（错误地）比其他簇小得多。
+既然困惑度 50 在这个例子中给了我们一张好图，那么我们是否总是可以把困惑度设为 50 来观察全局几何呢？</p>
+      
+    
+      
+        <p>很遗憾，不能。如果我们给每个簇增加更多点，就必须提高困惑度来补偿。下面是每个簇含 200 个点（而非 50 个）时的三个高斯簇的 t-SNE 图。现在没有任何一个尝试的困惑度值能给出好的结果。</p>
+      
+    
+      
+        <p>看到全局几何需要精细调节困惑度，这是个坏消息。现实世界的数据很可能包含多个大小不同的簇。可能不存在一个困惑度值能同时捕捉所有簇之间的距离——而困惑度又是一个全局参数。解决这个问题或许是未来研究的一个有趣方向。</p>
+      
+    
+      
+        <p>基本信息是：t-SNE 图中分离良好的簇之间的距离可能没有任何意义。</p>
+      
+    
+      
+        <h2>4. 随机噪声并不总是看起来随机</h2>
+        
+      
+    
+      
+        <p>一个经典的陷阱是以为自己在真正随机的噪声中看到了模式。学会识别噪声是一项关键技能，但建立正确的直觉需要时间。t-SNE 的一个棘手之处在于，它会把我们很多已有的直觉抛到脑后。
+下面的图展示的是真正的随机数据：从 100 维单位高斯分布中采样的 500 个点。左图是投影到前两个坐标上的结果。</p>
+      
+    
+      
+        <p>困惑度为 2 的图似乎显示出了戏剧性的簇。如果你正在调节困惑度以展现数据中的结构，可能会觉得中了大奖。</p>
+      
+    
+      
+        <p>当然，既然我们知道这些点云是随机生成的，它就不存在统计上有意义的簇：那些“团块”没有实际意义。如果你回顾前面的例子，低困惑度值常常会导致这种分布。把这些团块识别为随机噪声，是读懂 t-SNE 图的重要一环。</p>
+      
+    
+      
+        <p>不过还有更有趣的地方，这可能是 t-SNE 的一个优势。困惑度为 30 的图乍一看完全不像高斯分布：云的不同区域之间密度差异很小，点似乎分布得可疑地均匀。事实上，这些特征正是在传递关于高维正态分布的有用信息——高维正态分布非常接近球面上的均匀分布：分布均匀，点与点之间间隔大致相等。从这个角度看，t-SNE 的图比任何线性投影都更准确。</p>
+      
+    
+      
+        <h2>5. 你有时可以看到一些形状</h2>
+        
+      
+    
+      
+        <p>数据很少以完全对称的方式分布。让我们来看一个 50 维空间中沿轴对齐的高斯分布，其中第 i 个坐标的标准差为 1/i。也就是说，我们看到的是一个较长的椭球形点云。</p>
+      
+    
+      
+        <p>对于足够高的困惑度，细长的形状很容易辨认。另一方面，在低困惑度下，局部效应和无意义的“团块”成为主角。更极端的形状也能显现，但同样只在合适的困惑度下。例如，下面是二维空间中两个各含 75 个点的簇，它们排列成带有少量噪声的平行线。</p>
+      
+    
+      
+        <p>在某个困惑度范围内，细长的簇看起来接近正确，这让人放心。</p>
+      
+    
+      
+        <p>然而，即使在最佳情况下，仍存在细微的扭曲：t-SNE 图中的线条会轻微向外弯曲。原因是 t-SNE 一如既往地倾向于扩展数据中较密集的区域。由于簇中间比两端周围的空白空间少，算法会放大中间部分。</p>
+      
+    
+      
+        <h2>6. 对于拓扑结构，你可能需要不止一张图</h2>
+        
+      
+    
+      
+        <p>有时你可以从 t-SNE 图中读出拓扑信息，但这通常需要查看多个不同困惑度下的视图。
+最简单的拓扑特性之一是包含关系。下图展示了 50 维空间中的两组各 75 个点。两者都采样自以原点为中心的对称高斯分布，但其中一组的分散程度是另一组的 1/50。也就是说，“小”分布实际上被包含在大的分布之中。</p>
+      
+    
+      
+        <p>困惑度为 30 的视图正确地显示了基本拓扑，但 t-SNE 再次大大夸大了较小点集的大小。在困惑度为 50 时，出现了一个新现象：外层群体变成了一个圆，因为图像试图描绘其所有点到内部群体的距离大致相等的事实。如果你只看这张图，很容易误将这些外部点解读为一维结构。</p>
+      
+    
+      
+        <p>更复杂的拓扑类型呢？这可能是数学家比实际数据分析师更感兴趣的话题，但在现实数据中偶尔也能发现有趣的低维结构。</p>
+      
+    
+      
+        <p>考虑一组在三维空间中构成链环或纽结的点。同样，查看多个困惑度能给出最完整的图景。低困惑度会产生两个完全分离的环；高困惑度则显示出某种全局连通性。</p>
+      
+    
+      
+        <p>三叶结（trefoil knot）是一个能很好说明多次运行如何影响 t-SNE 结果的例子。下面是困惑度为 2 的视图的五次运行结果。</p>
+      
+    
+      
+        <p>算法两次收敛到圆形，至少保留了内在拓扑。但在另外三次运行中，它得到了三种不同的解，这些解引入了人为的断裂。用点的颜色作为指引，你可以看到第一次和第三次运行的结果相差很远。</p>
+      
+    
+      
+        <p>然而，在困惑度为 50 时的五次运行给出了（在对称性允许范围内）视觉上相同的结果。显然，有些问题比其他问题更容易优化。</p>
+      
+    
+      
+        <h2>结论</h2>
+        
+      
+    
+      
+        <p>t-SNE 之所以变得如此流行是有原因的：它极其灵活，常常能在其他降维算法无法发现结构的地方找到结构。不幸的是，正是这种灵活性使它难以解读。在用户看不到的地方，该算法进行了各种调整来美化其可视化效果。
+不过，不要让这种隐藏的“魔法”吓得你远离这项技术。好消息是，通过研究 t-SNE 在简单情况下的行为，我们有可能建立起对其工作原理的直觉。</p>
+      
+    
+      
+        <p>让图表栩栩如生</p>
+      
+    
+      
+        <h3>致谢</h3>
+        
+      
+    
+      
+        <p>我们感谢 Chris Olah 和 Shan Carter 创建了这个平台，并感谢 Shan Carter 提供的优秀设计和编辑帮助。
+Daniel Smilkov、James Wexler 和 Chi Zeng 提供了许多有价值的意见。
+我们还要感谢 Andrej Karpathy 开发的
+<a href="https://github.com/karpathy/tsnejs" target="_blank" rel="noopener">tsnejs</a> 库，它被用于交互式图表中。</p>
+      
+    
+      
+        <p>这项工作得益于 <a href="https://research.google.com/teams/brain/" target="_blank" rel="noopener">Google Brain</a> 团队的支持。</p>
+      
+    
+      
+        <p>2016 年 10 月 18 日进行了编辑，描述并修正了当困惑度被设置为大于数据点数量时出现的问题。感谢 Laurens van der Maaten 指出这一点。</p>
+      
+    
+      
+        <h3>参考文献</h3>
+        
+      
+    
+      
+        <div class="list-content">Visualizing data using t-SNE   <a href="http://www.jmlr.org/papers/volume9/vandermaaten08a/vandermaaten08a.pdf" target="_blank" rel="noopener">[PDF]</a>Maaten, L.v.d. and Hinton, G., 2008. Journal of Machine Learning Research, Vol 9(Nov), pp. 2579—2605.</div>
+      
+    
+      
+        <h3>更新与更正</h3>
+        
+      
+    
+      
+        <p><a href="https://github.com/distillpub/post--misread-tsne/compare/de6941fa8fc6c4db9d8e4b4f4d7f604817db562c...f2492b469bec8aaa7aa83cc828081e14a295414d" target="_blank" rel="noopener">查看本文自首次发布以来的所有修改</a>。如果你发现错误或想提出修改建议，请<a href="https://github.com/distillpub/post--misread-tsne/issues/new" target="_blank" rel="noopener">在 GitHub 上创建 issue</a>。</p>
+      
+    
+      
+        <h3>引用与重用</h3>
+        
+      
+    
+      
+        <p>图表和文字采用知识共享署名许可协议 <a href="https://creativecommons.org/licenses/by/2.0/" target="_blank" rel="noopener">CC-BY 2.0</a>，除非另有说明，源代码可在 <a href="https://github.com/distillpub/post--misread-tsne" target="_blank" rel="noopener">GitHub</a> 上获取。从其他来源重用的图表不属于此许可，可通过其说明文字中的“Figure from …”识别。</p>
+      
+    
+      
+        <p>在学术语境下引用时，请按以下方式引用本文</p>
+      
+    
+      
+        <pre><code>Wattenberg, et al., &quot;How to Use t-SNE Effectively&quot;, Distill, 2016. http://doi.org/10.23915/distill.00002</code></pre>
+      
+    
+      
+        <p>BibTeX 引用</p>
+      
+    
+      
+        <pre><code>@article{wattenberg2016how,
+  author = {Wattenberg, Martin and Viégas, Fernanda and Johnson, Ian},
+  title = {How to Use t-SNE Effectively},
+  journal = {Distill},
+  year = {2016},
+  url = {http://distill.pub/2016/misread-tsne},
+  doi = {10.23915/distill.00002}
+}</code></pre>
+      
+    
+      
+        <p>Visualizing data using t-SNE</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>L.v.d. Maaten, G. Hinton.</p>
+      
+    
+      
+        <p>Journal of Machine Learning Research, Vol 9(Nov), pp. 2579—2605. 2008.</p>
+      
+    
+      
+        <p>Distill</p>
+      
+    
+      
+        <p>致力于清晰解释机器学习</p>
+      
+    
+      
+        <p>关于</p>
+      
+    
+      
+        <p>投稿</p>
+      
+    
+      
+        <p>奖项</p>
+      
+    
+      
+        <p>归档</p>
+      
+    
+      
+        <p>RSS</p>
+      
+    
+      
+        <p>GitHub</p>
+      
+    
+      
+        <p>Twitter</p>
+      
+    
+      
+        <p>ISSN 2476-0757</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

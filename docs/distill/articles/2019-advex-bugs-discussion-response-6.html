@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>关于《对抗样本并非漏洞，而是特征》的讨论：从错误标注数据中学习 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>关于《对抗样本并非漏洞，而是特征》的讨论：从错误标注数据中学习</h1>
+    <div class="meta">
+      2019-08-06 · 
+      <a href="https://distill.pub/2019/advex-bugs-discussion/response-6" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>本文是关于 Ilyas 等人的论文《对抗样本并非漏洞，而是特征》讨论的一部分。您可以在<a href="2019-advex-bugs-discussion.html">关于《对抗样本不是 bug，而是 feature》的讨论</a>中了解更多信息。</p>
+      
+    
+      
+        <p>其他评论</p>
+      
+    
+      
+        <p>Ilyas 等人的评论</p>
+      
+    
+      
+        <p>Ilyas et al. (2019) 的第 3.2 节表明，仅使用对抗错误训练模型就能在原始测试集上实现非平凡的泛化。我们证明这些实验是“从错误中学习”的一个特例。我们首先给出一个反直觉的结果——我们使用一个完全错误标注的训练集（不修改输入），训练出一个能泛化到原始测试集的模型。接着我们证明，这个结果以及 Ilyas et al. (2019) 的结果，都是模型蒸馏的一个特例。具体来说，由于错误标签是由已训练模型生成的，关于该模型的信息被“泄露”到了数据集中。我们从以下问题开始：如果我们只拿训练集中的图像（不施加任何对抗扰动）并给它们错误标注，会发生什么？由于输入未被修改且标签错误，直觉告诉我们，在这个数据集上训练的模型不应能泛化到正确标注的测试集。然而，我们发现这种直觉是错误的——模型仍然可以泛化。我们首先在 CIFAR-10 训练集上训练了一个 ResNet-18 两个 epoch。该模型达到了 62.5% 的训练准确率和 63.1% 的测试准确率。接下来，我们用该模型对全部 5 万个训练样本进行预测，并根据模型的预测重新标注。然后我们过滤掉所有预测正确的样本，剩下 18,768 个错误标注的训练样本。下图左侧展示了其中四个例子：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-6/image1.png" alt="">
+          <figcaption>1</figcaption>
+        </figure>
+      
+    
+      
+        <p>随后我们随机初始化一个新的 ResNet-18，并仅在这个错误标注的数据集上训练 50 个 epoch，最终在原始测试集上达到了 49.7% 的准确率。这个新模型只见过错误标注且未被扰动的图像，却仍能实现非平凡的泛化。</p>
+      
+    
+      
+        <h2>这是使用错误预测进行模型蒸馏</h2>
+        
+      
+    
+      
+        <p>这个模型以及 Ilyas et al. (2019) 中的模型，在从未见过任何正确标注数据的情况下，是如何实现泛化的？在这里我们证明，由于错误标签是由已训练模型生成的，关于该模型的信息被“泄露”到了这些错误标注的样本中。具体来说，这是一种间接的模型蒸馏<cite>[hinton2015distilling]</cite>——在新数据集上训练能让新模型在一定程度上恢复原始模型的特征。</p>
+      
+    
+      
+        <p>我们首先用一个二维问题来说明这种蒸馏现象。随后，我们探索了神经网络中其他奇特的蒸馏形式——即使输入来自完全不同的任务，我们仍能实现知识迁移。</p>
+      
+    
+      
+        <h3>模型蒸馏的二维示例</h3>
+        
+      
+    
+      
+        <p>我们使用一个二维二分类问题构造了一个对抗样本数据集。我们生成了 32 个随机的二维数据点<span class="math-inline" data-math="[0,1]^2">[0,1]^2</span>，并为每个点随机分配一个二元标签。然后我们在这些样本上训练一个小型前馈神经网络，正确预测了全部 32/32 个样本（见下图 (a) 面板）。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-6/image2.png" alt="">
+          <figcaption>2</figcaption>
+        </figure>
+      
+    
+      
+        <p>接下来，我们使用半径为<span class="math-inline" data-math="\epsilon=0.12">\epsilon=0.12</span>的<span class="math-inline" data-math="l_{\infty}">l_{\infty}</span>球为原始模型生成对抗样本。在上图 (a) 面板中，我们展示了每个训练点周围的<span class="math-inline" data-math="\epsilon">\epsilon</span>球；在 (b) 面板中，我们展示了那些导致模型改变预测（从正确变为错误）的对抗样本。我们在这个数据集上训练一个新的前馈神经网络，得到 (c) 面板中的模型。</p>
+      
+    
+      
+        <p>尽管这个新模型从未见过任何正确标注的样本，但它仍能在原始数据集上实现非平凡的表现，正确预测了<span class="math-inline" data-math="23/32">23/32</span>的输入（见图 (d) 面板）。新模型的决策边界与原始模型的决策边界大致吻合，也就是说，原始模型通过在其对抗样本上训练，在一定程度上被蒸馏了出来。这个二维问题直观地展示了使用错误预测也能完成蒸馏这一有趣的结果。</p>
+      
+    
+      
+        <h3>其他奇特的蒸馏形式</h3>
+        
+      
+    
+      
+        <p>我们的实验表明，我们可以使用错误标注的样本对模型进行蒸馏。那么还有哪些其他奇特的方式可以让我们了解原始模型呢？我们能否仅使用域外数据？</p>
+      
+    
+      
+        <p>我们在一个简单的 CNN 模型上训练 MNIST，达到了 99.1% 的准确率。然后我们用这个模型在 FashionMNIST 训练集上运行，并保存其 argmax 预测结果。得到的数据集对人类来说毫无意义——一件“连衣裙”被标为了“8”。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-6/image3.png" alt="">
+          <figcaption>3</figcaption>
+        </figure>
+      
+    
+      
+        <p>随后我们初始化一个新的 CNN 模型，并在这些错误标注的 FashionMNIST 数据上进行训练。得到的新模型在 MNIST 测试集上达到了 91.04% 的准确率。此外，如果我们使用 MNIST 的均值和方差来归一化 FashionMNIST 图像，该模型在 MNIST 测试集上的准确率可提升至 94.5%。这再次证明，即使新模型只在错误预测上训练，也能恢复出一个与原始模型功能相似的模型。</p>
+      
+    
+      
+        <h3>总结</h3>
+        
+      
+    
+      
+        <p>这些结果表明，使用错误标注的对抗样本来训练模型，是从预测错误中学习的一个特例。换句话说，Ilyas et al. (2019) 第 3.2 节中对抗样本所添加的扰动，对于实现这种学习并不是必需的。</p>
+      
+    
+      
+        <p>若要引用 Ilyas 等人的回应，请引用他们的</p>
+      
+    
+      
+        <p>回应合集</p>
+      
+    
+      
+        <p>回应总结</p>
+      
+    
+      
+        <p>：请注意，由于我们的实验在不同架构间均有效，因此权重空间中的“蒸馏”并未发生。唯一可能发生的蒸馏是“特征空间”蒸馏，而这恰恰正是我们的假设。具体来说，特征空间蒸馏在</p>
+      
+    
+      
+        <p>World 1</p>
+      
+    
+      
+        <p>中是无法实现的——如果我们生成的对抗样本没有利用有用的特征，我们就不可能从中“蒸馏”出一个有用的模型。（事实上，可以将普通模型训练看作是对标注数据集的人类进行“特征蒸馏”。）此外，“仅需足够多的与模型一致的样本即可恢复模型”这一假设，已被 Preetum 的</p>
+      
+    
+      
+        <p>“仅含漏洞的数据集”</p>
+      
+    
+      
+        <p>以及其他实验（例如</p>
+      
+    
+      
+        <p>[<cite>[milli2018model]</cite>]</p>
+      
+    
+      
+        <p>）所反驳。</p>
+      
+    
+      
+        <p>回应：由于我们的实验在不同架构间均可进行，权重空间中的“蒸馏”不可能发生。因此，根据我们的理解，这里提出的“蒸馏”假设指的是“特征蒸馏”（即得到使用与原始模型相同特征的模型），而这也正是我们的假设。值得注意的是，如果对抗样本没有依赖于“翻转”那些对分类有利的特征（见和<a href="2019-advex-bugs-discussion-original-authors.html">关于《对抗样本不是 bug，而是 feature》的讨论：讨论内容与作者回应</a>），这种特征蒸馏将不可能实现——在那种情况下，被蒸馏出的模型只会使用泛化能力很差的特征，其自身也必然泛化得很差。<a href="2019-advex-bugs-discussion-original-authors.html">关于《对抗样本不是 bug，而是 feature》的讨论：讨论内容与作者回应</a></p>
+      
+    
+      
+        <p>此外，我们认为在所展示的实验（从错误标注数据中学习）中，同样类型的蒸馏也在发生。例如，一个具有一定准确率的模型可能会将“绿色背景”与“青蛙”相关联，从而把“绿色”的图像标为“青蛙”（如评论中的马的例子）。在新模型上使用这个数据集训练，就会让它把“绿色”与“青蛙”关联起来，从而在测试集上获得非平凡的准确率（评论中“从 Fashion-MNIST 学习 MNIST”的实验也是如此）。这与从标签中学习特征完全一致，就像深度网络从人类标注者那里“蒸馏”出良好决策边界一样。事实上，我们认为这些实验是对特征蒸馏的极佳诠释，与我们的发现形成良好互补。</p>
+      
+    
+      
+        <p>我们还注意到，这里对逻辑回归的类比之所以成立，仅是因为线性分类器的 VC 维较低（即这些分类器的维度为<span class="math-inline" data-math="d">d</span>）。具体来说，对于任何具有 VC 维<span class="math-inline" data-math="k">k</span>的分类器，我们至少需要<span class="math-inline" data-math="k">k</span>个点才能完全确定它。相反，神经网络已被证明具有极大的 VC 维（特别是大于训练集的大小[<cite>[zhang2016understanding]</cite>]）。因此，尽管用<span class="math-inline" data-math="d+1">d+1</span>个随机但与模型一致的点足以恢复线性模型，却不一定足以恢复深度神经网络。例如，Milli et al.[<cite>[milli2018model]</cite>] 无法仅使用随机高斯输入上的预测来重构 ResNet-18。（请注意，我们实验中使用的是 ResNet-50。）</p>
+      
+    
+      
+        <p>最后，似乎唯一可能对我们实验构成挑战的解释（即足够多的与模型一致的点就能恢复分类器）已被<a href="2019-advex-bugs-discussion-response-5.html">关于《对抗样本并非缺陷，而是特征》论文的讨论：对抗样本也只是缺陷而已</a>所反驳。具体来说，Preetum 能够设计出一个数据集，其中使用与模型一致但被错误标注的输入进行训练，完全无法恢复原始模型的决策边界。更一般地，这里提出的“模型蒸馏”视角无法区分 Preetum 构造的数据集与使用标准 PGD 构造的数据集（如同我们的<span class="math-inline" data-math="\widehat{\mathcal{D}}_{det}">\widehat{\mathcal{D}}_{det}</span>和<span class="math-inline" data-math="\widehat{\mathcal{D}}_{rand}">\widehat{\mathcal{D}}_{rand}</span>数据集）。</p>
+      
+    
+      
+        <p>您可以在</p>
+      
+    
+      
+        <p>主要讨论文章
+
+中找到更多回应。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

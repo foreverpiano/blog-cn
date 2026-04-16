@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>广义视觉语言模型 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>广义视觉语言模型</h1>
+    <div class="meta">
+      2022-06-09 · 
+      <a href="https://lilianweng.github.io/posts/2022-06-09-vlm/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">图像与文本联合训练
+将学到的图像嵌入作为（冻结的）语言模型前缀
+文本-图像跨注意力融合机制
+无训练
+基于视觉得分的引导解码
+将语言作为通信接口
+
+
+数据集
+图像描述数据集
+图像-文本配对数据集
+
+
+评估任务
+视觉问答
+视觉语言推理
+视频问答与理解
+
+
+引用
+参考文献</div>
+      
+    
+      
+        <p>将图像处理为文本的任务，例如图像描述和视觉问答，已经被研究多年。传统系统通常依赖目标检测网络作为视觉编码器来提取视觉特征，然后通过文本解码器生成文本。鉴于已有大量文献，本文仅聚焦于一种解决视觉语言任务的方法，即将预训练的<a href="posts-2019-01-31-lm.html">泛化语言模型</a>扩展为能够处理视觉信号的模型。</p>
+      
+    
+      
+        <p>我将这类视觉语言模型（VLMs）大致分为四类：</p>
+      
+    
+      
+        <div class="list-content">将图像转换为可与词元嵌入联合训练的嵌入特征。
+学习良好的图像嵌入，使其能作为冻结的预训练语言模型的前缀。
+使用专门设计的跨注意力机制，将视觉信息融合到语言模型的各层中。
+无需任何训练，直接组合视觉和语言模型。</div>
+      
+    
+      
+        <h2>图像与文本联合训练</h2>
+        
+      
+    
+      
+        <p>将视觉信息融合到语言模型的一种直接方法是将图像视为普通文本词元，并在文本和图像的联合表示序列上训练模型。具体来说，图像被划分为多个较小的图像块，每个图像块在输入序列中被当作一个“词元”。</p>
+      
+    
+      
+        <p>VisualBERT (<a href="https://arxiv.org/abs/1908.03557" target="_blank" rel="noopener">Li et al. 2019</a>) 将文本输入和图像区域一起送入<a href="posts-2019-01-31-lm.html">泛化语言模型</a>，使其能够通过自注意力机制发现图像和文本之间的内在对齐关系。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/VisualBERT-arch.png" alt="">
+          <figcaption>VisualBERT is trained on the combination of both text and image embeddings. (Image source:Li et al. 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>与<a href="posts-2019-01-31-lm.html">泛化语言模型</a>类似，VisualBERT 中的每个视觉嵌入也由三类嵌入求和得到，即词元化特征<span class="math-inline" data-math="f_o">f_o</span>、分段嵌入<span class="math-inline" data-math="f_s">f_s</span>和位置嵌入<span class="math-inline" data-math="f_p">f_p</span>，具体为：</p>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="f_o">f_o</span> 是由卷积神经网络针对图像中某个边界区域计算得到的视觉特征向量；
+<span class="math-inline" data-math="f_s">f_s</span> 是用于指示该嵌入属于视觉而非文本的分段嵌入；
+<span class="math-inline" data-math="f_p">f_p</span> 是用于对齐边界区域顺序的位置嵌入。</div>
+      
+    
+      
+        <p>该模型在 MS COCO 图像描述数据集上使用文本和图像作为输入来预测文本描述，并采用两种基于视觉的语言建模目标进行训练：</p>
+      
+    
+      
+        <div class="list-content">带图像的<a href="posts-2019-01-31-lm.html">泛化语言模型</a>。模型需要预测被掩码的文本词元，而图像嵌入始终保持不被掩码。
+句子-图像预测。当给定一张图像和两条关联描述时，其中一条描述有 50% 的概率是随机的、不相关的描述。模型需要区分这两种情况。</div>
+      
+    
+      
+        <p>根据消融实验，最重要的配置是在 Transformer 层中较早地融合视觉信息，并在 COCO 描述数据集上进行预训练。从预训练 BERT 初始化以及采用句子-图像预测训练目标的影响相对较小。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/VisualBERT-ablation.png" alt="">
+          <figcaption>Ablation study results of VisualBERT on NLVR.(Image source:Li et al. 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>VisualBERT 在当时超过了 NLVR 和 Flickr30K 任务上的 SOTA，但在 VQA 上仍与 SOTA 存在一定性能差距。</p>
+      
+    
+      
+        <p>SimVLM（Simple Visual Language Model；<a href="https://arxiv.org/abs/2108.10904" target="_blank" rel="noopener">Wang et al. 2022</a>) 是一个简单的前缀语言模型，其中前缀序列使用类似 BERT 的双向注意力处理，而主要输入序列仅使用类似 GPT 的因果注意力。图像被编码为前缀词元，使模型能够充分吸收视觉信息，随后以自回归方式生成对应文本。</p>
+      
+    
+      
+        <p>受<a href="https://arxiv.org/abs/2010.11929" target="_blank" rel="noopener">ViT</a>和<a href="https://arxiv.org/abs/2106.04803" target="_blank" rel="noopener">CoAtNet</a>启发，SimVLM 将图像分割为较小的图像块，并展平为 1D 序列。他们使用 ResNet 前 3 个块组成的卷积阶段来提取上下文丰富的图像块，这种设置比简单的线性投影效果更好。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/SimVLM-arch.png" alt="">
+          <figcaption>Training architecture for SimVLM, where the image patches are processed by the cross-attention encoder and the text decoder has causal attention. (Image source:Wang et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>SimVLM 的训练数据包括来自 ALIGN (<a href="https://arxiv.org/abs/2102.05918" target="_blank" rel="noopener">Jia et al. 2021</a>) 的大量图像-文本对，以及来自 C4 数据集 (<a href="https://arxiv.org/abs/1910.10683" target="_blank" rel="noopener">Raffel et al. 2019</a>) 的纯文本数据。他们在每个批次中混合两种预训练数据，包含 4096 个图像-文本对（ALIGN）和 512 个纯文本文档（C4）。</p>
+      
+    
+      
+        <p>消融研究表明，同时使用图像-文本和纯文本数据进行训练非常重要。PrefixLM 目标优于<a href="https://arxiv.org/abs/1910.10683" target="_blank" rel="noopener">跨度破坏</a>和朴素 LM。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/SimVLM-ablation.png" alt="">
+          <figcaption>Ablation study results of SimVLM on VQA.(Image source:Wang et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>CM3（Causally-Masked Multimodal Modeling；<a href="https://arxiv.org/abs/2201.07520" target="_blank" rel="noopener">Aghajanyan, et al. 2022</a>) 是一个超文本语言模型，学习生成大规模 CC-NEWS 和 Wikipedia 文章的 HTML 网页内容（包括超文本标记、超链接和图像）。得到的 CM3 模型能够在任意掩码的文档上下文条件下生成丰富的结构化、多模态输出。</p>
+      
+    
+      
+        <p>在架构上，CM3 是一个自回归模型。然而，为了结合因果语言建模和掩码语言建模，CM3 还会掩码少量长词元跨度，并在序列末尾尝试生成它们。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/CM3-arch.png" alt="">
+          <figcaption>Illustration of how a causally masked language model works.(Image source:Aghajanyan, et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>CM3 的训练数据集包含接近 1 万亿的网页数据。在预处理过程中，图像首先从 src 下载并调整为 256x256 大小并进行随机裁剪。随后使用<a href="https://arxiv.org/abs/2012.09841" target="_blank" rel="noopener">VQVAE-GAN</a>进行词元化，每个图像得到 256 个词元。这些词元用空格连接后重新插入 src 属性中。</p>
+      
+    
+      
+        <p>CM3 可以通过提示工程完成以下几类任务：</p>
+      
+    
+      
+        <div class="list-content">图像填充：</div>
+      
+    
+      
+        <pre><code>Infilling Prompt: &lt;figure&gt;
+	&lt;img src=&quot;{prefix}&lt;mask:0&gt;{postfix}&quot;&gt;&lt;mask:0&gt;
+</code></pre>
+      
+    
+      
+        <div class="list-content">条件图像填充：</div>
+      
+    
+      
+        <pre><code>Conditional Infilling Prompt:
+&lt;figure&gt;
+	&lt;img alt=&quot;Photo: {text}&quot; src=&quot;{prefix}&lt;mask:0&gt;{postfix}&quot;&gt;&lt;mask:0&gt;
+</code></pre>
+      
+    
+      
+        <div class="list-content">条件图像生成：</div>
+      
+    
+      
+        <pre><code>Conditional Generation Prompt: &lt;figure&gt;
+	&lt;img alt=&quot;{prompt}
+</code></pre>
+      
+    
+      
+        <div class="list-content">图像描述：</div>
+      
+    
+      
+        <pre><code>Captioning Masked Prompt #1: 
+&lt;figure&gt;
+	&lt;img alt=&quot;Photo: A photo taken of&lt;mask:0&gt;&quot; src=&quot;{image}&quot;&gt;
+
+Captioning Causal Prompt #1: 
+&lt;figure&gt;
+	&lt;img src=&quot;{image}&quot; title=&quot;Photo: A photo taken of
+</code></pre>
+      
+    
+      
+        <div class="list-content">实体消歧</div>
+      
+    
+      
+        <pre><code>Original: Manetho writes that these kings ruled from &lt;a title=&quot;Memphis, Egypt&quot;&gt;Memphis&lt;/a&gt;
+
+Prompt: Manetho writes that these kings ruled from &lt;a title=&quot;&lt;mask:0&gt;&quot;&gt;Memphis&lt;/a&gt;...&lt;mask:0&gt;
+
+Target: Manetho writes that these kings ruled from &lt;a title=&quot;&lt;mask:0&gt;&quot;&gt;Memphis&lt;/a&gt;...&lt;mask:0&gt; Memphis, Egypt
+</code></pre>
+      
+    
+      
+        <h2>将学到的图像嵌入作为（冻结的）语言模型前缀</h2>
+        
+      
+    
+      
+        <p>如果我们不想在适配语言模型处理视觉信号时修改其参数怎么办？我们可以学习一个与语言模型兼容的图像嵌入空间。</p>
+      
+    
+      
+        <p>受<a href="https://arxiv.org/abs/2101.00190" target="_blank" rel="noopener">prefix</a>或<a href="https://arxiv.org/abs/2104.08691" target="_blank" rel="noopener">prompt</a><a href="posts-2021-01-02-controllable-text-generation.html">可控神经文本生成</a>的启发，Frozen (<a href="https://arxiv.org/abs/2106.13884" target="_blank" rel="noopener">Tsimpoukelli et al. 2021</a>) 和 ClipCap (<a href="https://arxiv.org/abs/2111.09734" target="_blank" rel="noopener">Mokady, Hertz &amp;amp; Hertz, 2021</a>) 在训练时仅更新视觉模块的参数，以生成能与预训练的冻结语言模型配合的图像嵌入。两者都在对齐的图像描述数据集上训练，根据图像和先前的文本词元来预测下一个文本词元。通过冻结语言模型参数，强大的语言能力得以保留。此外，尽管这种设置仅使用有限的图像描述数据训练，但在测试时仍可依赖语言模型的百科知识。</p>
+      
+    
+      
+        <p>Frozen 的视觉编码器基于 NF-ResNet-50，使用全局池化层之后 NF-ResNet 的最终输出向量。Frozen VLM 可作为多模态少样本学习器，在测试时通过交替的图像和文本序列适应新任务，实现零样本或少样本迁移。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/Frozen-arch.png" alt="">
+          <figcaption>Illustration of Frozen model (left) training architecture and (right) testing pipeline. (Image source:Tsimpoukelli et al. 2021)</figcaption>
+        </figure>
+      
+    
+      
+        <p>实验表明，对预训练语言模型进行微调反而会在 VQA 任务上导致更差的表现。从预训练版本初始化语言模型非常重要，从零开始训练(<span class="math-inline" data-math="{Frozen}_\text{scratch}">{Frozen}_\text{scratch}</span>) 几乎没有有意义的进展。基线<span class="math-inline" data-math="{Frozen}_\text{train-blind}">{Frozen}_\text{train-blind}</span> 会将图像涂黑，但仍能取得不错性能，这得益于预训练语言模型的固有能力。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/Frozen-results.png" alt="">
+          <figcaption>Performance of different versions of Frozen on (left) VQAv2 and (right) OKVQA, trained on Conceptual Captions. &quot;Frozen scratch&quot; does not load a pre-trained LM and is trained from scratch. &quot;Frozen finetuned&quot; has the language model finetuned, while &quot;Frozen&quot; keeps LM frozen. &quot;Frozen train-blind&quot; blacks out the image. (Image source:Tsimpoukelli et al. 2021)</figcaption>
+        </figure>
+      
+    
+      
+        <p>ClipCap 依赖<a href="posts-2021-05-31-contrastive.html">对比表示学习</a> (<a href="https://arxiv.org/abs/2103.00020" target="_blank" rel="noopener">Radford et al. 2021</a>) 进行视觉编码，但需要经过一个轻量映射网络<span class="math-inline" data-math="F">F</span> 处理，使图像嵌入向量被转换到与预训练语言模型相同的语义空间。网络<span class="math-inline" data-math="F">F</span> 将 CLIP 嵌入映射为一系列<span class="math-inline" data-math="k">k</span> 个嵌入向量，每个向量的维度与 GPT2 中的词嵌入相同。增大前缀长度<span class="math-inline" data-math="k">k</span> 有助于提升性能。在训练过程中，CLIP 视觉编码器和语言模型均被冻结，仅学习映射网络<span class="math-inline" data-math="F">F</span>。他们发现当语言模型冻结时，<span class="math-inline" data-math="F">F</span> 应为 Transformer，由 8 层多头自注意力组成（每层 8 个头）；而当语言模型可微调时，一个 MLP 就足够了。</p>
+      
+    
+      
+        <p>尽管 ClipCap 只训练了最少量的参数，它在图像描述任务上仍取得了在当时与 SOTA（如<a href="https://arxiv.org/abs/2004.06165" target="_blank" rel="noopener">Oscar</a>、<a href="https://arxiv.org/abs/1909.11059" target="_blank" rel="noopener">VLP</a>、<a href="https://arxiv.org/abs/1707.07998" target="_blank" rel="noopener">BUTD</a>）相当的性能。因此他们推测“CLIP 空间已经封装了所需信息，针对特定风格的适配并未带来更多灵活性。”</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/ClipCap-arch.png" alt="">
+          <figcaption>Overview of ClipCap training pipeline where only the mapping network needs to be train to transform CLIP image embedding to work with the pre-trained LM. (Image source:Mokady, Hertz &amp; Hertz, 2021)</figcaption>
+        </figure>
+      
+    
+      
+        <p>有趣的事实是——由于 ClipCap 将 CLIP 图像嵌入转换到了语言模型空间，处理后的前缀甚至可以被解释为单词。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/ClipCap-words.png" alt="">
+          <figcaption>The learned image embedding can be interpreted as text, containing words related to the image context. (Image source:Mokady, Hertz &amp; Hertz, 2021)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>文本-图像跨注意力融合机制</h2>
+        
+      
+    
+      
+        <p>为了更高效地将视觉信息融合到语言模型的不同层中，我们可以考虑专门设计的跨注意力融合机制，以平衡文本生成能力和视觉信息。</p>
+      
+    
+      
+        <p>VisualGPT (<a href="https://arxiv.org/abs/2102.10407" target="_blank" rel="noopener">Chen et al. 2021</a>) 采用了一种自重生编码器-解码器注意力机制，能够用少量领域内图像-文本数据快速适配预训练语言模型。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/VisualGPT.png" alt="">
+          <figcaption>Illustration of VisualGPT architecture. (Image source:Chen et al. 2021)</figcaption>
+        </figure>
+      
+    
+      
+        <p>令<span class="math-inline" data-math="I">I</span> 为视觉编码器的输出，<span class="math-inline" data-math="H">H</span> 为语言模型解码器的隐藏状态。VisualGPT 引入了自重生激活单元（SRAU），通过两个互补门控<span class="math-inline" data-math="B^\text{vis}">B^\text{vis}</span>和<span class="math-inline" data-math="B^\text{lan}">B^\text{lan}</span> 来控制预训练语言信息<span class="math-inline" data-math="H">H</span>与视觉成分<span class="math-inline" data-math="\text{EncDecAttn}(H, I)">\text{EncDecAttn}(H, I)</span>的权衡：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+&amp; B^\text{vis} \otimes \text{EncDecAttn}(H, I) + B^\text{lan} \otimes H \\
+\text{where }
+&amp; B^\text{vis}[i,j] = \sigma(H[i,j]) \mathbb{1}[\sigma(H[i,j]) &gt; \tau] \\
+&amp; B^\text{lan}[i,j] = (1 - \sigma(H[i,j])) \mathbb{1}[1 - \sigma(H[i,j]) &gt; \tau] \\
+\end{aligned}
+">
+\begin{aligned}
+&amp; B^\text{vis} \otimes \text{EncDecAttn}(H, I) + B^\text{lan} \otimes H \\
+\text{where }
+&amp; B^\text{vis}[i,j] = \sigma(H[i,j]) \mathbb{1}[\sigma(H[i,j]) &gt; \tau] \\
+&amp; B^\text{lan}[i,j] = (1 - \sigma(H[i,j])) \mathbb{1}[1 - \sigma(H[i,j]) &gt; \tau] \\
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>其中<span class="math-inline" data-math="\otimes">\otimes</span> 是逐元素乘法，<span class="math-inline" data-math="[i,j]">[i,j]</span> 表示矩阵中的一个元素。<span class="math-inline" data-math="\tau">\tau</span> 是一个预定义的阈值超参数。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/VisualGPT-results.png" alt="">
+          <figcaption>Comparison of different models trained on 0.1% and 1% of the MS COCO and Conceptual Caption datasets. (Image source:Chen et al. 2021)</figcaption>
+        </figure>
+      
+    
+      
+        <p>VC-GPT（Visual Conditioned GPT；<a href="https://arxiv.org/abs/2201.12723" target="_blank" rel="noopener">Luo et al. 2022</a>) 将预训练的视觉 Transformer（CLIP-ViT）作为视觉编码器，预训练语言模型作为语言解码器。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/VC-GPT.png" alt="">
+          <figcaption>Illustration of VC-GPT training framework.(Image source:Luo et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>CLIP-ViT 接收图像块序列作为输入并输出每个块的表示。为了避免灾难性遗忘，VC-GPT 没有直接将视觉信息注入 GPT2，而是在视觉编码器和语言解码器的输出之上引入额外的跨注意力层。随后一个自集成模块线性组合单一模型的语言解码器 logit<span class="math-inline" data-math="h^G">h^G</span> 和跨模型视觉-语言融合模块的 logit<span class="math-inline" data-math="h^\text{fuse}">h^\text{fuse}</span>。自集成模块（见图 13 中的“VC-GPT w/o SE”）对性能至关重要。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\text{logits} = W^G h^G + W^\text{fuse}h^\text{fuse}
+">
+\text{logits} = W^G h^G + W^\text{fuse}h^\text{fuse}
+</span></div>
+      
+    
+      
+        <p>其中<span class="math-inline" data-math="W^G">W^G</span> 是对语言解码器的线性投影，由 GPT2 的词嵌入矩阵初始化；<span class="math-inline" data-math="W^\text{fuse}">W^\text{fuse}</span> 是对融合模块的线性投影，随机初始化。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/VC-GPT-results.png" alt="">
+          <figcaption>Performance of VC-GPT on the MS COCO test set, in comparison with other end-to-end image captioning baseline models. Metric abbreviation:  C = CIDEr; B = BLEU; M = METEOR; S = SPICE. (Image source:Luo et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>MERLOT (<a href="https://arxiv.org/abs/2106.02636" target="_blank" rel="noopener">Zellers, et al. 2021</a>) 使用 600 万个带转录语音的 YouTube 视频(<a href="https://rowanzellers.com/merlot/#data" target="_blank" rel="noopener">YT-Temporal-180M</a>) 进行训练，学习空间（帧级别）和时间（视频级别）目标，在微调后于 VQA 和视觉推理任务上表现出色。</p>
+      
+    
+      
+        <p>每段视频<span class="math-inline" data-math="\mathcal{V}">\mathcal{V}</span> 被分割成多个片段<span class="math-inline" data-math="\{ \boldsymbol{s}_t \}">\{ \boldsymbol{s}_t \}</span>，每个片段<span class="math-inline" data-math="\boldsymbol{s}_t">\boldsymbol{s}_t</span> 包含从中间时间步提取的一帧图像<span class="math-inline" data-math="\mathbf{I}_t">\mathbf{I}_t</span> 和关联的<span class="math-inline" data-math="L=32">L=32</span> 个词元。图像由学到的图像编码器编码，词元使用学到的嵌入编码。随后两者在联合视觉-语言 Transformer 中共同编码。</p>
+      
+    
+      
+        <p>MERLOT 有三个学习目标：</p>
+      
+    
+      
+        <div class="list-content">掩码语言建模（MLM）特别有用，因为视频中人们说话往往比较随意，导致许多重复关键词或填充词。
+对比帧-描述匹配使用联合视觉-语言 Transformer 中的纯语言部分。每个帧<span class="math-inline" data-math="\mathbf{I}_t">\mathbf{I}_t</span>和描述<span class="math-inline" data-math="\boldsymbol{w}_t">\boldsymbol{w}_t</span>的匹配表示被视为正例，负例来自小批量中所有其他帧-描述对。
+时序重排序学习时间推理：随机打乱<span class="math-inline" data-math="i">i</span> 帧，并用随机且唯一的片段级位置嵌入替换原始位置嵌入。随机位置嵌入是可学习的，允许模型在给定正确顺序帧的条件下对“打乱”的帧进行重排。损失用于预测每对帧-帧之间是<span class="math-inline" data-math="t_i &lt; t_j">t_i &lt; t_j</span>还是<span class="math-inline" data-math="t_j &lt; t_i">t_j &lt; t_i</span>。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/MERLOT.png" alt="">
+          <figcaption>Illustration of MERLOT training framework: (Left) contrastive frame-caption matching training; (Right) joint vision-language transformer is trained with MLM loss, as well as on the temporal reordering task to unshuffle scrambled video frames. (Image source:Zellers, et al. 2021)</figcaption>
+        </figure>
+      
+    
+      
+        <p>消融研究表明，（1）使用视频而非图像训练、（2）扩大训练数据集的规模和多样性、（3）使用多样化的目标来鼓励全栈多模态推理非常重要。</p>
+      
+    
+      
+        <p>Flamingo (<a href="https://arxiv.org/abs/2204.14198" target="_blank" rel="noopener">Alayrac et al. 2022</a>) 是一种视觉语言模型，接受交替出现的文本和图像/视频，并输出自由形式的文本。Flamingo 通过一个基于 Transformer 的映射器将预训练语言模型和预训练视觉编码器（即 CLIP 图像编码器）连接起来。为了更高效地整合视觉信号，Flamingo 采用<a href="https://arxiv.org/abs/2103.03206" target="_blank" rel="noopener">Perceiver</a>架构，从大量视觉输入特征中生成几百个词元，然后使用与语言模型层交替的跨注意力层将视觉信息融合到语言解码过程中。训练目标是自回归的负对数似然损失。</p>
+      
+    
+      
+        <div class="list-content">Perceiver 重采样器从图像/视频输入的视觉编码器接收时空特征，生成固定大小的视觉词元。
+冻结的语言模型配备了新初始化的跨注意力层，这些层交替插入在预训练的语言模型层之间。因此语言模型可以根据上述视觉词元生成文本。</div>
+      
+    
+      
+        <p>与 ClipCap 类似，训练过程中两个预训练模型均被冻结，因此 Flamingo 只需训练如何将现有强大的语言和视觉模型和谐地连接起来。ClipCap 与 Flamingo 的主要区别在于，前者将图像嵌入视为语言模型的简单前缀，而后者使用门控跨注意力-稠密层来融合图像信息。此外，Flamingo 使用了比 ClipCap 多得多的训练数据。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/Flamingo.png" alt="">
+          <figcaption>Overview of the Flamingo model. (Image source:Alayrac et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/Flamingo-cross-attention.png" alt="">
+          <figcaption>The architecture illustration and pseudo code of the gated cross-attention-dense layer in Flamingo. (Image source:Alayrac et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>为了方便处理交替出现的文本和图像，Flamingo 的掩码设计使得文本词元仅关注对应于最后一个前置图像的视觉词元，大大减少了某个文本词元能看到视觉词元的数量。他们发现这种方式比允许文本词元直接关注所有前置图像效果更好。文本仍能通过文本编码器中的因果自注意力依赖访问所有先前的图像。这种设计可以处理任意数量的上下文图像。</p>
+      
+    
+      
+        <p>他们从互联网抓取了 4300 万个网页，构成了 MultiModal MassiveWeb（M3W）数据集，其中包含交替出现的文本和图像。此外，Flamingo 还在配对的图像/文本和视频/文本数据集上训练，包括 ALIGN、LTIP 和 VTP。</p>
+      
+    
+      
+        <p>互联网数据集的数据处理包括：</p>
+      
+    
+      
+        <div class="list-content">输入网页文本通过在视觉输入位置插入 &lt;image&gt; 标签，以及特殊词元 &lt;BOS&gt;（句子开头）和 &lt;EOC&gt;（块结束；始终位于文档末尾，任何图像标签之前）来进行处理。
+从每个文档中采样一个随机的<span class="math-inline" data-math="L = 256">L = 256</span> 个词元的子序列，并取最多<span class="math-inline" data-math="N = 5">N = 5</span> 张该序列中包含的图像（如果超过则仅使用前<span class="math-inline" data-math="N">N</span> 张，如果少于则填充到<span class="math-inline" data-math="N">N</span> 张）。
+计算函数<span class="math-inline" data-math="\phi: [1,L] \to [0,N]">\phi: [1,L] \to [0,N]</span> 来跟踪文本和图像的交替顺序，为每个文本位置分配在其之前出现的最后一个图像/视频的索引；如果没有前置视觉数据则为 0。</div>
+      
+    
+      
+        <p>由于 Flamingo 在三种不同数据集的混合上训练，它优化的是数据集特定负对数似然损失的加权和。调整数据集权重对最终性能非常重要。在实践中，他们不是在数据集之间轮询，而是从每个数据集采样一个批次，并在每次更新中对这些梯度进行加权求和。跨不同异构数据集的梯度累积可以看作稳定训练的一种手段，因为它减少了每次更新之间的梯度方差。</p>
+      
+    
+      
+        <p>在测试时，Flamingo 自然支持少样本学习，因为它可以处理任意交替的文本和图像序列。上下文中的示例越多，性能越好。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/Flamingo-fewshot.png" alt="">
+          <figcaption>Larger model sizes and more few-shot examples lead to better performance. (Image source:Alayrac et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>Flamingo 在 16 个任务中的 6 个上超过了 SOTA 微调模型，尽管它完全没有进行任何微调，而只使用了少样本提示。对 Flamingo 进行微调代价高昂且难以进行超参数调优，但确实能带来更好的结果。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/Flamingo-results.png" alt="">
+          <figcaption>Performance of Flamingo model using different numbers of shots and of different sizes, in comparison with SoTA fine-tuned baseline. (Image source:Alayrac et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>CoCa（Contrastive Captioner；<a href="https://arxiv.org/abs/2205.01917" target="_blank" rel="noopener">Yu &amp;amp; Wang et al., 2022</a>) 同时兼具对比学习和图像到描述生成的优点。它是一个同时用 CLIP 风格表示上的对比损失和图像描述生成损失联合训练的模型，在多种多模态评估任务上实现了 SOTA 零样本迁移性能。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/CoCa-arch.png" alt="">
+          <figcaption>Overview of CoCa training framework.(Image source:Yu &amp; Wang et al., 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>CoCa 从零开始预训练，使用网络规模的 alt-text 数据 ALIGN 和将所有标签视为文本的 JTB-3B 标注图像。</p>
+      
+    
+      
+        <p>CoCa 有两个主要训练组件。最终损失是以下两项损失的加权和，权重系数为<span class="math-inline" data-math="\lambda_\text{cap}=2.0, \lambda_\text{con} = 1.0">\lambda_\text{cap}=2.0, \lambda_\text{con} = 1.0</span>：</p>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="\mathcal{L}_\text{con}">\mathcal{L}_\text{con}</span> - 双编码器对比学习优化对称对比学习损失，类似于 CLIP。
+<span class="math-inline" data-math="\mathcal{L}_\text{cap}">\mathcal{L}_\text{cap}</span> - 编码器-解码器描述生成让解码器根据图像编码器的潜在编码特征预测描述，通过优化自回归损失实现。文本解码器被解耦为单模态和多模态两个部分，一个较好的平衡是将解码器对半拆分：
+
+底部单模态部分使用因果掩码自注意力对输入文本进行编码。
+顶部多模态部分对视觉编码器的输出同时应用因果掩码自注意力和跨注意力。</div>
+      
+    
+      
+        <p>CoCa 在 VQA 上优于仅使用对比学习的模型，并与仅使用描述生成的模型相当。描述损失也被发现对零样本分类能力有益。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/CoCa.png" alt="">
+          <figcaption>Illustration of how CoCa can be used to solve various downstream tasks at test time. (Image source:Yu &amp; Wang et al., 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>他们使用任务特定的注意力池化（或称注意力池化器）作为自然的 task adapter，因为他们发现单个池化后的图像嵌入有助于视觉识别任务（如 ImageNet 分类），而更细粒度的嵌入有助于多模态理解任务（如 VQA）。池化器是一个单层多头注意力，包含<span class="math-inline" data-math="n_\text{query}">n_\text{query}</span> 个可学习的查询（注意<span class="math-inline" data-math="\mathbf{X} \in \mathbb{R}^{L \times d}">\mathbf{X} \in \mathbb{R}^{L \times d}</span>、<span class="math-inline" data-math="\mathbf{W}^q \in \mathbb{R}^{d \times d_q}">\mathbf{W}^q \in \mathbb{R}^{d \times d_q}</span> 和 <span class="math-inline" data-math="d_k = d_q">d_k = d_q</span>），以编码器输出同时作为键和值。CoCa 在预训练中使用注意力池化器来计算生成损失<span class="math-inline" data-math="n_\text{query} = 256">n_\text{query} = 256</span> 和对比损失<span class="math-inline" data-math="n_\text{query} = 1">n_\text{query} = 1</span>。这使得模型作为冻结编码器时，只需学习一个新的池化器来聚合特征即可获得强大性能。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/CoCa-code.png" alt="">
+          <figcaption>Pseudo code for CoCa architecture and training.(Image source:Yu &amp; Wang et al., 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>无需训练</h2>
+        
+      
+    
+      
+        <p>最后，无需训练任何额外参数，仅通过拼接预训练的语言模型和视觉模型即可解决视觉语言任务。</p>
+      
+    
+      
+        <h2>基于视觉得分的引导解码</h2>
+        
+      
+    
+      
+        <p>MAGiC（iMAge-Guided text generatIon with CLIP；<a href="https://arxiv.org/abs/2205.02655" target="_blank" rel="noopener">Su et al. 2022</a>) 根据一个基于 CLIP 的名为 magic score 的得分进行<a href="posts-2021-01-02-controllable-text-generation.html">可控神经文本生成</a> 来采样下一个词元，而无需微调。生成的文本被鼓励与给定图像相关，同时仍保持与之前生成文本的一致性。</p>
+      
+    
+      
+        <p>在时间步<span class="math-inline" data-math="t">t</span> 的下一个词元<span class="math-inline" data-math="x_t">x_t</span> 根据以下公式选择。模型置信度和退化惩罚(<a href="https://arxiv.org/abs/2202.06417" target="_blank" rel="noopener">Su et al. 2022</a>) 被加入以避免语言模型生成退化文本。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+&amp; x_t = \arg\max_{v \in \mathcal{V}^{(k)}} \big\{ (1-\alpha) \underbrace{p(v \vert \boldsymbol{x}_{&lt;t})}_\text{model confidence} - \alpha \underbrace{\max_{1 \leq j \leq t-1} { \text{cosine}(h_v, h_{x_j})}}_\text{degeneration penalty} + \beta \underbrace{f_\text{magic}(v \vert \mathcal{I}, \boldsymbol{x}_{&lt;t}, \mathcal{V}^{(k)})}_\text{magic score} \big\} \\
+\text{where } &amp; f_\text{magic} ( v \vert \mathcal{I}, \mathbf{x}_{&lt;t}, \mathcal{V}^{(k)} )
+= \frac{ \exp(\text{CLIP}(\mathcal{I}, [\boldsymbol{x}_{&lt;t}:v])) }{ \sum_{z \in \mathcal{V}^{(k)}} \exp(\text{CLIP}(\mathcal{I}, [\boldsymbol{x}_{&lt;t}:z])) }
+= \frac{ \exp\big({h^\text{image}(\mathcal{I})}^\top h^\text{text}([\boldsymbol{x}_{&lt;t}:v])\big) }{ \sum_{z \in \mathcal{V}^{(k)}} \exp\big({h^\text{image}(\mathcal{I})}^\top h^\text{text}([\boldsymbol{x}_{&lt;t}:z])\big) }
+\end{aligned}
+">
+\begin{aligned}
+&amp; x_t = \arg\max_{v \in \mathcal{V}^{(k)}} \big\{ (1-\alpha) \underbrace{p(v \vert \boldsymbol{x}_{&lt;t})}_\text{model confidence} - \alpha \underbrace{\max_{1 \leq j \leq t-1} { \text{cosine}(h_v, h_{x_j})}}_\text{degeneration penalty} + \beta \underbrace{f_\text{magic}(v \vert \mathcal{I}, \boldsymbol{x}_{&lt;t}, \mathcal{V}^{(k)})}_\text{magic score} \big\} \\
+\text{where } &amp; f_\text{magic} ( v \vert \mathcal{I}, \mathbf{x}_{&lt;t}, \mathcal{V}^{(k)} )
+= \frac{ \exp(\text{CLIP}(\mathcal{I}, [\boldsymbol{x}_{&lt;t}:v])) }{ \sum_{z \in \mathcal{V}^{(k)}} \exp(\text{CLIP}(\mathcal{I}, [\boldsymbol{x}_{&lt;t}:z])) }
+= \frac{ \exp\big({h^\text{image}(\mathcal{I})}^\top h^\text{text}([\boldsymbol{x}_{&lt;t}:v])\big) }{ \sum_{z \in \mathcal{V}^{(k)}} \exp\big({h^\text{image}(\mathcal{I})}^\top h^\text{text}([\boldsymbol{x}_{&lt;t}:z])\big) }
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>其中<span class="math-inline" data-math="\mathcal{I}">\mathcal{I}</span> 是输入图像；<span class="math-inline" data-math="\mathcal{V}^{(k)}">\mathcal{V}^{(k)}</span> 包含语言模型<span class="math-inline" data-math="p">p</span> 预测的前<span class="math-inline" data-math="k">k</span> 个可能的词元；<span class="math-inline" data-math="\boldsymbol{x}_{&lt;t}">\boldsymbol{x}_{&lt;t}</span> 指时间步<span class="math-inline" data-math="t">t</span> 之前已生成的词元；<span class="math-inline" data-math="h_v">h_v</span> 是词元<span class="math-inline" data-math="v">v</span> 在拼接<span class="math-inline" data-math="\boldsymbol{x}_{&lt;t}">\boldsymbol{x}_{&lt;t}</span> 和 <span class="math-inline" data-math="v">v</span> 的条件下由语言模型计算得到的表示；<span class="math-inline" data-math="h^\text{image}(.)">h^\text{image}(.)</span> 和 <span class="math-inline" data-math="h^\text{text}(.)">h^\text{text}(.)</span> 分别是 CLIP 图像和文本编码器生成的嵌入。</p>
+      
+    
+      
+        <p>与其他无监督方法相比，MAGiC 具有不错的性能，但与有监督方法仍存在较大差距。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/MAGiC-results.png" alt="">
+          <figcaption>Image captioning performance on COCO and Flickr30k. (Image source:Su et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>将语言作为通信接口</h2>
+        
+      
+    
+      
+        <p>对于基于知识的视觉问答任务，PICa（Prompts GPT-3 via the use of Image Captions；<a href="https://arxiv.org/abs/2109.05014" target="_blank" rel="noopener">Yang et al. 2021</a>) 首先将图像转换为描述或标签，然后使用少样本示例来提示 GPT-3 提供答案。图像描述或标签由现有模型（如<a href="https://openaccess.thecvf.com/content/CVPR2021/html/Zhang_VinVL_Revisiting_Visual_Representations_in_Vision-Language_Models_CVPR_2021_paper.html" target="_blank" rel="noopener">VinVL</a>）或 Azure Tagging API 提取。GPT-3 被视为一个非结构化的、隐式的知识库。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/PICa-fewshot.png" alt="">
+          <figcaption>How PICa works for <span class="math-inline" data-math="n">n</span>-shot VQA at inference time. (Image source:Yang et al. 2021)</figcaption>
+        </figure>
+      
+    
+      
+        <p>PICa 探索了两种改进少样本示例的方法以获得更好结果：</p>
+      
+    
+      
+        <div class="list-content">根据与问题相似度（使用 CLIP 嵌入计算）选择上下文示例。
+多查询集成是对模型进行多次提示，得到多个答案后选择 logprob 最高的那个。</div>
+      
+    
+      
+        <p>这种仅使用 16 个示例的简单方法在 OK-VQA 上将 SOTA 提升了 8.6 个点，并在 VQAv2 上取得了不错表现。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/PICa-OKVQA.png" alt="">
+          <figcaption>Performance of PICa on OK-VQA. &quot;PICa-Base&quot; has random in-context examples, while &quot;PICa-Full&quot; incorporates both similar in-context example selection and multi-query ensembling. (Image source:Yang et al. 2021)</figcaption>
+        </figure>
+      
+    
+      
+        <p>Socratic Models (SM) (<a href="https://arxiv.org/abs/2204.00598" target="_blank" rel="noopener">Zeng et al. 2022</a>) 是一个通过语言（提示）将多个预训练的多模态模型组合成一个模型的框架，而无需进一步训练。这里语言被视为不同模型之间交换信息的中间表示。核心思想是使用多模型多模态提示，将非语言模型的输出插入到语言提示中，然后用于语言模型进行推理。</p>
+      
+    
+      
+        <p>让我们看一个具体例子。给定一个以自我为中心（ego-centric）的视频（图像+音频），SM 可以使用文本到文本的 LM、图像到文本的 VLM 和语音到文本的 ALM 生成人物活动摘要。它们按以下方式链式连接：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/SM-example.png" alt="">
+          <figcaption>(Image source:Zeng et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <div class="list-content">VLM 检测视觉实体；
+LM 建议可能听到的声音；
+ALM 选择最可能的声音；
+LM 建议可能的活动；
+VLM 对最可能的活动进行排序；
+LM 生成 Socratic 交互的摘要。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/SM-caption-example.png" alt="">
+          <figcaption>Illustration of the Socratic Model solution for image captioning. (Image source:Zeng et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>SM 可以通过先使用 VLM 零样本预测不同地点类别、物体类别、图像类型和人数，然后将填充了 VLM 输出的语言提示送入因果语言模型生成描述候选，来生成图像描述。Socratic 方法在图像描述上仍与 ClipCap 存在性能差距，但鉴于它完全不涉及任何训练，已经相当不错。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/SM-caption.png" alt="">
+          <figcaption>Comparison of image captioning performance of different models on random 100 COCO text examples. (Image source:Zeng et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <p>SM 框架非常灵活，可用于比图像描述复杂得多的任务。例如，以自我为中心的感知（用户输入 + VLM + LM + ALM）任务是以自我为中心的视频作为输入，来（1）总结内容；（2）回答自由形式的推理问题；（3）进行未来预测。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2022-06-09-vlm/SM-egocentric.png" alt="">
+          <figcaption>The Socratic Model approach for generating captions and question answering based on the egocentric videos. (Image source:Zeng et al. 2022)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>数据集</h2>
+        
+      
+    
+      
+        <h2>图像描述数据集</h2>
+        
+      
+    
+      
+        <div class="list-content">MS COCO (<a href="https://arxiv.org/abs/1504.00325" target="_blank" rel="noopener">Chen et al. 2015</a>）：包含 328K 张图像，每张图像配有 5 条独立的描述。
+NoCaps (<a href="https://arxiv.org/abs/1812.08658" target="_blank" rel="noopener">Agrawal et al., 2019</a>) 旨在衡量对未见类别和概念的泛化能力，其中 in-domain 仅包含描绘 COCO 类别的图像，near-domain 同时包含 COCO 和新类别，out-of-domain 仅包含新类别。
+Conceptual Captions (<a href="https://aclanthology.org/P18-1238/" target="_blank" rel="noopener">Sharma et al. 2018</a>) 包含从网页挖掘并经过后处理的 300 万对图像和描述。为了聚焦于概念，该数据集中特定的实体被替换为通用概念（例如政治家的名字被替换为“politician”）。
+Crisscrossed Captions (CxC) (<a href="https://arxiv.org/abs/2004.15020" target="_blank" rel="noopener">Parekh et al. 2021</a>) 包含 247,315 个人工标注的正负关联，涉及图像对、描述对以及图像-描述对。
+Concadia (<a href="https://arxiv.org/abs/2104.08376" target="_blank" rel="noopener">Kreiss et al. 2021</a>) 是基于 Wikipedia 的数据集，包含 96,918 张图像及其对应的英文描述、标题和周围上下文。</div>
+      
+    
+      
+        <h2>图像-文本配对数据集</h2>
+        
+      
+    
+      
+        <p>(*) 非公开数据集。</p>
+      
+    
+      
+        <div class="list-content">ALIGN (<a href="https://arxiv.org/abs/2102.05918" target="_blank" rel="noopener">Jia et al., 2021</a>) 包含 18 亿张带 alt-text 的图像。该数据集规模庞大但有噪声，仅经过基于频率的最小过滤。
+(*) LTIP（Long text &amp; image pairs；<a href="https://arxiv.org/abs/2204.14198" target="_blank" rel="noopener">Alayrac et al. 2022</a>）：3.12 亿张图像，配有描述性标题。
+(*) VTP（Video &amp; text pairs；<a href="https://arxiv.org/abs/2204.14198" target="_blank" rel="noopener">Alayrac et al. 2022</a>）：2700 万个短视频（平均约 22 秒），配有描述性标题。
+(*) JFT-300M / JFT-3B 是 Google 内部数据集，包含 3 亿 / 30 亿张图像，通过半自动流程使用约 3 万个标签的类别层次进行标注。因此数据和关联标签存在噪声。</div>
+      
+    
+      
+        <h2>评估任务</h2>
+        
+      
+    
+      
+        <h2>视觉问答</h2>
+        
+      
+    
+      
+        <p>给定一张图像和一个问题，任务是正确回答该问题。</p>
+      
+    
+      
+        <div class="list-content">VQAv2 (<a href="https://arxiv.org/abs/1612.00837" target="_blank" rel="noopener">Goyal et al., 2017</a>) 包含超过 100 万个关于 20 万张 COCO 图像的问题。
+OK-VQA (<a href="https://arxiv.org/abs/1906.00067" target="_blank" rel="noopener">Marino et al. 2019</a>) 包含 1.4 万个需要外部知识（例如来自 Wikipedia）的开放式问题。
+A-OKVQA：OK-VQA 的增强后继版本，与 OK-VQA 没有重叠问题。
+
+
+TextVQA (<a href="https://arxiv.org/abs/1904.08920" target="_blank" rel="noopener">Singh, et al. 2019</a>) 包含 45,336 个关于 28,408 张图像的问题，需要对文本进行推理才能回答。
+VizWiz (<a href="https://arxiv.org/abs/1802.08218" target="_blank" rel="noopener">Gurari, et al. 2018</a>) 包含超过 3.1 万个来自盲人的视觉问题，他们使用手机拍摄照片并录制关于照片的口语问题，每个视觉问题附带 10 个众包答案。</div>
+      
+    
+      
+        <h2>视觉语言推理</h2>
+        
+      
+    
+      
+        <div class="list-content">VCR（Visual Commonsense Reasoning；<a href="https://arxiv.org/abs/1811.10830" target="_blank" rel="noopener">Zellers et al. 2018</a>) 包含从 11 万个电影场景中衍生的 29 万个多选 QA 问题，重点关注视觉常识。
+NLVR2（Natural Language for Visual Reasoning；<a href="https://arxiv.org/abs/1811.00491" target="_blank" rel="noopener">Suhr et al. 2019</a>) 包含超过 10 万个句子与网页图像配对的示例，任务是判断自然语言描述是否正确描述了一对图像，重点关注语义多样性。
+Flickr30K (<a href="https://arxiv.org/abs/1509.04942" target="_blank" rel="noopener">Jia et al. 2015</a>) 包含从 Flickr 收集的 3 万张图像和 25 万条标注，任务是给定句子片段选择对应的边界区域。
+SNLI-VE（Visual Entailment；<a href="https://arxiv.org/abs/1901.06706" target="_blank" rel="noopener">Xie et al. 2019</a>) 构建于 SNLI 和 Flickr30K 之上，任务是推理图像前提和文本假设之间的关系。</div>
+      
+    
+      
+        <h2>视频问答与理解</h2>
+        
+      
+    
+      
+        <div class="list-content">MSR-VTT（MSR Video to Text；<a href="https://www.microsoft.com/en-us/research/wp-content/uploads/2016/06/cvpr16.msr-vtt.tmei_-1.pdf" target="_blank" rel="noopener">Xu et al. 2016</a>) 包含 1 万个网络视频片段，总计 41.2 小时和 20 万个片段-句子对；任务是将视频翻译成文本。
+ActivityNet-QA (<a href="https://arxiv.org/abs/1906.02467" target="_blank" rel="noopener">Yu et al. 2019</a>) 包含从流行<a href="http://activity-net.org/index.html" target="_blank" rel="noopener">ActivityNet</a>数据集衍生的 5800 个视频上的 5.8 万个人工标注 QA 对。
+TGIF（Tumblr GIF；<a href="https://arxiv.org/abs/1604.02748" target="_blank" rel="noopener">Li et al. .2016</a>) 包含 10 万个动画 GIF 和 12 万条描述其视觉内容的句子，随机选取 2015 年 5 月至 6 月在 Tumblr 上发布的帖子。
+
+TGIF-QA 包含来自 TGIF 数据集的 16.5 万个动画 GIF 的 QA 对。
+
+
+LSMDC（Large Scale Movie Description Challenge；<a href="https://arxiv.org/abs/1501.02530" target="_blank" rel="noopener">Rohrbach et al. 2015</a>) 包含从 202 部电影中提取的 118,081 个短视频片段。每个视频有一个描述，来源于电影剧本或为视障人士转录的 DVS（描述性视频服务）。
+TVQA (<a href="https://arxiv.org/abs/1809.01696" target="_blank" rel="noopener">Lei et al. 2018</a>) / TVQA+ (<a href="https://arxiv.org/abs/1904.11574" target="_blank" rel="noopener">Lei et al. 2019</a>) 是基于 6 部热门美剧（Friends、The Big Bang Theory、How I Met Your Mother、House M.D.、Grey’s Anatomy、Castle）的大规模视频 QA 数据集。它包含来自 2.18 万个视频片段的 15.25 万个 QA 对，总视频时长超过 460 小时。
+DramaQA (<a href="https://arxiv.org/abs/2005.03356" target="_blank" rel="noopener">Choi et al. 2020</a>) 是基于韩国热门电视剧《Another Miss Oh》的大规模视频 QA 数据集。该数据集包含四个难度等级的 QA 以及多层次的以人物为中心的故事描述。
+VLEP（Video-and-Language Event Prediction；<a href="https://arxiv.org/abs/2010.07999" target="_blank" rel="noopener">Lei et al. 2020</a>) 包含来自 10,234 个不同电视节目和 YouTube 生活 vlog 视频片段的 28,726 个未来事件预测示例（附带理由）。</div>
+      
+    
+      
+        <h2>引用</h2>
+        
+      
+    
+      
+        <p>引用方式：</p>
+      
+    
+      
+        <blockquote>Weng, Lilian. (Jun 2022). Generalized visual language models. Lil’Log. https://lilianweng.github.io/posts/2022-06-09-vlm/.</blockquote>
+      
+    
+      
+        <pre><code>@article{weng2022vlm,
+  title   = &quot;Generalized Visual Language Models&quot;,
+  author  = &quot;Weng, Lilian&quot;,
+  journal = &quot;Lil&#x27;Log&quot;,
+  year    = &quot;2022&quot;,
+  month   = &quot;Jun&quot;,
+  url     = &quot;https://lilianweng.github.io/posts/2022-06-09-vlm/&quot;
+}
+</code></pre>
+      
+    
+      
+        <h2>参考文献</h2>
+        
+      
+    
+      
+        <p>[1] Li et al. <a href="https://arxiv.org/abs/1908.03557" target="_blank" rel="noopener">“VisualBERT: A Simple and Performant Baseline for Vision and Language.”</a> arXiv preprint:1908.03557 (2019).</p>
+      
+    
+      
+        <p>[2] Wang et al. <a href="https://arxiv.org/abs/2108.10904" target="_blank" rel="noopener">“SimVLM: Simple Visual Language Model Pretraining with Weak Supervision.”</a> ICLR 2022.</p>
+      
+    
+      
+        <p>[3] Aghajanyan, et al. <a href="https://arxiv.org/abs/2201.07520" target="_blank" rel="noopener">“CM3: A Causal Masked Multimodal Model of the Internet.”</a> arXiv preprint arXiv: 2201.07520 (2022).</p>
+      
+    
+      
+        <p>[4] Tsimpoukelli et al. <a href="https://arxiv.org/abs/2106.13884" target="_blank" rel="noopener">“Multimodal Few-Shot Learning with Frozen Language Models.”</a> NeuriPS 2021.</p>
+      
+    
+      
+        <p>[5] Mokady, Hertz &amp; Hertz. <a href="https://arxiv.org/abs/2111.09734" target="_blank" rel="noopener">“ClipCap: CLIP Prefix for Image Captioning.”</a> 2021.</p>
+      
+    
+      
+        <p>[6] Chen et al. <a href="https://arxiv.org/abs/2102.10407" target="_blank" rel="noopener">“VisualGPT: Data-efficient Adaptation of Pretrained Language Models for Image Captioning.”</a> arXiv preprint arXiv:2111.09734 (2021).</p>
+      
+    
+      
+        <p>[7] Luo et al. <a href="https://arxiv.org/abs/2201.12723" target="_blank" rel="noopener">“A Frustratingly Simple Approach for End-to-End Image Captioning.”</a> arXiv preprint arXiv:2201.12723 (2022).</p>
+      
+    
+      
+        <p>[8] Zellers et al. <a href="https://arxiv.org/abs/2106.02636" target="_blank" rel="noopener">“MERLOT: Multimodal neural script knowledge models.”</a> NeuriPS 2021.</p>
+      
+    
+      
+        <p>[9] Alayrac et al. <a href="https://arxiv.org/abs/2204.14198" target="_blank" rel="noopener">“Flamingo: a Visual Language Model for Few-Shot Learning.”</a> arXiv preprint arXiv:2204.14198 (2022).</p>
+      
+    
+      
+        <p>[10] Yu &amp; Wang et al. <a href="https://arxiv.org/abs/2205.01917" target="_blank" rel="noopener">“CoCa: Contrastive Captioners are Image-Text Foundation Models.”</a> arXiv preprint arXiv:2205.01917 (2022).</p>
+      
+    
+      
+        <p>[11] Yang et al. <a href="https://arxiv.org/abs/2109.05014" target="_blank" rel="noopener">“An Empirical Study of GPT-3 for Few-Shot Knowledge-Based VQA.”</a> arXiv preprint arXiv:2109.05014 (2021).</p>
+      
+    
+      
+        <p>[12] Su et al. <a href="https://arxiv.org/abs/2205.02655" target="_blank" rel="noopener">“Language models can see: Plugging visual controls in text generation.”</a> arXiv preprint arXiv:2205.02655 (2022).</p>
+      
+    
+      
+        <p>[13] Zeng et al. <a href="https://arxiv.org/abs/2204.00598" target="_blank" rel="noopener">“Socratic Models: Composing Zero-Shot Multimodal Reasoning with Language.”</a> arXiv preprint arXiv:2204.00598 (2022).</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

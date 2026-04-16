@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>强化学习漫谈 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>强化学习漫谈</h1>
+    <div class="meta">
+      2018-02-19 · 
+      <a href="https://lilianweng.github.io/posts/2018-02-19-rl-overview/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">什么是强化学习？
+
+关键概念
+
+模型：状态转移与奖励
+
+策略
+
+价值函数
+
+最优价值与最优策略
+
+
+马尔可夫决策过程
+
+贝尔曼方程
+
+贝尔曼期望方程
+
+贝尔曼最优方程
+
+
+
+常用方法
+
+动态规划
+
+策略评估
+
+策略改进
+
+策略迭代
+
+
+蒙特卡洛方法
+
+时序差分学习
+
+自举（Bootstrapping）
+
+价值估计
+
+SARSA：同策略时序差分控制
+
+Q-Learning：异策略时序差分控制
+
+深度 Q 网络
+
+
+结合 TD 与 MC 的学习方法
+
+策略梯度
+
+策略梯度定理
+
+REINFORCE
+
+Actor-Critic
+
+A3C
+
+
+进化策略
+
+
+已知问题
+
+探索-利用困境
+
+致命三元组问题
+
+
+案例研究：AlphaGo Zero
+
+参考文献</div>
+      
+    
+      
+        <p>本文将简要概述强化学习（Reinforcement Learning，RL）领域，从基本概念讲到经典算法。希望这篇综述能为初学者提供足够帮助，让大家不至于在各种专有名词和术语中迷失。[警告] 本文篇幅较长。</p>
+      
+    
+      
+        <p>[2020-09-03 更新：更新了 SARSA 和 Q-learning 的算法描述，使两者差异更加明显。
+
+[2021-09-19 更新：感谢“爱吃猫的鱼”，我们现在有了这篇文章的<a href="https://paperexplained.cn/articles/article/detail/33/" target="_blank" rel="noopener">中文版本</a>。]</p>
+      
+    
+      
+        <p>近年来人工智能（AI）领域发生了几件令人振奋的大事。AlphaGo 击败了围棋界最顶尖的人类职业选手。很快，其升级版 AlphaGo Zero 在不使用任何人类先验知识监督学习的情况下，以 100:0 的成绩完胜 AlphaGo。OpenAI 开发的机器人也在 DOTA2 1v1 比赛中击败了顶尖职业玩家。了解这些之后，很难不对这些算法背后的“魔法”——强化学习（Reinforcement Learning，RL）产生强烈好奇。本文旨在对该领域进行简要梳理。我们将首先介绍几个核心概念，然后深入探讨解决强化学习问题的经典方法。希望这篇文章能成为初学者的良好起点，为后续研究前沿成果打下基础。</p>
+      
+    
+      
+        <h2>什么是强化学习？#</h2>
+        
+      
+    
+      
+        <p>假设有一个智能体（agent）处于未知环境中，它可以通过与环境交互来获得一定奖励。智能体的目标是采取行动以最大化累积奖励。在现实中，这可能是游戏机器人追求高分数，也可能是实体机器人利用物理物品完成任务等，应用场景远不止于此。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-02-19-rl-overview/RL_illustration.png" alt="">
+          <figcaption>An agent interacts with the environment, trying to take smart actions to maximize cumulative rewards.</figcaption>
+        </figure>
+      
+    
+      
+        <p>强化学习（RL）的目标是通过实验试错和相对简单的反馈，学习到一个优秀的策略。有了最优策略，智能体就能主动适应环境，从而最大化未来奖励。</p>
+      
+    
+      
+        <h2>关键概念#</h2>
+        
+      
+    
+      
+        <p>现在让我们正式定义强化学习中的一系列核心概念。</p>
+      
+    
+      
+        <p>智能体在环境中行动。环境对特定动作如何反应由一个模型定义，我们可能知道也可能不知道这个模型。智能体可以处于环境中的众多状态（<span class="math-inline" data-math="s \in \mathcal{S}">s \in \mathcal{S}</span>）之一，并选择众多动作（<span class="math-inline" data-math="a \in \mathcal{A}">a \in \mathcal{A}</span>）中的一个来从一个状态切换到另一个。智能体将到达哪个状态由状态之间的转移概率（<span class="math-inline" data-math="P">P</span>）决定。一旦采取行动，环境就会给出奖励（<span class="math-inline" data-math="r \in \mathcal{R}">r \in \mathcal{R}</span>）作为反馈。</p>
+      
+    
+      
+        <p>模型定义了奖励函数和转移概率。我们可能知道也可能不知道模型如何工作，这区分了两种情况：</p>
+      
+    
+      
+        <div class="list-content">知道模型：拥有完备信息下的规划，属于基于模型的强化学习（model-based RL）。当我们完全了解环境时，可以通过<a href="https://en.wikipedia.org/wiki/Dynamic_programming" target="_blank" rel="noopener">动态规划</a>（Dynamic Programming，DP）找到最优解。你还记得算法入门课里的“最长递增子序列”或“旅行商问题”吗？哈哈。不过这不是本文的重点。
+不知道模型：信息不完备情况下的学习，属于无模型强化学习（model-free RL），或者尝试将显式学习模型作为算法的一部分。后续大部分内容都是针对模型未知的场景。</div>
+      
+    
+      
+        <p>智能体的策略 <span class="math-inline" data-math="\pi(s)">\pi(s)</span> 提供了在特定状态下采取何种最优行动的指导，以最大化总奖励。每个状态都关联一个价值函数 <span class="math-inline" data-math="V(s)">V(s)</span>，用于预测在该状态下遵循对应策略所能获得的未来奖励的期望值。换句话说，价值函数量化了一个状态的好坏程度。策略和价值函数都是我们在强化学习中试图学习的对象。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-02-19-rl-overview/RL_algorithm_categorization.png" alt="">
+          <figcaption>Summary of approaches in RL based on whether we want to model the value, policy, or the environment. (Image source: reproduced from David Silver&#x27;s RL courselecture 1.)</figcaption>
+        </figure>
+      
+    
+      
+        <p>智能体与环境的交互涉及一系列随时间发生的动作和观测到的奖励，记为 <span class="math-inline" data-math="t=1, 2, \dots, T">t=1, 2, \dots, T</span>。在此过程中，智能体不断积累对环境的知识，学习最优策略，并决定下一步采取什么行动，以便更高效地学习最佳策略。我们将时间步 t 的状态、动作和奖励分别记为 <span class="math-inline" data-math="S_t">S_t</span>、<span class="math-inline" data-math="A_t">A_t</span> 和 <span class="math-inline" data-math="R_t">R_t</span>。因此，整个交互序列可以用一个 episode（也称为“试验”或“轨迹”）完整描述，该序列在到达终止状态 <span class="math-inline" data-math="S_T">S_T</span> 时结束：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+S_1, A_1, R_2, S_2, A_2, \dots, S_T
+">
+S_1, A_1, R_2, S_2, A_2, \dots, S_T
+</span></div>
+      
+    
+      
+        <p>当你深入研究不同类别强化学习算法时，会频繁遇到的术语：</p>
+      
+    
+      
+        <div class="list-content">基于模型（Model-based）：依赖于环境模型；模型要么已知，要么由算法显式学习。
+无模型（Model-free）：学习过程中不依赖模型。
+同策略（On-policy）：使用目标策略（target policy）的确定性结果或样本进行训练。
+异策略（Off-policy）：使用由不同于目标策略的行为策略（behavior policy）所产生的转移或 episode 分布进行训练。</div>
+      
+    
+      
+        <h3>模型：状态转移与奖励#</h3>
+        
+      
+    
+      
+        <p>模型是对环境的描述。有了模型，我们就能学习或推断环境如何与智能体交互并给出反馈。模型主要包含两部分：状态转移概率函数 <span class="math-inline" data-math="P">P</span> 和奖励函数 <span class="math-inline" data-math="R">R</span>。</p>
+      
+    
+      
+        <p>假设我们处于状态 s，决定采取动作 a，进而到达下一个状态 s&#x27; 并获得奖励 r。这称为一次转移，用元组 (s, a, s&#x27;, r) 表示。</p>
+      
+    
+      
+        <p>转移函数 P 记录了在状态 s 采取动作 a 后，转移到状态 s&#x27; 同时获得奖励 r 的概率。我们用 <span class="math-inline" data-math="\mathbb{P}">\mathbb{P}</span> 表示“概率”。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+P(s&#x27;, r \vert s, a)  = \mathbb{P} [S_{t+1} = s&#x27;, R_{t+1} = r \vert S_t = s, A_t = a]
+">
+P(s&#x27;, r \vert s, a)  = \mathbb{P} [S_{t+1} = s&#x27;, R_{t+1} = r \vert S_t = s, A_t = a]
+</span></div>
+      
+    
+      
+        <p>因此，状态转移函数可定义为 <span class="math-inline" data-math="P(s’, r \vert s, a)">P(s’, r \vert s, a)</span> 的函数：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+P_{ss&#x27;}^a = P(s&#x27; \vert s, a)  = \mathbb{P} [S_{t+1} = s&#x27; \vert S_t = s, A_t = a] = \sum_{r \in \mathcal{R}} P(s&#x27;, r \vert s, a)
+">
+P_{ss&#x27;}^a = P(s&#x27; \vert s, a)  = \mathbb{P} [S_{t+1} = s&#x27; \vert S_t = s, A_t = a] = \sum_{r \in \mathcal{R}} P(s&#x27;, r \vert s, a)
+</span></div>
+      
+    
+      
+        <p>奖励函数 R 预测由某个动作触发的下一个奖励：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+R(s, a) = \mathbb{E} [R_{t+1} \vert S_t = s, A_t = a] = \sum_{r\in\mathcal{R}} r \sum_{s&#x27; \in \mathcal{S}} P(s&#x27;, r \vert s, a)
+">
+R(s, a) = \mathbb{E} [R_{t+1} \vert S_t = s, A_t = a] = \sum_{r\in\mathcal{R}} r \sum_{s&#x27; \in \mathcal{S}} P(s&#x27;, r \vert s, a)
+</span></div>
+      
+    
+      
+        <h3>策略#</h3>
+        
+      
+    
+      
+        <p>策略作为智能体的行为函数 <span class="math-inline" data-math="\pi">\pi</span>，告诉我们在状态 s 下应该采取哪个动作。它是从状态 s 到动作 a 的映射，可以是确定性的，也可以是随机性的：</p>
+      
+    
+      
+        <div class="list-content">确定性：<span class="math-inline" data-math="\pi(s) = a">\pi(s) = a</span>。
+随机性：<span class="math-inline" data-math="\pi(a \vert s) = \mathbb{P}_\pi [A=a \vert S=s]">\pi(a \vert s) = \mathbb{P}_\pi [A=a \vert S=s]</span>。</div>
+      
+    
+      
+        <h3>价值函数#</h3>
+        
+      
+    
+      
+        <p>价值函数通过预测未来奖励来衡量一个状态的好坏程度，或者说一个状态或动作有多大的回报。未来奖励也称为回报（return），是从当前开始所有折扣奖励的总和。让我们计算从时间 t 开始的回报 <span class="math-inline" data-math="G_t">G_t</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+G_t = R_{t+1} + \gamma R_{t+2} + \dots = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}
+">
+G_t = R_{t+1} + \gamma R_{t+2} + \dots = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}
+</span></div>
+      
+    
+      
+        <p>折扣因子 <span class="math-inline" data-math="\gamma \in [0, 1]">\gamma \in [0, 1]</span> 会对未来奖励进行惩罚，原因如下：</p>
+      
+    
+      
+        <div class="list-content">未来奖励可能具有更高的不确定性，例如股市；
+未来奖励无法立即带来好处，例如人类更倾向于今天享乐而不是五年之后；
+折扣提供了数学上的便利，我们无需永远追踪后续步骤来计算回报；
+我们不必担心状态转移图中出现无限循环。</div>
+      
+    
+      
+        <p>状态 s 的状态价值，是指如果我们在时间 t 处于该状态，所能获得的期望回报 <span class="math-inline" data-math="S_t = s">S_t = s</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+V_{\pi}(s) = \mathbb{E}_{\pi}[G_t \vert S_t = s]
+">
+V_{\pi}(s) = \mathbb{E}_{\pi}[G_t \vert S_t = s]
+</span></div>
+      
+    
+      
+        <p>类似地，我们定义状态-动作对的动作价值（“Q 值”，Q 代表“Quality”质量）为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+Q_{\pi}(s, a) = \mathbb{E}_{\pi}[G_t \vert S_t = s, A_t = a]
+">
+Q_{\pi}(s, a) = \mathbb{E}_{\pi}[G_t \vert S_t = s, A_t = a]
+</span></div>
+      
+    
+      
+        <p>此外，由于我们遵循目标策略 <span class="math-inline" data-math="\pi">\pi</span>，可以利用动作的概率分布和 Q 值来恢复状态价值：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+V_{\pi}(s) = \sum_{a \in \mathcal{A}} Q_{\pi}(s, a) \pi(a \vert s)
+">
+V_{\pi}(s) = \sum_{a \in \mathcal{A}} Q_{\pi}(s, a) \pi(a \vert s)
+</span></div>
+      
+    
+      
+        <p>动作价值与状态价值的差异称为动作优势函数（“A 值”）：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+A_{\pi}(s, a) = Q_{\pi}(s, a) - V_{\pi}(s)
+">
+A_{\pi}(s, a) = Q_{\pi}(s, a) - V_{\pi}(s)
+</span></div>
+      
+    
+      
+        <h3>最优价值与最优策略#</h3>
+        
+      
+    
+      
+        <p>最优价值函数产生最大的回报：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+V_{*}(s) = \max_{\pi} V_{\pi}(s),
+Q_{*}(s, a) = \max_{\pi} Q_{\pi}(s, a)
+">
+V_{*}(s) = \max_{\pi} V_{\pi}(s),
+Q_{*}(s, a) = \max_{\pi} Q_{\pi}(s, a)
+</span></div>
+      
+    
+      
+        <p>最优策略能实现最优价值函数：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\pi_{*} = \arg\max_{\pi} V_{\pi}(s),
+\pi_{*} = \arg\max_{\pi} Q_{\pi}(s, a)
+">
+\pi_{*} = \arg\max_{\pi} V_{\pi}(s),
+\pi_{*} = \arg\max_{\pi} Q_{\pi}(s, a)
+</span></div>
+      
+    
+      
+        <p>当然，我们也有 <span class="math-inline" data-math="V_{\pi_{*}}(s)=V_{*}(s)">V_{\pi_{*}}(s)=V_{*}(s)</span> 和 <span class="math-inline" data-math="Q_{\pi_{*}}(s, a) = Q_{*}(s, a)">Q_{\pi_{*}}(s, a) = Q_{*}(s, a)</span>。</p>
+      
+    
+      
+        <h2>马尔可夫决策过程#</h2>
+        
+      
+    
+      
+        <p>用更正式的术语来说，几乎所有强化学习问题都可以建模为马尔可夫决策过程（Markov Decision Processes，MDPs）。MDP 中的所有状态都具有“马尔可夫”性质，即未来只取决于当前状态，而与历史无关：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbb{P}[ S_{t+1} \vert S_t ] = \mathbb{P} [S_{t+1} \vert S_1, \dots, S_t]
+">
+\mathbb{P}[ S_{t+1} \vert S_t ] = \mathbb{P} [S_{t+1} \vert S_1, \dots, S_t]
+</span></div>
+      
+    
+      
+        <p>换句话说，给定当前状态，未来和过去是条件独立的，因为当前状态已经包含了决定未来所需的所有统计信息。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-02-19-rl-overview/agent_environment_MDP.png" alt="">
+          <figcaption>The agent-environment interaction in a Markov decision process. (Image source: Sec. 3.1 Sutton &amp; Barto (2017).)</figcaption>
+        </figure>
+      
+    
+      
+        <p>马尔可夫决策过程由五个元素 <span class="math-inline" data-math="\mathcal{M} = \langle \mathcal{S}, \mathcal{A}, P, R, \gamma \rangle">\mathcal{M} = \langle \mathcal{S}, \mathcal{A}, P, R, \gamma \rangle</span> 组成，其中各符号的含义与前文关键概念一致，与强化学习问题设定完全对应：</p>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="\mathcal{S}">\mathcal{S}</span> —— 状态集合；
+<span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> —— 动作集合；
+<span class="math-inline" data-math="P">P</span> —— 转移概率函数；
+<span class="math-inline" data-math="R">R</span> —— 奖励函数；
+<span class="math-inline" data-math="\gamma">\gamma</span> —— 未来奖励的折扣因子。
+在未知环境中，我们对 <span class="math-inline" data-math="P">P</span> 和 <span class="math-inline" data-math="R">R</span> 没有完备知识。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-02-19-rl-overview/mdp_example.jpg" alt="">
+          <figcaption>A fun example of Markov decision process: a typical work day. (Image source:randomant.net/reinforcement-learning-concepts)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>贝尔曼方程#</h2>
+        
+      
+    
+      
+        <p>贝尔曼方程是一组将价值函数分解为立即奖励加上折扣后的未来价值的方程。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+V(s) &amp;= \mathbb{E}[G_t \vert S_t = s] \\
+&amp;= \mathbb{E} [R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \dots \vert S_t = s] \\
+&amp;= \mathbb{E} [R_{t+1} + \gamma (R_{t+2} + \gamma R_{t+3} + \dots) \vert S_t = s] \\
+&amp;= \mathbb{E} [R_{t+1} + \gamma G_{t+1} \vert S_t = s] \\
+&amp;= \mathbb{E} [R_{t+1} + \gamma V(S_{t+1}) \vert S_t = s]
+\end{aligned}
+">
+\begin{aligned}
+V(s) &amp;= \mathbb{E}[G_t \vert S_t = s] \\
+&amp;= \mathbb{E} [R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \dots \vert S_t = s] \\
+&amp;= \mathbb{E} [R_{t+1} + \gamma (R_{t+2} + \gamma R_{t+3} + \dots) \vert S_t = s] \\
+&amp;= \mathbb{E} [R_{t+1} + \gamma G_{t+1} \vert S_t = s] \\
+&amp;= \mathbb{E} [R_{t+1} + \gamma V(S_{t+1}) \vert S_t = s]
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>对 Q 值同理：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+Q(s, a) 
+&amp;= \mathbb{E} [R_{t+1} + \gamma V(S_{t+1}) \mid S_t = s, A_t = a] \\
+&amp;= \mathbb{E} [R_{t+1} + \gamma \mathbb{E}_{a\sim\pi} Q(S_{t+1}, a) \mid S_t = s, A_t = a]
+\end{aligned}
+">
+\begin{aligned}
+Q(s, a) 
+&amp;= \mathbb{E} [R_{t+1} + \gamma V(S_{t+1}) \mid S_t = s, A_t = a] \\
+&amp;= \mathbb{E} [R_{t+1} + \gamma \mathbb{E}_{a\sim\pi} Q(S_{t+1}, a) \mid S_t = s, A_t = a]
+\end{aligned}
+</span></div>
+      
+    
+      
+        <h3>贝尔曼期望方程#</h3>
+        
+      
+    
+      
+        <p>递归更新过程可以进一步分解为同时基于状态价值和动作价值的方程。随着我们向未来动作步骤推进，我们交替扩展 V 和 Q，并始终遵循策略 <span class="math-inline" data-math="\pi">\pi</span>。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-02-19-rl-overview/bellman_equation.png" alt="">
+          <figcaption>Illustration of how Bellman expection equations update state-value and action-value functions.</figcaption>
+        </figure>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+V_{\pi}(s) &amp;= \sum_{a \in \mathcal{A}} \pi(a \vert s) Q_{\pi}(s, a) \\
+Q_{\pi}(s, a) &amp;= R(s, a) + \gamma \sum_{s&#x27; \in \mathcal{S}} P_{ss&#x27;}^a V_{\pi} (s&#x27;) \\
+V_{\pi}(s) &amp;= \sum_{a \in \mathcal{A}} \pi(a \vert s) \big( R(s, a) + \gamma \sum_{s&#x27; \in \mathcal{S}} P_{ss&#x27;}^a V_{\pi} (s&#x27;) \big) \\
+Q_{\pi}(s, a) &amp;= R(s, a) + \gamma \sum_{s&#x27; \in \mathcal{S}} P_{ss&#x27;}^a \sum_{a&#x27; \in \mathcal{A}} \pi(a&#x27; \vert s&#x27;) Q_{\pi} (s&#x27;, a&#x27;)
+\end{aligned}
+">
+\begin{aligned}
+V_{\pi}(s) &amp;= \sum_{a \in \mathcal{A}} \pi(a \vert s) Q_{\pi}(s, a) \\
+Q_{\pi}(s, a) &amp;= R(s, a) + \gamma \sum_{s&#x27; \in \mathcal{S}} P_{ss&#x27;}^a V_{\pi} (s&#x27;) \\
+V_{\pi}(s) &amp;= \sum_{a \in \mathcal{A}} \pi(a \vert s) \big( R(s, a) + \gamma \sum_{s&#x27; \in \mathcal{S}} P_{ss&#x27;}^a V_{\pi} (s&#x27;) \big) \\
+Q_{\pi}(s, a) &amp;= R(s, a) + \gamma \sum_{s&#x27; \in \mathcal{S}} P_{ss&#x27;}^a \sum_{a&#x27; \in \mathcal{A}} \pi(a&#x27; \vert s&#x27;) Q_{\pi} (s&#x27;, a&#x27;)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <h3>贝尔曼最优方程#</h3>
+        
+      
+    
+      
+        <p>如果我们只关心最优价值，而不是按照某个策略计算期望，就可以直接跳到交替更新过程中的最大回报，而无需使用策略。回顾：最优价值 <span class="math-inline" data-math="V_*">V_*</span> 和 <span class="math-inline" data-math="Q_*">Q_*</span> 是我们能获得的最佳回报，其定义如上。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+V_*(s) &amp;= \max_{a \in \mathcal{A}} Q_*(s,a)\\
+Q_*(s, a) &amp;= R(s, a) + \gamma \sum_{s&#x27; \in \mathcal{S}} P_{ss&#x27;}^a V_*(s&#x27;) \\
+V_*(s) &amp;= \max_{a \in \mathcal{A}} \big( R(s, a) + \gamma \sum_{s&#x27; \in \mathcal{S}} P_{ss&#x27;}^a V_*(s&#x27;) \big) \\
+Q_*(s, a) &amp;= R(s, a) + \gamma \sum_{s&#x27; \in \mathcal{S}} P_{ss&#x27;}^a \max_{a&#x27; \in \mathcal{A}} Q_*(s&#x27;, a&#x27;)
+\end{aligned}
+">
+\begin{aligned}
+V_*(s) &amp;= \max_{a \in \mathcal{A}} Q_*(s,a)\\
+Q_*(s, a) &amp;= R(s, a) + \gamma \sum_{s&#x27; \in \mathcal{S}} P_{ss&#x27;}^a V_*(s&#x27;) \\
+V_*(s) &amp;= \max_{a \in \mathcal{A}} \big( R(s, a) + \gamma \sum_{s&#x27; \in \mathcal{S}} P_{ss&#x27;}^a V_*(s&#x27;) \big) \\
+Q_*(s, a) &amp;= R(s, a) + \gamma \sum_{s&#x27; \in \mathcal{S}} P_{ss&#x27;}^a \max_{a&#x27; \in \mathcal{A}} Q_*(s&#x27;, a&#x27;)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>不出所料，它们与贝尔曼期望方程看起来非常相似。</p>
+      
+    
+      
+        <p>如果我们拥有环境的完备信息，这就变成了一个规划问题，可以用动态规划求解。不幸的是，在大多数实际场景中，我们并不知道 <span class="math-inline" data-math="P_{ss’}^a">P_{ss’}^a</span> 或 <span class="math-inline" data-math="R(s, a)">R(s, a)</span>，因此无法直接通过贝尔曼方程求解 MDP，但它为许多强化学习算法奠定了理论基础。</p>
+      
+    
+      
+        <h2>常用方法#</h2>
+        
+      
+    
+      
+        <p>现在是时候介绍解决强化学习问题的主要方法和经典算法了。在后续文章中，我计划对每种方法进行更深入的探讨。</p>
+      
+    
+      
+        <h2>动态规划#</h2>
+        
+      
+    
+      
+        <p>当模型完全已知时，依据贝尔曼方程，我们可以使用<a href="https://en.wikipedia.org/wiki/Dynamic_programming" target="_blank" rel="noopener">动态规划</a>（Dynamic Programming，DP）来迭代地评估价值函数并改进策略。</p>
+      
+    
+      
+        <h3>策略评估#</h3>
+        
+      
+    
+      
+        <p>策略评估是为给定策略 <span class="math-inline" data-math="\pi">\pi</span> 计算其状态价值 <span class="math-inline" data-math="V_\pi">V_\pi</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+V_{t+1}(s) 
+= \mathbb{E}_\pi [r + \gamma V_t(s&#x27;) | S_t = s]
+= \sum_a \pi(a \vert s) \sum_{s&#x27;, r} P(s&#x27;, r \vert s, a) (r + \gamma V_t(s&#x27;))
+">
+V_{t+1}(s) 
+= \mathbb{E}_\pi [r + \gamma V_t(s&#x27;) | S_t = s]
+= \sum_a \pi(a \vert s) \sum_{s&#x27;, r} P(s&#x27;, r \vert s, a) (r + \gamma V_t(s&#x27;))
+</span></div>
+      
+    
+      
+        <h3>策略改进#</h3>
+        
+      
+    
+      
+        <p>基于价值函数，策略改进通过贪婪地选择动作来生成更优的策略 <span class="math-inline" data-math="\pi’ \geq \pi">\pi’ \geq \pi</span>。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+Q_\pi(s, a) 
+= \mathbb{E} [R_{t+1} + \gamma V_\pi(S_{t+1}) \vert S_t=s, A_t=a]
+= \sum_{s&#x27;, r} P(s&#x27;, r \vert s, a) (r + \gamma V_\pi(s&#x27;))
+">
+Q_\pi(s, a) 
+= \mathbb{E} [R_{t+1} + \gamma V_\pi(S_{t+1}) \vert S_t=s, A_t=a]
+= \sum_{s&#x27;, r} P(s&#x27;, r \vert s, a) (r + \gamma V_\pi(s&#x27;))
+</span></div>
+      
+    
+      
+        <h3>策略迭代#</h3>
+        
+      
+    
+      
+        <p>广义策略迭代（Generalized Policy Iteration，GPI）算法指将策略评估和策略改进结合起来的迭代过程，用于持续改进策略。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\pi_0 \xrightarrow[]{\text{evaluation}} V_{\pi_0} \xrightarrow[]{\text{improve}}
+\pi_1 \xrightarrow[]{\text{evaluation}} V_{\pi_1} \xrightarrow[]{\text{improve}}
+\pi_2 \xrightarrow[]{\text{evaluation}} \dots \xrightarrow[]{\text{improve}}
+\pi_* \xrightarrow[]{\text{evaluation}} V_*
+">
+\pi_0 \xrightarrow[]{\text{evaluation}} V_{\pi_0} \xrightarrow[]{\text{improve}}
+\pi_1 \xrightarrow[]{\text{evaluation}} V_{\pi_1} \xrightarrow[]{\text{improve}}
+\pi_2 \xrightarrow[]{\text{evaluation}} \dots \xrightarrow[]{\text{improve}}
+\pi_* \xrightarrow[]{\text{evaluation}} V_*
+</span></div>
+      
+    
+      
+        <p>在 GPI 中，价值函数被反复逼近当前策略的真实价值，同时策略也被反复改进以接近最优。这种策略迭代过程是有效的，并且总是能收敛到最优，但为什么会这样呢？</p>
+      
+    
+      
+        <p>假设我们有一个策略 <span class="math-inline" data-math="\pi">\pi</span>，然后通过贪婪选择动作生成改进版本 <span class="math-inline" data-math="\pi’">\pi’</span>，即 <span class="math-inline" data-math="\pi’(s) = \arg\max_{a \in \mathcal{A}} Q_\pi(s, a)">\pi’(s) = \arg\max_{a \in \mathcal{A}} Q_\pi(s, a)</span>。这个改进策略 <span class="math-inline" data-math="\pi’">\pi’</span> 的价值必然更好，因为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+Q_\pi(s, \pi&#x27;(s))
+&amp;= Q_\pi(s, \arg\max_{a \in \mathcal{A}} Q_\pi(s, a)) \\
+&amp;= \max_{a \in \mathcal{A}} Q_\pi(s, a) \geq Q_\pi(s, \pi(s)) = V_\pi(s)
+\end{aligned}
+">
+\begin{aligned}
+Q_\pi(s, \pi&#x27;(s))
+&amp;= Q_\pi(s, \arg\max_{a \in \mathcal{A}} Q_\pi(s, a)) \\
+&amp;= \max_{a \in \mathcal{A}} Q_\pi(s, a) \geq Q_\pi(s, \pi(s)) = V_\pi(s)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <h2>蒙特卡洛方法#</h2>
+        
+      
+    
+      
+        <p>首先回顾 <span class="math-inline" data-math="V(s) = \mathbb{E}[ G_t \vert S_t=s]">V(s) = \mathbb{E}[ G_t \vert S_t=s]</span>。蒙特卡洛（Monte-Carlo，MC）方法采用了一个朴素的思想：它直接从原始经验的完整 episode 中学习，而不对环境动态建模，并用观测到的平均回报来近似期望回报。为了计算经验回报 <span class="math-inline" data-math="G_t">G_t</span>，MC 方法需要从完整的 episode <span class="math-inline" data-math="S_1, A_1, R_2, \dots, S_T">S_1, A_1, R_2, \dots, S_T</span> 中学习以计算 <span class="math-inline" data-math="G_t = \sum_{k=0}^{T-t-1} \gamma^k R_{t+k+1}">G_t = \sum_{k=0}^{T-t-1} \gamma^k R_{t+k+1}</span>，并且所有 episode 最终都必须终止。</p>
+      
+    
+      
+        <p>状态 s 的经验平均回报为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+V(s) = \frac{\sum_{t=1}^T \mathbb{1}[S_t = s] G_t}{\sum_{t=1}^T \mathbb{1}[S_t = s]}
+">
+V(s) = \frac{\sum_{t=1}^T \mathbb{1}[S_t = s] G_t}{\sum_{t=1}^T \mathbb{1}[S_t = s]}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\mathbb{1}[S_t = s]">\mathbb{1}[S_t = s]</span> 是二元指示函数。我们可以每次访问状态 s 时都计数（“每次访问”），这样同一个 episode 中可能多次访问同一状态；也可以只在第一次遇到该状态时计数（“首次访问”）。这种近似方式很容易扩展到动作价值函数，只需对 (s, a) 对进行计数即可。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+Q(s, a) = \frac{\sum_{t=1}^T \mathbb{1}[S_t = s, A_t = a] G_t}{\sum_{t=1}^T \mathbb{1}[S_t = s, A_t = a]}
+">
+Q(s, a) = \frac{\sum_{t=1}^T \mathbb{1}[S_t = s, A_t = a] G_t}{\sum_{t=1}^T \mathbb{1}[S_t = s, A_t = a]}
+</span></div>
+      
+    
+      
+        <p>要通过蒙特卡洛方法学习最优策略，我们采用与 GPI 类似的思想进行迭代。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-02-19-rl-overview/MC_control.png" alt="">
+          <figcaption>The backup diagrams for Q-learning and SARSA. (Image source: Replotted based on Figure 6.5 in Sutton &amp; Barto (2017))</figcaption>
+        </figure>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

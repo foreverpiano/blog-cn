@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>神经架构搜索 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>神经架构搜索</h1>
+    <div class="meta">
+      2020-08-06 · 
+      <a href="https://lilianweng.github.io/posts/2020-08-06-nas/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">搜索空间
+
+序列层级操作
+
+基于单元的表示
+
+层次化结构
+
+记忆库表示
+
+
+搜索算法
+
+随机搜索
+
+强化学习
+
+进化算法
+
+渐进决策过程
+
+梯度下降
+
+
+评估策略
+
+从零训练
+
+代理任务性能
+
+参数共享
+
+基于预测
+
+
+单次方法：搜索 + 评估
+
+未来展望？
+
+附录：NAS 论文总结
+
+引用
+
+参考文献</div>
+      
+    
+      
+        <p>神经架构搜索（Neural Architecture Search，简称 NAS）能够自动完成网络架构的设计。它旨在学习一种网络拓扑，使其在特定任务上取得最佳性能。本文将 NAS 方法拆解为搜索空间、搜索算法和子模型评估策略三个核心组件，综述了大量能够实现更好、更快且更低成本的自动神经架构搜索的有趣思路。</p>
+      
+    
+      
+        <p>尽管目前最流行、最成功的模型架构大多由人类专家设计，但这并不意味着我们已经探索完整个网络架构空间并找到了最优方案。如果采用系统化、自动化的方式来学习高性能模型架构，我们将有更大机会发现最优解。</p>
+      
+    
+      
+        <p>自动学习和演化网络拓扑并非新想法（<a href="http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf" target="_blank" rel="noopener">Stanley &amp;amp; Miikkulainen, 2002</a>）。近年来，<a href="https://arxiv.org/abs/1611.01578" target="_blank" rel="noopener">Zoph &amp;amp; Le 2017</a> 和 <a href="https://arxiv.org/abs/1611.02167" target="_blank" rel="noopener">Baker et al. 2017</a> 的开创性工作吸引了大量关注，推动了神经架构搜索（NAS）领域的发展，催生了许多更优、更快且更节省资源的 NAS 方法。</p>
+      
+    
+      
+        <p>在我开始研究 NAS 时，发现 <a href="https://arxiv.org/abs/1808.05377" target="_blank" rel="noopener">Elsken 等 2019</a> 的综述非常有帮助。他们将 NAS 刻画为包含三个主要组件的系统，这种划分简洁清晰，也被后续多数 NAS 论文所采用。</p>
+      
+    
+      
+        <div class="list-content">搜索空间：NAS 的搜索空间定义了一组基本操作（如卷积、全连接、池化）以及这些操作如何连接以构成合法的网络架构。搜索空间的设计通常需要人类专家知识，同时也难免引入人为偏见。
+搜索算法：NAS 搜索算法从搜索空间中采样一批网络架构候选者。它以子模型的性能指标（如高准确率、低延迟）作为奖励信号，并优化以生成高性能的架构候选。
+评估策略：我们需要对大量提出的子模型进行性能测量、估计或预测，以便为搜索算法提供反馈来学习。候选模型的评估过程可能非常昂贵，因此涌现出许多旨在节省时间或计算资源的新方法。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/NAS-high-level.png" alt="">
+          <figcaption>Three main components of Neural Architecture Search (NAS) models.  (Image source:Elsken, et al. 2019with customized annotation in red)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>搜索空间</h2>
+        
+      
+    
+      
+        <p>NAS 的搜索空间定义了一组基本的网络操作，以及这些操作如何连接以构建合法的网络架构。</p>
+      
+    
+      
+        <h2>序列层级操作</h2>
+        
+      
+    
+      
+        <p>设计神经网络架构搜索空间最朴素的方式，是用一个序列化的层级操作列表来描述网络拓扑（无论是 CNN 还是 RNN），这在 <a href="https://arxiv.org/abs/1611.01578" target="_blank" rel="noopener">Zoph &amp;amp; Le 2017</a> 和 <a href="https://arxiv.org/abs/1611.02167" target="_blank" rel="noopener">Baker et al. 2017</a> 的早期工作中可见。这种序列化的网络表示需要相当多的专家知识，因为每个操作都关联着不同的层特定参数，这些关联必须被硬编码。例如，在预测卷积操作后，模型需要输出核大小、步长等参数；而在预测全连接操作后，下一个预测则是单元数量。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/NAS-search-space.png" alt="">
+          <figcaption>(Top) A sequential representation of CNN. (Bottom) A sequential representation of the tree structure of a recurrent cell. (Image source:Zoph &amp; Le 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>为确保生成的架构有效，可能还需要额外规则（<a href="https://arxiv.org/abs/1611.01578" target="_blank" rel="noopener">Zoph &amp;amp; Le 2017</a>）：</p>
+      
+    
+      
+        <div class="list-content">如果某一层未连接到任何输入层，则将其作为输入层；
+在最后一层，将所有尚未被连接的层输出进行拼接；
+如果某一层有多个输入层，则将所有输入层在深度维度上拼接；
+如果待拼接的输入层尺寸不同，则用零填充较小的层，使拼接后的层具有相同尺寸。</div>
+      
+    
+      
+        <p>跳跃连接也可以被预测，使用类似 <a href="posts-2018-06-24-attention.html">注意力？注意力！</a> 的机制。在第 <span class="math-inline" data-math="i">i</span> 层，加入一个锚点，包含 <span class="math-inline" data-math="i−1">i−1</span> 个基于内容的 sigmoid，用于指示要连接哪些先前层。每个 sigmoid 以当前节点的隐藏状态 <span class="math-inline" data-math="h_i">h_i</span> 和 <span class="math-inline" data-math="i-1">i-1</span> 个先前节点 <span class="math-inline" data-math="h_j, j=1, \dots, i-1">h_j, j=1, \dots, i-1</span> 的隐藏状态作为输入。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+P(\text{Layer j is an input to layer i}) = \text{sigmoid}(v^\top \tanh(\mathbf{W}_\text{prev} h_j + \mathbf{W}_\text{curr} h_i))
+">
+P(\text{Layer j is an input to layer i}) = \text{sigmoid}(v^\top \tanh(\mathbf{W}_\text{prev} h_j + \mathbf{W}_\text{curr} h_i))
+</span></div>
+      
+    
+      
+        <p>序列化搜索空间具有很强的表达能力，但其规模非常庞大，穷尽搜索需要消耗大量计算资源。在 <a href="https://arxiv.org/abs/1611.01578" target="_blank" rel="noopener">Zoph &amp;amp; Le 2017</a> 的实验中，他们并行运行了 800 个 GPU 长达 28 天，而 <a href="https://arxiv.org/abs/1611.02167" target="_blank" rel="noopener">Baker et al. 2017</a> 则将搜索空间限制为最多包含 2 个全连接层。</p>
+      
+    
+      
+        <h2>基于单元的表示</h2>
+        
+      
+    
+      
+        <p>受成功视觉模型（如 Inception、ResNet）中重复使用模块的设计启发，NASNet 搜索空间（<a href="https://arxiv.org/abs/1707.07012" target="_blank" rel="noopener">Zoph 等 2018</a>）将卷积网络的架构定义为重复多次的相同单元，每个单元包含若干由 NAS 算法预测的操作。设计良好的单元模块能够在不同数据集之间实现迁移。同时，通过调整单元重复次数，很容易缩小或扩大模型规模。</p>
+      
+    
+      
+        <p>具体来说，NASNet 搜索空间学习两种类型的单元用于构建网络：</p>
+      
+    
+      
+        <div class="list-content">普通单元（Normal Cell）：输入和输出特征图的维度相同。
+降维单元（Reduction Cell）：输出特征图的宽和高减半。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/NASNet-search-space.png" alt="">
+          <figcaption>The NASNet search space constrains the architecture as a repeated stack of cells. The cell architecture is optimized via NAS algorithms. (Image source:Zoph et al. 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>每个单元的预测被分组为 <span class="math-inline" data-math="B">B</span> 个块（NASNet 论文中为 <span class="math-inline" data-math="B=5">B=5</span>），每个块由 5 个不同的 softmax 分类器进行 5 步预测，对应块中元素的离散选择。值得注意的是，NASNet 搜索空间在单元之间没有残差连接，模型仅在块内部学习跳跃连接。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/cell-prediction-steps.png" alt="">
+          <figcaption>(a) Each cell consists of <span class="math-inline" data-math="B">B</span> blocks and each block is predicted by 5 discrete decisions. (b) An concrete example of what operations can be chosen in each decision step.</figcaption>
+        </figure>
+      
+    
+      
+        <p>在实验过程中，他们发现一种改进版的 <a href="https://arxiv.org/abs/1605.07648" target="_blank" rel="noopener">DropPath</a>（称为 ScheduledDropPath）显著提升了 NASNet 的最终性能。DropPath 以固定概率随机丢弃路径（即 NASNet 中带有操作的边）。ScheduledDropPath 则是在训练过程中线性增加路径丢弃概率的 DropPath。</p>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1808.05377" target="_blank" rel="noopener">Elsken 等 (2019)</a> 指出了 NASNet 搜索空间的三大主要优势：</p>
+      
+    
+      
+        <div class="list-content">搜索空间规模大幅缩小；
+基于 <a href="https://en.wikipedia.org/wiki/Network_motif" target="_blank" rel="noopener">motif</a> 的架构更容易迁移到不同数据集。
+它有力证明了在架构工程中重复堆叠模块这一设计模式的有效性。例如，我们可以通过在 CNN 中堆叠残差块，或在 Transformer 中堆叠多头注意力块来构建强大模型。</div>
+      
+    
+      
+        <h2>层次化结构</h2>
+        
+      
+    
+      
+        <p>为了利用已经发现的良好设计的网络 <a href="https://en.wikipedia.org/wiki/Network_motif" target="_blank" rel="noopener">motif</a>，NAS 搜索空间可以被约束为层次化结构，如 Hierarchical NAS（HNAS；<a href="https://arxiv.org/abs/1711.00436" target="_blank" rel="noopener">Liu 等 2017</a>）。它从一小组基本操作开始，包括卷积、池化、恒等映射等。然后，由基本操作组成的小子图（或“motif”）被递归地用于构建更高层次的计算图。</p>
+      
+    
+      
+        <p>第 <span class="math-inline" data-math="\ell=1, \dots, L">\ell=1, \dots, L</span> 层的计算 motif 可以表示为 <span class="math-inline" data-math="(G^{(\ell)}, \mathcal{O}^{(\ell)})">(G^{(\ell)}, \mathcal{O}^{(\ell)})</span>，其中：</p>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="\mathcal{O}^{(\ell)}">\mathcal{O}^{(\ell)}</span> 是一组操作，<span class="math-inline" data-math="\mathcal{O}^{(\ell)} = \{ o^{(\ell)}_1, o^{(\ell)}_2, \dots \}">\mathcal{O}^{(\ell)} = \{ o^{(\ell)}_1, o^{(\ell)}_2, \dots \}</span>
+<span class="math-inline" data-math="G^{(\ell)}">G^{(\ell)}</span> 是一个邻接矩阵，其中元素 <span class="math-inline" data-math="G_{ij}=k">G_{ij}=k</span> 表示操作 <span class="math-inline" data-math="o^{(\ell)}_k">o^{(\ell)}_k</span> 放置在节点 <span class="math-inline" data-math="i">i</span> 和 <span class="math-inline" data-math="j">j</span> 之间。节点索引遵循 <a href="https://en.wikipedia.org/wiki/Topological_sorting" target="_blank" rel="noopener">拓扑排序</a> 的有向无环图（DAG），其中索引 <span class="math-inline" data-math="1">1</span> 为源节点，最大索引为汇节点。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/hierarchical-NAS-search-space.png" alt="">
+          <figcaption>(Top) Three level-1 primitive operations are composed into a level-2 motif. (Bottom) Three level-2 motifs are plugged into a base network structure and assembled into a level-3 motif. (Image source:Liu et al 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>按照层次化结构构建网络时，我们从最低层 <span class="math-inline" data-math="\ell=1">\ell=1</span> 开始，递归地定义第 <span class="math-inline" data-math="\ell">\ell</span> 层的第 <span class="math-inline" data-math="m">m</span> 个 motif 操作为</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+o^{(\ell)}_m = \text{assemble}\Big( G_m^{(\ell)}, \mathcal{O}^{(\ell-1)} \Big)
+">
+o^{(\ell)}_m = \text{assemble}\Big( G_m^{(\ell)}, \mathcal{O}^{(\ell-1)} \Big)
+</span></div>
+      
+    
+      
+        <p>层次化表示最终变为 <span class="math-inline" data-math="\Big( \big\{ \{ G_m^{(\ell)} \}_{m=1}^{M_\ell} \big\}_{\ell=2}^L, \mathcal{O}^{(1)} \Big), \forall \ell=2, \dots, L">\Big( \big\{ \{ G_m^{(\ell)} \}_{m=1}^{M_\ell} \big\}_{\ell=2}^L, \mathcal{O}^{(1)} \Big), \forall \ell=2, \dots, L</span>，其中 <span class="math-inline" data-math="\mathcal{O}^{(1)}">\mathcal{O}^{(1)}</span> 包含一组基本操作。</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\text{assemble}()">\text{assemble}()</span> 过程等价于按照拓扑排序依次计算节点 <span class="math-inline" data-math="i">i</span> 的特征图，即聚合其所有前驱节点 <span class="math-inline" data-math="j">j</span> 的特征图：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+x_i = \text{merge} \big[ \{ o^{(\ell)}_{G^{(\ell)}_{ij}}(x_j) \}_{j &lt; i} \big], i = 2, \dots, \vert G^{(\ell)} \vert
+">
+x_i = \text{merge} \big[ \{ o^{(\ell)}_{G^{(\ell)}_{ij}}(x_j) \}_{j &lt; i} \big], i = 2, \dots, \vert G^{(\ell)} \vert
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\text{merge}[]">\text{merge}[]</span> 在 <a href="https://arxiv.org/abs/1711.00436" target="_blank" rel="noopener">论文</a> 中通过深度拼接实现。</p>
+      
+    
+      
+        <p>与 NASNet 类似，<a href="https://arxiv.org/abs/1711.00436" target="_blank" rel="noopener">Liu 等 (2017)</a> 的实验重点是在预定义的重复模块“宏”结构内发现良好的单元架构。他们证明，使用精心设计的搜索空间可以显著提升简单搜索方法（如随机搜索或进化算法）的威力。</p>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1806.02639" target="_blank" rel="noopener">Cai 等 (2018b)</a> 提出了一种基于路径级网络变换的树状搜索空间。树结构中的每个节点定义了为子节点分割输入的分配方案，以及合并子节点结果的合并方案。如果对应的合并方案是相加或拼接，路径级网络变换允许用多分支 motif 替换单个层。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/path-level-network-transformations.png" alt="">
+          <figcaption>An illustration of transforming a single layer to a tree-structured motif via path-level transformation operations. (Image source:Cai et al. 2018b)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>记忆库表示</h2>
+        
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1708.05344" target="_blank" rel="noopener">Brock 等 (2017)</a> 在 SMASH 中提出了一种前馈网络的记忆库表示。他们不再将神经网络视为操作图，而是将其视为具有多个可读写记忆块的系统。每一层操作被设计为：(1) 从一部分记忆块中读取；(2) 计算结果；最后 (3) 将结果写入另一部分记忆块。例如，在序列模型中，单个记忆块会被持续读取和覆盖。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/NAS-memory-bank-view-representation.png" alt="">
+          <figcaption>Memory-bank representation of several popular network architecture blocks. (Image source:Brock et al. 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>搜索算法</h2>
+        
+      
+    
+      
+        <p>NAS 搜索算法对一批子网络进行采样。它接收子模型的性能指标作为奖励，并学习生成高性能的架构候选。这一过程与超参数搜索领域有许多共通之处。</p>
+      
+    
+      
+        <h2>随机搜索</h2>
+        
+      
+    
+      
+        <p>随机搜索是最朴素的基线。它从搜索空间中随机采样一个合法的架构候选，不涉及任何学习模型。随机搜索已被证明在超参数搜索中非常有效（<a href="http://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf" target="_blank" rel="noopener">Bergstra &amp;amp; Bengio 2012</a>）。在一个设计良好的搜索空间中，随机搜索是一个极具挑战性的基线，很难超越。</p>
+      
+    
+      
+        <h2>强化学习</h2>
+        
+      
+    
+      
+        <p>NAS 的最初设计（<a href="https://arxiv.org/abs/1611.01578" target="_blank" rel="noopener">Zoph &amp;amp; Le 2017</a>）采用基于强化学习的控制器来提出待评估的子模型架构。控制器由 RNN 实现，输出用于配置网络架构的可变长度 token 序列。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/NAS.png" alt="">
+          <figcaption>A high level overview of NAS, containing a RNN controller and a pipeline for evaluating child models. (Image source:Zoph &amp; Le 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>控制器通过 <a href="posts-2018-04-08-policy-gradient.html">策略梯度算法</a> 作为强化学习任务进行训练。</p>
+      
+    
+      
+        <div class="list-content">动作空间：动作空间是控制器预测的用于定义子网络的一系列 token（详见上文）。控制器输出动作 <span class="math-inline" data-math="a_{1:T}">a_{1:T}</span>，其中 <span class="math-inline" data-math="T">T</span> 是 token 的总数。
+奖励：子网络收敛后能达到的准确率作为训练控制器的奖励，<span class="math-inline" data-math="R">R</span>。
+损失：NAS 使用 REINFORCE 损失优化控制器参数 <span class="math-inline" data-math="\theta">\theta</span>。我们希望通过以下梯度最大化期望奖励（高准确率）。策略梯度方法的一个优点是，即使奖励不可微也能工作。</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\nabla_{\theta} J(\theta) = \sum_{t=1}^T \mathbb{E}[\nabla_{\theta} \log P(a_t \vert a_{1:(t-1)}; \theta) R ]
+">
+\nabla_{\theta} J(\theta) = \sum_{t=1}^T \mathbb{E}[\nabla_{\theta} \log P(a_t \vert a_{1:(t-1)}; \theta) R ]
+</span></div>
+      
+    
+      
+        <p>MetaQNN（<a href="https://arxiv.org/abs/1611.02167" target="_blank" rel="noopener">Baker 等 2017</a>）训练一个智能体，使用 <a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a> 并结合 <a href="posts-2018-01-23-multi-armed-bandit.html">多臂老虎机问题及其解决方案</a>-greedy}} 探索策略和经验回放，依次选择 CNN 层。奖励同样是验证准确率。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+Q^{(t+1)}(s_t,  a_t) = (1 - \alpha)Q^{(t)}(s_t, a_t) + \alpha (R_t + \gamma \max_{a \in \mathcal{A}} Q^{(t)}(s_{t+1},  a&#x27;))
+">
+Q^{(t+1)}(s_t,  a_t) = (1 - \alpha)Q^{(t)}(s_t, a_t) + \alpha (R_t + \gamma \max_{a \in \mathcal{A}} Q^{(t)}(s_{t+1},  a&#x27;))
+</span></div>
+      
+    
+      
+        <p>其中状态 <span class="math-inline" data-math="s_t">s_t</span> 是层操作及其相关参数的元组。动作 <span class="math-inline" data-math="a">a</span> 决定操作之间的连接性。Q 值与我们对两个连接操作能否带来高准确率的置信度成正比。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/MetaQNN.png" alt="">
+          <figcaption>Overview of MetaQNN - designing CNN models with Q-Learning. (Image source:Baker et al. 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>进化算法</h2>
+        
+      
+    
+      
+        <p>NEAT（NeuroEvolution of Augmenting Topologies 的缩写）是一种使用 <a href="https://en.wikipedia.org/wiki/Genetic_algorithm" target="_blank" rel="noopener">遗传算法（GA）</a> 演化神经网络拓扑的方法，由 <a href="http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf" target="_blank" rel="noopener">Stanley &amp;amp; Miikkulainen</a> 于 2002 年提出。NEAT 同时演化连接权重和网络拓扑。每个基因编码了配置网络的完整信息，包括节点权重和边。种群通过对权重和连接进行变异，以及两个父基因之间的交叉来增长。关于神经进化领域的更多内容，可参考 Stanley 等 (2019) 的深入 <a href="https://www.nature.com/articles/s42256-018-0006-z" target="_blank" rel="noopener">综述</a>。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/NEAT-mutations.png" alt="">
+          <figcaption>Mutations in the NEAT algorithm. (Image source: Fig 3 &amp; 4 inStanley &amp; Miikkulainen, 2002)</figcaption>
+        </figure>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1802.01548" target="_blank" rel="noopener">Real 等 (2018)</a> 采用进化算法（EA）来搜索高性能网络架构，称为 AmoebaNet。他们使用 <a href="https://en.wikipedia.org/wiki/Tournament_selection" target="_blank" rel="noopener">锦标赛选择</a> 方法，在每次迭代中从随机样本集合中选出最佳候选，并将其变异后的后代放回种群。当锦标赛大小为 <span class="math-inline" data-math="1">1</span> 时，等价于随机选择。</p>
+      
+    
+      
+        <p>AmoebaNet 修改了锦标赛选择，使其偏好更年轻的基因型，并在每个周期中总是丢弃最老的模型。这种称为“aging evolution”的方法让 AmoebaNet 能够覆盖和探索更大的搜索空间，而不会过早收敛到性能良好的模型。</p>
+      
+    
+      
+        <p>具体来说，在带老化正则化的锦标赛选择的每个周期中（见图 11）：</p>
+      
+    
+      
+        <div class="list-content">从种群中采样 <span class="math-inline" data-math="S">S</span> 个模型，选择准确率最高的作为父代。
+通过变异父代生成子模型。
+然后对子模型进行训练、评估并加入种群。
+从种群中移除最老的模型。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/aging-evolution-algorithm.png" alt="">
+          <figcaption>The algorithm of aging evolution. (Image source:Real et al. 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>应用两种类型的变异：</p>
+      
+    
+      
+        <div class="list-content">隐藏状态变异：随机选择一对组合，并重连其中一个端点，使图中不产生环路。
+操作变异：随机将现有操作替换为另一个随机操作。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/AmoebaNet-mutations.png" alt="">
+          <figcaption>Two types of mutations in AmoebaNet. (Image source:Real et al. 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>实验显示，在最终验证准确率上，EA 和 RL 表现相当，但 EA 的 anytime 性能更好，且能找到更小的模型。不过，使用 EA 进行 NAS 在计算上仍然非常昂贵，每次实验需要 450 个 GPU 运行 7 天。</p>
+      
+    
+      
+        <p>HNAS（<a href="https://arxiv.org/abs/1711.00436" target="_blank" rel="noopener">Liu 等 2017</a>）同样采用进化算法（原始的锦标赛选择）作为搜索策略。在层次化结构的搜索空间中，每条边都是一个操作。因此，他们实验中的基因型变异通过用不同操作替换随机边来实现。替换集合中包含一个 none 操作，因此可以改变、移除或添加边。初始基因型集合是通过对“平凡”motif（全部为恒等映射）进行大量随机变异生成的。</p>
+      
+    
+      
+        <h2>渐进决策过程</h2>
+        
+      
+    
+      
+        <p>构建模型架构是一个顺序过程。每个额外加入的操作或层都会带来额外的复杂度。如果我们引导搜索模型从简单模型开始探索，并逐步演化到更复杂的架构，就相当于在搜索模型的学习过程中引入了 。<a href="posts-2020-01-29-curriculum-rl.html">强化学习的课程设计</a></p>
+      
+    
+      
+        <p>渐进式 NAS（PNAS；<a href="https://arxiv.org/abs/1712.00559" target="_blank" rel="noopener">Liu 等 2018</a>）将 NAS 问题建模为一个逐步增加复杂度的搜索过程。PNAS 没有使用 RL 或 EA，而是采用基于序列模型的贝叶斯优化（SMBO）作为搜索策略。PNAS 类似于 A* 搜索，它从简单模型开始搜索，同时学习一个代理函数来指导搜索。</p>
+      
+    
+      
+        <blockquote><a href="https://en.wikipedia.org/wiki/A*_search_algorithm" target="_blank" rel="noopener">A* 搜索算法</a>（“最佳优先搜索”）是一种常用的路径寻找算法。该问题被建模为在带权图中寻找从起点到目标节点的最小代价路径。在每次迭代中，A* 通过最小化 <span class="math-inline" data-math="f(n)=g(n)+h(n)">f(n)=g(n)+h(n)</span> 来选择要扩展的路径，其中 <span class="math-inline" data-math="n">n</span> 是下一个节点，<span class="math-inline" data-math="g(n)">g(n)</span> 是从起点到 <span class="math-inline" data-math="n">n</span> 的代价，<span class="math-inline" data-math="h(n)">h(n)</span> 是启发式函数，用于估计从节点 <span class="math-inline" data-math="n">n</span> 到目标的最小代价。</blockquote>
+      
+    
+      
+        <p>PNAS 使用 NASNet 搜索空间。每个块被指定为一个 5 元组，PNAS 只考虑元素级加法作为第 5 步的组合操作，不使用拼接。与传统方法不同，PNAS 没有固定块的数量 <span class="math-inline" data-math="B">B</span>，而是从 <span class="math-inline" data-math="B=1">B=1</span> 开始（即每个单元只有一个块的模型），然后逐渐增加 <span class="math-inline" data-math="B">B</span>。</p>
+      
+    
+      
+        <p>使用验证集上的性能作为反馈来训练一个代理模型，用于预测新架构的性能。有了这个预测器，我们就可以决定接下来应该优先评估哪些模型。由于性能预测器需要处理不同大小的输入、准确率，且样本高效，他们最终选择了 RNN 模型。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/progressive-NAS-algorithm.png" alt="">
+          <figcaption>The algorithm of Progressive NAS. (Image source:Liu, et al 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>梯度下降</h2>
+        
+      
+    
+      
+        <p>使用梯度下降来更新架构搜索模型，需要将选择离散操作的过程变得可微。这些方法通常将架构参数和网络权重的学习合并到一个模型中。更多细节请参见“单次”方法部分。</p>
+      
+    
+      
+        <h2>评估策略</h2>
+        
+      
+    
+      
+        <p>我们需要对每个子模型进行性能测量、估计或预测，以便为优化搜索算法提供反馈。候选评估过程可能非常昂贵，因此提出了许多新的评估方法来节省时间或计算资源。在评估子模型时，我们主要关心其在验证集上的准确率性能。最近的工作也开始考虑模型的其他因素，如模型大小和延迟，因为某些设备可能对内存有限制或要求快速响应时间。</p>
+      
+    
+      
+        <h2>从零训练</h2>
+        
+      
+    
+      
+        <p>最朴素的方法是对每个子网络都独立地从零开始训练直至收敛，然后在验证集上测量其准确率（<a href="https://arxiv.org/abs/1611.01578" target="_blank" rel="noopener">Zoph &amp;amp; Le 2017</a>）。这种方法能提供可靠的性能指标，但一次完整的“训练-收敛-评估”循环仅为训练 RL 控制器产生一个数据样本（更不用说 RL 本身通常样本效率低下）。因此在计算消耗上极为昂贵。</p>
+      
+    
+      
+        <h2>代理任务性能</h2>
+        
+      
+    
+      
+        <p>有几种使用代理任务性能作为子网络性能估计器的方法，通常计算成本更低、速度更快：</p>
+      
+    
+      
+        <div class="list-content">在更小的数据集上训练。
+训练更少的 epoch。
+在搜索阶段训练和评估一个缩小规模的模型。例如，一旦学到单元结构，就可以调整单元重复次数或增加滤波器数量（<a href="https://arxiv.org/abs/1707.07012" target="_blank" rel="noopener">Zoph 等 2018</a>）。
+预测学习曲线。<a href="https://arxiv.org/abs/1705.10823" target="_blank" rel="noopener">Baker 等 (2018)</a> 将验证准确率的预测建模为时间序列回归问题。回归模型（<span class="math-inline" data-math="\nu">\nu</span>-支持向量机回归；<span class="math-inline" data-math="\nu">\nu</span>-SVR）的特征包括每个 epoch 早期的准确率序列、架构参数和超参数。</div>
+      
+    
+      
+        <h2>参数共享</h2>
+        
+      
+    
+      
+        <p>与其对每个子模型都从零独立训练，不如想办法在它们之间建立依赖关系并复用权重？一些研究者成功地让这类方法发挥了作用。</p>
+      
+    
+      
+        <p>受 <a href="https://arxiv.org/abs/1511.05641" target="_blank" rel="noopener">Net2net</a> 变换的启发，<a href="https://arxiv.org/abs/1707.04873" target="_blank" rel="noopener">Cai 等 (2017)</a> 提出了高效架构搜索（EAS）。EAS 设置了一个 RL 智能体（称为元控制器），用于预测保持功能的网络变换，从而增加网络深度或层宽度。由于网络是增量增长的，先前验证过的网络权重可以被复用以进行进一步探索。借助继承的权重，新构建的网络只需要少量轻量级训练。</p>
+      
+    
+      
+        <p>元控制器根据当前网络架构（用可变长度字符串表示）学习生成网络变换动作。为了处理可变长度的架构配置，元控制器被实现为双向循环网络。多个 Actor 网络输出不同的变换决策：</p>
+      
+    
+      
+        <div class="list-content">Net2WiderNet 操作允许将某一层替换为更宽的层，即全连接层增加更多单元，或卷积层增加更多滤波器，同时保持功能不变。
+Net2DeeperNet 操作允许在两层之间插入一个初始化为恒等映射的新层，从而保持功能不变。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/EAS-meta-controller.png" alt="">
+          <figcaption>Overview of the RL based meta-controller in Efficient Architecture Search (NAS). After encoding the architecture configuration, it outputs net2net transformation actions through two separate actor networks. (Image source:Cai et al 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>出于类似动机，高效 NAS（ENAS；<a href="https://arxiv.org/abs/1802.03268" target="_blank" rel="noopener">Pham 等 2018</a>）通过在子模型之间激进地共享参数，将 NAS 加速了约 1000 倍。ENAS 的核心思想是观察到所有采样的架构图都可以视为一个更大超图的子图。所有子网络都共享这个超图的权重。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/ENAS-example.png" alt="">
+          <figcaption>(Left) The graph represents the entire search space for a 4-node recurrent cell, but only connections in red are active. (Middle) An example of how the left active sub-graph can be translated into a child model architecture. (Right) The network parameters produced by an RNN controller for the architecture in the middle. (Image source:Pham et al. 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>ENAS 在训练共享模型权重 <span class="math-inline" data-math="\omega">\omega</span> 和训练控制器 <span class="math-inline" data-math="\theta">\theta</span> 之间交替进行：</p>
+      
+    
+      
+        <div class="list-content">控制器 LSTM 的参数 <span class="math-inline" data-math="\theta">\theta</span> 使用 <a href="posts-2018-04-08-policy-gradient.html">策略梯度算法</a> 训练，其中奖励 <span class="math-inline" data-math="R(\mathbf{m}, \omega)">R(\mathbf{m}, \omega)</span> 在验证集上计算。
+子模型的共享参数 <span class="math-inline" data-math="\omega">\omega</span> 使用标准的监督学习损失进行训练。注意，超图中同一节点关联的不同操作会有各自不同的参数。</div>
+      
+    
+      
+        <h2>基于预测</h2>
+        
+      
+    
+      
+        <p>常规的子模型评估流程是通过标准梯度下降更新模型权重。SMASH（<a href="https://arxiv.org/abs/1708.05344" target="_blank" rel="noopener">Brock 等 2017</a>）提出了一个不同且有趣的想法：我们能否直接根据网络架构参数预测模型权重？</p>
+      
+    
+      
+        <p>他们使用 <a href="https://blog.otoro.net/2016/09/28/hyper-networks/" target="_blank" rel="noopener">HyperNet</a>（<a href="https://arxiv.org/abs/1609.09106" target="_blank" rel="noopener">Ha 等 2016</a>）直接生成模型权重，条件是其架构配置的编码。然后直接用带有 HyperNet 生成权重的模型进行验证。注意，我们不需要为每个子模型额外训练，但需要训练 HyperNet 本身。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/SMASH-algorithm.png" alt="">
+          <figcaption>The algorithm of SMASH. (Image source:Brock et al. 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>使用 SMASH 生成的权重得到的模型性能与真实验证误差之间的相关性表明，预测权重在一定程度上可用于模型比较。我们确实需要一个容量足够大的 HyperNet，因为如果 HyperNet 模型相对于子模型过小，相关性就会被破坏。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/SMASH-error-correlation.png" alt="">
+          <figcaption>The algorithm of SMASH. (Image source:Brock et al. 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>SMASH 可以看作是实现参数共享思想的另一种方式。<a href="https://arxiv.org/abs/1802.03268" target="_blank" rel="noopener">Pham 等 (2018)</a> 指出 SMASH 的一个问题是：HyperNet 的使用将 SMASH 子模型的权重限制在了低秩空间中，因为权重是通过张量积生成的。相比之下，ENAS 没有这样的限制。</p>
+      
+    
+      
+        <h2>单次方法：搜索 + 评估</h2>
+        
+      
+    
+      
+        <p>对大量子模型独立运行搜索和评估非常昂贵。我们已经看到了一些有前景的方法，如 <a href="https://arxiv.org/abs/1708.05344" target="_blank" rel="noopener">Brock 等 (2017)</a> 或 <a href="https://arxiv.org/abs/1802.03268" target="_blank" rel="noopener">Pham 等 (2018)</a>，它们只需训练一个模型就足以模拟搜索空间中的任意子模型。</p>
+      
+    
+      
+        <p>单次架构搜索扩展了权重共享的思想，进一步将架构生成的学习与权重参数结合在一起。以下方法都将子架构视为一个超图的不同子图，并在超图中公共边上共享权重。</p>
+      
+    
+      
+        <p><a href="http://proceedings.mlr.press/v80/bender18a/bender18a.pdf" target="_blank" rel="noopener">Bender 等 (2018)</a> 构建了一个单一的大型超参数化网络，称为 One-Shot 模型，它包含搜索空间中的每一种可能操作。通过使用 ScheduledDropPath（丢弃率随时间增加，训练结束时为 <span class="math-inline" data-math="r^{1/k}">r^{1/k}</span>，其中 <span class="math-inline" data-math="0 &lt; r &lt; 1">0 &lt; r &lt; 1</span> 是超参数，<span class="math-inline" data-math="k">k</span> 是输入路径数量）以及一些精心设计的技巧（如 ghost batch normalization、仅对活跃架构进行 L2 正则化），这种巨型模型的训练可以足够稳定，并用于评估从超图中采样的任意子模型。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/one-shot-model-architecture.png" alt="">
+          <figcaption>The architecture of the One-Shot model inBender et al 2018. Each cell has <span class="math-inline" data-math="N">N</span> choice blocks and each choice block can select up to 2 operations. Solid edges are used in every architecture, where dash lines are optional. (Image source:Bender et al 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>一旦 One-Shot 模型训练完成，就可以通过将某些操作置零或移除来评估随机采样的不同架构的性能。这个采样过程可以被 RL 或进化算法替代。</p>
+      
+    
+      
+        <p>他们观察到，使用 One-Shot 模型测量的准确率与同一架构经过少量微调后的准确率之间可能存在很大差异。他们的假设是，One-Shot 模型会自动学习关注网络中最有用的操作，并在这些操作可用时依赖它们。因此，将有用的操作置零会导致模型准确率大幅下降，而移除不太重要的组件只会造成较小影响——因此，使用 One-Shot 模型评估时会观察到更大的分数方差。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/one-shot-model-accuracy-correlation.png" alt="">
+          <figcaption>A stratified sample of models with different one-shot model accuracy versus their true validation accuracy as stand-alone models. (Image source:Bender et al 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>显然，设计这样的搜索图并非易事，但它展示了单次方法具有巨大潜力。它仅使用梯度下降就能很好地工作，不一定需要 RL 或 EA 等额外算法。</p>
+      
+    
+      
+        <p>一些人认为 NAS 效率低下的一个主要原因是将架构搜索视为黑箱优化，因此我们不得不采用 RL、进化、SMBO 等方法。如果转向依赖标准的梯度下降，我们有可能使搜索过程更加高效。因此，<a href="https://arxiv.org/abs/1806.09055" target="_blank" rel="noopener">Liu 等 (2019)</a> 提出了可微分架构搜索（DARTS）。DARTS 在搜索超图的每条路径上引入连续松弛，使得可以通过梯度下降联合训练架构参数和权重。</p>
+      
+    
+      
+        <p>这里我们使用有向无环图（DAG）表示。一个单元是一个由拓扑有序的 <span class="math-inline" data-math="N">N</span> 个节点组成的 DAG。每个节点有一个待学习的隐表示 <span class="math-inline" data-math="x_i">x_i</span>。每条边 <span class="math-inline" data-math="(i, j)">(i, j)</span> 都绑定了某个操作 <span class="math-inline" data-math="o^{(i,j)} \in \mathcal{O}">o^{(i,j)} \in \mathcal{O}</span>，该操作将 <span class="math-inline" data-math="x_j">x_j</span> 变换为 <span class="math-inline" data-math="x_i">x_i</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+x_i = \sum_{j &lt; i} o^{(i,j)}(x_j)
+">
+x_i = \sum_{j &lt; i} o^{(i,j)}(x_j)
+</span></div>
+      
+    
+      
+        <p>为了使搜索空间连续化，DARTS 将选择特定操作的类别选择松弛为所有操作上的 softmax，架构搜索任务简化为学习一组混合概率 <span class="math-inline" data-math="\alpha = \{ \alpha^{(i,j)} \}">\alpha = \{ \alpha^{(i,j)} \}</span>。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\bar{o}^{(i,j)}(x) = \sum_{o\in\mathcal{O}} \frac{\exp(\alpha_{ij}^o)}{\sum_{o&#x27;\in\mathcal{O}} \exp(\alpha^{o&#x27;}_{ij})} o(x)
+">
+\bar{o}^{(i,j)}(x) = \sum_{o\in\mathcal{O}} \frac{\exp(\alpha_{ij}^o)}{\sum_{o&#x27;\in\mathcal{O}} \exp(\alpha^{o&#x27;}_{ij})} o(x)
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\alpha_{ij}">\alpha_{ij}</span> 是一个维度为 <span class="math-inline" data-math="\vert \mathcal{O} \vert">\vert \mathcal{O} \vert</span> 的向量，包含节点 <span class="math-inline" data-math="i">i</span> 和 <span class="math-inline" data-math="j">j</span> 之间不同操作的权重。</p>
+      
+    
+      
+        <p>存在双层优化问题，因为我们希望同时优化网络权重 <span class="math-inline" data-math="w">w</span> 和架构表示 <span class="math-inline" data-math="\alpha">\alpha</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\min_\alpha &amp; \mathcal{L}_\text{validate} (w^*(\alpha), \alpha) \\
+\text{s.t.} &amp; w^*(\alpha) = \arg\min_w \mathcal{L}_\text{train} (w, \alpha)
+\end{aligned}
+">
+\begin{aligned}
+\min_\alpha &amp; \mathcal{L}_\text{validate} (w^*(\alpha), \alpha) \\
+\text{s.t.} &amp; w^*(\alpha) = \arg\min_w \mathcal{L}_\text{train} (w, \alpha)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>在第 <span class="math-inline" data-math="k">k</span> 步，给定当前的架构参数 <span class="math-inline" data-math="\alpha_{k−1}">\alpha_{k−1}</span>，我们首先通过沿最小化训练损失 <span class="math-inline" data-math="\mathcal{L}_\text{train}(w_{k−1}, \alpha_{k−1})">\mathcal{L}_\text{train}(w_{k−1}, \alpha_{k−1})</span> 的方向移动 <span class="math-inline" data-math="w_{k−1}">w_{k−1}</span> 来优化权重 <span class="math-inline" data-math="w_k">w_k</span>，学习率是 <span class="math-inline" data-math="\xi">\xi</span>。接下来，在固定新更新后的权重 <span class="math-inline" data-math="w_k">w_k</span> 的情况下，我们更新混合概率，以最小化关于权重进行一步梯度下降后的验证损失：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+J_\alpha = \mathcal{L}_\text{val}(w_k - \xi \nabla_w \mathcal{L}_\text{train}(w_k, \alpha_{k-1}), \alpha_{k-1})
+">
+J_\alpha = \mathcal{L}_\text{val}(w_k - \xi \nabla_w \mathcal{L}_\text{train}(w_k, \alpha_{k-1}), \alpha_{k-1})
+</span></div>
+      
+    
+      
+        <p>这里的动机是，我们希望找到一个在通过梯度下降优化其权重后具有低验证损失的架构，而单步展开的权重作为 <span class="math-inline" data-math="w^∗(\alpha)">w^∗(\alpha)</span> 的代理。</p>
+      
+    
+      
+        <blockquote>旁注：之前我们在 <a href="posts-2018-11-30-meta-learning.html">元学习：学会快速学习</a> 中见过类似的公式，其中任务损失和元学习器更新之间进行两步优化；<a href="posts-2019-05-05-domain-randomization.html">域随机化用于 Sim2Real 转移</a> 也被建模为双层优化以实现更好的真实环境迁移。</blockquote>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/DARTS-illustration.png" alt="">
+          <figcaption>An illustration of how DARTS applies continuous relaxation on edges in DAG supergraph and identifies the final model. (Image source:Liu et al 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\text{Let }w&#x27;_k &amp;= w_k - \xi \nabla_w \mathcal{L}_\text{train}(w_k, \alpha_{k-1}) &amp; \\
+J_\alpha &amp;= \mathcal{L}_\text{val}(w_k - \xi \nabla_w \mathcal{L}_\text{train}(w_k, \alpha_{k-1}), \alpha_{k-1}) = \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1}) &amp; \\
+\nabla_\alpha J_\alpha 
+&amp;= \nabla_{\alpha_{k-1}} \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1}) \nabla_\alpha \alpha_{k-1} + \nabla_{w&#x27;_k} \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1})\nabla_\alpha w&#x27;_k &amp; \\&amp; \text{; multivariable chain rule}\\
+&amp;= \nabla_{\alpha_{k-1}} \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1}) + \nabla_{w&#x27;_k} \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1}) \big( - \xi \color{red}{\nabla^2_{\alpha, w} \mathcal{L}_\text{train}(w_k, \alpha_{k-1})} \big) &amp; \\
+&amp;\approx \nabla_{\alpha_{k-1}} \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1}) - \xi \nabla_{w&#x27;_k} \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1}) \color{red}{\frac{\nabla_\alpha \mathcal{L}_\text{train}(w_k^+, \alpha_{k-1}) - \nabla_\alpha \mathcal{L}_\text{train}(w_k^-, \alpha_{k-1}) }{2\epsilon}} &amp; \\
+&amp; \text{; apply numerical differentiation approximation}
+\end{aligned}
+">
+\begin{aligned}
+\text{Let }w&#x27;_k &amp;= w_k - \xi \nabla_w \mathcal{L}_\text{train}(w_k, \alpha_{k-1}) &amp; \\
+J_\alpha &amp;= \mathcal{L}_\text{val}(w_k - \xi \nabla_w \mathcal{L}_\text{train}(w_k, \alpha_{k-1}), \alpha_{k-1}) = \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1}) &amp; \\
+\nabla_\alpha J_\alpha 
+&amp;= \nabla_{\alpha_{k-1}} \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1}) \nabla_\alpha \alpha_{k-1} + \nabla_{w&#x27;_k} \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1})\nabla_\alpha w&#x27;_k &amp; \\&amp; \text{; multivariable chain rule}\\
+&amp;= \nabla_{\alpha_{k-1}} \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1}) + \nabla_{w&#x27;_k} \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1}) \big( - \xi \color{red}{\nabla^2_{\alpha, w} \mathcal{L}_\text{train}(w_k, \alpha_{k-1})} \big) &amp; \\
+&amp;\approx \nabla_{\alpha_{k-1}} \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1}) - \xi \nabla_{w&#x27;_k} \mathcal{L}_\text{val}(w&#x27;_k, \alpha_{k-1}) \color{red}{\frac{\nabla_\alpha \mathcal{L}_\text{train}(w_k^+, \alpha_{k-1}) - \nabla_\alpha \mathcal{L}_\text{train}(w_k^-, \alpha_{k-1}) }{2\epsilon}} &amp; \\
+&amp; \text{; apply numerical differentiation approximation}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>其中红色部分使用数值微分近似，<span class="math-inline" data-math="w_k^+ = w_k + \epsilon \nabla_{w’_k} \mathcal{L}_\text{val}(w’_k, \alpha_{k-1})">w_k^+ = w_k + \epsilon \nabla_{w’_k} \mathcal{L}_\text{val}(w’_k, \alpha_{k-1})</span> 和 <span class="math-inline" data-math="w_k^- = w_k - \epsilon \nabla_{w’_k} \mathcal{L}_\text{val}(w’_k, \alpha_{k-1})">w_k^- = w_k - \epsilon \nabla_{w’_k} \mathcal{L}_\text{val}(w’_k, \alpha_{k-1})</span>。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/DARTS-algorithm.png" alt="">
+          <figcaption>The algorithm overview of DARTS. (Image source:Liu et al 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>作为与 DARTS 类似的想法，随机 NAS（<a href="https://arxiv.org/abs/1812.09926" target="_blank" rel="noopener">Xie 等, 2019</a>）通过使用 concrete 分布（CONCRETE = CONtinuous relaxations of disCRETE random variables；<a href="https://arxiv.org/abs/1611.00712" target="_blank" rel="noopener">Maddison 等 2017</a>）和重参数化技巧来实现连续松弛。其目标与 DARTS 相同，即让离散分布变得可微，从而支持通过梯度下降进行优化。</p>
+      
+    
+      
+        <p>- TBA：可能后续会补充 SNAS 的更多细节</p>
+      
+    
+      
+        <p>DARTS 能够大幅减少 GPU 小时数。他们搜索 CNN 单元的实验使用了 <span class="math-inline" data-math="N=7">N=7</span>，仅用单个 GPU 花了 1.5 天就完成。然而，由于其对网络架构的连续表示，它存在较高的 GPU 显存消耗问题。为了将模型装入单个 GPU 的显存，他们选择了较小的 <span class="math-inline" data-math="N">N</span>。</p>
+      
+    
+      
+        <p>为了限制 GPU 显存消耗，ProxylessNAS（<a href="https://arxiv.org/abs/1812.00332" target="_blank" rel="noopener">Cai 等, 2019</a>）将 NAS 视为 DAG 中的路径级剪枝过程，并将架构参数二值化，强制两个节点之间每次只有一个路径处于激活状态。通过采样少量二值化架构并使用 BinaryConnect（<a href="https://arxiv.org/abs/1511.00363" target="_blank" rel="noopener">Courbariaux 等, 2015</a>）来更新对应概率，从而学习某条边被屏蔽或激活的概率。ProxylessNAS 展示了 NAS 与模型压缩之间的紧密联系。通过路径级压缩，它能够将显存消耗降低一个数量级。</p>
+      
+    
+      
+        <p>继续使用图表示。在 DAG 邻接矩阵 <span class="math-inline" data-math="G">G</span> 中，<span class="math-inline" data-math="G_{ij}">G_{ij}</span> 表示节点 <span class="math-inline" data-math="i">i</span> 和 <span class="math-inline" data-math="j">j</span> 之间的边，其取值可从 <span class="math-inline" data-math="\vert \mathcal{O} \vert">\vert \mathcal{O} \vert</span> 个候选基本操作集合 <span class="math-inline" data-math="\mathcal{O} = \{ o_1, \dots \}">\mathcal{O} = \{ o_1, \dots \}</span> 中选择。One-Shot 模型、DARTS 和 ProxylessNAS 都将每条边视为操作的混合 <span class="math-inline" data-math="m_\mathcal{O}">m_\mathcal{O}</span>，但采用了不同的技巧。</p>
+      
+    
+      
+        <p>在 One-Shot 中，<span class="math-inline" data-math="m_\mathcal{O}(x)">m_\mathcal{O}(x)</span> 是所有操作之和。在 DARTS 中，它是加权和，权重是对长度为 <span class="math-inline" data-math="\vert \mathcal{O} \vert">\vert \mathcal{O} \vert</span> 的实值架构权重向量 <span class="math-inline" data-math="\alpha">\alpha</span> 进行 softmax 得到的。ProxylessNAS 将 <span class="math-inline" data-math="\alpha">\alpha</span> 的 softmax 概率转换为二值门，并使用二值门每次只保持一个操作处于激活状态。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+m^\text{one-shot}_\mathcal{O}(x) &amp;= \sum_{i=1}^{\vert \mathcal{O} \vert} o_i(x) \\
+m^\text{DARTS}_\mathcal{O}(x) &amp;= \sum_{i=1}^{\vert \mathcal{O} \vert} p_i o_i(x) = \sum_{i=1}^{\vert \mathcal{O} \vert} \frac{\exp(\alpha_i)}{\sum_j \exp(\alpha_j)} o_i(x) \\
+m^\text{binary}_\mathcal{O}(x) &amp;= \sum_{i=1}^{\vert \mathcal{O} \vert} g_i o_i(x) = \begin{cases}
+o_1(x) &amp; \text{with probability }p_1, \\
+\dots &amp;\\
+o_{\vert \mathcal{O} \vert}(x) &amp; \text{with probability }p_{\vert \mathcal{O} \vert}
+\end{cases} \\
+\text{ where } g &amp;= \text{binarize}(p_1, \dots, p_N) = \begin{cases}
+[1, 0, \dots, 0] &amp; \text{with probability }p_1, \\
+\dots &amp; \\
+[0, 0, \dots, 1] &amp; \text{with probability }p_N. \\
+\end{cases}
+\end{aligned}
+">
+\begin{aligned}
+m^\text{one-shot}_\mathcal{O}(x) &amp;= \sum_{i=1}^{\vert \mathcal{O} \vert} o_i(x) \\
+m^\text{DARTS}_\mathcal{O}(x) &amp;= \sum_{i=1}^{\vert \mathcal{O} \vert} p_i o_i(x) = \sum_{i=1}^{\vert \mathcal{O} \vert} \frac{\exp(\alpha_i)}{\sum_j \exp(\alpha_j)} o_i(x) \\
+m^\text{binary}_\mathcal{O}(x) &amp;= \sum_{i=1}^{\vert \mathcal{O} \vert} g_i o_i(x) = \begin{cases}
+o_1(x) &amp; \text{with probability }p_1, \\
+\dots &amp;\\
+o_{\vert \mathcal{O} \vert}(x) &amp; \text{with probability }p_{\vert \mathcal{O} \vert}
+\end{cases} \\
+\text{ where } g &amp;= \text{binarize}(p_1, \dots, p_N) = \begin{cases}
+[1, 0, \dots, 0] &amp; \text{with probability }p_1, \\
+\dots &amp; \\
+[0, 0, \dots, 1] &amp; \text{with probability }p_N. \\
+\end{cases}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/proxylessNAS-training.png" alt="">
+          <figcaption>ProxylessNAS has two training steps running alternatively. (Image source:Cai et al., 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>ProxylessNAS 交替运行两个训练步骤：</p>
+      
+    
+      
+        <div class="list-content">在训练权重参数 <span class="math-inline" data-math="w">w</span> 时，冻结架构参数 <span class="math-inline" data-math="\alpha">\alpha</span>，并根据上述 <span class="math-inline" data-math="m^\text{binary}_\mathcal{O}(x)">m^\text{binary}_\mathcal{O}(x)</span> 随机采样二值门 <span class="math-inline" data-math="g">g</span>。权重参数可以使用标准梯度下降更新。
+在训练架构参数 <span class="math-inline" data-math="\alpha">\alpha</span> 时，冻结 <span class="math-inline" data-math="w">w</span>，重置二值门，然后在验证集上更新 <span class="math-inline" data-math="\alpha">\alpha</span>。遵循 BinaryConnect 的思想，对架构参数的梯度可以使用 <span class="math-inline" data-math="\partial \mathcal{L} / \partial g_i">\partial \mathcal{L} / \partial g_i</span> 近似替代 <span class="math-inline" data-math="\partial \mathcal{L} / \partial p_i">\partial \mathcal{L} / \partial p_i</span> 来估计：</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\frac{\partial \mathcal{L}}{\partial \alpha_i} 
+&amp;= \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial p_j} \frac{\partial p_j}{\partial \alpha_i} 
+\approx \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial g_j} \frac{\partial p_j}{\partial \alpha_i} 
+= \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial g_j} \frac{\partial \frac{e^{\alpha_j}}{\sum_k e^{\alpha_k}}}{\partial \alpha_i} \\
+&amp;= \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial g_j} \frac{\sum_k e^{\alpha_k} (\mathbf{1}_{i=j} e^{\alpha_j}) - e^{\alpha_j} e^{\alpha_i} }{(\sum_k e^{\alpha_k})^2}
+= \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial g_j} p_j (\mathbf{1}_{i=j} -p_i)
+\end{aligned}
+">
+\begin{aligned}
+\frac{\partial \mathcal{L}}{\partial \alpha_i} 
+&amp;= \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial p_j} \frac{\partial p_j}{\partial \alpha_i} 
+\approx \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial g_j} \frac{\partial p_j}{\partial \alpha_i} 
+= \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial g_j} \frac{\partial \frac{e^{\alpha_j}}{\sum_k e^{\alpha_k}}}{\partial \alpha_i} \\
+&amp;= \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial g_j} \frac{\sum_k e^{\alpha_k} (\mathbf{1}_{i=j} e^{\alpha_j}) - e^{\alpha_j} e^{\alpha_i} }{(\sum_k e^{\alpha_k})^2}
+= \sum_{j=1}^{\vert \mathcal{O} \vert} \frac{\partial \mathcal{L}}{\partial g_j} p_j (\mathbf{1}_{i=j} -p_i)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>除了 BinaryConnect，也可以使用 REINFORCE 进行参数更新，目标是最大化奖励，但不需要 RNN 元控制器。</p>
+      
+    
+      
+        <p>计算 <span class="math-inline" data-math="\partial \mathcal{L} / \partial g_i">\partial \mathcal{L} / \partial g_i</span> 需要计算和存储 <span class="math-inline" data-math="o_i(x)">o_i(x)</span>，这需要 <span class="math-inline" data-math="\vert \mathcal{O} \vert">\vert \mathcal{O} \vert</span> 倍的 GPU 显存。为了解决这个问题，他们将从 <span class="math-inline" data-math="N">N</span> 条路径中选择一条的任务分解为多个二元选择任务（直觉：“如果某条路径是最佳选择，它应该优于任何其他路径”）。在每次更新步骤中，只采样两条路径，其余路径被屏蔽。根据上述方程更新这两条选中路径，并进行适当缩放以保证其他路径的权重不变。经过这个过程，一条采样路径被增强（路径权重增加），另一条被削弱（路径权重降低），而所有其他路径保持不变。</p>
+      
+    
+      
+        <p>除了准确率，ProxylessNAS 还将延迟作为重要的优化指标，因为不同设备对推理延迟的要求可能差异很大（例如 GPU、CPU、移动设备）。为了使延迟可微，他们将延迟建模为网络维度的一个连续函数。混合操作的期望延迟可以写为 <span class="math-inline" data-math="\mathbb{E}[\text{latency}] = \sum_j p_j F(o_j)">\mathbb{E}[\text{latency}] = \sum_j p_j F(o_j)</span>，其中 <span class="math-inline" data-math="F(.)">F(.)</span> 是一个延迟预测模型：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/proxylessNAS-latency.png" alt="">
+          <figcaption>Add a differentiable latency loss into the training of ProxylessNAS.  (Image source:Cai et al., 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>未来展望？</h2>
+        
+      
+    
+      
+        <p>到目前为止，我们已经看到了许多关于通过神经架构搜索自动完成网络架构工程的有趣新想法，其中不少取得了令人印象深刻的性能。然而，我们仍然很难推断为什么某些架构表现良好，以及如何开发出能在不同任务之间泛化的模块，而不是高度依赖特定数据集。</p>
+      
+    
+      
+        <p>正如 <a href="https://arxiv.org/abs/1808.05377" target="_blank" rel="noopener">Elsken 等 (2019)</a> 所指出的：</p>
+      
+    
+      
+        <blockquote>“……，迄今为止，它对为什么特定架构表现良好，以及在独立运行中得到的架构之间有多相似提供的信息很少。识别共同的 motif、理解这些 motif 对高性能为何重要，以及研究这些 motif 是否能在不同问题上泛化，将是非常有价值的。”</blockquote>
+      
+    
+      
+        <p>与此同时，单纯关注验证准确率的提升可能还不够（<a href="https://arxiv.org/abs/1812.00332" target="_blank" rel="noopener">Cai 等, 2019</a>）。日常使用的移动设备通常内存和计算能力有限。随着 AI 应用逐渐影响我们的日常生活，不可避免地需要更加考虑设备特性。</p>
+      
+    
+      
+        <p>另一个有趣的研究方向是考虑无标签数据集和  用于 NAS。有标签数据集的规模总是有限的，也难以判断这样的数据集是否存在偏差或与真实世界数据分布有较大差异。<a href="posts-2019-11-10-self-supervised.html">自监督表示学习</a></p>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/2003.12056" target="_blank" rel="noopener">Liu 等 (2020)</a> 深入探讨了“能否在没有人工标注标签的情况下找到高质量神经架构？”的问题，并提出了一种称为无监督神经架构搜索（UnNAS）的新设定。在搜索阶段，需要以无监督的方式估计架构的质量。该论文实验了三种无监督的 ：图像旋转预测、着色以及解决拼图游戏。<a href="posts-2019-11-10-self-supervised.html">自监督表示学习</a></p>
+      
+    
+      
+        <p>他们在 UnNAS 实验中观察到：</p>
+      
+    
+      
+        <div class="list-content">在同一数据集上，有监督准确率与前置任务准确率之间存在较高的秩相关。通常秩相关高于 0.8，与数据集、搜索空间和前置任务无关。
+跨数据集的有监督准确率与前置任务准确率之间也存在较高的秩相关。
+更好的前置任务准确率对应更好的有监督准确率。
+UnNAS 架构的性能与有监督版本相当，虽然目前尚未超越。</div>
+      
+    
+      
+        <p>一个假设是架构质量与图像统计特性相关。因为 CIFAR-10 和 ImageNet 都是自然图像，它们具有可比性，结果可以迁移。UnNAS 有潜力在搜索阶段引入更大量的无标签数据，从而更好地捕捉图像统计特性。</p>
+      
+    
+      
+        <p>超参数搜索是机器学习社区长期存在的话题。而 NAS 自动化了架构工程。我们正逐步尝试自动化机器学习中通常需要大量人力投入的环节。再往前一步，是否有可能自动发现机器学习算法？AutoML-Zero（<a href="https://arxiv.org/abs/2003.03384" target="_blank" rel="noopener">Real 等 2020</a>）研究了这个想法。使用老化进化算法，AutoML-Zero 以很少的形式限制，仅使用简单数学操作作为构建块，自动搜索整个机器学习算法。</p>
+      
+    
+      
+        <p>它学习三个组件函数。每个函数只采用非常基本的操作。</p>
+      
+    
+      
+        <div class="list-content">初始化：初始化记忆变量（权重）。
+学习：修改记忆变量。
+预测：根据输入 <span class="math-inline" data-math="x">x</span> 进行预测。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/AutoML-zero-evaluation.png" alt="">
+          <figcaption>Algorithm evaluation on one task (Image source:Real et al 2020)</figcaption>
+        </figure>
+      
+    
+      
+        <p>在变异父代基因型时考虑三种类型的操作：</p>
+      
+    
+      
+        <div class="list-content">在组件函数的随机位置插入或删除一条随机指令；
+随机化组件函数中的所有指令；
+修改某条指令的一个参数，用随机选择替换它（例如“交换输出地址”或“改变常数的值”）</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2020-08-06-nas/AutoML-zero-progress.png" alt="">
+          <figcaption>An illustration of evolutionary progress on projected binary CIFAR-10 with example code. (Image source:Real et al 2020)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>附录：NAS 论文总结</h2>
+        
+      
+    
+      
+        <div class="table-container"><table class="info">
+<thead>
+<tr>
+<th>Model name</th>
+<th>Search space</th>
+<th>Search algorithms</th>
+<th>Child model evaluation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf">NEAT (2002)</a></td>
+<td>-</td>
+<td>Evolution (Genetic algorithm)</td>
+<td>-</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/1611.01578">NAS (2017)</a></td>
+<td>Sequential layer-wise ops</td>
+<td>RL (REINFORCE)</td>
+<td>Train from scratch until convergence</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/1611.02167">MetaQNN (2017)</a></td>
+<td>Sequential layer-wise ops</td>
+<td>RL (Q-learning with <span class="math-inline" data-math="\epsilon">\epsilon</span>-greedy)</td>
+<td>Train for 20 epochs</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/1711.00436">HNAS (2017)</a></td>
+<td>Hierarchical structure</td>
+<td>Evolution (Tournament selection)</td>
+<td>Train for a fixed number of iterations</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/1707.07012">NASNet (2018)</a></td>
+<td>Cell-based</td>
+<td>RL (PPO)</td>
+<td>Train for 20 epochs</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/1802.01548">AmoebaNet (2018)</a></td>
+<td>NASNet search space</td>
+<td>Evolution (Tournament selection with aging regularization)</td>
+<td>Train for 25 epochs</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/1707.04873">EAS (2018a)</a></td>
+<td>Network transformation</td>
+<td>RL (REINFORCE)</td>
+<td>2-stage training</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/1712.00559">PNAS (2018)</a></td>
+<td>Reduced version of NASNet search space</td>
+<td>SMBO; Progressive search for architectures of increasing complexity</td>
+<td>Train for 20 epochs</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/1802.03268">ENAS (2018)</a></td>
+<td>Both sequential and cell-based search space</td>
+<td>RL (REINFORCE)</td>
+<td>Train one model with shared weights</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/1708.05344">SMASH (2017)</a></td>
+<td>Memory-bank representation</td>
+<td>Random search</td>
+<td>HyperNet predicts weights of evaluated architectures.</td>
+</tr>
+<tr>
+<td><a href="http://proceedings.mlr.press/v80/bender18a.html">One-Shot (2018)</a></td>
+<td>An over-parameterized one-shot model</td>
+<td>Random search (zero out some paths at random)</td>
+<td>Train the one-shot model</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/1806.09055">DARTS (2019)</a></td>
+<td>NASNet search space</td>
+<td colspan="2">Gradient descent (Softmax weights over operations)</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/1812.00332">ProxylessNAS (2019)</a></td>
+<td>Tree structure architecture</td>
+<td colspan="2">Gradient descent (BinaryConnect) or REINFORCE</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/1812.09926">SNAS (2019)</a></td>
+<td>NASNet search space</td>
+<td colspan="2">Gradient descent (concrete distribution)</td>
+</tr>
+</tbody>
+</table></div>
+      
+    
+      
+        <h2>引用</h2>
+        
+      
+    
+      
+        <p>引用格式：</p>
+      
+    
+      
+        <blockquote>Weng, Lilian. (Aug 2020). Neural architecture search. Lil’Log. https://lilianweng.github.io/posts/2020-08-06-nas/.</blockquote>
+      
+    
+      
+        <pre><code>@article{weng2020nas,
+  title   = &quot;Neural Architecture Search&quot;,
+  author  = &quot;Weng, Lilian&quot;,
+  journal = &quot;lilianweng.github.io&quot;,
+  year    = &quot;2020&quot;,
+  month   = &quot;Aug&quot;,
+  url     = &quot;https://lilianweng.github.io/posts/2020-08-06-nas/&quot;
+}
+</code></pre>
+      
+    
+      
+        <h2>参考文献</h2>
+        
+      
+    
+      
+        <p>[1] Thomas Elsken, Jan Hendrik Metzen, Frank Hutter. <a href="https://arxiv.org/abs/1808.05377" target="_blank" rel="noopener">“Neural Architecture Search: A Survey”</a> JMLR 20 (2019) 1-21.</p>
+      
+    
+      
+        <p>[2] Kenneth O. Stanley, et al. <a href="https://www.nature.com/articles/s42256-018-0006-z" target="_blank" rel="noopener">“Designing neural networks through neuroevolution”</a> Nature Machine Intelligence volume 1, pages 24–35 (2019).</p>
+      
+    
+      
+        <p>[3] Kenneth O. Stanley &amp; Risto Miikkulainen. <a href="http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf" target="_blank" rel="noopener">“Evolving Neural Networks through Augmenting Topologies”</a> Evolutionary Computation 10(2): 99-127 (2002).</p>
+      
+    
+      
+        <p>[4] Barret Zoph, Quoc V. Le. <a href="https://arxiv.org/abs/1611.01578" target="_blank" rel="noopener">“Neural architecture search with reinforcement learning”</a> ICLR 2017.</p>
+      
+    
+      
+        <p>[5] Bowen Baker, et al. <a href="https://arxiv.org/abs/1611.02167" target="_blank" rel="noopener">“Designing Neural Network Architectures using Reinforcement Learning”</a> ICLR 2017.</p>
+      
+    
+      
+        <p>[6] Bowen Baker, et al. <a href="https://arxiv.org/abs/1705.10823" target="_blank" rel="noopener">“Accelerating neural architecture search using performance prediction”</a> ICLR Workshop 2018.</p>
+      
+    
+      
+        <p>[7] Barret Zoph, et al. <a href="https://arxiv.org/abs/1707.07012" target="_blank" rel="noopener">“Learning transferable architectures for scalable image recognition”</a> CVPR 2018.</p>
+      
+    
+      
+        <p>[8] Hanxiao Liu, et al. <a href="https://arxiv.org/abs/1711.00436" target="_blank" rel="noopener">“Hierarchical representations for efficient architecture search.”</a> ICLR 2018.</p>
+      
+    
+      
+        <p>[9] Esteban Real, et al. <a href="https://arxiv.org/abs/1802.01548" target="_blank" rel="noopener">“Regularized Evolution for Image Classifier Architecture Search”</a> arXiv:1802.01548 (2018).</p>
+      
+    
+      
+        <p>[10] Han Cai, et al. [“Efficient architecture search by network transformation”] AAAI 2018a.</p>
+      
+    
+      
+        <p>[11] Han Cai, et al. <a href="https://arxiv.org/abs/1806.02639" target="_blank" rel="noopener">“Path-Level Network Transformation for Efficient Architecture Search”</a> ICML 2018b.</p>
+      
+    
+      
+        <p>[12] Han Cai, Ligeng Zhu &amp; Song Han. <a href="https://arxiv.org/abs/1812.00332" target="_blank" rel="noopener">“ProxylessNAS: Direct Neural Architecture Search on Target Task and Hardware”</a> ICLR 2019.</p>
+      
+    
+      
+        <p>[13] Chenxi Liu, et al. <a href="https://arxiv.org/abs/1712.00559" target="_blank" rel="noopener">“Progressive neural architecture search”</a> ECCV 2018.</p>
+      
+    
+      
+        <p>[14] Hieu Pham, et al. <a href="https://arxiv.org/abs/1802.03268" target="_blank" rel="noopener">“Efficient neural architecture search via parameter sharing”</a> ICML 2018.</p>
+      
+    
+      
+        <p>[15] Andrew Brock, et al. <a href="https://arxiv.org/abs/1708.05344" target="_blank" rel="noopener">“SMASH: One-shot model architecture search through hypernetworks.”</a> ICLR 2018.</p>
+      
+    
+      
+        <p>[16] Gabriel Bender, et al. <a href="http://proceedings.mlr.press/v80/bender18a.html" target="_blank" rel="noopener">“Understanding and simplifying one-shot architecture search.”</a> ICML 2018.</p>
+      
+    
+      
+        <p>[17] Hanxiao Liu, Karen Simonyan, Yiming Yang. <a href="https://arxiv.org/abs/1806.09055" target="_blank" rel="noopener">“DARTS: Differentiable Architecture Search”</a> ICLR 2019.</p>
+      
+    
+      
+        <p>[18] Sirui Xie, Hehui Zheng, Chunxiao Liu, Liang Lin. <a href="https://arxiv.org/abs/1812.09926" target="_blank" rel="noopener">“SNAS: Stochastic Neural Architecture Search”</a> ICLR 2019.</p>
+      
+    
+      
+        <p>[19] Chenxi Liu et al. <a href="https://arxiv.org/abs/2003.12056" target="_blank" rel="noopener">“Are Labels Necessary for Neural Architecture Search?”</a> ECCV 2020.</p>
+      
+    
+      
+        <p>[20] Esteban Real, et al. <a href="https://arxiv.org/abs/2003.03384" target="_blank" rel="noopener">“AutoML-Zero: Evolving Machine Learning Algorithms From Scratch”</a> ICML 2020.</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

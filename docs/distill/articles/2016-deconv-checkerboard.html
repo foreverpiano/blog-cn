@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>反卷积与棋盘格伪影 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>反卷积与棋盘格伪影</h1>
+    <div class="meta">
+      2016-10-17 · 
+      <a href="http://distill.pub/2016/deconv-checkerboard" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>Distill</p>
+      
+    
+      
+        <p>关于</p>
+      
+    
+      
+        <p>奖项</p>
+      
+    
+      
+        <p>投稿</p>
+      
+    
+      
+        <p>反卷积与棋盘格伪影</p>
+      
+    
+      
+        <p>Augustus Odena</p>
+      
+    
+      
+        <p>Google Brain</p>
+      
+    
+      
+        <p>Vincent Dumoulin</p>
+      
+    
+      
+        <p>Université de Montréal</p>
+      
+    
+      
+        <p>Chris Olah</p>
+      
+    
+      
+        <p>Google Brain</p>
+      
+    
+      
+        <p>10 月 17 日</p>
+      
+    
+      
+        <p>2016 年</p>
+      
+    
+      
+        <p>引用：</p>
+      
+    
+      
+        <p>Odena 等，2016</p>
+      
+    
+      
+        <p>当我们非常仔细地观察神经网络生成的图像时，经常会看到一种奇怪的棋盘格状伪影。这种现象有些情况下比较明显，但最近的许多模型中都有很大一部分会表现出这种行为。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2016-deconv-checkerboard/im_sample_dcgan.png" alt="">
+          <figcaption>Radford, et al., 2015 [1]</figcaption>
+        </figure>
+      
+    
+      
+        <p>奇怪的是，棋盘格图案在颜色强烈的图像中往往最为突出。这到底是怎么回事？难道神经网络讨厌鲜艳的颜色？实际上，这些伪影的真正成因非常简单，避免它们的方法也同样直接。</p>
+      
+    
+      
+        <h2>反卷积与重叠</h2>
+        
+      
+    
+      
+        <p>当我们让神经网络生成图像时，通常会让它们从低分辨率、高层次的描述开始逐步构建图像。这样网络可以先勾勒出图像的粗略轮廓，再逐步填充细节。</p>
+      
+    
+      
+        <p>为此，我们需要一种从低分辨率图像生成更高分辨率图像的方法。通常采用的是反卷积操作。大致来说，反卷积层允许模型利用小图像中的每一个点，在大图像中“绘制”出一个方块区域。</p>
+      
+    
+      
+        <p>（反卷积有多种解释和不同名称，包括“转置卷积”。本文为简洁起见统一使用“反卷积”一词。关于反卷积的精彩讨论可参见 [5, 6]。）</p>
+      
+    
+      
+        <p>不幸的是，反卷积很容易出现“不均匀重叠”，导致某些位置比其他位置获得更多“绘制”的机会 [7]。特别地，当卷积核大小（输出窗口大小）不能被步长（顶层点之间的间距）整除时，反卷积就会产生不均匀重叠。虽然理论上网络可以通过仔细学习权重来避免这种情况——我们稍后会详细讨论——但实际中神经网络很难完全消除它。</p>
+      
+    
+      
+        <p>这种重叠模式也会在二维空间中形成。两个轴上的不均匀重叠相互乘积，产生一种典型的棋盘格状、幅度变化的图案。</p>
+      
+    
+      
+        <p>事实上，在二维情况下不均匀重叠往往更加严重！因为两种模式相乘，不均匀性被平方了。例如在一维中，步长为 2、核大小为 3 的反卷积会使某些输出的输入数量是其他输出的两倍，而在二维中这个倍数会变成四倍。</p>
+      
+    
+      
+        <p>现在，神经网络在生成图像时通常会使用多层反卷积，迭代地将一系列低分辨率描述构建成更大的图像。虽然这些堆叠的反卷积有可能相互抵消伪影，但它们往往也会相互叠加，在多种尺度上产生伪影。</p>
+      
+    
+      
+        <p>步长为 1 的反卷积——我们经常在成功模型的最后一层看到（例如 [2]）——对于抑制伪影相当有效。它们可以消除那些频率能被其大小整除的伪影，并减弱频率小于其大小的其他伪影。然而，伪影仍然可能泄露出来，正如我们在许多近期模型中所见。</p>
+      
+    
+      
+        <p>除了上面观察到的高频棋盘格状伪影外，早期的反卷积还会产生较低频率的伪影，我们稍后会更详细地探讨。</p>
+      
+    
+      
+        <p>这些伪影在输出不寻常颜色时往往最为明显。由于神经网络层通常带有偏置（一个学习到的加到输出上的值），输出平均颜色相对容易。而颜色（如亮红色）离平均颜色越远，反卷积就需要贡献越大。</p>
+      
+    
+      
+        <h2>重叠与学习</h2>
+        
+      
+    
+      
+        <p>用不均匀重叠来思考这个问题虽然是一个有用的框架，但也相对简化。无论好坏，我们的模型都会为反卷积学习权重。</p>
+      
+    
+      
+        <p>理论上，模型可以学会小心地在不均匀重叠的位置进行写入，使输出均匀平衡。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2016-deconv-checkerboard/upsample_LearnedConvUneven.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>这是一个很难实现的平衡行为，尤其当存在多个通道相互作用时。避免伪影会显著限制可能的滤波器选择，牺牲模型容量。在实践中，神经网络很难学会完全避免这些模式。</p>
+      
+    
+      
+        <p>事实上，不仅具有不均匀重叠的模型没有学会避免这个问题，具有均匀重叠的模型也经常会学到导致类似伪影的核！虽然这不是均匀重叠反卷积的默认行为，但均匀重叠的反卷积也非常容易产生伪影。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2016-deconv-checkerboard/upsample_LearnedConvEven.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>完全避免伪影仍然是对滤波器的重大限制，在实践中这些模型中伪影依然存在，只是似乎没那么严重。（参见 [4]，它使用了步长 2、大小 4 的反卷积作为一个例子。）</p>
+      
+    
+      
+        <p>这里可能有许多因素在起作用。例如，在生成对抗网络（GANs）的情况下，一个问题可能是判别器及其梯度（我们稍后会详细讨论）。但问题的一个很大部分似乎来自反卷积。往好了说，反卷积很脆弱，因为即使仔细选择了尺寸，它也很容易表示出产生伪影的函数。往坏了说，产生伪影是反卷积的默认行为。</p>
+      
+    
+      
+        <p>是否存在另一种上采样方式，对伪影的抵抗力更强呢？</p>
+      
+    
+      
+        <h2>更好的上采样方法</h2>
+        
+      
+    
+      
+        <p>为了避免这些伪影，我们需要一种替代常规反卷积（“转置卷积”）的方法。与反卷积不同，这种上采样方法不应该以产生伪影作为默认行为。理想情况下，它还能更进一步，对这类伪影产生偏置抑制。</p>
+      
+    
+      
+        <p>一种方法是确保使用的核大小能被步长整除，从而避免重叠问题。这等价于“子像素卷积”，这项技术最近在图像超分辨率任务中取得了成功 [8]。然而，虽然这种方法有帮助，但反卷积仍然很容易陷入产生伪影的困境。</p>
+      
+    
+      
+        <p>另一种方法是将上采样到更高分辨率与计算特征的卷积分开。例如，你可以先对图像进行缩放（使用<a href="https://en.wikipedia.org/wiki/Nearest-neighbor_interpolation" target="_blank" rel="noopener">最近邻插值</a>或<a href="https://en.wikipedia.org/wiki/Bilinear_interpolation" target="_blank" rel="noopener">双线性插值</a>），然后再应用卷积层。这看起来是一种自然的方法，在图像超分辨率领域已有类似方法取得了良好效果（例如 [9]）。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2016-deconv-checkerboard/upsample_DeconvTypes.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>反卷积和不同的“缩放后卷积”方法都是线性操作，可以解释为矩阵。这是一种观察它们之间差异的有用方式。反卷积在每个输出窗口都有唯一的条目，而缩放后卷积则隐式地进行了权重绑定，这种绑定能有效抑制高频伪影。</p>
+      
+    
+      
+        <p>我们使用最近邻插值取得了最好的效果，而双线性缩放则较难奏效。这可能只是说明，对于我们的模型，最近邻插值碰巧与针对反卷积优化的超参数配合得很好。也可能暗示了朴素使用双线性插值存在的更复杂问题，即它对高频图像特征的抑制过于强烈。我们并不认为这两种方法就是上采样的最终解决方案，但它们确实能消除棋盘格伪影。</p>
+      
+    
+      
+        <h3>代码实现</h3>
+        
+      
+    
+      
+        <p>在 TensorFlow 中可以很容易地使用 <a href="https://www.tensorflow.org/versions/r0.11/api_docs/python/image.html#resize_images" target="_blank" rel="noopener">tf.image.resize_images()</a> 来实现缩放后卷积层。为了获得最佳效果，在使用 <a href="https://www.tensorflow.org/versions/r0.11/api_docs/python/nn.html#conv2d" target="_blank" rel="noopener">tf.nn.conv2d()</a> 进行卷积之前，应先使用 <a href="https://www.tensorflow.org/versions/r0.11/api_docs/python/array_ops.html#pad" target="_blank" rel="noopener">tf.pad()</a> 来避免边界伪影。</p>
+      
+    
+      
+        <h2>图像生成实验结果</h2>
+        
+      
+    
+      
+        <p>我们的经验是，先进行最近邻缩放再接卷积的方法在各种场景下都表现得非常好。</p>
+      
+    
+      
+        <p>我们发现这种方法特别有帮助的一个场景是生成对抗网络。只需将标准的反卷积层替换为最近邻缩放后接卷积，不同频率的伪影就会消失。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2016-deconv-checkerboard/fix_two_deconv_boat.png" alt="">
+          <figcaption>Deconv in last two layers. Other layers use resize-convolution.Artifacts of frequency 2 and 4.</figcaption>
+        </figure>
+      
+    
+      
+        <p>事实上，在任何训练发生之前，就能看出伪影的差异。如果我们观察生成器用随机权重初始化后产生的图像，已经可以看到这些伪影：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2016-deconv-checkerboard/im_rand_two_0.png" alt="">
+          <figcaption>Deconvolution in last two layers. Artifacts prior to any training.</figcaption>
+        </figure>
+      
+    
+      
+        <p>这表明这些伪影是由这种图像生成方法本身导致的，而非对抗训练的结果。（这也意味着我们可能无需经过漫长的模型训练反馈循环，就能从生成器设计中获得大量有价值的信息。）</p>
+      
+    
+      
+        <p>另一个相信这些伪影并非 GAN 特有的理由是，我们在其他类型的模型中也看到了它们，并且当我们切换到缩放后卷积上采样时，它们同样会消失。例如，考虑实时艺术风格迁移 [10]，其中神经网络被训练来直接生成风格迁移后的图像。我们发现这些模型很容易出现棋盘格伪影（尤其是当损失函数没有明确抵抗它们时）。然而，将反卷积层替换为缩放后卷积层后，伪影就消失了。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2016-deconv-checkerboard/style_artifacts.png" alt="">
+          <figcaption>Using deconvolution.Heavy checkerboard artifacts.</figcaption>
+        </figure>
+      
+    
+      
+        <p>来自 Google Brain 团队的后续论文将在更全面的实验和最先进的结果中展示这项技术的优势。（我们选择将这项技术单独发表，是因为我们认为它值得更详细的讨论，并且它跨越了多篇论文。）</p>
+      
+    
+      
+        <h2>梯度中的伪影</h2>
+        
+      
+    
+      
+        <p>每当我们计算卷积层的梯度时，我们会在反向传播中执行反卷积（转置卷积）。这会导致梯度中出现棋盘格图案，就像我们使用反卷积生成图像时一样。</p>
+      
+    
+      
+        <p>图像模型梯度中存在高频“噪声”这一现象，在特征可视化领域已经广为人知，它是一个重大挑战。特征可视化方法必须以某种方式补偿这种噪声。</p>
+      
+    
+      
+        <p>例如，DeepDream [11] 似乎通过多种方式导致伪影之间产生破坏性干扰，比如同时优化多个特征，以及在多个偏移和尺度上进行优化。特别是，在不同偏移位置进行优化的“抖动”会抵消部分棋盘格伪影。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2016-deconv-checkerboard/deepdream_full_gitter_0x0.png" alt="">
+          <figcaption>DeepDream only applying the neural network to a fixed position.
+Severe artifacts.</figcaption>
+        </figure>
+      
+    
+      
+        <figure>
+          <img src="../images/2016-deconv-checkerboard/deepdream_full_gitter_8x8.png" alt="">
+          <figcaption>DeepDream applying the network to a different position each step.
+Reduced artifacts.</figcaption>
+        </figure>
+      
+    
+      
+        <p>（虽然其中一些伪影是我们标准的棋盘格图案，但另一些则是组织性更差的高频图案。我们认为这些是由最大池化导致的。最大池化与高频伪影的联系之前已在 [12] 中被指出。）</p>
+      
+    
+      
+        <p>特征可视化领域的最新工作（例如 [13]）已经明确认识到并补偿了这些高频梯度分量。人们不禁会想，是否更好的神经网络架构能让这些努力变得不再必要。</p>
+      
+    
+      
+        <p>这些梯度伪影会影响 GAN 吗？如果梯度伪影能影响基于神经网络梯度进行优化的图像（像在特征可视化中那样），那么我们也可以预期它会影响由生成器参数化的图像族，当它们被 GAN 中的判别器优化时。</p>
+      
+    
+      
+        <p>我们发现这种情况在某些情况下确实会发生。当生成器既没有偏好也没有反对棋盘格图案时，判别器中的步长卷积可能会导致它们出现。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2016-deconv-checkerboard/discrim_stride2_0.png" alt="">
+          <figcaption>Discriminator has stride 2 convolution in first layer. Strong frequency 2 artifacts.</figcaption>
+        </figure>
+      
+    
+      
+        <p>这些梯度伪影的更广泛影响目前尚不清楚。一种理解方式是：某些神经元会随机获得其邻居多倍的梯度。等价地说，网络会无缘无故地对输入中的某些像素比其他像素更加关注。这两者听起来都不理想。</p>
+      
+    
+      
+        <p>让某些像素对网络输出的影响远大于其他像素，可能也会放大对抗样本。这是因为导数集中在少量像素上，对这些像素的小扰动可能会产生过大的影响。我们尚未对此进行深入研究。</p>
+      
+    
+      
+        <h2>结论</h2>
+        
+      
+    
+      
+        <p>使用反卷积生成图像的标准方法——尽管它已经取得了许多成功！——仍然存在一些概念上简单的问题，导致生成的图像中出现伪影。使用一种没有这些问题的自然替代方法，能让伪影消失（类似的论证表明，标准的步长卷积层也可能存在问题）。</p>
+      
+    
+      
+        <p>这对我们来说似乎是一个激动人心的机会！它表明，即使在我们似乎已经有了干净工作解决方案的神经网络架构中，仔细思考仍然能发现触手可及的成果。</p>
+      
+    
+      
+        <p>与此同时，我们提供了一个简单易用的解决方案，可以提高许多使用神经网络生成图像的方法的质量。我们期待看到大家用它做些什么，以及它是否能在音频等领域发挥作用——在那里高频伪影会特别成问题。</p>
+      
+    
+      
+        <h3>致谢</h3>
+        
+      
+    
+      
+        <p>我们非常感谢 Shan Carter 对第一个交互式图表的精彩改进、设计建议和编辑品味。我们也非常感谢 David Dohan 为我们提供了判别器中步长卷积导致伪影的例子，以及 Mike Tyka，他最初向我们指出了 DeepDream 中抖动与伪影之间的联系。</p>
+      
+    
+      
+        <p>还要感谢 Luke Vilnis、Jon Shlens、Luke Metz、Alex Mordvintsev 和 Ben Poole 的反馈和鼓励。</p>
+      
+    
+      
+        <p>这项工作得益于 <a href="https://research.google.com/teams/brain/" target="_blank" rel="noopener">Google Brain</a> 团队的支持。Augustus Odena 的工作是在 <a href="https://research.google.com/teams/brain/residency/" target="_blank" rel="noopener">Google Brain Residency Program</a> 期间完成的。Vincent Dumoulin 是在作为实习生访问 Brain 团队期间完成这项工作的。</p>
+      
+    
+      
+        <h3>作者贡献</h3>
+        
+      
+    
+      
+        <p>Augustus 和 Chris 发现了反卷积与伪影之间的联系。Augustus 运行了 GAN 实验。Vincent 运行了艺术风格迁移实验。Chris 运行了 DeepDream 实验，创建了可视化，并撰写了文章的大部分内容。</p>
+      
+    
+      
+        <h3>参考文献</h3>
+        
+      
+    
+      
+        <div class="list-content">Unsupervised representation learning with deep convolutional generative adversarial networks <a href="https://arxiv.org/pdf/1511.06434.pdf" target="_blank" rel="noopener">[PDF]</a>Radford, A., Metz, L. and Chintala, S., 2015. arXiv preprint arXiv:1511.06434. Improved techniques for training gans <a href="https://arxiv.org/pdf/1606.03498.pdf" target="_blank" rel="noopener">[PDF]</a>Salimans, T., Goodfellow, I., Zaremba, W., Cheung, V., Radford, A. and Chen, X., 2016. Advances in Neural Information Processing Systems, pp. 2226—2234. Adversarial Feature Learning <a href="https://arxiv.org/pdf/1605.09782.pdf" target="_blank" rel="noopener">[PDF]</a>Donahue, J., Krahenbuhl, P. and Darrell, T., 2016. arXiv preprint arXiv:1605.09782. Adversarially Learned Inference <a href="https://arxiv.org/pdf/1606.00704.pdf" target="_blank" rel="noopener">[PDF]</a>Dumoulin, V., Belghazi, I., Poole, B., Lamb, A., Arjovsky, M., Mastropietro, O. and Courville, A., 2016. arXiv preprint arXiv:1606.00704. A guide to convolution arithmetic for deep learning <a href="https://arxiv.org/pdf/1603.07285.pdf" target="_blank" rel="noopener">[PDF]</a>Dumoulin, V. and Visin, F., 2016. arXiv preprint arXiv:1603.07285. Is the deconvolution layer the same as a convolutional layer? <a href="https://arxiv.org/pdf/1609.07009.pdf" target="_blank" rel="noopener">[PDF]</a>Shi, W., Caballero, J., Theis, L., Huszar, F., Aitken, A., Ledig, C. and Wang, Z., 2016. arXiv preprint arXiv:1609.07009. Conditional generative adversarial nets for convolutional face generation <a href="http://www.foldl.me/uploads/papers/tr-cgans.pdf" target="_blank" rel="noopener">[PDF]</a>Gauthier, J., 2014. Class Project for Stanford CS231N: Convolutional Neural Networks for Visual Recognition, Winter semester, Vol 2014. Real-time single image and video super-resolution using an efficient sub-pixel convolutional neural network <a href="https://arxiv.org/pdf/1609.05158.pdf" target="_blank" rel="noopener">[PDF]</a>Shi, W., Caballero, J., Huszar, F., Totz, J., Aitken, A.P., Bishop, R., Rueckert, D. and Wang, Z., 2016. Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pp. 1874—1883.  <a href="https://doi.org/10.1109/cvpr.2016.207" target="_blank" rel="noopener">DOI: 10.1109/cvpr.2016.207</a>Image super-resolution using deep convolutional networks <a href="https://arxiv.org/pdf/1501.00092.pdf" target="_blank" rel="noopener">[PDF]</a>Dong, C., Loy, C.C., He, K. and Tang, X., 2014. arXiv preprint arXiv:1501.00092. Perceptual losses for real-time style transfer and super-resolution <a href="https://arxiv.org/pdf/1603.08155.pdf" target="_blank" rel="noopener">[PDF]</a>Johnson, J., Alahi, A. and Fei-Fei, L., 2016. arXiv preprint arXiv:1603.08155. Inceptionism: Going deeper into neural networks <a href="https://research.googleblog.com/2015/06/inceptionism-going-deeper-into-neural.html" target="_blank" rel="noopener">[HTML]</a>Mordvintsev, A., Olah, C. and Tyka, M., 2015. Google Research Blog. Retrieved June, Vol 20. Geodesics of learned representations <a href="https://arxiv.org/pdf/1511.06394.pdf" target="_blank" rel="noopener">[PDF]</a>Henaff, O.J. and Simoncelli, E.P., 2015. arXiv preprint arXiv:1511.06394. DeepDreaming with TensorFlow <a href="https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/tutorials/deepdream/deepdream.ipynb" target="_blank" rel="noopener">[link]</a>Mordvintsev, A., 2016.</div>
+      
+    
+      
+        <h3>更新与更正</h3>
+        
+      
+    
+      
+        <p><a href="https://github.com/distillpub/post--deconv-checkerboard/compare/ee0c32dc45f999dd8b32028bcfe2887560852861...9e00fef4eaa87c3fd604808e673b107861145c53" target="_blank" rel="noopener">查看本文自首次发表以来的所有修改</a>。如果你发现错误或想提出修改建议，请<a href="https://github.com/distillpub/post--deconv-checkerboard/issues/new" target="_blank" rel="noopener">在 GitHub 上创建一个 issue</a>。</p>
+      
+    
+      
+        <h3>引用与重用</h3>
+        
+      
+    
+      
+        <p>图表和文字采用知识共享署名许可协议 <a href="https://creativecommons.org/licenses/by/2.0/" target="_blank" rel="noopener">CC-BY 2.0</a>，除非另有说明，源代码可在 <a href="https://github.com/distillpub/post--deconv-checkerboard" target="_blank" rel="noopener">GitHub</a> 上获取。从其他来源重用的图表不属于此许可协议，可通过其说明文字中的“Figure from …”进行识别。</p>
+      
+    
+      
+        <p>在学术语境下引用本工作时，请按以下方式引用</p>
+      
+    
+      
+        <pre><code>Odena, et al., &quot;Deconvolution and Checkerboard Artifacts&quot;, Distill, 2016. http://doi.org/10.23915/distill.00003</code></pre>
+      
+    
+      
+        <p>BibTeX 引用格式</p>
+      
+    
+      
+        <pre><code>@article{odena2016deconvolution,
+  author = {Odena, Augustus and Dumoulin, Vincent and Olah, Chris},
+  title = {Deconvolution and Checkerboard Artifacts},
+  journal = {Distill},
+  year = {2016},
+  url = {http://distill.pub/2016/deconv-checkerboard},
+  doi = {10.23915/distill.00003}
+}</code></pre>
+      
+    
+      
+        <p>Unsupervised representation learning with deep convolutional generative adversarial networks</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>A. Radford, L. Metz, S. Chintala.</p>
+      
+    
+      
+        <p>arXiv preprint arXiv:1511.06434. 2015.</p>
+      
+    
+      
+        <p>Improved techniques for training gans</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>T. Salimans, I. Goodfellow, W. Zaremba, V. Cheung, A. Radford, X. Chen.</p>
+      
+    
+      
+        <p>Advances in Neural Information Processing Systems, pp. 2226—2234. 2016.</p>
+      
+    
+      
+        <p>Adversarial Feature Learning</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>J. Donahue, P. Krahenbuhl, T. Darrell.</p>
+      
+    
+      
+        <p>arXiv preprint arXiv:1605.09782. 2016.</p>
+      
+    
+      
+        <p>Adversarially Learned Inference</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>V. Dumoulin, I. Belghazi, B. Poole, A. Lamb, M. Arjovsky, O. Mastropietro, A. Courville.</p>
+      
+    
+      
+        <p>arXiv preprint arXiv:1606.00704. 2016.</p>
+      
+    
+      
+        <p>A guide to convolution arithmetic for deep learning</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>V. Dumoulin, F. Visin.</p>
+      
+    
+      
+        <p>arXiv preprint arXiv:1603.07285. 2016.</p>
+      
+    
+      
+        <p>Is the deconvolution layer the same as a convolutional layer?</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>W. Shi, J. Caballero, L. Theis, F. Huszar, A. Aitken, C. Ledig, Z. Wang.</p>
+      
+    
+      
+        <p>arXiv preprint arXiv:1609.07009. 2016.</p>
+      
+    
+      
+        <p>Conditional generative adversarial nets for convolutional face generation</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>J. Gauthier.</p>
+      
+    
+      
+        <p>Class Project for Stanford CS231N: Convolutional Neural Networks for Visual Recognition, Winter semester, Vol 2014. 2014.</p>
+      
+    
+      
+        <p>Improved techniques for training gans</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>T. Salimans, I. Goodfellow, W. Zaremba, V. Cheung, A. Radford, X. Chen.</p>
+      
+    
+      
+        <p>Advances in Neural Information Processing Systems, pp. 2226—2234. 2016.</p>
+      
+    
+      
+        <p>Adversarially Learned Inference</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>V. Dumoulin, I. Belghazi, B. Poole, A. Lamb, M. Arjovsky, O. Mastropietro, A. Courville.</p>
+      
+    
+      
+        <p>arXiv preprint arXiv:1606.00704. 2016.</p>
+      
+    
+      
+        <p>Real-time single image and video super-resolution using an efficient sub-pixel convolutional neural network</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>W. Shi, J. Caballero, F. Huszar, J. Totz, A.P. Aitken, R. Bishop, D. Rueckert, Z. Wang.</p>
+      
+    
+      
+        <p>Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pp. 1874—1883. 2016.</p>
+      
+    
+      
+        <p>DOI: 10.1109/cvpr.2016.207</p>
+      
+    
+      
+        <p>Image super-resolution using deep convolutional networks</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>C. Dong, C.C. Loy, K. He, X. Tang.</p>
+      
+    
+      
+        <p>arXiv preprint arXiv:1501.00092. 2014.</p>
+      
+    
+      
+        <p>Perceptual losses for real-time style transfer and super-resolution</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>J. Johnson, A. Alahi, L. Fei-Fei.</p>
+      
+    
+      
+        <p>arXiv preprint arXiv:1603.08155. 2016.</p>
+      
+    
+      
+        <p>Inceptionism: Going deeper into neural networks</p>
+      
+    
+      
+        <p>[HTML]</p>
+      
+    
+      
+        <p>A. Mordvintsev, C. Olah, M. Tyka.</p>
+      
+    
+      
+        <p>Google Research Blog. Retrieved June, Vol 20. 2015.</p>
+      
+    
+      
+        <p>Geodesics of learned representations</p>
+      
+    
+      
+        <p>[PDF]</p>
+      
+    
+      
+        <p>O.J. Henaff, E.P. Simoncelli.</p>
+      
+    
+      
+        <p>arXiv preprint arXiv:1511.06394. 2015.</p>
+      
+    
+      
+        <p>DeepDreaming with TensorFlow</p>
+      
+    
+      
+        <p>[link]</p>
+      
+    
+      
+        <p>A. Mordvintsev.  2016.</p>
+      
+    
+      
+        <p>Distill</p>
+      
+    
+      
+        <p>致力于提供清晰的机器学习解释</p>
+      
+    
+      
+        <p>关于</p>
+      
+    
+      
+        <p>投稿</p>
+      
+    
+      
+        <p>奖项</p>
+      
+    
+      
+        <p>归档</p>
+      
+    
+      
+        <p>RSS</p>
+      
+    
+      
+        <p>GitHub</p>
+      
+    
+      
+        <p>Twitter</p>
+      
+    
+      
+        <p>ISSN 2476-0757</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

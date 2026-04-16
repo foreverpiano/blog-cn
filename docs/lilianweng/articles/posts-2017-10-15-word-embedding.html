@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>学习词嵌入 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>学习词嵌入</h1>
+    <div class="meta">
+      2017-10-15 · 
+      <a href="https://lilianweng.github.io/posts/2017-10-15-word-embedding/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">基于计数的向量空间模型
+
+基于上下文：Skip-Gram 模型
+
+基于上下文：连续词袋模型（CBOW）
+
+损失函数
+
+Full Softmax
+
+Hierarchical Softmax
+
+Cross Entropy
+
+噪声对比估计（NCE）
+
+负采样（NEG）
+
+学习词嵌入的其他技巧
+
+GloVe：全局向量
+
+示例：在《权力的游戏》上应用 word2vec
+
+参考文献</div>
+      
+    
+      
+        <p>词嵌入是将单词表示为稠密数值向量的一种方式。它可以通过多种语言模型来学习。这种词嵌入表示能够揭示单词之间许多隐藏的关系。例如，vector(&quot;cat&quot;) - vector(&quot;kitten&quot;) 与 vector(&quot;dog&quot;) - vector(&quot;puppy&quot;) 非常相似。本文将介绍几种学习词嵌入的模型，以及它们如何针对特定目标设计损失函数。</p>
+      
+    
+      
+        <p>人类的词汇以自由文本形式出现。为了让机器学习模型能够理解和处理自然语言，我们需要将这些自由文本单词转换为数值形式。最简单的转换方法之一是采用 one-hot 编码，其中每个不同的单词对应结果向量中的一个维度，用二进制值 1 或 0 表示该单词是否出现。</p>
+      
+    
+      
+        <p>然而，当面对整个词汇表时，one-hot 编码在计算上并不实用，因为它需要成百上千维的表示。词嵌入则用维度更低且更为稠密的数值向量（非二进制）来表示单词和短语。一个好的词嵌入应能近似反映单词之间的相似性（例如“cat”和“kitten”是相似词，因此在降维后的向量空间中它们应该距离较近），或者揭示隐藏的语义关系（例如“cat”与“kitten”的关系类似于“dog”与“puppy”）。上下文信息对于学习单词含义和关系非常有用，因为相似词往往会出现在相似的语境中。</p>
+      
+    
+      
+        <p>学习词嵌入主要有两种方法，它们都依赖于上下文知识。</p>
+      
+    
+      
+        <div class="list-content">基于计数：第一种是无监督方法，基于全局共现矩阵的矩阵分解。由于原始共现计数效果不佳，我们需要在它之上进行巧妙处理。
+基于上下文：第二种是监督方法。给定局部上下文，我们希望设计一个模型来预测目标词，同时让模型学会高效的词嵌入表示。</div>
+      
+    
+      
+        <h2>基于计数的向量空间模型</h2>
+        
+      
+    
+      
+        <p>基于计数的向量空间模型高度依赖单词频率和共现矩阵，其假设是出现在相同上下文中的词具有相似或相关的语义含义。这些模型将邻近词之间的共现等基于计数的统计信息映射到小而稠密的词向量上。PCA、主题模型和神经概率语言模型都是这类方法的典型代表。</p>
+      
+    
+      
+        <p>与基于计数的方法不同，基于上下文的方法会构建预测模型，直接以预测给定邻近词的目标词为目标。稠密的词向量是模型参数的一部分。每个单词的最佳向量表示是在模型训练过程中学习得到的。</p>
+      
+    
+      
+        <h2>基于上下文：Skip-Gram 模型</h2>
+        
+      
+    
+      
+        <p>假设你有一个固定大小的滑动窗口沿着句子移动：位于中间的词是“目标词”，窗口内其左右两侧的词是上下文词。Skip-Gram 模型（<a href="https://arxiv.org/pdf/1301.3781.pdf" target="_blank" rel="noopener">Mikolov et al., 2013</a>）被训练来预测给定目标词时某个词成为其上下文词的概率。</p>
+      
+    
+      
+        <p>以下示例展示了一个 5 词窗口沿句子滑动后产生的多对目标词-上下文词训练样本。</p>
+      
+    
+      
+        <blockquote>“The man who passes the sentence should swing the sword.” – Ned Stark</blockquote>
+      
+    
+      
+        <div class="table-container"><table>
+<thead>
+<tr>
+<th>Sliding window (size = 5)</th>
+<th>Target word</th>
+<th>Context</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>[The man who]</td>
+<td>the</td>
+<td>man, who</td>
+</tr>
+<tr>
+<td>[The man who passes]</td>
+<td>man</td>
+<td>the, who, passes</td>
+</tr>
+<tr>
+<td>[The man who passes the]</td>
+<td>who</td>
+<td>the, man, passes, the</td>
+</tr>
+<tr>
+<td>[man who passes the sentence]</td>
+<td>passes</td>
+<td>man, who, the, sentence</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+<tr>
+<td>[sentence should swing the sword]</td>
+<td>swing</td>
+<td>sentence, should, the, sword</td>
+</tr>
+<tr>
+<td>[should swing the sword]</td>
+<td>the</td>
+<td>should, swing, sword</td>
+</tr>
+<tr>
+<td>[swing the sword]</td>
+<td>sword</td>
+<td>swing, the</td>
+</tr>
+<tr>
+<td>{:.info}</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+      
+    
+      
+        <p>每个上下文-目标词对都被视为数据集中的一个新观测。例如，上例中的目标词“swing”会产生四个训练样本：(“swing”, “sentence”)、(“swing”, “should”)、(“swing”, “the”) 和 (“swing”, “sword”)。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-10-15-word-embedding/word2vec-skip-gram.png" alt="">
+          <figcaption>The skip-gram model. Both the input vector <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> and the output <span class="math-inline" data-math="\mathbf{y}">\mathbf{y}</span> are one-hot encoded word representations. The hidden layer is the word embedding of size <span class="math-inline" data-math="N">N</span>.</figcaption>
+        </figure>
+      
+    
+      
+        <p>给定词汇表大小 <span class="math-inline" data-math="V">V</span>，我们将学习维度为 <span class="math-inline" data-math="N">N</span> 的词嵌入向量。该模型每次用一个目标词（输入）来预测一个上下文词（输出）。</p>
+      
+    
+      
+        <p>根据图 1，</p>
+      
+    
+      
+        <div class="list-content">输入词 <span class="math-inline" data-math="w_i">w_i</span> 和输出词 <span class="math-inline" data-math="w_j">w_j</span> 都被 one-hot 编码为维度为 <span class="math-inline" data-math="V">V</span> 的二进制向量 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 和 <span class="math-inline" data-math="\mathbf{y}">\mathbf{y}</span>。
+首先，二进制向量 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 与大小为 <span class="math-inline" data-math="V \times N">V \times N</span> 的词嵌入矩阵 <span class="math-inline" data-math="W">W</span> 相乘，得到输入词的嵌入向量 <span class="math-inline" data-math="w_i">w_i</span>，即矩阵 <span class="math-inline" data-math="W">W</span> 的第 i 行。
+这个新得到的维度为 <span class="math-inline" data-math="N">N</span> 的嵌入向量构成隐藏层。
+隐藏层与大小为 <span class="math-inline" data-math="N \times V">N \times V</span> 的上下文矩阵 <span class="math-inline" data-math="W’">W’</span> 相乘，得到输出 one-hot 编码向量 <span class="math-inline" data-math="\mathbf{y}">\mathbf{y}</span>。
+输出上下文矩阵 <span class="math-inline" data-math="W’">W’</span> 编码的是单词作为上下文时的含义，与嵌入矩阵 <span class="math-inline" data-math="W">W</span> 不同。注意：尽管名称相似，<span class="math-inline" data-math="W’">W’</span> 与 <span class="math-inline" data-math="W">W</span> 是相互独立的，既不是转置也不是逆矩阵或其他关系。</div>
+      
+    
+      
+        <h2>基于上下文：连续词袋模型（CBOW）</h2>
+        
+      
+    
+      
+        <p>连续词袋模型（CBOW）是另一种用于学习词向量的相似模型。它根据上下文词（例如“sentence should the sword”）来预测目标词（例如“swing”）。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-10-15-word-embedding/word2vec-cbow.png" alt="">
+          <figcaption>The CBOW model. Word vectors of multiple context words are averaged to get a fixed-length vector as in the hidden layer. Other symbols have the same meanings as in Fig 1.</figcaption>
+        </figure>
+      
+    
+      
+        <p>由于存在多个上下文词，我们将它们对应的词向量（通过输入向量与矩阵 <span class="math-inline" data-math="W">W</span> 相乘得到）取平均。由于平均操作会平滑掉大量分布信息，有些人认为 CBOW 模型更适合小规模数据集。</p>
+      
+    
+      
+        <h2>损失函数</h2>
+        
+      
+    
+      
+        <p>Skip-Gram 模型和 CBOW 模型都应当被训练以最小化设计良好的损失/目标函数。我们可以使用几种损失函数来训练这些语言模型。在下面的讨论中，我们将以 Skip-Gram 模型为例来说明如何计算损失。</p>
+      
+    
+      
+        <h2>Full Softmax</h2>
+        
+      
+    
+      
+        <p>Skip-Gram 模型通过矩阵 <span class="math-inline" data-math="W">W</span> 定义每个词的嵌入向量，通过输出矩阵 <span class="math-inline" data-math="W’">W’</span> 定义上下文向量。给定输入词 <span class="math-inline" data-math="w_I">w_I</span>，我们将其在 <span class="math-inline" data-math="W">W</span> 中对应的行记为向量 <span class="math-inline" data-math="v_{w_I}">v_{w_I}</span>（嵌入向量），在 <span class="math-inline" data-math="W’">W’</span> 中对应的列记为 <span class="math-inline" data-math="v’_{w_I}">v’_{w_I}</span>（上下文向量）。最终输出层使用 softmax 计算在给定 <span class="math-inline" data-math="w_I">w_I</span> 时预测输出词 <span class="math-inline" data-math="w_O">w_O</span> 的概率，因此：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+p(w_O \vert w_I) = \frac{\exp({v&#x27;_{w_O}}^{\top} v_{w_I})}{\sum_{i=1}^V \exp({v&#x27;_{w_i}}^{\top} v_{w_I})}
+">
+p(w_O \vert w_I) = \frac{\exp({v&#x27;_{w_O}}^{\top} v_{w_I})}{\sum_{i=1}^V \exp({v&#x27;_{w_i}}^{\top} v_{w_I})}
+</span></div>
+      
+    
+      
+        <p>上述公式在理论上是精确的。然而，当 <span class="math-inline" data-math="V">V</span> 极大时，每次对每个样本都遍历所有单词来计算分母在计算上是不现实的。对更高效的条件概率估计方法的需求催生了分层 softmax 等新技术。</p>
+      
+    
+      
+        <h2>Hierarchical Softmax</h2>
+        
+      
+    
+      
+        <p>Morin 和 Bengio（<a href="https://www.iro.umontreal.ca/~lisa/pointeurs/hierarchical-nnlm-aistats05.pdf" target="_blank" rel="noopener">2005</a>）提出分层 softmax，利用二叉树结构加速求和计算。分层 softmax 将语言模型的输出 softmax 层编码成树状层次结构，每个叶节点代表一个单词，每个内部节点代表其子节点的相对概率。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-10-15-word-embedding/word2vec-hierarchical-softmax.png" alt="">
+          <figcaption>An illustration of the hierarchical softmax binary tree. The leaf nodes in white are words in the vocabulary. The gray inner nodes carry information on the probabilities of reaching its child nodes. One path starting from the root to the leaf <span class="math-inline" data-math="w\_i">w\_i</span>. <span class="math-inline" data-math="n(w\_i, j)">n(w\_i, j)</span> denotes the j-th node on this path. (Image source:word2vec Parameter Learning Explained)</figcaption>
+        </figure>
+      
+    
+      
+        <p>每个词 <span class="math-inline" data-math="w_i">w_i</span> 都有一条从根节点到对应叶节点的唯一路径。选择该词的概率等价于沿着这条路径从根节点遍历树枝的概率。由于我们知道内部节点 <span class="math-inline" data-math="n">n</span> 的嵌入向量 <span class="math-inline" data-math="v_n">v_n</span>，得到该词的概率可以通过在每个内部节点处选择左转或右转的概率乘积来计算。</p>
+      
+    
+      
+        <p>根据图 3，某个节点的概率为（<span class="math-inline" data-math="\sigma">\sigma</span> 是 sigmoid 函数）：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align}
+p(\text{turn right} \to \dots w_I \vert n) &amp;= \sigma({v&#x27;_n}^{\top} v_{w_I})\\
+p(\text{turn left } \to \dots w_I \vert n) &amp;= 1 - p(\text{turn right} \vert n) = \sigma(-{v&#x27;_n}^{\top} v_{w_I})
+\end{align}
+">
+\begin{align}
+p(\text{turn right} \to \dots w_I \vert n) &amp;= \sigma({v&#x27;_n}^{\top} v_{w_I})\\
+p(\text{turn left } \to \dots w_I \vert n) &amp;= 1 - p(\text{turn right} \vert n) = \sigma(-{v&#x27;_n}^{\top} v_{w_I})
+\end{align}
+</span></div>
+      
+    
+      
+        <p>给定输入词 <span class="math-inline" data-math="w_I">w_I</span> 得到上下文词 <span class="math-inline" data-math="w_O">w_O</span> 的最终概率为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+p(w_O \vert w_I) = \prod_{k=1}^{L(w_O)} \sigma(\mathbb{I}_{\text{turn}}(n(w_O, k), n(w_O, k+1)) \cdot {v&#x27;_{n(w_O, k)}}^{\top} v_{w_I})
+">
+p(w_O \vert w_I) = \prod_{k=1}^{L(w_O)} \sigma(\mathbb{I}_{\text{turn}}(n(w_O, k), n(w_O, k+1)) \cdot {v&#x27;_{n(w_O, k)}}^{\top} v_{w_I})
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="L(w_O)">L(w_O)</span> 是通往单词 <span class="math-inline" data-math="w_O">w_O</span> 的路径深度，<span class="math-inline" data-math="\mathbb{I}_{\text{turn}}">\mathbb{I}_{\text{turn}}</span> 是一个特殊的指示函数，如果 <span class="math-inline" data-math="n(w_O, k+1)">n(w_O, k+1)</span> 是 <span class="math-inline" data-math="n(w_O, k)">n(w_O, k)</span> 的左子节点则返回 1，否则返回 -1。内部节点的嵌入向量是在模型训练过程中学习的。树状结构将分母估计的复杂度从 O(V)（词汇表大小）大幅降低到 O(log V)（树深度）。然而，在预测阶段，我们仍然需要计算每个单词的概率并选择最佳结果，因为我们无法提前知道要到达哪个叶节点。</p>
+      
+    
+      
+        <p>一个好的树结构对模型性能至关重要。一些实用的原则包括：像 Huffman 树那样按词频分组以获得简单加速；将相似词分组到相同或相邻的分支中（例如使用预定义的词聚类或 WordNet）。</p>
+      
+    
+      
+        <p>Morin 和 Bengio 使用 WordNet 中的同义词集作为树的聚类。Mnih 和 Hinton 则使用聚类算法递归地将单词划分为两个簇来学习树结构。</p>
+      
+    
+      
+        <h2>Cross Entropy</h2>
+        
+      
+    
+      
+        <p>另一种方法完全避开了 softmax 框架。损失函数直接衡量预测概率 <span class="math-inline" data-math="p">p</span> 与真实二值标签 <span class="math-inline" data-math="\mathbf{y}">\mathbf{y}</span> 之间的交叉熵。</p>
+      
+    
+      
+        <p>首先回忆两个分布 <span class="math-inline" data-math="p">p</span> 和 <span class="math-inline" data-math="q">q</span> 之间的交叉熵定义为 <span class="math-inline" data-math=" H(p, q) = -\sum_x p(x) \log q(x) "> H(p, q) = -\sum_x p(x) \log q(x) </span>。在本例中，只有当 <span class="math-inline" data-math="w_i">w_i</span> 是输出词时真实标签 <span class="math-inline" data-math="y_i">y_i</span> 才为 1，否则为 0。具有参数配置 <span class="math-inline" data-math="\theta">\theta</span> 的模型的损失函数 <span class="math-inline" data-math="\mathcal{L}_\theta">\mathcal{L}_\theta</span> 旨在最小化预测值与真实值之间的交叉熵，因为较低的交叉熵意味着两个分布的高度相似性。<span class="math-inline" data-math="y_j">y_j</span></p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}_\theta = - \sum_{i=1}^V y_i \log p(w_i | w_I) = - \log p(w_O \vert w_I)
+">
+\mathcal{L}_\theta = - \sum_{i=1}^V y_i \log p(w_i | w_I) = - \log p(w_O \vert w_I)
+</span></div>
+      
+    
+      
+        <p>回忆可得，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+p(w_O \vert w_I) = \frac{\exp({v&#x27;_{w_O}}^{\top} v_{w_I})}{\sum_{i=1}^V \exp({v&#x27;_{w_i}}^{\top} v_{w_I})}
+">
+p(w_O \vert w_I) = \frac{\exp({v&#x27;_{w_O}}^{\top} v_{w_I})}{\sum_{i=1}^V \exp({v&#x27;_{w_i}}^{\top} v_{w_I})}
+</span></div>
+      
+    
+      
+        <p>因此，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}_{\theta} 
+= - \log \frac{\exp({v&#x27;_{w_O}}^{\top}{v_{w_I}})}{\sum_{i=1}^V \exp({v&#x27;_{w_i}}^{\top}{v_{w_I} })}
+= - {v&#x27;_{w_O}}^{\top}{v_{w_I} } + \log \sum_{i=1}^V \exp({v&#x27;_{w_i} }^{\top}{v_{w_I}})
+">
+\mathcal{L}_{\theta} 
+= - \log \frac{\exp({v&#x27;_{w_O}}^{\top}{v_{w_I}})}{\sum_{i=1}^V \exp({v&#x27;_{w_i}}^{\top}{v_{w_I} })}
+= - {v&#x27;_{w_O}}^{\top}{v_{w_I} } + \log \sum_{i=1}^V \exp({v&#x27;_{w_i} }^{\top}{v_{w_I}})
+</span></div>
+      
+    
+      
+        <p>为了使用带动量的随机梯度下降（SGD）通过反向传播训练模型，我们需要计算损失函数的梯度。为简化起见，令 <span class="math-inline" data-math="z_{IO} = {v’_{w_O}}^{\top}{v_{w_I}}">z_{IO} = {v’_{w_O}}^{\top}{v_{w_I}}</span>。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align}
+\nabla_\theta \mathcal{L}_{\theta}
+&amp;= \nabla_\theta\big( - z_{IO} + \log \sum_{i=1}^V e^{z_{Ii}} \big) \\ 
+&amp;= - \nabla_\theta z_{IO} + \nabla_\theta \big( \log \sum_{i=1}^V e^{z_{Ii}} \big) \\
+&amp;= - \nabla_\theta z_{IO} + \frac{1}{\sum_{i=1}^V e^{z_{Ii}}} \sum_{i=1}^V e^{z_{Ii}} \nabla_\theta z_{Ii} \\
+&amp;= - \nabla_\theta z_{IO} + \sum_{i=1}^V \frac{e^{z_{Ii}}}{\sum_{i=1}^V e^{z_{Ii}}} \nabla_\theta z_{Ii} \\
+&amp;= - \nabla_\theta z_{IO} + \sum_{i=1}^V p(w_i \vert w_I) \nabla_\theta z_{Ii} \\
+&amp;= - \nabla_\theta z_{IO} + \mathbb{E}_{w_i \sim Q(\tilde{w})} \nabla_\theta z_{Ii}
+\end{align}
+">
+\begin{align}
+\nabla_\theta \mathcal{L}_{\theta}
+&amp;= \nabla_\theta\big( - z_{IO} + \log \sum_{i=1}^V e^{z_{Ii}} \big) \\ 
+&amp;= - \nabla_\theta z_{IO} + \nabla_\theta \big( \log \sum_{i=1}^V e^{z_{Ii}} \big) \\
+&amp;= - \nabla_\theta z_{IO} + \frac{1}{\sum_{i=1}^V e^{z_{Ii}}} \sum_{i=1}^V e^{z_{Ii}} \nabla_\theta z_{Ii} \\
+&amp;= - \nabla_\theta z_{IO} + \sum_{i=1}^V \frac{e^{z_{Ii}}}{\sum_{i=1}^V e^{z_{Ii}}} \nabla_\theta z_{Ii} \\
+&amp;= - \nabla_\theta z_{IO} + \sum_{i=1}^V p(w_i \vert w_I) \nabla_\theta z_{Ii} \\
+&amp;= - \nabla_\theta z_{IO} + \mathbb{E}_{w_i \sim Q(\tilde{w})} \nabla_\theta z_{Ii}
+\end{align}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="Q(\tilde{w})">Q(\tilde{w})</span> 是噪声样本的分布。</p>
+      
+    
+      
+        <p>根据上述公式，正确输出词通过第一项获得正向强化（<span class="math-inline" data-math="\nabla_\theta z_{IO}">\nabla_\theta z_{IO}</span> 越大，损失越小），而其他词则通过第二项产生负面影响。</p>
+      
+    
+      
+        <p>如何用一组噪声词样本来估计 <span class="math-inline" data-math="\mathbb{E}_{w_i \sim Q(\tilde{w})} \nabla_\theta {v’_{w_i}}^{\top}{v_{w_I}}">\mathbb{E}_{w_i \sim Q(\tilde{w})} \nabla_\theta {v’_{w_i}}^{\top}{v_{w_I}}</span>，而不是扫描整个词汇表，是使用基于交叉熵的采样方法的关键。</p>
+      
+    
+      
+        <h2>噪声对比估计（NCE）</h2>
+        
+      
+    
+      
+        <p>噪声对比估计（NCE）指标旨在使用逻辑回归分类器来区分目标词与噪声样本（<a href="http://proceedings.mlr.press/v9/gutmann10a/gutmann10a.pdf" target="_blank" rel="noopener">Gutmann and Hyvärinen, 2010</a>）。</p>
+      
+    
+      
+        <p>给定输入词 <span class="math-inline" data-math="w_I">w_I</span>，已知正确的输出词为 <span class="math-inline" data-math="w">w</span>。同时，我们从噪声样本分布 <span class="math-inline" data-math="Q">Q</span> 中采样 <span class="math-inline" data-math="N">N</span> 个其他词，记为 <span class="math-inline" data-math="\tilde{w}_1, \tilde{w}_2, \dots, \tilde{w}_N \sim Q">\tilde{w}_1, \tilde{w}_2, \dots, \tilde{w}_N \sim Q</span>。我们将二分类器的决策记为 <span class="math-inline" data-math="d">d</span>，$d$ 只能取二值。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}_\theta = - [ \log p(d=1 \vert w, w_I) + \sum_{i=1, \tilde{w}_i \sim Q}^N \log p(d=0|\tilde{w}_i, w_I) ]
+">
+\mathcal{L}_\theta = - [ \log p(d=1 \vert w, w_I) + \sum_{i=1, \tilde{w}_i \sim Q}^N \log p(d=0|\tilde{w}_i, w_I) ]
+</span></div>
+      
+    
+      
+        <p>当 <span class="math-inline" data-math="N">N</span> 足够大时，根据<a href="https://en.wikipedia.org/wiki/Law_of_large_numbers" target="_blank" rel="noopener">大数定律</a>，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}_\theta = - [ \log p(d=1 \vert w, w_I) +  N\mathbb{E}_{\tilde{w}_i \sim Q} \log p(d=0|\tilde{w}_i, w_I)]
+">
+\mathcal{L}_\theta = - [ \log p(d=1 \vert w, w_I) +  N\mathbb{E}_{\tilde{w}_i \sim Q} \log p(d=0|\tilde{w}_i, w_I)]
+</span></div>
+      
+    
+      
+        <p>要计算概率 <span class="math-inline" data-math="p(d=1 \vert w, w_I)">p(d=1 \vert w, w_I)</span>，我们可以从联合概率 <span class="math-inline" data-math="p(d, w \vert w_I)">p(d, w \vert w_I)</span> 开始。在 <span class="math-inline" data-math="w, \tilde{w}_1, \tilde{w}_2, \dots, \tilde{w}_N">w, \tilde{w}_1, \tilde{w}_2, \dots, \tilde{w}_N</span> 中，我们有 1/(N+1) 的概率选中真实词 <span class="math-inline" data-math="w">w</span>，它是从条件概率 <span class="math-inline" data-math="p(w \vert w_I)">p(w \vert w_I)</span> 中采样的；同时我们有 N/(N+1) 的概率选中噪声词，每个都来自 <span class="math-inline" data-math="q(\tilde{w}) \sim Q">q(\tilde{w}) \sim Q</span>。因此，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+p(d, w | w_I) = 
+  \begin{cases}
+  \frac{1}{N+1} p(w \vert w_I) &amp; \text{if } d=1 \\
+  \frac{N}{N+1} q(\tilde{w}) &amp; \text{if } d=0
+  \end{cases}
+">
+p(d, w | w_I) = 
+  \begin{cases}
+  \frac{1}{N+1} p(w \vert w_I) &amp; \text{if } d=1 \\
+  \frac{N}{N+1} q(\tilde{w}) &amp; \text{if } d=0
+  \end{cases}
+</span></div>
+      
+    
+      
+        <p>然后我们可以得出 <span class="math-inline" data-math="p(d=1 \vert w, w_I)">p(d=1 \vert w, w_I)</span> 和 <span class="math-inline" data-math="p(d=0 \vert w, w_I)">p(d=0 \vert w, w_I)</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align}
+p(d=1 \vert w, w_I) 
+&amp;= \frac{p(d=1, w \vert w_I)}{p(d=1, w \vert w_I) + p(d=0, w \vert w_I)}
+&amp;= \frac{p(w \vert w_I)}{p(w \vert w_I) + Nq(\tilde{w})}
+\end{align}
+">
+\begin{align}
+p(d=1 \vert w, w_I) 
+&amp;= \frac{p(d=1, w \vert w_I)}{p(d=1, w \vert w_I) + p(d=0, w \vert w_I)}
+&amp;= \frac{p(w \vert w_I)}{p(w \vert w_I) + Nq(\tilde{w})}
+\end{align}
+</span></div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align}
+p(d=0 \vert w, w_I) 
+&amp;= \frac{p(d=0, w \vert w_I)}{p(d=1, w \vert w_I) + p(d=0, w \vert w_I)}
+&amp;= \frac{Nq(\tilde{w})}{p(w \vert w_I) + Nq(\tilde{w})}
+\end{align}
+">
+\begin{align}
+p(d=0 \vert w, w_I) 
+&amp;= \frac{p(d=0, w \vert w_I)}{p(d=1, w \vert w_I) + p(d=0, w \vert w_I)}
+&amp;= \frac{Nq(\tilde{w})}{p(w \vert w_I) + Nq(\tilde{w})}
+\end{align}
+</span></div>
+      
+    
+      
+        <p>最终 NCE 二分类器的损失函数变为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align}
+\mathcal{L}_\theta 
+&amp; = - [ \log p(d=1 \vert w, w_I) +  \sum_{\substack{i=1 \\ \tilde{w}_i \sim Q}}^N \log p(d=0|\tilde{w}_i, w_I)] \\
+&amp; = - [ \log \frac{p(w \vert w_I)}{p(w \vert w_I) + Nq(\tilde{w})} +  \sum_{\substack{i=1 \\ \tilde{w}_i \sim Q}}^N \log \frac{Nq(\tilde{w}_i)}{p(w \vert w_I) + Nq(\tilde{w}_i)}]
+\end{align}
+">
+\begin{align}
+\mathcal{L}_\theta 
+&amp; = - [ \log p(d=1 \vert w, w_I) +  \sum_{\substack{i=1 \\ \tilde{w}_i \sim Q}}^N \log p(d=0|\tilde{w}_i, w_I)] \\
+&amp; = - [ \log \frac{p(w \vert w_I)}{p(w \vert w_I) + Nq(\tilde{w})} +  \sum_{\substack{i=1 \\ \tilde{w}_i \sim Q}}^N \log \frac{Nq(\tilde{w}_i)}{p(w \vert w_I) + Nq(\tilde{w}_i)}]
+\end{align}
+</span></div>
+      
+    
+      
+        <p>然而，<span class="math-inline" data-math="p(w \vert w_I)">p(w \vert w_I)</span> 的分母仍然需要对整个词汇表求和。令分母为输入词的配分函数 <span class="math-inline" data-math="Z(w_I)">Z(w_I)</span>。一个常见假设是 <span class="math-inline" data-math="Z(w) \approx 1">Z(w) \approx 1</span>，因为我们期望 softmax 输出层是被归一化的（<a href="https://www.cs.toronto.edu/~amnih/papers/ncelm.pdf" target="_blank" rel="noopener">Minh and Teh, 2012</a>）。于是损失函数简化为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}_\theta = - [ \log \frac{\exp({v&#x27;_w}^{\top}{v_{w_I}})}{\exp({v&#x27;_w}^{\top}{v_{w_I}}) + Nq(\tilde{w})} +  \sum_{\substack{i=1 \\ \tilde{w}_i \sim Q}}^N \log \frac{Nq(\tilde{w}_i)}{\exp({v&#x27;_w}^{\top}{v_{w_I}}) + Nq(\tilde{w}_i)}]
+">
+\mathcal{L}_\theta = - [ \log \frac{\exp({v&#x27;_w}^{\top}{v_{w_I}})}{\exp({v&#x27;_w}^{\top}{v_{w_I}}) + Nq(\tilde{w})} +  \sum_{\substack{i=1 \\ \tilde{w}_i \sim Q}}^N \log \frac{Nq(\tilde{w}_i)}{\exp({v&#x27;_w}^{\top}{v_{w_I}}) + Nq(\tilde{w}_i)}]
+</span></div>
+      
+    
+      
+        <p>噪声分布 <span class="math-inline" data-math="Q">Q</span> 是一个可调节的参数，我们希望将其设计为满足以下条件：</p>
+      
+    
+      
+        <div class="list-content">直观上它应该与真实数据分布非常相似；并且
+它应该易于从中采样。</div>
+      
+    
+      
+        <p>例如，TensorFlow 中 NCE 损失的采样实现（<a href="https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/candidate_sampling_ops.py#L83" target="_blank" rel="noopener">log_uniform_candidate_sampler</a>）假设这类噪声样本服从对数均匀分布，也称为<a href="https://en.wikipedia.org/wiki/Zipf%27s_law" target="_blank" rel="noopener">Zipf 定律</a>。一个词在对数尺度上的概率预期与其按频率降序排列的排名成反比，高频词被赋予较低排名。在这种情况下，<span class="math-inline" data-math="q(\tilde{w}) = \frac{1}{ \log V}(\log (r_{\tilde{w}} + 1) - \log r_{\tilde{w}})">q(\tilde{w}) = \frac{1}{ \log V}(\log (r_{\tilde{w}} + 1) - \log r_{\tilde{w}})</span>，其中 <span class="math-inline" data-math="r_{\tilde{w}} \in [1, V]">r_{\tilde{w}} \in [1, V]</span> 是按频率降序排列的单词排名。</p>
+      
+    
+      
+        <h2>负采样（NEG）</h2>
+        
+      
+    
+      
+        <p>Mikolov 等人（<a href="https://papers.nips.cc/paper/5021-distributed-representations-of-words-and-phrases-and-their-compositionality.pdf" target="_blank" rel="noopener">2013</a>）提出的负采样（NEG）是 NCE 损失的一种简化版本。它特别因训练 Google 的 <a href="https://code.google.com/archive/p/word2vec/" target="_blank" rel="noopener">word2vec</a> 项目而闻名。与试图近似最大化 softmax 输出对数概率的 NCE 损失不同，负采样做了进一步简化，因为它的重点是学习高质量的词嵌入，而不是建模自然语言中的词分布。</p>
+      
+    
+      
+        <p>NEG 使用 sigmoid 函数近似二分类器的输出，如下所示：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align}
+p(d=1 \vert w_, w_I) &amp;= \sigma({v&#x27;_{w}}^\top v_{w_I}) \\
+p(d=0 \vert w, w_I) &amp;= 1 - \sigma({v&#x27;_{w}}^\top v_{w_I}) = \sigma(-{v&#x27;_{w}}^\top v_{w_I})
+\end{align}
+">
+\begin{align}
+p(d=1 \vert w_, w_I) &amp;= \sigma({v&#x27;_{w}}^\top v_{w_I}) \\
+p(d=0 \vert w, w_I) &amp;= 1 - \sigma({v&#x27;_{w}}^\top v_{w_I}) = \sigma(-{v&#x27;_{w}}^\top v_{w_I})
+\end{align}
+</span></div>
+      
+    
+      
+        <p>最终的 NCE 损失函数如下：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}_\theta = - [ \log \sigma({v&#x27;_{w}}^\top v_{w_I}) +  \sum_{\substack{i=1 \\ \tilde{w}_i \sim Q}}^N \log \sigma(-{v&#x27;_{\tilde{w}_i}}^\top v_{w_I})]
+">
+\mathcal{L}_\theta = - [ \log \sigma({v&#x27;_{w}}^\top v_{w_I}) +  \sum_{\substack{i=1 \\ \tilde{w}_i \sim Q}}^N \log \sigma(-{v&#x27;_{\tilde{w}_i}}^\top v_{w_I})]
+</span></div>
+      
+    
+      
+        <h2>学习词嵌入的其他技巧</h2>
+        
+      
+    
+      
+        <p>Mikolov 等人（<a href="https://papers.nips.cc/paper/5021-distributed-representations-of-words-and-phrases-and-their-compositionality.pdf" target="_blank" rel="noopener">2013</a>）提出了一些有助于获得良好词嵌入学习结果的实用技巧。</p>
+      
+    
+      
+        <div class="list-content">软滑动窗口。在为滑动窗口内的词配对时，我们可以给距离较远的词赋予较小的权重。一个启发式方法是——给定一个定义好的最大窗口大小参数 <span class="math-inline" data-math="s_{\text{max}}">s_{\text{max}}</span>，对每个训练样本，实际窗口大小在 1 到 <span class="math-inline" data-math="s_{\text{max}}">s_{\text{max}}</span> 之间随机采样。因此，每个上下文词被观察到的概率为 1/（它与目标词的距离），而相邻词总是会被观察到。
+
+
+对高频词进行子采样。极高频的词可能过于通用，无法有效区分上下文（例如停用词）。而另一方面，稀有词更可能携带独特的信息。为了平衡高频词和稀有词，Mikolov 等人提出在采样时以概率 <span class="math-inline" data-math="1-\sqrt{t/f(w)}">1-\sqrt{t/f(w)}</span> 丢弃词 <span class="math-inline" data-math="w">w</span>。其中 <span class="math-inline" data-math="f(w)">f(w)</span> 是词频，<span class="math-inline" data-math="t">t</span> 是可调节的阈值。
+
+
+先学习短语。短语通常作为一个概念单元存在，而不是单个词的简单组合。例如，即使我们知道“new”和“york”的含义，也无法直接判断“New York”是一个城市名。先学习这类短语并将其作为单词单元，再训练词嵌入模型能够提升结果质量。一个简单的数据驱动方法基于一元和二元计数：<span class="math-inline" data-math="s_{\text{phrase}} = \frac{C(w_i w_j) - \delta}{ C(w_i)C(w_j)}">s_{\text{phrase}} = \frac{C(w_i w_j) - \delta}{ C(w_i)C(w_j)}</span>，其中 <span class="math-inline" data-math="C(.)">C(.)</span> 是某个一元 <span class="math-inline" data-math="w_i">w_i</span> 或二元 <span class="math-inline" data-math="w_i w_j">w_i w_j</span> 的简单计数，<span class="math-inline" data-math="\delta">\delta</span> 是一个折扣阈值，用于防止过于稀有的词和短语。得分越高，成为短语的可能性越大。为了构成超过两个词的短语，我们可以用逐渐降低的分数阈值多次扫描词汇表。</div>
+      
+    
+      
+        <h2>GloVe：全局向量</h2>
+        
+      
+    
+      
+        <p>Pennington 等人（<a href="http://www.aclweb.org/anthology/D14-1162" target="_blank" rel="noopener">2014</a>）提出的全局向量（GloVe）模型旨在将基于计数的矩阵分解与基于上下文的 Skip-Gram 模型结合起来。</p>
+      
+    
+      
+        <p>我们都知道计数和共现能够揭示词的含义。为了与词嵌入中的 <span class="math-inline" data-math="p(w_O \vert w_I)">p(w_O \vert w_I)</span> 区分开来，我们定义共现概率为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+p_{\text{co}}(w_k \vert w_i) = \frac{C(w_i, w_k)}{C(w_i)}
+">
+p_{\text{co}}(w_k \vert w_i) = \frac{C(w_i, w_k)}{C(w_i)}
+</span></div>
+      
+    
+      
+        <p><span class="math-inline" data-math="C(w_i, w_k)">C(w_i, w_k)</span> 统计了单词 <span class="math-inline" data-math="w_i">w_i</span> 和 <span class="math-inline" data-math="w_k">w_k</span> 之间的共现次数。</p>
+      
+    
+      
+        <p>假设我们有两个词 <span class="math-inline" data-math="w_i">w_i</span>=“ice”和 <span class="math-inline" data-math="w_j">w_j</span>=“steam”。第三个词 <span class="math-inline" data-math="\tilde{w}_k">\tilde{w}_k</span>=“solid”与“ice”相关但与“steam”无关，因此我们预期 <span class="math-inline" data-math="p_{\text{co}}(\tilde{w}_k \vert w_i)">p_{\text{co}}(\tilde{w}_k \vert w_i)</span> 远大于 <span class="math-inline" data-math="p_{\text{co}}(\tilde{w}_k \vert w_j)">p_{\text{co}}(\tilde{w}_k \vert w_j)</span>，从而 <span class="math-inline" data-math="\frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}">\frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}</span> 非常大。如果第三个词 <span class="math-inline" data-math="\tilde{w}_k">\tilde{w}_k</span> = “water”与两者都相关，或者 <span class="math-inline" data-math="\tilde{w}_k">\tilde{w}_k</span> = “fashion”与两者都无关，则 <span class="math-inline" data-math="\frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}">\frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}</span> 接近于 1。</p>
+      
+    
+      
+        <p>这里的直觉是，词的含义是由共现概率的比率而非概率本身来捕捉的。全局向量将两个词相对于第三个上下文词的关系建模为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+F(w_i, w_j, \tilde{w}_k) = \frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}
+">
+F(w_i, w_j, \tilde{w}_k) = \frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}
+</span></div>
+      
+    
+      
+        <p>进一步，由于目标是学习有意义的词向量，<span class="math-inline" data-math="F">F</span> 被设计为两个词 <span class="math-inline" data-math="w_i - w_j">w_i - w_j</span> 之间线性差的函数：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+F((w_i - w_j)^\top \tilde{w}_k) = \frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}
+">
+F((w_i - w_j)^\top \tilde{w}_k) = \frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}
+</span></div>
+      
+    
+      
+        <p>考虑到 <span class="math-inline" data-math="F">F</span> 在目标词和上下文词之间是对称的，最终解决方案是将 <span class="math-inline" data-math="F">F</span> 建模为指数函数。请阅读原始论文（<a href="http://www.aclweb.org/anthology/D14-1162" target="_blank" rel="noopener">Pennington et al., 2014</a>）以了解更多方程细节。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align}
+F({w_i}^\top \tilde{w}_k) &amp;= \exp({w_i}^\top \tilde{w}_k) = p_{\text{co}}(\tilde{w}_k \vert w_i) \\
+F((w_i - w_j)^\top \tilde{w}_k) &amp;= \exp((w_i - w_j)^\top \tilde{w}_k) = \frac{\exp(w_i^\top \tilde{w}_k)}{\exp(w_j^\top \tilde{w}_k)} = \frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}
+\end{align}
+">
+\begin{align}
+F({w_i}^\top \tilde{w}_k) &amp;= \exp({w_i}^\top \tilde{w}_k) = p_{\text{co}}(\tilde{w}_k \vert w_i) \\
+F((w_i - w_j)^\top \tilde{w}_k) &amp;= \exp((w_i - w_j)^\top \tilde{w}_k) = \frac{\exp(w_i^\top \tilde{w}_k)}{\exp(w_j^\top \tilde{w}_k)} = \frac{p_{\text{co}}(\tilde{w}_k \vert w_i)}{p_{\text{co}}(\tilde{w}_k \vert w_j)}
+\end{align}
+</span></div>
+      
+    
+      
+        <p>最终，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+{w_i}^\top \tilde{w}_k = \log p_{\text{co}}(\tilde{w}_k \vert w_i) = \log \frac{C(w_i, \tilde{w}_k)}{C(w_i)} = \log C(w_i, \tilde{w}_k) - \log C(w_i)
+">
+{w_i}^\top \tilde{w}_k = \log p_{\text{co}}(\tilde{w}_k \vert w_i) = \log \frac{C(w_i, \tilde{w}_k)}{C(w_i)} = \log C(w_i, \tilde{w}_k) - \log C(w_i)
+</span></div>
+      
+    
+      
+        <p>由于第二项 <span class="math-inline" data-math="-\log C(w_i)">-\log C(w_i)</span> 与 <span class="math-inline" data-math="k">k</span> 无关，我们可以为 <span class="math-inline" data-math="w_i">w_i</span> 加入偏置项 <span class="math-inline" data-math="b_i">b_i</span> 来捕捉 <span class="math-inline" data-math="-\log C(w_i)">-\log C(w_i)</span>。为了保持对称形式，我们也为 <span class="math-inline" data-math="\tilde{w}_k">\tilde{w}_k</span> 加入偏置 <span class="math-inline" data-math="\tilde{b}_k">\tilde{b}_k</span>。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\log C(w_i, \tilde{w}_k) = {w_i}^\top \tilde{w}_k + b_i + \tilde{b}_k
+">
+\log C(w_i, \tilde{w}_k) = {w_i}^\top \tilde{w}_k + b_i + \tilde{b}_k
+</span></div>
+      
+    
+      
+        <p>GloVe 模型的损失函数被设计为通过最小化平方误差之和来保持上述公式：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}_\theta = \sum_{i=1, j=1}^V f(C(w_i,w_j)) ({w_i}^\top \tilde{w}_j + b_i + \tilde{b}_j - \log C(w_i, \tilde{w}_j))^2
+">
+\mathcal{L}_\theta = \sum_{i=1, j=1}^V f(C(w_i,w_j)) ({w_i}^\top \tilde{w}_j + b_i + \tilde{b}_j - \log C(w_i, \tilde{w}_j))^2
+</span></div>
+      
+    
+      
+        <p>权重模式 <span class="math-inline" data-math="f(c)">f(c)</span> 是 <span class="math-inline" data-math="w_i">w_i</span> 和 <span class="math-inline" data-math="w_j">w_j</span> 共现次数的函数，是模型的可调配置。它在 <span class="math-inline" data-math="c \to 0">c \to 0</span> 时应接近零；随着共现次数增加而非递减（更高的共现应有更大影响）；当 <span class="math-inline" data-math="c">c</span> 变得极大时应达到饱和。论文提出了以下权重函数。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+f(c) = 
+  \begin{cases}
+  (\frac{c}{c_{\max}})^\alpha &amp; \text{if } c &lt; c_{\max} \text{, } c_{\max} \text{ is adjustable.} \\
+  1 &amp; \text{if } \text{otherwise}
+  \end{cases}
+">
+f(c) = 
+  \begin{cases}
+  (\frac{c}{c_{\max}})^\alpha &amp; \text{if } c &lt; c_{\max} \text{, } c_{\max} \text{ is adjustable.} \\
+  1 &amp; \text{if } \text{otherwise}
+  \end{cases}
+</span></div>
+      
+    
+      
+        <h2>示例：在《权力的游戏》上应用 word2vec</h2>
+        
+      
+    
+      
+        <p>在回顾完上述所有理论知识后，让我们用从《权力的游戏》语料中提取的词嵌入做一个简单实验。使用 <a href="https://radimrehurek.com/gensim/models/word2vec.html" target="_blank" rel="noopener">gensim</a> 的过程非常简单直接。</p>
+      
+    
+      
+        <p>步骤 1：提取单词</p>
+      
+    
+      
+        <pre><code>import sys
+from nltk.corpus import stopwords
+from nltk.tokenize import sent_tokenize
+
+STOP_WORDS = set(stopwords.words(&#x27;english&#x27;))
+
+def get_words(txt):
+    return filter(
+        lambda x: x not in STOP_WORDS, 
+        re.findall(r&#x27;\b(\w+)\b&#x27;, txt)
+    )
+
+def parse_sentence_words(input_file_names):
+   &quot;&quot;&quot;Returns a list of a list of words. Each sublist is a sentence.&quot;&quot;&quot;
+    sentence_words = []
+    for file_name in input_file_names:
+        for line in open(file_name):
+            line = line.strip().lower()
+            line = line.decode(&#x27;unicode_escape&#x27;).encode(&#x27;ascii&#x27;,&#x27;ignore&#x27;)
+            sent_words = map(get_words, sent_tokenize(line))
+            sent_words = filter(lambda sw: len(sw) &gt; 1, sent_words)
+            if len(sent_words) &gt; 1:
+                sentence_words += sent_words
+    return sentence_words
+
+# You would see five .txt files after unzip &#x27;a_song_of_ice_and_fire.zip&#x27;
+input_file_names = [&quot;001ssb.txt&quot;, &quot;002ssb.txt&quot;, &quot;003ssb.txt&quot;, 
+                    &quot;004ssb.txt&quot;, &quot;005ssb.txt&quot;]
+GOT_SENTENCE_WORDS= parse_sentence_words(input_file_names)
+</code></pre>
+      
+    
+      
+        <p>步骤 2：训练 word2vec 模型</p>
+      
+    
+      
+        <pre><code>from gensim.models import Word2Vec
+
+# size: the dimensionality of the embedding vectors.
+# window: the maximum distance between the current and predicted word within a sentence.
+model = Word2Vec(GOT_SENTENCE_WORDS, size=128, window=3, min_count=5, workers=4)
+model.wv.save_word2vec_format(&quot;got_word2vec.txt&quot;, binary=False)
+</code></pre>
+      
+    
+      
+        <p>步骤 3：查看结果</p>
+      
+    
+      
+        <p>在《权力的游戏》词嵌入空间中，与“king”和“queen”最相似的词分别是：</p>
+      
+    
+      
+        <div class="table-container"><table>
+<thead>
+<tr>
+<th><code>model.most_similar('king', topn=10)</code><br/> (word, similarity with ‘king’)</th>
+<th><code>model.most_similar('queen', topn=10)</code><br/> (word, similarity with ‘queen’)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(‘kings’, 0.897245)</td>
+<td>(‘cersei’, 0.942618)</td>
+</tr>
+<tr>
+<td>(‘baratheon’, 0.809675)</td>
+<td>(‘joffrey’, 0.933756)</td>
+</tr>
+<tr>
+<td>(‘son’, 0.763614)</td>
+<td>(‘margaery’, 0.931099)</td>
+</tr>
+<tr>
+<td>(‘robert’, 0.708522)</td>
+<td>(‘sister’, 0.928902)</td>
+</tr>
+<tr>
+<td>(’lords’, 0.698684)</td>
+<td>(‘prince’, 0.927364)</td>
+</tr>
+<tr>
+<td>(‘joffrey’, 0.696455)</td>
+<td>(‘uncle’, 0.922507)</td>
+</tr>
+<tr>
+<td>(‘prince’, 0.695699)</td>
+<td>(‘varys’, 0.918421)</td>
+</tr>
+<tr>
+<td>(‘brother’, 0.685239)</td>
+<td>(’ned’, 0.917492)</td>
+</tr>
+<tr>
+<td>(‘aerys’, 0.684527)</td>
+<td>(‘melisandre’, 0.915403)</td>
+</tr>
+<tr>
+<td>(‘stannis’, 0.682932)</td>
+<td>(‘robb’, 0.915272)</td>
+</tr>
+</tbody>
+</table></div>
+      
+    
+      
+        <p>引用格式：</p>
+      
+    
+      
+        <pre><code>@article{weng2017wordembedding,
+  title   = &quot;Learning word embedding&quot;,
+  author  = &quot;Weng, Lilian&quot;,
+  journal = &quot;lilianweng.github.io&quot;,
+  year    = &quot;2017&quot;,
+  url     = &quot;https://lilianweng.github.io/posts/2017-10-15-word-embedding/&quot;
+}
+</code></pre>
+      
+    
+      
+        <h2>参考文献</h2>
+        
+      
+    
+      
+        <p>[1] Tensorflow 教程 <a href="https://www.tensorflow.org/tutorials/word2vec" target="_blank" rel="noopener">Vector Representations of Words</a>。</p>
+      
+    
+      
+        <p>[2] <a href="http://mccormickml.com/2016/04/19/word2vec-tutorial-the-skip-gram-model/" target="_blank" rel="noopener">“Word2Vec Tutorial - The Skip-Gram Model”</a> by Chris McCormick。</p>
+      
+    
+      
+        <p>[3] <a href="http://ruder.io/word-embeddings-softmax/" target="_blank" rel="noopener">“On word embeddings - Part 2: Approximating the Softmax”</a> by Sebastian Ruder。</p>
+      
+    
+      
+        <p>[4] Xin Rong. <a href="https://arxiv.org/pdf/1411.2738.pdf" target="_blank" rel="noopener">word2vec Parameter Learning Explained</a></p>
+      
+    
+      
+        <p>[5] Mikolov, Tomas, Kai Chen, Greg Corrado, and Jeffrey Dean. <a href="https://arxiv.org/pdf/1301.3781.pdf" target="_blank" rel="noopener">“Efficient estimation of word representations in vector space.”</a> arXiv preprint arXiv:1301.3781 (2013)。</p>
+      
+    
+      
+        <p>[6] Frederic Morin and Yoshua Bengio. <a href="https://www.iro.umontreal.ca/~lisa/pointeurs/hierarchical-nnlm-aistats05.pdf" target="_blank" rel="noopener">“Hierarchical Probabilistic Neural Network Language Model.”</a> Aistats. Vol. 5. 2005。</p>
+      
+    
+      
+        <p>[7] Michael Gutmann and Aapo Hyvärinen. <a href="http://proceedings.mlr.press/v9/gutmann10a/gutmann10a.pdf" target="_blank" rel="noopener">“Noise-contrastive estimation: A new estimation principle for unnormalized statistical models.”</a> Proc. Intl. Conf. on Artificial Intelligence and Statistics. 2010。</p>
+      
+    
+      
+        <p>[8] Tomas Mikolov, Ilya Sutskever, Kai Chen, Greg Corrado, and Jeffrey Dean. <a href="https://papers.nips.cc/paper/5021-distributed-representations-of-words-and-phrases-and-their-compositionality.pdf" target="_blank" rel="noopener">“Distributed representations of words and phrases and their compositionality.”</a> Advances in neural information processing systems. 2013。</p>
+      
+    
+      
+        <p>[9] Tomas Mikolov, Kai Chen, Greg Corrado, and Jeffrey Dean. <a href="https://arxiv.org/pdf/1301.3781.pdf" target="_blank" rel="noopener">“Efficient estimation of word representations in vector space.”</a> arXiv preprint arXiv:1301.3781 (2013)。</p>
+      
+    
+      
+        <p>[10] Marco Baroni, Georgiana Dinu, and Germán Kruszewski. <a href="http://anthology.aclweb.org/P/P14/P14-1023.pdf" target="_blank" rel="noopener">“Don’t count, predict! A systematic comparison of context-counting vs. context-predicting semantic vectors.”</a> ACL (1). 2014。</p>
+      
+    
+      
+        <p>[11] Jeffrey Pennington, Richard Socher, and Christopher Manning. <a href="http://www.aclweb.org/anthology/D14-1162" target="_blank" rel="noopener">“Glove: Global vectors for word representation.”</a> Proc. Conf. on empirical methods in natural language processing (EMNLP). 2014。</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

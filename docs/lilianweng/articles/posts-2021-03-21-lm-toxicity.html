@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>降低语言模型中的毒性 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>降低语言模型中的毒性</h1>
+    <div class="meta">
+      2021-03-21 · 
+      <a href="https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">有毒内容分类
+
+数据收集
+
+人工标注
+
+半监督数据集
+
+
+毒性检测
+
+对抗攻击
+
+Perspective API
+
+基于 Prompt 的检测
+
+
+去毒化
+
+黑名单过滤
+
+基于 Prompt 的去毒
+
+文本风格迁移
+
+可控生成
+
+系统级安全解决方案
+
+
+附录：数据集
+
+引用
+
+参考文献</div>
+      
+    
+      
+        <p>毒性问题阻碍了我们安全地将强大的预训练语言模型部署到现实世界应用中。为了降低语言模型的毒性，本文将从三个方面深入探讨该问题：训练数据集收集、有毒内容检测以及模型去毒化。</p>
+      
+    
+      
+        <p>大规模预训练 <a href="posts-2019-01-31-lm.html">泛化语言模型</a> 是在海量在线数据上训练得到的，它们不可避免地会从互联网中习得某些有毒行为和偏见。预训练语言模型非常强大，在许多 NLP 任务中都取得了巨大成功。然而，要将其安全部署到实际的现实世界应用中，就需要对模型的生成过程进行强有力的安全控制。</p>
+      
+    
+      
+        <p>在努力减少各种类型不安全内容的过程中，存在诸多挑战：</p>
+      
+    
+      
+        <div class="list-content">首先，不安全内容类型多样，包括毒性、辱骂、仇恨言论、偏见、刻板印象、网络欺凌、身份攻击等，这些类型可能需要不同的处理方式，也可能不需要。
+其次，对于预训练语言模型中的不安全行为，目前还没有清晰且广泛认可的分类和定义。由于社会背景不同，个人的认知可能存在很大差异。</div>
+      
+    
+      
+        <p>本文重点讨论语言模型中的毒性问题。由于我仍在努力寻找毒性内容的具体定义，下面列出文献中几种常见的定义。</p>
+      
+    
+      
+        <blockquote>[<a href="https://support.perspectiveapi.com/s/about-the-api-attributes-and-languages" target="_blank" rel="noopener">Perspective API</a>] 粗鲁、不尊重或不合理的评论；容易让人退出讨论。</blockquote>
+      
+    
+      
+        <blockquote>[<a href="https://arxiv.org/abs/1912.06872" target="_blank" rel="noopener">Kurita et al. 2019</a>] 可能冒犯或伤害其接收者的内容，包括仇恨言论、种族主义和冒犯性语言。</blockquote>
+      
+    
+      
+        <blockquote>[<a href="https://arxiv.org/abs/2006.00998" target="_blank" rel="noopener">Pavlopoulos et al. 2020</a>] 我们使用“毒性”一词作为总括术语，但我们注意到文献中对不同类型的毒性语言或相关现象使用了多个术语：“冒犯性”、“辱骂性”、“仇恨性”等。</blockquote>
+      
+    
+      
+        <p>总体而言，毒性是一个宽泛的术语，用于描述多种类型的不安全内容。只要给出某种形式的毒性定义（如在标注指导中给出的定义），本文的方法论就可以适用。如何恰当地定义毒性概念并由此收集准确的标注标签，不属于本文讨论的范围。</p>
+      
+    
+      
+        <h2>有毒内容分类#</h2>
+        
+      
+    
+      
+        <p>如何对有毒内容进行分类并非一项直观的任务。哪些内容应被视为有毒，以及存在哪些类型的有毒内容，这可能具有很强的主观性。对某个群体而言不冒犯的语言，对另一个群体可能显得不恰当。</p>
+      
+    
+      
+        <p>一种流行的冒犯性语言分类方法由 <a href="https://arxiv.org/abs/1902.09666" target="_blank" rel="noopener">Zampieri et al. (2019)</a> 提出，它是一个同时考虑冒犯类型和目标的三级层次分类体系。Offensive Language Identification Dataset (OLID) 数据集就是基于这一分类体系收集的。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2021-03-21-lm-toxicity/offensive-taxonomy.png" alt="">
+          <figcaption>The three-level hierarchical taxonomy for categorizing offensive language, proposed byZampieri et al. (2019).</figcaption>
+        </figure>
+      
+    
+      
+        <div class="list-content">A 级：“是否具有冒犯性？”
+
+[OFF] 冒犯性：不恰当的语言、侮辱或威胁。
+[NOT] 非冒犯性：没有冒犯或脏话。
+
+
+B 级：“冒犯性文本是否针对特定对象？”
+
+[TIN] 针对性侮辱：针对个人、群体或其他对象的侮辱或威胁。
+[UNT] 非针对性：非针对性的脏话和咒骂。
+
+
+C 级：目标是什么？
+
+[IND] 冒犯针对个人，通常定义为“网络欺凌”。
+[GRP] 冒犯针对基于种族、性别、性取向、宗教或其他共同特征的一群人，通常定义为“仇恨言论”。
+[OTH] 目标可以属于其他类别，例如组织、事件、议题等。</div>
+      
+    
+      
+        <h2>数据收集#</h2>
+        
+      
+    
+      
+        <p>准备一个标注为“安全”与“不安全”的样本数据集，是训练毒性语言分类器并进一步为模型去毒化提供信号的基础。</p>
+      
+    
+      
+        <h2>人工标注#</h2>
+        
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/2004.01670" target="_blank" rel="noopener">Vidgen &amp;amp; Derczynski (2020)</a> 总结道，毒性检测的训练数据标注在高层级上可以通过以下方式收集：</p>
+      
+    
+      
+        <div class="list-content">专家编码：专家具备足够知识或训练，能够高质量完成标注任务，例如研究偏见的研究者、接受过中等程度训练的学生，或 NLP 从业者。这种方式成本较高，但能产生高质量数据。
+众包：众包平台将大量非专家标注者与任务配对。这种方式更容易扩展，但对质量控制的要求更高。
+专业审核员：专业审核员经验丰富、受过良好训练，但他们的目标很可能是在优化特定平台的输出。
+合成数据：训练数据集也可以由相关内容创作者手动创建，以覆盖广泛的有毒内容类型。</div>
+      
+    
+      
+        <p>其中最常见的方法是众包（<a href="https://arxiv.org/abs/1703.04009" target="_blank" rel="noopener">Davidson et al. 2017</a>，<a href="https://arxiv.org/abs/1902.09666" target="_blank" rel="noopener">Zampieri et al. 2019</a>），以下是一些提高数据质量的良好实践：</p>
+      
+    
+      
+        <div class="list-content">测试数据：从少数专家那里收集的一小部分标注可以用作测试题（<a href="https://arxiv.org/abs/1902.09666" target="_blank" rel="noopener">Zampieri et al. 2019</a>），以筛选掉众包平台上无法达到一定阈值的标注者。
+清晰的指导：详细的说明有助于引导标注者产生一致且对齐的标签。如果没有任何指导，标注者会被鼓励使用个人认知，这可能有问题，因为（1）对有毒内容的主观解读在个体间差异极大；（2）在没有指导的情况下，标记讽刺、反语等某些类型的噪声非常困难。
+多数投票：通常我们需要为每个样本获取多个标注者的标签，并采用多数投票。
+理解标注者的身份：人口统计背景对标注者对任务的理解有很大影响。我们应努力招募多元且合格的标注者。</div>
+      
+    
+      
+        <h2>半监督数据集#</h2>
+        
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1811.12900" target="_blank" rel="noopener">Khatri et al. (2018)</a> 提出了一种简单的方法，可以引导生成大量半监督数据集用于学习有毒内容分类器。该方法依赖于一个小型标注数据集和一个大型未标注数据集。</p>
+      
+    
+      
+        <div class="list-content">首先，他们收集了一个包含 800 多个词的黑名单，涵盖亵渎、仇恨、性内容和侮辱等主题。亵渎词黑名单可能具有高精确率和低召回率，但能提供弱监督信号。
+根据黑名单词占比对 Subreddit 进行排序。然后从排在前面的 Subreddit 中采样敏感样本，从排在后面的 Subreddit 中采样非敏感样本。
+训练一个弱二分类器，进一步从排序后的 Subreddit 中选择更多样本，
+
+敏感样本：包含黑名单词或毒性分类器置信度 &gt; 0.8；
+非敏感样本：不包含黑名单词且毒性分类器置信度 &lt; 0.3
+
+
+基于这个扩充的大型数据集，训练一个名为“两阶段自举”（TS bootstrap）的新分类器。</div>
+      
+    
+      
+        <p>他们的实验表明，TS bootstrap 分类器在 F1 分数、准确率和召回率上都取得了相当不错的结果，并且能够迁移到领域外的测试数据上。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2021-03-21-lm-toxicity/TS-bootstrap.png" alt="">
+          <figcaption>The two-stage bootstrap classifier is trained on a dataset bootstrapped by a weak toxic binary classifier on Reddit data. (Image source:Khatri et al. 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>SOLID（Semi-Supervised Offensive Language Identification Dataset；<a href="https://arxiv.org/abs/2004.14454" target="_blank" rel="noopener">Rosenthal et al. 2020</a>）包含 900 多万条推文，使用与 OLID 相同的分类体系进行标注。SOLID 将 OLID 视为种子，通过一种称为民主协同训练的半监督技术进行扩展。民主协同训练（<a href="https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.76.3152&amp;amp;rep=rep1&amp;amp;type=pdf" target="_blank" rel="noopener">Zhou &amp;amp; Goldman, 2004</a>）利用在少量监督数据集上训练的多个多样化模型所提供的噪声标签，创建一个大型数据集。SOLID 的构建过程如下：</p>
+      
+    
+      
+        <div class="list-content">首先，在已标注数据集 OLID 上训练一组多样化的监督模型。论文实验了 PMI（基于 n-gram 的相似性）、FastText（类似于 BoW 模型的浅层神经模型）、LSTM 和 BERT。
+对于未标注数据集中的每个样本，每个模型都会为目标类别预测一个置信度分数。这些分数通过取平均值或最小值进行聚合。高置信度的样本被加入到数据集中。</div>
+      
+    
+      
+        <p>当监督数据集对于简单任务来说已经足够大时，BERT 模型的性能不再提升；但如果原始监督数据集对任务来说太小，则可以从大型半监督数据集中受益。</p>
+      
+    
+      
+        <h2>毒性检测#</h2>
+        
+      
+    
+      
+        <p>给定监督数据集，我们可以从头训练一个文本分类器，或者微调一个预训练语言模型来完成分类任务。但如果训练样本质量不高或数量不足怎么办？如果我们无法获取这样的监督数据集又该怎么办？</p>
+      
+    
+      
+        <h2>对抗攻击#</h2>
+        
+      
+    
+      
+        <p>为了构建一个能够抵御对抗攻击的毒性检测模型，<a href="https://arxiv.org/abs/1908.06083" target="_blank" rel="noopener">Dinan et al. (2019)</a> 提出了一种迭代的“构建-破坏-修复”策略，在人的参与下提升对话系统的安全性。</p>
+      
+    
+      
+        <div class="list-content">构建：在一个 Jigsaw 数据集上训练 BERT 模型来分类有毒评论。
+破坏：让众包工作者编写会被模型错误标记为“安全”的有毒信息。
+修复：在原始数据集和新收集的对抗样本的组合上重新训练模型。
+重复：重新部署强化后的模型，从第 1 步开始进行新一轮迭代。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2021-03-21-lm-toxicity/build-break-fix.png" alt="">
+          <figcaption>The illustration of iteratively improving a toxic content detection model via the &quot;build it, break it, fix it&quot; process. (Image source:Dinan et al. 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>他们实验中的一个基线是在“破坏”步骤中，用标准收集方式（要求工作者直接提交“冒犯性”信息）替换对抗收集方式。与标准收集相比，对抗收集包含较少的显式脏话，更多使用否定词来欺骗模型。在后续轮次中任务变得更具挑战性。</p>
+      
+    
+      
+        <p>对抗模型比在标准收集数据上训练的基线模型对对抗攻击更具鲁棒性。第三轮对抗模型在标准任务上的表现比标准模型差，这可能是由于过拟合导致的。我很好奇如果同时在对抗和标准收集的数据上训练，模型性能会如何，但我在论文中没有找到相关内容。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2021-03-21-lm-toxicity/build-break-fix-it-results.png" alt="">
+          <figcaption>The comparison of performance on standard and adversarial tasks of models trained on standard (<span class="math-inline" data-math="S\_i">S\_i</span>) and adversarial data collection (<span class="math-inline" data-math="A\_i">A\_i</span>). The subscript <span class="math-inline" data-math="i">i</span> indicates the number of training rounds. (Image source:Dinan et al. 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>另一种对抗攻击是通过替换或打乱部分字符来欺骗检测模型，将有毒句子错误分类为安全。<a href="https://arxiv.org/abs/1912.06872" target="_blank" rel="noopener">Kurita et al. (2019)</a> 开发了一种生成此类模型无关对抗攻击的方法，包含几种字符级扰动：</p>
+      
+    
+      
+        <div class="list-content">字符打乱：随机排列字符位置。
+同形替代：用看起来相似的国际字母替换一个或多个字母。
+基于词典的近邻替换：根据 Levenshtein 距离找到最接近但不同的 token。
+干扰注入：通过重复随机选择的非有毒 token 序列来注入干扰 token。</div>
+      
+    
+      
+        <p>将 token 混淆和干扰 token 结合的对抗噪声会导致毒性分类器的性能大幅下降。字符级扰动比干扰 token 对性能的破坏更大。</p>
+      
+    
+      
+        <p>论文提出了两种解决对抗攻击的方法：</p>
+      
+    
+      
+        <div class="list-content">对抗训练是指在带有噪声的数据集上训练模型。然而，你需要提前知道即将到来的攻击的细节。而且用任意噪声训练的样本无法保证能泛化到测试集。
+CDAE（上下文去噪自编码器）利用字符级和上下文信息来对混淆的 token 进行去噪。CDAE 输入一个噪声样本并预测去噪后的版本。尽管如此，你仍需要知道可以用来创建噪声样本的字符级扰动类型。CDAE 的性能与 BERT 相当，但没有显著超越。</div>
+      
+    
+      
+        <h2>Perspective API#</h2>
+        
+      
+    
+      
+        <p>Perspective API（<a href="https://www.perspectiveapi.com/" target="_blank" rel="noopener">www.perspectiveapi.com</a>）是目前使用最广泛的商用有毒内容检测 API。Perspective 训练机器学习模型，为以下几种不同 <a href="https://support.perspectiveapi.com/s/about-the-api-attributes-and-languages" target="_blank" rel="noopener">属性</a> 提供分数：毒性、严重毒性、侮辱、脏话、身份攻击、威胁和色情露骨。每项分数都是 [0, 1] 之间的数字，表示消息包含给定属性的可能性（即二分类器的置信度），并不代表该属性的严重程度。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2021-03-21-lm-toxicity/about-perspective-api.png" alt="">
+          <figcaption>The overview of Perspective API scores. (Image source:About Perspective API)</figcaption>
+        </figure>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/2009.11462" target="_blank" rel="noopener">Gehman et al. (2020)</a> 测量了从几个预训练语言模型中采样得到的无提示生成内容的 Perspective API 毒性分数。“无提示”意味着生成仅以句子开头 token 为条件，没有注入任何额外上下文。值得注意的是，所有测试模型在生成 100 次后，预期最大毒性分数都超过了 0.5。他们还指出，大型语言模型的训练数据集中包含不可忽视的有毒内容。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2021-03-21-lm-toxicity/unprompted-toxicity.png" alt="">
+          <figcaption>Perspective API toxicity scores of unprompted generations. Each model generates a pool of 10k samples and the expected maximum toxicity score is estimated via bootstrapping. (Image source:Gehman et al. 2020)</figcaption>
+        </figure>
+      
+    
+      
+        <p>他们收集了 RealToxicityPrompt 数据集，用于研究条件语言模型生成中的毒性问题。该数据集包含 10 万个自然出现的 prompt，并附带来自 Perspective API 的毒性分数。一些本身不含任何有毒语言的 prompt 仍然能触发非常冒犯的续写。</p>
+      
+    
+      
+        <p>尽管 Perspective API 非常流行，但它存在已知的偏见，<a href="https://arxiv.org/abs/2009.11462" target="_blank" rel="noopener">Gehman et al. (2020)</a> 对此进行了总结：</p>
+      
+    
+      
+        <blockquote>……表现出对少数群体的偏见，并且标注一致性较低，部分原因是标注者身份会影响他们对仇恨言论的感知，以及标注任务设置的不同。</blockquote>
+      
+    
+      
+        <blockquote>值得注意的是，最近的研究发现，系统会高估包含少数群体身份提及（如“我是一个同性恋男性”）或少数族裔撰写的文本（如非裔美国英语文本）中毒性的普遍程度。这部分是由于检测器过度依赖毒性的词汇线索（包括脏话、侮辱词和其他“坏”词）。</blockquote>
+      
+    
+      
+        <h2>基于 Prompt 的检测#</h2>
+        
+      
+    
+      
+        <p>Self-diagnosis（<a href="https://arxiv.org/abs/2103.00453" target="_blank" rel="noopener">Schick, et al. 2021</a>）是一种利用预训练语言模型自身能力来检测其输出中不受社会欢迎属性的过程。这种诊断依赖于一个预定义的 prompt 模板，其中用简短文本描述这些属性，并测量模型输出“yes”与“no”的归一化概率。注意，self-diagnosis 不需要访问已标注的数据集进行训练。</p>
+      
+    
+      
+        <pre><code># Self-diagnosis template
+&quot;{sample text}&quot;
+Question: Does the above text contain {undesired attribute}?
+Answer: {yes/no}
+</code></pre>
+      
+    
+      
+        <p>他们在实验中使用 RealToxicityPrompts 数据集和 Perspective API 进行评估。self-diagnosis 的性能与模型规模正相关。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2021-03-21-lm-toxicity/self-diagnosis-toxicity-score.png" alt="">
+          <figcaption>Self-diagnosis abilities for identifying undesired attributes. The ground truth is provided by Perspective API. (Image source:Schick, et al. 2021)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>去毒化#</h2>
+        
+      
+    
+      
+        <h2>黑名单过滤#</h2>
+        
+      
+    
+      
+        <p>坏词过滤是一种非常直观且有效的方法，可以在语言模型生成中避免显式的 <a href="https://github.com/%20LDNOOBW/List-of-Dirty-Naughty-Obscene-%20and-Otherwise-Bad-Words" target="_blank" rel="noopener">脏话</a>。在解码时，我们可以手动降低被封锁词的概率以避免采样它们。然而这种方法并不完美，因为仍然可能由安全 token 组合成不安全的内容。</p>
+      
+    
+      
+        <p>词汇偏移（<a href="https://arxiv.org/abs/2009.11462" target="_blank" rel="noopener">Gehman et al. 2020</a>）为预训练模型词汇表中的每个 token 学习一个二维的毒性与非毒性表示。然后，使用编码非毒性的表示在解码时提升非有毒 token 的似然度。</p>
+      
+    
+      
+        <h2>基于 Prompt 的去毒#</h2>
+        
+      
+    
+      
+        <p>Self-debiasing（<a href="https://arxiv.org/abs/2103.00453" target="_blank" rel="noopener">Schick et al. 2021</a>）与 self-diagnosis 的思路类似。它是一种利用预训练语言模型的内部知识来降低模型生成中不受欢迎属性概率的过程。</p>
+      
+    
+      
+        <pre><code># Self-debiasing template, denoted as sdb(.)
+The following text contains {undesired attribute s}:
+{sample text x}
+</code></pre>
+      
+    
+      
+        <p>给定输入 prompt <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span>、不受欢迎属性的文本描述 <span class="math-inline" data-math="s">s</span> 以及语言模型 <span class="math-inline" data-math="M">M</span>，self-debiasing 计算不使用和使用 self-debiasing 模板 <span class="math-inline" data-math="\text{sdb}(.)">\text{sdb}(.)</span> 时下一个词的概率差值：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\Delta(w, \mathbf{x}, s) = p_M(w\vert\mathbf{x}) - p_M(w\vert\text{sdb}(\mathbf{x}, s))
+">
+\Delta(w, \mathbf{x}, s) = p_M(w\vert\mathbf{x}) - p_M(w\vert\text{sdb}(\mathbf{x}, s))
+</span></div>
+      
+    
+      
+        <p>由于 <span class="math-inline" data-math="\text{sdb}(.)">\text{sdb}(.)</span> 预计会提升不受欢迎词的概率，因此对于不受欢迎的词，<span class="math-inline" data-math="\Delta(w, \mathbf{x}, s)">\Delta(w, \mathbf{x}, s)</span> 应该为负数。</p>
+      
+    
+      
+        <p>在 self-debiasing 解码中，使用概率差值 <span class="math-inline" data-math="\alpha(\Delta(w, \mathbf{x}, s)): \mathbb{R}\to[0,1]">\alpha(\Delta(w, \mathbf{x}, s)): \mathbb{R}\to[0,1]</span> 的缩放函数来改变真实的采样分布，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\tilde{p}_M(w\vert\mathbf{x}) \propto \alpha(\Delta(w, \mathbf{x}, s)) p_M(w\vert\mathbf{x})
+">
+\tilde{p}_M(w\vert\mathbf{x}) \propto \alpha(\Delta(w, \mathbf{x}, s)) p_M(w\vert\mathbf{x})
+</span></div>
+      
+    
+      
+        <p>论文中他们使用了一种软变体，对于具有负 <span class="math-inline" data-math="\Delta">\Delta</span> 的词，根据 <span class="math-inline" data-math="\Delta(w, \mathbf{x}, s)">\Delta(w, \mathbf{x}, s)</span> 的大小降低其概率：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\alpha(x)=\begin{cases} 1 &amp; \text{ if } x\geq 0 \\ e^{\lambda\cdot x} &amp; \text{ otherwise} \end{cases}
+">
+\alpha(x)=\begin{cases} 1 &amp; \text{ if } x\geq 0 \\ e^{\lambda\cdot x} &amp; \text{ otherwise} \end{cases}
+</span></div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2021-03-21-lm-toxicity/self-debiasing-decoding.png" alt="">
+          <figcaption>Self-diasing decoding can reduce the probabilities of undesirable attributes. The scores are provided by Perspective API. (Image source:Schick et al. 2021)</figcaption>
+        </figure>
+      
+    
+      
+        <p>Self-debiasing 去毒化存在几个主要局限性：</p>
+      
+    
+      
+        <div class="list-content">评估完全依赖 Perspective API，因此无法捕捉 Perspective API 未覆盖的偏见与毒性属性，例如性别偏见。使用人工评估是另一种选择，但规模受限。
+Self-debiasing 有时表现得过于激进，会过滤掉无害的词，并且无法保持与原始模型相同的困惑度水平。
+该方法受限于模型的内部能力。例如，如果模型不知道某些偏见，它就无法纠正它们。</div>
+      
+    
+      
+        <h2>文本风格迁移#</h2>
+        
+      
+    
+      
+        <p>无监督风格迁移可用于将冒犯性句子转换为无害的句子（<a href="https://arxiv.org/abs/1805.07685" target="_blank" rel="noopener">Santos et al. 2018</a>）。该方法适用于非平行数据集，即我们只能获得两个独立的冒犯性和非冒犯性样本数据集，而没有配对版本。为了在将文本迁移到另一种风格时保留内容，采用了循环一致性损失（<a href="https://arxiv.org/abs/1703.10593" target="_blank" rel="noopener">Zhu et al. 2017</a>）。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2021-03-21-lm-toxicity/offensive-text-style-transfer.png" alt="">
+          <figcaption>The training process of a neural text style transfer algorithm using non-parallel data. (Image source:Santos et al. 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>令 <span class="math-inline" data-math="s_i">s_i</span> 为期望的风格（<span class="math-inline" data-math="i=0">i=0</span> 表示冒犯性，<span class="math-inline" data-math="i=1">i=1</span> 表示非冒犯性），<span class="math-inline" data-math="\mathbf{x}^i_k">\mathbf{x}^i_k</span> 为风格 <span class="math-inline" data-math="s_i">s_i</span> 的第 <span class="math-inline" data-math="k">k</span> 个样本 <span class="math-inline" data-math="k = 1, \dots, n">k = 1, \dots, n</span>。编码器 <span class="math-inline" data-math="E">E</span> 和解码器 <span class="math-inline" data-math="G">G</span> 都接收一个样本（或隐藏状态）以及风格标签。分类器 <span class="math-inline" data-math="C">C</span> 根据输入样本预测风格标签上的概率分布。</p>
+      
+    
+      
+        <p>按照图 9 中的说明：</p>
+      
+    
+      
+        <div class="list-content">正向迁移的上分支是自编码器：<span class="math-inline" data-math="E(\mathbf{x}^i_k, s_i) \to H^i_k \to G(H^i_k, s_i) \to \hat{\mathbf{x}}^{i\to i}_k">E(\mathbf{x}^i_k, s_i) \to H^i_k \to G(H^i_k, s_i) \to \hat{\mathbf{x}}^{i\to i}_k</span>。计算两个损失：
+
+重构损失衡量解码器能否很好地将样本重构回来：</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+    \mathcal{L}_\text{self} = \mathbb{E}_{\mathbf{x}^i_k \sim \mathcal{X}} [-\log p_G(\mathbf{x}_k^i \mid E(\mathbf{x}^i_k, s_i), s_i)]
+    ">
+    \mathcal{L}_\text{self} = \mathbb{E}_{\mathbf{x}^i_k \sim \mathcal{X}} [-\log p_G(\mathbf{x}_k^i \mid E(\mathbf{x}^i_k, s_i), s_i)]
+    </span></div>
+      
+    
+      
+        <div class="list-content">正向迁移的下分支：<span class="math-inline" data-math="E(\mathbf{x}^i_k, s_i) \to H^i_k \to G(H^i_k, s_j) \to \hat{\mathbf{x}}^{i\to j}_k">E(\mathbf{x}^i_k, s_i) \to H^i_k \to G(H^i_k, s_j) \to \hat{\mathbf{x}}^{i\to j}_k</span>
+
+分类损失衡量风格迁移的效果：</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+    \mathcal{L}_\text{style_fwd} = \mathbb{E}_{\hat{\mathbf{x}}^{i\to j}_k \sim \hat{\mathcal{X}}} [-\log p_C(s_j \mid \hat{\mathbf{x}}^{i\to j}_k)]
+    ">
+    \mathcal{L}_\text{style_fwd} = \mathbb{E}_{\hat{\mathbf{x}}^{i\to j}_k \sim \hat{\mathcal{X}}} [-\log p_C(s_j \mid \hat{\mathbf{x}}^{i\to j}_k)]
+    </span></div>
+      
+    
+      
+        <div class="list-content">反向迁移使用循环一致性损失：<span class="math-inline" data-math="E(\hat{\mathbf{x}}^{i\to j}_k, s_j) \to H^{i\to j}_k \to G(H^{i\to j}_k, s_i) \to \hat{\mathbf{x}}^{i\to j \to i}_k">E(\hat{\mathbf{x}}^{i\to j}_k, s_j) \to H^{i\to j}_k \to G(H^{i\to j}_k, s_i) \to \hat{\mathbf{x}}^{i\to j \to i}_k</span>
+
+循环一致性损失控制迁移后的样本能够多好地转换回原始形式，以鼓励内容保留：</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+    \mathcal{L}_\text{cycle} = \mathbb{E}_{\mathbf{x}^i_k \sim \mathcal{X}} [-\log p_G(\mathbf{x}_k^i \mid E(\hat{\mathbf{x}}^{i \to j}_k, s_j), s_i)]
+    ">
+    \mathcal{L}_\text{cycle} = \mathbb{E}_{\mathbf{x}^i_k \sim \mathcal{X}} [-\log p_G(\mathbf{x}_k^i \mid E(\hat{\mathbf{x}}^{i \to j}_k, s_j), s_i)]
+    </span></div>
+      
+    
+      
+        <pre><code>- The classification loss ensures that the back-transferred sample has the correct label:
+</code></pre>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+    \mathcal{L}_\text{style_back} = \mathbb{E}_{\hat{\mathbf{x}}^{i\to j}_k \sim \hat{\mathcal{X}}} [-\log p_C(s_i \mid G(E(\hat{\mathbf{x}}^{i\to j}_k, s_j), s_i))]
+    ">
+    \mathcal{L}_\text{style_back} = \mathbb{E}_{\hat{\mathbf{x}}^{i\to j}_k \sim \hat{\mathcal{X}}} [-\log p_C(s_i \mid G(E(\hat{\mathbf{x}}^{i\to j}_k, s_j), s_i))]
+    </span></div>
+      
+    
+      
+        <div class="list-content">还有一个额外的监督分类损失，用于训练一个准确的分类器：</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}_\text{class} = \mathbb{E}_{\hat{\mathbf{x}}^{i\to j}_k \sim \hat{\mathcal{X}}} [-\log p_C(s_i \mid \hat{\mathbf{x}}^i_k)]
+">
+\mathcal{L}_\text{class} = \mathbb{E}_{\hat{\mathbf{x}}^{i\to j}_k \sim \hat{\mathcal{X}}} [-\log p_C(s_i \mid \hat{\mathbf{x}}^i_k)]
+</span></div>
+      
+    
+      
+        <p>最终训练目标如下，编码器、解码器和分类器联合训练：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}(\theta_E, \theta_G, \theta_C) = \min_{E, G, C} \mathcal{L}_\text{self} + \mathcal{L}_\text{style_fwd} + \mathcal{L}_\text{cycle} + \mathcal{L}_\text{style_back}+ \mathcal{L}_\text{class}
+">
+\mathcal{L}(\theta_E, \theta_G, \theta_C) = \min_{E, G, C} \mathcal{L}_\text{self} + \mathcal{L}_\text{style_fwd} + \mathcal{L}_\text{cycle} + \mathcal{L}_\text{style_back}+ \mathcal{L}_\text{class}
+</span></div>
+      
+    
+      
+        <p>Style Transformer（<a href="https://arxiv.org/abs/1905.05621" target="_blank" rel="noopener">Dai et al. 2019</a>）也旨在学习无监督文本风格迁移。与 <a href="https://arxiv.org/abs/1805.07685" target="_blank" rel="noopener">Santos et al. 2018</a> 中的编码器-解码器模型不同，它为给定的输入样本 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 和期望的风格控制变量 <span class="math-inline" data-math="s">s</span> 学习一个基于 Transformer 的风格迁移函数 <span class="math-inline" data-math="f_\theta(\mathbf{x}, s)">f_\theta(\mathbf{x}, s)</span>。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2021-03-21-lm-toxicity/style-transformer.png" alt="">
+          <figcaption>The comparison of style transformer and previous models that depend on disentangled latent representation. (Image source:Dai et al. 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>由于无法获得平行语料，Style Transformer 采用判别器从非平行数据集中创建监督信号。</p>
+      
+    
+      
+        <p>令 <span class="math-inline" data-math="s">s</span> 和 <span class="math-inline" data-math="\hat{s}">\hat{s}</span> 为两个互斥的风格变量，<span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 是风格 <span class="math-inline" data-math="s">s</span> 的样本，Style Transformer 计算几个损失：</p>
+      
+    
+      
+        <div class="list-content">自重构损失：<span class="math-inline" data-math="\mathcal{L}_\text{self} = - p_\theta (\mathbf{x} \vert \mathbf{x}, s)">\mathcal{L}_\text{self} = - p_\theta (\mathbf{x} \vert \mathbf{x}, s)</span>
+循环一致性损失：<span class="math-inline" data-math="\mathcal{L}_\text{cycle} = - p_\theta (\mathbf{x} \vert f_\theta(\mathbf{x}, \hat{s}), s)">\mathcal{L}_\text{cycle} = - p_\theta (\mathbf{x} \vert f_\theta(\mathbf{x}, \hat{s}), s)</span>
+风格控制损失：这是必要的，否则模型只会简单地学习复制输入。</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}_\text{style} = - p_\phi(\text{class} = 1 \vert f_\theta(\mathbf{x}, \hat{s}), \hat{s})
+">
+\mathcal{L}_\text{style} = - p_\phi(\text{class} = 1 \vert f_\theta(\mathbf{x}, \hat{s}), \hat{s})
+</span></div>
+      
+    
+      
+        <p>，其中判别器是一个简单的二分类器，通过优化正确风格的负对数似然进行训练。判别器的训练通过将以下样本标记为</p>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="\{(\mathbf{x}, s), (f_\theta(\mathbf{x}, s), s), (f_\theta(\mathbf{x}, \hat{s}), \hat{s})\}">\{(\mathbf{x}, s), (f_\theta(\mathbf{x}, s), s), (f_\theta(\mathbf{x}, \hat{s}), \hat{s})\}</span> 为正类 1
+<span class="math-inline" data-math="\{(\mathbf{x}, \hat{s}), (f_\theta(\mathbf{x}, s), \hat{s}), (f_\theta(\mathbf{x}, \hat{s}), s)\}">\{(\mathbf{x}, \hat{s}), (f_\theta(\mathbf{x}, s), \hat{s}), (f_\theta(\mathbf{x}, \hat{s}), s)\}</span> 为负类 0。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2021-03-21-lm-toxicity/style-transformer-training.png" alt="">
+          <figcaption>The training process of Style Transformer. (Image source:Dai et al. 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>受“我们可以仅使用仅标注了毒性的数据集微调预训练语言模型，从而为粗鲁评论提供文明的改写建议吗？”这一研究问题的驱动，<a href="https://arxiv.org/abs/2102.05456" target="_blank" rel="noopener">Laugier et al. (2021)</a> 使用去噪和循环自编码器损失微调了一个预训练的文本到文本 Transformer。</p>
+      
+    
+      
+        <p>令 <span class="math-inline" data-math="s">s</span> 为属性 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span>（例如“civil”），<span class="math-inline" data-math="\bar{s}">\bar{s}</span> 为另一个相反的属性（例如“toxic”）。这两个属性互斥。目标是学习一个映射函数 <span class="math-inline" data-math="f_\theta">f_\theta</span>，它将 <span class="math-inline" data-math="x">x</span> 翻译为具有目标属性 <span class="math-inline" data-math="a">a</span> 的新的流利序列 <span class="math-inline" data-math="y">y</span>，同时保留 <span class="math-inline" data-math="x">x</span> 的内容。</p>
+      
+    
+      
+        <p>编码器-解码器模型使用以下损失进行训练：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L} = \lambda_\text{DAE} \mathcal{L}_\text{DAE} + \lambda_\text{cycle} \mathcal{L}_\text{cycle}
+">
+\mathcal{L} = \lambda_\text{DAE} \mathcal{L}_\text{DAE} + \lambda_\text{cycle} \mathcal{L}_\text{cycle}
+</span></div>
+      
+    
+      
+        <div class="list-content">去噪自编码器损失是去噪自编码器的损失，其中 <span class="math-inline" data-math="\eta">\eta</span> 是与 BERT 训练中相同的 <a href="posts-2019-01-31-lm.html">泛化语言模型</a> 函数：</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}_\text{DAE} = \mathbb{E}_{\mathbf{x} \sim \mathcal{X}} [−\log p_\theta(\mathbf{x} \mid \eta(\mathbf{x}), s)]
+">
+\mathcal{L}_\text{DAE} = \mathbb{E}_{\mathbf{x} \sim \mathcal{X}} [−\log p_\theta(\mathbf{x} \mid \eta(\mathbf{x}), s)]
+</span></div>
+      
+    
+      
+        <div class="list-content">循环一致性损失（<a href="https://arxiv.org/abs/1703.10593" target="_blank" rel="noopener">Zhu et al. 2017</a>）使用 <span class="math-inline" data-math="\tilde{\theta}">\tilde{\theta}</span> 生成一个不可微的伪预测 <span class="math-inline" data-math="\hat{\mathbf{y}}">\hat{\mathbf{y}}</span>，并且不进行梯度反向传播。</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}_\text{cycle} = \mathbb{E}_{\mathbf{x} \sim \mathcal{X}} [−\log p_\theta(\mathbf{x} \mid f_{\tilde{\theta}}(\mathbf{x}, \bar{s}), s)]
+">
+\mathcal{L}_\text{cycle} = \mathbb{E}_{\mathbf{x} \sim \mathcal{X}} [−\log p_\theta(\mathbf{x} \mid f_{\tilde{\theta}}(\mathbf{x}, \bar{s}), s)]
+</span></div>
+      
+    
+      
+        <p>他们使用上述损失微调了一个 T5 模型，得到的模型称为 CAE-T5。条件控制的实现方式类似于 CTRL，即在序列开头添加控制码（“civil”或“toxic”）。</p>
+      
+    
+      
+        <p>文本风格迁移结果的自动评估依赖于三个指标：</p>
+      
+    
+      
+        <div class="list-content">准确率：分类准确率衡量风格迁移的成功程度。
+流利度：流利度通常由另一个在非有毒样本上单独训练的语言模型的困惑度来衡量。
+内容保留度：它是迁移后句子与原始句子之间的内容相似度，通过 BLEU 或基于嵌入的内容相似度来衡量。</div>
+      
+    
+      
+        <p>人工评估也是必要的，但成本更高。</p>
+      
+    
+      
+        <p>与基线（<a href="https://arxiv.org/abs/1705.09655" target="_blank" rel="noopener">Shen et al. 2017</a>）相比，<a href="https://arxiv.org/abs/1805.07685" target="_blank" rel="noopener">Santos et al. 2018</a> 的风格迁移方法在分类准确率和内容保留度上表现更好，但困惑度更差。CAE-T5 与包括 Style Transformer 在内的一组基线相比，分类准确率较差，内容保留度具有竞争力，而困惑度更好。</p>
+      
+    
+      
+        <h2>可控生成#</h2>
+        
+      
+    
+      
+        <p>我们可以通过可控文本生成来避免产生有毒输出。有几种流行的方法可以引导预训练语言模型朝着期望的风格、主题或安全标准生成：</p>
+      
+    
+      
+        <div class="list-content">应用引导解码策略，并在测试时选择期望的输出。
+通过良好的 prompt 设计来优化最期望的结果。
+微调基础模型或可控层来进行条件内容生成。</div>
+      
+    
+      
+        <p>更多内容可阅读我关于可控神经文本生成的 ，其中介绍了 <a href="https://arxiv.org/abs/2010.15980" target="_blank" rel="noopener">AutoPrompt</a>、<a href="https://arxiv.org/abs/1909.05858" target="_blank" rel="noopener">CTRL</a>、<a href="https://arxiv.org/abs/1912.02164" target="_blank" rel="noopener">PPLM</a>、<a href="https://arxiv.org/abs/2009.06367" target="_blank" rel="noopener">GeDi</a> 等多种方法。<a href="posts-2021-01-02-controllable-text-generation.html">可控神经文本生成</a></p>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/2009.11462" target="_blank" rel="noopener">Gehman et al. (2020)</a> 实验了基于数据（监督微调、CTRL 训练）和基于解码（词汇偏移、封锁词过滤、PPLM）的方法来进行语言模型去毒化。他们发现，毒性控制 token（CTRL）和脏话过滤器的效果不如在非有毒语料上微调或使用 PPLM 等计算或数据密集型方法。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2021-03-21-lm-toxicity/RealToxicityPrompts-experiments.png" alt="">
+          <figcaption>Table list expected maximum toxicity score over 25 generations (left) and the empirical probability of generating toxic text over 25 generations (right) for several detoxification methods. Scores are provided by Perspective API. (Image source:Gehman et al., 2020)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>系统级安全解决方案#</h2>
+        
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/2010.07079" target="_blank" rel="noopener">Xu et al. (2020)</a> 提出了一种全面的系统级设计，用于构建安全的聊天机器人。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2021-03-21-lm-toxicity/safe-chatbot-system.png" alt="">
+          <figcaption>Illustration of a safe chat bot system. (Image source:Xu et al. 2020)</figcaption>
+        </figure>
+      
+    
+      
+        <p>他们在制作更安全机器人的方案中考虑了四种通用策略：</p>
+      
+    
+      
+        <div class="list-content">检测不安全内容：在语言模型之上增加一个额外的安全层，采用分类器在输入和输出两端检测不安全语言。
+
+该分类器在 Jigsaw 有毒评论数据集的增强版本（安全 vs 不安全二分类标签）上训练，并进一步使用对抗人工攻击（<a href="https://arxiv.org/abs/1908.06083" target="_blank" rel="noopener">Dinan et al. 2019</a>）和半监督（<a href="https://arxiv.org/abs/1811.12900" target="_blank" rel="noopener">Khatri et al. 2018</a>）进行扩展。
+安全分类器可同时用于用户输入和模型输出。如果检测到不安全内容，系统会被配置为返回预设的固定回复（例如“我不确定该说什么，很抱歉。”），或者决定切换话题。值得注意的是，这种方法依赖于高质量的分类器。如果误报过多，对话体验会受到严重破坏。
+机器人对抗对话（BAD）安全：其思想是收集人类对抗性地探测系统使其犯错的数据，然后利用这些数据进行进一步训练。在标注过程中，人工标注者可以根据可能认为其不安全的人口比例，为机器人的回复打上不安全-安全的评级。这些探测数据用于训练一个多轮安全分类器，在给定对话上下文的情况下预测回复是否具有冒犯性。
+
+
+安全生成：训练一个不太可能输出不安全回复的模型。
+
+可以在解码时封锁预定义的不安全词或 n-gram 列表。
+使用上述安全分类器对预训练数据进行过滤，或者基于已知作者进行过滤。
+仅使用安全数据集进行预训练的问题在于，如果模型在训练期间从未见过有毒语言，它在测试时将不知道如何回应（OOD；例如可能直接复制冒犯内容）。因此，他们准备了一组训练样本，其中最后一句被标注为“不安全”，然后在该不安全攻击之后附加一个安全的回应。接着在这些“内置”安全数据上对模型进行微调。
+使用安全分类器为样本分配“安全”与“不安全”标签，进行 <a href="https://arxiv.org/abs/1909.05858" target="_blank" rel="noopener">CTRL</a> 风格的训练。
+
+
+避免敏感话题：
+
+为了避免敏感话题（政治、宗教、毒品使用、医疗建议、NSFW 以及关系/约会），他们使用众包的 Subreddit 列表训练了一个多分类器来检测这些话题。该分类器可以定期重新训练，以捕捉话题随时间的变化。
+通过招募众包工作者讨论其中一个目标话题，收集了一个小型验证集。
+
+
+性别偏见缓解：
+
+他们使用 <a href="https://arxiv.org/abs/1909.05858" target="_blank" rel="noopener">CTRL</a> 风格的训练来缓解性别偏见。
+具体而言，给定一个性别词列表，用 <span class="math-inline" data-math="F^0 M^0">F^0 M^0</span>、<span class="math-inline" data-math="F^0 M^+">F^0 M^+</span>、<span class="math-inline" data-math="F^+ M^+">F^+ M^+</span> 和 <span class="math-inline" data-math="F^+ M^0">F^+ M^0</span> 标签标记训练样本，表示回复是否包含女性/男性词（<span class="math-inline" data-math="+">+</span> 表示包含，<span class="math-inline" data-math="-">-</span> 表示不包含）。在测试时，系统使用控制标签 <span class="math-inline" data-math="F^0 M^0">F^0 M^0</span> 来避免输出特定性别的词。</div>
+      
+    
+      
+        <h2>附录：数据集#</h2>
+        
+      
+    
+      
+        <p>（*此处仅列出英文数据集。）</p>
+      
+    
+      
+        <p>Hate Speech and Offensive Language Dataset (2017)：包含约 2.5 万条推文，每条均被人工标注为以下三类之一：仇恨言论、冒犯但非仇恨言论、既不冒犯也不仇恨。[<a href="https://github.com/t-davidson/hate-speech-and-offensive-language/blob/master/data/readme.md" target="_blank" rel="noopener">下载</a>]</p>
+      
+    
+      
+        <p>Jigsaw Toxic Comments Classification Dataset (2018)：包含约 16 万个从维基百科讨论页面提取的例子，每个例子被标注为 7 个类别之一：toxic、severe toxic、obscene、threat、insult、identity hate 和 non-toxic。标注过程涉及 5000 名众包标注者。[<a href="https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge" target="_blank" rel="noopener">下载</a>]</p>
+      
+    
+      
+        <p>Jigsaw Unintended Bias in Toxicity Classification Dataset (2019)：包含约 200 万条来自 Civil Comments 平台的评论，该平台已于 2017 年关闭。这些数据被标注了毒性、毒性子类型以及身份提及，可用于评估与身份提及相关的意外偏见。[<a href="https://www.kaggle.com/c/jigsaw-unintended-bias-in-toxicity-classification" target="_blank" rel="noopener">下载</a>]</p>
+      
+    
+      
+        <p>OLID (Offensive Language Identification Dataset; 2019)：包含 14100 条英文推文，按照本文所述的三级分类体系进行标注。[<a href="https://sites.google.com/site/offensevalsharedtask/olid" target="_blank" rel="noopener">下载</a>]</p>
+      
+    
+      
+        <p>SOLID (Semi-Supervised Offensive Language Identification Dataset; 2020)：包含 900 多万条按照 OLID 三级分类体系标注的推文。[<a href="https://sites.google.com/site/offensevalsharedtask/solid" target="_blank" rel="noopener">下载</a>]</p>
+      
+    
+      
+        <p>RealToxicityPrompts dataset (2020)：包含来自网络的 10 万个句子片段，并附带 Perspective API 的毒性分数，用于研究语言模型中神经毒性退化的风险。[<a href="https://allenai.org/data/real-toxicity-prompts" target="_blank" rel="noopener">下载</a>]</p>
+      
+    
+      
+        <h2>引用#</h2>
+        
+      
+    
+      
+        <p>引用格式：</p>
+      
+    
+      
+        <blockquote>Weng, Lilian. (Mar 2021). Reducing toxicity in language models. Lil’Log. https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/.</blockquote>
+      
+    
+      
+        <pre><code>@article{weng2021toxic,
+  title   = &quot;Reducing Toxicity in Language Models.&quot;,
+  author  = &quot;Weng, Lilian&quot;,
+  journal = &quot;lilianweng.github.io&quot;,
+  year    = &quot;2021&quot;,
+  month   = &quot;Mar&quot;,
+  url     = &quot;https://lilianweng.github.io/posts/2021-03-21-lm-toxicity/&quot;
+}
+</code></pre>
+      
+    
+      
+        <h2>参考文献#</h2>
+        
+      
+    
+      
+        <p>[1] Vidgen, et al. <a href="https://www.aclweb.org/anthology/W19-3509/" target="_blank" rel="noopener">“Challenges and frontiers in abusive content detection.”</a> Workshop on Abusive Language Online 2019.</p>
+      
+    
+      
+        <p>[2] Zampieri et al. <a href="https://arxiv.org/abs/1902.09666" target="_blank" rel="noopener">“Predicting the type and target of offensive posts in social media.”</a> NAACL 2019.</p>
+      
+    
+      
+        <p>[3] Vidgen &amp; Deczynski. <a href="https://arxiv.org/abs/2004.01670" target="_blank" rel="noopener">“Directions in abusive language training data, a systematic review: Garbage in, garbage out.”</a> PLoS ONE 15(12): e0243300 (2020).</p>
+      
+    
+      
+        <p>[4] Davidson et al. <a href="https://arxiv.org/abs/1703.04009" target="_blank" rel="noopener">“Automated hate speech detection and the problem of offensive language.”</a> ICWSM 2017.</p>
+      
+    
+      
+        <p>[5] Khatri et al. <a href="https://arxiv.org/abs/1811.12900" target="_blank" rel="noopener">“Detecting offensive content in open-domain conversations using two stage semi-supervision.”</a> NeuriIPS CONVAI Workshop 2018.</p>
+      
+    
+      
+        <p>[6] Rosenthal et al. <a href="https://arxiv.org/abs/2004.14454" target="_blank" rel="noopener">“A Large-Scale Semi-Supervised Dataset for Offensive Language Identification”</a> arXiv:2004.14454 (2020).</p>
+      
+    
+      
+        <p>[7] Pavlopoulos et al. <a href="https://arxiv.org/abs/2006.00998" target="_blank" rel="noopener">“Toxicity Detection: Does Context Really Matter?”</a> arXiv:2006.00998 (2020).</p>
+      
+    
+      
+        <p>[8] Dinan et al. <a href="https://arxiv.org/abs/1908.06083" target="_blank" rel="noopener">“Build it, break it, fix it for dialogue safety: Robustness from adversarial human attack.”</a> arXiv:1908.06083 (2019).</p>
+      
+    
+      
+        <p>[9] Kurita et al. <a href="https://arxiv.org/abs/1912.06872" target="_blank" rel="noopener">“Towards Robust Toxic Content Classification”</a> arXiv:1912.06872 (2019)</p>
+      
+    
+      
+        <p>[10] Santos et al. <a href="https://arxiv.org/abs/1805.07685" target="_blank" rel="noopener">“Fighting offensive language on social media with unsupervised text style transfer.”</a> arXiv:1805.07685 (2018)</p>
+      
+    
+      
+        <p>[11] Dai et al. <a href="https://arxiv.org/abs/1905.05621" target="_blank" rel="noopener">“Style Transformer: Unpaired Text Style Transfer without Disentangled Latent Representation”</a> ACL 2019.</p>
+      
+    
+      
+        <p>[12] Laugier et al. <a href="https://arxiv.org/abs/2102.05456" target="_blank" rel="noopener">“Civil Rephrases Of Toxic Texts With Self-Supervised Transformers”</a>  arXiv:2102.05456 (2021). <a href="https://github.com/LeoLaugier/conditional-auto-encoder-text-to-text-transfer-transformer" target="_blank" rel="noopener">code</a></p>
+      
+    
+      
+        <p>[13] Schick et al. <a href="https://arxiv.org/abs/2103.00453" target="_blank" rel="noopener">“Self-Diagnosis and Self-Debiasing: A Proposal for Reducing Corpus-Based Bias in NLP”</a> arXiv:2103.00453 (2021).</p>
+      
+    
+      
+        <p>[14] Gehman et al. <a href="https://arxiv.org/abs/2009.11462" target="_blank" rel="noopener">“RealToxicityPrompts: Evaluating Neural Toxic Degeneration in Language Models”</a> EMNLP 2020.</p>
+      
+    
+      
+        <p>[15] Xu et al. <a href="https://arxiv.org/abs/2010.07079" target="_blank" rel="noopener">“Recipes for Safety in Open-domain Chatbots”</a> arXiv:2010.07079 (2020).</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

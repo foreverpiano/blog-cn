@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>生长中的神经元胞自动机 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>生长中的神经元胞自动机</h1>
+    <div class="meta">
+      2020-02-11 · 
+      <a href="https://distill.pub/2020/growing-ca" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <figure>
+          <img src="../images/2020-growing-ca/multiple-pages.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>本文是
+    <a href="2020-selforg.html">专题：可微分自组织系统</a>
+    的一部分。该系列以实验性形式，汇集了受邀撰写的短文，探讨可微分自组织系统，并穿插来自邻近领域多位专家的批判性评论。</p>
+      
+    
+      
+        <p>可微分自组织系统专题</p>
+      
+    
+      
+        <p>自我分类的 MNIST 数字</p>
+      
+    
+      
+        <p>大多数多细胞生物的生命始于一个受精卵——一个单细胞，其后代能够可靠地自我组装成高度复杂的解剖结构，每次都能精确地排列出相同的器官和组织。构建自身身体的能力可能是每个生物体所拥有的最基本技能。形态发生（生物体形状发育的过程）是自组织现象最惊人的例子之一。细胞作为身体的基本构建单元，通过与邻近细胞沟通来决定器官和身体结构的形状、每个器官的生长位置、它们之间的连接方式以及何时停止生长。理解从简单规则中涌现复杂结果与稳态<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>反馈回路之间的相互作用，是当前活跃的研究领域
+    [<cite>[PezzuloGiovanniLevin2016,C5IB00221D]</cite>]。显而易见的是，进化已经学会利用物理定律和计算原理，在由基因组编码的细胞硬件上运行高度稳健的形态发生软件。</p>
+      
+    
+      
+        <p>这个过程对扰动具有极强的鲁棒性。即使生物体已经完全发育，有些物种仍具备修复损伤的能力——这一过程被称为再生。有些生物，如蝾螈，能够完全再生重要器官、四肢、眼睛，甚至大脑的一部分！形态发生是一个极具适应性的过程。有时即使是非常异常的发育过程，也能产生可存活的个体——例如，当早期哺乳动物胚胎被切成两半时，每一半都能发育成一个完整的个体，即同卵双胞胎！</p>
+      
+    
+      
+        <p>该领域最大的谜题在于：细胞集体如何知道要构建什么以及何时停止。基因组学和干细胞生物学仅解答了部分谜题，它们解释了每个细胞中特定成分的分布以及不同细胞类型的建立。虽然我们已知许多与再生过程相关的基因，但我们仍然不知道是什么样的算法足以让细胞知道如何构建或重塑复杂器官，以达到一个非常具体的解剖目标。因此，生物医学未来工作的一个主要关键在于发现细胞集体中如何指定大规模解剖结构，以及我们如何改写这一信息，以实现对生长和形态的理性控制。人们也越来越清楚，生命软件拥有许多模块或子程序，例如“在这里构建一只眼睛”，只需简单的信号触发即可激活<cite>[Pai313]</cite>。发现这类子程序并绘制出发育逻辑图，是发育生物学与计算机科学交叉的新兴领域。下一个重要步骤是尝试为这一过程建立计算模型，既丰富生物学家的概念工具箱，也帮助将生物学的发现转化为更好的机器人技术和计算技术。</p>
+      
+    
+      
+        <p>想象一下，如果我们能够设计出与生物生命一样具有可塑性和鲁棒性的系统：能够自我生长和自我修复的结构与机器。这种技术将彻底改变当前的再生医学研究——科学家和临床医生正在寻找能够让体内细胞按需构建结构的输入或刺激。为了帮助破解形态发生编码之谜，同时利用生物学的洞见在现实中创造自我修复系统，我们尝试在一个硅基实验中复现其中一些期望属性。</p>
+      
+    
+      
+        <h2>模型</h2>
+        
+      
+    
+      
+        <p>工程领域的研究者经常使用多种包含局部交互的仿真，包括偏微分方程（PDE）系统、粒子系统以及各种类型的胞自动机（CA）。我们将重点关注胞自动机模型，将其作为寻找细胞级规则的路线图，这些规则能使集体展现出复杂的、具有再生性的行为。CA 通常由一个网格组成，网格中的细胞通过迭代更新，每个步骤对所有细胞应用同一组规则。每个细胞的新状态仅取决于其紧邻邻域内少数几个细胞的状态。尽管表面上看似简单，CA 却常常展现出丰富、有趣的行为，并长期被用于建模生物现象。</p>
+      
+    
+      
+        <p>让我们尝试设计一个胞自动机更新规则，从单个细胞开始，在二维网格上生成一个预定义的多细胞图案。这就是我们对生物体发育的类比玩具模型。为了设计这个 CA，我们必须指定可能的细胞状态及其更新函数。典型的 CA 模型用一组离散值表示细胞状态，不过也存在使用连续值向量的变体。使用连续值的好处在于，更新规则可以是细胞邻域状态的可微分函数。根据局部环境指导单个细胞行为的规则，类似于由生物体基因组编码的底层硬件规范。从初始配置开始运行模型一定步数，将揭示这种硬件所能实现的图案形成行为。</p>
+      
+    
+      
+        <p>那么——可微分更新规则到底有什么特别之处？它们允许我们使用强大的损失函数语言来表达愿望，并利用围绕基于梯度的数值优化已有的丰富工具来实现这些愿望。将可微分函数堆叠在一起，并优化其参数以完成各种任务的艺术已有悠久历史。近年来，它在（深度）神经网络、深度学习或可微分编程等不同名称下蓬勃发展。</p>
+      
+    
+      
+        <h3>细胞状态</h3>
+        
+      
+    
+      
+        <p>我们将每个细胞状态表示为一个包含 16 个实数的向量（见上图）。前三个通道代表我们可见的细胞颜色（RGB）。目标图案的颜色通道值范围为 <span class="math-inline" data-math="[0.0, 1.0]">[0.0, 1.0]</span>，且前景像素的 <span class="math-inline" data-math="\alpha">\alpha</span> 等于 1.0，背景像素为 0.0。</p>
+      
+    
+      
+        <p>Alpha 通道（<span class="math-inline" data-math="\alpha">\alpha</span>）具有特殊含义：它划定了“活细胞”，即属于正在生长的图案的细胞。具体来说，具有 <span class="math-inline" data-math="\alpha &gt; 0.1">\alpha &gt; 0.1</span> 及其邻居的细胞被视为“活的”。其他细胞是“死亡”或空的，其状态向量值在每个时间步被显式置为 0.0。因此，<span class="math-inline" data-math="\alpha &gt; 0.1">\alpha &gt; 0.1</span> 的细胞可视为“成熟”，而其邻居中 <span class="math-inline" data-math="\alpha \leq 0.1">\alpha \leq 0.1</span> 的细胞处于“生长”状态，当它们的 alpha 值超过 0.1 的阈值时便可变为成熟。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-growing-ca/alive2.svg" alt="">
+          <figcaption><span class="math-inline" data-math="\vec{state} \rightarrow 0.00">\vec{state} \rightarrow 0.00</span> when no neighbour with <span class="math-inline" data-math="\alpha &gt; 0.10">\alpha &gt; 0.10</span></figcaption>
+        </figure>
+      
+    
+      
+        <p>隐藏通道没有预定义的含义，由更新规则决定如何使用它们。它们可以被解释为某些化学物质的浓度、电势或其他信号机制，细胞用它们来协调生长。从我们的生物类比来看——所有细胞都共享相同的基因组（更新规则），仅通过它们接收、发出和内部存储的化学信号信息（即它们的状态向量）来实现分化。</p>
+      
+    
+      
+        <h3>胞自动机规则</h3>
+        
+      
+    
+      
+        <p>现在是定义更新规则的时候了。我们的 CA 在一个规则的二维网格上运行，网格由 16 维向量组成，本质上是一个形状为 [height, width, 16] 的三维数组。我们希望对每个细胞应用相同的操作，且该操作的结果只能依赖于细胞的少量（3x3）邻域。这与信号处理和可微分编程的基石之一——卷积操作高度相似。卷积是一种线性操作，但可以与其他每个细胞的操作结合，产生能够学会期望行为的复杂更新规则。我们的细胞更新规则可按顺序拆分为以下几个阶段：</p>
+      
+    
+      
+        <p>感知。此步骤定义每个细胞对其周围环境的感知。我们通过一个固定核的 3x3 卷积来实现这一点。有人可能会认为定义这个核是多余的——毕竟细胞可以直接学习所需的感知核系数。我们选择固定操作的原因是，现实中的细胞通常仅依赖化学梯度来引导生物体发育。因此，我们使用经典的 Sobel 滤波器来估计细胞状态通道在 <span class="math-inline" data-math="\vec{x}">\vec{x}</span> 和 <span class="math-inline" data-math="\vec{y}">\vec{y}</span> 方向上的偏导数，为每个状态通道形成每个方向的二维梯度向量。我们将这些梯度与细胞自身的状态拼接，构成每个细胞一个 <span class="math-inline" data-math="16*2+16=48">16*2+16=48</span> 维的感知向量（percepted vector）。</p>
+      
+    
+      
+        <pre><code>
+def perceive(state_grid):
+sobel_x = [[-1, 0, +1],
+[-2, 0, +2],
+[-1, 0, +1]]
+sobel_y = transpose(sobel_x)
+# Convolve sobel filters with states
+# in x, y and channel dimension.
+grad_x = conv2d(sobel_x, state_grid)
+grad_y = conv2d(sobel_y, state_grid)
+# Concatenate the cell’s state channels,
+# the gradients of channels in x and
+# the gradient of channels in y.
+perception_grid = concat(
+state_grid, grad_x, grad_y, axis=2)
+return perception_grid
+</code></pre>
+      
+    
+      
+        <p>更新规则。每个细胞现在对感知向量应用一系列操作，这些操作由典型的可微分编程构建块组成，例如 1x1 卷积和 ReLU 非线性，我们称之为细胞的“更新规则”。请记住，更新规则是被学习的，但每个细胞都运行相同的更新规则。参数化该更新规则的网络大约包含 8000 个参数。受残差神经网络启发，更新规则输出对细胞状态的增量更新，在下一个时间步之前应用到细胞上。更新规则被设计为初始时表现出“什么都不做”的行为——通过将更新规则中最后一层卷积的权重初始化为零来实现。我们也没有对更新规则最后一层的输出施加 ReLU，因为对细胞状态的增量更新必须能够既增加也能减少状态值。</p>
+      
+    
+      
+        <pre><code>
+def update(perception_vector):
+# The following pseudocode operates on
+# a single cell’s perception vector.
+# Our reference implementation uses 1D
+# convolutions for performance reasons.
+x = dense(perception_vector, output_len=128)
+x = relu(x)
+ds = dense(x, output_len=16, weights_init=0.0)
+return ds
+</code></pre>
+      
+    
+      
+        <p>随机细胞更新。典型的胞自动机同时更新所有细胞，这意味着存在一个全局时钟来同步所有细胞。依赖全局同步并非人们对自组织系统的期望。我们通过假设每个细胞独立进行更新、在更新之间等待随机时间间隔来放宽这一要求。为了模拟这种行为，我们对更新向量应用一个随机的每个细胞掩码，以预定义的概率（训练期间我们使用 0.5）将所有更新值置为零。此操作也可以看作是对更新向量应用每个细胞的 dropout。</p>
+      
+    
+      
+        <pre><code>
+def stochastic_update(state_grid, ds_grid):
+# Zero out a random fraction of the updates.
+rand_mask = cast(random(64, 64) &lt; 0.5, float32)
+ds_grid = ds_grid * rand_mask
+return state_grid + ds_grid
+</code></pre>
+      
+    
+      
+        <p>活细胞掩码。我们希望模拟从单个细胞开始的生长过程，且不希望空细胞参与计算或携带任何隐藏状态。我们通过显式地将空细胞的所有通道置为零来强制这一点。如果一个细胞的 3x3 邻域中没有“成熟”（alpha&gt;0.1）的细胞，则该细胞被视为空。</p>
+      
+    
+      
+        <pre><code>
+def alive_masking(state_grid):
+# Take the alpha channel as the measure of “life”.
+alive = max_pool(state_grid[:, :, 3], (3,3)) &gt; 0.1
+state_grid = state_grid * cast(alive, float32)
+return state_grid
+</code></pre>
+      
+    
+      
+        <h2>实验 1：学习生长</h2>
+        
+      
+    
+      
+        <p>在我们的第一个实验中，我们简单地训练 CA 在随机次数的更新后达到目标图像。这种方法相当朴素，会遇到问题。但它所暴露的挑战将帮助我们改进后续尝试。</p>
+      
+    
+      
+        <p>我们将网格初始化为全零，除了中心有一个种子细胞，其除 RGB 外的所有通道<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>都被设为 1。网格初始化后，我们迭代应用更新规则。在每个训练步骤中，我们从 [64, 96]<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup> 范围内采样随机数量的 CA 步数，因为我们希望图案在多次迭代中保持稳定。在最后一步，我们对网格中的 RGBA 通道与目标图案应用逐像素 L2 损失。该损失可以通过时间反向传播相对于更新规则参数进行可微分优化<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup>，这是训练循环神经网络的标准方法。</p>
+      
+    
+      
+        <p>一旦优化收敛，我们就可以运行模拟，观察我们学到的 CA 如何从种子细胞开始生长图案。让我们看看当我们运行的步数超过训练时使用的步数时会发生什么。下方的动画展示了几个不同模型的行为，它们被训练生成不同的 emoji 图案。</p>
+      
+    
+      
+        <p>我们可以看到，不同的训练过程可能导致模型具有截然不同的长期行为。有些倾向于消亡，有些似乎不知道如何停止生长，但有些碰巧几乎稳定！我们如何引导训练始终产生持续存在的图案呢？</p>
+      
+    
+      
+        <h2>实验 2：持续即存在</h2>
+        
+      
+    
+      
+        <p>理解前一个实验为何不稳定的一个方法是将其与动力系统进行类比。我们可以将每个细胞视为一个动力系统，所有细胞共享相同的动力学，并在局部相互耦合。当我们训练细胞更新模型时，我们是在调整这些动力学。我们的目标是找到满足若干属性的动力学。最初，我们希望系统从种子图案演化到目标图案——这是我们在实验 1 中实现的轨迹。现在，我们希望避免观察到的不稳定性——用我们的动力系统比喻来说，就是让目标图案成为一个吸引子。</p>
+      
+    
+      
+        <p>实现这一目标的一种策略是让 CA 迭代更长的时间，并周期性地对目标施加损失，通过在这些更长的时间间隔上进行反向传播来训练系统。直观上我们认为，更长的时间间隔和多次施加损失，会使模型更有可能为目标形状创建一个吸引子，因为我们迭代地塑造动力学，让系统无论跑到哪里都能回到目标图案。然而，更长的时间周期会显著增加训练时间，更重要的是会增加内存需求，因为整个 episode 的中间激活必须存储在内存中以进行反向传播。</p>
+      
+    
+      
+        <p>相反，我们提出了一种基于“样本池”的策略来达到类似效果。我们定义一个用于启动迭代的种子状态池，初始时填充单个黑色像素种子状态。然后我们从这个池中采样一个批次，用于我们的训练步骤。为了防止类似“灾难性遗忘”的现象，我们用原始的单像素种子状态替换批次中的一个样本。在训练步骤结束后，我们用该批次的输出状态替换池中被采样的样本。下方的动画展示了每 20 个训练步骤后池中条目的随机样本。</p>
+      
+    
+      
+        <pre><code>
+def pool_training():
+# Set alpha and hidden channels to (1.0).
+seed = zeros(64, 64, 16)
+seed[64//2, 64//2, 3:] = 1.0
+target = targets[‘lizard’]
+pool = [seed] * 1024
+for i in range(training_iterations):
+idxs, batch = pool.sample(32)
+# Sort by loss, descending.
+batch = sort_desc(batch, loss(batch))
+# Replace the highest-loss sample with the seed.
+batch[0] = seed
+# Perform training.
+outputs, loss = train(batch, target)
+# Place outputs back in the pool.
+pool[idxs] = outputs
+</code></pre>
+      
+    
+      
+        <p>在训练过程的早期，系统中的随机动力学使模型最终处于各种不完整和错误的状态。随着这些状态从池中被采样，我们会细化动力学，使其能够从这类状态中恢复。最后，当模型从种子状态到达目标状态的能力变得更强时，池中的样本也会反映这一点，更有可能非常接近目标图案，从而让训练能够进一步细化这些几乎完成的图案。</p>
+      
+    
+      
+        <p>本质上，我们使用先前的最终状态作为新的起点，迫使我们的 CA 不仅学会从种子生长图案，还学会如何维持甚至改进已经形成的图案。这使得我们能够对显著更长的时间间隔施加周期性损失，从而鼓励在我们的耦合系统中将目标形状生成为吸引子。我们还注意到，在训练初期，用批次中损失最高的样本而不是随机样本进行重新播种，能使训练更稳定，因为它有助于从池中清理低质量的状态。</p>
+      
+    
+      
+        <p>以下是一个典型 CA 规则的训练进度。细胞规则在细化其特征的同时学会稳定图案。</p>
+      
+    
+      
+        <h2>实验 3：学习再生</h2>
+        
+      
+    
+      
+        <p>除了能够构建自己的身体，生物体还非常擅长维持它们。不仅磨损的皮肤会被新皮肤取代，有些物种甚至能再生受到严重损伤的复杂重要器官。我们上面训练的某些模型是否有可能具备再生能力呢？</p>
+      
+    
+      
+        <p>上面的动画展示了使用相同设置训练的三个不同模型。我们让每个模型在 100 步内发育出一个图案，然后以五种不同方式损伤最终状态：移除已形成图案的不同半边，以及从中心切出一个正方形。我们再次看到，这些模型展示了相当不同的训练外行为。例如，“蜥蜴”展现出相当强的再生能力，尽管并未被明确训练过这一点！</p>
+      
+    
+      
+        <p>由于我们训练了细胞的耦合系统，使其从单个细胞生成朝向目标形状的吸引子，这些系统一旦受损，很可能会泛化出非自我破坏的反应。这是因为系统被训练为生长、稳定，并且永远不会完全自我毁灭。其中一些系统可能自然地倾向于发展出再生能力，但没有什么能阻止它们发展出其他行为，例如爆炸性有丝分裂（不受控制的生长）、对损伤无反应（过度稳定），甚至自我毁灭，尤其是对于更严重的损伤类型。</p>
+      
+    
+      
+        <p>如果我们希望模型展现出更一致、更准确的再生能力，可以尝试扩大目标图案的吸引盆——增加那些自然地向目标形状汇聚的细胞配置空间。我们将通过在每个训练步骤前损伤几个从池中采样的状态来实现这一点。现在系统必须能够从被随机放置的擦除圆形损伤的状态中再生。我们希望这能泛化到对各种类型损伤的再生能力。</p>
+      
+    
+      
+        <p>上面的动画展示了包含样本损伤的训练进度。我们从池中采样 8 个状态。然后用种子状态替换损失最高的样本（上方最左边），并损伤三个损失最低的样本（上方最右边），方法是将图案内一个随机圆形区域置为零。最下面一行显示从各自最上方起始状态迭代后的状态。与实验 2 一样，结果状态会被重新注入池中。</p>
+      
+    
+      
+        <p>从上面的动画可以看出，在训练期间暴露于损伤的模型要 robust 得多，即使面对训练过程中未经历过的损伤类型（例如上图中的矩形损伤）也是如此。</p>
+      
+    
+      
+        <h2>实验 4：旋转感知场</h2>
+        
+      
+    
+      
+        <p>如前所述，我们通过使用 Sobel 滤波器估计状态通道在 <span class="math-inline" data-math="\vec{x}">\vec{x}</span> 和 <span class="math-inline" data-math="\vec{y}">\vec{y}</span> 方向上的梯度，来建模细胞对其邻近细胞的感知。一个方便的类比是，每个智能体有两个传感器（例如化学感受器），指向正交方向，能够感知沿传感器轴的某些化学物质浓度的梯度。如果我们旋转这些传感器会怎样？我们可以通过旋转 Sobel 核来实现这一点。</p>
+      
+    
+      
+        <p>这种对感知场的简单修改，在不重新训练的情况下就能产生所选角度的图案旋转版本，如下所示。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-growing-ca/rotation.png" alt="">
+          <figcaption>Rotating the axis along which the perception step computes gradients
+        brings about rotated versions of the pattern. 
+<a href="https://colab.research.google.com/github/google-research/self-organising-systems/blob/master/notebooks/growing_ca.ipynb#scrollTo=1CVR9MeYnjuY" target="_blank" rel="noopener">Reproduce in aNotebook</a></figcaption>
+        </figure>
+      
+    
+      
+        <p>在一个不被单个像素网格细胞量化的理想世界中，这并不令人惊讶，毕竟人们会期望在 <span class="math-inline" data-math="\vec{x}">\vec{x}</span> 和 <span class="math-inline" data-math="\vec{y}">\vec{y}</span> 中感知到的梯度对所选角度是不变的——这只是参考系的简单改变。然而，重要的是要注意，在基于像素的模型中事情并不那么简单。旋转基于像素的图形需要计算一个不一定是双射的映射，通常涉及在像素之间插值以达到期望结果。这是因为单个像素在旋转后很可能与多个像素重叠。上述图案的成功生长表明，对训练期间未经历的底层条件具有一定的鲁棒性。</p>
+      
+    
+      
+        <h2>相关工作</h2>
+        
+      
+    
+      
+        <h3>CA 与 PDE</h3>
+        
+      
+    
+      
+        <p>已有大量文献描述了各种风味的胞自动机和 PDE 系统，以及它们在建模物理、生物甚至社会系统中的应用。虽然不可能用几行文字对这一领域做出公正的概述，但我们将介绍一些启发本工作的突出例子。Alan Turing 在 1952 年提出了他著名的 Turing 图案
+    [<cite>[turing1990chemical]</cite>]，提出了反应-扩散系统可以作为形态发生过程中化学行为的有效模型。一个特别鼓舞人心且经受住时间考验的反应-扩散模型是 Gray-Scott 模型
+    [<cite>[Pearson189]</cite>]，它仅通过几个变量就能展现出极多样的行为。</p>
+      
+    
+      
+        <p>自从 von Neumann 引入 CA
+    [<cite>[10.5555/1102024]</cite>] 作为自复制的模型以来，它们一直吸引着研究者的注意，人们观察到极其复杂的行为从非常简单的规则中涌现出来。同样，学术界之外的广大受众也因 Conway’s Game of Life [<cite>[10.2307/24927642]</cite>] 而被 CA 生命般的行为所吸引。或许部分是由于 Rule 110 被证明是图灵完备的这一事实，Wolfram 的《A New Kind of Science》
+[<cite>[Wolfram2002ANK]</cite>] 呼吁进行一场范式转变，以大量使用像 CA 这样的基本计算机程序作为理解世界的工具。</p>
+      
+    
+      
+        <p>近年来，一些研究者将 Conway’s Game of Life 推广到更连续的领域。我们特别受到 Rafler 的 SmoothLife [<cite>[rafler2011generalization]</cite>] 和 Chan 的 Lenia
+    [<cite>[Chan_2019, Reinke2019IntrinsicallyME]</cite>] 的启发，后者还发现了并对整个“生命形式”物种进行了分类。</p>
+      
+    
+      
+        <p>许多研究者使用进化算法来寻找能够再现预定义简单图案的 CA 规则
+    [<cite>[10.1007/978-3-642-19167-1_2, Nichele2018CANEATEC]</cite>]。
+    例如，J. Miller [<cite>[Miller2004]</cite>] 提出了一个与我们相似的实验，使用进化算法设计一个 CA 规则，从种子细胞开始能够构建并再生法国国旗。</p>
+      
+    
+      
+        <h3>神经网络与自组织</h3>
+        
+      
+    
+      
+        <p>卷积神经网络与胞自动机之间的密切关系已经被许多研究者观察到
+    [<cite>[wulff1993learning, Gilpin2018CellularAA]</cite>]。这种联系如此紧密，以至于我们能够使用流行机器学习框架中现成的组件来构建 Neural CA 模型。因此，用不同的术语来说，我们的 Neural CA 可能被称为“具有‘per-pixel’ Dropout 的循环残差卷积网络”。</p>
+      
+    
+      
+        <p>Neural GPU
+    [<cite>[Kaiser2015NeuralGPU, Freivalds2017ImprovingTN]</cite>] 提供了一种与我们非常相似的计算架构，但应用于学习乘法和排序算法的场景。</p>
+      
+    
+      
+        <p>从更广泛的角度看，我们认为自组织的概念正在随着图神经网络 [<cite>[wu2019comprehensive]</cite>] 模型的普及而进入主流机器学习。通常，GNN 在（可能是动态的）图的顶点上重复运行计算。顶点通过图边进行局部通信，并在多轮消息交换中聚合执行任务所需的全局信息，就像原子可以被认为相互通信以产生分子的涌现属性 [<cite>[NIPS2015_5954]</cite>]，甚至点云中的点与其邻居交流以确定其全局形状
+    [<cite>[Wang_2019]</cite>]。</p>
+      
+    
+      
+        <p>自组织也出现在使用更传统的动态图网络的引人入胜的当代工作中，作者在其中进化了自我组装智能体来解决各种虚拟任务
+    [<cite>[pathak19assemblies]</cite>]。</p>
+      
+    
+      
+        <h3>群体机器人学</h3>
+        
+      
+    
+      
+        <p>自组织力量最引人注目的展示之一是将其应用于群体建模。早在 1987 年，Reynolds 的 Boids
+    [<cite>[boids]</cite>] 就仅用一组手工制作的微小规则模拟了鸟类的群集行为。如今，我们可以将微型机器人嵌入程序，并在物理智能体上测试它们的集体行为，正如 Mergeable Nervous Systems
+    [<cite>[mathews2017mergeable]</cite>] 和 Kilobots
+    [<cite>[kilobots]</cite>] 等工作所展示的那样。据我们所知，目前嵌入群体机器人的程序仍由人类设计。我们希望我们的工作能为该领域提供启发，并鼓励通过可微分建模来设计集体行为。</p>
+      
+    
+      
+        <h2>讨论</h2>
+        
+      
+    
+      
+        <h3>胚胎发生建模</h3>
+        
+      
+    
+      
+        <p>本文描述了一个玩具式的胚胎发生和再生模型。这是一个未来工作的主要方向，在生物学及以外领域有许多应用。除了对理解再生进化和控制的影响，以及利用这种理解进行生物医学修复之外，还有生物工程领域。随着该领域从单细胞集体的合成生物学转向真正的新型活机器的合成形态学 [<cite>[Kriegman1853, Kamm2018]</cite>]，开发用于编程系统级能力（如解剖稳态，即再生修复）的策略将变得至关重要。长期以来人们知道，再生生物体能够恢复特定的解剖图案；然而，最近发现目标形态并非由 DNA 硬编码，而是由一个生理电路维持，该电路为这种解剖稳态存储了一个设定点
+    [<cite>[doi:10.1080/19420889.2016.1192733]</cite>]。现在已有技术可以改写这个设定点，例如导致 [<cite>[OVIEDO2010188,DURANT20172231]</cite>] 两头扁虫，当它们在清水中被切成碎片（无需进一步操作）时，后代会再生出两头蠕虫（如上图所示）。开发存储群体行为系统级目标状态的计算过程模型 [<cite>[doi:10.1162/isal_a_00043, PIETAK201852, doi:10.1162/isal_a_00041, doi:10.1162/isal_a_029]</cite>] 至关重要，以便能够开发出有效策略来理性编辑这一信息结构，从而产生期望的大规模结果（从而克服阻碍再生医学和许多其他进展的逆问题）。</p>
+      
+    
+      
+        <h3>工程与机器学习</h3>
+        
+      
+    
+      
+        <p>本文描述的模型运行在现代计算机或智能手机强大的 GPU 上。然而，让我们推测一下这种系统的“更物理”实现可能是什么样子。我们可以将其想象为一个由微小独立计算机组成的网格，每个计算机模拟单个细胞。其中每台计算机大约需要 10Kb 的 ROM 来存储“细胞基因组”：神经网络权重和控制代码，以及大约 256 字节的 RAM 用于细胞状态和中间激活。细胞必须能够将其 16 值状态向量传递给邻居。每个细胞还需要一个 RGB 二极管来显示它所代表的像素颜色。单次细胞更新大约需要 10k 次乘加操作，并且不必在整个网格上同步。我们提出细胞可能在更新之间等待随机时间间隔。上述系统是均匀且去中心化的。然而，我们的方法提供了一种对其进行编程以达到预定义全局状态，并在多元素故障和重启的情况下恢复该状态的方式。因此我们推测这类建模可用于设计可靠的、自组织的智能体。在更理论的机器学习前沿，我们展示了一个能够完成惊人复杂任务的去中心化模型实例。我们相信这个方向与当代深度学习领域中大多数工作所使用的更传统的全局建模是相反的，我们希望这项工作能启发人们探索更多去中心化的学习建模。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-growing-ca/multiple-pages.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>本文是
+    <a href="2020-selforg.html">专题：可微分自组织系统</a>
+    的一部分。该系列以实验性形式，汇集了受邀撰写的短文，探讨可微分自组织系统，并穿插来自邻近领域多位专家的批判性评论。</p>
+      
+    
+      
+        <p>可微分自组织系统专题</p>
+      
+    
+      
+        <p>自我分类的 MNIST 数字</p>
+      
+    
+  </div>
+
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <a href="#fnref-f1n">[1]</a> 自我调节反馈回路试图将身体维持在稳定状态，或在外部扰动下保持其正确的整体形态
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <a href="#fnref-f2n">[2]</a> 我们将种子的 RGB 通道设为零，因为我们希望它在白色背景上可见。
+    </div>
+    
+    <div class="footnote-item" id="f3n">
+      <a href="#fnref-f3n">[3]</a> 这应该是足够多的步数来生长我们所处理的尺寸（40x40）的图案，即使考虑到我们更新规则的随机性。
+    </div>
+    
+    <div class="footnote-item" id="f4n">
+      <a href="#fnref-f4n">[4]</a> 我们观察到训练不稳定性，表现为训练后期损失值突然跳跃。我们通过对参数梯度应用逐变量 L2 归一化来缓解这一问题。这可能产生类似于权重归一化 [<cite>[Salimans2016WeightNA]</cite>] 的效果。其他训练参数可在附带的源代码中找到。
+    </div>
+    
+  </section>
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>神经细胞自动机的对抗性重编程 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>神经细胞自动机的对抗性重编程</h1>
+    <div class="meta">
+      2021-05-06 · 
+      <a href="https://distill.pub/selforg/2021/adversarial" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <figure>
+          <img src="../images/selforg-2021-adversarial/multiple-pages.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>本文是
+    <a href="2020-selforg.html">专题：可微分自组织系统</a>
+    系列的一部分。该系列采用一种实验性的格式，收集受邀撰写的短文，深入探讨可微分自组织系统，并穿插来自邻近领域多位专家的批判性评论。</p>
+      
+    
+      
+        <p>自组织纹理</p>
+      
+    
+      
+        <p>本文中的图表和演示大量使用颜色。点击此处可调整调色板。</p>
+      
+    
+      
+        <p>在复杂的系统中——无论是生物的、技术性的还是社会的——我们如何才能发现那些能够以期望方式改变系统级行为的信号事件？即使我们已知支配这些复杂系统个体组件的规则，反问题（从期望行为反推系统设计）仍是生物医学、机器人学以及其他对社会重要的领域取得进展的核心障碍。</p>
+      
+    
+      
+        <p>生物学正从关注机制（系统正常工作需要什么）转向关注信息（什么算法足以实现适应性行为）。机器学习的进步为生物科学提供了令人兴奋且尚未得到充分开发的灵感和工具来源。Growing Neural Cellular Automata [<cite>[mordvintsev2020growing]</cite>] 和 Self-classifying MNIST Digits [<cite>[randazzo2020self-classifying]</cite>] 提出了神经细胞自动机（Neural CA）模型，并展示了如何以端到端、可微分的方式训练需要自组织的任务，例如模式生长和数字自分类。得到的模型对各种扰动具有鲁棒性：生长的 CA 在受损时表现出再生能力；MNIST CA 能对底层数字的变化做出响应，并在必要时触发重新分类。这些计算框架为理解重要的生物现象提供了定量模型，例如将单个细胞的行为规则扩展为可靠的器官级解剖结构。后者是一种解剖稳态，通过反馈回路实现，这些回路必须识别与目标形态的偏差，并逐步减少解剖误差。</p>
+      
+    
+      
+        <p>在这项工作中，我们训练对抗者，其目标是将 CA 重编程为执行它们原本训练任务之外的事情。为了理解哪些低层次信号能够改变我们 CA 的系统级行为，理解这些 CA 是如何构建的，以及局部信息与全局信息分别位于何处，至关重要。</p>
+      
+    
+      
+        <p>神经 CA 的系统级行为受以下因素影响：</p>
+      
+    
+      
+        <div class="list-content">单个细胞的状态。状态存储的信息既用于细胞行为之间的多样化，也用于与邻近细胞的通信。
+模型参数。这些参数描述了细胞的输入/输出行为，并由同一家族的每个细胞共享。模型参数可以看作系统的工作方式。
+感知场。这是细胞感知其环境的方式。在神经 CA 中，我们始终将感知场限制为八个最近邻居和细胞自身。细胞相互感知的方式在 Growing CA 和 MNIST CA 之间有所不同。Growing CA 的感知场是一组在训练和推理期间都固定的权重，而 MNIST CA 的感知场则是作为模型参数的一部分被学习得到的。</div>
+      
+    
+      
+        <p>扰动这些组件中的任何一个，都会导致系统级行为的改变。</p>
+      
+    
+      
+        <p>我们将探索两种对抗攻击：1）向运行预训练模型的现有网格中注入少量对抗细胞；2）扰动网格上所有细胞的全局状态。</p>
+      
+    
+      
+        <p>对于第一类对抗攻击，我们训练一个新的 CA 模型，当它被放置在运行前述文章中描述的原始模型之一的环境中时，能够劫持对抗性和非对抗性 CA 混合体的整体行为。这是向系统中注入具有不同模型参数的 CA 的示例。在生物学中，已知多种劫持形式，包括接管遗传和生化信息流的病毒 [<cite>[pmid32457704]</cite>]、接管生理控制机制的细菌 [<cite>[pmid21278760]</cite>] 乃至整个身体的再生形态 [<cite>[pmid32439577]</cite>]，以及调控宿主行为的真菌和弓形虫 [<cite>[pmid30109417]</cite>]。特别引人注目的是，在发育生物学和癌症中存在大量非细胞自主信号的案例，表明某些细胞行为既能在局部也能在远距离显著改变宿主特性。例如，生物电异常的细胞可以在其他方面完全正常（无基因缺陷）的身体中引发转移转化 [<cite>[pmid23196890]</cite>]，而在身体某一区域管理生物电状态可以抑制身体另一侧的肿瘤发生 [<cite>[pmid24830454]</cite>]。同样，一条腿的截肢损伤会引发对侧腿细胞离子特性的变化 [<cite>[pmid30126906]</cite>]，而发育中大脑的大小在一定程度上由腹侧肠细胞的活动决定 [<cite>[pmid26198142]</cite>]。所有这些现象都凸显了理解细胞群体如何做出集体决策，以及这些组织级决策如何被少量细胞的活动所颠覆的重要性。开发此类动态的定量模型至关重要，以便推动再生医学取得有意义的进展——这种医学从上而下控制系统级结果，而在细胞或分子层面进行微观管理是不可行的 [<cite>[pmid27807271]</cite>]。</p>
+      
+    
+      
+        <p>第二类对抗攻击通过扰动细胞内部的状态来与先前训练的生长 CA 模型进行交互。我们对所有存活细胞施加全局状态扰动。这可以看作是抑制或增强状态值的组合，进而劫持细胞之间以及细胞自身状态内部的正常通信。此类模型不仅代表了对自然界中对抗关系（如寄生和遗传、生理机制的进化军备竞赛）的思考方式，也为再生医学策略的发展提供了路线图。下一代生物医学将需要计算工具来推断可应用于生物系统的最小、最省力的干预措施，从而可预测地改变它们的大尺度解剖和行为特性。</p>
+      
+    
+      
+        <h2>对抗 MNIST CA在 Notebook 中试用</h2>
+        
+      
+    
+      
+        <p>回想一下，自分类 MNIST 数字任务是将 CA 细胞放置在一个平面上，形成 MNIST 数字的形状。然后这些细胞必须相互通信，以就它们形成的数字达成完全共识。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/selforg-2021-adversarial/local_global_figure.svg" alt="">
+          <figcaption>Diagram showing the local vs. global information available in the cell collective.  (a) Local information neighbourhood - each cell can only observe itself and its neighbors’ states, or the absence of neighbours. (b) Globally, the cell collective aggregates information from all parts of itself.  (c) It is able to distinguish certain shapes that compose a specific digit (3 in the example).</figcaption>
+        </figure>
+      
+    
+      
+        <p>下面我们展示了由 Self-classifying MNIST Digits 中训练的模型所做出的分类示例。</p>
+      
+    
+      
+        <p>在这个实验中，目标是创建能够劫持细胞集体的分类共识、使其始终将任何数字分类为 8 的对抗 CA。我们使用来自 [<cite>[randazzo2020self-classifying]</cite>] 的 CA 模型并冻结其参数。然后我们训练一个新的 CA，其模型架构与冻结模型完全相同，但参数随机初始化。训练机制也与自分类 MNIST 数字 CA 非常接近。有三个重要区别：</p>
+      
+    
+      
+        <div class="list-content">无论实际数字是什么，我们都认为正确的分类始终是 8。
+对于每个批次和每个像素，CA 被随机选择为预训练模型或新的对抗模型。对抗 CA 使用概率为 10%，其余时间使用预训练的、冻结的模型。
+仅训练对抗 CA 的参数，预训练模型的参数保持冻结。</div>
+      
+    
+      
+        <p>这里定义的对抗攻击仅修改了整个系统的一小部分，但目标是传播影响所有存活细胞的信号。因此，这些对抗者必须以某种方式学会传递欺骗性信息，从而导致邻居做出错误分类，并进一步通过“不知情”细胞级联传播欺骗信息。由于不知情细胞的参数无法改变，对抗者唯一的攻击手段就是引起细胞状态的变化。细胞状态负责通信和多样化。</p>
+      
+    
+      
+        <p>该任务优化起来非常简单，仅需 2000 个训练步骤即可收敛（而构建原始 MNIST CA 需要两个数量级更多的步骤）。通过可视化移除对抗者后发生的情况，我们观察到对抗者必须不断与其非对抗邻居通信，以保持它们被说服接受恶意分类。虽然移除对抗者后有些数字不会恢复，但大多数都能自我纠正为正确的分类。下面我们展示了在 200 步时引入对抗者，并在再经过 200 步后移除它们的示例。</p>
+      
+    
+      
+        <p>虽然我们以 10% 对 90% 的对抗与非对抗细胞比例训练了这些对抗者，但我们观察到往往只需要显著更少的对抗者就能成功实现欺骗。下面我们使用仅 1% 的细胞作为对抗者来评估实验。</p>
+      
+    
+      
+        <p>我们创建了一个演示游乐场，读者可以在其中绘制数字并以手术般的精度放置对抗者。我们鼓励读者与演示互动，以感受非对抗细胞是多么容易被引导向错误的分类。</p>
+      
+    
+      
+        <h2>用于生长 CA 的对抗注入在 Notebook 中试用</h2>
+        
+      
+    
+      
+        <p>一个自然而然的后继问题是，这些对抗攻击是否也适用于 Growing CA。Growing CA 的目标是从单个细胞生长出复杂图像，并且使其结果在时间上持久且对扰动具有鲁棒性。在本文中，我们重点关注 Growing CA 中的蜥蜴图案模型。</p>
+      
+    
+      
+        <p>目标是让一些对抗细胞改变所有细胞的全局配置。我们选择了两个新的目标，希望对抗细胞尝试将蜥蜴变形为：无尾蜥蜴和红色蜥蜴。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/selforg-2021-adversarial/lizard_new_targets_exp2.png" alt="">
+          <figcaption>The desired mutations we want to apply.</figcaption>
+        </figure>
+      
+    
+      
+        <p>这些目标具有不同的特性：</p>
+      
+    
+      
+        <div class="list-content">红色蜥蜴：将蜥蜴从绿色变为红色将显示细胞集体的行为发生了全局变化。这种行为在原始模型观察到的动态中并不存在。因此，对抗者被赋予的任务是欺骗其他细胞去做它们从未做过的事情（像以前一样创建蜥蜴形状，但现在颜色为红色）。
+无尾蜥蜴：拥有断尾是一种更局部的变化，只需要欺骗部分细胞使其以错误方式行为：尾巴根部的细胞需要被说服它们构成了蜥蜴的边缘或轮廓，而不是像以前那样继续生长尾巴。</div>
+      
+    
+      
+        <p>就像前一个实验一样，我们的对抗者只能间接影响原始细胞的状态。</p>
+      
+    
+      
+        <p>我们首先针对无尾目标训练对抗者，使任何给定细胞有 10% 的概率成为对抗者。我们禁止细胞在目标图案之外成为对抗者；即尾巴中不包含任何对抗者。</p>
+      
+    
+      
+        <p>上面的视频展示了同一模型的六个不同实例，对抗者的随机放置位置不同。结果差异很大：有时对抗者成功移除尾巴，有时尾巴只是缩短而未完全移除，其他时候图案变得不稳定。训练这些对抗者需要比对抗 MNIST CA 实验多得多的梯度步骤才能收敛，而且收敛得到的图案质量明显低于对抗 MNIST CA 实验的结果。</p>
+      
+    
+      
+        <p>红色蜥蜴图案的表现更差。仅使用 10% 的对抗细胞会导致完全失败：原始细胞不受对抗者影响。有些读者可能会质疑原始预训练 CA 是否具备产生红色输出的必要技能或“子程序”，因为原始目标中没有红色区域，并可能怀疑这从一开始就是不可能完成的任务。因此，我们逐渐增加对抗细胞的比例，直到找到成功的对抗 CA（如果存在的话）。</p>
+      
+    
+      
+        <p>在上面的视频中我们可以看到，至少在形态发生的最初阶段，60% 的对抗者能够将蜥蜴染成红色。请特别注意“第 500 步”<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>，在那里我们隐藏对抗细胞并仅显示原始细胞。我们看到少数原始细胞被染成红色。这是证明对抗者成功引导相邻细胞在需要的地方将自己染成红色的证据。</p>
+      
+    
+      
+        <p>然而，当迭代时间超过训练期间所见的时间时，该模型非常不稳定。此外，学到的对抗攻击依赖于大多数细胞都是对抗者。例如，当使用 20-30% 这样较少的对抗者时，配置是不稳定的。</p>
+      
+    
+      
+        <p>与前一个实验的结果相比，Growing CA 模型对对抗扰动的抵抗力比 MNIST CA 更强。这两个模型之间一个显著的区别是，MNIST CA 细胞必须始终准备好并能够根据通过多个邻居传播的信息改变意见（分类）。这是该模型的必要要求，因为底层数字随时可能改变，但大多数细胞不会观察到其邻居位置的任何变化。例如，想象一个 1 变成 7 的情况，其中两条下笔画完全重叠。从位于数字下笔画的细胞的角度来看，没有任何变化，但形成的数字现在是 7。因此我们假设，与 Growing CA 相比，MNIST CA 更依赖且“信任”连续的长距离通信，而在 Growing CA 中，细胞从不需要重新配置自己来生成与之前不同的东西。</p>
+      
+    
+      
+        <p>我们怀疑，在训练期间学习了多种目标图案的更通用的 Growing CA 更容易受到对抗攻击。</p>
+      
+    
+      
+        <h2>扰动生长 CA 的状态在 Notebook 中试用</h2>
+        
+      
+    
+      
+        <p>我们观察到，通过在细胞集体内部放置对抗细胞来欺骗 Growing CA 改变其形态是困难的。这些对抗者必须设计复杂的局部行为，才能导致附近的非对抗细胞，并最终在整个图像的全局范围内，改变它们的整体形态。</p>
+      
+    
+      
+        <p>在本节中，我们探索另一种方法：在不改变任何细胞模型参数的情况下扰动所有细胞的全局状态。</p>
+      
+    
+      
+        <p>与之前一样，我们的实验基于训练来生成蜥蜴的 Growing CA 模型。每个 Growing CA 细胞都有一个包含 16 个元素的内部状态向量。其中一些是表型元素（RGBA 状态），其余 12 个用于任意目的，用于存储和传递信息。我们可以扰动这些细胞的状态来以特定方式劫持整个系统（发现此类扰动策略是生物医学和合成形态学的关键目标）。执行状态扰动的方法多种多样。我们将重点关注全局状态扰动，其定义为在每个时间步对每个存活细胞应用的扰动（类似于“系统性”生物医学干预，即给予整个生物体，例如口服化学药物，而不是高度局域化的递送系统）。新的目标是发现某种全局状态扰动，能够产生稳定的新图案。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/selforg-2021-adversarial/figure_2.svg" alt="">
+          <figcaption>Diagram showing some possible stages for perturbing a lizard pattern. (a) We start from a seed that grows into a lizard (b) Fully converged lizard. (c) We apply a global state perturbation at every step. As a result, the lizard loses its tail. (d) We stop perturbing the state. We observe the lizard immediately grows back its tail.</figcaption>
+        </figure>
+      
+    
+      
+        <p>我们展示了 6 个目标图案：前一个实验中的无尾和红色蜥蜴，加上蓝色蜥蜴以及带有各种断肢和断头的蜥蜴。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/selforg-2021-adversarial/mutations_mosaic.jpeg" alt="">
+          <figcaption>Mosaic of the desired mutations we want to apply.</figcaption>
+        </figure>
+      
+    
+      
+        <p>我们决定尝试一种简单的全局状态扰动：在每一步对每个存活细胞应用对称的 <span class="math-inline" data-math="16\times16">16\times16</span> 矩阵乘法 <span class="math-inline" data-math="A">A</span> <sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>。为了解释我们选择它的原因，更简单的“状态加法”突变（仅由向每个状态添加一个向量组成的突变）是不够的，因为我们模型中状态的值是无界的，而且我们通常希望通过将其设置为零来抑制某些东西。后者用常量状态加法一般是不可能的，因为常量加法或减法通常会导致无穷大，除非在某些幸运的情况下，细胞的自然残差更新在状态值恰好为零时与常量加法相互抵消。然而，矩阵乘法有可能放大/抑制状态中元素的组合：将一个状态值反复乘以小于 1 的常量可以轻松地将该状态值抑制到零。我们将矩阵约束为对称的，原因将在下一节中变得清晰。</p>
+      
+    
+      
+        <p>我们用单位矩阵 <span class="math-inline" data-math="I">I</span> 初始化 <span class="math-inline" data-math="A">A</span>，并像训练原始 Growing CA 一样训练 <span class="math-inline" data-math="A">A</span>，但存在以下区别：</p>
+      
+    
+      
+        <div class="list-content">我们在每一步都执行上述描述的全局状态扰动，使用 <span class="math-inline" data-math="A">A</span>。
+底层 CA 参数被冻结，我们仅训练 <span class="math-inline" data-math="A">A</span>。
+我们将初始图像配置的集合视为种子状态和完全生长蜥蜴的状态（而 Growing CA 文章中初始配置仅包含种子状态）。</div>
+      
+    
+      
+        <p>上面的视频显示模型成功发现了能够将目标图案改变为期望变体的全局状态扰动。我们展示了当我们在第 500 步到第 1000 步停止扰动状态（训练外情况）然后重新施加突变时会发生什么。这证明了我们的扰动既能在从种子开始时，也能在从完全生长图案开始时实现期望结果。此外，它还证明了当扰动消失后，原始 CA 很容易从这些状态扰动中恢复。最后这个结果或许并不令人惊讶，因为生长 CA 模型总体上非常鲁棒。</p>
+      
+    
+      
+        <p>并非所有扰动都同样有效。特别是无头扰动是最不成功的，因为它会导致整个蜥蜴图案失去其他细节，例如背部的白色着色。我们假设，由于扰动的简单性，我们的训练机制能找到的最佳扰动是抑制一个同时包含头部形态和白色着色的“结构”。这可能与生物器官的分化和区分概念有关。在经验尝试之前预测哪些扰动会更难或不可能实现，仍然是生物学中的一个开放研究问题。另一方面，此类合成分析的变体可能有助于定义生物和合成系统中的高阶结构。</p>
+      
+    
+      
+        <h3>扰动的方向性和组合性</h3>
+        
+      
+    
+      
+        <p>我们选择使用对称矩阵来表示全局状态扰动，是出于对组合性的渴望。每个复杂的对称矩阵 <span class="math-inline" data-math="A">A</span> 都可以按如下方式对角化：</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="A = Q \Lambda Q^\intercal">A = Q \Lambda Q^\intercal</span></p>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\Lambda">\Lambda</span> 是对角特征值矩阵，<span class="math-inline" data-math="Q">Q</span> 是其特征向量的酉矩阵。另一种理解方式是应用基变换，将每个分量按特征值比例缩放，然后变回原始基底。这也应该更清晰地直观理解抑制或放大状态组合的容易程度。此外，我们现在可以推断如果所有特征值都为 1 会发生什么。在那种情况下，我们自然会得到 <span class="math-inline" data-math="Q I Q^\intercal = I">Q I Q^\intercal = I</span>，结果是无操作（无变化）：蜥蜴将像没有进行扰动一样生长。我们现在可以将 <span class="math-inline" data-math="Q \Lambda Q^\intercal = Q (D + I) Q^\intercal">Q \Lambda Q^\intercal = Q (D + I) Q^\intercal</span> 分解，其中 D 是“特征值空间”中的扰动方向（<span class="math-inline" data-math="\Lambda - I">\Lambda - I</span>）。假设我们使用系数 <span class="math-inline" data-math="k">k</span> 来缩放 D：<span class="math-inline" data-math="A_k = Q (kD + I) Q^\intercal">A_k = Q (kD + I) Q^\intercal</span>。如果 <span class="math-inline" data-math="k=1">k=1</span>，我们得到原始扰动 <span class="math-inline" data-math="A">A</span>；当 <span class="math-inline" data-math="k=0">k=0</span> 时，我们得到无操作 <span class="math-inline" data-math="I">I</span>。自然而然的问题是，我们是否可以探索 <span class="math-inline" data-math="k">k</span> 的其他值并发现有意义的扰动。由于</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="A_k = Q (kD + I) Q^\intercal = k A + (1-k) I">A_k = Q (kD + I) Q^\intercal = k A + (1-k) I</span></p>
+      
+    
+      
+        <p>我们甚至不需要计算特征值和特征向量，而可以简单地相应缩放 <span class="math-inline" data-math="A">A</span> 和 <span class="math-inline" data-math="I">I</span>。</p>
+      
+    
+      
+        <p>那么让我们以无尾扰动为例，看看当我们改变 <span class="math-inline" data-math="k">k</span> 时会发生什么：</p>
+      
+    
+      
+        <p>当我们将 <span class="math-inline" data-math="k=1">k=1</span> 改为 <span class="math-inline" data-math="k=0">k=0</span> 时，可以观察到尾巴变得更加完整。令人惊讶的是，如果我们使 <span class="math-inline" data-math="k">k</span> 为负值，蜥蜴会长出更长的尾巴。不幸的是，我们离得越远，系统就变得越不稳定，最终蜥蜴图案会以无界的方式生长。这种行为很可能源于施加在状态上的扰动也会影响系统的稳态调节，使某些细胞死亡或以不同于之前的方式生长，从而产生类似于生物系统中“癌症”的行为。</p>
+      
+    
+      
+        <p>我们能否同时执行多个单独训练的扰动？</p>
+      
+    
+      
+        <p>假设我们有两个扰动 <span class="math-inline" data-math="A">A</span> 和 <span class="math-inline" data-math="B">B</span>，且它们的特征向量相同（或者更现实地说，足够相似）。那么，<span class="math-inline" data-math="A_k = Q (k_A D_A + I) Q^\intercal">A_k = Q (k_A D_A + I) Q^\intercal</span> 和 <span class="math-inline" data-math="B_k = Q (k_B D_B + I) Q^\intercal">B_k = Q (k_B D_B + I) Q^\intercal</span>。</p>
+      
+    
+      
+        <p>在那种情况下，</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="comb(A_k, B_k) = Q(k_A D_A + k_B D_B + I)Q^\intercal = k_A A + k_B B + (1 - k_A - k_B)I">comb(A_k, B_k) = Q(k_A D_A + k_B D_B + I)Q^\intercal = k_A A + k_B B + (1 - k_A - k_B)I</span></p>
+      
+    
+      
+        <p>将产生有意义的结果。至少，如果 <span class="math-inline" data-math="A = B">A = B</span>，将 <span class="math-inline" data-math="k_A = k_B = 0.5">k_A = k_B = 0.5</span> 设置为 1 将产生完全相同的扰动。</p>
+      
+    
+      
+        <p>我们注意到 <span class="math-inline" data-math="D_A">D_A</span> 和 <span class="math-inline" data-math="D_B">D_B</span> 实际上是从单位矩阵 <span class="math-inline" data-math="I">I</span> 的位移，我们通过经验观察到，对于任何训练得到的位移 <span class="math-inline" data-math="D_A">D_A</span>，当 <span class="math-inline" data-math="0 \leq k_A \leq 1">0 \leq k_A \leq 1</span> 时加上 <span class="math-inline" data-math="k_A D_A">k_A D_A</span> 会产生稳定的扰动。因此我们假设，只要我们有两个正方向 <span class="math-inline" data-math="k">k</span> 为 <span class="math-inline" data-math="k_A + k_B \leq 1">k_A + k_B \leq 1</span> 的扰动，这就可能产生稳定的扰动。对此的直观理解是使用方向系数对稳定扰动进行插值。</p>
+      
+    
+      
+        <p>然而在实践中，特征向量也不同，因此组合的结果很可能随着各自特征向量基底的不同程度而变差。</p>
+      
+    
+      
+        <p>下面，我们在保持它们的和为 1 的情况下，对两种扰动（无尾和无腿蜥蜴）的方向系数进行插值。</p>
+      
+    
+      
+        <p>虽然它在很大程度上达到了我们的预期，但我们观察到一些意外效果，例如整个图案开始在网格中垂直移动。其他扰动组合也会产生类似结果。如果我们取消 <span class="math-inline" data-math="k">k</span> 之和必须等于 1 的限制，而是将两个扰动完整地加在一起，会发生什么？我们知道如果两个扰动相同，我们将离单位扰动两倍远，而且一般来说我们预期这些扰动的方差会增加。实际上，这意味着离训练期间发现的稳定扰动越来越远。随着 <span class="math-inline" data-math="k">k</span> 之和的增加，我们预期会出现更多可能破坏 CA 的意外效果。</p>
+      
+    
+      
+        <p>下面，我们展示了当我们将无尾和无腿蜥蜴扰动以其最大程度组合在一起时会发生什么。请注意，当我们将两个 <span class="math-inline" data-math="k">k</span> 都设置为 1 时，得到的扰动等于两个扰动之和减去一个单位矩阵。</p>
+      
+    
+      
+        <p>令人惊讶的是，结果图案几乎符合预期。然而，它也受到了在插值 <span class="math-inline" data-math="k">k</span> 时观察到的图案垂直移动的影响。</p>
+      
+    
+      
+        <p>这个框架可以推广到任意数量的扰动。下面，我们创建了一个小型游乐场，允许读者输入他们想要的组合。根据经验，我们惊讶于其中有多少组合产生了预期的扰动，而且从定性上看，将 <span class="math-inline" data-math="k">k</span> 限制为 1 通常会产生更稳定的图案。我们还观察到，探索负的 <span class="math-inline" data-math="k">k</span> 值通常更不稳定。</p>
+      
+    
+      
+        <h2>相关工作</h2>
+        
+      
+    
+      
+        <p>这项工作受到生成对抗网络（GANs）[<cite>[goodfellow2014generative]</cite>] 的启发。虽然 GAN 通常是成对共同训练模型，但在本工作中我们冻结了原始 CA 并仅训练对抗者。这种设置在很大程度上受到开创性工作《神经网络的对抗性重编程》[<cite>[elsayed2018adversarial]</cite>] 的启发。</p>
+      
+    
+      
+        <p>本文中执行的状态扰动可以看作是针对性的潜在状态操纵。Word2vec [<cite>[mikolov2013efficient]</cite>] 展示了潜在向量表示可以具有组合性质，而 Fader Networks [<cite>[lample2018fader]</cite>] 为图像处理展示了类似行为。这些工作及其相关研究都对我们有所启发。</p>
+      
+    
+      
+        <h3>影响力最大化</h3>
+        
+      
+    
+      
+        <p>对抗细胞自动机与影响力最大化领域有相似之处。影响力最大化涉及确定要影响的最佳节点，以便最大化对整个图（通常是社交图）的影响力，其性质是节点可以反过来影响它们的邻居。此类模型被用于建模涉及图中信息传播的各种现实世界应用。[<cite>[Kempe_Kleinberg_Tardos_2003]</cite>] [<cite>[Shakarian2015]</cite>] [<cite>[Banerjee_Jenamani_Pratihar_2018]</cite>] 一个常见设置是图中的每个顶点具有二元状态，只有当其足够比例的邻居状态发生切换时，该状态才会改变。此类模型的例子包括社交影响力最大化（在人群网络中最大程度传播一个想法）、传染病爆发建模 [<cite>[Iacopini_Petri_Barrat_Latora_2019]</cite>]（通常是为了最小化疾病在人群网络中的传播）和级联建模 [<cite>[Kleinberg_2007]</cite>]（当对系统的微小扰动引发更大的“相变”时）。在撰写本文时，例如，传染病最小化是一个特别值得关注的模型。NCA 是一个图——每个细胞是一个顶点，并与其八个邻居有边，通过这些边它可以传递信息。这个图和消息结构比影响力最大化研究中典型图复杂得多，因为 NCA 细胞传递向量值消息，并且对其内部状态有复杂的更新规则，而影响力最大化研究中的图通常由更简单的二元细胞状态和边上的阈值函数组成，用于确定节点是否切换状态。然而，该领域的许多概念仍然可以应用并且值得关注。</p>
+      
+    
+      
+        <p>例如，在这项工作中，我们假设我们的对抗者可以被放置在结构中的任何位置以实现期望行为。影响力最大化问题的一个常见研究焦点是决定图中哪些节点会导致对图的最大影响力，这被称为目标集选择 [<cite>[Chen_2009]</cite>]。这个问题并不总是易于处理，通常是 NP 难的，解决方案经常涉及模拟。未来关于对抗 NCA 的工作可能涉及应用来自影响力最大化的技术，以找到对抗细胞的最佳放置位置。</p>
+      
+    
+      
+        <h2>讨论</h2>
+        
+      
+    
+      
+        <p>本文展示了针对神经 CA 的两种不同类型的对抗攻击。</p>
+      
+    
+      
+        <p>在预训练的自分类 MNIST CA 中注入对抗 CA，展示了高度依赖彼此之间信息传递的现有细胞系统是多么容易被欺骗性信号所左右。生物系统经常面临这个问题，它们会遭遇寄生虫和生物圈中其他与之竞争的代理对其行为、生理和形态调节机制的劫持。计算机技术领域的未来工作可以从生物通信机制的研究中受益，以理解细胞如何最大化实现适应性结果所需的细胞间和细胞内消息的可靠性和保真度。</p>
+      
+    
+      
+        <p>对抗注入攻击对 Growing CA 的效果要差得多，并且导致整体不稳定的 CA。这种动态对于控制机制的扩展（群机器人和嵌套架构）也很重要：“多细胞性”（将子代理连接在一起形成更大系统 [<cite>[levin2019theComp]</cite>]）的关键步骤是信息融合，这使得识别信号来源和记忆痕迹变得困难。一个最优架构需要在验证控制消息的需求与灵活合并子单元的可能性之间取得平衡，后者会抹除关于信息信号特定来源的元数据。同样，成功响应新环境挑战的能力是自主人工系统的重要目标，它可以从生物学中引入策略，这些策略优化了在维持特定信号集与在需要时足够灵活以建立新信号机制之间的权衡。</p>
+      
+    
+      
+        <p>对 Growing CA 的全局状态扰动实验表明，仍然有可能将这些 CA 劫持到训练外的稳定配置，并且这些类型的攻击在某种程度上是可组合的，类似于自然语言处理和计算机视觉领域中嵌入空间的可操纵方式 [<cite>[mikolov2013efficient,lample2018fader]</cite>]。然而，这个实验未能发现扰动解除后仍能保持的训练外稳定配置。我们假设这部分是由于预训练 CA 的再生能力，并且其他模型可能更难以从任意扰动中恢复。</p>
+      
+    
+  </div>
+
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <a href="#fnref-f1n">[1]</a> 视频的静止图像位于第 500 步，视频在第 500 步会停顿一秒多钟。
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <a href="#fnref-f2n">[2]</a> 实际上，我们还会对细胞的状态进行裁剪，使其被限制在 <span class="math-inline" data-math="[-3, +3]">[-3, +3]</span> 内。这是一个次要细节，有助于稳定模型。
+    </div>
+    
+  </section>
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

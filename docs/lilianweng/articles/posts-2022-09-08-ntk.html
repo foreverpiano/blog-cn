@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>神经切线核背后的数学原理 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>神经切线核背后的数学原理</h1>
+    <div class="meta">
+      2022-09-08 · 
+      <a href="https://lilianweng.github.io/posts/2022-09-08-ntk/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">基础知识
+
+向量对向量的导数
+
+微分方程
+
+中心极限定理
+
+泰勒展开
+
+核与核方法
+
+高斯过程
+
+
+符号说明
+
+神经切线核
+
+无限宽度网络
+
+与高斯过程的联系
+
+确定性的神经切线核
+
+线性化模型
+
+懒惰训练
+
+
+引用
+
+参考文献</div>
+      
+    
+      
+        <p>众所周知，神经网络是的，通常能够轻松地将训练损失拟合到接近零，同时在测试数据集上保持良好的泛化性能。尽管所有参数都是随机初始化的，但优化过程往往能稳定地得到同样优良的结果。即使模型参数数量超过训练数据点数量，这一现象依然成立。<a href="posts-2019-03-14-overfit.html">深度神经网络是否严重过拟合？</a></p>
+      
+    
+      
+        <p>神经切线核（Neural Tangent Kernel，简称 NTK）（<a href="https://arxiv.org/abs/1806.07572" target="_blank" rel="noopener">Jacot et al. 2018</a>）是一种用于通过梯度下降解释神经网络在训练过程中演化的核。它为我们提供了深刻洞见，说明为什么具有足够宽度的神经网络在最小化经验损失时能够稳定地收敛到全局最优。本文将深入探讨 NTK 的动机与定义，并通过在无限宽度设定下刻画 NTK，来证明无限宽度神经网络在不同初始化下能够确定性地收敛。</p>
+      
+    
+      
+        <blockquote>🤓 与我之前的文章不同，本文主要聚焦于少数几篇核心论文，而非对该领域文献进行广泛综述。在 NTK 之后出现了许多有趣的工作，它们对理论进行了修正或扩展以更好地理解神经网络的学习动态，但本文不会涉及这些内容。我们的目标是以清晰、易于跟随的形式展示 NTK 背后的所有数学内容，因此本文包含大量数学推导。如果您发现任何错误，请告诉我，我会尽快修正。提前感谢！</blockquote>
+      
+    
+      
+        <h2>基础知识#</h2>
+        
+      
+    
+      
+        <p>本节回顾了理解神经切线核所需的一些非常基础的概念。如果已经熟悉，可以直接跳过。</p>
+      
+    
+      
+        <h2>向量对向量的导数#</h2>
+        
+      
+    
+      
+        <p>给定输入向量 <span class="math-inline" data-math="\mathbf{x} \in \mathbb{R}^n">\mathbf{x} \in \mathbb{R}^n</span>（列向量）和函数 <span class="math-inline" data-math="f: \mathbb{R}^n \to \mathbb{R}^m">f: \mathbb{R}^n \to \mathbb{R}^m</span>，<span class="math-inline" data-math="f">f</span> 对 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 的导数是一个 <span class="math-inline" data-math="m\times n">m\times n</span> 矩阵，也称为<a href="https://en.wikipedia.org/wiki/Jacobian_matrix_and_determinant" target="_blank" rel="noopener">Jacobian 矩阵</a>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+J
+= \frac{\partial f}{\partial \mathbf{x}}
+= \begin{bmatrix}
+\frac{\partial f_1}{\partial x_1} &amp; \dots &amp;\frac{\partial f_1}{\partial x_n} \\
+\vdots &amp; &amp; \\
+\frac{\partial f_m}{\partial x_1} &amp; \dots &amp;\frac{\partial f_m}{\partial x_n} \\
+\end{bmatrix}
+\in \mathbb{R}^{m \times n}
+">
+J
+= \frac{\partial f}{\partial \mathbf{x}}
+= \begin{bmatrix}
+\frac{\partial f_1}{\partial x_1} &amp; \dots &amp;\frac{\partial f_1}{\partial x_n} \\
+\vdots &amp; &amp; \\
+\frac{\partial f_m}{\partial x_1} &amp; \dots &amp;\frac{\partial f_m}{\partial x_n} \\
+\end{bmatrix}
+\in \mathbb{R}^{m \times n}
+</span></div>
+      
+    
+      
+        <p>在本文中，我使用整数下标来表示向量或矩阵中的单个元素；即 <span class="math-inline" data-math="x_i">x_i</span> 表示向量 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 中的第 <span class="math-inline" data-math="i">i</span> 个值，而 <span class="math-inline" data-math="f_i(.)">f_i(.)</span> 表示函数输出的第 <span class="math-inline" data-math="i">i</span> 个元素。</p>
+      
+    
+      
+        <p>向量对向量的梯度定义为 <span class="math-inline" data-math="\nabla_\mathbf{x} f = J^\top \in \mathbb{R}^{n \times m}">\nabla_\mathbf{x} f = J^\top \in \mathbb{R}^{n \times m}</span>，当 <span class="math-inline" data-math="m=1">m=1</span>（即标量输出）时该形式同样成立。</p>
+      
+    
+      
+        <h2>微分方程#</h2>
+        
+      
+    
+      
+        <p>微分方程描述了一个或多个函数与其导数之间的关系。主要有两类微分方程。</p>
+      
+    
+      
+        <div class="list-content">(1) ODE（常微分方程）只包含一个随机变量的未知函数。本文中主要使用 ODE。其一般形式为 <span class="math-inline" data-math="(x, y, \frac{dy}{dx}, \dots, \frac{d^ny}{dx^n}) = 0">(x, y, \frac{dy}{dx}, \dots, \frac{d^ny}{dx^n}) = 0</span>。
+(2) PDE（偏微分方程）包含多元未知函数及其偏导数。</div>
+      
+    
+      
+        <p>我们来回顾最简单的微分方程及其求解方法。当所有包含某一变量的项可以移到方程一侧，而其余项移到另一侧时，可以使用分离变量法（傅里叶方法）。例如，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\text{Given }a\text{ is a constant scalar:}\quad\frac{dy}{dx} &amp;= ay \\
+\text{Move same variables to the same side:}\quad\frac{dy}{y} &amp;= adx \\
+\text{Put integral on both sides:}\quad\int \frac{dy}{y} &amp;= \int adx \\
+\ln (y) &amp;= ax + C&#x27; \\
+\text{Finally}\quad y &amp;= e^{ax + C&#x27;} = C e^{ax}
+\end{aligned}
+">
+\begin{aligned}
+\text{Given }a\text{ is a constant scalar:}\quad\frac{dy}{dx} &amp;= ay \\
+\text{Move same variables to the same side:}\quad\frac{dy}{y} &amp;= adx \\
+\text{Put integral on both sides:}\quad\int \frac{dy}{y} &amp;= \int adx \\
+\ln (y) &amp;= ax + C&#x27; \\
+\text{Finally}\quad y &amp;= e^{ax + C&#x27;} = C e^{ax}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <h2>中心极限定理#</h2>
+        
+      
+    
+      
+        <p>给定一组独立同分布（i.i.d.）的随机变量 <span class="math-inline" data-math="x_1, \dots, x_N">x_1, \dots, x_N</span>，其均值为 <span class="math-inline" data-math="\mu">\mu</span>，方差为 <span class="math-inline" data-math="\sigma^2">\sigma^2</span>，中心极限定理（CLT）指出，当 <span class="math-inline" data-math="N">N</span> 变得非常大时，其分布会趋近于高斯分布。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\bar{x} = \frac{1}{N}\sum_{i=1}^N x_i \sim \mathcal{N}(\mu, \frac{\sigma^2}{n})\quad\text{when }N \to \infty
+">
+\bar{x} = \frac{1}{N}\sum_{i=1}^N x_i \sim \mathcal{N}(\mu, \frac{\sigma^2}{n})\quad\text{when }N \to \infty
+</span></div>
+      
+    
+      
+        <p>中心极限定理也适用于多维向量，此时我们不再使用单一尺度 <span class="math-inline" data-math="\sigma^2">\sigma^2</span>，而需要计算随机变量 <span class="math-inline" data-math="\Sigma">\Sigma</span> 的协方差矩阵。</p>
+      
+    
+      
+        <h2>泰勒展开#</h2>
+        
+      
+    
+      
+        <p><a href="https://en.wikipedia.org/wiki/Taylor_series" target="_blank" rel="noopener">泰勒展开</a>是将函数表示为无穷级数的形式，每个分量都用该函数的导数来表达。函数 <span class="math-inline" data-math="f(x)">f(x)</span> 在 <span class="math-inline" data-math="x=a">x=a</span> 处的泰勒展开可写为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+f(x) = f(a) + \sum_{k=1}^\infty \frac{1}{k!} (x - a)^k\nabla^k_xf(x)\vert_{x=a}
+">
+f(x) = f(a) + \sum_{k=1}^\infty \frac{1}{k!} (x - a)^k\nabla^k_xf(x)\vert_{x=a}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\nabla^k">\nabla^k</span> 表示第 <span class="math-inline" data-math="k">k</span> 阶导数。</p>
+      
+    
+      
+        <p>一阶泰勒展开常被用作函数值的线性近似：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+f(x) \approx f(a) + (x - a)\nabla_x f(x)\vert_{x=a}
+">
+f(x) \approx f(a) + (x - a)\nabla_x f(x)\vert_{x=a}
+</span></div>
+      
+    
+      
+        <h2>核与核方法#</h2>
+        
+      
+    
+      
+        <p><a href="https://en.wikipedia.org/wiki/Kernel_method" target="_blank" rel="noopener">核</a>本质上是两个数据点 <span class="math-inline" data-math="K: \mathcal{X} \times \mathcal{X} \to \mathbb{R}">K: \mathcal{X} \times \mathcal{X} \to \mathbb{R}</span> 之间的相似性函数。它描述了对一个数据样本的预测对另一个样本预测的敏感程度；换句话说，就是两个数据点有多相似。核函数必须是对称的，即 <span class="math-inline" data-math="K(x, x’) = K(x’, x)">K(x, x’) = K(x’, x)</span>。</p>
+      
+    
+      
+        <p>根据问题结构，有些核可以分解为两个特征映射，每个对应一个数据点，核的值就是这两个特征的内积：<span class="math-inline" data-math="K(x, x’) = \langle \varphi(x), \varphi(x’) \rangle">K(x, x’) = \langle \varphi(x), \varphi(x’) \rangle</span>。</p>
+      
+    
+      
+        <p>核方法是一类非参数、基于实例的机器学习算法。假设我们已知所有训练样本 <span class="math-inline" data-math="\{x^{(i)}, y^{(i)}\}">\{x^{(i)}, y^{(i)}\}</span> 的标签，对新输入 <span class="math-inline" data-math="x">x</span> 的标签预测可通过加权求和 <span class="math-inline" data-math="\sum_{i} K(x^{(i)}, x)y^{(i)}">\sum_{i} K(x^{(i)}, x)y^{(i)}</span> 得到。</p>
+      
+    
+      
+        <h2>高斯过程#</h2>
+        
+      
+    
+      
+        <p>高斯过程（Gaussian Process，简称 GP）是一种非参数方法，它通过对一组随机变量建立多元高斯概率分布来进行建模。GP 首先假设函数上存在先验分布，然后根据观测到的数据点更新函数的后验分布。</p>
+      
+    
+      
+        <p>给定一组数据点 <span class="math-inline" data-math="\{x^{(1)}, \dots, x^{(N)}\}">\{x^{(1)}, \dots, x^{(N)}\}</span>，GP 假设它们服从联合多元高斯分布，由均值 <span class="math-inline" data-math="\mu(x)">\mu(x)</span> 和协方差矩阵 <span class="math-inline" data-math="\Sigma(x)">\Sigma(x)</span> 确定。协方差矩阵 <span class="math-inline" data-math="\Sigma(x)">\Sigma(x)</span> 中位置 <span class="math-inline" data-math="(i,j)">(i,j)</span> 处的每个元素由一个核函数 <span class="math-inline" data-math="\Sigma_{i,j} = K(x^{(i)}, x^{(j)})">\Sigma_{i,j} = K(x^{(i)}, x^{(j)})</span>（也称为协方差函数）定义。其核心思想是——如果核函数认为两个数据点相似，那么对应的函数输出也应该接近。使用 GP 对未知数据点进行预测，等价于从这个分布中抽取样本，即通过已观测数据点的条件分布来得到未知数据点的分布。</p>
+      
+    
+      
+        <p>关于高斯过程的高质量且高度可视化的教程，请参阅<a href="https://distill.pub/2019/visual-exploration-gaussian-processes/" target="_blank" rel="noopener">这篇文章</a>。</p>
+      
+    
+      
+        <h2>符号说明#</h2>
+        
+      
+    
+      
+        <p>考虑一个具有参数 <span class="math-inline" data-math="\theta">\theta</span>、共 <span class="math-inline" data-math="f(.;\theta): \mathbb{R}^{n_0} \to \mathbb{R}^{n_L}">f(.;\theta): \mathbb{R}^{n_0} \to \mathbb{R}^{n_L}</span> 层的全连接神经网络。层索引从 0（输入层）到 <span class="math-inline" data-math="L">L</span>（输出层），每层包含 <span class="math-inline" data-math="n_0, \dots, n_L">n_0, \dots, n_L</span> 个神经元，其中输入维度为 <span class="math-inline" data-math="n_0">n_0</span>，输出维度为 <span class="math-inline" data-math="n_L">n_L</span>。网络总参数量为 <span class="math-inline" data-math="P = \sum_{l=0}^{L-1} (n_l + 1) n_{l+1}">P = \sum_{l=0}^{L-1} (n_l + 1) n_{l+1}</span>，因此有 <span class="math-inline" data-math="\theta \in \mathbb{R}^P">\theta \in \mathbb{R}^P</span>。</p>
+      
+    
+      
+        <p>训练数据集包含 <span class="math-inline" data-math="N">N</span> 个数据点 <span class="math-inline" data-math="\mathcal{D}=\{\mathbf{x}^{(i)}, y^{(i)}\}_{i=1}^N">\mathcal{D}=\{\mathbf{x}^{(i)}, y^{(i)}\}_{i=1}^N</span>。所有输入记为 <span class="math-inline" data-math="\mathcal{X}=\{\mathbf{x}^{(i)}\}_{i=1}^N">\mathcal{X}=\{\mathbf{x}^{(i)}\}_{i=1}^N</span>，所有标签记为 <span class="math-inline" data-math="\mathcal{Y}=\{y^{(i)}\}_{i=1}^N">\mathcal{Y}=\{y^{(i)}\}_{i=1}^N</span>。</p>
+      
+    
+      
+        <p>现在我们详细看看每一层的正向传播计算。对于 <span class="math-inline" data-math="l=0, \dots, L-1">l=0, \dots, L-1</span>，每一层 <span class="math-inline" data-math="l">l</span> 定义了一个仿射变换 <span class="math-inline" data-math="A^{(l)}">A^{(l)}</span>，其中包含权重矩阵 <span class="math-inline" data-math="\mathbf{w}^{(l)} \in \mathbb{R}^{n_{l} \times n_{l+1}}">\mathbf{w}^{(l)} \in \mathbb{R}^{n_{l} \times n_{l+1}}</span> 和偏置项 <span class="math-inline" data-math="\mathbf{b}^{(l)} \in \mathbb{R}^{n_{l+1}}">\mathbf{b}^{(l)} \in \mathbb{R}^{n_{l+1}}</span>，以及一个逐点非线性函数 <span class="math-inline" data-math="\sigma(.)">\sigma(.)</span>，该函数是<a href="https://en.wikipedia.org/wiki/Lipschitz_continuity" target="_blank" rel="noopener">Lipschitz 连续</a>的。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+A^{(0)} &amp;= \mathbf{x} \\
+\tilde{A}^{(l+1)}(\mathbf{x}) &amp;= \frac{1}{\sqrt{n_l}} {\mathbf{w}^{(l)}}^\top A^{(l)} + \beta\mathbf{b}^{(l)}\quad\in\mathbb{R}^{n_{l+1}} &amp; \text{; pre-activations}\\
+A^{(l+1)}(\mathbf{x}) &amp;= \sigma(\tilde{A}^{(l+1)}(\mathbf{x}))\quad\in\mathbb{R}^{n_{l+1}} &amp; \text{; post-activations}
+\end{aligned}
+">
+\begin{aligned}
+A^{(0)} &amp;= \mathbf{x} \\
+\tilde{A}^{(l+1)}(\mathbf{x}) &amp;= \frac{1}{\sqrt{n_l}} {\mathbf{w}^{(l)}}^\top A^{(l)} + \beta\mathbf{b}^{(l)}\quad\in\mathbb{R}^{n_{l+1}} &amp; \text{; pre-activations}\\
+A^{(l+1)}(\mathbf{x}) &amp;= \sigma(\tilde{A}^{(l+1)}(\mathbf{x}))\quad\in\mathbb{R}^{n_{l+1}} &amp; \text{; post-activations}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>注意，NTK 参数化对变换施加了一个重缩放权重 <span class="math-inline" data-math="1/\sqrt{n_l}">1/\sqrt{n_l}</span>，以避免无限宽度网络出现发散。常数标量 <span class="math-inline" data-math="\beta \geq 0">\beta \geq 0</span> 控制了偏置项的影响程度。</p>
+      
+    
+      
+        <p>在后续分析中，所有网络参数均初始化为独立同分布的高斯分布 <span class="math-inline" data-math="\mathcal{N}(0, 1)">\mathcal{N}(0, 1)</span>。</p>
+      
+    
+      
+        <h2>神经切线核#</h2>
+        
+      
+    
+      
+        <p>神经切线核（Neural Tangent Kernel，简称 NTK）（<a href="https://arxiv.org/abs/1806.07572" target="_blank" rel="noopener">Jacot et al. 2018</a>）是理解通过梯度下降训练神经网络的重要概念。其核心在于解释更新一个数据样本上的模型参数如何影响对其他样本的预测。</p>
+      
+    
+      
+        <p>让我们一步步从 NTK 背后的直观理解开始。</p>
+      
+    
+      
+        <p>训练过程中需要最小化的经验损失函数 <span class="math-inline" data-math="\mathcal{L}: \mathbb{R}^P \to \mathbb{R}_+">\mathcal{L}: \mathbb{R}^P \to \mathbb{R}_+</span> 定义如下，其中 <span class="math-inline" data-math="\ell: \mathbb{R}^{n_0} \times \mathbb{R}^{n_L} \to \mathbb{R}_+">\ell: \mathbb{R}^{n_0} \times \mathbb{R}^{n_L} \to \mathbb{R}_+</span> 是每个样本的代价函数：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}(\theta) =\frac{1}{N} \sum_{i=1}^N \ell(f(\mathbf{x}^{(i)}; \theta), y^{(i)})
+">
+\mathcal{L}(\theta) =\frac{1}{N} \sum_{i=1}^N \ell(f(\mathbf{x}^{(i)}; \theta), y^{(i)})
+</span></div>
+      
+    
+      
+        <p>根据链式法则，损失的梯度为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\nabla_\theta \mathcal{L}(\theta)= \frac{1}{N} \sum_{i=1}^N \underbrace{\nabla_\theta f(\mathbf{x}^{(i)}; \theta)}_{\text{size }P \times n_L} 
+\underbrace{\nabla_f \ell(f, y^{(i)})}_{\text{size } n_L \times 1} 
+">
+\nabla_\theta \mathcal{L}(\theta)= \frac{1}{N} \sum_{i=1}^N \underbrace{\nabla_\theta f(\mathbf{x}^{(i)}; \theta)}_{\text{size }P \times n_L} 
+\underbrace{\nabla_f \ell(f, y^{(i)})}_{\text{size } n_L \times 1} 
+</span></div>
+      
+    
+      
+        <p>当我们跟踪网络参数 <span class="math-inline" data-math="\theta">\theta</span> 随时间演化时，每次梯度下降更新都会引入一个无穷小步长的微小增量。由于更新步长足够小，它可以近似看作时间维度上的导数：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\frac{d\theta}{d t} = - \nabla_\theta\mathcal{L}(\theta)  = -\frac{1}{N} \sum_{i=1}^N \nabla_\theta f(\mathbf{x}^{(i)}; \theta) \nabla_f \ell(f, y^{(i)})
+">
+\frac{d\theta}{d t} = - \nabla_\theta\mathcal{L}(\theta)  = -\frac{1}{N} \sum_{i=1}^N \nabla_\theta f(\mathbf{x}^{(i)}; \theta) \nabla_f \ell(f, y^{(i)})
+</span></div>
+      
+    
+      
+        <p>再次通过链式法则，网络输出随时间的演化由以下导数描述：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\frac{df(\mathbf{x};\theta)}{dt} 
+= \frac{df(\mathbf{x};\theta)}{d\theta}\frac{d\theta}{dt}
+= -\frac{1}{N} \sum_{i=1}^N \color{blue}{\underbrace{\nabla_\theta f(\mathbf{x};\theta)^\top \nabla_\theta f(\mathbf{x}^{(i)}; \theta)}_\text{Neural tangent kernel}} \color{black}{\nabla_f \ell(f, y^{(i)})}
+">
+\frac{df(\mathbf{x};\theta)}{dt} 
+= \frac{df(\mathbf{x};\theta)}{d\theta}\frac{d\theta}{dt}
+= -\frac{1}{N} \sum_{i=1}^N \color{blue}{\underbrace{\nabla_\theta f(\mathbf{x};\theta)^\top \nabla_\theta f(\mathbf{x}^{(i)}; \theta)}_\text{Neural tangent kernel}} \color{black}{\nabla_f \ell(f, y^{(i)})}
+</span></div>
+      
+    
+      
+        <p>这里我们发现了神经切线核（NTK），即上述公式中蓝色部分所定义的内容 <span class="math-inline" data-math="K: \mathbb{R}^{n_0}\times\mathbb{R}^{n_0} \to \mathbb{R}^{n_L \times n_L}">K: \mathbb{R}^{n_0}\times\mathbb{R}^{n_0} \to \mathbb{R}^{n_L \times n_L}</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+K(\mathbf{x}, \mathbf{x}&#x27;; \theta) = \nabla_\theta f(\mathbf{x};\theta)^\top \nabla_\theta f(\mathbf{x}&#x27;; \theta)
+">
+K(\mathbf{x}, \mathbf{x}&#x27;; \theta) = \nabla_\theta f(\mathbf{x};\theta)^\top \nabla_\theta f(\mathbf{x}&#x27;; \theta)
+</span></div>
+      
+    
+      
+        <p>其中输出矩阵中位置 <span class="math-inline" data-math="(m, n), 1 \leq m, n \leq n_L">(m, n), 1 \leq m, n \leq n_L</span> 处的每个元素为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+K_{m,n}(\mathbf{x}, \mathbf{x}&#x27;; \theta) = \sum_{p=1}^P \frac{\partial f_m(\mathbf{x};\theta)}{\partial \theta_p} \frac{\partial f_n(\mathbf{x}&#x27;;\theta)}{\partial \theta_p}
+">
+K_{m,n}(\mathbf{x}, \mathbf{x}&#x27;; \theta) = \sum_{p=1}^P \frac{\partial f_m(\mathbf{x};\theta)}{\partial \theta_p} \frac{\partial f_n(\mathbf{x}&#x27;;\theta)}{\partial \theta_p}
+</span></div>
+      
+    
+      
+        <p>输入 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 的“特征映射”形式为 <span class="math-inline" data-math="\varphi(\mathbf{x}) = \nabla_\theta f(\mathbf{x};\theta)">\varphi(\mathbf{x}) = \nabla_\theta f(\mathbf{x};\theta)</span>。</p>
+      
+    
+      
+        <h2>无限宽度网络#</h2>
+        
+      
+    
+      
+        <p>为了理解为什么一次梯度下降的效果在不同网络参数初始化下如此相似，一些开创性的理论工作从无限宽度网络入手。我们将详细探讨使用 NTK 的证明，说明它如何保证无限宽度网络在最小化经验损失时能够收敛到全局最优。</p>
+      
+    
+      
+        <h2>与高斯过程的联系#</h2>
+        
+      
+    
+      
+        <p>深度神经网络与高斯过程有着深刻的联系（<a href="https://www.cs.toronto.edu/~radford/ftp/pin.pdf" target="_blank" rel="noopener">Neal 1994</a>）。一个 <span class="math-inline" data-math="L">L</span> 层网络的输出函数 <span class="math-inline" data-math="f_i(\mathbf{x}; \theta)">f_i(\mathbf{x}; \theta)</span>（对 <span class="math-inline" data-math="i=1, \dots, n_L">i=1, \dots, n_L</span>）是独立同分布的、均值为零的高斯过程，其协方差 <span class="math-inline" data-math="\Sigma^{(L)}">\Sigma^{(L)}</span> 由以下递归方式定义：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\Sigma^{(1)}(\mathbf{x}, \mathbf{x}&#x27;) &amp;= \frac{1}{n_0}\mathbf{x}^\top{\mathbf{x}&#x27;} + \beta^2 \\
+\lambda^{(l+1)}(\mathbf{x}, \mathbf{x}&#x27;) &amp;= \begin{bmatrix}
+\Sigma^{(l)}(\mathbf{x}, \mathbf{x}) &amp; \Sigma^{(l)}(\mathbf{x}, \mathbf{x}&#x27;) \\
+\Sigma^{(l)}(\mathbf{x}&#x27;, \mathbf{x}) &amp; \Sigma^{(l)}(\mathbf{x}&#x27;, \mathbf{x}&#x27;)
+\end{bmatrix} \\
+\Sigma^{(l+1)}(\mathbf{x}, \mathbf{x}&#x27;) &amp;= \mathbb{E}_{f \sim \mathcal{N}(0, \lambda^{(l)})}[\sigma(f(\mathbf{x})) \sigma(f(\mathbf{x}&#x27;))] + \beta^2
+\end{aligned}
+">
+\begin{aligned}
+\Sigma^{(1)}(\mathbf{x}, \mathbf{x}&#x27;) &amp;= \frac{1}{n_0}\mathbf{x}^\top{\mathbf{x}&#x27;} + \beta^2 \\
+\lambda^{(l+1)}(\mathbf{x}, \mathbf{x}&#x27;) &amp;= \begin{bmatrix}
+\Sigma^{(l)}(\mathbf{x}, \mathbf{x}) &amp; \Sigma^{(l)}(\mathbf{x}, \mathbf{x}&#x27;) \\
+\Sigma^{(l)}(\mathbf{x}&#x27;, \mathbf{x}) &amp; \Sigma^{(l)}(\mathbf{x}&#x27;, \mathbf{x}&#x27;)
+\end{bmatrix} \\
+\Sigma^{(l+1)}(\mathbf{x}, \mathbf{x}&#x27;) &amp;= \mathbb{E}_{f \sim \mathcal{N}(0, \lambda^{(l)})}[\sigma(f(\mathbf{x})) \sigma(f(\mathbf{x}&#x27;))] + \beta^2
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1711.00165" target="_blank" rel="noopener">Lee &amp;amp; Bahri et al. (2018)</a> 通过数学归纳法给出了证明：</p>
+      
+    
+      
+        <p>(1) 首先考虑 <span class="math-inline" data-math="L=1">L=1</span>，此时没有非线性函数，输入仅经过简单的仿射变换：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+f(\mathbf{x};\theta) = \tilde{A}^{(1)}(\mathbf{x}) &amp;= \frac{1}{\sqrt{n_0}}{\mathbf{w}^{(0)}}^\top\mathbf{x} + \beta\mathbf{b}^{(0)} \\
+\text{where }\tilde{A}_m^{(1)}(\mathbf{x}) &amp;= \frac{1}{\sqrt{n_0}}\sum_{i=1}^{n_0} w^{(0)}_{im}x_i + \beta b^{(0)}_m\quad \text{for }1 \leq m \leq n_1
+\end{aligned}
+">
+\begin{aligned}
+f(\mathbf{x};\theta) = \tilde{A}^{(1)}(\mathbf{x}) &amp;= \frac{1}{\sqrt{n_0}}{\mathbf{w}^{(0)}}^\top\mathbf{x} + \beta\mathbf{b}^{(0)} \\
+\text{where }\tilde{A}_m^{(1)}(\mathbf{x}) &amp;= \frac{1}{\sqrt{n_0}}\sum_{i=1}^{n_0} w^{(0)}_{im}x_i + \beta b^{(0)}_m\quad \text{for }1 \leq m \leq n_1
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>由于权重和偏置都是独立同分布初始化的，该网络所有输出维度 <span class="math-inline" data-math="{\tilde{A}^{(1)}_1(\mathbf{x}), \dots, \tilde{A}^{(1)}_{n_1}(\mathbf{x})}">{\tilde{A}^{(1)}_1(\mathbf{x}), \dots, \tilde{A}^{(1)}_{n_1}(\mathbf{x})}</span> 也是独立同分布的。对于不同输入，第 <span class="math-inline" data-math="m">m</span> 个网络输出 <span class="math-inline" data-math="\tilde{A}^{(1)}_m(.)">\tilde{A}^{(1)}_m(.)</span> 服从联合多元高斯分布，等价于具有以下协方差函数的高斯过程（我们知道其均值 <span class="math-inline" data-math="\mu_w=\mu_b=0">\mu_w=\mu_b=0</span> 和方差 <span class="math-inline" data-math="\sigma^2_w = \sigma^2_b=1">\sigma^2_w = \sigma^2_b=1</span>）。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\Sigma^{(1)}(\mathbf{x}, \mathbf{x}&#x27;) 
+&amp;= \mathbb{E}[\tilde{A}_m^{(1)}(\mathbf{x})\tilde{A}_m^{(1)}(\mathbf{x}&#x27;)] \\
+&amp;= \mathbb{E}\Big[\Big( \frac{1}{\sqrt{n_0}}\sum_{i=1}^{n_0} w^{(0)}_{i,m}x_i + \beta b^{(0)}_m \Big) \Big( \frac{1}{\sqrt{n_0}}\sum_{i=1}^{n_0} w^{(0)}_{i,m}x&#x27;_i + \beta b^{(0)}_m \Big)\Big] \\
+&amp;= \frac{1}{n_0} \sigma^2_w \sum_{i=1}^{n_0} \sum_{j=1}^{n_0} x_i{x&#x27;}_j + \frac{\beta \mu_b}{\sqrt{n_0}} \sum_{i=1}^{n_0} w_{im}(x_i + x&#x27;_i) + \sigma^2_b \beta^2 \\
+&amp;= \frac{1}{n_0}\mathbf{x}^\top{\mathbf{x}&#x27;} + \beta^2
+\end{aligned}
+">
+\begin{aligned}
+\Sigma^{(1)}(\mathbf{x}, \mathbf{x}&#x27;) 
+&amp;= \mathbb{E}[\tilde{A}_m^{(1)}(\mathbf{x})\tilde{A}_m^{(1)}(\mathbf{x}&#x27;)] \\
+&amp;= \mathbb{E}\Big[\Big( \frac{1}{\sqrt{n_0}}\sum_{i=1}^{n_0} w^{(0)}_{i,m}x_i + \beta b^{(0)}_m \Big) \Big( \frac{1}{\sqrt{n_0}}\sum_{i=1}^{n_0} w^{(0)}_{i,m}x&#x27;_i + \beta b^{(0)}_m \Big)\Big] \\
+&amp;= \frac{1}{n_0} \sigma^2_w \sum_{i=1}^{n_0} \sum_{j=1}^{n_0} x_i{x&#x27;}_j + \frac{\beta \mu_b}{\sqrt{n_0}} \sum_{i=1}^{n_0} w_{im}(x_i + x&#x27;_i) + \sigma^2_b \beta^2 \\
+&amp;= \frac{1}{n_0}\mathbf{x}^\top{\mathbf{x}&#x27;} + \beta^2
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>(2) 使用归纳法，我们先假设命题对 <span class="math-inline" data-math="L=l">L=l</span>（一个 <span class="math-inline" data-math="l">l</span> 层网络）成立，因此 <span class="math-inline" data-math="\tilde{A}^{(l)}_m(.)">\tilde{A}^{(l)}_m(.)</span> 是具有协方差 <span class="math-inline" data-math="\Sigma^{(l)}">\Sigma^{(l)}</span> 的高斯过程，且 <span class="math-inline" data-math="\{\tilde{A}^{(l)}_i\}_{i=1}^{n_l}">\{\tilde{A}^{(l)}_i\}_{i=1}^{n_l}</span> 是独立同分布的。</p>
+      
+    
+      
+        <p>接下来需要证明命题对 <span class="math-inline" data-math="L=l+1">L=l+1</span> 也成立。我们按以下方式计算输出：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+f(\mathbf{x};\theta) = \tilde{A}^{(l+1)}(\mathbf{x}) &amp;= \frac{1}{\sqrt{n_l}}{\mathbf{w}^{(l)}}^\top \sigma(\tilde{A}^{(l)}(\mathbf{x})) + \beta\mathbf{b}^{(l)} \\
+\text{where }\tilde{A}^{(l+1)}_m(\mathbf{x}) &amp;= \frac{1}{\sqrt{n_l}}\sum_{i=1}^{n_l} w^{(l)}_{im}\sigma(\tilde{A}^{(l)}_i(\mathbf{x})) + \beta b^{(l)}_m \quad \text{for }1 \leq m \leq n_{l+1}
+\end{aligned}
+">
+\begin{aligned}
+f(\mathbf{x};\theta) = \tilde{A}^{(l+1)}(\mathbf{x}) &amp;= \frac{1}{\sqrt{n_l}}{\mathbf{w}^{(l)}}^\top \sigma(\tilde{A}^{(l)}(\mathbf{x})) + \beta\mathbf{b}^{(l)} \\
+\text{where }\tilde{A}^{(l+1)}_m(\mathbf{x}) &amp;= \frac{1}{\sqrt{n_l}}\sum_{i=1}^{n_l} w^{(l)}_{im}\sigma(\tilde{A}^{(l)}_i(\mathbf{x})) + \beta b^{(l)}_m \quad \text{for }1 \leq m \leq n_{l+1}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>我们可以推断，前一隐藏层贡献的总和的期望为零：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\mathbb{E}[w^{(l)}_{im}\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))] 
+&amp;= \mathbb{E}[w^{(l)}_{im}]\mathbb{E}[\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))] 
+= \mu_w \mathbb{E}[\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))] = 0 \\
+\mathbb{E}[\big(w^{(l)}_{im}\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))\big)^2]
+&amp;= \mathbb{E}[{w^{(l)}_{im}}^2]\mathbb{E}[\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))^2] 
+= \sigma_w^2 \Sigma^{(l)}(\mathbf{x}, \mathbf{x})
+= \Sigma^{(l)}(\mathbf{x}, \mathbf{x})
+\end{aligned}
+">
+\begin{aligned}
+\mathbb{E}[w^{(l)}_{im}\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))] 
+&amp;= \mathbb{E}[w^{(l)}_{im}]\mathbb{E}[\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))] 
+= \mu_w \mathbb{E}[\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))] = 0 \\
+\mathbb{E}[\big(w^{(l)}_{im}\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))\big)^2]
+&amp;= \mathbb{E}[{w^{(l)}_{im}}^2]\mathbb{E}[\sigma(\tilde{A}^{(l)}_i(\mathbf{x}))^2] 
+= \sigma_w^2 \Sigma^{(l)}(\mathbf{x}, \mathbf{x})
+= \Sigma^{(l)}(\mathbf{x}, \mathbf{x})
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>由于 <span class="math-inline" data-math="\{\tilde{A}^{(l)}_i(\mathbf{x})\}_{i=1}^{n_l}">\{\tilde{A}^{(l)}_i(\mathbf{x})\}_{i=1}^{n_l}</span> 是独立同分布的，根据中心极限定理，当隐藏层宽度趋于无穷大（<span class="math-inline" data-math="n_l \to \infty">n_l \to \infty</span>）时，<span class="math-inline" data-math="\tilde{A}^{(l+1)}_m(\mathbf{x})">\tilde{A}^{(l+1)}_m(\mathbf{x})</span> 服从高斯分布，其方差为 <span class="math-inline" data-math="\beta^2 + \text{Var}(\tilde{A}_i^{(l)}(\mathbf{x}))">\beta^2 + \text{Var}(\tilde{A}_i^{(l)}(\mathbf{x}))</span>。注意 <span class="math-inline" data-math="{\tilde{A}^{(l+1)}_1(\mathbf{x}), \dots, \tilde{A}^{(l+1)}_{n_{l+1}}(\mathbf{x})}">{\tilde{A}^{(l+1)}_1(\mathbf{x}), \dots, \tilde{A}^{(l+1)}_{n_{l+1}}(\mathbf{x})}</span> 仍然是独立同分布的。</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\tilde{A}^{(l+1)}_m(.)">\tilde{A}^{(l+1)}_m(.)</span> 等价于具有以下协方差函数的高斯过程：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\Sigma^{(l+1)}(\mathbf{x}, \mathbf{x}&#x27;) 
+&amp;= \mathbb{E}[\tilde{A}^{(l+1)}_m(\mathbf{x})\tilde{A}^{(l+1)}_m(\mathbf{x}&#x27;)] \\
+&amp;= \frac{1}{n_l} \sigma\big(\tilde{A}^{(l)}_i(\mathbf{x})\big)^\top \sigma\big(\tilde{A}^{(l)}_i(\mathbf{x}&#x27;)\big) + \beta^2 \quad\text{;similar to how we get }\Sigma^{(1)}
+\end{aligned}
+">
+\begin{aligned}
+\Sigma^{(l+1)}(\mathbf{x}, \mathbf{x}&#x27;) 
+&amp;= \mathbb{E}[\tilde{A}^{(l+1)}_m(\mathbf{x})\tilde{A}^{(l+1)}_m(\mathbf{x}&#x27;)] \\
+&amp;= \frac{1}{n_l} \sigma\big(\tilde{A}^{(l)}_i(\mathbf{x})\big)^\top \sigma\big(\tilde{A}^{(l)}_i(\mathbf{x}&#x27;)\big) + \beta^2 \quad\text{;similar to how we get }\Sigma^{(1)}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>当 <span class="math-inline" data-math="n_l \to \infty">n_l \to \infty</span> 时，根据中心极限定理，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\Sigma^{(l+1)}(\mathbf{x}, \mathbf{x}&#x27;)  \to \mathbb{E}_{f \sim \mathcal{N}(0, \Lambda^{(l)})}[\sigma(f(\mathbf{x}))^\top \sigma(f(\mathbf{x}&#x27;))] + \beta^2
+">
+\Sigma^{(l+1)}(\mathbf{x}, \mathbf{x}&#x27;)  \to \mathbb{E}_{f \sim \mathcal{N}(0, \Lambda^{(l)})}[\sigma(f(\mathbf{x}))^\top \sigma(f(\mathbf{x}&#x27;))] + \beta^2
+</span></div>
+      
+    
+      
+        <p>上述过程中出现的高斯过程形式被称为神经网络高斯过程（Neural Network Gaussian Process，简称 NNGP）（<a href="https://arxiv.org/abs/1711.00165" target="_blank" rel="noopener">Lee &amp;amp; Bahri et al. (2018)</a>）。</p>
+      
+    
+      
+        <h2>确定性的神经切线核#</h2>
+        
+      
+    
+      
+        <p>现在我们已经准备好来探讨 NTK 论文中最重要的命题：</p>
+      
+    
+      
+        <p>当 <span class="math-inline" data-math="n_1, \dots, n_L \to \infty">n_1, \dots, n_L \to \infty</span>（即无限宽度网络）时，NTK 收敛为：</p>
+      
+    
+      
+        <div class="list-content">(1) 在初始化时是确定性的，即核与具体的初始化值无关，仅由模型架构决定；并且
+(2) 在训练过程中保持不变。</div>
+      
+    
+      
+        <p>证明同样依赖于数学归纳法：</p>
+      
+    
+      
+        <p>(1) 首先，我们始终有 <span class="math-inline" data-math="K^{(0)} = 0">K^{(0)} = 0</span>。当 <span class="math-inline" data-math="L=1">L=1</span> 时，我们可以直接得到 NTK 的表达式。它是确定性的，且不依赖于网络初始化。此时没有隐藏层，因此也无需考虑无穷宽度。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+f(\mathbf{x};\theta) &amp;= \tilde{A}^{(1)}(\mathbf{x}) = \frac{1}{\sqrt{n_0}} {\mathbf{w}^{(0)}}^\top\mathbf{x} + \beta\mathbf{b}^{(0)} \\
+K^{(1)}(\mathbf{x}, \mathbf{x}&#x27;;\theta) 
+&amp;= \Big(\frac{\partial f(\mathbf{x}&#x27;;\theta)}{\partial \mathbf{w}^{(0)}}\Big)^\top \frac{\partial f(\mathbf{x};\theta)}{\partial \mathbf{w}^{(0)}} +
+\Big(\frac{\partial f(\mathbf{x}&#x27;;\theta)}{\partial \mathbf{b}^{(0)}}\Big)^\top \frac{\partial f(\mathbf{x};\theta)}{\partial \mathbf{b}^{(0)}} \\
+&amp;= \frac{1}{n_0} \mathbf{x}^\top{\mathbf{x}&#x27;} + \beta^2 = \Sigma^{(1)}(\mathbf{x}, \mathbf{x}&#x27;)
+\end{aligned}
+">
+\begin{aligned}
+f(\mathbf{x};\theta) &amp;= \tilde{A}^{(1)}(\mathbf{x}) = \frac{1}{\sqrt{n_0}} {\mathbf{w}^{(0)}}^\top\mathbf{x} + \beta\mathbf{b}^{(0)} \\
+K^{(1)}(\mathbf{x}, \mathbf{x}&#x27;;\theta) 
+&amp;= \Big(\frac{\partial f(\mathbf{x}&#x27;;\theta)}{\partial \mathbf{w}^{(0)}}\Big)^\top \frac{\partial f(\mathbf{x};\theta)}{\partial \mathbf{w}^{(0)}} +
+\Big(\frac{\partial f(\mathbf{x}&#x27;;\theta)}{\partial \mathbf{b}^{(0)}}\Big)^\top \frac{\partial f(\mathbf{x};\theta)}{\partial \mathbf{b}^{(0)}} \\
+&amp;= \frac{1}{n_0} \mathbf{x}^\top{\mathbf{x}&#x27;} + \beta^2 = \Sigma^{(1)}(\mathbf{x}, \mathbf{x}&#x27;)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>(2) 现在考虑 <span class="math-inline" data-math="L=l">L=l</span> 的情况，我们假设一个总参数量为 <span class="math-inline" data-math="\tilde{P}">\tilde{P}</span> 的 <span class="math-inline" data-math="l">l</span> 层网络 <span class="math-inline" data-math="\tilde{\theta} = (\mathbf{w}^{(0)}, \dots, \mathbf{w}^{(l-1)}, \mathbf{b}^{(0)}, \dots, \mathbf{b}^{(l-1)}) \in \mathbb{R}^\tilde{P}">\tilde{\theta} = (\mathbf{w}^{(0)}, \dots, \mathbf{w}^{(l-1)}, \mathbf{b}^{(0)}, \dots, \mathbf{b}^{(l-1)}) \in \mathbb{R}^\tilde{P}</span>，当 <span class="math-inline" data-math="n_1, \dots, n_{l-1} \to \infty">n_1, \dots, n_{l-1} \to \infty</span> 时其 NTK 收敛到一个确定性的极限。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+K^{(l)}(\mathbf{x}, \mathbf{x}&#x27;;\tilde{\theta}) = \nabla_{\tilde{\theta}} \tilde{A}^{(l)}(\mathbf{x})^\top \nabla_{\tilde{\theta}} \tilde{A}^{(l)}(\mathbf{x}&#x27;) \to K^{(l)}_{\infty}(\mathbf{x}, \mathbf{x}&#x27;)
+">
+K^{(l)}(\mathbf{x}, \mathbf{x}&#x27;;\tilde{\theta}) = \nabla_{\tilde{\theta}} \tilde{A}^{(l)}(\mathbf{x})^\top \nabla_{\tilde{\theta}} \tilde{A}^{(l)}(\mathbf{x}&#x27;) \to K^{(l)}_{\infty}(\mathbf{x}, \mathbf{x}&#x27;)
+</span></div>
+      
+    
+      
+        <p>注意 <span class="math-inline" data-math="K_\infty^{(l)}">K_\infty^{(l)}</span> 不依赖于 <span class="math-inline" data-math="\theta">\theta</span>。</p>
+      
+    
+      
+        <p>接下来我们考察 <span class="math-inline" data-math="L=l+1">L=l+1</span> 的情况。与 <span class="math-inline" data-math="l">l</span> 层网络相比，<span class="math-inline" data-math="(l+1)">(l+1)</span> 层网络额外包含权重矩阵 <span class="math-inline" data-math="\mathbf{w}^{(l)}">\mathbf{w}^{(l)}</span> 和偏置 <span class="math-inline" data-math="\mathbf{b}^{(l)}">\mathbf{b}^{(l)}</span>，因此总参数量包含 <span class="math-inline" data-math="\theta = (\tilde{\theta}, \mathbf{w}^{(l)}, \mathbf{b}^{(l)})">\theta = (\tilde{\theta}, \mathbf{w}^{(l)}, \mathbf{b}^{(l)})</span>。</p>
+      
+    
+      
+        <p>这个 <span class="math-inline" data-math="(l+1)">(l+1)</span> 层网络的输出函数为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+f(\mathbf{x};\theta) = \tilde{A}^{(l+1)}(\mathbf{x};\theta) = \frac{1}{\sqrt{n_l}} {\mathbf{w}^{(l)}}^\top \sigma\big(\tilde{A}^{(l)}(\mathbf{x})\big) + \beta \mathbf{b}^{(l)}
+">
+f(\mathbf{x};\theta) = \tilde{A}^{(l+1)}(\mathbf{x};\theta) = \frac{1}{\sqrt{n_l}} {\mathbf{w}^{(l)}}^\top \sigma\big(\tilde{A}^{(l)}(\mathbf{x})\big) + \beta \mathbf{b}^{(l)}
+</span></div>
+      
+    
+      
+        <p>我们已知它对不同参数集合的导数；为简便起见，在以下公式中用 <span class="math-inline" data-math="\tilde{A}^{(l)} = \tilde{A}^{(l)}(\mathbf{x})">\tilde{A}^{(l)} = \tilde{A}^{(l)}(\mathbf{x})</span> 表示：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\nabla_{\color{blue}{\mathbf{w}^{(l)}}} f(\mathbf{x};\theta) &amp;= \color{blue}{
+    \frac{1}{\sqrt{n_l}} \sigma\big(\tilde{A}^{(l)}\big)^\top
+} \color{black}{\quad \in \mathbb{R}^{1 \times n_l}} \\
+\nabla_{\color{green}{\mathbf{b}^{(l)}}} f(\mathbf{x};\theta) &amp;= \color{green}{ \beta } \\
+\nabla_{\color{red}{\tilde{\theta}}} f(\mathbf{x};\theta) 
+&amp;= \frac{1}{\sqrt{n_l}} \nabla_\tilde{\theta}\sigma(\tilde{A}^{(l)}) \mathbf{w}^{(l)} \\
+&amp;= \color{red}{
+    \frac{1}{\sqrt{n_l}}
+    \begin{bmatrix}
+        \dot{\sigma}(\tilde{A}_1^{(l)})\frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_1} &amp; \dots &amp; \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_1} \\
+        \vdots \\       
+        \dot{\sigma}(\tilde{A}_1^{(l)})\frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_\tilde{P}}
+        &amp; \dots &amp; \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_\tilde{P}}\\
+    \end{bmatrix}
+    \mathbf{w}^{(l)}
+    \color{black}{\quad \in \mathbb{R}^{\tilde{P} \times n_{l+1}}}
+}
+\end{aligned}
+">
+\begin{aligned}
+\nabla_{\color{blue}{\mathbf{w}^{(l)}}} f(\mathbf{x};\theta) &amp;= \color{blue}{
+    \frac{1}{\sqrt{n_l}} \sigma\big(\tilde{A}^{(l)}\big)^\top
+} \color{black}{\quad \in \mathbb{R}^{1 \times n_l}} \\
+\nabla_{\color{green}{\mathbf{b}^{(l)}}} f(\mathbf{x};\theta) &amp;= \color{green}{ \beta } \\
+\nabla_{\color{red}{\tilde{\theta}}} f(\mathbf{x};\theta) 
+&amp;= \frac{1}{\sqrt{n_l}} \nabla_\tilde{\theta}\sigma(\tilde{A}^{(l)}) \mathbf{w}^{(l)} \\
+&amp;= \color{red}{
+    \frac{1}{\sqrt{n_l}}
+    \begin{bmatrix}
+        \dot{\sigma}(\tilde{A}_1^{(l)})\frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_1} &amp; \dots &amp; \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_1} \\
+        \vdots \\       
+        \dot{\sigma}(\tilde{A}_1^{(l)})\frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_\tilde{P}}
+        &amp; \dots &amp; \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_\tilde{P}}\\
+    \end{bmatrix}
+    \mathbf{w}^{(l)}
+    \color{black}{\quad \in \mathbb{R}^{\tilde{P} \times n_{l+1}}}
+}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\dot{\sigma}">\dot{\sigma}</span> 是 <span class="math-inline" data-math="\sigma">\sigma</span> 的导数，矩阵 <span class="math-inline" data-math="\nabla_{\tilde{\theta}} f(\mathbf{x};\theta)">\nabla_{\tilde{\theta}} f(\mathbf{x};\theta)</span> 中位置 <span class="math-inline" data-math="(p, m), 1 \leq p \leq \tilde{P}, 1 \leq m \leq n_{l+1}">(p, m), 1 \leq p \leq \tilde{P}, 1 \leq m \leq n_{l+1}</span> 处的每个元素可以写成</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\frac{\partial f_m(\mathbf{x};\theta)}{\partial \tilde{\theta}_p} = \sum_{i=1}^{n_l} w^{(l)}_{im} \dot{\sigma}\big(\tilde{A}_i^{(l)} \big) \nabla_{\tilde{\theta}_p} \tilde{A}_i^{(l)}
+">
+\frac{\partial f_m(\mathbf{x};\theta)}{\partial \tilde{\theta}_p} = \sum_{i=1}^{n_l} w^{(l)}_{im} \dot{\sigma}\big(\tilde{A}_i^{(l)} \big) \nabla_{\tilde{\theta}_p} \tilde{A}_i^{(l)}
+</span></div>
+      
+    
+      
+        <p>该 <span class="math-inline" data-math="(l+1)">(l+1)</span> 层网络的 NTK 可相应地定义为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+&amp; K^{(l+1)}(\mathbf{x}, \mathbf{x}&#x27;; \theta) \\ 
+=&amp; \nabla_{\theta} f(\mathbf{x};\theta)^\top \nabla_{\theta} f(\mathbf{x};\theta) \\
+=&amp; \color{blue}{\nabla_{\mathbf{w}^{(l)}} f(\mathbf{x};\theta)^\top \nabla_{\mathbf{w}^{(l)}} f(\mathbf{x};\theta)} 
+    + \color{green}{\nabla_{\mathbf{b}^{(l)}} f(\mathbf{x};\theta)^\top \nabla_{\mathbf{b}^{(l)}} f(\mathbf{x};\theta)}
+    + \color{red}{\nabla_{\tilde{\theta}} f(\mathbf{x};\theta)^\top \nabla_{\tilde{\theta}} f(\mathbf{x};\theta)}  \\
+=&amp; \frac{1}{n_l} \Big[ 
+    \color{blue}{\sigma(\tilde{A}^{(l)})\sigma(\tilde{A}^{(l)})^\top} 
+    + \color{green}{\beta^2} \\
+    &amp;+
+    \color{red}{
+        {\mathbf{w}^{(l)}}^\top 
+        \begin{bmatrix}
+            \dot{\sigma}(\tilde{A}_1^{(l)})\dot{\sigma}(\tilde{A}_1^{(l)})\sum_{p=1}^\tilde{P} \frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_p}\frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_p} &amp; \dots &amp; \dot{\sigma}(\tilde{A}_1^{(l)})\dot{\sigma}(\tilde{A}_{n_l}^{(l)})\sum_{p=1}^\tilde{P} \frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_p}\frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_p} \\
+            \vdots \\
+            \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\dot{\sigma}(\tilde{A}_1^{(l)})\sum_{p=1}^\tilde{P} \frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_p}\frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_p} &amp; \dots &amp; \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\dot{\sigma}(\tilde{A}_{n_l}^{(l)})\sum_{p=1}^\tilde{P} \frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_p}\frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_p} \\
+        \end{bmatrix}
+        \mathbf{w}^{(l)}
+    }
+\color{black}{\Big]} \\
+=&amp; \frac{1}{n_l} \Big[ 
+    \color{blue}{\sigma(\tilde{A}^{(l)})\sigma(\tilde{A}^{(l)})^\top} 
+    + \color{green}{\beta^2} \\
+    &amp;+
+    \color{red}{
+        {\mathbf{w}^{(l)}}^\top 
+        \begin{bmatrix}
+            \dot{\sigma}(\tilde{A}_1^{(l)})\dot{\sigma}(\tilde{A}_1^{(l)})K^{(l)}_{11} &amp; \dots &amp; \dot{\sigma}(\tilde{A}_1^{(l)})\dot{\sigma}(\tilde{A}_{n_l}^{(l)})K^{(l)}_{1n_l} \\
+            \vdots \\
+            \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\dot{\sigma}(\tilde{A}_1^{(l)})K^{(l)}_{n_l1} &amp; \dots &amp; \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\dot{\sigma}(\tilde{A}_{n_l}^{(l)})K^{(l)}_{n_ln_l} \\
+        \end{bmatrix}
+        \mathbf{w}^{(l)}
+    }
+\color{black}{\Big]}
+\end{aligned}
+">
+\begin{aligned}
+&amp; K^{(l+1)}(\mathbf{x}, \mathbf{x}&#x27;; \theta) \\ 
+=&amp; \nabla_{\theta} f(\mathbf{x};\theta)^\top \nabla_{\theta} f(\mathbf{x};\theta) \\
+=&amp; \color{blue}{\nabla_{\mathbf{w}^{(l)}} f(\mathbf{x};\theta)^\top \nabla_{\mathbf{w}^{(l)}} f(\mathbf{x};\theta)} 
+    + \color{green}{\nabla_{\mathbf{b}^{(l)}} f(\mathbf{x};\theta)^\top \nabla_{\mathbf{b}^{(l)}} f(\mathbf{x};\theta)}
+    + \color{red}{\nabla_{\tilde{\theta}} f(\mathbf{x};\theta)^\top \nabla_{\tilde{\theta}} f(\mathbf{x};\theta)}  \\
+=&amp; \frac{1}{n_l} \Big[ 
+    \color{blue}{\sigma(\tilde{A}^{(l)})\sigma(\tilde{A}^{(l)})^\top} 
+    + \color{green}{\beta^2} \\
+    &amp;+
+    \color{red}{
+        {\mathbf{w}^{(l)}}^\top 
+        \begin{bmatrix}
+            \dot{\sigma}(\tilde{A}_1^{(l)})\dot{\sigma}(\tilde{A}_1^{(l)})\sum_{p=1}^\tilde{P} \frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_p}\frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_p} &amp; \dots &amp; \dot{\sigma}(\tilde{A}_1^{(l)})\dot{\sigma}(\tilde{A}_{n_l}^{(l)})\sum_{p=1}^\tilde{P} \frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_p}\frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_p} \\
+            \vdots \\
+            \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\dot{\sigma}(\tilde{A}_1^{(l)})\sum_{p=1}^\tilde{P} \frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_p}\frac{\partial \tilde{A}_1^{(l)}}{\partial \tilde{\theta}_p} &amp; \dots &amp; \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\dot{\sigma}(\tilde{A}_{n_l}^{(l)})\sum_{p=1}^\tilde{P} \frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_p}\frac{\partial \tilde{A}_{n_l}^{(l)}}{\partial \tilde{\theta}_p} \\
+        \end{bmatrix}
+        \mathbf{w}^{(l)}
+    }
+\color{black}{\Big]} \\
+=&amp; \frac{1}{n_l} \Big[ 
+    \color{blue}{\sigma(\tilde{A}^{(l)})\sigma(\tilde{A}^{(l)})^\top} 
+    + \color{green}{\beta^2} \\
+    &amp;+
+    \color{red}{
+        {\mathbf{w}^{(l)}}^\top 
+        \begin{bmatrix}
+            \dot{\sigma}(\tilde{A}_1^{(l)})\dot{\sigma}(\tilde{A}_1^{(l)})K^{(l)}_{11} &amp; \dots &amp; \dot{\sigma}(\tilde{A}_1^{(l)})\dot{\sigma}(\tilde{A}_{n_l}^{(l)})K^{(l)}_{1n_l} \\
+            \vdots \\
+            \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\dot{\sigma}(\tilde{A}_1^{(l)})K^{(l)}_{n_l1} &amp; \dots &amp; \dot{\sigma}(\tilde{A}_{n_l}^{(l)})\dot{\sigma}(\tilde{A}_{n_l}^{(l)})K^{(l)}_{n_ln_l} \\
+        \end{bmatrix}
+        \mathbf{w}^{(l)}
+    }
+\color{black}{\Big]}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>其中矩阵 <span class="math-inline" data-math="K^{(l+1)}">K^{(l+1)}</span> 中位置 <span class="math-inline" data-math="(m, n), 1 \leq m, n \leq n_{l+1}">(m, n), 1 \leq m, n \leq n_{l+1}</span> 处的每个单独元素可以写成：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+K^{(l+1)}_{mn} 
+=&amp; \frac{1}{n_l}\Big[
+    \color{blue}{\sigma(\tilde{A}_m^{(l)})\sigma(\tilde{A}_n^{(l)})}
+    + \color{green}{\beta^2} 
+    + \color{red}{
+    \sum_{i=1}^{n_l} \sum_{j=1}^{n_l} w^{(l)}_{im} w^{(l)}_{in} \dot{\sigma}(\tilde{A}_i^{(l)}) \dot{\sigma}(\tilde{A}_{j}^{(l)}) K_{ij}^{(l)}
+}
+\Big]
+\end{aligned}
+">
+\begin{aligned}
+K^{(l+1)}_{mn} 
+=&amp; \frac{1}{n_l}\Big[
+    \color{blue}{\sigma(\tilde{A}_m^{(l)})\sigma(\tilde{A}_n^{(l)})}
+    + \color{green}{\beta^2} 
+    + \color{red}{
+    \sum_{i=1}^{n_l} \sum_{j=1}^{n_l} w^{(l)}_{im} w^{(l)}_{in} \dot{\sigma}(\tilde{A}_i^{(l)}) \dot{\sigma}(\tilde{A}_{j}^{(l)}) K_{ij}^{(l)}
+}
+\Big]
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>当 <span class="math-inline" data-math="n_l \to \infty">n_l \to \infty</span> 时，蓝色和绿色部分具有以下极限（证明见前一节）：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\frac{1}{n_l}\sigma(\tilde{A}^{(l)})\sigma(\tilde{A}^{(l)}) + \beta^2\to \Sigma^{(l+1)}
+">
+\frac{1}{n_l}\sigma(\tilde{A}^{(l)})\sigma(\tilde{A}^{(l)}) + \beta^2\to \Sigma^{(l+1)}
+</span></div>
+      
+    
+      
+        <p>而红色部分的极限为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\sum_{i=1}^{n_l} \sum_{j=1}^{n_l} w^{(l)}_{im} w^{(l)}_{in} \dot{\sigma}(\tilde{A}_i^{(l)}) \dot{\sigma}(\tilde{A}_{j}^{(l)}) K_{ij}^{(l)} 
+\to
+\sum_{i=1}^{n_l} \sum_{j=1}^{n_l} w^{(l)}_{im} w^{(l)}_{in} \dot{\sigma}(\tilde{A}_i^{(l)}) \dot{\sigma}(\tilde{A}_{j}^{(l)}) K_{\infty,ij}^{(l)}
+">
+\sum_{i=1}^{n_l} \sum_{j=1}^{n_l} w^{(l)}_{im} w^{(l)}_{in} \dot{\sigma}(\tilde{A}_i^{(l)}) \dot{\sigma}(\tilde{A}_{j}^{(l)}) K_{ij}^{(l)} 
+\to
+\sum_{i=1}^{n_l} \sum_{j=1}^{n_l} w^{(l)}_{im} w^{(l)}_{in} \dot{\sigma}(\tilde{A}_i^{(l)}) \dot{\sigma}(\tilde{A}_{j}^{(l)}) K_{\infty,ij}^{(l)}
+</span></div>
+      
+    
+      
+        <p>后来，<a href="https://arxiv.org/abs/1904.11955" target="_blank" rel="noopener">Arora et al. (2019)</a> 给出了一个更弱极限条件下的证明，它不要求所有隐藏层都具有无限宽度，而只需最小宽度足够大即可。</p>
+      
+    
+      
+        <h2>线性化模型#</h2>
+        
+      
+    
+      
+        <p>从前面的章节，根据导数的链式法则，我们已经知道无限宽度网络输出上的梯度更新形式如下；为简洁起见，在后续分析中省略输入：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\frac{df(\theta)}{dt} 
+&amp;= -\eta\nabla_\theta f(\theta)^\top \nabla_\theta f(\theta) \nabla_f \mathcal{L} &amp; \\
+&amp;= -\eta\nabla_\theta f(\theta)^\top \nabla_\theta f(\theta) \nabla_f \mathcal{L} &amp; \\
+&amp;= -\eta K(\theta) \nabla_f \mathcal{L} \\
+&amp;= \color{cyan}{-\eta K_\infty \nabla_f \mathcal{L}} &amp; \text{; for infinite width network}\\
+\end{aligned}
+">
+\begin{aligned}
+\frac{df(\theta)}{dt} 
+&amp;= -\eta\nabla_\theta f(\theta)^\top \nabla_\theta f(\theta) \nabla_f \mathcal{L} &amp; \\
+&amp;= -\eta\nabla_\theta f(\theta)^\top \nabla_\theta f(\theta) \nabla_f \mathcal{L} &amp; \\
+&amp;= -\eta K(\theta) \nabla_f \mathcal{L} \\
+&amp;= \color{cyan}{-\eta K_\infty \nabla_f \mathcal{L}} &amp; \text{; for infinite width network}\\
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>为了跟踪 <span class="math-inline" data-math="\theta">\theta</span> 随时间的变化，我们将其视为时间步 <span class="math-inline" data-math="t">t</span> 的函数。通过泰勒展开，网络的学习动态可以简化为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+f(\theta(t)) \approx f^\text{lin}(\theta(t)) = f(\theta(0)) + \underbrace{\nabla_\theta f(\theta(0))}_{\text{formally }\nabla_\theta f(\mathbf{x}; \theta) \vert_{\theta=\theta(0)}} (\theta(t) - \theta(0))
+">
+f(\theta(t)) \approx f^\text{lin}(\theta(t)) = f(\theta(0)) + \underbrace{\nabla_\theta f(\theta(0))}_{\text{formally }\nabla_\theta f(\mathbf{x}; \theta) \vert_{\theta=\theta(0)}} (\theta(t) - \theta(0))
+</span></div>
+      
+    
+      
+        <p>这种形式通常被称为线性化模型，因为 <span class="math-inline" data-math="\theta(0)">\theta(0)</span>、<span class="math-inline" data-math="f(\theta(0))">f(\theta(0))</span> 和 <span class="math-inline" data-math="\nabla_\theta f(\theta(0))">\nabla_\theta f(\theta(0))</span> 都是常数。假设时间增量 <span class="math-inline" data-math="t">t</span> 极小，且参数通过梯度下降进行更新：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\theta(t) - \theta(0) &amp;= - \eta \nabla_\theta \mathcal{L}(\theta) = - \eta \nabla_\theta f(\theta)^\top \nabla_f \mathcal{L} \\
+f^\text{lin}(\theta(t)) - f(\theta(0)) &amp;= - \eta\nabla_\theta f(\theta(0))^\top \nabla_\theta f(\mathcal{X};\theta(0)) \nabla_f \mathcal{L} \\
+\frac{df(\theta(t))}{dt} &amp;= - \eta K(\theta(0)) \nabla_f \mathcal{L} \\
+\frac{df(\theta(t))}{dt} &amp;= \color{cyan}{- \eta K_\infty \nabla_f \mathcal{L}}  &amp; \text{; for infinite width network}\\
+\end{aligned}
+">
+\begin{aligned}
+\theta(t) - \theta(0) &amp;= - \eta \nabla_\theta \mathcal{L}(\theta) = - \eta \nabla_\theta f(\theta)^\top \nabla_f \mathcal{L} \\
+f^\text{lin}(\theta(t)) - f(\theta(0)) &amp;= - \eta\nabla_\theta f(\theta(0))^\top \nabla_\theta f(\mathcal{X};\theta(0)) \nabla_f \mathcal{L} \\
+\frac{df(\theta(t))}{dt} &amp;= - \eta K(\theta(0)) \nabla_f \mathcal{L} \\
+\frac{df(\theta(t))}{dt} &amp;= \color{cyan}{- \eta K_\infty \nabla_f \mathcal{L}}  &amp; \text{; for infinite width network}\\
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>最终我们得到了相同的学习动态，这意味着无限宽度的神经网络可以被极大地简化，其行为由上述线性化模型主导（<a href="https://arxiv.org/abs/1902.06720" target="_blank" rel="noopener">Lee &amp;amp; Xiao, et al. 2019</a>）。</p>
+      
+    
+      
+        <p>在一个简单的情况下，当经验损失为均方误差（MSE）损失 <span class="math-inline" data-math="\nabla_\theta \mathcal{L}(\theta) = f(\mathcal{X}; \theta) - \mathcal{Y}">\nabla_\theta \mathcal{L}(\theta) = f(\mathcal{X}; \theta) - \mathcal{Y}</span> 时，网络的动态变为一个简单的线性常微分方程，可以用闭式形式求解：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\frac{df(\theta)}{dt} =&amp; -\eta K_\infty (f(\theta) - \mathcal{Y}) &amp; \\
+\frac{dg(\theta)}{dt} =&amp; -\eta K_\infty g(\theta) &amp; \text{; let }g(\theta)=f(\theta) - \mathcal{Y} \\
+\int \frac{dg(\theta)}{g(\theta)} =&amp; -\eta \int K_\infty dt &amp; \\
+g(\theta) &amp;= C e^{-\eta K_\infty t} &amp;
+\end{aligned}
+">
+\begin{aligned}
+\frac{df(\theta)}{dt} =&amp; -\eta K_\infty (f(\theta) - \mathcal{Y}) &amp; \\
+\frac{dg(\theta)}{dt} =&amp; -\eta K_\infty g(\theta) &amp; \text{; let }g(\theta)=f(\theta) - \mathcal{Y} \\
+\int \frac{dg(\theta)}{g(\theta)} =&amp; -\eta \int K_\infty dt &amp; \\
+g(\theta) &amp;= C e^{-\eta K_\infty t} &amp;
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>当 <span class="math-inline" data-math="t=0">t=0</span> 时，我们有 <span class="math-inline" data-math="C=f(\theta(0)) - \mathcal{Y}">C=f(\theta(0)) - \mathcal{Y}</span>，因此，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+f(\theta) 
+= (f(\theta(0)) - \mathcal{Y})e^{-\eta K_\infty t} + \mathcal{Y} \\
+= f(\theta(0))e^{-K_\infty t} + (I - e^{-\eta K_\infty t})\mathcal{Y}
+">
+f(\theta) 
+= (f(\theta(0)) - \mathcal{Y})e^{-\eta K_\infty t} + \mathcal{Y} \\
+= f(\theta(0))e^{-K_\infty t} + (I - e^{-\eta K_\infty t})\mathcal{Y}
+</span></div>
+      
+    
+      
+        <h2>懒惰训练#</h2>
+        
+      
+    
+      
+        <p>人们观察到，当神经网络被严重过参数化时，模型能够快速地将训练损失收敛到零，但网络参数几乎不发生变化。这种现象被称为懒惰训练。换句话说，当损失 <span class="math-inline" data-math="\mathcal{L}">\mathcal{L}</span> 有显著下降时，网络微分 <span class="math-inline" data-math="f">f</span>（即 Jacobian 矩阵）的变化仍然非常小。</p>
+      
+    
+      
+        <p>设 <span class="math-inline" data-math="\theta(0)">\theta(0)</span> 为初始网络参数，<span class="math-inline" data-math="\theta(T)">\theta(T)</span> 为损失被最小化到零时的最终网络参数。参数空间中的变化量可以用一阶泰勒展开近似：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\hat{y} = f(\theta(T)) &amp;\approx f(\theta(0)) + \nabla_\theta f(\theta(0)) (\theta(T) - \theta(0)) \\
+\text{Thus }\Delta \theta &amp;= \theta(T) - \theta(0) \approx \frac{\|\hat{y} - f(\theta(0))\|}{\| \nabla_\theta f(\theta(0)) \|}
+\end{aligned}
+">
+\begin{aligned}
+\hat{y} = f(\theta(T)) &amp;\approx f(\theta(0)) + \nabla_\theta f(\theta(0)) (\theta(T) - \theta(0)) \\
+\text{Thus }\Delta \theta &amp;= \theta(T) - \theta(0) \approx \frac{\|\hat{y} - f(\theta(0))\|}{\| \nabla_\theta f(\theta(0)) \|}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>同样通过一阶泰勒展开，我们可以跟踪 <span class="math-inline" data-math="f">f</span> 的微分变化：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\nabla_\theta f(\theta(T)) 
+&amp;\approx \nabla_\theta f(\theta(0)) + \nabla^2_\theta f(\theta(0)) \Delta\theta \\
+&amp;= \nabla_\theta f(\theta(0)) + \nabla^2_\theta f(\theta(0)) \frac{\|\hat{y} - f(\mathbf{x};\theta(0))\|}{\| \nabla_\theta f(\theta(0)) \|} \\
+\text{Thus }\Delta\big(\nabla_\theta f\big) &amp;= \nabla_\theta f(\theta(T)) - \nabla_\theta f(\theta(0)) = \|\hat{y} - f(\mathbf{x};\theta(0))\| \frac{\nabla^2_\theta f(\theta(0))}{\| \nabla_\theta f(\theta(0)) \|}
+\end{aligned}
+">
+\begin{aligned}
+\nabla_\theta f(\theta(T)) 
+&amp;\approx \nabla_\theta f(\theta(0)) + \nabla^2_\theta f(\theta(0)) \Delta\theta \\
+&amp;= \nabla_\theta f(\theta(0)) + \nabla^2_\theta f(\theta(0)) \frac{\|\hat{y} - f(\mathbf{x};\theta(0))\|}{\| \nabla_\theta f(\theta(0)) \|} \\
+\text{Thus }\Delta\big(\nabla_\theta f\big) &amp;= \nabla_\theta f(\theta(T)) - \nabla_\theta f(\theta(0)) = \|\hat{y} - f(\mathbf{x};\theta(0))\| \frac{\nabla^2_\theta f(\theta(0))}{\| \nabla_\theta f(\theta(0)) \|}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>设 <span class="math-inline" data-math="\kappa(\theta)">\kappa(\theta)</span> 为 <span class="math-inline" data-math="f">f</span> 的微分相对于参数空间变化的相对变化量：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\kappa(\theta = \frac{\Delta\big(\nabla_\theta f\big)}{\| \nabla_\theta f(\theta(0)) \|} = \|\hat{y} - f(\theta(0))\| \frac{\nabla^2_\theta f(\theta(0))}{\| \nabla_\theta f(\theta(0)) \|^2}
+">
+\kappa(\theta = \frac{\Delta\big(\nabla_\theta f\big)}{\| \nabla_\theta f(\theta(0)) \|} = \|\hat{y} - f(\theta(0))\| \frac{\nabla^2_\theta f(\theta(0))}{\| \nabla_\theta f(\theta(0)) \|^2}
+</span></div>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1812.07956" target="_blank" rel="noopener">Chizat et al. (2019)</a> 为两层神经网络证明了，当隐藏神经元数量 <span class="math-inline" data-math="\to \infty">\to \infty</span> 时，<span class="math-inline" data-math="\mathbb{E}[\kappa(\theta_0)] \to 0">\mathbb{E}[\kappa(\theta_0)] \to 0</span>（进入懒惰 regime）。此外，推荐阅读<a href="https://rajatvd.github.io/NTK/" target="_blank" rel="noopener">这篇文章</a>以获得关于线性化模型和懒惰训练的更多讨论。</p>
+      
+    
+      
+        <h2>引用#</h2>
+        
+      
+    
+      
+        <p>引用格式：</p>
+      
+    
+      
+        <blockquote>Weng, Lilian. (Sep 2022). Some math behind neural tangent kernel. Lil’Log. https://lilianweng.github.io/posts/2022-09-08-ntk/.</blockquote>
+      
+    
+      
+        <pre><code>@article{weng2022ntk,
+  title   = &quot;Some Math behind Neural Tangent Kernel&quot;,
+  author  = &quot;Weng, Lilian&quot;,
+  journal = &quot;Lil&#x27;Log&quot;,
+  year    = &quot;2022&quot;,
+  month   = &quot;Sep&quot;,
+  url     = &quot;https://lilianweng.github.io/posts/2022-09-08-ntk/&quot;
+}
+</code></pre>
+      
+    
+      
+        <h2>参考文献#</h2>
+        
+      
+    
+      
+        <p>[1] Jacot et al. <a href="https://arxiv.org/abs/1806.07572" target="_blank" rel="noopener">“Neural Tangent Kernel: Convergence and Generalization in Neural Networks.”</a> NeurIPS 2018.</p>
+      
+    
+      
+        <p>[2] Radford M. Neal. <a href="posts-2022-09-08-ntk.html">神经切线核背后的数学原理</a> Bayesian Learning for Neural Networks. Springer, New York, NY, 1996. 29-53.</p>
+      
+    
+      
+        <p>[3] Lee &amp; Bahri et al. <a href="https://arxiv.org/abs/1711.00165" target="_blank" rel="noopener">“Deep Neural Networks as Gaussian Processes.”</a> ICLR 2018.</p>
+      
+    
+      
+        <p>[4] Chizat et al. <a href="https://arxiv.org/abs/1812.07956" target="_blank" rel="noopener">“On Lazy Training in Differentiable Programming”</a> NeurIPS 2019.</p>
+      
+    
+      
+        <p>[5] Lee &amp; Xiao, et al. <a href="https://arxiv.org/abs/1902.06720" target="_blank" rel="noopener">“Wide Neural Networks of Any Depth Evolve as Linear Models Under Gradient Descent.”</a> NeurIPS 2019.</p>
+      
+    
+      
+        <p>[6] Arora, et al. <a href="https://arxiv.org/abs/1904.11955" target="_blank" rel="noopener">“On Exact Computation with an Infinitely Wide Neural Net.”</a> NeurIPS 2019.</p>
+      
+    
+      
+        <p>[7] (YouTube 视频) <a href="https://www.youtube.com/watch?v=raT2ECrvbag" target="_blank" rel="noopener">“Neural Tangent Kernel: Convergence and Generalization in Neural Networks”</a> by Arthur Jacot, Nov 2018.</p>
+      
+    
+      
+        <p>[8] (YouTube 视频) <a href="https://www.youtube.com/watch?v=DObobAnELkU" target="_blank" rel="noopener">“Lecture 7 - Deep Learning Foundations: Neural Tangent Kernels”</a> by Soheil Feizi, Sep 2020.</p>
+      
+    
+      
+        <p>[9] <a href="https://rajatvd.github.io/NTK/" target="_blank" rel="noopener">“Understanding the Neural Tangent Kernel.”</a> Rajat’s Blog.</p>
+      
+    
+      
+        <p>[10] <a href="https://appliedprobability.blog/2021/03/10/neural-tangent-kernel/" target="_blank" rel="noopener">“Neural Tangent Kernel.”</a> Applied Probability Notes, Mar 2021.</p>
+      
+    
+      
+        <p>[11] <a href="https://www.inference.vc/neural-tangent-kernels-some-intuition-for-kernel-gradient-descent/" target="_blank" rel="noopener">“Some Intuition on the Neural Tangent Kernel.”</a> inFERENCe, Nov 2020.</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>权重带状结构 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>权重带状结构</h1>
+    <div class="meta">
+      2021-04-08 · 
+      <a href="https://distill.pub/2020/circuits/weight-banding" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <figure>
+          <img src="../images/2020-circuits-weight-banding/multiple-pages.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>本文是 <a href="2020-circuits.html">线程：电路</a> 的一部分，该系列以实验性格式汇集了受邀的短文和批判性评论，深入探讨神经网络的内部工作机制。</p>
+      
+    
+      
+        <p>分支专化</p>
+      
+    
+      
+        <h2>引言</h2>
+        
+      
+    
+      
+        <p>打开任何一个 ImageNet 卷积网络，观察其最后一层的权重。你会发现其中存在一种均匀的空间模式，这与网络其他部分看到的任何模式都截然不同。单个权重并无异常，但这种均匀性如此显著，以至于我们最初发现时以为是个 bug。正如不同生物组织在显微镜下会显现出明显区别一样，这一最终层的权重在用 NMF 可视化时也显得与众不同。我们将这一现象称为权重带状结构（weight banding）。</p>
+      
+    
+      
+        <p>迄今为止，<a href="2020-circuits.html">线程：电路</a> 主要聚焦于研究神经网络中非常小的组成部分——<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 和小型电路。相比之下，权重带状结构是我们所说的“结构现象”的一个例子，即神经网络电路和特征中更大尺度上的模式。其他结构现象的例子包括我们在 <a href="2020-circuits-equivariance.html">神经网络中的自然等变性</a> 模体中看到的重复对称性，以及在 <a href="2020-circuits-branch-specialization.html">分支特化</a> 中看到的神经网络的专化切片。
+
+      在权重带状结构的情况下，我们将其视为结构现象，是因为这种模式出现在整个层的尺度上。</p>
+      
+    
+      
+        <p>权重带状结构在风格上也与反卷积过程中形成的 <a href="2016-deconv-checkerboard.html">反卷积与棋盘格伪影</a> 类似。</p>
+      
+    
+      
+        <p>除了描述权重带状结构，我们还将探讨它何时出现以及为什么会出现。我们发现，模型是否在末尾使用全局平均池化或全连接层之间似乎存在因果联系，这表明权重带状结构是保留图像中更大尺度结构信息的算法的一部分。建立这样的因果联系，是在神经网络训练中的实际决策与我们观察到的内部现象之间形成闭环的一步。</p>
+      
+    
+      
+        <h2>权重带状结构出现的位置</h2>
+        
+      
+    
+      
+        <p>权重带状结构在带有全局平均池化的视觉模型的最后一层卷积中会一致地形成。</p>
+      
+    
+      
+        <p>为了看到这些带状，我们需要可视化权重的空间结构，如下图所示。我们通常使用 NMF 来完成这一任务，具体方法见“权重可视化”一节。对于每个神经元，我们取它与前一层相连的权重。然后用 NMF 将对应前一层通道的维度数降至 3 个因子，并映射到 RGB 通道。由于因子的顺序是任意的，我们使用一种启发式方法使映射在不同神经元间保持一致。这揭示了一种非常明显的水平<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>条带模式。</p>
+      
+    
+      
+        <p>有趣的是，AlexNet 并没有表现出这一现象。</p>
+      
+    
+      
+        <p>与大多数现代视觉模型不同，AlexNet 不使用全局平均池化。相反，它有一个全连接层直接连接到最终卷积层，从而能够区别对待不同位置。如果观察这个全连接层的权重，会发现权重随全局 y 坐标的变化非常显著。</p>
+      
+    
+      
+        <p>权重带状结构中的水平条带意味着过滤器不关心水平位置，但强烈编码了相对垂直位置。我们的假设是，权重带状结构是一种习得的方式，用于在各种池化操作导致空间信息丢失时对其进行保留。</p>
+      
+    
+      
+        <p>在下一节中，我们将构建一个自己的简化视觉网络，并研究其架构的不同变体，以精确理解产生权重带状结构所需的条件。</p>
+      
+    
+      
+        <h2>什么影响带状结构</h2>
+        
+      
+    
+      
+        <p>我们希望了解哪些架构决策会影响权重带状结构。这将涉及尝试不同架构，并观察权重带状结构是否持续存在。
+
+      由于我们每次只想更改一个架构参数，因此需要一个一致的基线模型来应用修改。理想情况下，这个基线应该尽可能简单。</p>
+      
+    
+      
+        <p>我们创建了一个简化的网络架构，包含 6 组卷积层，由 L2 池化层分隔。最后，它有一个全局平均池化操作，将输入减少为 512 个值，然后送入一个具有 1001 个输出的全连接层。</p>
+      
+    
+      
+        <p>这个简化网络在其最后一层可靠地产生了权重带状结构
+      （通常在前两层中也会出现）。</p>
+      
+    
+      
+        <p>在本节的剩余部分，我们将尝试修改该架构及其训练设置，并观察权重带状结构是否得以保留。</p>
+      
+    
+      
+        <h3>将图像旋转 90 度</h3>
+        
+      
+    
+      
+        <p>为了排除训练中的 bug 或某些奇怪的数值问题，我们决定进行一次将输入旋转 90 度的训练运行。这一 sanity check 得到了非常清晰的结果：得到的权重中出现了垂直带状结构，而不是水平带状。这清楚地表明，带状结构是 ImageNet 数据集中的某些属性导致的，这些属性使得空间垂直位置<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>具有相关性。</p>
+      
+    
+      
+        <h3>不使用全局平均池化的全连接层</h3>
+        
+      
+    
+      
+        <p>我们移除了简化模型中的全局平均池化步骤，让全连接层能够一次性看到所有空间位置。该模型没有出现权重带状结构，但全连接层的参数量增加了 49 倍，并且在训练集上发生了过拟合。这是有力证据，表明常见模型在最后几层卷积之后使用激进池化会导致权重带状结构。这一结果也与 AlexNet 不显示这种带状现象一致（因为它同样没有全局平均池化）。</p>
+      
+    
+      
+        <h3>仅沿 x 轴进行平均池化</h3>
+        
+      
+    
+      
+        <p>我们对最终卷积层的每一行进行平均，从而保留了垂直绝对位置，但不保留水平绝对位置。<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup> 最后一层的带状结构似乎消失了，但仔细观察后，第 5a 层中仍能清晰看到带状结构，与基线模型的 5b 层类似。我们对这一结果感到惊讶。</p>
+      
+    
+      
+        <h3>权重带状结构持续存在的修改方案</h3>
+        
+      
+    
+      
+        <p>我们尝试了以下每一种修改，并发现每种变体中权重带状结构依然存在。</p>
+      
+    
+      
+        <div class="list-content">带有学习空间掩码的全局平均池化。通过应用多个不同的空间掩码并进行全局平均池化，我们可以让模型保留一些空间信息。直观上，每个掩码可以选择不同的空间位置子集。
+
+        我们尝试了分别使用 3、5 或 16 个不同掩码的实验运行。
+
+        学习得到的掩码对应于大尺度的全局结构，但带状结构依然强烈存在。
+      
+
+        在 5b 层之后使用注意力层代替池化/全连接组合。
+      
+
+        在 5b 之后添加一个 7x7x512 的带有学习权重的掩码。希望掩码能帮助每个 5b 神经元聚焦于 7x7 图像的正确部分，而无需卷积。
+      
+
+        向 5a 和 5b 的输入添加 CoordConv<cite>[COORDCONV]</cite> 通道。
+      
+
+        将 5b 的输出拆分为 16 个 7x7x32 通道组，每个组使用独立的全连接层。然后将 16 个全连接层的输出拼接起来，作为最终 1001 类全连接层的输入。
+      
+
+        使用全局最大池化、4096 单元全连接层，然后是 1001 单元全连接层（受 VGG 启发）。</div>
+      
+    
+      
+        <p>附录中提供了一个交互式图表，你可以用来探索这些实验以及更多实验的权重。</p>
+      
+    
+      
+        <h2>在常见架构中验证带状干预</h2>
+        
+      
+    
+      
+        <p>在上一节中，我们观察到两种明显影响权重带状结构的干预：将数据集旋转 90 度和移除全连接层之前的全局平均池化。为了确认这些效果不仅限于我们的简化模型，我们决定对三种常见架构（InceptionV1、ResNet50、VGG19）进行相同的干预，并从头开始训练它们。</p>
+      
+    
+      
+        <p>除一个例外外，这三种模型中效果均成立。</p>
+      
+    
+      
+        <h4>InceptionV1</h4>
+        
+      
+    
+      
+        <h4>ResNet50</h4>
+        
+      
+    
+      
+        <h4>VGG19</h4>
+        
+      
+    
+      
+        <p>唯一的例外是 VGG19，移除其全连接层组之前的池化操作并未如预期那样消除权重带状结构；这些权重看起来与基线相当相似。不过，它对旋转的响应非常明显。</p>
+      
+    
+      
+        <p>&lt;p&gt;
+      VGG19 似乎并未如预期那样对移除全连接层组之前的池化操作产生响应。它对旋转的响应很明显，但在其他方面，基线和移除全连接的权重看起来相当相似。[TODO: 我应该重新运行这个实验，我在训练全连接变体时已经遇到了内存问题，所以可能某处存在 bug]
+    &lt;/p&gt;</p>
+      
+    
+      
+        <h2>结论</h2>
+        
+      
+    
+      
+        <p>一旦我们真正理解了神经网络，我们就应该能够利用这种理解来设计更有效的神经网络架构。早期的论文，如 Zeiler 等人的工作，强烈强调了这一点，但目前尚不清楚是否已经取得任何重大成功。这暗示了我们工作中的重大局限。它也可能是一个被错过的机会：如果可解释性有助于提升神经网络的能力，那么它很可能会更深入地融入其他研究，并吸引更广泛的研究者关注。</p>
+      
+    
+      
+        <p>目前还不清楚权重带状结构是“好”还是“坏”。<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup> 我们没有任何具体的建议或可采取的行动。然而，它是架构决策与最终训练权重之间存在一致联系的一个例子。它具有能够为架构设计提供信息的恰当特质，即使其本身并不特别具有可操作性。</p>
+      
+    
+      
+        <p>更广泛地说，权重带状结构是大尺度结构的一个例子。电路分析的主要局限之一就是其尺度过小。我们希望像权重带状结构这样的大尺度结构，能够帮助电路分析形成关于神经网络的更高层次叙事。</p>
+      
+    
+      
+        <p>&lt;p&gt;
+      最终，两种明显影响带状数量或类型的干预是 90° 旋转和跳过最终池化操作。90° 旋转干预是一个易于实现的测试，可用于检查你数据集中的空间带状结构。跳过池化操作是一种影响更大的干预，但不推荐使用，因为它会显著增加参数量，并在我们的测试中导致过拟合。
+    &lt;/p&gt;</p>
+      
+    
+      
+        <p>&lt;p&gt;
+      目前还不清楚权重带状结构是特性还是 bug。一方面，90° 旋转实验表明权重带状结构是数据集的产物，它将有用的信息编码进了权重中。然而，如果空间信息能够以一种更高效的方式在网络中流动，那么过滤器或许就能专注于编码特征之间的关系，而无需追踪这些空间位置。关于这一现象最有趣的发现是：只要空间信息通过池化操作被破坏，卷积层就几乎总会在其权重中加入带状结构，其目的可能是为了保留一部分被破坏的信息。
+    &lt;/p&gt;</p>
+      
+    
+      
+        <p>&lt;p&gt;
+      目前看来，权重带状结构是从卷积与池化组合中持续出现的一种现象，我们希望未来能对其进行进一步探索。
+    &lt;/p&gt;</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-circuits-weight-banding/multiple-pages.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>本文是 <a href="2020-circuits.html">线程：电路</a> 的一部分，该系列以实验性格式汇集了受邀的短文和批判性评论，深入探讨神经网络的内部工作机制。</p>
+      
+    
+      
+        <p>分支专化</p>
+      
+    
+  </div>
+
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <a href="#fnref-f1n">[1]</a> 这些条带并不总是完全水平的——有时它们会在中央带的中心位置表现出轻微的额外权重偏好，如下面的一些例子所示。
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <a href="#fnref-f2n">[2]</a> （或者，在旋转数据集的情况下，指空间水平位置）
+    </div>
+    
+    <div class="footnote-item" id="f3n">
+      <a href="#fnref-f3n">[3]</a> 由于该模型在最终卷积层中有 7x7 的空间位置，这一修改使全连接层的参数数量增加了 7 倍，而不是完全不使用池化时增加的 49 倍。
+    </div>
+    
+    <div class="footnote-item" id="f4n">
+      <a href="#fnref-f4n">[4]</a> 一方面，90° 旋转实验表明权重带状结构是数据集的产物，它将有用的信息编码进了权重中。然而，如果空间信息能够以另一种更高效的方式在网络中流动，那么通道或许就能够专注于编码特征之间的关系，而无需追踪空间位置。
+    </div>
+    
+  </section>
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

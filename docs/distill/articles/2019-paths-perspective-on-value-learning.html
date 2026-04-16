@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>路径视角下的价值学习 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>路径视角下的价值学习</h1>
+    <div class="meta">
+      2019-09-30 · 
+      <a href="https://distill.pub/2019/paths-perspective-on-value-learning" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>&lt;d-cite key=&quot;Tsividis2017HumanAtari&quot;&gt;&lt;/d-cite&gt;</p>
+      
+    
+      
+        <h2>引言</h2>
+        
+      
+    
+      
+        <p>过去几年中，强化学习（RL）取得了显著进展，包括<a href="https://deepmind.com/research/alphago/" target="_blank" rel="noopener">击败围棋世界冠军</a>、<a href="https://blog.openai.com/learning-dexterity/" target="_blank" rel="noopener">控制机器手</a>，甚至<a href="https://deepmind.com/blog/learning-to-generate-images/" target="_blank" rel="noopener">绘制图像</a>。</p>
+      
+    
+      
+        <p>强化学习的一个关键子问题是价值估计——即学习处于某个状态的长期后果。
+    这并不容易，因为未来的回报通常充满噪声，会受到当前状态以外的许多因素影响。我们看得越远，这种情况就越明显。
+    尽管困难，价值估计对许多强化学习方法来说却是必不可少的。<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup></p>
+      
+    
+      
+        <p>估计状态价值最自然的方式，是计算从该状态观察到的回报的平均值。我们称之为蒙特卡洛价值估计。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/cliffworld-path1.svg" alt="">
+          <figcaption>Cliff World
+[<cite>[Sutton2017ReinforcementIntroduction]</cite>] is a classic RL example, where the agent learns to
+            walk along a cliff to reach a goal.</figcaption>
+        </figure>
+      
+    
+      
+        <p>如果某个状态仅被一个episode访问过，蒙特卡洛会将其价值设为该episode的回报。如果多个episode访问过该状态，蒙特卡洛则将其价值估计为这些回报的平均值。</p>
+      
+    
+      
+        <p>让我们用更正式的方式来描述蒙特卡洛。
+    在强化学习中，我们常用更新规则来描述算法，它告诉我们估计值如何随着一个新episode而变化。
+    我们将使用“更新朝向”（<span class="math-inline" data-math="\hookleftarrow">\hookleftarrow</span>）算子来简化公式。<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="V(s_t)~~">V(s_t)~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\hookleftarrow~~">\hookleftarrow~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="R_t">R_t</span></p>
+      
+    
+      
+        <p>状态价值</p>
+      
+    
+      
+        <p>回报</p>
+      
+    
+      
+        <p>右边的项称为回报，我们用它来衡量代理获得的长期奖励总量。回报是未来奖励的加权和<span class="math-inline" data-math="r_{t} + \gamma r_{t+1} + \gamma^2 r_{t+2} + …">r_{t} + \gamma r_{t+1} + \gamma^2 r_{t+2} + …</span>，其中<span class="math-inline" data-math="\gamma">\gamma</span>是一个折扣因子，用于控制短期奖励相对于长期奖励的重要性。朝着回报进行更新来估计价值是非常合理的。毕竟，价值的定义就是期望回报。但令人惊讶的是，我们还能做得更好。</p>
+      
+    
+      
+        <h2>超越蒙特卡洛</h2>
+        
+      
+    
+      
+        <p>但我们可以做得更好！诀窍是使用一种称为时序差分（TD）学习的方法，它通过从相邻状态“自举”来更新价值。</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="V(s_t)~~">V(s_t)~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\hookleftarrow~~">\hookleftarrow~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="r_{t} ">r_{t} </span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+">+</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\gamma V(s_{t+1})">\gamma V(s_{t+1})</span></p>
+      
+    
+      
+        <p>状态价值</p>
+      
+    
+      
+        <p>奖励</p>
+      
+    
+      
+        <p>下一状态价值</p>
+      
+    
+      
+        <p>在这种更新规则下，两条轨迹的交叉点会被不同地处理。与蒙特卡洛不同，TD更新会合并交叉点，使得回报能够反向传播到所有先前的状态。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/cliffworld-path1.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>从更正式的角度来看，“合并轨迹”是什么意思？为什么这是一个好主意？需要注意的一点是，<span class="math-inline" data-math="V(s_{t+1})">V(s_{t+1})</span>可以写成对其所有TD更新的期望：</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="V(s_{t+1})~~">V(s_{t+1})~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\simeq~~">\simeq~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\mathop{\mathbb{E}} \bigr[ r’_{t+1} ~+~ \gamma V(s’_{t+2}) \bigl] ">\mathop{\mathbb{E}} \bigr[ r’_{t+1} ~+~ \gamma V(s’_{t+2}) \bigl] </span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\simeq~~">\simeq~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\mathop{\mathbb{E}} \bigr[ r’_{t+1} \bigl] ~~+~~ \gamma \mathop{\mathbb{E}} \bigr[ V(s’_{t+2}) \bigl] ">\mathop{\mathbb{E}} \bigr[ r’_{t+1} \bigl] ~~+~~ \gamma \mathop{\mathbb{E}} \bigr[ V(s’_{t+2}) \bigl] </span></p>
+      
+    
+      
+        <p>现在我们可以用这个方程来递归地展开TD更新规则：</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="V(s_t)~">V(s_t)~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\hookleftarrow~">\hookleftarrow~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="r_{t} ">r_{t} </span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+">+</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\gamma V(s_{t+1})">\gamma V(s_{t+1})</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\hookleftarrow~">\hookleftarrow~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="r_{t} ">r_{t} </span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+">+</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\gamma \mathop{\mathbb{E}} \bigr[ r’_{t+1} \bigl]">\gamma \mathop{\mathbb{E}} \bigr[ r’_{t+1} \bigl]</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+">+</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\gamma^2 \mathop{\mathbb{E}} \bigr[ V(s’’_{t+2}) \bigl]">\gamma^2 \mathop{\mathbb{E}} \bigr[ V(s’’_{t+2}) \bigl]</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\hookleftarrow~">\hookleftarrow~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="r_{t} ">r_{t} </span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+">+</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\gamma \mathop{\mathbb{E}} ~ \bigr[ r’_{t+1} \bigl]">\gamma \mathop{\mathbb{E}} ~ \bigr[ r’_{t+1} \bigl]</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+">+</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\gamma^2 \mathop{\mathbb{EE}}  ~ \bigr[ r’’_{t+2} \bigl]">\gamma^2 \mathop{\mathbb{EE}}  ~ \bigr[ r’’_{t+2} \bigl]</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+~">+~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="…~~">…~~</span></p>
+      
+    
+      
+        <p>这就得到了一个看起来奇怪的嵌套期望值之和。乍一看，我们不清楚如何将其与更简单的蒙特卡洛更新进行比较。更重要的是，我们不清楚是否应该比较两者；这两种更新差异如此之大，以至于感觉有点像拿苹果和橙子做比较。确实，人们很容易把蒙特卡洛和TD学习看作两种完全不同的方法。</p>
+      
+    
+      
+        <p>但它们其实并没有那么不同。让我们把蒙特卡洛更新改写成基于奖励的形式，并将其与展开后的TD更新并列比较。</p>
+      
+    
+      
+        <p>蒙特卡洛更新</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="V(s_t)~">V(s_t)~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="~\hookleftarrow~~">~\hookleftarrow~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="r_{t}">r_{t}</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+~">+~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\gamma ~ r_{t+1}">\gamma ~ r_{t+1}</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+~">+~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\gamma^2 ~ r_{t+2}">\gamma^2 ~ r_{t+2}</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+~">+~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="…">…</span></p>
+      
+    
+      
+        <p>来自当前路径的奖励。</p>
+      
+    
+      
+        <p>来自当前路径的奖励。</p>
+      
+    
+      
+        <p>来自当前路径的奖励……</p>
+      
+    
+      
+        <p>TD更新</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="V(s_t)~">V(s_t)~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="~\hookleftarrow~~">~\hookleftarrow~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="r_{t}">r_{t}</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+~">+~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\gamma \mathop{\mathbb{E}} ~ \bigr[ r’_{t+1} \bigl]">\gamma \mathop{\mathbb{E}} ~ \bigr[ r’_{t+1} \bigl]</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+~">+~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\gamma^2 \mathop{\mathbb{EE}} ~ \bigr[ r’’_{t+2} \bigl]">\gamma^2 \mathop{\mathbb{EE}} ~ \bigr[ r’’_{t+2} \bigl]</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+~">+~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="…">…</span></p>
+      
+    
+      
+        <p>来自当前路径的奖励。</p>
+      
+    
+      
+        <p>来自与当前路径相交路径的期望。</p>
+      
+    
+      
+        <p>来自与当前路径相交</p>
+      
+    
+      
+        <p>路径相交</p>
+      
+    
+      
+        <p>路径的期望……</p>
+      
+    
+      
+        <p>一个令人愉悦的对应关系出现了。蒙特卡洛和TD学习之间的差异归结于那些嵌套的期望算子。事实证明，它们的作用有一个很好的视觉解释。我们称之为价值学习的路径视角。</p>
+      
+    
+      
+        <h2>路径视角</h2>
+        
+      
+    
+      
+        <p>我们常常把代理的经验看作一系列轨迹。这种分组方式符合逻辑且易于可视化。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/cliffworld-path-1of4.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>但这种组织经验的方式弱化了轨迹之间的关系。无论两条轨迹在哪里相交，两种结果对代理来说都是有效的未来。因此，即使代理沿着轨迹1到达了交叉点，理论上它也可以从那里开始沿着轨迹2继续。我们可以通过这些模拟轨迹或“路径”大幅扩展代理的经验。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/cliffworld-path-1of4.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>估计价值。事实证明，蒙特卡洛是对真实轨迹进行平均，而TD学习则是对所有可能的路径进行平均。我们之前看到的嵌套期望值对应于代理在所有可能的未来路径上进行平均。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/traj-thumbnails.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>比较两者。一般来说，最好的价值估计是方差最低的那一个。由于表格型TD和蒙特卡洛都是经验平均值，能给出更好估计的方法就是平均更多样本的那一个。这就引出了一个自然的问题：哪种估计器平均的样本更多？</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="Var[V(s)]~~">Var[V(s)]~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\propto~~">\propto~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\frac{1}{N} ">\frac{1}{N} </span></p>
+      
+    
+      
+        <p>估计的方差</p>
+      
+    
+      
+        <p>平均样本数的倒数</p>
+      
+    
+      
+        <p>首先，TD学习平均的轨迹数量绝不会少于蒙特卡洛，因为模拟轨迹的数量不会少于真实轨迹的数量。另一方面，当存在更多模拟轨迹时，TD学习有机会平均更多代理的经验。
+      这一推理表明TD学习是更好的估计器，也解释了为什么TD在表格环境中往往优于蒙特卡洛。</p>
+      
+    
+      
+        <p>&lt;p&gt;
+      这是我最近一次&lt;a href=&quot;https://www.overleaf.com/read/nppjvtjfmqjr&quot;&gt;证明尝试&lt;/a&gt;的链接。
+    &lt;/p&gt;</p>
+      
+    
+      
+        <h2>引入Q函数</h2>
+        
+      
+    
+      
+        <p>除了价值函数，另一种选择是Q函数。它不是估计一个状态的价值，而是估计一个状态-动作对的价值。使用Q函数最明显的原因是，它允许我们比较不同的动作。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/policy.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>Q函数还有其他一些很好的性质。为了看清这些性质，让我们写出蒙特卡洛和TD的更新规则。</p>
+      
+    
+      
+        <p>更新Q函数。蒙特卡洛更新规则与我们之前为<span class="math-inline" data-math="V(s)">V(s)</span>写的规则几乎完全相同：</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="Q(s_t, a_t)~~">Q(s_t, a_t)~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\hookleftarrow~~">\hookleftarrow~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="R_t">R_t</span></p>
+      
+    
+      
+        <p>状态-动作价值</p>
+      
+    
+      
+        <p>回报</p>
+      
+    
+      
+        <p>我们依然是朝着回报更新。不过，这次不是朝着处于某个状态的回报更新，而是朝着处于某个状态并选择某个动作的回报更新。</p>
+      
+    
+      
+        <p>现在让我们对TD更新也做同样的事情：</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="Q(s_t, a_t)~~">Q(s_t, a_t)~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\hookleftarrow~~">\hookleftarrow~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="r_{t} ">r_{t} </span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+">+</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\gamma Q(s_{t+1}, a_{t+1})">\gamma Q(s_{t+1}, a_{t+1})</span></p>
+      
+    
+      
+        <p>状态-动作价值</p>
+      
+    
+      
+        <p>奖励</p>
+      
+    
+      
+        <p>下一状态价值</p>
+      
+    
+      
+        <p>&lt;figcaption style=&quot;grid-row: 2; grid-column: 9/12; max-width:300px;&quot;&gt;下一状态价值（应为 $V(s_{t+1})$）&lt;/figcaption&gt;</p>
+      
+    
+      
+        <p>这个版本的TD更新规则需要形如<span class="math-inline" data-math="(s_t, a_t, r_{t}, s_{t+1}, a_{t+1})">(s_t, a_t, r_{t}, s_{t+1}, a_{t+1})</span>的元组，因此我们称之为Sarsa算法。
+      Sarsa可能是写出这个TD更新最简单的方式，但不是最高效的。
+      Sarsa的问题在于它对下一状态价值使用了<span class="math-inline" data-math="Q(s_{t+1},a_{t+1})">Q(s_{t+1},a_{t+1})</span>，而实际上它应该使用<span class="math-inline" data-math="V(s_{t+1})">V(s_{t+1})</span>。
+
+
+      我们需要的是对<span class="math-inline" data-math="V(s_{t+1})">V(s_{t+1})</span>的一个更好的估计。</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="Q(s_t, a_t)~~">Q(s_t, a_t)~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\hookleftarrow~~">\hookleftarrow~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="r_{t} ">r_{t} </span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="+">+</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\gamma V(s_{t+1})">\gamma V(s_{t+1})</span></p>
+      
+    
+      
+        <p>状态-动作价值</p>
+      
+    
+      
+        <p>奖励</p>
+      
+    
+      
+        <p>下一状态价值</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="V(s_{t+1})~~">V(s_{t+1})~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="=~~">=~~</span></p>
+      
+    
+      
+        <p><span class="math-inline" data-math="? ">? </span></p>
+      
+    
+      
+        <p>从Q函数中恢复<span class="math-inline" data-math="V(s_{t+1})">V(s_{t+1})</span>的方法有很多。在下一节中，我们将仔细考察其中的四种。</p>
+      
+    
+      
+        <h2>用重加权路径学习Q函数</h2>
+        
+      
+    
+      
+        <p>期望Sarsa。
+      估计下一状态价值的一个更好方法，是对其Q值进行加权求和<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>。我们称这种方法为期望Sarsa：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/sarsa.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>关于期望Sarsa有一个令人惊讶的事实：它给出的价值估计通常比直接从经验中计算的价值估计更好。这是因为期望值按照真实策略分布而非经验策略分布对Q值进行加权。通过这种方式，期望Sarsa修正了经验策略分布与真实策略分布之间的差异。</p>
+      
+    
+      
+        <p>离策略价值学习。我们可以把这个想法推得更远。不是按照真实策略分布对Q值加权，而是可以按照任意策略<span class="math-inline" data-math="\pi^{off}">\pi^{off}</span>进行加权：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/off-policy.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>这个小小的修改让我们能够按照任意我们喜欢的策略来估计价值。有趣的是，可以把期望Sarsa看作离策略学习的一个特例，它被用于在策略估计。</p>
+      
+    
+      
+        <p>对路径交叉进行重加权。路径视角对离策略学习有什么看法？为了回答这个问题，让我们考虑某个有多个经验路径相交的状态。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/reweighting-1.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>无论在哪里对相交路径进行重加权，最能代表离策略分布的路径最终会对价值估计做出更大的贡献。同时，概率低的路径贡献较小。</p>
+      
+    
+      
+        <p>Q学习。在许多情况下，代理需要在次优策略下收集经验（例如为了提升探索），同时却要按照最优策略估计价值。在这些情况下，我们使用一种称为Q学习的离策略学习变体。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/q-learning.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>Q学习会剪除除最高价值路径之外的所有路径。剩下的路径是代理在测试时会跟随的路径；它们是唯一需要关注的路径。这种价值学习方式通常比在策略方法收敛得更快<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup>。</p>
+      
+    
+      
+        <p>双Q学习。Q学习的问题在于它给出的价值估计是有偏的。更具体地说，在存在噪声奖励时它会过于乐观。下面是一个Q学习失败的例子：</p>
+      
+    
+      
+        <p>你去赌场玩了一百台老虎机。今天是你的幸运日：你在43号机器上中了头奖。现在，如果你用Q学习来估计在赌场的价值，你会选择所有玩老虎机动作中最好的结果。你最终会认为赌场的价值就是头奖的价值……并得出结论：赌场是个好地方！</p>
+      
+    
+      
+        <p>有时候一个状态的最大Q值只是偶然变大；把它选出来会导致价值估计产生偏差。
+      减少这种偏差的一种方法是让朋友也去赌场玩同样的老虎机。然后问他在43号机器上赢了多少钱，并用他的回答作为你的价值估计。你们两人同时在同一台机器上中头奖的可能性很低，所以这次你不会得到过于乐观的估计。我们称这种方法为双Q学习。[<cite>[VanHasselt2010DoubleQ-learning]</cite>]</p>
+      
+    
+      
+        <p>整合到一起。我们很容易把Sarsa、期望Sarsa、Q学习和双Q学习看作不同的算法。但正如我们所见，它们只是TD更新中估计<span class="math-inline" data-math="V(s_{t+1})">V(s_{t+1})</span>的不同方式而已。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/sarsa.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>所有这些方法背后的直觉是，它们都在对路径交叉进行重加权。</p>
+      
+    
+      
+        <p>用蒙特卡洛对路径进行重加权。此时，一个自然的问题是：我们能否用蒙特卡洛实现同样的重加权效果？可以，但会更繁琐，而且需要对代理的所有经验进行重加权。通过在交叉点上工作，TD学习是对单个转移而不是整个episode进行重加权。这使得TD方法在离策略学习中要方便得多。</p>
+      
+    
+      
+        <h2>用函数逼近器合并路径</h2>
+        
+      
+    
+      
+        <p>到目前为止，我们为每个状态或每个状态-动作对都学习了一个参数——即价值估计。这在Cliff World示例中效果很好，因为它的状态数量很少。但大多数有趣的强化学习问题都有大量或无限多的状态。这使得为每个状态单独存储价值估计变得困难。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/large-cliffworld-states.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>因此，我们必须强制价值估计器的参数数量少于状态数量。我们可以使用线性回归、决策树或神经网络等机器学习方法来实现这一点。这些方法都属于函数逼近的范畴。</p>
+      
+    
+      
+        <p>&lt;p&gt;
+      函数逼近的一个有趣特性是，更新一个参数往往会改变不止一个价值估计。让我们回到Cliff World示例来看看这会如何改变情况。这一次，我们会给环境增加很多状态。
+    &lt;/p&gt;</p>
+      
+    
+      
+        <p>合并相邻路径。从路径视角来看，我们可以把函数逼近解释为合并相邻路径的一种方式。但“相邻”是什么意思呢？在上面的图中，我们隐含地决定用欧几里得距离来衡量“相邻”。这是一个好主意，因为两个状态之间的欧几里得距离与代理在它们之间转移的概率高度相关。</p>
+      
+    
+      
+        <p>然而，我们很容易想象这种隐含假设失效的情况。通过添加一条长障碍物，我们可以构造一个案例，其中欧几里得距离度量会导致糟糕的泛化。问题在于我们合并了错误的路径。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/large-cliffworld-barrier-intro.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>合并错误的路径。下图更明确地展示了合并错误路径的影响。由于欧几里得平均器是导致泛化差的罪魁祸首，蒙特卡洛和TD都会产生糟糕的价值更新。然而，TD学习会显著放大这些误差，而蒙特卡洛则不会。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/compare-function-approx.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>我们已经看到TD学习能进行更高效的价值更新。但代价是这些更新对错误的泛化要敏感得多。</p>
+      
+    
+      
+        <h2>对深度强化学习的启示</h2>
+        
+      
+    
+      
+        <p>神经网络。深度神经网络或许是强化学习中最受欢迎的函数逼近器。这些模型令人兴奋的原因有很多，但一个特别好的特性是它们不会对哪些状态“相邻”做出隐含假设。</p>
+      
+    
+      
+        <p>在训练初期，神经网络和平均器一样，往往会合并错误的经验路径。在Cliff Walking示例中，一个未经训练的神经网络可能会做出与欧几里得平均器相同的糟糕价值更新。</p>
+      
+    
+      
+        <p>但随着训练的进行，神经网络实际上能够学会克服这些误差。它们从经验中学习哪些状态是“相邻”的。在Cliff World示例中，我们可以预期一个训练充分的神经网络会学会：障碍物上方状态的价值更新永远不应该影响下方状态的价值。这是大多数其他函数逼近器做不到的。这也是深度强化学习如此有趣的原因之一！</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-paths-perspective-on-value-learning/latent-distance.png" alt="">
+          <figcaption>A distance metric learned by a neural network [<cite>[Srinivas2018UniversalNetworks]</cite>]. Lighter blue <span class="math-inline" data-math="\rightarrow">\rightarrow</span> more distant. The agent, which was trained to grasp objects using the robotic arm, takes into account obstacles and arm length when it measures the distance between two states.</figcaption>
+        </figure>
+      
+    
+      
+        <p>用TD还是不用TD？到目前为止，我们已经看到了TD学习如何通过在路径相交处合并经验路径来超越蒙特卡洛。我们也看到合并路径是一把双刃剑：当函数逼近导致糟糕的价值更新时，TD可能会表现得更差。</p>
+      
+    
+      
+        <p>在过去几十年中，强化学习领域的大多数工作都更偏好TD学习而不是蒙特卡洛。确实，许多强化学习方法都使用TD风格的价值更新。尽管如此，还有许多其他方式可以将蒙特卡洛用于强化学习。本文主要讨论蒙特卡洛在价值估计中的应用，但它也可以像Silver等人[<cite>[silver2017mastering]</cite>]的工作那样用于策略选择。</p>
+      
+    
+      
+        <p>既然蒙特卡洛和TD学习都有各自的优点，为什么不尝试构建一个两者的混合价值估计器呢？这就是TD(<span class="math-inline" data-math="\lambda">\lambda</span>)学习的出发点。它是一种简单地在蒙特卡洛和TD更新之间进行插值（使用系数<span class="math-inline" data-math="\lambda">\lambda</span>）的技术<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup>。通常情况下，TD(<span class="math-inline" data-math="\lambda">\lambda</span>)的效果比单独使用蒙特卡洛或TD学习都要好<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup>。</p>
+      
+    
+      
+        <h2>结论</h2>
+        
+      
+    
+      
+        <p>在本文中，我们介绍了一种思考TD学习的新方式。它帮助我们理解为什么TD学习可能有益、为什么它适合离策略学习，以及为什么将其与函数逼近器结合时会面临挑战。</p>
+      
+    
+      
+        <p>我们鼓励你使用下面的 playground 来加深这些直觉，或者尝试你自己的实验。</p>
+      
+    
+      
+        <h4>Gridworld playground</h4>
+        
+      
+    
+  </div>
+
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <a href="#fnref-f1n">[1]</a> 对于许多方法（策略-价值迭代），价值估计基本上就是整个问题；而对于另一些方法（演员-评论家模型），价值估计对于减少噪声至关重要。
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <a href="#fnref-f2n">[2]</a> 在表格型设置（如Cliff World示例）中，这个“更新朝向”算子计算的是一个运行平均。更具体地说，<span class="math-inline" data-math="n^{th}">n^{th}</span>的蒙特卡洛更新是<span class="math-inline" data-math=" V(s_t) = V(s_{t-1}) + \frac{1}{n} \bigr[ R_{n} - V(s_t) \bigl] "> V(s_t) = V(s_{t-1}) + \frac{1}{n} \bigr[ R_{n} - V(s_t) \bigl] </span>，我们也可以直接使用“+=”记号。但当使用参数化函数逼近器（如神经网络）时，我们的“更新朝向”算子可能表示一个梯度步，无法用“+=”记号表示。为了保持记号的简洁和通用性，我们选择在全文中使用<span class="math-inline" data-math="\hookleftarrow">\hookleftarrow</span>算子。
+    </div>
+    
+    <div class="footnote-item" id="f3n">
+      <a href="#fnref-f3n">[3]</a> 也可以写成期望值的形式，因此称为“期望Sarsa”。
+    </div>
+    
+    <div class="footnote-item" id="f4n">
+      <a href="#fnref-f4n">[4]</a> 尝试使用本文末尾的Playground来比较不同方法。
+    </div>
+    
+    <div class="footnote-item" id="f5n">
+      <a href="#fnref-f5n">[5]</a> 在极限<span class="math-inline" data-math="\lambda=0">\lambda=0</span>下，我们会恢复TD更新规则。而当<span class="math-inline" data-math="\lambda=1">\lambda=1</span>时，我们会恢复蒙特卡洛。
+    </div>
+    
+    <div class="footnote-item" id="f6n">
+      <a href="#fnref-f6n">[6]</a> 研究者在训练深度强化学习模型时通常会保持<span class="math-inline" data-math="\lambda">\lambda</span>系数不变。然而，如果我们认为蒙特卡洛学习在训练初期（代理尚未学到好的状态表示时）更好，而TD学习在后期（更容易从合并路径中获益时）更好，那么最好的做法也许是在训练过程中对<span class="math-inline" data-math="\lambda">\lambda</span>进行退火。
+    </div>
+    
+  </section>
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

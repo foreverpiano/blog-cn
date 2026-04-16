@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注意力？注意力！ · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>注意力？注意力！</h1>
+    <div class="meta">
+      2018-06-24 · 
+      <a href="https://lilianweng.github.io/posts/2018-06-24-attention/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">Seq2Seq 模型有什么问题？
+
+为翻译而生
+
+定义
+
+注意力机制家族
+
+总结
+
+自注意力
+
+Soft 与 Hard 注意力
+
+Global 与 Local 注意力
+
+神经图灵机
+
+读与写
+
+注意力机制
+
+Pointer Network
+
+Transformer
+
+Key、Value 和 Query
+
+多头自注意力
+
+编码器
+
+解码器
+
+完整架构
+
+SNAIL
+
+自注意力 GAN
+
+参考文献</div>
+      
+    
+      
+        <p>近年来，注意力已成为深度学习领域一个相当流行且实用的概念与工具。本文将带你了解注意力机制的诞生过程，以及各种注意力机制和模型，例如 Transformer 和 SNAIL。</p>
+      
+    
+      
+        <p>[2018-10-28 更新：新增 Pointer Network 以及我实现的 <a href="https://github.com/lilianweng/transformer-tensorflow" target="_blank" rel="noopener">Transformer 代码链接</a>。]
+[2018-11-06 更新：新增 <a href="https://github.com/lilianweng/transformer-tensorflow" target="_blank" rel="noopener">Transformer 模型实现链接</a>。]
+[2018-11-18 更新：新增 Neural Turing Machines。]
+[2019-07-18 更新：修正引入 <a href="https://arxiv.org/abs/1502.03044" target="_blank" rel="noopener">show-attention-tell</a> 论文时对“self-attention”一词的使用错误，并将其移至自注意力章节。]
+[2020-04-07 更新：关于改进版 Transformer 模型的后续文章请见<a href="posts-2020-04-07-the-transformer-family.html">Transformer 家族</a>。]</p>
+      
+    
+      
+        <p>在一定程度上，注意力机制的提出受到了人类如何对图像不同区域投入视觉注意力，以及如何关联句子中单词的启发。以图 1 中的柴犬照片为例。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/shiba-example-attention.png" alt="">
+          <figcaption>A Shiba Inu in a men’s outfit. The credit of the original photo goes to Instagram@mensweardog.</figcaption>
+        </figure>
+      
+    
+      
+        <p>人类的视觉注意力让我们能够以“高分辨率”聚焦于某个特定区域（比如黄色方框中的尖耳朵），同时以“低分辨率”感知周围图像（比如雪地背景和衣服），然后据此调整焦点或进行推理。给定图像的一小块区域，其余像素会提供线索，告诉我们那里应该是什么。我们之所以预期黄色方框里是尖耳朵，是因为我们看到了狗鼻子、右侧另一只尖耳朵，以及柴犬那神秘的眼睛（红色方框里的内容）。然而，底部的毛衣和毯子对判断狗的特征帮助不大。</p>
+      
+    
+      
+        <p>类似地，我们也可以解释同一个句子或相近语境中单词之间的关系。当看到“eating”时，我们会预期很快遇到一个表示食物的词。颜色词用来描述食物，但与“eating”本身的直接关联可能没那么强。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/sentence-example-attention.png" alt="">
+          <figcaption>One word &quot;attends&quot; to other words in the same sentence differently.</figcaption>
+        </figure>
+      
+    
+      
+        <p>简而言之，深度学习中的注意力机制可以广义地理解为一个重要性权重向量：为了预测或推断某个元素（例如图像中的一个像素或句子中的一个词），我们使用注意力向量来估计它与其他元素的相关强度（也就是很多论文中常说的“attends to”），并以注意力向量为权重对这些元素的值求加权和，作为对目标的近似。</p>
+      
+    
+      
+        <h2>Seq2Seq 模型有什么问题？</h2>
+        
+      
+    
+      
+        <p>Seq2Seq 模型诞生于语言建模领域（<a href="https://arxiv.org/abs/1409.3215" target="_blank" rel="noopener">Sutskever, et al. 2014</a>）。广义上说，它的目标是将一个输入序列（源）转换为另一个序列（目标），且两个序列的长度都可以是任意的。典型的转换任务包括多语言间的文本或语音机器翻译、问答对话生成，甚至是将句子解析为语法树。</p>
+      
+    
+      
+        <p>Seq2Seq 模型通常采用编码器-解码器架构，由以下部分组成：</p>
+      
+    
+      
+        <div class="list-content">编码器处理输入序列，将信息压缩成一个固定长度的上下文向量（也称为句子嵌入或“thought”向量）。这个表示被期望能够很好地概括整个源序列的含义。
+解码器使用该上下文向量进行初始化，进而生成转换后的输出。早期工作仅使用编码器网络的最后一个状态作为解码器的初始状态。</div>
+      
+    
+      
+        <p>编码器和解码器都是循环神经网络，即使用 <a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs" target="_blank" rel="noopener">LSTM 或 GRU</a> 单元。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/encoder-decoder-example.png" alt="">
+          <figcaption>The encoder-decoder model, translating the sentence &quot;she is eating a green apple&quot; to Chinese. The visualization of both encoder and decoder is unrolled in time.</figcaption>
+        </figure>
+      
+    
+      
+        <p>这种固定长度上下文向量设计的一个显著缺点是无法记住长句子。通常在处理完整个输入后，模型早已忘记了开头部分。注意力机制正是为了解决这个问题而诞生的（<a href="https://arxiv.org/pdf/1409.0473.pdf" target="_blank" rel="noopener">Bahdanau et al., 2015</a>）。</p>
+      
+    
+      
+        <h2>为翻译而生</h2>
+        
+      
+    
+      
+        <p>注意力机制的诞生是为了帮助神经机器翻译（<a href="https://arxiv.org/pdf/1409.0473.pdf" target="_blank" rel="noopener">NMT</a>）记住较长的源句子。它不再仅依赖编码器最后一个隐藏状态来构建单一上下文向量，而是发明了一种在上下文向量与整个源输入之间建立快捷连接的“秘诀”。这些快捷连接的权重可以针对每个输出元素进行个性化调整。</p>
+      
+    
+      
+        <p>虽然上下文向量可以访问整个输入序列，但我们不必担心遗忘问题。源端和目标端之间的对齐关系通过上下文向量来学习和控制。本质上，上下文向量整合了三部分信息：</p>
+      
+    
+      
+        <div class="list-content">编码器的隐藏状态；
+解码器的隐藏状态；
+源端与目标端之间的对齐关系。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/encoder-decoder-attention.png" alt="">
+          <figcaption>The encoder-decoder model with additive attention mechanism inBahdanau et al., 2015.</figcaption>
+        </figure>
+      
+    
+      
+        <h2>定义</h2>
+        
+      
+    
+      
+        <p>现在让我们以科学的方式定义 NMT 中提出的注意力机制。假设我们有一个长度为 <span class="math-inline" data-math="n">n</span> 的源序列 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span>，要输出一个长度为 <span class="math-inline" data-math="m">m</span> 的目标序列 <span class="math-inline" data-math="\mathbf{y}">\mathbf{y}</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\mathbf{x} &amp;= [x_1, x_2, \dots, x_n] \\
+\mathbf{y} &amp;= [y_1, y_2, \dots, y_m]
+\end{aligned}
+">
+\begin{aligned}
+\mathbf{x} &amp;= [x_1, x_2, \dots, x_n] \\
+\mathbf{y} &amp;= [y_1, y_2, \dots, y_m]
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>（粗体变量表示向量，本文中其他地方同理。）</p>
+      
+    
+      
+        <p>编码器是一个 <a href="https://www.coursera.org/lecture/nlp-sequence-models/bidirectional-rnn-fyXnn" target="_blank" rel="noopener">双向 RNN</a>（或你选择的其他循环网络结构），具有前向隐藏状态 <span class="math-inline" data-math="\overrightarrow{\boldsymbol{h}}_i">\overrightarrow{\boldsymbol{h}}_i</span> 和后向隐藏状态 <span class="math-inline" data-math="\overleftarrow{\boldsymbol{h}}_i">\overleftarrow{\boldsymbol{h}}_i</span>。两者简单拼接后表示编码器状态。这样做的目的是让每个词的注解同时包含其前文和后文信息。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\boldsymbol{h}_i = [\overrightarrow{\boldsymbol{h}}_i^\top; \overleftarrow{\boldsymbol{h}}_i^\top]^\top, i=1,\dots,n
+">
+\boldsymbol{h}_i = [\overrightarrow{\boldsymbol{h}}_i^\top; \overleftarrow{\boldsymbol{h}}_i^\top]^\top, i=1,\dots,n
+</span></div>
+      
+    
+      
+        <p>解码器网络在输出位置 t 的词 <span class="math-inline" data-math="t=1,\dots,m">t=1,\dots,m</span> 时具有隐藏状态 <span class="math-inline" data-math="\boldsymbol{s}_t=f(\boldsymbol{s}_{t-1}, y_{t-1}, \mathbf{c}_t)">\boldsymbol{s}_t=f(\boldsymbol{s}_{t-1}, y_{t-1}, \mathbf{c}_t)</span>，其中上下文向量 <span class="math-inline" data-math="\mathbf{c}_t">\mathbf{c}_t</span> 是输入序列所有隐藏状态的加权和，权重由对齐分数决定：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\mathbf{c}_t &amp;= \sum_{i=1}^n \alpha_{t,i} \boldsymbol{h}_i &amp; \small{\text{; Context vector for output }y_t}\\
+\alpha_{t,i} &amp;= \text{align}(y_t, x_i) &amp; \small{\text{; How well two words }y_t\text{ and }x_i\text{ are aligned.}}\\
+&amp;= \frac{\exp(\text{score}(\boldsymbol{s}_{t-1}, \boldsymbol{h}_i))}{\sum_{i&#x27;=1}^n \exp(\text{score}(\boldsymbol{s}_{t-1}, \boldsymbol{h}_{i&#x27;}))} &amp; \small{\text{; Softmax of some predefined alignment score.}}.
+\end{aligned}
+">
+\begin{aligned}
+\mathbf{c}_t &amp;= \sum_{i=1}^n \alpha_{t,i} \boldsymbol{h}_i &amp; \small{\text{; Context vector for output }y_t}\\
+\alpha_{t,i} &amp;= \text{align}(y_t, x_i) &amp; \small{\text{; How well two words }y_t\text{ and }x_i\text{ are aligned.}}\\
+&amp;= \frac{\exp(\text{score}(\boldsymbol{s}_{t-1}, \boldsymbol{h}_i))}{\sum_{i&#x27;=1}^n \exp(\text{score}(\boldsymbol{s}_{t-1}, \boldsymbol{h}_{i&#x27;}))} &amp; \small{\text{; Softmax of some predefined alignment score.}}.
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>对齐模型为输入位置 i 和输出位置 t 的配对 <span class="math-inline" data-math="(y_t, x_i)">(y_t, x_i)</span> 赋予一个分数 <span class="math-inline" data-math="\alpha_{t,i}">\alpha_{t,i}</span>，表示它们匹配的程度。<span class="math-inline" data-math="\{\alpha_{t, i}\}">\{\alpha_{t, i}\}</span> 这组权重决定了每个输出应该参考多少源端的隐藏状态。在 Bahdanau 的论文中，对齐分数 <span class="math-inline" data-math="\alpha">\alpha</span> 由一个单隐藏层的前馈网络参数化，该网络与模型其他部分联合训练。因此分数函数形式如下（使用 tanh 作为非线性激活函数）：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \mathbf{v}_a^\top \tanh(\mathbf{W}_a[\boldsymbol{s}_t; \boldsymbol{h}_i])
+">
+\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \mathbf{v}_a^\top \tanh(\mathbf{W}_a[\boldsymbol{s}_t; \boldsymbol{h}_i])
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\mathbf{v}_a">\mathbf{v}_a</span> 和 <span class="math-inline" data-math="\mathbf{W}_a">\mathbf{W}_a</span> 都是需要在对齐模型中学习的权重矩阵。</p>
+      
+    
+      
+        <p>对齐分数矩阵是一个很好的副产品，它可以明确展示源语言和目标语言单词之间的相关性。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/bahdanau-fig3.png" alt="">
+          <figcaption>Alignment matrix of &quot;L&#x27;accord sur l&#x27;Espace économique européen a été signé en août 1992&quot; (French) and its English translation &quot;The agreement on the European Economic Area was signed in August 1992&quot;. (Image source: Fig 3 inBahdanau et al., 2015)</figcaption>
+        </figure>
+      
+    
+      
+        <p>可以参考 Tensorflow 团队提供的这个优秀的<a href="https://www.tensorflow.org/versions/master/tutorials/seq2seq" target="_blank" rel="noopener">教程</a>来了解更多实现细节。</p>
+      
+    
+      
+        <h2>注意力机制家族</h2>
+        
+      
+    
+      
+        <p>有了注意力机制，源序列和目标序列之间的依赖不再受它们之间距离的限制！由于注意力在机器翻译中带来的巨大改进，它很快被扩展到计算机视觉领域（<a href="http://proceedings.mlr.press/v37/xuc15.pdf" target="_blank" rel="noopener">Xu et al. 2015</a>），人们也开始探索各种其他形式的注意力机制（<a href="https://arxiv.org/pdf/1508.04025.pdf" target="_blank" rel="noopener">Luong, et al., 2015</a>；<a href="https://arxiv.org/abs/1703.03906" target="_blank" rel="noopener">Britz et al., 2017</a>；<a href="http://papers.nips.cc/paper/7181-attention-is-all-you-need.pdf" target="_blank" rel="noopener">Vaswani, et al., 2017</a>）。</p>
+      
+    
+      
+        <h2>总结</h2>
+        
+      
+    
+      
+        <p>下面是几种流行注意力机制及其对应对齐分数函数的总结表格：</p>
+      
+    
+      
+        <div class="table-container"><table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Alignment score function</th>
+<th>Citation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Content-base attention</td>
+<td><span class="math-inline" data-math="\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \text{cosine}[\boldsymbol{s}_t, \boldsymbol{h}_i]">\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \text{cosine}[\boldsymbol{s}_t, \boldsymbol{h}_i]</span></td>
+<td><a href="https://arxiv.org/abs/1410.5401">Graves2014</a></td>
+</tr>
+<tr>
+<td>Additive(*)</td>
+<td><span class="math-inline" data-math="\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \mathbf{v}_a^\top \tanh(\mathbf{W}_a[\boldsymbol{s}_{t-1}; \boldsymbol{h}_i])">\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \mathbf{v}_a^\top \tanh(\mathbf{W}_a[\boldsymbol{s}_{t-1}; \boldsymbol{h}_i])</span></td>
+<td><a href="https://arxiv.org/pdf/1409.0473.pdf">Bahdanau2015</a></td>
+</tr>
+<tr>
+<td>Location-Base</td>
+<td><span class="math-inline" data-math="\alpha_{t,i} = \text{softmax}(\mathbf{W}_a \boldsymbol{s}_t)">\alpha_{t,i} = \text{softmax}(\mathbf{W}_a \boldsymbol{s}_t)</span><br/>Note: This simplifies the softmax alignment to only depend on the target position.</td>
+<td><a href="https://arxiv.org/pdf/1508.04025.pdf">Luong2015</a></td>
+</tr>
+<tr>
+<td>General</td>
+<td><span class="math-inline" data-math="\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \boldsymbol{s}_t^\top\mathbf{W}_a\boldsymbol{h}_i">\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \boldsymbol{s}_t^\top\mathbf{W}_a\boldsymbol{h}_i</span><br/>where <span class="math-inline" data-math="\mathbf{W}_a">\mathbf{W}_a</span> is a trainable weight matrix in the attention layer.</td>
+<td><a href="https://arxiv.org/pdf/1508.04025.pdf">Luong2015</a></td>
+</tr>
+<tr>
+<td>Dot-Product</td>
+<td><span class="math-inline" data-math="\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \boldsymbol{s}_t^\top\boldsymbol{h}_i">\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \boldsymbol{s}_t^\top\boldsymbol{h}_i</span></td>
+<td><a href="https://arxiv.org/pdf/1508.4025.pdf">Luong2015</a></td>
+</tr>
+<tr>
+<td>Scaled Dot-Product(^)</td>
+<td><span class="math-inline" data-math="\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \frac{\boldsymbol{s}_t^\top\boldsymbol{h}_i}{\sqrt{n}}">\text{score}(\boldsymbol{s}_t, \boldsymbol{h}_i) = \frac{\boldsymbol{s}_t^\top\boldsymbol{h}_i}{\sqrt{n}}</span><br/>Note: very similar to the dot-product attention except for a scaling factor; where n is the dimension of the source hidden state.</td>
+<td><a href="http://papers.nips.cc/paper/7181-attention-is-all-you-need.pdf">Vaswani2017</a></td>
+</tr>
+</tbody>
+</table></div>
+      
+    
+      
+        <p>(*) 在 Luong et al., 2015 中称为“concat”，在 Vaswani et al., 2017 中称为“additive attention”。
+(^) 它引入了一个缩放因子 <span class="math-inline" data-math="1/\sqrt{n}">1/\sqrt{n}</span>，原因是当输入维度较大时，softmax 函数可能产生极小的梯度，不利于高效学习。</p>
+      
+    
+      
+        <p>以下是对注意力机制更广义分类的总结：</p>
+      
+    
+      
+        <div class="table-container"><table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Definition</th>
+<th>Citation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Self-Attention(&amp;)</td>
+<td>Relating different positions of the same input sequence. Theoretically the self-attention can adopt any score functions above, but just replace the target sequence with the same input sequence.</td>
+<td><a href="https://arxiv.org/pdf/1601.06733.pdf">Cheng2016</a></td>
+</tr>
+<tr>
+<td>Global/Soft</td>
+<td>Attending to the entire input state space.</td>
+<td><a href="http://proceedings.mlr.press/v37/xuc15.pdf">Xu2015</a></td>
+</tr>
+<tr>
+<td>Local/Hard</td>
+<td>Attending to the part of input state space; i.e. a patch of the input image.</td>
+<td><a href="http://proceedings.mlr.press/v37/xuc15.pdf">Xu2015</a>; <a href="https://arxiv.org/pdf/1508.04025.pdf">Luong2015</a></td>
+</tr>
+</tbody>
+</table></div>
+      
+    
+      
+        <p>(&amp;) 在 Cheng et al., 2016 以及其他一些论文中也称为“intra-attention”。</p>
+      
+    
+      
+        <h2>自注意力</h2>
+        
+      
+    
+      
+        <p>自注意力（self-attention），也称为 intra-attention，是一种将单个序列中不同位置关联起来以计算该序列自身表示的注意力机制。它在机器阅读、抽象摘要生成或图像描述生成等任务中被证明非常有效。</p>
+      
+    
+      
+        <p><a href="https://arxiv.org/pdf/1601.06733.pdf" target="_blank" rel="noopener">长短期记忆网络</a>论文使用自注意力来进行机器阅读。在下面的例子中，自注意力机制使我们能够学习当前词与句子前文部分之间的相关性。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/cheng2016-fig1.png" alt="">
+          <figcaption>The current word is in red and the size of the blue shade indicates the activation level. (Image source:Cheng et al., 2016)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>Soft 与 Hard 注意力</h2>
+        
+      
+    
+      
+        <p>在 <a href="http://proceedings.mlr.press/v37/xuc15.pdf" target="_blank" rel="noopener">show, attend and tell</a> 论文中，注意力机制被应用于图像来生成描述。首先用 CNN 对图像进行编码以提取特征，然后 LSTM 解码器逐一 consume 卷积特征并生成描述性单词，其权重通过注意力机制学习。注意力权重的可视化清晰地展示了模型在生成某个词时正在关注图像的哪些区域。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/xu2015-fig6b.png" alt="">
+          <figcaption>&quot;A woman is throwing a frisbee in a park.&quot; (Image source: Fig. 6(b) inXu et al. 2015)</figcaption>
+        </figure>
+      
+    
+      
+        <p>这篇论文首次提出了“soft”与“hard”注意力的区别，依据是注意力是否能访问整个图像还是仅访问图像中的一块区域：</p>
+      
+    
+      
+        <div class="list-content">Soft Attention：对齐权重被“柔和”地分布在源图像的所有区域上；本质上与 <a href="https://arxiv.org/abs/1409.0473" target="_blank" rel="noopener">Bahdanau et al., 2015</a> 中的注意力类型相同。
+
+优点：模型平滑且可微分。
+缺点：当源输入较大时计算开销较大。
+
+
+Hard Attention：每次只选择图像中的一个区域进行关注。
+
+优点：推理时计算量较小。
+缺点：模型不可微分，需要使用方差缩减或强化学习等更复杂的技术来训练。（<a href="https://arxiv.org/abs/1508.04025" target="_blank" rel="noopener">Luong, et al., 2015</a>）</div>
+      
+    
+      
+        <h2>Global 与 Local 注意力</h2>
+        
+      
+    
+      
+        <p><a href="https://arxiv.org/pdf/1508.04025.pdf" target="_blank" rel="noopener">Luong, et al., 2015</a> 提出了“global”和“local”注意力。全局注意力类似于 soft 注意力，而局部注意力则是 hard 和 soft 的一种有趣混合，是对 hard 注意力的改进，使其变得可微分：模型首先预测当前目标词在源端的一个对齐位置，然后以该源位置为中心取一个窗口来计算上下文向量。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/luong2015-fig2-3.png" alt="">
+          <figcaption>Global vs local attention (Image source: Fig 2 &amp; 3 inLuong, et al., 2015)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>神经图灵机</h2>
+        
+      
+    
+      
+        <p>Alan Turing 在 <a href="https://en.wikipedia.org/wiki/Turing_machine" target="_blank" rel="noopener">1936</a> 年提出了一种极简的计算模型。它由一条无限长的纸带和一个与之交互的读写头组成。纸带上有无数个格子，每个格子中可以是符号 0、1 或空白（“ ”）。读写头可以读取符号、修改符号，并在纸带上左右移动。从理论上讲，图灵机可以模拟任何计算机算法，无论该算法多么复杂或昂贵。无限的内存赋予了图灵机数学上的无限能力。然而，无限内存对现实中的现代计算机来说不可行，因此我们通常将图灵机视为一种数学上的计算模型。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/turing-machine.jpg" alt="">
+          <figcaption>How a Turing machine looks like: a tape + a head that handles the tape. (Image source:http://aturingmachine.com/)</figcaption>
+        </figure>
+      
+    
+      
+        <p>神经图灵机（NTM，<a href="https://arxiv.org/abs/1410.5401" target="_blank" rel="noopener">Graves, Wayne &amp;amp; Danihelka, 2014</a>）是一种将神经网络与外部记忆存储相结合的模型架构。记忆模拟图灵机的纸带，神经网络则控制读写头对纸带进行读写操作。不过，NTM 中的记忆是有限的，因此它更像是一个“神经 <a href="https://en.wikipedia.org/wiki/Von_Neumann_architecture" target="_blank" rel="noopener">冯·诺依曼</a> 机器”。</p>
+      
+    
+      
+        <p>NTM 包含两个主要组件：控制器神经网络和记忆库。
+控制器：负责在记忆上执行操作。它可以是任意类型的神经网络，前馈或循环均可。
+记忆：存储经过处理的信息。它是一个大小为 <span class="math-inline" data-math="N \times M">N \times M</span> 的矩阵，包含 N 行向量，每行有 <span class="math-inline" data-math="M">M</span> 维。</p>
+      
+    
+      
+        <p>在一次更新迭代中，控制器处理输入并与记忆库交互以生成输出。这种交互由一组并行的读写头完成。读和写操作都是“模糊”的，通过对所有记忆地址进行软注意力实现。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/NTM.png" alt="">
+          <figcaption>Fig 10. Neural Turing Machine Architecture.</figcaption>
+        </figure>
+      
+    
+      
+        <h2>读与写</h2>
+        
+      
+    
+      
+        <p>在时刻 t 从记忆中读取时，一个大小为 <span class="math-inline" data-math="N">N</span> 的注意力向量 <span class="math-inline" data-math="\mathbf{w}_t">\mathbf{w}_t</span> 控制着对不同记忆位置（矩阵行）的关注程度。读取向量 <span class="math-inline" data-math="\mathbf{r}_t">\mathbf{r}_t</span> 是按注意力强度加权求和得到的：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbf{r}_t = \sum_{i=1}^N w_t(i)\mathbf{M}_t(i)\text{, where }\sum_{i=1}^N w_t(i)=1, \forall i: 0 \leq w_t(i) \leq 1
+">
+\mathbf{r}_t = \sum_{i=1}^N w_t(i)\mathbf{M}_t(i)\text{, where }\sum_{i=1}^N w_t(i)=1, \forall i: 0 \leq w_t(i) \leq 1
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="w_t(i)">w_t(i)</span> 是 <span class="math-inline" data-math="\mathbf{w}_t">\mathbf{w}_t</span> 中的第 <span class="math-inline" data-math="i">i</span> 个元素，<span class="math-inline" data-math="\mathbf{M}_t(i)">\mathbf{M}_t(i)</span> 是记忆中的第 <span class="math-inline" data-math="i">i</span> 行向量。</p>
+      
+    
+      
+        <p>在时刻 t 向记忆中写入时，受到 LSTM 中输入门和遗忘门的启发，写头首先根据擦除向量 <span class="math-inline" data-math="\mathbf{e}_t">\mathbf{e}_t</span> 清除一些旧内容，然后通过添加向量 <span class="math-inline" data-math="\mathbf{a}_t">\mathbf{a}_t</span> 写入新信息。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\tilde{\mathbf{M}}_t(i) &amp;= \mathbf{M}_{t-1}(i) [\mathbf{1} - w_t(i)\mathbf{e}_t] &amp;\scriptstyle{\text{; erase}}\\
+\mathbf{M}_t(i) &amp;= \tilde{\mathbf{M}}_t(i) + w_t(i) \mathbf{a}_t &amp;\scriptstyle{\text{; add}}
+\end{aligned}
+">
+\begin{aligned}
+\tilde{\mathbf{M}}_t(i) &amp;= \mathbf{M}_{t-1}(i) [\mathbf{1} - w_t(i)\mathbf{e}_t] &amp;\scriptstyle{\text{; erase}}\\
+\mathbf{M}_t(i) &amp;= \tilde{\mathbf{M}}_t(i) + w_t(i) \mathbf{a}_t &amp;\scriptstyle{\text{; add}}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <h2>注意力机制</h2>
+        
+      
+    
+      
+        <p>在神经图灵机中，如何生成注意力分布 <span class="math-inline" data-math="\mathbf{w}_t">\mathbf{w}_t</span> 取决于寻址机制：NTM 使用基于内容和基于位置的混合寻址方式。</p>
+      
+    
+      
+        <p>基于内容的寻址</p>
+      
+    
+      
+        <p>基于内容的寻址根据控制器从输入中提取的键向量 <span class="math-inline" data-math="\mathbf{k}_t">\mathbf{k}_t</span> 与记忆行之间的相似度来创建注意力向量。基于内容的分数通过余弦相似度计算，然后用 softmax 进行归一化。此外，NTM 还引入了一个强度乘子 <span class="math-inline" data-math="\beta_t">\beta_t</span> 来放大或减弱分布的聚焦程度。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+w_t^c(i) 
+= \text{softmax}(\beta_t \cdot \text{cosine}[\mathbf{k}_t, \mathbf{M}_t(i)])
+= \frac{\exp(\beta_t \frac{\mathbf{k}_t \cdot \mathbf{M}_t(i)}{\|\mathbf{k}_t\| \cdot \|\mathbf{M}_t(i)\|})}{\sum_{j=1}^N \exp(\beta_t \frac{\mathbf{k}_t \cdot \mathbf{M}_t(j)}{\|\mathbf{k}_t\| \cdot \|\mathbf{M}_t(j)\|})}
+">
+w_t^c(i) 
+= \text{softmax}(\beta_t \cdot \text{cosine}[\mathbf{k}_t, \mathbf{M}_t(i)])
+= \frac{\exp(\beta_t \frac{\mathbf{k}_t \cdot \mathbf{M}_t(i)}{\|\mathbf{k}_t\| \cdot \|\mathbf{M}_t(i)\|})}{\sum_{j=1}^N \exp(\beta_t \frac{\mathbf{k}_t \cdot \mathbf{M}_t(j)}{\|\mathbf{k}_t\| \cdot \|\mathbf{M}_t(j)\|})}
+</span></div>
+      
+    
+      
+        <p>插值</p>
+      
+    
+      
+        <p>接着使用一个插值门标量 <span class="math-inline" data-math="g_t">g_t</span> 将新生成的内容-based 注意力向量与上一个时间步的注意力权重进行混合：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbf{w}_t^g = g_t \mathbf{w}_t^c + (1 - g_t) \mathbf{w}_{t-1} 
+">
+\mathbf{w}_t^g = g_t \mathbf{w}_t^c + (1 - g_t) \mathbf{w}_{t-1} 
+</span></div>
+      
+    
+      
+        <p>基于位置的寻址</p>
+      
+    
+      
+        <p>基于位置的寻址对注意力向量中不同位置的值进行加权求和，权重由一个可在整数偏移上移动的权重分布决定。它等价于使用一个核为 <span class="math-inline" data-math="\mathbf{s}_t(.)">\mathbf{s}_t(.)</span>（位置偏移的函数）的一维卷积。有多种方式可以定义这个分布。更多灵感可参考相关文献。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/shift-weighting.png" alt="">
+          <figcaption>Two ways to represent the shift weighting distribution <span class="math-inline" data-math="\mathbf{s}\_t">\mathbf{s}\_t</span>.</figcaption>
+        </figure>
+      
+    
+      
+        <p>最后，注意力分布通过一个锐化标量 <span class="math-inline" data-math="\gamma_t \geq 1">\gamma_t \geq 1</span> 进行增强。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\tilde{w}_t(i) &amp;= \sum_{j=1}^N w_t^g(j) s_t(i-j) &amp; \scriptstyle{\text{; circular convolution}}\\
+w_t(i) &amp;= \frac{\tilde{w}_t(i)^{\gamma_t}}{\sum_{j=1}^N \tilde{w}_t(j)^{\gamma_t}} &amp; \scriptstyle{\text{; sharpen}}
+\end{aligned}
+">
+\begin{aligned}
+\tilde{w}_t(i) &amp;= \sum_{j=1}^N w_t^g(j) s_t(i-j) &amp; \scriptstyle{\text{; circular convolution}}\\
+w_t(i) &amp;= \frac{\tilde{w}_t(i)^{\gamma_t}}{\sum_{j=1}^N \tilde{w}_t(j)^{\gamma_t}} &amp; \scriptstyle{\text{; sharpen}}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>生成时间步 t 的注意力向量 <span class="math-inline" data-math="\mathbf{w}_t">\mathbf{w}_t</span> 的完整流程如图所示。控制器输出的所有参数对每个读写头都是唯一的。如果存在多个并行读写头，控制器会输出多组参数。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/NTM-flow-addressing.png" alt="">
+          <figcaption>Flow diagram of the addressing mechanisms in Neural Turing Machine. (Image source:Graves, Wayne &amp; Danihelka, 2014)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>Pointer Network</h2>
+        
+      
+    
+      
+        <p>在排序或旅行商问题等场景中，输入和输出都是序列数据。不幸的是，经典的 seq2seq 或 NMT 模型难以直接解决这类问题，因为输出元素的离散类别并非事先确定，而是取决于可变的输入大小。Pointer Network（Ptr-Net；<a href="https://arxiv.org/abs/1506.03134" target="_blank" rel="noopener">Vinyals, et al. 2015</a>）正是为了解决这类问题而提出的：当输出元素对应于输入序列中的位置时，不再用注意力将编码器的隐藏单元混合成上下文向量（见图 8），而是对输入元素施加注意力，在解码器的每一步选择其中一个作为输出。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/ptr-net.png" alt="">
+          <figcaption>The architecture of a Pointer Network model. (Image source:Vinyals, et al. 2015)</figcaption>
+        </figure>
+      
+    
+      
+        <p>Ptr-Net 给定输入向量序列 <span class="math-inline" data-math="\boldsymbol{x} = (x_1, \dots, x_n)">\boldsymbol{x} = (x_1, \dots, x_n)</span> 和 <span class="math-inline" data-math="1 \leq c_i \leq n">1 \leq c_i \leq n</span>，输出一个整数索引序列 <span class="math-inline" data-math="\boldsymbol{c} = (c_1, \dots, c_m)">\boldsymbol{c} = (c_1, \dots, c_m)</span>。模型依然采用编码器-解码器框架。编码器和解码器的隐藏状态分别记为 <span class="math-inline" data-math="(\boldsymbol{h}_1, \dots, \boldsymbol{h}_n)">(\boldsymbol{h}_1, \dots, \boldsymbol{h}_n)</span> 和 <span class="math-inline" data-math="(\boldsymbol{s}_1, \dots, \boldsymbol{s}_m)">(\boldsymbol{s}_1, \dots, \boldsymbol{s}_m)</span>。注意 <span class="math-inline" data-math="\mathbf{s}_i">\mathbf{s}_i</span> 是解码器中细胞激活后的输出门。Ptr-Net 在状态之间使用加性注意力，然后用 softmax 归一化来建模输出的条件概率：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+y_i &amp;= p(c_i \vert c_1, \dots, c_{i-1}, \boldsymbol{x}) \\
+    &amp;= \text{softmax}(\text{score}(\boldsymbol{s}_t; \boldsymbol{h}_i)) = \text{softmax}(\mathbf{v}_a^\top \tanh(\mathbf{W}_a[\boldsymbol{s}_t; \boldsymbol{h}_i]))
+\end{aligned}
+">
+\begin{aligned}
+y_i &amp;= p(c_i \vert c_1, \dots, c_{i-1}, \boldsymbol{x}) \\
+    &amp;= \text{softmax}(\text{score}(\boldsymbol{s}_t; \boldsymbol{h}_i)) = \text{softmax}(\mathbf{v}_a^\top \tanh(\mathbf{W}_a[\boldsymbol{s}_t; \boldsymbol{h}_i]))
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>注意力机制被简化了，因为 Ptr-Net 没有用注意力权重将编码器状态混合到输出中。这样一来，输出只对位置做出响应，而不依赖输入的具体内容。</p>
+      
+    
+      
+        <h2>Transformer</h2>
+        
+      
+    
+      
+        <p><a href="http://papers.nips.cc/paper/7181-attention-is-all-you-need.pdf" target="_blank" rel="noopener">“Attention is All you Need”</a>
+（Vaswani, et al., 2017）无疑是 2017 年最具影响力和最有趣的论文之一。它对 soft 注意力进行了大量改进，并使得无需使用循环网络单元就能进行 seq2seq 建模成为可能。所提出的“Transformer”模型完全基于自注意力机制构建，没有使用序列对齐的循环架构。</p>
+      
+    
+      
+        <p>其秘诀就藏在模型架构之中。</p>
+      
+    
+      
+        <h2>Key、Value 和 Query</h2>
+        
+      
+    
+      
+        <p>Transformer 的主要组件是多头自注意力机制单元。Transformer 将输入的编码表示视为一组键值对 <span class="math-inline" data-math="(\mathbf{K}, \mathbf{V})">(\mathbf{K}, \mathbf{V})</span>，二者维度均为 <span class="math-inline" data-math="n">n</span>（输入序列长度）；在 NMT 场景下，键和值都是编码器的隐藏状态。在解码器中，前一步的输出被压缩成一个查询（维度为 <span class="math-inline" data-math="m">m</span> 的 <span class="math-inline" data-math="\mathbf{Q}">\mathbf{Q}</span>），然后通过将这个查询与键值集合进行映射来产生下一个输出。</p>
+      
+    
+      
+        <p>Transformer 采用的是缩放点积注意力：输出是值的加权和，其中每个值的权重由查询与所有键的点积决定：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}(\frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{n}})\mathbf{V}
+">
+\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}(\frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{n}})\mathbf{V}
+</span></div>
+      
+    
+      
+        <h2>多头自注意力</h2>
+        
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/multi-head-attention.png" alt="">
+          <figcaption>Multi-head scaled dot-product attention mechanism. (Image source: Fig 2 inVaswani, et al., 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>多头机制不是只计算一次注意力，而是并行多次运行缩放点积注意力。将独立的注意力输出简单拼接起来，再经过线性变换得到期望的维度。我猜测其动机是集成学习总是有效吧？;) 根据论文所述，“多头注意力允许模型在不同位置共同关注来自不同表示子空间的信息。如果只用单个注意力头，平均操作会抑制这种能力。”</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\text{MultiHead}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) &amp;= [\text{head}_1; \dots; \text{head}_h]\mathbf{W}^O \\
+\text{where head}_i &amp;= \text{Attention}(\mathbf{Q}\mathbf{W}^Q_i, \mathbf{K}\mathbf{W}^K_i, \mathbf{V}\mathbf{W}^V_i)
+\end{aligned}
+">
+\begin{aligned}
+\text{MultiHead}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) &amp;= [\text{head}_1; \dots; \text{head}_h]\mathbf{W}^O \\
+\text{where head}_i &amp;= \text{Attention}(\mathbf{Q}\mathbf{W}^Q_i, \mathbf{K}\mathbf{W}^K_i, \mathbf{V}\mathbf{W}^V_i)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\mathbf{W}^Q_i">\mathbf{W}^Q_i</span>、<span class="math-inline" data-math="\mathbf{W}^K_i">\mathbf{W}^K_i</span>、<span class="math-inline" data-math="\mathbf{W}^V_i">\mathbf{W}^V_i</span> 和 <span class="math-inline" data-math="\mathbf{W}^O">\mathbf{W}^O</span> 是需要学习的参数矩阵。</p>
+      
+    
+      
+        <h2>编码器</h2>
+        
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/transformer-encoder.png" alt="">
+          <figcaption>The transformer’s encoder. (Image source:Vaswani, et al., 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>编码器生成基于注意力的表示，能够从潜在无限大的上下文中定位特定信息。</p>
+      
+    
+      
+        <div class="list-content">由 N=6 个完全相同的层堆叠而成。
+每一层包含一个多头自注意力子层和一个简单的逐位置全连接前馈网络。
+每个子层都采用 <a href="https://arxiv.org/pdf/1512.03385.pdf" target="_blank" rel="noopener">残差</a> 连接和层归一化。
+所有子层的输出数据维度均为 <span class="math-inline" data-math="d_\text{model} = 512">d_\text{model} = 512</span>。</div>
+      
+    
+      
+        <h2>解码器</h2>
+        
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/transformer-decoder.png" alt="">
+          <figcaption>The transformer’s decoder. (Image source:Vaswani, et al., 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>解码器能够从编码表示中检索信息。</p>
+      
+    
+      
+        <div class="list-content">由 N=6 个完全相同的层堆叠而成。
+每一层包含两个多头注意力子层和一个全连接前馈网络子层。
+与编码器类似，每个子层都采用残差连接和层归一化。
+第一个多头注意力子层被修改为阻止当前位置关注后续位置，因为我们在预测当前位置时不希望看到目标序列的未来信息。</div>
+      
+    
+      
+        <h2>完整架构</h2>
+        
+      
+    
+      
+        <p>以下是 Transformer 的完整架构图：</p>
+      
+    
+      
+        <div class="list-content">源序列和目标序列首先通过嵌入层，产生相同维度 <span class="math-inline" data-math="d_\text{model} =512">d_\text{model} =512</span> 的数据。
+为了保留位置信息，采用基于正弦波的位置编码，并与嵌入输出相加。
+在解码器最终输出后添加一个 softmax 和线性层。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/transformer.png" alt="">
+          <figcaption>The full model architecture of the transformer. (Image source: Fig 1 &amp; 2 inVaswani, et al., 2017.)</figcaption>
+        </figure>
+      
+    
+      
+        <p>实现 Transformer 模型是一个很有趣的经历，这是我的实现：<a href="https://github.com/lilianweng/transformer-tensorflow" target="_blank" rel="noopener">lilianweng/transformer-tensorflow</a>。如果你感兴趣，可以阅读代码中的注释。</p>
+      
+    
+      
+        <h2>SNAIL</h2>
+        
+      
+    
+      
+        <p>Transformer 没有循环或卷积结构，即使在嵌入向量中加入了位置编码，序列顺序也只是被微弱地融入。对于对位置依赖非常敏感的问题，例如，这可能是个大问题。<a href="posts-2018-02-19-rl-overview.html">强化学习漫谈</a></p>
+      
+    
+      
+        <p>Simple Neural Attention <a href="http://bair.berkeley.edu/blog/2017/07/18/learning-to-learn" target="_blank" rel="noopener">Meta-Learner</a>（SNAIL）（<a href="http://metalearning.ml/papers/metalearn17_mishra.pdf" target="_blank" rel="noopener">Mishra et al., 2017</a>）部分是为了解决 Transformer 中位置信息不足的问题而开发的，它将 Transformer 中的自注意力机制与<a href="https://deepmind.com/blog/wavenet-generative-model-raw-audio" target="_blank" rel="noopener">时序卷积</a>相结合。它在监督学习和强化学习任务中都表现优异。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/snail.png" alt="">
+          <figcaption>SNAIL model architecture (Image source:Mishra et al., 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>SNAIL 诞生于元学习（meta-learning）领域，这本身也是一个值得单独写一篇文章的大主题。简单来说，元学习模型被期望能够泛化到相似分布下的新型、未见过的任务。如果你感兴趣，可以阅读<a href="http://bair.berkeley.edu/blog/2017/07/18/learning-to-learn" target="_blank" rel="noopener">这篇</a>优秀的介绍文章。</p>
+      
+    
+      
+        <h2>自注意力 GAN</h2>
+        
+      
+    
+      
+        <p>Self-Attention GAN（SAGAN；<a href="https://arxiv.org/pdf/1805.08318.pdf" target="_blank" rel="noopener">Zhang et al., 2018</a>）在 <a href="posts-2017-08-20-gan.html">从 GAN 到 WGAN</a> 中加入了自注意力层，使生成器和判别器都能更好地建模空间区域之间的关系。</p>
+      
+    
+      
+        <p>经典的 <a href="https://arxiv.org/abs/1511.06434" target="_blank" rel="noopener">DCGAN</a>（深度卷积 GAN）将判别器和生成器都表示为多层卷积网络。然而，由于滤波器尺寸的限制，网络的表示能力受到制约——一个像素的特征仅限于其周围很小的局部区域。为了关联较远的区域，特征必须经过多层卷积操作被逐渐稀释，无法保证依赖关系被保留。</p>
+      
+    
+      
+        <p>而（soft）自注意力在视觉场景中被设计为显式学习一个像素与所有其他位置（包括远距离区域）的关系，因此能够轻松捕捉全局依赖关系。因此，配备自注意力的 GAN 能更好地处理细节，棒极了！</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/conv-vs-self-attention.png" alt="">
+          <figcaption>Convolution operation and self-attention have access to regions of very different sizes.</figcaption>
+        </figure>
+      
+    
+      
+        <p>SAGAN 采用 <a href="https://arxiv.org/pdf/1711.07971.pdf" target="_blank" rel="noopener">非局部神经网络</a> 来进行注意力计算。将卷积图像特征图 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 分成三份，分别对应 Transformer 中的 key、value 和 query 概念：</p>
+      
+    
+      
+        <div class="list-content">Key: <span class="math-inline" data-math="f(\mathbf{x}) = \mathbf{W}_f \mathbf{x}">f(\mathbf{x}) = \mathbf{W}_f \mathbf{x}</span>
+Query: <span class="math-inline" data-math="g(\mathbf{x}) = \mathbf{W}_g \mathbf{x}">g(\mathbf{x}) = \mathbf{W}_g \mathbf{x}</span>
+Value: <span class="math-inline" data-math="h(\mathbf{x}) = \mathbf{W}_h \mathbf{x}">h(\mathbf{x}) = \mathbf{W}_h \mathbf{x}</span></div>
+      
+    
+      
+        <p>然后应用点积注意力来输出自注意力特征图：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\alpha_{i,j} &amp;= \text{softmax}(f(\mathbf{x}_i)^\top g(\mathbf{x}_j)) \\
+\mathbf{o}_j &amp;= \mathbf{W}_v \Big( \sum_{i=1}^N \alpha_{i,j} h(\mathbf{x}_i) \Big)
+\end{aligned}
+">
+\begin{aligned}
+\alpha_{i,j} &amp;= \text{softmax}(f(\mathbf{x}_i)^\top g(\mathbf{x}_j)) \\
+\mathbf{o}_j &amp;= \mathbf{W}_v \Big( \sum_{i=1}^N \alpha_{i,j} h(\mathbf{x}_i) \Big)
+\end{aligned}
+</span></div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/SAGAN.png" alt="">
+          <figcaption>The self-attention mechanism in SAGAN. (Image source: Fig. 2 inZhang et al., 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>注意 <span class="math-inline" data-math="\alpha_{i,j}">\alpha_{i,j}</span> 是注意力图中的一个条目，表示在合成第 <span class="math-inline" data-math="j">j</span> 个位置时，模型应该对第 <span class="math-inline" data-math="i">i</span> 个位置赋予多少注意力。<span class="math-inline" data-math="\mathbf{W}_f">\mathbf{W}_f</span>、<span class="math-inline" data-math="\mathbf{W}_g">\mathbf{W}_g</span> 和 <span class="math-inline" data-math="\mathbf{W}_h">\mathbf{W}_h</span> 都是 1x1 卷积滤波器。如果你觉得 1x1 卷积听起来像个奇怪的概念（不就是用一个数乘整个特征图吗？），可以观看 Andrew Ng 的这个简短<a href="https://www.coursera.org/lecture/convolutional-neural-networks/networks-in-networks-and-1x1-convolutions-ZTb8x" target="_blank" rel="noopener">教程</a>。输出 <span class="math-inline" data-math="\mathbf{o}_j">\mathbf{o}_j</span> 是最终输出 <span class="math-inline" data-math="\mathbf{o}= (\mathbf{o}_1, \mathbf{o}_2, \dots, \mathbf{o}_j, \dots, \mathbf{o}_N)">\mathbf{o}= (\mathbf{o}_1, \mathbf{o}_2, \dots, \mathbf{o}_j, \dots, \mathbf{o}_N)</span> 的一个列向量。</p>
+      
+    
+      
+        <p>此外，注意力层的输出会乘以一个缩放参数，然后加回原始输入特征图：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbf{y} = \mathbf{x}_i + \gamma \mathbf{o}_i
+">
+\mathbf{y} = \mathbf{x}_i + \gamma \mathbf{o}_i
+</span></div>
+      
+    
+      
+        <p>由于缩放参数 <span class="math-inline" data-math="\gamma">\gamma</span> 在训练过程中从 0 开始逐渐增大，网络被设定为先依赖局部区域的线索，然后逐渐学会为更远的区域分配更多权重。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-06-24-attention/SAGAN-examples.png" alt="">
+          <figcaption>128×128 example images generated by SAGAN for different classes. (Image source: Partial Fig. 6 inZhang et al., 2018)</figcaption>
+        </figure>
+      
+    
+      
+        <p>引用格式：</p>
+      
+    
+      
+        <pre><code>@article{weng2018attention,
+  title   = &quot;Attention? Attention!&quot;,
+  author  = &quot;Weng, Lilian&quot;,
+  journal = &quot;lilianweng.github.io&quot;,
+  year    = &quot;2018&quot;,
+  url     = &quot;https://lilianweng.github.io/posts/2018-06-24-attention/&quot;
+}
+</code></pre>
+      
+    
+      
+        <h2>参考文献</h2>
+        
+      
+    
+      
+        <p>[1] <a href="http://www.wildml.com/2016/01/attention-and-memory-in-deep-learning-and-nlp/" target="_blank" rel="noopener">“Attention and Memory in Deep Learning and NLP.”</a> - 2016 年 1 月 3 日，Denny Britz 著</p>
+      
+    
+      
+        <p>[2] <a href="https://github.com/tensorflow/nmt" target="_blank" rel="noopener">“Neural Machine Translation (seq2seq) Tutorial”</a></p>
+      
+    
+      
+        <p>[3] Dzmitry Bahdanau, Kyunghyun Cho, and Yoshua Bengio. <a href="https://arxiv.org/pdf/1409.0473.pdf" target="_blank" rel="noopener">“Neural machine translation by jointly learning to align and translate.”</a> ICLR 2015.</p>
+      
+    
+      
+        <p>[4] Kelvin Xu, Jimmy Ba, Ryan Kiros, Kyunghyun Cho, Aaron Courville, Ruslan Salakhudinov, Rich Zemel, and Yoshua Bengio. <a href="http://proceedings.mlr.press/v37/xuc15.pdf" target="_blank" rel="noopener">“Show, attend and tell: Neural image caption generation with visual attention.”</a> ICML, 2015.</p>
+      
+    
+      
+        <p>[5] Ilya Sutskever, Oriol Vinyals, and Quoc V. Le. <a href="https://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-networks.pdf" target="_blank" rel="noopener">“Sequence to sequence learning with neural networks.”</a> NIPS 2014.</p>
+      
+    
+      
+        <p>[6] Thang Luong, Hieu Pham, Christopher D. Manning. <a href="https://arxiv.org/pdf/1508.04025.pdf" target="_blank" rel="noopener">“Effective Approaches to Attention-based Neural Machine Translation.”</a> EMNLP 2015.</p>
+      
+    
+      
+        <p>[7] Denny Britz, Anna Goldie, Thang Luong, and Quoc Le. <a href="https://arxiv.org/abs/1703.03906" target="_blank" rel="noopener">“Massive exploration of neural machine translation architectures.”</a> ACL 2017.</p>
+      
+    
+      
+        <p>[8] Ashish Vaswani, et al. <a href="http://papers.nips.cc/paper/7181-attention-is-all-you-need.pdf" target="_blank" rel="noopener">“Attention is all you need.”</a> NIPS 2017.</p>
+      
+    
+      
+        <p>[9] Jianpeng Cheng, Li Dong, and Mirella Lapata. <a href="https://arxiv.org/pdf/1601.06733.pdf" target="_blank" rel="noopener">“Long short-term memory-networks for machine reading.”</a> EMNLP 2016.</p>
+      
+    
+      
+        <p>[10] Xiaolong Wang, et al. <a href="https://arxiv.org/pdf/1711.07971.pdf" target="_blank" rel="noopener">“Non-local Neural Networks.”</a> CVPR 2018</p>
+      
+    
+      
+        <p>[11] Han Zhang, Ian Goodfellow, Dimitris Metaxas, and Augustus Odena. <a href="https://arxiv.org/pdf/1805.08318.pdf" target="_blank" rel="noopener">“Self-Attention Generative Adversarial Networks.”</a> arXiv preprint arXiv:1805.08318 (2018).</p>
+      
+    
+      
+        <p>[12] Nikhil Mishra, Mostafa Rohaninejad, Xi Chen, and Pieter Abbeel. <a href="https://arxiv.org/abs/1707.03141" target="_blank" rel="noopener">“A simple neural attentive meta-learner.”</a> ICLR 2018.</p>
+      
+    
+      
+        <p>[13] <a href="https://deepmind.com/blog/wavenet-generative-model-raw-audio" target="_blank" rel="noopener">“WaveNet: A Generative Model for Raw Audio”</a> - 2016 年 9 月 8 日，DeepMind 发布。</p>
+      
+    
+      
+        <p>[14] Oriol Vinyals, Meire Fortunato, and Navdeep Jaitly. <a href="https://arxiv.org/abs/1506.03134" target="_blank" rel="noopener">“Pointer networks.”</a> NIPS 2015.</p>
+      
+    
+      
+        <p>[15] Alex Graves, Greg Wayne, and Ivo Danihelka. <a href="https://arxiv.org/abs/1410.5401" target="_blank" rel="noopener">“Neural turing machines.”</a> arXiv preprint arXiv:1410.5401 (2014).</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>特征可视化 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>特征可视化</h1>
+    <div class="meta">
+      2017-11-07 · 
+      <a href="https://distill.pub/2017/feature-visualization" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>人们越来越意识到，神经网络需要对人类具有可解释性。
+  神经网络可解释性领域正是为了应对这些担忧而形成的。
+  随着该领域的发展，两条主要的研究主线开始凝聚：特征可视化与归因。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2017-feature-visualization/neuron.png" alt="">
+          <figcaption>Feature visualization answers questions about what a network — or parts of a network — are looking for by generating examples.</figcaption>
+        </figure>
+      
+    
+      
+        <p>本文重点讨论特征可视化。
+  虽然特征可视化是一种强大的工具，但要真正使其发挥作用，需要处理大量细节。
+  在本文中，我们将分析主要问题，并探讨解决这些问题的常见方法。
+  我们发现，使用极为简单的方法就能生成高质量的可视化。在此过程中，我们还介绍了一些技巧，用于探索神经元所反应的变化、它们之间的交互方式，以及如何改进优化过程。</p>
+      
+    
+      
+        <p>&lt;p&gt;
+  神经网络特征可视化是一项强大的技术。它能够通过生成网络试图寻找的理想化示例，来回答网络——或网络的某些部分——究竟在寻找什么的问题。
+  它与归因共同构成了神经网络可解释性研究的两大主要方向。
+&lt;/p&gt;</p>
+      
+    
+      
+        <p>&lt;p&gt;
+  过去几年中，该领域在特征可视化方面取得了巨大进展。然而，要真正让它发挥作用，需要处理大量细节。在本文中，我们将分析主要问题，并探讨解决这些问题的常见方法。
+&lt;/p&gt;
+&lt;p&gt;
+  我们发现，使用极为简单的方法就能生成高质量的可视化。在此过程中，我们还介绍了一些技巧，用于探索神经元所反应的变化、它们之间的交互方式，以及如何改进优化过程。
+&lt;/p&gt;</p>
+      
+    
+      
+        <p>===================================================</p>
+      
+    
+      
+        <h2>通过优化进行特征可视化</h2>
+        
+      
+    
+      
+        <p>一般来说，神经网络对其输入是可微分的。
+  如果我们想知道什么样的输入会导致某种特定行为——无论是内部神经元激活还是最终输出行为——我们就可以利用导数来迭代地调整输入
+  以达到该目标 [<cite>[erhan2009visualizing]</cite>]。</p>
+      
+    
+      
+        <p>虽然概念上很简单，但在让优化真正发挥作用的过程中仍存在一些微妙的挑战。我们将在“特征可视化的敌人”一节中探讨这些挑战以及应对它们的常见方法。</p>
+      
+    
+      
+        <h3>优化目标</h3>
+        
+      
+    
+      
+        <p>我们想要什么样的示例？
+  这是使用示例时的核心问题，无论我们是在数据集中搜索示例，还是通过优化从零生成图像。
+  我们有多种不同的搜索目标：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2017-feature-visualization/neuron.png" alt="">
+          <figcaption>Different optimization objectives show what different parts of a network are looking for.
+
+n layer index 
+x,y spatial position
+z channel index 
+k class index</figcaption>
+        </figure>
+      
+    
+      
+        <p>如果我们想理解单个特征，可以搜索那些使其取值很高的示例——可以是单个位置的神经元，也可以是整个通道。
+  本文中大多数图像都是使用通道目标创建的。</p>
+      
+    
+      
+        <p>如果我们想从整体上理解某一层，可以使用 DeepDream 目标 [<cite>[mordvintsev2015inceptionism]</cite>]，寻找该层认为“有趣”的图像。</p>
+      
+    
+      
+        <p>&lt;p&gt;
+  如果我们想为分类器的输出类别生成示例，则有两种选择——优化 softmax 之前的&lt;em&gt;类别 logit&lt;/em&gt;，或者优化 softmax 之后的&lt;em&gt;类别概率&lt;/em&gt;。
+  可以将 logit 视为每个类别的证据，而概率则是在给定证据的情况下每个类别的可能性。
+  不幸的是，提高 softmax 赋予某个类别概率的最简单方法，往往是让其他类别变得不可能，而不是让目标类别变得更有可能 &lt;d-cite key=&quot;simonyan2013deep&quot;&gt;&lt;/d-cite&gt;。
+  这可以通过使用生成模型进行非常强的正则化来解决，在这种情况下，概率可以成为一个非常合理的优化目标。
+  根据我们的经验，优化 softmax 之前的 logit 能生成视觉质量更好的图像。&lt;d-footnote&gt;
+    虽然标准解释是最大化概率效果不佳，因为你可以简单地压低其他类别的证据，但另一种假设是单纯通过 softmax 函数进行优化更加困难。我们知道这在对抗样本中有时也是个问题，解决方案是优化 logit 的 LogSumExp。这与优化 softmax 等价，但通常更易处理。根据我们的经验，LogSumExp 方法并不比直接处理原始概率更好。
+  &lt;/d-footnote&gt;
+&lt;/p&gt;</p>
+      
+    
+      
+        <p>如果我们想为分类器的输出类别生成示例，则有两种选择——优化 softmax 之前的类别 logit，或者优化 softmax 之后的类别概率。
+  可以将 logit 视为每个类别的证据，而概率则是在给定证据的情况下每个类别的可能性。
+  不幸的是，提高 softmax 赋予某个类别概率的最简单方法，往往是让其他类别变得不可能，而不是让目标类别变得更有可能 [<cite>[simonyan2013deep]</cite>]。
+  根据我们的经验，优化 softmax 之前的 logit 能生成视觉质量更好的图像。
+  <sup id="fnref-f2n"><a href="#f2n">[2]</a></sup></p>
+      
+    
+      
+        <p>我们所提到的目标只是可能目标的冰山一角——还有很多其他目标值得尝试。
+  特别值得一提的是用于风格迁移的目标 [<cite>[gatys2015neural]</cite>]，它能帮助我们了解网络所理解的风格和内容类型；
+  以及用于基于优化的模型反演的目标 [<cite>[mahendran2015understanding]</cite>]，它能帮助我们理解模型保留了哪些信息，又丢弃了哪些信息。
+  我们才刚刚开始理解哪些目标是有趣的，这个领域还有大量工作值得深入探索。</p>
+      
+    
+      
+        <h3>为什么要通过优化进行可视化？</h3>
+        
+      
+    
+      
+        <p>优化能给我们一个能引发预期行为的输入示例——但为什么要费这个功夫呢？
+  我们不能直接在数据集中查找那些能引发预期行为的示例吗？</p>
+      
+    
+      
+        <p>事实证明，优化方法是一种理解模型真正寻找什么的强大方式，
+  因为它将导致行为的原因与仅仅与之相关的因素区分开来。
+  例如，考虑下面使用数据集示例和优化方法可视化的神经元：</p>
+      
+    
+      
+        <p>优化还具有灵活性的优势。
+  例如，如果我们想研究神经元如何共同表征信息，
+  我们可以轻松地询问一个特定示例需要如何改变，才能让另一个神经元被激活。
+  这种灵活性在可视化特征如何随着网络训练而演化时也很有帮助。
+  如果我们只能通过数据集中固定示例来理解模型，那么这类话题将很难探索。</p>
+      
+    
+      
+        <p>另一方面，使用优化来可视化特征也面临着重大挑战。
+  在接下来的章节中，我们将介绍如何获得多样化的可视化、理解神经元之间的交互，以及避免高频伪影。</p>
+      
+    
+      
+        <p>===================================================</p>
+      
+    
+      
+        <h2>多样性</h2>
+        
+      
+    
+      
+        <p>TODO: 改进最后一句</p>
+      
+    
+      
+        <p>我们的示例是否展示了完整画面？
+  当我们通过优化创建示例时，这是我们需要非常谨慎的问题。
+  完全有可能出现真实示例仍然误导我们的情况，它们只向我们展示了特征所表征的其中一个“侧面”。</p>
+      
+    
+      
+        <p>数据集示例在这方面具有很大优势。
+  通过浏览数据集，我们可以找到多样化的示例。
+  它不仅给我们那些强烈激活神经元的示例：
+  我们还可以查看整个激活范围，看看什么让神经元在不同程度上被激活。</p>
+      
+    
+      
+        <p>&lt;figure class=&quot;l-page-outset&quot;&gt;&lt;img src=&quot;images/vis_ActivationSpectrum.svg&quot; style=&quot;min-height: 150px;&quot;&gt;&lt;/img&gt;&lt;/figure&gt;</p>
+      
+    
+      
+        <p>&lt;figure class=&quot;l-page-outset row&quot; id=&quot;tmptest&quot;&gt;
+  &lt;img class=&quot;column&quot; src=&quot;https://cnsviewer2.corp.google.com/cns/in-d/home/ludwigschubert/visualize_channels/diagrams/mixed4a-00492/0-min.jpg&quot;&gt;
+  &lt;img class=&quot;column&quot; src=&quot;https://cnsviewer2.corp.google.com/cns/in-d/home/ludwigschubert/visualize_channels/diagrams/mixed4a-00492/1-some_negative.jpg&quot;&gt;
+  &lt;img class=&quot;column&quot; src=&quot;https://cnsviewer2.corp.google.com/cns/in-d/home/ludwigschubert/visualize_channels/diagrams/mixed4a-00492/2-zero.jpg&quot;&gt;
+  &lt;img class=&quot;column&quot; src=&quot;https://cnsviewer2.corp.google.com/cns/in-d/home/ludwigschubert/visualize_channels/diagrams/mixed4a-00492/3-some_positive.jpg&quot;&gt;
+  &lt;img class=&quot;column&quot; src=&quot;https://cnsviewer2.corp.google.com/cns/in-d/home/ludwigschubert/visualize_channels/diagrams/mixed4a-00492/4-max.jpg&quot;&gt;
+&lt;/figure&gt;</p>
+      
+    
+      
+        <p>相比之下，优化通常只给我们一个极度正面的示例——如果我们有创意的话，还可以得到一个极度负面的示例。
+  是否有办法让优化也能给我们这种多样性呢？</p>
+      
+    
+      
+        <h3>通过优化实现多样性</h3>
+        
+      
+    
+      
+        <p>网络的某个特征可能对范围广泛的输入都有响应。
+  在类别层面，例如，一个被训练用于识别狗的分类器，应该既能识别狗脸特写，也能识别更宽阔的侧面图像——尽管它们在视觉外观上有很大差异。
+  Wei 等人早期的研究 [<cite>[mneuron2015]</cite>] 试图通过记录整个训练集上的激活、对其进行聚类并优化聚类中心来展示这种“类内”多样性，从而揭示一个类别所学习的不同侧面。</p>
+      
+    
+      
+        <p>Nguyen、Yosinski 及其合作者提出了另一种方法，即在数据集中搜索多样化示例，并将其作为优化过程的起点 [<cite>[nguyen2016multifaceted]</cite>]。
+  其思想是，这能在特征的不同侧面启动优化，从而使优化得到的示例能展示该侧面。
+  在更近期的研究中，他们将类别可视化与生成模型结合，可以从中采样多样化示例 [<cite>[nguyen2016plug]</cite>]。
+  他们的第一种方法取得的效果有限，而生成模型方法虽然效果很好——我们将在“基于学习先验的正则化”一节中进一步讨论——但实现起来有些复杂。</p>
+      
+    
+      
+        <p>我们发现有一种非常简单的方法可以实现多样性：向目标函数中添加一个“多样性项”
+  <sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>，促使多个示例彼此不同。
+  多样性项可以有多种形式，我们目前对其各自的优势还缺乏深入理解。
+  一种可能是惩罚不同示例之间的余弦相似度。
+  另一种是借鉴风格迁移的思想 [<cite>[gatys2015neural]</cite>]，迫使特征以不同风格呈现。</p>
+      
+    
+      
+        <p>在较低层的神经元中，多样性项可以揭示特征所表征的不同侧面：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2017-feature-visualization/mixed4a_97_optimized.png" alt="">
+          <figcaption>Simple Optimization</figcaption>
+        </figure>
+      
+    
+      
+        <p>多样化的特征可视化使我们能够更准确地定位激活神经元的是什么，以至于我们可以做出预测——并通过查看数据集示例来验证哪些输入会激活该神经元。</p>
+      
+    
+      
+        <p>例如，让我们看看这个简单的优化结果。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2017-feature-visualization/mixed4a_143_optimized.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>简单优化
+
+  单独来看，人们可能会推断这个神经元对狗头顶部有反应，因为优化结果同时显示了眼睛并且只有向下弯曲的边缘。
+  然而，加入多样性后的优化结果中，我们看到了不包含眼睛的结果，还有包含向上弯曲边缘的结果。因此，我们必须扩大对这个神经元激活内容的预期，主要与毛发纹理相关。使用数据集示例验证这个假设，证明它大体上是正确的。注意那个纹理和颜色与狗毛足够相似的勺子，也能让该神经元激活。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2017-feature-visualization/mixed4a_143_diversity.png" alt="">
+          <figcaption>Optimization with diversity. Layer mixed4a, Unit 143</figcaption>
+        </figure>
+      
+    
+      
+        <p>多样性的效果在较高层神经元中可能更为显著，它能向我们展示刺激某个神经元的不同类型物体。
+  例如，某个神经元对不同种类的球都有反应，尽管它们的外观各不相同。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2017-feature-visualization/mixed5a_9_optimized.png" alt="">
+          <figcaption>Simple Optimization</figcaption>
+        </figure>
+      
+    
+      
+        <p>这种更简单的方法存在一些缺点：
+  其中之一是，迫使示例不同的压力可能导致出现不相关的伪影（如眼睛）。
+  此外，优化可能会让示例以不自然的方式产生差异。
+  例如，在上面的例子中，人们可能希望看到足球与其他类型球（如高尔夫球或网球）清晰地区分开来。
+  基于数据集的方法（如 Wei 等人 [<cite>[mneuron2015]</cite>]）能够更自然地将特征拆分——但它们可能在理解模型在不同数据上的行为方面帮助不大。</p>
+      
+    
+      
+        <p>多样性也开始触及一个更根本的问题：虽然上面的示例主要代表一个连贯的概念，但也存在一些神经元代表着奇怪的概念混合。
+  下面这个神经元同时对两种动物面部以及汽车车身有反应。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2017-feature-visualization/mixed4e_55_optimized.png" alt="">
+          <figcaption>Simple Optimization</figcaption>
+        </figure>
+      
+    
+      
+        <p>这样的示例表明，神经元可能并不是理解神经网络的正确语义单元。</p>
+      
+    
+      
+        <p>===================================================</p>
+      
+    
+      
+        <h2>神经元之间的交互</h2>
+        
+      
+    
+      
+        <p>如果神经元不是理解神经网络的正确方式，那么什么是呢？
+  在现实中，神经元组合在神经网络中共同表征图像。
+  一种有用的思考方式是几何化的：我们将激活空间定义为所有可能的神经元激活组合。
+  然后我们可以将单个神经元激活视为这个激活空间的基向量。相应地，神经元激活的组合就是这个空间中的一个向量。</p>
+      
+    
+      
+        <p>这种框架将“神经元”和“神经元组合”的概念统一为“激活空间中的向量”。它让我们可以提出这样的问题：我们是否应该期待基向量的方向比这个空间中其他向量的方向更具可解释性？</p>
+      
+    
+      
+        <p>Szegedy 等人 [<cite>[szegedy2013intriguing]</cite>] 发现，随机方向似乎与基向量的方向一样有意义。
+  最近 Bau、Zhou 等人 [<cite>[netdissect2017]</cite>] 发现，基向量的方向比随机方向更经常具有可解释性。
+  我们的经验与这两个结果大体一致；我们发现随机方向通常看起来也具有可解释性，但比例低于基向量方向。</p>
+      
+    
+      
+        <p>我们还可以通过对神经元进行算术运算来定义激活空间中有趣的方向。
+  例如，如果我们将一个“黑白”神经元加到一个“马赛克”神经元上，就会得到一个黑白版本的马赛克。
+  这让人联想到 Word2Vec 中词嵌入的语义算术运算，或生成模型潜在空间中的类似操作。</p>
+      
+    
+      
+        <p>这些示例向我们展示了神经元如何共同表征图像。
+  为了更好地理解神经元之间的交互，我们也可以在它们之间进行插值。
+  <sup id="fnref-f4n"><a href="#f4n">[4]</a></sup>
+  这与在生成模型的潜在空间中插值类似。</p>
+      
+    
+      
+        <p>这仅仅触及了神经元交互的表面。
+  事实是，我们几乎不知道如何选择有意义的方向，或者是否存在特别有意义的方向。
+  除了寻找方向之外，还有关于方向如何交互的问题——例如，插值可以展示少量方向如何交互，但现实中通常有数百个方向在同时交互。</p>
+      
+    
+      
+        <p>===================================================</p>
+      
+    
+      
+        <h2>特征可视化的敌人</h2>
+        
+      
+    
+      
+        <p>如果你想可视化特征，你可能会直接优化一张图像来让神经元激活。
+  不幸的是，这样做通常效果不佳。
+  相反，你最终会得到一种类似神经网络光学错觉的东西——一张充满噪声和无意义高频模式的图像，网络对其反应强烈。</p>
+      
+    
+      
+        <p>这些模式似乎是图像在某种意义上“作弊”，找到了在现实中不会出现的激活神经元的方式。
+  如果你优化足够长时间，你会逐渐看到神经元真正检测到的一些内容，
+  但图像仍然被这些高频模式所主导。
+  这些模式似乎与对抗样本现象密切相关 [<cite>[szegedy2013intriguing]</cite>]。</p>
+      
+    
+      
+        <p>我们并不完全理解为什么这些高频模式会形成，
+  但一个重要因素似乎是步长卷积和池化操作，它们会在梯度中产生高频模式 [<cite>[odena2016deconvolution]</cite>]。</p>
+      
+    
+      
+        <p>每个</p>
+      
+    
+      
+        <p>步长卷积或池化</p>
+      
+    
+      
+        <p>在我们反向传播时，都会在梯度幅度中产生棋盘格图案。</p>
+      
+    
+      
+        <p>这些高频模式表明，虽然基于优化的可视化不受约束的自由度很有吸引力，但它也是一把双刃剑。
+  如果对图像没有任何约束，我们最终会得到对抗样本。
+  这些样本当然很有趣，但如果我们想理解这些模型在现实中是如何工作的，我们需要想办法超越它们……</p>
+      
+    
+      
+        <h3>正则化的谱系</h3>
+        
+      
+    
+      
+        <p>处理这种高频噪声一直是特征可视化研究的主要挑战和贯穿始终的主线之一。
+  如果你想要获得有用的可视化，就需要使用某种先验、正则化器或约束来强加更自然的结构。</p>
+      
+    
+      
+        <p>事实上，如果你查看大多数关于特征可视化的重要论文，它们的主要贡献之一通常就是提出一种正则化方法。
+  研究人员已经尝试了很多不同的方法！</p>
+      
+    
+      
+        <p>我们可以将所有这些方法视为处于一个谱系上，根据它们对模型的正则化强度来划分。
+  在一个极端，如果我们完全不进行正则化，最终会得到对抗样本。
+  在另一个极端，我们在数据集中搜索示例，并会遇到前面讨论过的所有局限性。
+  在中间，我们有三类主要的正则化选项。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2017-feature-visualization/Erhan2009.png" alt="">
+          <figcaption>Weak Regularization
+      avoids misleading correlations, but is less connected to real use.</figcaption>
+        </figure>
+      
+    
+      
+        <p>&lt;d-figure id=&quot;feature-vis-history&quot;&gt;&lt;/d-figure&gt;</p>
+      
+    
+      
+        <h3>三类正则化方法</h3>
+        
+      
+    
+      
+        <p>让我们更深入地探讨这三类中间的正则化方法。</p>
+      
+    
+      
+        <p>频率惩罚直接针对这些方法所遭受的高频噪声。
+  它可以显式地惩罚相邻像素之间的方差（全变分）[<cite>[mahendran2015understanding]</cite>]，或者通过在每次优化步骤中模糊图像来隐式惩罚高频噪声 [<cite>[nguyen2015deep]</cite>]。<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup>
+  不幸的是，这些方法在抑制噪声的同时，也会抑制合法的高频特征（如边缘）。
+  使用双边滤波器代替简单模糊可以略微改善这一问题，因为它能保留边缘 [<cite>[tyka2016bilateral]</cite>]。</p>
+      
+    
+      
+        <p>（有些工作使用类似技术在高频进入可视化之前就减少梯度中的高频 [<cite>[oygard2015vis,mordvintsev2016deepdreaming]</cite>]。
+  这些技术在某些方面与上述方法非常相似，在另一些方面则完全不同——我们将在下一节“预条件与参数化”中进行讨论。）</p>
+      
+    
+      
+        <p>- 无
+  - 全变分
+  - 模糊</p>
+      
+    
+      
+        <p>变换鲁棒性试图找到即使经过轻微变换，仍然能高度激活优化目标的示例。
+  即使是很小的变换量，在图像情况下也非常有效 [<cite>[mordvintsev2015inceptionism]</cite>]，
+  尤其是与更通用的高频正则化器结合使用时 [<cite>[oygard2015vis,mordvintsev2016deepdreaming]</cite>]。
+  具体来说，这意味着我们在每次优化步骤前，随机地对图像进行抖动、旋转或缩放。</p>
+      
+    
+      
+        <p>&lt;figure id=&quot;optimize-jitter&quot; class=&quot;l-page-outset&quot;&gt;&lt;/figure&gt;</p>
+      
+    
+      
+        <p>TODO(colah): 制作无约束优化 vs 参数化优化 vs 先验的示意图？讨论使用逆模型？</p>
+      
+    
+      
+        <p>技术上最具挑战性</p>
+      
+    
+      
+        <p>学习先验。
+  我们之前的正则化器使用非常简单的启发式方法来保持示例的合理性。
+  一个自然的下一步是真正学习一个真实数据的模型，并尝试强制执行它。
+  使用强大的模型时，这会变得类似于在数据集中搜索。
+  这种方法能产生最具照片真实感的可视化，但可能难以区分哪些来自被可视化的模型，哪些来自先验。</p>
+      
+    
+      
+        <p>一种方法是学习一个生成器，将潜在空间中的点映射到你的数据示例，
+  例如 GAN 或 VAE，
+  然后在该潜在空间中进行优化 [<cite>[nguyen2016synthesizing]</cite>]。
+  另一种方法是学习一个能提供概率梯度的先验；
+  这允许你将先验与你的目标一起联合优化 [<cite>[nguyen2016plug,mordvintsev2015inceptionism]</cite>]。
+  当你同时优化先验和某个类别的概率时，你会得到一个以该特定类别为条件的生成模型。
+  最后，Wei 等人 [<cite>[mneuron2015]</cite>] 通过惩罚输出图像块与从训练数据收集的图像块数据库中检索到的最近块之间的距离，近似了一个生成模型先验（至少在颜色分布上）。</p>
+      
+    
+      
+        <p>===================================================</p>
+      
+    
+      
+        <h2>预条件与参数化</h2>
+        
+      
+    
+      
+        <p>在上一节中，我们看到了一些在梯度而不是可视化本身中减少高频的方法 [<cite>[oygard2015vis,mordvintsev2016deepdreaming]</cite>]。
+  目前还不清楚这是否真的算是一种正则化：
+  它抵抗高频，但当梯度持续推动时，仍然允许它们形成。
+  如果它不是正则化，那么像这样转换梯度到底有什么作用？</p>
+      
+    
+      
+        <p>像这样转换梯度其实是一个非常强大的工具——在优化中被称为“预条件”。
+  你可以将其视为在另一个参数化空间中，或在不同的距离度量下，进行最速下降来优化相同的目标。
+  <sup id="fnref-f6n"><a href="#f6n">[6]</a></sup>
+  这会改变哪条下降方向是最陡的，以及优化在每个方向上移动的速度，但不会改变极小值是什么。
+  如果存在许多局部极小值，它可以拉伸和收缩它们的吸引盆，改变优化过程最终落入哪一个。
+  因此，使用合适的预条件器可以让一个优化问题变得容易得多。</p>
+      
+    
+      
+        <p>我们如何选择一个能带来这些好处的预条件器呢？
+  一个好的初步猜测是能让你的数据去相关并白化的预条件器。
+  在图像情况下，这意味着在傅里叶基上进行梯度下降，
+  <sup id="fnref-f7n"><a href="#f7n">[7]</a></sup>
+  并且对不同频率进行缩放，使它们都具有相等的能量。
+  <sup id="fnref-f8n"><a href="#f8n">[8]</a></sup></p>
+      
+    
+      
+        <p>让我们看看使用不同距离度量如何改变最速下降的方向。
+  常规的 L2 梯度与在 L∞ 度量或去相关空间中的最速下降方向可能有很大不同：</p>
+      
+    
+      
+        <p>所有这些方向对于同一目标来说都是有效的下降方向，
+  但我们可以看到它们截然不同。
+  请注意，在去相关空间中优化会减少高频，
+  而使用 L∞ 则会增加高频。</p>
+      
+    
+      
+        <p>使用去相关下降方向会产生相当不同的可视化。
+  由于超参数的原因，很难进行真正公平的比较，但结果可视化似乎好得多——而且收敛也更快。</p>
+      
+    
+      
+        <p>（除非特别说明，本文中的图像都是在去相关的傅里叶变换空间中，并结合一系列变换鲁棒性技术进行优化的。
+  <sup id="fnref-f9n"><a href="#f9n">[9]</a></sup>）</p>
+      
+    
+      
+        <p>预条件器只是加速了下降，把我们带到正常梯度下降如果足够耐心最终也会到达的地方吗？
+  还是它也在进行正则化，改变了我们被吸引到的局部极小值？
+  这很难完全确定。
+  一方面，梯度下降似乎随着优化步数指数级增加而持续改进——它并没有收敛，只是移动得非常慢。
+  另一方面，如果你关闭所有其他正则化器，预条件器似乎能减少高频模式。</p>
+      
+    
+      
+        <p>===================================================</p>
+      
+    
+      
+        <h2>总结</h2>
+        
+      
+    
+      
+        <p>过去几年中，神经特征可视化取得了巨大进展。
+  作为一个研究社区，我们已经开发出创建引人注目可视化的原则性方法。
+  我们已经梳理出一系列重要挑战，并找到了应对它们的方式。</p>
+      
+    
+      
+        <p>在让神经网络可解释的探索中，特征可视化
+  作为最有前景和最成熟的研究方向之一脱颖而出。
+  仅靠特征可视化本身永远无法提供完全令人满意的理解。
+  我们将其视为基本构建块之一，当与其他工具结合使用时，将赋予人类理解这些系统的能力。</p>
+      
+    
+      
+        <p>在改进特征可视化方面，仍有大量重要工作需要完成。
+  一些突出的问题包括理解神经元交互、找出哪些单元对于理解神经网络激活最有意义，以及提供特征各个侧面的整体视图。</p>
+      
+    
+      
+        <p>&lt;p&gt;
+  与此同时，感兴趣的读者可以探索
+  &lt;a href=&quot;appendix/&quot;&gt;所有 GoogLeNet 通道的可视化&lt;/a&gt;，
+  以及我们的&lt;a href=&quot;https://github.com/tensorflow/lucid&quot;&gt;开源实现 lucid&lt;/a&gt;。
+  读者可能还希望阅读我们的后续论文&lt;a href=&quot;https://distill.pub/2018/building-blocks/&quot;&gt;《可解释性的构建块》&lt;/a&gt;，该论文探讨了如何将特征可视化与其他技术结合来审视神经网络的行为。
+&lt;/p&gt;</p>
+      
+    
+  </div>
+
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <span class="fn-num">[1]</span> 作为一个年轻领域，神经网络可解释性尚未有标准化的术语。
+        归因在文献中曾有过许多不同的名称——包括“特征可视化”！——但最近的工作似乎更倾向于使用“归因”和“显著性图”等术语。
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <a href="#fnref-f2n">[2]</a> 虽然标准解释是最大化概率效果不佳，因为你可以简单地压低其他类别的证据，但另一种假设是单纯通过 softmax 函数进行优化更加困难。我们知道这在对抗样本中有时也是个问题，解决方案是优化 logit 的 LogSumExp。这与优化 softmax 等价，但通常更易处理。根据我们的经验，LogSumExp 方法并不比直接处理原始概率更好。
+    
+
+    无论原因如何，这都可以通过使用生成模型进行非常强的正则化来解决。在这种情况下，概率可以成为一个非常合理的优化目标。
+    </div>
+    
+    <div class="footnote-item" id="f3n">
+      <a href="#fnref-f3n">[3]</a> 在本文中，我们使用了一种基于艺术风格迁移思想的方法。沿用该工作，我们首先计算通道的 Gram 矩阵 <span class="math-inline" data-math="G">G</span>，其中 <span class="math-inline" data-math="G_{i,j}">G_{i,j}</span> 是滤波器 <span class="math-inline" data-math="i">i</span> 和滤波器 <span class="math-inline" data-math="j">j</span>（展平后）响应的点积：
+      __MATHBLOCK_4__
+      由此，我们计算多样性项：可视化对之间的负成对余弦相似度。
+      __MATHBLOCK_5__
+      然后我们将这个多样性项与常规优化目标一起联合最大化。
+    </div>
+    
+    <div class="footnote-item" id="f4n">
+      <a href="#fnref-f4n">[4]</a> 优化目标是个体通道目标之间的线性插值。为了让插值效果更好，我们还添加了一个小的对齐目标，鼓励较低层的激活保持相似。我们还使用了独立的和共享的图像参数化组合，使优化算法更容易让物体对齐，同时仍然给予它创建所需任何图像的自由。
+    </div>
+    
+    <div class="footnote-item" id="f5n">
+      <a href="#fnref-f5n">[5]</a> 如果我们在傅里叶空间中思考模糊，它等价于向目标函数添加一个缩放的 L2 惩罚，根据每个傅里叶分量的频率对其进行惩罚。
+    </div>
+    
+    <div class="footnote-item" id="f6n">
+      <a href="#fnref-f6n">[6]</a> 梯度模糊[<cite>[oygard2015vis]</cite>] 等价于在图像空间的另一种参数化下进行梯度下降，其中高频维度被拉伸，使得在这些方向上移动更慢。梯度拉普拉斯金字塔归一化 [<cite>[mordvintsev2016deepdreaming]</cite>] 是同一空间中的一种自适应学习率方法。
+    </div>
+    
+    <div class="footnote-item" id="f7n">
+      <a href="#fnref-f7n">[7]</a> 这指向了关于傅里叶变换的一个深刻事实。
+    只要相关性在空间位置上是一致的——比如图像中每个位置的像素与其左侧邻居的相关性相同——傅里叶系数将是独立的变量。
+    要理解这一点，注意这种空间一致的相关性可以表示为卷积，根据卷积定理，经过傅里叶变换后会变成点对点乘法。
+    </div>
+    
+    <div class="footnote-item" id="f8n">
+      <a href="#fnref-f8n">[8]</a> 请注意，我们还需要小心让颜色也去相关。傅里叶变换能让空间去相关，但颜色之间仍然会存在相关性。
+      为解决这个问题，我们明确测量训练集中颜色之间的相关性，并使用 Cholesky 分解对其去相关。比较颜色去相关前后的最速下降方向：
+      
+
+
+
+
+            相关颜色
+          
+
+
+
+
+            去相关颜色
+    </div>
+    
+    <div class="footnote-item" id="f9n">
+      <a href="#fnref-f9n">[9]</a> 图像在颜色去相关的傅里叶变换空间中优化了 2560 步，使用 Adam 优化器，学习率为 0.05。
+    我们在优化的每一步按以下顺序依次使用下列变换：
+    • 将输入填充 16 个像素以避免边缘伪影
+    • 最多抖动 16 个像素
+    • 按以下列表中随机选择的因子缩放：1, 0.975, 1.025, 0.95, 1.05
+    • 按以下列表中随机选择的角度旋转（单位：度）：-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5
+    • 再次最多抖动 8 个像素
+    • 裁剪填充部分
+    </div>
+    
+  </section>
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

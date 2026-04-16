@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>傻瓜式目标检测入门（一）：梯度向量、HOG 与 Selective Search · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>傻瓜式目标检测入门（一）：梯度向量、HOG 与 Selective Search</h1>
+    <div class="meta">
+      2017-10-29 · 
+      <a href="https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">图像梯度向量
+
+常用图像处理卷积核
+
+示例：2004 年的 Manu
+
+
+方向梯度直方图（HOG）
+
+HOG 的工作原理
+
+示例：2004 年的 Manu
+
+
+图像分割（Felzenszwalb 算法）
+
+图的构建
+
+关键概念
+
+图像分割的工作流程
+
+示例：2013 年的 Manu
+
+
+Selective Search
+
+Selective Search 的工作原理
+
+配置变体
+
+
+参考文献</div>
+      
+    
+      
+        <p>在“傻瓜式目标检测”系列文章中，我们将介绍图像处理和目标检测领域中的若干基础概念、经典算法以及流行的深度学习模型。希望对没有相关经验但想深入了解的读者来说，这是一个不错的入门读物。第一部分将介绍梯度向量的概念、HOG（方向梯度直方图）算法，以及用于图像分割的 Selective Search。</p>
+      
+    
+      
+        <p>我从未从事过计算机视觉相关工作，完全不知道一辆自动驾驶汽车是如何神奇地区分停车标志和戴着红色帽子的行人的。为了逼自己弄懂目标识别与检测算法背后的数学原理，我决定写一系列题为“傻瓜式目标检测”的文章。本文作为第一部分，从图像处理中最基础的概念开始，介绍几种图像分割方法，暂不涉及深度神经网络。关于目标检测和识别的深度学习模型将在和中讨论。<a href="posts-2017-12-15-object-recognition-part-2.html">傻瓜式目标检测系列（中）——CNN、DPM 与 Overfeat</a><a href="posts-2017-12-31-object-recognition-part-3.html">傻瓜式目标检测系列之三：R-CNN 家族</a></p>
+      
+    
+      
+        <blockquote>免责声明：在刚开始写的时候，我把“object recognition”（目标识别）和“object detection”（目标检测）当作同义词使用。后来我意识到两者并不完全相同：前者主要判断图像中是否存在某个物体，而后者还需要指出物体所在的位置。不过两者高度相关，许多目标识别算法为检测任务奠定了基础。</blockquote>
+      
+    
+      
+        <p>本系列所有文章的链接：
+[]
+[]
+[]
+[]。<a href="posts-2017-10-29-object-recognition-part-1.html">傻瓜式目标检测入门（一）：梯度向量、HOG 与 Selective Search</a><a href="posts-2017-12-15-object-recognition-part-2.html">傻瓜式目标检测系列（中）——CNN、DPM 与 Overfeat</a><a href="posts-2017-12-31-object-recognition-part-3.html">傻瓜式目标检测系列之三：R-CNN 家族</a><a href="posts-2018-12-27-object-recognition-part-4.html">目标检测（四）：快速检测模型</a></p>
+      
+    
+      
+        <h2>图像梯度向量</h2>
+        
+      
+    
+      
+        <p>首先，我们需要明确区分以下几个容易混淆但又紧密相关的概念。</p>
+      
+    
+      
+        <div class="table-container"><table>
+<thead>
+<tr>
+<th></th>
+<th><strong>Derivative</strong></th>
+<th><strong>Directional Derivative</strong></th>
+<th><strong>Gradient</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Value type</td>
+<td>Scalar</td>
+<td>Scalar</td>
+<td>Vector</td>
+</tr>
+<tr>
+<td>Definition</td>
+<td>The rate of change of a function <span class="math-inline" data-math="f(x,y,z,…)">f(x,y,z,…)</span> at a point <span class="math-inline" data-math="(x_0,y_0,z_0,…)">(x_0,y_0,z_0,…)</span>, which is the slope of the tangent line at the point.</td>
+<td>The instantaneous rate of change of <span class="math-inline" data-math="f(x,y,z, …)">f(x,y,z, …)</span> in the direction of an unit vector <span class="math-inline" data-math="\vec{u}">\vec{u}</span>.</td>
+<td>It points in the direction of the greatest rate of increase of the function, containing all the partial derivative information of a multivariable function.</td>
+</tr>
+</tbody>
+</table></div>
+      
+    
+      
+        <p>在图像处理中，我们希望知道颜色从一种极端过渡到另一种极端的方向（例如灰度图中从黑到白）。因此，我们需要度量像素颜色上的“梯度”。图像上的梯度是离散的，因为每个像素都是独立的，无法进一步分割。</p>
+      
+    
+      
+        <p><a href="https://en.wikipedia.org/wiki/Image_gradient" target="_blank" rel="noopener">图像梯度向量</a>是对每个像素定义的一种度量，包含该像素在 x 轴和 y 轴两个方向上的颜色变化。其定义与连续多元函数的梯度一致，后者是由所有变量偏导数组成的向量。假设 f(x, y) 表示位置 (x, y) 处像素的颜色值，则像素 (x, y) 的梯度向量定义如下：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align*}
+\nabla f(x, y)
+= \begin{bmatrix}
+  g_x \\
+  g_y
+\end{bmatrix}
+= \begin{bmatrix}
+  \frac{\partial f}{\partial x} \\[6pt]
+  \frac{\partial f}{\partial y}
+\end{bmatrix}
+= \begin{bmatrix}
+  f(x+1, y) - f(x-1, y)\\
+  f(x, y+1) - f(x, y-1)
+\end{bmatrix}
+\end{align*}
+">
+\begin{align*}
+\nabla f(x, y)
+= \begin{bmatrix}
+  g_x \\
+  g_y
+\end{bmatrix}
+= \begin{bmatrix}
+  \frac{\partial f}{\partial x} \\[6pt]
+  \frac{\partial f}{\partial y}
+\end{bmatrix}
+= \begin{bmatrix}
+  f(x+1, y) - f(x-1, y)\\
+  f(x, y+1) - f(x, y-1)
+\end{bmatrix}
+\end{align*}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\frac{\partial f}{\partial x}">\frac{\partial f}{\partial x}</span> 是 x 方向的偏导数，通过目标像素左右相邻像素的颜色差 f(x+1, y) - f(x-1, y) 计算得到。同理，<span class="math-inline" data-math="\frac{\partial f}{\partial y}">\frac{\partial f}{\partial y}</span> 是 y 方向的偏导数，由上下相邻像素的颜色差 f(x, y+1) - f(x, y-1) 得到。</p>
+      
+    
+      
+        <p>图像梯度有两个重要属性：</p>
+      
+    
+      
+        <div class="list-content">幅值是向量的 L2 范数，即 <span class="math-inline" data-math="g = \sqrt{ g_x^2 + g_y^2 }">g = \sqrt{ g_x^2 + g_y^2 }</span>。
+方向是两个方向偏导数比值的反正切，即 <span class="math-inline" data-math="\theta = \arctan{(g_y / g_x)}">\theta = \arctan{(g_y / g_x)}</span>。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-10-29-object-recognition-part-1/image-gradient-vector-pixel-location.png" alt="">
+          <figcaption>To compute the gradient vector of a target pixel at location (x, y), we need to know the colors of its four neighbors (or eight surrounding pixels depending on the kernel).</figcaption>
+        </figure>
+      
+    
+      
+        <p>图 1 示例的梯度向量为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align*}
+\nabla f 
+= \begin{bmatrix}
+  f(x+1, y) - f(x-1, y)\\
+  f(x, y+1) - f(x, y-1)
+\end{bmatrix}
+= \begin{bmatrix}
+  55-105\\
+  90-40
+\end{bmatrix}
+= \begin{bmatrix}
+  -50\\
+  50
+\end{bmatrix}
+\end{align*}
+">
+\begin{align*}
+\nabla f 
+= \begin{bmatrix}
+  f(x+1, y) - f(x-1, y)\\
+  f(x, y+1) - f(x, y-1)
+\end{bmatrix}
+= \begin{bmatrix}
+  55-105\\
+  90-40
+\end{bmatrix}
+= \begin{bmatrix}
+  -50\\
+  50
+\end{bmatrix}
+\end{align*}
+</span></div>
+      
+    
+      
+        <p>因此，</p>
+      
+    
+      
+        <div class="list-content">其幅值为 <span class="math-inline" data-math="\sqrt{50^2 + (-50)^2} = 70.7107">\sqrt{50^2 + (-50)^2} = 70.7107</span>，方向为 <span class="math-inline" data-math="\arctan{(-50/50)} = -45^{\circ}">\arctan{(-50/50)} = -45^{\circ}</span>。</div>
+      
+    
+      
+        <p>如果对每个像素逐个重复计算梯度，速度会非常慢。更好的做法是将整个图像矩阵视为 <span class="math-inline" data-math="\mathbf{A}">\mathbf{A}</span>，使用专门设计的卷积核一次性完成计算。</p>
+      
+    
+      
+        <p>以图 1 的 x 方向为例，使用核 <span class="math-inline" data-math="[-1,0,1]">[-1,0,1]</span> 沿 x 轴滑动进行卷积，<span class="math-inline" data-math="\ast">\ast</span> 为卷积运算符：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align*}
+\mathbf{G}_x &amp;= 
+[-1, 0, 1] \ast [105, 255, 55] = -105 + 0 + 55 = -50
+\end{align*}
+">
+\begin{align*}
+\mathbf{G}_x &amp;= 
+[-1, 0, 1] \ast [105, 255, 55] = -105 + 0 + 55 = -50
+\end{align*}
+</span></div>
+      
+    
+      
+        <p>类似地，在 y 方向上我们采用核 <span class="math-inline" data-math="[+1, 0, -1]^\top">[+1, 0, -1]^\top</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{align*}
+\mathbf{G}_y &amp;= 
+[+1, 0, -1]^\top \ast
+\begin{bmatrix}
+  90\\
+  255\\
+  40
+\end{bmatrix} 
+= 90 + 0 - 40 = 50
+\end{align*}
+">
+\begin{align*}
+\mathbf{G}_y &amp;= 
+[+1, 0, -1]^\top \ast
+\begin{bmatrix}
+  90\\
+  255\\
+  40
+\end{bmatrix} 
+= 90 + 0 - 40 = 50
+\end{align*}
+</span></div>
+      
+    
+      
+        <p>可以在 Python 中尝试以下代码：</p>
+      
+    
+      
+        <pre><code>import numpy as np
+import scipy.signal as sig
+data = np.array([[0, 105, 0], [40, 255, 90], [0, 55, 0]])
+G_x = sig.convolve2d(data, np.array([[-1, 0, 1]]), mode=&#x27;valid&#x27;) 
+G_y = sig.convolve2d(data, np.array([[-1], [0], [1]]), mode=&#x27;valid&#x27;)
+</code></pre>
+      
+    
+      
+        <p>上述两个函数分别返回 array([[0], [-50], [0]]) 和 array([[0, 50, 0]])。（注意：在 numpy 数组表示中 40 排在 90 前面，因此核中 -1 也排在 1 前面。）</p>
+      
+    
+      
+        <h2>常用图像处理卷积核</h2>
+        
+      
+    
+      
+        <p><a href="https://en.wikipedia.org/wiki/Prewitt_operator" target="_blank" rel="noopener">Prewitt 算子</a>：不只依赖四个直接相邻像素，而是利用周围八个像素以获得更平滑的结果。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbf{G}_x = \begin{bmatrix}
+-1 &amp; 0 &amp; +1 \\
+-1 &amp; 0 &amp; +1 \\
+-1 &amp; 0 &amp; +1
+\end{bmatrix} \ast \mathbf{A} \text{ and }
+\mathbf{G}_y = \begin{bmatrix}
++1 &amp; +1 &amp; +1 \\
+0 &amp; 0 &amp; 0 \\
+-1 &amp; -1 &amp; -1
+\end{bmatrix} \ast \mathbf{A}
+">
+\mathbf{G}_x = \begin{bmatrix}
+-1 &amp; 0 &amp; +1 \\
+-1 &amp; 0 &amp; +1 \\
+-1 &amp; 0 &amp; +1
+\end{bmatrix} \ast \mathbf{A} \text{ and }
+\mathbf{G}_y = \begin{bmatrix}
++1 &amp; +1 &amp; +1 \\
+0 &amp; 0 &amp; 0 \\
+-1 &amp; -1 &amp; -1
+\end{bmatrix} \ast \mathbf{A}
+</span></div>
+      
+    
+      
+        <p><a href="https://en.wikipedia.org/wiki/Sobel_operator" target="_blank" rel="noopener">Sobel 算子</a>：为了更突出直接相邻像素的影响，给予它们更高的权重。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbf{G}_x = \begin{bmatrix}
+-1 &amp; 0 &amp; +1 \\
+-2 &amp; 0 &amp; +2 \\
+-1 &amp; 0 &amp; +1
+\end{bmatrix} \ast \mathbf{A} \text{ and }
+\mathbf{G}_y = \begin{bmatrix}
++1 &amp; +2 &amp; +1 \\
+0 &amp; 0 &amp; 0 \\
+-1 &amp; -2 &amp; -1
+\end{bmatrix} \ast \mathbf{A}
+">
+\mathbf{G}_x = \begin{bmatrix}
+-1 &amp; 0 &amp; +1 \\
+-2 &amp; 0 &amp; +2 \\
+-1 &amp; 0 &amp; +1
+\end{bmatrix} \ast \mathbf{A} \text{ and }
+\mathbf{G}_y = \begin{bmatrix}
++1 &amp; +2 &amp; +1 \\
+0 &amp; 0 &amp; 0 \\
+-1 &amp; -2 &amp; -1
+\end{bmatrix} \ast \mathbf{A}
+</span></div>
+      
+    
+      
+        <p>人们针对不同目的设计了多种卷积核，例如边缘检测、模糊、锐化等。更多示例和资料可参考<a href="https://en.wikipedia.org/wiki/Kernel_(image_processing)" target="_blank" rel="noopener">这个维基页面</a>。</p>
+      
+    
+      
+        <h2>示例：2004 年的 Manu</h2>
+        
+      
+    
+      
+        <p>我们用 2004 年还满头秀发的 Manu Ginobili 的照片[[下载图片]({{ ‘/assets/data/manu-2004.jpg’ | relative_url }}){:target=&quot;_blank&quot;}]来做个简单实验。为了简化，照片先转为灰度图。对于彩色图像，只需对每个颜色通道分别重复相同过程即可。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-10-29-object-recognition-part-1/manu-2004.png" alt="">
+          <figcaption>Manu Ginobili in 2004 with hair. (Image source:Manu Ginobili&#x27;s bald spot through the years)</figcaption>
+        </figure>
+      
+    
+      
+        <pre><code>import numpy as np
+import scipy
+import scipy.signal as sig
+# With mode=&quot;L&quot;, we force the image to be parsed in the grayscale, so it is
+# actually unnecessary to convert the photo color beforehand.
+img = scipy.misc.imread(&quot;manu-2004.jpg&quot;, mode=&quot;L&quot;)
+
+# Define the Sobel operator kernels.
+kernel_x = np.array([[-1, 0, 1],[-2, 0, 2],[-1, 0, 1]])
+kernel_y = np.array([[1, 2, 1], [0, 0, 0], [-1, -2, -1]])
+
+G_x = sig.convolve2d(img, kernel_x, mode=&#x27;same&#x27;) 
+G_y = sig.convolve2d(img, kernel_y, mode=&#x27;same&#x27;) 
+
+# Plot them!
+fig = plt.figure()
+ax1 = fig.add_subplot(121)
+ax2 = fig.add_subplot(122)
+
+# Actually plt.imshow() can handle the value scale well even if I don&#x27;t do 
+# the transformation (G_x + 255) / 2.
+ax1.imshow((G_x + 255) / 2, cmap=&#x27;gray&#x27;); ax1.set_xlabel(&quot;Gx&quot;)
+ax2.imshow((G_y + 255) / 2, cmap=&#x27;gray&#x27;); ax2.set_xlabel(&quot;Gy&quot;)
+plt.show()
+</code></pre>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-10-29-object-recognition-part-1/manu-2004-sobel-operator.png" alt="">
+          <figcaption>Apply Sobel operator kernel on the example image.</figcaption>
+        </figure>
+      
+    
+      
+        <p>你可能会注意到大部分区域呈灰色。因为两个像素的差值范围是 -255 到 255，我们需要将其转换回 [0, 255] 才能正常显示。一个简单的线性变换 (<span class="math-inline" data-math="\mathbf{G}">\mathbf{G}</span> + 255)/2 会将所有零值（即颜色恒定的背景，梯度无变化）映射为 125（显示为灰色）。</p>
+      
+    
+      
+        <h2>方向梯度直方图（HOG）</h2>
+        
+      
+    
+      
+        <p>方向梯度直方图（HOG）是一种从像素颜色中高效提取特征的方法，可用于构建目标识别分类器。有了图像梯度向量的知识，理解 HOG 的原理并不困难。让我们开始吧！</p>
+      
+    
+      
+        <h2>HOG 的工作原理</h2>
+        
+      
+    
+      
+        <div class="list-content">对图像进行预处理，包括缩放和颜色归一化。
+
+计算每个像素的梯度向量、幅值和方向。
+
+将图像划分成许多 8×8 像素的单元格。在每个单元格内，把这 64 个像素的幅值按 9 个无符号方向（0-180 度而非 0-360 度，这是基于经验实验的实用选择）进行分桶并累加。
+
+为了增强鲁棒性，如果某个像素的梯度方向落在两个分桶之间，其幅值不会全部进入更近的桶，而是按比例分配到两个桶中。例如，某个像素的梯度幅值为 8，角度为 15 度，介于 0 度和 20 度的桶之间，则我们分配 2 给 0 度桶，6 给 20 度桶。
+
+这种巧妙的设计使得直方图在图像发生轻微形变时仍能保持稳定。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-10-29-object-recognition-part-1/HOG-histogram-creation.png" alt="">
+          <figcaption>How to split one gradient vector&#x27;s magnitude if its degress is between two degree bins. (Image source: https://www.learnopencv.com/histogram-of-oriented-gradients/)</figcaption>
+        </figure>
+      
+    
+      
+        <div class="list-content">接着，我们用 2×2 个单元格（即 16×16 像素）构成的块在图像上滑动。在每个块区域内，将 4 个单元格的直方图拼接成一个 36 维向量，并对其进行归一化，使其具有单位范数。
+最终的 HOG 特征向量是所有块向量的拼接结果，可输入到 SVM 等分类器中进行目标识别训练。</div>
+      
+    
+      
+        <h2>示例：2004 年的 Manu</h2>
+        
+      
+    
+      
+        <p>我们继续使用上一节的示例图像。还记得我们已经计算了整张图像的 <span class="math-inline" data-math="\mathbf{G}_x">\mathbf{G}_x</span> 和 <span class="math-inline" data-math="\mathbf{G}_y">\mathbf{G}_y</span>。</p>
+      
+    
+      
+        <pre><code>N_BUCKETS = 9
+CELL_SIZE = 8  # Each cell is 8x8 pixels
+BLOCK_SIZE = 2  # Each block is 2x2 cells
+
+def assign_bucket_vals(m, d, bucket_vals):
+    left_bin = int(d / 20.)
+    # Handle the case when the direction is between [160, 180)
+    right_bin = (int(d / 20.) + 1) % N_BUCKETS
+    assert 0 &lt;= left_bin &lt; right_bin &lt; N_BUCKETS
+
+    left_val= m * (right_bin * 20 - d) / 20
+    right_val = m * (d - left_bin * 20) / 20
+    bucket_vals[left_bin] += left_val
+    bucket_vals[right_bin] += right_val
+
+def get_magnitude_hist_cell(loc_x, loc_y):
+    # (loc_x, loc_y) defines the top left corner of the target cell.
+    cell_x = G_x[loc_x:loc_x + CELL_SIZE, loc_y:loc_y + CELL_SIZE]
+    cell_y = G_y[loc_x:loc_x + CELL_SIZE, loc_y:loc_y + CELL_SIZE]
+    magnitudes = np.sqrt(cell_x * cell_x + cell_y * cell_y)
+    directions = np.abs(np.arctan(cell_y / cell_x) * 180 / np.pi)
+
+    buckets = np.linspace(0, 180, N_BUCKETS + 1)
+    bucket_vals = np.zeros(N_BUCKETS)
+    map(
+        lambda (m, d): assign_bucket_vals(m, d, bucket_vals), 
+        zip(magnitudes.flatten(), directions.flatten())
+    )
+    return bucket_vals
+
+def get_magnitude_hist_block(loc_x, loc_y):
+    # (loc_x, loc_y) defines the top left corner of the target block.
+    return reduce(
+        lambda arr1, arr2: np.concatenate((arr1, arr2)),
+        [get_magnitude_hist_cell(x, y) for x, y in zip(
+            [loc_x, loc_x + CELL_SIZE, loc_x, loc_x + CELL_SIZE],
+            [loc_y, loc_y, loc_y + CELL_SIZE, loc_y + CELL_SIZE],
+        )]
+    )
+</code></pre>
+      
+    
+      
+        <p>以下代码简单地调用函数构建直方图并进行可视化。</p>
+      
+    
+      
+        <pre><code># Random location [200, 200] as an example.
+loc_x = loc_y = 200
+
+ydata = get_magnitude_hist_block(loc_x, loc_y)
+ydata = ydata / np.linalg.norm(ydata)
+
+xdata = range(len(ydata))
+bucket_names = np.tile(np.arange(N_BUCKETS), BLOCK_SIZE * BLOCK_SIZE)
+
+assert len(ydata) == N_BUCKETS * (BLOCK_SIZE * BLOCK_SIZE)
+assert len(bucket_names) == len(ydata)
+
+plt.figure(figsize=(10, 3))
+plt.bar(xdata, ydata, align=&#x27;center&#x27;, alpha=0.8, width=0.9)
+plt.xticks(xdata, bucket_names * 20, rotation=90)
+plt.xlabel(&#x27;Direction buckets&#x27;)
+plt.ylabel(&#x27;Magnitude&#x27;)
+plt.grid(ls=&#x27;--&#x27;, color=&#x27;k&#x27;, alpha=0.1)
+plt.title(&quot;HOG of block at [%d, %d]&quot; % (loc_x, loc_y))
+plt.tight_layout()
+</code></pre>
+      
+    
+      
+        <p>上面代码中，我以左上角位于 [200, 200] 的块为例，展示该块归一化后的最终直方图。你可以修改代码，改变滑动窗口的位置来观察不同块的结果。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-10-29-object-recognition-part-1/block_histogram.png" alt="">
+          <figcaption>Demonstration of a HOG histogram for one block.</figcaption>
+        </figure>
+      
+    
+      
+        <p>上述代码主要用于演示计算流程。实际上已有许多现成的库实现了 HOG 算法，例如 <a href="https://github.com/opencv/opencv" target="_blank" rel="noopener">OpenCV</a>、<a href="http://simplecv.org/" target="_blank" rel="noopener">SimpleCV</a> 和 <a href="http://scikit-image.org/" target="_blank" rel="noopener">scikit-image</a>。</p>
+      
+    
+      
+        <h2>图像分割（Felzenszwalb 算法）</h2>
+        
+      
+    
+      
+        <p>当一张图像中存在多个物体时（现实世界的照片几乎都是如此），我们需要先找出可能包含目标物体的区域，以便更高效地进行分类。</p>
+      
+    
+      
+        <p>Felzenszwalb 和 Huttenlocher（<a href="http://cvcl.mit.edu/SUNSeminar/Felzenszwalb_IJCV04.pdf" target="_blank" rel="noopener">2004</a>）提出了一种基于图的图像分割算法。它也是我们接下来要讨论的流行区域提议算法——Selective Search 的初始化方法。</p>
+      
+    
+      
+        <p>假设我们用一个无向图 <span class="math-inline" data-math="G=(V, E)">G=(V, E)</span> 来表示输入图像。每个顶点 <span class="math-inline" data-math="v_i \in V">v_i \in V</span> 代表一个像素，每条边 <span class="math-inline" data-math="e = (v_i, v_j) \in E">e = (v_i, v_j) \in E</span> 连接两个顶点 <span class="math-inline" data-math="v_i">v_i</span> 和 <span class="math-inline" data-math="v_j">v_j</span>，其权重 <span class="math-inline" data-math="w(v_i, v_j)">w(v_i, v_j)</span> 衡量了 <span class="math-inline" data-math="v_i">v_i</span> 和 <span class="math-inline" data-math="v_j">v_j</span> 之间的差异程度。这种差异可以用颜色、位置、强度等多个维度来量化。权重越高，两个像素越不相似。一个分割方案 <span class="math-inline" data-math="S">S</span> 是将 <span class="math-inline" data-math="V">V</span> 划分成若干连通分量 <span class="math-inline" data-math="\{C\}">\{C\}</span>。直观上，相似像素应该属于同一个分量，不相似的则属于不同分量。</p>
+      
+    
+      
+        <h2>图的构建</h2>
+        
+      
+    
+      
+        <p>有两种方法可以将图像构造成图。</p>
+      
+    
+      
+        <div class="list-content">网格图：每个像素只与其周围邻居相连（共 8 个）。边的权重为像素强度值的绝对差。
+最近邻图：将每个像素看作特征空间 (x, y, r, g, b) 中的一个点，其中 (x, y) 是像素位置，(r, g, b) 是 RGB 颜色值。权重为两个像素特征向量之间的欧氏距离。</div>
+      
+    
+      
+        <h2>关键概念</h2>
+        
+      
+    
+      
+        <p>在给出好的图划分（即图像分割）的判断标准之前，我们先定义几个核心概念：</p>
+      
+    
+      
+        <div class="list-content">内部差异：<span class="math-inline" data-math="Int(C) = \max_{e\in MST(C, E)} w(e)">Int(C) = \max_{e\in MST(C, E)} w(e)</span>，其中 <span class="math-inline" data-math="MST">MST</span> 是该分量的最小生成树。即使移除所有权重小于 <span class="math-inline" data-math="Int(C)">Int(C)</span> 的边，分量 <span class="math-inline" data-math="C">C</span> 依然保持连通。
+分量间差异：<span class="math-inline" data-math="Dif(C_1, C_2) = \min_{v_i \in C_1, v_j \in C_2, (v_i, v_j) \in E} w(v_i, v_j)">Dif(C_1, C_2) = \min_{v_i \in C_1, v_j \in C_2, (v_i, v_j) \in E} w(v_i, v_j)</span>。若两分量之间不存在边，则 <span class="math-inline" data-math="Dif(C_1, C_2) = \infty">Dif(C_1, C_2) = \infty</span>。
+最小内部差异：<span class="math-inline" data-math="MInt(C_1, C_2) = min(Int(C_1) + \tau(C_1), Int(C_2) + \tau(C_2))">MInt(C_1, C_2) = min(Int(C_1) + \tau(C_1), Int(C_2) + \tau(C_2))</span>，其中 <span class="math-inline" data-math="\tau(C) = k / \vert C \vert">\tau(C) = k / \vert C \vert</span> 用于确保分量间差异有一个有意义的阈值。<span class="math-inline" data-math="k">k</span> 越大，最终得到的分量往往也越大。</div>
+      
+    
+      
+        <p>分割质量通过对任意两个区域 <span class="math-inline" data-math="C_1">C_1</span> 和 <span class="math-inline" data-math="C_2">C_2</span> 定义的成对区域比较谓词来评估：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+D(C_1, C_2) = 
+\begin{cases}
+  \text{True} &amp; \text{ if } Dif(C_1, C_2) &gt; MInt(C_1, C_2) \\
+  \text{False} &amp; \text{ otherwise}
+\end{cases}
+">
+D(C_1, C_2) = 
+\begin{cases}
+  \text{True} &amp; \text{ if } Dif(C_1, C_2) &gt; MInt(C_1, C_2) \\
+  \text{False} &amp; \text{ otherwise}
+\end{cases}
+</span></div>
+      
+    
+      
+        <p>只有当该谓词为 True 时，我们才认为它们是两个独立的分量；否则说明分割过细，应该将它们合并。</p>
+      
+    
+      
+        <h2>图像分割的工作流程</h2>
+        
+      
+    
+      
+        <p>该算法采用自底向上的过程。给定 <span class="math-inline" data-math="G=(V, E)">G=(V, E)</span> 和 <span class="math-inline" data-math="|V|=n, |E|=m">|V|=n, |E|=m</span>：</p>
+      
+    
+      
+        <div class="list-content">将所有边按权重升序排序，记为 <span class="math-inline" data-math="e_1, e_2, \dots, e_m">e_1, e_2, \dots, e_m</span>。
+初始时每个像素自成一个分量，因此共有 <span class="math-inline" data-math="n">n</span> 个分量。
+对 <span class="math-inline" data-math="k=1, \dots, m">k=1, \dots, m</span> 重复以下步骤：
+
+第 <span class="math-inline" data-math="k">k</span> 步的分割快照记为 <span class="math-inline" data-math="S^k">S^k</span>。
+取出排序后的第 k 条边 <span class="math-inline" data-math="e_k = (v_i, v_j)">e_k = (v_i, v_j)</span>。
+若 <span class="math-inline" data-math="v_i">v_i</span> 和 <span class="math-inline" data-math="v_j">v_j</span> 属于同一个分量，则不做操作，因此 <span class="math-inline" data-math="S^k = S^{k-1}">S^k = S^{k-1}</span>。
+若 <span class="math-inline" data-math="v_i">v_i</span> 和 <span class="math-inline" data-math="v_j">v_j</span> 分属分割 <span class="math-inline" data-math="S^{k-1}">S^{k-1}</span> 中的两个不同分量 <span class="math-inline" data-math="C_i^{k-1}">C_i^{k-1}</span> 和 <span class="math-inline" data-math="C_j^{k-1}">C_j^{k-1}</span>，则判断 <span class="math-inline" data-math="w(v_i, v_j) \leq MInt(C_i^{k-1}, C_j^{k-1})">w(v_i, v_j) \leq MInt(C_i^{k-1}, C_j^{k-1})</span> 是否成立：若成立则合并，否则不做操作。</div>
+      
+    
+      
+        <p>如果你对分割性质的证明以及为什么这样的分割一定存在感兴趣，可参考<a href="http://fcv2011.ulsan.ac.kr/files/announcement/413/IJCV(2004)%20Efficient%20Graph-Based%20Image%20Segmentation.pdf" target="_blank" rel="noopener">原论文</a>。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-10-29-object-recognition-part-1/image-segmentation-indoor.png" alt="">
+          <figcaption>An indoor scene with segmentation detected by the grid graph construction in Felzenszwalb&#x27;s graph-based segmentation algorithm (k=300).</figcaption>
+        </figure>
+      
+    
+      
+        <h2>示例：2013 年的 Manu</h2>
+        
+      
+    
+      
+        <p>这次我们使用 2013 年已经秃顶明显的 Manu Ginobili 的照片[[图片]({{ ‘/assets/data/manu-2013.jpg’ | relative_url }})]作为示例。为了简化，依然使用灰度图。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-10-29-object-recognition-part-1/manu-2013.png" alt="">
+          <figcaption>Manu Ginobili in 2013 with bald spot. (Image source:Manu Ginobili&#x27;s bald spot through the years)</figcaption>
+        </figure>
+      
+    
+      
+        <p>我们不从零开始编码，而是直接使用 <a href="http://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.felzenszwalb" target="_blank" rel="noopener">skimage.segmentation.felzenszwalb</a> 对图像进行处理。</p>
+      
+    
+      
+        <pre><code>import skimage.segmentation
+from matplotlib import pyplot as plt
+
+img2 = scipy.misc.imread(&quot;manu-2013.jpg&quot;, mode=&quot;L&quot;)
+segment_mask1 = skimage.segmentation.felzenszwalb(img2, scale=100)
+segment_mask2 = skimage.segmentation.felzenszwalb(img2, scale=1000)
+
+fig = plt.figure(figsize=(12, 5))
+ax1 = fig.add_subplot(121)
+ax2 = fig.add_subplot(122)
+ax1.imshow(segment_mask1); ax1.set_xlabel(&quot;k=100&quot;)
+ax2.imshow(segment_mask2); ax2.set_xlabel(&quot;k=1000&quot;)
+fig.suptitle(&quot;Felsenszwalb&#x27;s efficient graph based image segmentation&quot;)
+plt.tight_layout()
+plt.show()
+</code></pre>
+      
+    
+      
+        <p>代码运行了两种不同参数的 Felzenszwalb 算法。左图 k=100 产生了更精细的分割，区域较小，其中 Manu 的秃顶被清晰识别出来；右图 k=1000 产生较粗糙的分割，区域整体更大。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-10-29-object-recognition-part-1/manu-2013-segmentation.png" alt="">
+          <figcaption>Felsenszwalb&#x27;s efficient graph-based image segmentation is applied on the photo of Manu in 2013.</figcaption>
+        </figure>
+      
+    
+      
+        <h2>Selective Search</h2>
+        
+      
+    
+      
+        <p>Selective Search 是一种常用的区域提议算法，用于生成可能包含目标物体的候选区域。它建立在图像分割结果之上，并利用基于区域的特征（注意：不仅仅是单个像素的属性）进行自底向上的层次化合并。</p>
+      
+    
+      
+        <h2>Selective Search 的工作原理</h2>
+        
+      
+    
+      
+        <div class="list-content">初始化阶段，先采用 Felzenszwalb 和 Huttenlocher 的基于图的图像分割算法生成初始区域。
+使用贪心算法迭代地合并区域：
+
+首先计算所有相邻区域之间的相似度。
+将最相似的两个区域合并，然后重新计算新区域与其邻居的相似度。
+
+重复上述合并最相似区域的过程（第 2 步），直到整张图像合并为一个区域为止。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-10-29-object-recognition-part-1/selective-search-algorithm.png" alt="">
+          <figcaption>The detailed algorithm of Selective Search.</figcaption>
+        </figure>
+      
+    
+      
+        <h2>配置变体</h2>
+        
+      
+    
+      
+        <p>对于两个区域 <span class="math-inline" data-math="(r_i, r_j)">(r_i, r_j)</span>，Selective Search 提出了四种互补的相似度度量：</p>
+      
+    
+      
+        <div class="list-content">颜色相似度
+纹理：使用对材质识别效果良好的算法，例如 <a href="http://www.cs.ubc.ca/~lowe/papers/iccv99.pdf" target="_blank" rel="noopener">SIFT</a>。
+尺寸：鼓励小区域尽早合并。
+形状：理想情况下一个区域能填补另一个区域的空白。</div>
+      
+    
+      
+        <p>通过 (i) 调整 Felzenszwalb 和 Huttenlocher 算法中的阈值 <span class="math-inline" data-math="k">k</span>，(ii) 改变颜色空间，以及 (iii) 选择不同的相似度度量组合，我们可以生成多种多样的 Selective Search 策略。其中产生最佳区域提议的版本通常采用 (i) 混合多种初始分割结果，(ii) 融合多种颜色空间，以及 (iii) 综合所有相似度度量。当然，我们需要在质量（模型复杂度）与速度之间做出权衡。</p>
+      
+    
+      
+        <p>引用格式：</p>
+      
+    
+      
+        <pre><code>@article{weng2017detection1,
+  title   = &quot;Object Detection for Dummies Part 1: Gradient Vector, HOG, and SS&quot;,
+  author  = &quot;Weng, Lilian&quot;,
+  journal = &quot;lilianweng.github.io&quot;,
+  year    = &quot;2017&quot;,
+  url     = &quot;https://lilianweng.github.io/posts/2017-10-29-object-recognition-part-1/&quot;
+}
+</code></pre>
+      
+    
+      
+        <h2>参考文献</h2>
+        
+      
+    
+      
+        <p>[1] Dalal, Navneet, and Bill Triggs. <a href="https://hal.inria.fr/file/index/docid/548512/filename/hog_cvpr2005.pdf" target="_blank" rel="noopener">“Histograms of oriented gradients for human detection.”</a> Computer Vision and Pattern Recognition (CVPR), 2005.</p>
+      
+    
+      
+        <p>[2] Pedro F. Felzenszwalb, and Daniel P. Huttenlocher. <a href="http://cvcl.mit.edu/SUNSeminar/Felzenszwalb_IJCV04.pdf" target="_blank" rel="noopener">“Efficient graph-based image segmentation.”</a> Intl. journal of computer vision 59.2 (2004): 167-181.</p>
+      
+    
+      
+        <p>[3] <a href="https://www.learnopencv.com/histogram-of-oriented-gradients/" target="_blank" rel="noopener">Histogram of Oriented Gradients by Satya Mallick</a></p>
+      
+    
+      
+        <p>[4] <a href="http://mccormickml.com/2013/05/07/gradient-vectors/" target="_blank" rel="noopener">Gradient Vectors by Chris McCormick</a></p>
+      
+    
+      
+        <p>[5] <a href="http://mccormickml.com/2013/05/09/hog-person-detector-tutorial/" target="_blank" rel="noopener">HOG Person Detector Tutorial by Chris McCormick</a></p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

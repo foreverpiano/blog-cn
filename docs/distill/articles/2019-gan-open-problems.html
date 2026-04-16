@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>关于生成对抗网络的开放问题 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>关于生成对抗网络的开放问题</h1>
+    <div class="meta">
+      2019-04-09 · 
+      <a href="https://distill.pub/2019/gan-open-problems" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>从某些指标来看，生成对抗网络（GANs）的研究在过去两年中取得了实质性进展。
+    图像合成模型的实际改进几乎快到让人跟不上[<cite>[ACGAN,SAGAN,SPECTRALNORM,BIGGAN,STYLEGAN]</cite>]：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-gan-open-problems/gan-progress.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>然而，从其他指标来看，进展却没有那么多。例如，对于如何评估GANs仍存在广泛分歧。
+    鉴于当前的图像合成基准似乎在某种程度上已经饱和，我们认为现在是反思该子领域研究目标的好时机。</p>
+      
+    
+      
+        <p>开放问题清单曾经帮助过其他领域[<cite>[BAEZ,NOTFAMOUS,HILBERT,SMALE]</cite>]。
+    本文提出了一些我们希望其他研究者能去研究的开放研究问题。
+    <sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>
+    我们假设读者具备一定背景知识（或愿意查阅资料），
+    因为我们引用的结果太多，无法详细解释所有这些结果。</p>
+      
+    
+      
+        <h2>GANs与其他生成模型之间的权衡是什么？</h2>
+        
+      
+    
+      
+        <p>除了GANs，目前流行的另外两类生成模型是Flow Models和Autoregressive Models
+    <sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>。
+    粗略来说，Flow Models[<cite>[NICE,REALNVP,GLOW,NFTUTORIAL]</cite>]对来自先验的样本应用一组可逆变换，
+    从而可以计算观测值的精确对数似然。
+    另一方面，Autoregressive Models[<cite>[PIXELRNN,PIXELCNN,PIXELCNNPP,WAVENET]</cite>]将观测值的分布分解为条件分布，
+    并一次处理观测值的一个分量（对于图像，它们可能一次处理一个像素）。
+    最近的研究[<cite>[GLOW,PROGRESSIVEGAN]</cite>]表明，这些模型具有不同的性能特征和权衡。
+    我们认为，准确刻画这些权衡，并判断它们是否是模型族固有的，是一个有趣的开放问题。</p>
+      
+    
+      
+        <p>为具体起见，我们暂时聚焦于GANs和Flow Models在计算成本上的差异。
+    乍一看，Flow Models似乎可能让GANs变得多余。
+    Flow Models允许精确的对数似然计算和精确推断，
+    因此如果训练Flow Models和GANs的计算成本相同，GANs可能就没用了。
+    人们在训练GANs上投入了大量精力，
+    因此我们似乎应该关心Flow Models是否会让GANs过时
+    <sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>。</p>
+      
+    
+      
+        <p>然而，训练GANs和Flow Models的计算成本之间似乎存在巨大差距。
+    为了估计这一差距的大小，我们可以考虑两个在人脸数据集上训练的模型。
+    GLOW模型[<cite>[GLOW]</cite>]使用40个GPU训练两周、约2亿参数，来生成256x256的名人脸部图像。
+    相比之下，progressive GANs[<cite>[PROGRESSIVEGAN]</cite>]在类似的人脸数据集上使用8个GPU训练4天、约4600万参数，
+    来生成1024x1024的图像。
+    粗略来说，Flow Model花费了17倍的GPU天数和4倍的参数，
+    却只生成像素数少16倍的图像。
+    这个比较并不完美，
+    <sup id="fnref-f4n"><a href="#f4n">[4]</a></sup>
+    但它能让你对情况有所了解。</p>
+      
+    
+      
+        <p>为什么Flow Models的效率较低？
+    我们看到两个可能的原因：
+    首先，最大似然训练可能在计算上比对抗训练更困难。
+    特别是，如果你的训练集中任何元素被生成模型赋予零概率，
+    你将受到无限严厉的惩罚！
+    而GAN的生成器只有在间接为训练集元素赋予零概率时才受到惩罚，
+    而且这种惩罚不那么严厉。
+
+    其次，归一化流可能是表示某些函数的一种低效方式。
+    [<cite>[NORMALIZINGFLOWS]</cite>]的6.1节做了一些关于表达性的小实验，但目前我们还没有看到对这个问题的深入分析。</p>
+      
+    
+      
+        <p>我们讨论了GANs与Flow Models之间的权衡，但Autoregressive Models呢？
+    事实证明，Autoregressive Models可以表示为Flow Models
+    （因为它们都是可逆的[<cite>[NFTUTORIAL]</cite>]），但不可并行化。
+    <sup id="fnref-f5n"><a href="#f5n">[5]</a></sup>
+    此外，Autoregressive Models在时间和参数效率上都优于Flow Models。
+    因此，GANs是并行且高效的，但不可逆；
+    Flow Models是可逆且并行的，但不高效；
+    而Autoregressive Models是可逆且高效的，但不可并行。</p>
+      
+    
+      
+        <div class="table-container"><table id="table-1-tradeoffs">
+<thead>
+<tr> <th></th> <th scope="col">Parallel</th> <th scope="col">Efficient</th> <th scope="col">Reversible</th> </tr>
+</thead>
+<tbody>
+<tr> <th scope="row">GANs</th> <td>Yes</td> <td>Yes</td> <td class="no">No</td> </tr>
+<tr> <th scope="row">Flow Models</th> <td>Yes</td> <td class="no">No</td> <td>Yes</td> </tr>
+<tr> <th scope="row">Autoregressive Models</th> <td class="no">No</td> <td>Yes</td> <td>Yes</td> </tr>
+</tbody>
+</table></div>
+      
+    
+      
+        <p>这引出了我们的第一个开放问题：</p>
+      
+    
+      
+        <p>问题 1</p>
+      
+    
+      
+        <p>GANs与其他生成模型之间的根本权衡是什么？</p>
+      
+    
+      
+        <p>特别是，我们能否做出某种类似CAP定理[<cite>[CAPTHEOREM]</cite>]的陈述，关于可逆性、并行性和参数/时间效率？</p>
+      
+    
+      
+        <p>解决这个问题的一种方法是研究更多属于多个模型族混合的模型。
+    这在混合GAN/Flow模型中已经被考虑过[<cite>[FLOWGAN,FLOWGAN2]</cite>]，但我们认为这种方法仍未得到充分探索。</p>
+      
+    
+      
+        <p>我们也不确定最大似然训练是否一定比GAN训练更难。
+    确实，在GAN训练损失下，并没有明确禁止对训练数据点赋予零质量，
+    但如果生成器这样做，一个足够强大的判别器将能够以优于随机猜测的表现进行区分。
+    不过，实践中GANs似乎确实在学习低支撑的分布[<cite>[CONDITIONING]</cite>]。</p>
+      
+    
+      
+        <p>最终，我们怀疑Flow Models在每个参数上的表达能力从根本上低于任意解码器函数，
+    并且我们怀疑在某些假设下这是可以证明的。</p>
+      
+    
+      
+        <h2>GANs能够建模哪些类型的分布？</h2>
+        
+      
+    
+      
+        <p>大多数GAN研究都聚焦于图像合成。
+      特别是，人们在少数几个（深度学习社区中）标准的图像数据集上训练GANs：
+      MNIST[<cite>[MNIST]</cite>]、
+      CIFAR-10[<cite>[CIFAR]</cite>]、
+      STL-10[<cite>[STL]</cite>]、
+      CelebA[<cite>[CELEBA]</cite>]，
+      和ImageNet[<cite>[IMAGENET]</cite>]。
+
+      关于这些数据集中哪些“最容易”建模，存在一些经验说法。
+      特别是，MNIST和CelebA被认为比ImageNet、CIFAR-10或STL-10更容易，因为它们“极其规则”[<cite>[COLINTWEET]</cite>]。
+      其他人指出，“类别数量多是导致ImageNet合成对GANs困难的主要原因”[<cite>[ACGAN]</cite>]。
+      这些观察得到了经验事实的支持：在CelebA上的最先进图像合成模型[<cite>[STYLEGAN]</cite>]生成的图像
+      看起来明显比ImageNet上的最先进图像合成模型[<cite>[BIGGAN]</cite>]更有说服力。</p>
+      
+    
+      
+        <p>然而，我们不得不通过在越来越大、越来越复杂的数据集上训练GANs这一费力且充满噪声的过程
+    来得出这些结论。
+    特别是，我们主要研究了GANs在那些恰好为目标识别而准备的数据集上的表现。</p>
+      
+    
+      
+        <p>与任何科学一样，我们希望有一个简单的理论来解释我们的实验观察。
+    理想情况下，我们可以查看一个数据集，执行一些计算而无需实际训练生成模型，
+    然后说出类似“这个数据集对GAN来说容易建模，但对VAE来说不容易”这样的话。
+    这个话题已经取得了一些进展[<cite>[GANSEQUAL,DISCONNECTED]</cite>]，
+    但我们觉得还可以做得更多。
+    我们现在可以陈述这个问题：</p>
+      
+    
+      
+        <p>问题 2</p>
+      
+    
+      
+        <p>给定一个分布，我们能说出GAN建模该分布有多困难吗？</p>
+      
+    
+      
+        <p>我们也可以问以下相关问题：
+    我们所说的“建模分布”是什么意思？我们是否满足于低支撑表示，还是想要一个真正的密度模型？
+    是否存在GAN永远无法学会建模的分布？
+    是否存在原则上GAN可以学习，但对于某种合理资源消耗模型来说无法高效学习的分布？
+    这些问题的答案对于GANs和其他生成模型来说是否真的不同？</p>
+      
+    
+      
+        <p>我们提出两种回答这些问题的策略：</p>
+      
+    
+      
+        <div class="list-content">合成数据集——我们可以研究合成数据集来探究哪些特征会影响可学习性。
+    例如，在[<cite>[GANSEQUAL]</cite>]中，作者创建了一个合成三角形的数据集。
+    我们觉得这个角度尚未得到充分探索。
+    合成数据集甚至可以由感兴趣的量来参数化，例如连通性或平滑度，
+    从而允许系统性研究。
+    这样的数据集对于研究其他类型的生成模型也可能有用。
+    
+
+修改现有理论结果——我们可以拿现有的理论结果，
+    并尝试修改其中的假设以考虑数据集的不同属性。
+    例如，我们可以拿那些在单峰数据分布下对GANs成立的结果，
+    看看当数据分布变成多峰时会发生什么。</div>
+      
+    
+      
+        <h2>我们如何将GANs扩展到图像合成之外？</h2>
+        
+      
+    
+      
+        <p>除了图像到图像转换[<cite>[CYCLEGAN]</cite>]
+    和域适应[<cite>[DOMAINADAPTATION]</cite>]等应用外，
+    GANs的大多数成功都集中在图像合成上。
+    将GANs用于图像之外的尝试主要集中在三个领域：</p>
+      
+    
+      
+        <div class="list-content">文本——
+    文本的离散性质使得应用GANs很困难。
+    这是因为GANs依赖于将信号从判别器通过生成的内容反向传播到生成器。
+    有两种方法来解决这个困难。
+    第一种是让GAN只作用于离散数据的连续表示，如[<cite>[WGANGP]</cite>]中所示。
+    第二种是使用真正的离散模型，并尝试使用梯度估计来训练GAN，如[<cite>[SEQGAN]</cite>]中所示。
+    其他更复杂的方法也存在[<cite>[MASKGAN]</cite>]，
+    但据我们所知，它们都没有产生（在困惑度方面）与基于似然[<cite>[LSTM]</cite>]的语言模型竞争的结果。
+  
+结构化数据——
+    其他非欧几里得结构化数据（如图）呢？
+    对这类数据的研究被称为几何深度学习[<cite>[GEOMETRICDEEPLEARNING]</cite>]。
+    GANs在这方面取得的成功有限，其他深度学习技术也同样如此，
+    因此很难判断GAN这一方面有多重要。
+
+    我们知道在这方面有一个使用GANs的尝试[<cite>[NETGAN]</cite>]，
+    它让生成器生成（判别器“评价”）随机游走，
+    这些游走旨在类似于从源图中采样的那些。
+  
+音频——
+    音频是GANs最接近取得它们在图像上所享有成功程度的领域。
+    将GANs应用于无监督音频合成的第一个严肃尝试是[<cite>[AUDIOGAN]</cite>]，
+    其中作者对他们在音频上操作这一事实做了各种特殊处理。
+    最近的工作表明，GANs甚至可以在某些感知指标上超越自回归模型[<cite>[NOTANON]</cite>]。</div>
+      
+    
+      
+        <p>尽管有这些尝试，图像显然仍是GANs最容易处理的领域。
+    这引出了我们的问题陈述：</p>
+      
+    
+      
+        <p>问题 3</p>
+      
+    
+      
+        <p>如何让GANs在非图像数据上表现良好？</p>
+      
+    
+      
+        <p>将GANs扩展到其他领域是否需要新的训练技术，
+        还是只需要为每个领域提供更好的隐式先验？</p>
+      
+    
+      
+        <p>我们期望GANs最终能在其他连续数据上取得图像合成水平的成功，
+        但这将需要更好的隐式先验。
+        找到这些先验需要深入思考在给定领域中什么是有意义的且计算上可行的。</p>
+      
+    
+      
+        <p>对于结构化数据或非连续数据，我们就不那么确定了。
+        一种方法可能是让生成器和判别器都成为用强化学习训练的智能体。
+        让这种方法奏效可能需要大规模计算资源[<cite>[DOTA]</cite>]。
+        最后，这个问题可能只是需要基础研究进展。</p>
+      
+    
+      
+        <h2>关于GAN训练的全局收敛性，我们能说些什么？</h2>
+        
+      
+    
+      
+        <p>训练GANs与训练其他神经网络不同，因为我们同时优化生成器和判别器以实现对立的目标。
+    在某些假设下
+    <sup id="fnref-f6n"><a href="#f6n">[6]</a></sup>，
+    这种同时优化是局部渐近稳定的[<cite>[LOCALLYSTABLE,WHICHMETHODSCONVERGE]</cite>]。</p>
+      
+    
+      
+        <p>不幸的是，很难对完全一般的情况证明有趣的事情。
+    这是因为判别器/生成器的损失是其参数的非凸函数。
+    但所有神经网络都有这个问题！
+    我们希望有某种方法来只关注同时优化所带来的问题。
+    这带来了我们的问题：</p>
+      
+    
+      
+        <p>问题 4</p>
+      
+    
+      
+        <p>什么时候我们能证明GANs是全局收敛的？</p>
+      
+    
+      
+        <p>哪些神经网络收敛结果可以应用于GANs？</p>
+      
+    
+      
+        <p>这个问题已经取得了实质性进展。
+    总的来说，存在3种现有技术，都产生了有希望的结果，但都没有被研究到彻底：</p>
+      
+    
+      
+        <div class="list-content">简化假设——
+    第一种策略是对生成器和判别器做出简化假设。
+    例如，简化的LGQ GAN[<cite>[LGQGAN]</cite>]——线性生成器、高斯数据和二次判别器——
+    可以被证明是全局收敛的，如果使用特殊技术优化[<cite>[CROSSINGTHECURL,SGA]</cite>]且有一些额外假设。<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup>
+    另一个例子是，[<cite>[APPROXGAN1,APPROXGAN2]</cite>]在不同简化假设下表明，
+    某些类型的GAN执行矩匹配和最大似然估计的混合。
+
+    逐步放宽这些假设以观察会发生什么似乎很有前景。
+    例如，我们可以远离单峰分布[<cite>[LIMITATIONS]</cite>]。
+    这是一个自然的放松方向，因为“模式坍塌”是标准的GAN病态。
+  
+使用来自普通神经网络的技术——
+    第二种策略是将用于分析普通神经网络（它们也是非凸的）的技术
+    应用于回答关于GANs收敛的问题。
+    例如，[<cite>[LOSSSURFACE]</cite>]中论证说，深度神经网络的非凸性不是问题，
+    <sup id="fnref-f8n"><a href="#f8n">[8]</a></sup>
+    因为低质量的损失函数局部最小值
+    随着网络变大而指数级地变得稀有。
+    这个分析能否被“提升到GAN空间”？
+    事实上，将用于分类器的深度神经网络分析拿来，
+    看看它们是否适用于GANs，似乎是一个普遍有用的启发式方法。
+  
+博弈论——
+    最后一种策略是使用博弈论的概念来对GAN训练进行建模[<cite>[GANGS,BEYONDLOCAL,CHEKHOV]</cite>]。
+    这些技术产生了可证明收敛到某种近似Nash均衡的训练过程，
+    但这样做使用了不合理大的资源约束。
+    在这种情况下，“显而易见”的下一步是尝试减少这些资源约束。</div>
+      
+    
+      
+        <h2>我们应该如何评估GANs以及什么时候应该使用它们？</h2>
+        
+      
+    
+      
+        <p>谈到评估GANs时，有很多建议，但很少有共识。
+    建议包括：</p>
+      
+    
+      
+        <div class="list-content">Inception Score和FID——
+    这两个分数[<cite>[IMPROVEDTECHNIQUES,FID]</cite>]
+    都使用预训练的图像分类器，而且都有已知问题[<cite>[INCEPTIONSCOREBAD,FIDBAD]</cite>]。
+    一个常见的批评是，这些分数衡量的是“样本质量”，
+    而没有真正捕捉“样本多样性”。
+  
+MS-SSIM——
+    [<cite>[ACGAN]</cite>]提出使用MS-SSIM[<cite>[MSSSIM]</cite>]来
+    单独评估多样性，但这种技术有一些问题，并且没有真正流行起来。
+  
+AIS——
+    [<cite>[AIS]</cite>]提出在GAN的输出上放置一个高斯观测模型，
+    并使用退火重要性采样[<cite>[AIS2]</cite>]来估计
+    该模型下的对数似然，但[<cite>[FLOWGAN]</cite>]表明
+    以这种方式计算的估计在GAN生成器也是流模型的情况下是不准确的
+    <sup id="fnref-f9n"><a href="#f9n">[9]</a></sup>。
+  
+Geometry Score——
+    [<cite>[GEOMETRYSCORE]</cite>]建议计算生成数据流形的几何属性，
+    并将这些属性与真实数据进行比较。
+  
+Precision and Recall——
+    [<cite>[PRGAN]</cite>]试图衡量GANs的“精确度”和“召回率”。
+  
+Skill Rating——
+    [<cite>[GANFIGHT,DRS]</cite>]表明，经过训练的GAN判别器可以包含有用的信息，
+    据此可以进行评估。</div>
+      
+    
+      
+        <p>这些只是提出的GAN评估方案中的一小部分。
+    尽管Inception Score和FID相对流行，但GAN评估显然不是一个已解决的问题。
+    最终，我们认为关于如何评估GANs的困惑源于关于何时使用GANs的困惑。
+    因此，我们将这两个问题捆绑在一起：</p>
+      
+    
+      
+        <p>问题 5</p>
+      
+    
+      
+        <p>什么时候我们应该使用GANs而不是其他生成模型？</p>
+      
+    
+      
+        <p>在这些情境下我们应该如何评估性能？</p>
+      
+    
+      
+        <p>我们应该用GANs来做什么？
+    如果你想要一个真正的密度模型，GANs可能不是最佳选择。
+    现在有良好的实验证据表明GANs学习的是目标数据集的“低支撑”表示
+    [<cite>[FLOWGAN,FLOWGAN2,CONDITIONING]</cite>]，这意味着测试集中可能有很大一部分
+    GAN（隐式地）赋予了零似然。</p>
+      
+    
+      
+        <p>与其过于担心这一点，<sup id="fnref-f10n"><a href="#f10n">[10]</a></sup>
+
+    我们认为将GAN研究聚焦于那些这种情况没问题甚至有帮助的任务上更有意义。
+    GANs很可能适合于具有感知特性的任务。
+    图形应用如图像合成、图像转换、图像补全和属性操纵
+    都属于这一范畴。</p>
+      
+    
+      
+        <p>我们应该如何在这些感知任务上评估GANs？
+    理想情况下，我们只需使用人类裁判，但这成本很高。
+    一个廉价的代理方法是看分类器是否能区分真实和虚假样本。
+    这被称为分类器双样本测试（C2STs）
+    [<cite>[CLASSIFIERTWOSAMPLE,PARAMETRIC,FIDBAD]</cite>]。
+    C2STs的主要问题是，如果生成器有一个即使很小的、跨样本系统性的缺陷
+    （例如，[<cite>[CHECKERBOARD]</cite>]），这将主导评估结果。</p>
+      
+    
+      
+        <p>理想情况下，我们会有一个不被单一因素主导的整体评估。
+    一种方法可能是构建一个对主导缺陷视而不见的批评者。
+    但一旦我们这样做，其他缺陷可能会主导，需要一个新的批评者，以此类推。
+    如果我们迭代地这样做，我们可以得到一种“批评者的Gram-Schmidt过程”，
+    创建一个最重要的缺陷的有序列表以及忽略它们的批评者。
+    或许这可以通过对批评者激活进行PCA[<cite>[SVCCA]</cite>]并逐步丢弃
+    越来越多的高方差成分来实现。</p>
+      
+    
+      
+        <p>最后，尽管成本高昂，我们仍可以在人身上进行评估。
+    这将允许我们衡量我们真正关心的事情。
+    这种方法可以通过预测人类答案，并在预测不确定时才与真实人类交互来降低成本[<cite>[PREFERENCES]</cite>]。</p>
+      
+    
+      
+        <h2>GAN训练如何随批大小扩展？</h2>
+        
+      
+    
+      
+        <p>大批次有助于扩展图像分类[<cite>[IMAGENET1HOUR,BATCH32,TRAINLONGERGENERALIZEBETTER,DONTDECAY,NOISESCALE]</cite>]——它们也能帮助我们扩展GANs吗？
+    大批次对于有效使用高度并行的硬件加速器可能特别重要[<cite>[NOMOREMOORE,TPU]</cite>]。</p>
+      
+    
+      
+        <p>乍一看，答案似乎应该是肯定的——毕竟，大多数GAN中的判别器只是一个图像分类器。
+    如果训练受梯度噪声限制，更大的批次可以加速训练。
+    然而，GANs有一个分类器没有的单独瓶颈：训练过程可能会发散。
+    因此，我们可以陈述我们的问题：</p>
+      
+    
+      
+        <p>问题 6</p>
+      
+    
+      
+        <p>GAN训练如何随批大小扩展？</p>
+      
+    
+      
+        <p>梯度噪声在GAN训练中扮演多大角色？</p>
+      
+    
+      
+        <p>GAN训练能否被修改以更好地随批大小扩展？</p>
+      
+    
+      
+        <p>有证据表明增加小批次大小可以改善量化结果并减少训练时间[<cite>[BIGGAN]</cite>]。
+      如果这种现象是稳健的，它将表明梯度噪声是一个主导因素。
+      然而，这还没有被系统性地研究，因此我们认为这个问题仍然是开放的。</p>
+      
+    
+      
+        <p>替代训练过程能否更好地利用大批次？
+      最优传输GANs[<cite>[OTGAN]</cite>]理论上比普通GANs具有更好的收敛性质，
+      但需要大的批大小，因为它们试图对齐样本批次和训练数据。
+      因此，它们似乎是扩展到非常大批大小的有希望的候选者。</p>
+      
+    
+      
+        <p>最后，异步SGD[<cite>[LARGEDEAN,ELASTIC,SUYOG,FASGD]</cite>]可能是利用新硬件的一个好替代方案。
+      在这种设置中，限制因素往往是梯度更新是在参数的“过时”副本上计算的。
+      但GANs似乎实际上从在过去参数快照上训练中受益[<cite>[CHEKHOV,AVERAGING]</cite>]，因此我们可以问
+      异步SGD是否与GAN训练以一种特殊的方式相互作用。</p>
+      
+    
+      
+        <h2>GANs与对抗样本之间是什么关系？</h2>
+        
+      
+    
+      
+        <p>众所周知[<cite>[INTRIGUING]</cite>]，图像分类器会受到对抗样本的影响：
+    人类难以察觉的扰动，添加到图像上会导致分类器给出错误输出。
+    现在也已知道，有些分类问题通常可以被高效学习，
+    但要稳健地学习却是指数级困难的[<cite>[CONSTRAINTS,SQM]</cite>]。</p>
+      
+    
+      
+        <p>由于GAN判别器是一个图像分类器，人们可能会担心它会受到对抗样本的影响。
+    尽管关于GANs和对抗样本都有大量文献，
+    但似乎并没有太多关于它们如何相关的工作。
+    <sup id="fnref-f11n"><a href="#f11n">[11]</a></sup>
+    因此，我们可以提出这个问题：</p>
+      
+    
+      
+        <p>问题 7</p>
+      
+    
+      
+        <p>判别器的对抗稳健性如何影响GAN训练？</p>
+      
+    
+      
+        <p>我们如何开始思考这个问题？
+    考虑一个固定的判别器D。
+    如果存在一个生成器样本G(z)被正确分类为假，
+    以及一个小的扰动p，使得G(z)+p被分类为真，
+    那么D就会存在对抗样本。
+    对于GAN来说，担心的是生成器的梯度更新会产生
+    一个新的生成器G′，其中G′(z)=G(z)+p。</p>
+      
+    
+      
+        <p>这种担心现实吗？
+    [<cite>[AEFGM]</cite>]表明对生成模型的故意攻击可以奏效，
+    但我们更担心的是你可以称之为“意外攻击”的东西。
+    有理由相信这些意外攻击不太可能发生。
+    首先，生成器只允许在判别器再次更新之前进行一次梯度更新。
+    相比之下，当前的对抗攻击通常运行数十次迭代[<cite>[MADRY]</cite>]。
+    其次，生成器是根据来自先验的一批样本进行优化的，而且这批样本在每个梯度步骤都不同。
+    最后，优化发生在生成器参数空间而不是像素空间。
+    然而，这些论点中没有一个能决定性地排除生成器创建对抗样本的可能性。
+    我们认为这是一个值得进一步探索的有成果的话题。</p>
+      
+    
+  </div>
+
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <a href="#fnref-f1n">[1]</a> 我们也相信，撰写这篇文章澄清了我们对
+      GANs的思考，我们鼓励其他研究者为他们自己的子领域撰写类似文章。
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <a href="#fnref-f2n">[2]</a> 这句话不应过于字面理解。
+      这些是描述“模型空间”中模糊簇的有用术语，但存在不容易被描述为仅属于其中一个簇的模型。
+      我也完全省略了VAEs[<cite>[VAE]</cite>]；
+      可以说它们在任何记录在案的任务上都不再被认为是 state-of-the-art。
+    </div>
+    
+    <div class="footnote-item" id="f3n">
+      <a href="#fnref-f3n">[3]</a> 即使在这种情况下，在图像到图像转换等情境中
+      可能仍有其他理由使用对抗训练。
+      将对抗训练与最大似然训练相结合也可能仍有意义。
+    </div>
+    
+    <div class="footnote-item" id="f4n">
+      <a href="#fnref-f4n">[4]</a> 例如，渐进式增长技术
+    也可能应用于Flow Models。
+    </div>
+    
+    <div class="footnote-item" id="f5n">
+      <a href="#fnref-f5n">[5]</a> 并行化在这个上下文中有些不精确。
+      我们的意思是，从Flow Models中采样通常必须按顺序进行，一次一个观测值。
+      不过可能有绕过这个限制的方法[<cite>[PARALLELWAVENET]</cite>]。
+    </div>
+    
+    <div class="footnote-item" id="f6n">
+      <a href="#fnref-f6n">[6]</a> 这些假设非常严格。
+      所引论文假设（粗略来说）
+      我们正在寻找的均衡存在，并且
+      我们已经非常接近它。
+    </div>
+    
+    <div class="footnote-item" id="f7n">
+      <a href="#fnref-f7n">[7]</a> 除其他外，假设我们可以先学习高斯的均值，然后学习方差。
+    </div>
+    
+    <div class="footnote-item" id="f8n">
+      <a href="#fnref-f8n">[8]</a> 一个从业者已经有点怀疑的事实。
+    </div>
+    
+    <div class="footnote-item" id="f9n">
+      <a href="#fnref-f9n">[9]</a> 生成器作为流模型允许在这种情况下计算精确的对数似然。
+    </div>
+    
+    <div class="footnote-item" id="f10n">
+      <a href="#fnref-f10n">[10]</a> 尽管试图修复这个问题本身也是一个有效的研究议程。
+    </div>
+    
+    <div class="footnote-item" id="f11n">
+      <a href="#fnref-f11n">[11]</a> 存在使用GANs生成对抗样本的工作，但这并不完全是一回事。
+    </div>
+    
+  </section>
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

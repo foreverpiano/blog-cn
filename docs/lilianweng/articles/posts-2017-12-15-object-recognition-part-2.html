@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>傻瓜式目标检测系列（中）——CNN、DPM 与 Overfeat · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>傻瓜式目标检测系列（中）——CNN、DPM 与 Overfeat</h1>
+    <div class="meta">
+      2017-12-15 · 
+      <a href="https://lilianweng.github.io/posts/2017-12-15-object-recognition-part-2/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">用于图像分类的 CNN
+
+卷积操作
+
+AlexNet (Krizhevsky et al, 2012)
+
+VGG (Simonyan and Zisserman, 2014)
+
+ResNet (He et al., 2015)
+
+
+评价指标：mAP
+
+可变形部件模型（Deformable Parts Model）
+
+Overfeat
+
+参考文献</div>
+      
+    
+      
+        <p>本文（中篇）将介绍几个经典的用于图像分类的卷积神经网络架构（AlexNet、VGG、ResNet），以及用于目标识别的 DPM（Deformable Parts Model）和 Overfeat 模型。</p>
+      
+    
+      
+        <p>“傻瓜式目标检测”系列的  主要介绍了：（1）图像梯度向量的概念以及 HOG 算法如何对图像中所有梯度向量进行汇总；（2）图像分割算法如何检测可能包含物体的区域；（3）Selective Search 算法如何对图像分割的结果进行优化，从而得到更好的区域提议。<a href="posts-2017-10-29-object-recognition-part-1.html">傻瓜式目标检测入门（一）：梯度向量、HOG 与 Selective Search</a></p>
+      
+    
+      
+        <p>在中篇，我们将进一步了解用于图像分类的经典卷积神经网络架构。这些架构为后续深度学习目标检测模型的发展奠定了基础。如果你想了解 R-CNN 及其相关模型，请移步 。<a href="posts-2017-12-31-object-recognition-part-3.html">傻瓜式目标检测系列之三：R-CNN 家族</a></p>
+      
+    
+      
+        <p>系列文章链接：
+[]
+[]
+[]
+[]。<a href="posts-2017-10-29-object-recognition-part-1.html">傻瓜式目标检测入门（一）：梯度向量、HOG 与 Selective Search</a><a href="posts-2017-12-15-object-recognition-part-2.html">傻瓜式目标检测系列（中）——CNN、DPM 与 Overfeat</a><a href="posts-2017-12-31-object-recognition-part-3.html">傻瓜式目标检测系列之三：R-CNN 家族</a><a href="posts-2018-12-27-object-recognition-part-4.html">目标检测（四）：快速检测模型</a></p>
+      
+    
+      
+        <h2>用于图像分类的 CNN#</h2>
+        
+      
+    
+      
+        <p>CNN 是“Convolutional Neural Network”（卷积神经网络）的缩写，在深度学习领域已成为解决计算机视觉问题的首选方案。它在一定程度上  人类视觉皮层工作机制的启发。<a href="posts-2017-06-21-overview.html">深度学习概览（适合好奇的人）</a></p>
+      
+    
+      
+        <h2>卷积操作#</h2>
+        
+      
+    
+      
+        <p>强烈推荐阅读这篇 <a href="https://arxiv.org/pdf/1603.07285.pdf" target="_blank" rel="noopener">卷积算术指南</a>，里面用大量可视化图和例子对卷积进行了清晰且详尽的讲解。本文重点讨论二维卷积，因为我们处理的正是图像数据。</p>
+      
+    
+      
+        <p>简而言之，卷积操作是将一个预先定义好的 <a href="https://en.wikipedia.org/wiki/Kernel_(image_processing)" target="_blank" rel="noopener">核</a>（也称为“滤波器”）在输入特征图（即图像像素矩阵）上滑动，将核与对应局部输入特征值进行乘加运算后得到输出。由于核通常比输入图像小得多，最终会形成一个输出矩阵。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-12-15-object-recognition-part-2/convolution-operation.png" alt="">
+          <figcaption>An illustration of applying a kernel on the input feature map to generate the output. (Image source:River Trail documentation)</figcaption>
+        </figure>
+      
+    
+      
+        <p>图 2 展示了两个实际例子：如何用 3×3 的核对 5×5 的二维数值矩阵进行卷积，得到 3×3 的输出矩阵。通过控制填充（padding）大小和步长（stride），我们可以生成特定尺寸的输出矩阵。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-12-15-object-recognition-part-2/numerical_no_padding_no_strides.gif" alt="">
+          <figcaption>Two examples of 2D convolution operation: (top) no padding and 1x1 strides; (bottom) 1x1 border zeros padding and 2x2 strides. (Image source:deeplearning.net)</figcaption>
+        </figure>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

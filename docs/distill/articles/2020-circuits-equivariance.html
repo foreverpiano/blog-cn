@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>神经网络中的自然等变性 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>神经网络中的自然等变性</h1>
+    <div class="meta">
+      2020-12-08 · 
+      <a href="https://distill.pub/2020/circuits/equivariance" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <figure>
+          <img src="../images/2020-circuits-equivariance/multiple-pages.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>本文是 <a href="2020-circuits.html">线程：电路</a> 的一部分，该系列以实验性格式收集受邀的短文和批判性评论，旨在深入探讨神经网络的内部工作机制。</p>
+      
+    
+      
+        <p>曲线检测器</p>
+      
+    
+      
+        <p>高-低频检测器</p>
+      
+    
+      
+        <p>卷积神经网络在其内部蕴藏着一个充满对称性的隐秘世界。这种对称性是理解神经网络中特征和电路的有力工具。它还表明，有意识地在神经网络设计中加入更多对称性（例如 [<cite>[bergstra2011statistical,cohen2016group,dieleman2016exploiting,cohen2016steerable,thomas2018tensor,winkels20183d]</cite>]）的努力，可能正处于一条前景广阔的道路上。</p>
+      
+    
+      
+        <p>要发现这些对称性，我们需要观察卷积神经网络内部的单个神经元以及连接它们的 <a href="2020-circuits-zoom-in.html">放大观察：电路导论</a>。结果发现，许多神经元其实是同一基础特征经过轻微变换后的版本。这包括同一特征的旋转副本、缩放副本、翻转副本、检测不同颜色的特征，以及更多其他形式。我们有时将这一现象称为“<a href="https://en.wikipedia.org/wiki/Equivariant_map" target="_blank" rel="noopener">equivariance</a>”（等变性），因为这意味着切换这些神经元就等价于对输入进行变换。<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup></p>
+      
+    
+      
+        <p>等变性可以被视为一种“”，即电路中反复出现的抽象模式，类似于系统生物学中的基序 [<cite>[alon2019introduction]</cite>]。它也可以被看作是一种更大尺度的“结构现象”（类似于 <a href="2020-circuits-weight-banding.html">权重带状结构</a> 和 ），因为某一类等变性往往在某些层中广泛存在，而在其他层中则很少出现。<a href="2020-circuits-zoom-in.html">放大观察：电路导论</a><a href="2020-circuits-branch-specialization.html">分支特化</a></p>
+      
+    
+      
+        <p>在本文中，我们将重点关注在 ImageNet [<cite>[deng2009imagenet]</cite>] 上训练的 InceptionV1 [<cite>[szegedy2015going]</cite>] 中的等变性例子，但我们在研究过的所有自然图像模型中都至少观察到了一定程度的等变性。</p>
+      
+    
+      
+        <h2>等变特征</h2>
+        
+      
+    
+      
+        <p>旋转等变性：等变性的一个例子是同一特征的不同旋转版本。这在 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 中尤其常见，例如 <a href="2020-circuits-curve-detectors.html">曲线检测器</a>、<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 和 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a>。</p>
+      
+    
+      
+        <p>要验证这些确实是同一特征的旋转版本，可以取能激活其中一个神经元的样本，对其进行旋转，然后检查其他神经元是否如预期般激活。关于曲线检测器的 <a href="2020-circuits-curve-detectors.html">曲线检测器</a> 通过多项实验验证了它们的等变性，包括旋转能激活某个神经元的刺激并观察其他神经元的反应。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-circuits-equivariance/curve-rotate-small.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>验证曲线检测器这类单元确实是同一特征旋转版本的方法之一，是取能激活其中一个单元的刺激，然后在旋转刺激的过程中观察它们如何激活。</p>
+      
+    
+      
+        <p>了解更多。</p>
+      
+    
+      
+        <p>尺度等变性：旋转版本并非我们看到的唯一变异形式。在不同尺度上看到同一特征也非常常见，尽管缩放后的特征通常出现在不同层中。例如，我们在极大范围的尺度上都能看到 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a>，小的出现在早期层，大的则出现在较晚的层。</p>
+      
+    
+      
+        <p>色调等变性：对于颜色检测特征，我们经常看到检测同一事物但色调不同的变体。例如，<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 单元会在中心检测一种色调，而在其周围检测对立的色调。在 InceptionV1 中，直到第七层甚至第八层都能找到这样的单元。</p>
+      
+    
+      
+        <p>色调-旋转等变性：在早期视觉中，我们经常看到 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a>。这些单元在一侧检测一种色调，在另一侧检测相反的色调。因此，它们同时在色调和旋转上存在变异。这些变异特别有趣，因为色调和旋转之间存在相互作用。将色调循环 180 度会翻转哪种色调在哪一边，因此等价于旋转 180 度。</p>
+      
+    
+      
+        <p>在下图中，我们让方向旋转完整 360 度，但色调仅旋转 180 度。在图表底部，它会循环回到顶部，但会偏移 180 度。</p>
+      
+    
+      
+        <p>反射等变性：当我们进入网络的中层时，旋转变体不再那么突出，但水平翻转的对称对变得非常普遍。</p>
+      
+    
+      
+        <p>其他等变性：最后，我们还看到以其他各种方式变换的特征变体。例如，同一狗头特征的短吻与长吻版本，或同一特征的人类与狗版本。我们甚至看到对相机视角具有等变性的单元（在 Places365 [<cite>[zhou2016places]</cite>] 模型中发现）。这些不一定是经典意义上的等变性形式，但本质上似乎是同一类现象。</p>
+      
+    
+      
+        <h2>等变电路</h2>
+        
+      
+    
+      
+        <p>我们在神经元中观察到的等变行为，其实反映了神经网络权重及其形成的 <a href="2020-circuits-zoom-in.html">放大观察：电路导论</a> 中存在的更深层对称性。</p>
+      
+    
+      
+        <p>我们首先聚焦于由旋转不变特征构成的旋转等变特征。这种“不变→等变”的情况可能是等变电路的最简单形式。接下来，我们将考察“等变→不变”电路，最后讨论更为复杂的“等变→等变”电路。</p>
+      
+    
+      
+        <p>高-低频电路：在下面的例子中，我们看到 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 是由高频因子和低频因子构建的（两个因子都对应于前一层中多个神经元的组合）。每个高-低频检测器对某个方向上的频率跃变做出响应，在一侧检测高频模式，在另一侧检测低频模式。注意相同的权重模式如何旋转，从而产生特征的旋转版本。</p>
+      
+    
+      
+        <p>对比→中心电路：这一相同模式也可以反过来使用，将旋转等变特征重新组合成旋转不变特征（一种“等变→不变”电路）。在下面的例子中，我们看到多个绿色-紫色 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 被组合起来，创建出绿色-紫色和紫色-绿色的 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a>。
+      
+      将此电路中的权重与前一个电路进行比较。它实际上就是前一个权重模式的转置。</p>
+      
+    
+      
+        <p>有时我们会看到其中一个紧接着另一个：等变性先被创造出来，然后立即被部分用于创建不变单元。</p>
+      
+    
+      
+        <p>黑白-彩色电路：在下面的例子中，一个通用彩色因子和一个黑白因子被用来创建黑白与彩色特征。随后，这些 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 被组合起来，创建出在中心检测黑白、周围检测彩色（或反之）的单元。</p>
+      
+    
+      
+        <p>线条→圆形/发散电路：等变特征被组合以创建不变特征的另一个例子，是非常早期的类线条 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 被组合起来，创建出小型圆形单元和发散线条单元。</p>
+      
+    
+      
+        <p>曲线→圆形/渐屈线电路：关于旋转等变性被组合以创建不变单元的更复杂例子，我们可以看看 <a href="2020-circuits-curve-detectors.html">曲线检测器</a> 如何被组合来创建 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 和 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a>。这个电路也是尺度等变性的一个例子。将小曲线检测器变成小圆形检测器的同一模式，也会将大曲线检测器变成大圆形检测器。将中等曲线检测器变成中等渐屈线检测器的同一模式，也会将大曲线变成大渐屈线检测器。</p>
+      
+    
+      
+        <p>人类-动物电路：到目前为止，我们看到的所有电路例子都涉及旋转。而这些人类-动物和动物-人类检测器则是水平翻转等变性的例子：</p>
+      
+    
+      
+        <p>不变狗头电路：相反，这个例子（属于更广泛的 <a href="2020-circuits-zoom-in.html">放大观察：电路导论</a> 的一部分）展示了左右朝向的狗头如何被组合成一个姿态不变的狗头检测器。注意权重是如何翻转的。</p>
+      
+    
+      
+        <h3>“等变→等变”电路</h3>
+        
+      
+    
+      
+        <p>到目前为止我们考察的电路要么是“不变→等变”，要么是“等变→不变”。它们要么输入单元是不变的，要么输出单元是不变的。这种形式的电路相当简单：权重会旋转、翻转或以其他方式变换，但这仅是响应单个特征的变换。当我们观察“等变→等变”电路时，事情会变得稍微复杂一些。输入和输出特征都会发生变换，我们需要考虑两个单元之间的相对关系。</p>
+      
+    
+      
+        <p>色调→色调电路：让我们从连接两组色调等变中心-周围检测器的电路开始。第二层中的每个单元都会被前一层中选择相似色调的单元所兴奋。</p>
+      
+    
+      
+        <p>要理解上述内容，我们需要关注每个输入和输出神经元之间的相对关系——在本例中，即色轮上色调相隔多远。当它们具有相同色调时，关系是兴奋的。当它们色调接近但不同时，关系是抑制的。当它们差异很大时，权重接近零。<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup></p>
+      
+    
+      
+        <p>曲线→曲线电路：现在让我们考虑一个稍复杂的例子，即早期曲线检测器如何连接到晚期曲线检测器。我们将重点关注四个相互旋转 90 度的 <a href="2020-circuits-curve-detectors.html">曲线检测器</a>。<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup></p>
+      
+    
+      
+        <p>如果我们只看权重矩阵，会有些难以理解。但如果我们聚焦于每个曲线检测器如何连接到前一层中相同和相反方向的早期曲线，就更容易看出结构。每个曲线不再由前一层中相同的神经元构建，而是发生了偏移。每个曲线都被相同方向的曲线兴奋，并被相反方向的曲线抑制。同时，权重的空间结构也会旋转。</p>
+      
+    
+      
+        <p>对比→线条电路：作为一个更为复杂的例子，让我们看看 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 如何连接到 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a>。基本思想是，如果线条两侧有不同颜色，线条检测器应该更强烈地激活。相反，如果颜色变化与线条垂直，则应该被抑制。</p>
+      
+    
+      
+        <p>请注意，这相对于旋转是一个“等变→等变”电路，但相对于色调则是一个“等变→不变”电路。</p>
+      
+    
+      
+        <h2>等变架构</h2>
+        
+      
+    
+      
+        <p>等变性在深度学习中有着丰富的历史。许多重要的神经网络架构都以等变性为核心，而且围绕更积极地引入等变性的研究也非常活跃。但焦点通常在于设计等变架构，而不是我们迄今讨论的“自然等变性”。我们应该如何看待“自然”等变性与“设计”等变性之间的关系呢？正如我们将看到的，二者之间似乎存在着相当深刻的联系。</p>
+      
+    
+      
+        <p>历史上，二者之间曾有过一些有趣的相互影响。研究者们经常观察到，神经网络第一层中的许多特征都是同一个基本模板的变换版本。<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup> 这种第一层中自然出现的等变性，有时已经——在其他情况下也很容易——成为设计新架构的灵感来源。</p>
+      
+    
+      
+        <p>例如，如果你在一个视觉任务上训练一个全连接神经网络，第一层会反复学习同一特征的各种变体：位于不同位置、方向和尺度上的 Gabor 滤波器。卷积神经网络改变了这一点。通过将每个特征的平移副本直接嵌入网络架构中，它们通常消除了网络需要学习每个特征的平移副本的必要性。这带来了统计效率的巨大提升，并成为现代深度学习计算机视觉方法的一个基石。但如果我们观察一个训练良好的卷积神经网络的第一层，就会发现同一特征的其他变换版本仍然存在：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-circuits-equivariance/slim_conv1.png" alt="">
+          <figcaption>The weights for the units in the first layer of the TF-Slim [<cite>[silberman2018tf]</cite>]
+           version of InceptionV1 [<cite>[szegedy2015going]</cite>].<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup> Units are sorted by the first principal component of the adjacency matrix between the first and second layers. Note how many features are similar except for rotation, scale, and hue.</figcaption>
+        </figure>
+      
+    
+      
+        <p>受此启发，2011 年一篇副标题为“One Gabor to Rule Them All”的论文 [<cite>[bergstra2011statistical]</cite>] 创建了一个稀疏编码模型，其中只有一个 Gabor 滤波器，但它可以被平移、旋转和缩放。最近几年，许多论文将这种等变性扩展到了神经网络的隐藏层，以及更广泛的变换类型 [<cite>[cohen2016group,dieleman2016exploiting,cohen2016steerable,winkels20183d]</cite>]。正如卷积神经网络强制要求如果两个特征具有相同的相对位置，则它们之间的权重必须相同：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="W_{(x_1,~y_1,~a) ~\to~ (x_2,~y_2,~b)} ~~=~~ W_{(x_1+\Delta x,~y_1 +\Delta y,~a) ~\to~ (x_2+\Delta x,~y_2+\Delta y,~b)}">W_{(x_1,~y_1,~a) ~\to~ (x_2,~y_2,~b)} ~~=~~ W_{(x_1+\Delta x,~y_1 +\Delta y,~a) ~\to~ (x_2+\Delta x,~y_2+\Delta y,~b)}</span></div>
+      
+    
+      
+        <p>……这些更复杂的等变网络则让两个神经元之间的权重在更一般的变换下具有相同相对关系时保持相等：<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup></p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="W_{a~\to~ b} ~~=~~ W_{T(a) \to T(b)}">W_{a~\to~ b} ~~=~~ W_{T(a) \to T(b)}</span></div>
+      
+    
+      
+        <p>这至少近似于我们观察等变电路时看到的卷积网络自然发生的情况！权重具有对称性，使得具有相似关系的神经元拥有相似的权重，就像等变架构会强制它们这样做一样。</p>
+      
+    
+      
+        <p>既然我们已经有了能够模仿观察到的自然结构的神经网络架构，那么自然会想知道这类模型会学习到什么样的特征和电路。它们会学习到与自然形成的相同的等变特征吗？还是会学习到完全不同的东西？为了回答这些问题，我们在一个大致受 InceptionV1 启发的等变模型上用 ImageNet 进行了训练。我们让一半的神经元具有旋转等变性 [<cite>[cohen2016group]</cite>]（共 16 个旋转），另一半则是旋转不变的。由于我们没有花精力进行调优，该模型的测试准确率很低，但仍然学习到了有趣的特征。<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup> 在 mixed3b 层中，我们发现这个等变模型学习到了 InceptionV1 中许多大型旋转等变族特征的对应物，例如 <a href="2020-circuits-curve-detectors.html">曲线检测器</a>、<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a>、<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 和 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a>：</p>
+      
+    
+      
+        <p>等变模型中存在对应特征，可以视为可解释性研究的一个成功预测。作为从事定性研究的研究者，我们总是担心自己可能在自欺欺人。成功预测等变神经网络架构中会形成哪些特征，其实是一个相当非 trivial 的预测，也是我们正确理解事物的良好验证。</p>
+      
+    
+      
+        <p>另一个令人兴奋的可能性是，这种特征和电路分析也许能够反过来为等变性研究提供信息。例如，自然形成的等变性类型，可能有助于指导我们应该在神经网络不同层中设计哪些类型的等变性。</p>
+      
+    
+      
+        <h2>结论</h2>
+        
+      
+    
+      
+        <p>等变性具有显著简化我们对神经网络理解的能力。当我们将神经网络看作以结构化方式相互作用的特征族时，理解小的模板实际上就能转化为理解大量神经元如何交互。无论何时发现等变性，它都是巨大的帮助。</p>
+      
+    
+      
+        <p>我们有时认为理解神经网络就像逆向工程一个普通的计算机程序。在这个类比中，等变性就像在代码中反复出现的同一个内联函数。一旦你意识到自己看到的是同一个函数的多个副本，你就只需要理解它一次。</p>
+      
+    
+      
+        <p>但自然等变性确实存在一些局限性。首先，我们必须找到这些等变族。这实际上需要花费大量工作，仔细浏览大量神经元。此外，它们可能不是完全等变的：某个单元的连接可能略有不同，或者存在一个小例外，因此将其视为等变可能会在我们的理解中留下空白。</p>
+      
+    
+      
+        <p>我们对等变架构的潜力感到兴奋，它能让神经网络的特征和电路更容易被理解。这在早期视觉的背景下似乎特别有前景，因为绝大多数特征似乎都对旋转、色调、尺度或它们的组合具有等变性。</p>
+      
+    
+      
+        <p>与神经科学家相比，我们在研究人工神经网络而非生物神经网络的视觉时，拥有最大——也是讨论最少——的优势之一，就是平移等变性。通过为每个特征只保留一个神经元，而不是成千上万个平移副本，卷积神经网络大大降低了研究人工视觉系统相对于生物视觉系统的复杂性。这已经成为我们能够系统性地理解 InceptionV1 的关键因素。</p>
+      
+    
+      
+        <p>也许在未来，合适的等变架构将能够将理解神经网络早期视觉的复杂性再降低一个数量级。如果是这样，理解早期视觉可能会从“通过努力可能实现”转变为“容易达成”。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-circuits-equivariance/multiple-pages.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>本文是 Circuits 系列的一部分，该系列由一个开放的科学合作组织撰写的一组短文和评论组成，致力于探索神经网络的内部工作机制。</p>
+      
+    
+      
+        <p>曲线检测器</p>
+      
+    
+      
+        <p>高-低频检测器</p>
+      
+    
+  </div>
+
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <a href="#fnref-f1n">[1]</a> 群论中等变性的标准定义是：函数 <span class="math-inline" data-math="f">f</span> 对于所有 <span class="math-inline" data-math="g\in G">g\in G</span> 都满足 <span class="math-inline" data-math="f(g\cdot x) = g\cdot f(x)">f(g\cdot x) = g\cdot f(x)</span>。乍一看，这似乎与神经元的变换版本没有太大关系。在讨论本文介绍的例子之前，让我们先谈谈这个定义如何对应于神经网络中经典的等变性例子：平移和卷积神经网络。在卷积网络中，平移输入图像等价于平移隐藏层中的神经元（忽略池化、步幅等）。形式上，<span class="math-inline" data-math="g\in Z^2">g\in Z^2</span> 和 <span class="math-inline" data-math="f">f</span> 将图像映射到隐藏层激活。然后 <span class="math-inline" data-math="g">g</span> 通过空间平移作用于输入图像 <span class="math-inline" data-math="x">x</span>，并通过空间平移作用于激活值。现在让我们考虑曲线检测器的情况（等变特征部分中的第一个例子），它们有十个旋转副本。在这种情况下，<span class="math-inline" data-math="g\in Z_{10}">g\in Z_{10}</span> 和 <span class="math-inline" data-math="f(x) = (\mathrm{curve}_1(x), …)">f(x) = (\mathrm{curve}_1(x), …)</span> 将图像中的一个位置映射到一个十维向量，描述每个曲线检测器的激活强度。然后 <span class="math-inline" data-math="g">g</span> 通过围绕该位置旋转输入图像 <span class="math-inline" data-math="x">x</span> 来作用于它，而 <span class="math-inline" data-math="g">g</span> 通过重新组织神经元使其方向对应于适当的旋转来作用于隐藏层。这至少近似地满足了最初的等变性定义。这种变换神经元形式的等变性是等变性的一个特例。神经网络可以在没有变换版本神经元的情况下以许多方式实现等变。相反，我们也会看到一些等变性的例子并不严格对应群论中的等变性定义：有些在变换神经元缺失的地方存在“空洞”，而另一些则由一组具有比群更弱结构或不对应于图像上简单作用的变换组成。但这一总体结构仍然成立。
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <a href="#fnref-f2n">[2]</a> 这里用于说明色调等变性的单元被选为具有相对直接的电路。其他单元可能具有更复杂的关系。例如，有些单元对黄色-红色等一定范围的色调做出响应，并具有相应更复杂的权重。
+    </div>
+    
+    <div class="footnote-item" id="f3n">
+      <a href="#fnref-f3n">[3]</a> 同样，这里展示的曲线检测器被选择为使电路尽可能简单且具有教学意义。它们具有干净的权重和均匀的间距，这将使模式更容易被观察。一篇即将发表的文章将详细讨论曲线电路。
+    </div>
+    
+    <div class="footnote-item" id="f4n">
+      <a href="#fnref-f4n">[4]</a> 神经网络第一层的特征比其他层的研究要多得多。这是因为它们更容易研究：你可以直接将权重可视化为像素值，或者更一般地可视化为输入特征。
+    </div>
+    
+    <div class="footnote-item" id="f5n">
+      <a href="#fnref-f5n">[5]</a> 我们展示的是 tf-slim 版本 InceptionV1 的第一层卷积权重，而不是经典版本，因为它的权重更干净。这很可能是因为 slim 版本包含了 batch-norm，从而产生了更干净的梯度。
+    </div>
+    
+    <div class="footnote-item" id="f6n">
+      <a href="#fnref-f6n">[6]</a> 对我们而言，知道这些等变神经网络在神经元之间具有相同相对关系时拥有相同权重就足够了。这条脚注是为那些可能希望更深入地参与强制等变性文献的读者准备的，可以安全跳过。
+        
+        群论是数学的一个分支，它为我们提供了描述对称性和相互作用变换集的工具。为了构建等变神经网络，我们经常借用群论中称为群卷积的思想。正如普通卷积可以描述正确尊重平移等变性的权重，群卷积可以描述尊重复杂相互作用变换集（它所作用的群）的权重。虽然你可以尝试从第一性原理推导出如何绑定权重，但很容易出错。（其中一位作者在 2012 年参与了许多与研究者的讨论，当时人们在白板上讨论旋转和平移特征集应如何交互时经常出错，而没有使用卷积。）群卷积可以接受你描述的任何群，并给出正确的权重绑定。
+        
+        关于群卷积的易懂介绍，我们推荐这篇文章。
+        
+        如果你继续深入，可能会开始看到论文讨论称为群表示的东西，而不是群卷积。这是群论中更高级的主题。其核心思想类似于傅里叶变换。回想一下，傅里叶变换将卷积转化为点wise 乘法（这有时用于加速卷积）。傅里叶变换有一个可以在群上的函数上操作的版本，同样将卷积映射到点wise 乘法。当你对一个群应用傅里叶变换时，得到的系数对应于称为群表示的东西，你可以将其视为类似于普通傅里叶变换中的频率。
+    </div>
+    
+    <div class="footnote-item" id="f7n">
+      <a href="#fnref-f7n">[7]</a> 以下是等变模型学习到的完整特征集。一半被强制为旋转等变的，另一半被强制为旋转不变的。
+    </div>
+    
+  </section>
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

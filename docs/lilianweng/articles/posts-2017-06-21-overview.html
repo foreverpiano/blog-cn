@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>深度学习概览（适合好奇的人） · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>深度学习概览（适合好奇的人）</h1>
+    <div class="meta">
+      2017-06-21 · 
+      <a href="https://lilianweng.github.io/posts/2017-06-21-overview/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">为什么深度学习现在能行得通？
+
+深度学习模型
+
+卷积神经网络
+
+循环神经网络
+
+RNN：序列到序列模型
+
+自编码器
+
+
+强化（深度）学习
+
+生成对抗网络
+
+
+工具包和库
+
+如何学习？
+
+
+实用资源
+
+提及的博客文章
+
+值得一看的有趣博客
+
+提及的论文</div>
+      
+    
+      
+        <p>从今年年初开始，我对深度学习产生了强烈的兴趣，并花了一些时间阅读这个领域。为了记录我学到的知识，同时给有类似兴趣的人提供一些有趣的指引，我写了这篇关于深度学习模型及其应用的概览。</p>
+      
+    
+      
+        <p>（本文最初源于我在 <a href="http://wimlds.org/chapters/about-bay-area/" target="_blank" rel="noopener">WiMLDS x Fintech meetup</a> 上由 Affirm 主办的演讲。）</p>
+      
+    
+      
+        <p>我相信你们很多人已经看过或听说过 2016 年 AlphaGo 与职业围棋选手 <a href="https://en.wikipedia.org/wiki/Lee_Sedol" target="_blank" rel="noopener">Lee Sedol</a> 之间的 <a href="https://youtu.be/vFr3K2DORc8" target="_blank" rel="noopener">对战</a>。李世石拥有九段的最高段位，并获得过多项世界冠军。毫无疑问，他是世界上最优秀的围棋选手之一，但他在这场与 AlphaGo 的系列赛中 <a href="https://www.scientificamerican.com/article/how-the-computer-beat-the-go-master/" target="_blank" rel="noopener">以 1-4 落败</a>。在此之前，围棋被认为是计算机难以掌握的游戏，因为其简单的规则能在棋盘上衍生出指数级数量的变化，远多于国际象棋。这件事无疑让 2016 年成为人工智能大放异彩的一年。由于 AlphaGo，人们对人工智能的进展给予了极大关注。</p>
+      
+    
+      
+        <p>与此同时，许多公司正在投入资源推动人工智能应用的前沿，这些应用确实有可能改变甚至彻底革新我们的生活方式。熟悉的例子包括自动驾驶汽车、聊天机器人、家庭助手设备等等。近些年来我们取得进步的秘诀之一就是深度学习。</p>
+      
+    
+      
+        <h2>为什么深度学习现在能行得通？</h2>
+        
+      
+    
+      
+        <p>简单来说，深度学习模型就是大型且深层的人工神经网络。神经网络（“NN”）可以用 <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph" target="_blank" rel="noopener">有向无环图</a>很好地表示：输入层接收信号向量；一个或多个隐藏层处理前一层的输出。神经网络的最初概念可以追溯到超过 <a href="https://cs.stanford.edu/people/eroberts/courses/soco/projects/neural-networks/History/history1.html" target="_blank" rel="noopener">半个世纪</a>以前。但为什么它现在才行得通？为什么人们突然开始谈论它？</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-06-21-overview/ANN.png" alt="">
+          <figcaption>A three-layer artificial neural network. (Image source:http://cs231n.github.io/convolutional-networks/#conv)</figcaption>
+        </figure>
+      
+    
+      
+        <p>原因出奇地简单：</p>
+      
+    
+      
+        <div class="list-content">我们拥有多得多的数据。
+我们拥有强大得多的计算机。</div>
+      
+    
+      
+        <p>大型且深层的神经网络拥有更多的层 + 每层更多的节点，这会导致需要调优的参数呈指数级增长。如果没有足够的数据，我们就无法高效地学习参数。如果没有强大的计算机，学习过程就会太慢且不够充分。</p>
+      
+    
+      
+        <p>下面这张有趣的图展示了数据规模与模型性能之间的关系，由 Andrew Ng 在他的“<a href="https://youtu.be/F1ka6a13S9I" target="_blank" rel="noopener">Nuts and Bolts of Applying Deep Learning</a>”演讲中提出。在小数据集上，传统算法（回归、随机森林、SVM、GBM 等）或统计学习方法表现优秀，但一旦数据规模急剧上升，大型神经网络就超越了其他方法。部分原因是，与传统机器学习模型相比，神经网络模型拥有更多的参数，能够学习更复杂的非线性模式。因此，我们期望模型能自行找出最有帮助的特征，而无需太多专家参与的手工特征工程。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-06-21-overview/data_size_vs_model_performance.png" alt="">
+          <figcaption>The data scale versus the model performance. (Recreated based on:https://youtu.be/F1ka6a13S9I)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>深度学习模型</h2>
+        
+      
+    
+      
+        <p>接下来，让我们一起看看几个经典的深度学习模型。</p>
+      
+    
+      
+        <h2>卷积神经网络</h2>
+        
+      
+    
+      
+        <p>卷积神经网络，简称“CNN”，是一种前馈式人工神经网络，其神经元之间的连接模式受到视觉皮层系统组织的启发。初级视觉皮层（V1）从视网膜接收原始视觉输入并进行边缘检测。次级视觉皮层（V2），也称为前纹状皮层，从 V1 接收边缘特征并提取简单的视觉属性，如方向、空间频率和颜色。视觉区域 V4 处理更复杂的物体属性。所有处理过的视觉特征最终流入下颞回（IT）这个最终逻辑单元来进行物体识别。V1 和 V4 之间的“捷径”启发了一种特殊的 CNN，即在非相邻层之间建立连接：残差网络（<a href="http://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/He_Deep_Residual_Learning_CVPR_2016_paper.pdf" target="_blank" rel="noopener">He, et al. 2016</a>），其中包含“残差块”，允许某一层的部分输入传递到两层之后的组件。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-06-21-overview/visual_cortex_system.png" alt="">
+          <figcaption>Illustration of the human visual cortex system. (Image source:Wang &amp; Raj 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>卷积是一个数学术语，在这里指两个矩阵之间的运算。卷积层有一个固定大小的小矩阵，也称为核或滤波器。当核在输入图像的矩阵表示上滑动（即卷积）时，它会计算核矩阵中的值与原始图像值之间的逐元素乘法。<a href="http://setosa.io/ev/image-kernels/" target="_blank" rel="noopener">特别设计的核</a>可以快速高效地对图像进行模糊、锐化、边缘检测等常见处理。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-06-21-overview/lenet.png" alt="">
+          <figcaption>The LeNet architecture consists of two sets of convolutional, activation, and pooling layers, followed by a fully-connected layer, activation, another fully-connected layer, and finally a softmax classifier (Image source:http://deeplearning.net/tutorial/lenet.html)</figcaption>
+        </figure>
+      
+    
+      
+        <p><a href="http://ufldl.stanford.edu/tutorial/supervised/FeatureExtractionUsingConvolution/" target="_blank" rel="noopener">卷积</a>层和<a href="http://ufldl.stanford.edu/tutorial/supervised/Pooling/" target="_blank" rel="noopener">池化</a>层（或图 4 中的“子采样”）的作用类似于 V1、V2 和 V4 视觉皮层单元，负责特征提取。物体识别的推理则发生在后续的全连接层中，这些层会使用提取出的特征。</p>
+      
+    
+      
+        <h2>循环神经网络</h2>
+        
+      
+    
+      
+        <p>序列模型通常被设计用来将一个输入序列转换成另一个位于不同领域的输出序列。循环神经网络，简称“RNN”，非常适合这一任务，并在手写识别、语音识别和机器翻译等领域展现出巨大改进（<a href="http://machinelearning.wustl.edu/mlpapers/paper_files/ICML2011Sutskever_524.pdf" target="_blank" rel="noopener">Sutskever et al. 2011</a>，<a href="http://www6.in.tum.de/Main/Publications/Liwicki2007a.pdf" target="_blank" rel="noopener">Liwicki et al. 2007</a>）。</p>
+      
+    
+      
+        <p>循环神经网络天生具备处理长序列数据以及应对时间上分散上下文任务的能力。该模型在每个时间步只处理序列中的一个元素。计算完成后，更新后的单元状态会被传递到下一个时间步，以帮助计算下一个元素。想象一下，一个 RNN 模型逐字符阅读完所有维基百科文章，然后就能根据上下文预测接下来的单词。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-06-21-overview/RNN.png" alt="">
+          <figcaption>A recurrent neural network with one hidden unit (left) and its unrolling version in time (right). The unrolling version illustrates what happens in time: <span class="math-inline" data-math="s\_{t-1}">s\_{t-1}</span>, <span class="math-inline" data-math="s\_{t}">s\_{t}</span>, and <span class="math-inline" data-math="s\_{t+1}">s\_{t+1}</span> are the same unit with different states at different time steps <span class="math-inline" data-math="t-1">t-1</span>, <span class="math-inline" data-math="t">t</span>, and <span class="math-inline" data-math="t+1">t+1</span>. (Image source:LeCun, Bengio, and Hinton, 2015;Fig. 5)</figcaption>
+        </figure>
+      
+    
+      
+        <p>然而，仅线性组合当前输入元素和上一单元状态的简单感知器神经元很容易丢失长期依赖关系。例如，我们在一句话开头写“Alice is working at …”，经过整整一段文字后，我们希望下一句正确地用“She”或“He”开头。如果模型忘记了人物名字“Alice”，我们就无从得知。为了解决这个问题，研究者设计了一种具有更复杂内部结构的特殊神经元，用于记忆长期上下文，被称为<a href="http://web.eecs.utk.edu/~itamar/courses/ECE-692/Bobby_paper1.pdf" target="_blank" rel="noopener">“长短期记忆（LSTM）”</a>单元。它足够聪明，能够学会应该记住旧信息多久、何时遗忘、何时利用新数据，以及如何将旧记忆与新输入结合。这篇<a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/" target="_blank" rel="noopener">介绍文章</a>写得非常出色，我推荐所有对 LSTM 感兴趣的人都去阅读。它甚至已经被正式纳入 <a href="https://www.tensorflow.org/tutorials/recurrent" target="_blank" rel="noopener">Tensorflow 官方文档</a> ;-)</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-06-21-overview/LSTM.png" alt="">
+          <figcaption>The structure of a LSTM cell. (Image source:http://colah.github.io/posts/2015-08-Understanding-LSTMs)</figcaption>
+        </figure>
+      
+    
+      
+        <p>为了展示 RNN 的强大能力，<a href="http://karpathy.github.io/2015/05/21/rnn-effectiveness/" target="_blank" rel="noopener">Andrej Karpathy</a> 使用带有 LSTM 单元的 RNN 构建了一个基于字符的语言模型。在事先不了解任何英语词汇的情况下，模型能够学会字符之间的关系来组成单词，进而学会单词之间的关系来组成句子。即使没有庞大的训练数据，它也能达到相当不错的表现。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-06-21-overview/rnn_shakespeare.png" alt="">
+          <figcaption>A character-based recurrent neural network model writes like a Shakespeare. (Image source:http://karpathy.github.io/2015/05/21/rnn-effectiveness)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>RNN：序列到序列模型</h2>
+        
+      
+    
+      
+        <p><a href="https://arxiv.org/pdf/1406.1078.pdf" target="_blank" rel="noopener">序列到序列模型</a>是 RNN 的扩展版本，但其应用领域足够独特，因此我把它单独列为一节。与 RNN 一样，序列到序列模型处理序列数据，但它特别常用于开发聊天机器人或个人助手，为输入的问题生成有意义的回复。序列到序列模型由两个 RNN 组成：编码器和解码器。编码器从输入的单词中学习上下文信息，然后通过一个“上下文向量”（或称为“思想向量”，如图 8 所示）将知识传递给解码器。最后，解码器使用这个上下文向量生成合适的回复。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-06-21-overview/seq2seq_gmail.png" alt="">
+          <figcaption>A sequence-to-sequence model for generating Gmail auto replies. (Image source:https://research.googleblog.com/2015/11/computer-respond-to-this-email.html)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>自编码器</h2>
+        
+      
+    
+      
+        <p>与前面提到的模型不同，自编码器用于无监督学习。它被设计用来学习高维数据集的低维表示，这与 <a href="https://en.wikipedia.org/wiki/Principal_component_analysis" target="_blank" rel="noopener">主成分分析（PCA）</a> 的作用类似。自编码器模型试图学习一个近似函数 <span class="math-inline" data-math=" f(x) \approx x "> f(x) \approx x </span> 来重现输入数据。然而，它受到中间一个瓶颈层的限制，该层的神经元数量非常少。由于容量有限，模型被迫形成一种非常高效的数据编码，这本质上就是我们学到的低维表示。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-06-21-overview/autoencoder.png" alt="">
+          <figcaption>An autoencoder model has a bottleneck layer with only a few neurons. (Image source: Geoffrey Hinton’s Coursera class&quot;Neural Networks for Machine Learning&quot;-Week 15)</figcaption>
+        </figure>
+      
+    
+      
+        <p><a href="https://pdfs.semanticscholar.org/7d76/b71b700846901ac4ac119403aa737a285e36.pdf" target="_blank" rel="noopener">Hinton 和 Salakhutdinov</a> 使用自编码器来压缩各种主题的文档。如图 10 所示，当 PCA 和自编码器都被用来将文档降维到二维时，自编码器展现出了好得多的效果。借助自编码器，我们可以进行高效的数据压缩，从而加快包括文档和图像在内的信息检索速度。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-06-21-overview/autoencoder_experiment.png" alt="">
+          <figcaption>The outputs of PCA (left) and autoencoder (right) when both try to compress documents into two numbers. (Image source:Hinton &amp; Salakhutdinov 2006)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>强化（深度）学习</h2>
+        
+      
+    
+      
+        <p>既然我的文章以 AlphaGo 开头，那就让我们再深入一点了解 AlphaGo 为什么能成功。<a href="https://en.wikipedia.org/wiki/Reinforcement_learning" target="_blank" rel="noopener">强化学习（“RL”）</a>正是其成功背后的秘诀之一。强化学习是机器学习的一个子领域，它让机器和软件代理能够在给定情境中自动确定最优行为，目标是最大化由特定指标衡量的长期性能。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2017-06-21-overview/alphago_paper.png" alt="">
+          <figcaption>AlphaGo neural network training pipeline and architecture. (Image source:Silver et al. 2016)</figcaption>
+        </figure>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

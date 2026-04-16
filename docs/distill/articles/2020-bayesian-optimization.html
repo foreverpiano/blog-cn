@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>探索贝叶斯优化 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>探索贝叶斯优化</h1>
+    <div class="meta">
+      2020-05-05 · 
+      <a href="https://distill.pub/2020/bayesian-optimization" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>许多现代机器学习算法都有大量的超参数。要有效使用这些算法，我们需要选择合适的超参数值。
+
+      在本文中，我们将讨论贝叶斯优化（Bayesian Optimization），这是一系列常用于调优超参数的技术。更广泛地说，贝叶斯优化可用于优化任何黑盒函数。</p>
+      
+    
+      
+        <p>&lt;p&gt;
+      我们首先研究如何使用贝叶斯优化来最大化（优化）一个黑盒函数。
+    &lt;/p&gt;</p>
+      
+    
+      
+        <p>采矿找金！</p>
+      
+    
+      
+        <p>让我们从金矿开采的例子开始。我们的目标是在一片未知的土地上开采黄金<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>。
+      目前我们假设黄金分布在一条直线上。我们希望仅通过少量钻探（因为钻探成本高昂）就能找到这条线上黄金含量最高的位置。</p>
+      
+    
+      
+        <p>假设黄金分布 <span class="math-inline" data-math="f(x)">f(x)</span> 看起来像下面这个函数。它是双峰的，在 <span class="math-inline" data-math="x = 5">x = 5</span> 附近达到最大值。目前我们不用担心 X 轴或 Y 轴的单位。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/GT.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>最初，我们对黄金分布一无所知。我们可以通过在不同位置钻探来了解黄金分布。然而，钻探成本高昂。因此，我们希望在尽可能少钻探的情况下，快速找到黄金含量最高的位置。</p>
+      
+    
+      
+        <p>现在我们讨论黄金开采问题的两个常见目标。</p>
+      
+    
+      
+        <div class="list-content">问题 1：黄金分布的最佳估计（主动学习）
+          在这个问题中，我们希望准确估计新土地上的黄金分布。由于成本过高，我们无法在每个位置都钻探。相反，我们应该在那些能提供关于黄金分布最多信息的位置钻探。这个问题类似于
+          
+            主动学习（Active Learning）[<cite>[settles2009active,Tong2001]</cite>]
+。
+        
+
+
+
+问题 2：黄金含量最高的位置（贝叶斯优化）
+          在这个问题中，我们希望找到黄金含量最高的位置。我们同样无法在每个位置都钻探。相反，我们应该在那些显示出高含金量前景的位置钻探。这个问题类似于
+          
+            贝叶斯优化（Bayesian Optimization）[<cite>[humanOut,nandoBOtut]</cite>]
+。</div>
+      
+    
+      
+        <p>我们很快就会看到这两个问题既相关但又不完全相同。</p>
+      
+    
+      
+        <h2>主动学习</h2>
+        
+      
+    
+      
+        <p>对于许多机器学习问题，无标签数据很容易获得。然而，标注（或查询）通常代价高昂。例如，在语音转文本任务中，标注需要专家手动标记单词和句子。同样，在我们的黄金开采问题中，钻探（类似于标注）代价昂贵。</p>
+      
+    
+      
+        <p>主动学习旨在最小化标注成本，同时最大化模型准确率。虽然主动学习文献中有多种方法，但我们重点关注不确定性减少。这种方法建议标注模型不确定性最高的数据点。通常，方差被用作不确定性的度量。</p>
+      
+    
+      
+        <p>由于我们只在少数几个点知道函数的真实值，我们需要一个替代模型来估计函数在其他地方的值。这个替代模型应该足够灵活，能够模拟真实函数。使用高斯过程（Gaussian Process，简称 GP）是一种常见选择，既因为它的灵活性，也因为它能提供不确定性估计
+      <sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>。</p>
+      
+    
+      
+        <p>我们的替代模型从先验 <span class="math-inline" data-math="f(x)">f(x)</span> 开始——在黄金的例子中，我们选择一个假设黄金平滑分布的先验
+      <sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>。
+      当我们评估点（钻探）时，会获得更多数据供替代模型学习，并根据贝叶斯法则更新模型。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/prior2posterior.png" alt="">
+          <figcaption>Each new data point updates our surrogate model, moving it closer to the ground truth. The black line and the grey shaded region indicate the mean <span class="math-inline" data-math="(\mu)">(\mu)</span> and uncertainty <span class="math-inline" data-math="(\mu \pm \sigma)">(\mu \pm \sigma)</span> in our gold distribution estimate before and after drilling.</figcaption>
+        </figure>
+      
+    
+      
+        <p>在上面的例子中，我们最初对所有位置的不确定性是均匀的。但在第一次更新后，后验在 <span class="math-inline" data-math="x = 0.5">x = 0.5</span> 附近变得确定，而远离该点的位置则仍不确定。我们可以继续添加更多训练点，从而获得对 <span class="math-inline" data-math="f(x)">f(x)</span> 更确定的估计。</p>
+      
+    
+      
+        <p>然而，我们希望最小化评估次数。因此，我们应该使用主动学习“聪明地”选择下一个查询点。虽然有多种选择聪明点的方法，但我们将选择不确定性最大的那个。</p>
+      
+    
+      
+        <p>这为我们提供了以下主动学习的流程：</p>
+      
+    
+      
+        <p>&lt;h3&gt;替代模型&lt;/h3&gt;
+    &lt;p&gt;
+      主动学习（以及我们后面会看到的贝叶斯优化）使用替代模型来建模未知的真实函数 &lt;d-math&gt;f(x)&lt;/d-math&gt;。理想情况下，替代模型应能紧密拟合真实函数。 
+    &lt;/p&gt;
+
+    &lt;h3&gt;贝叶斯更新&lt;/h3&gt;
+    &lt;p&gt;
+      对 &lt;d-math&gt;f(x)&lt;/d-math&gt; 的每次评估（钻探）都会为替代模型提供更多可学习的数据。我们可以应用贝叶斯法则获得替代模型的后验。在一次评估结束时，该后验将成为下一次评估的先验。
+    &lt;/p&gt;
+
+    &lt;p&gt;
+      高斯过程常被用作替代模型。可以通过特定的核函数和均值函数来设置高斯过程（GP）的先验。此外，GP 还能提供不确定性估计，我们在主动学习和贝叶斯优化中都会利用这一点。
+    &lt;/p&gt;
+
+    &lt;h3&gt;高斯过程&lt;/h3&gt;
+
+    &lt;p&gt;
+      读者可能想参考这篇优秀的 Distill 文章&lt;d-cite key=&quot;görtler2019a&quot;&gt;&lt;/d-cite&gt;关于高斯过程&lt;d-cite key=&quot;Rasmussen2004&quot;&gt;&lt;/d-cite&gt;的介绍。
+      我们使用高斯过程回归来建模黄金分布。
+    &lt;/p&gt;
+
+    &lt;p&gt;
+      让我们可视化真实函数 &lt;d-math&gt;f(x)&lt;/d-math&gt;。黄金分布是双峰的，在 &lt;d-math&gt;x = 5&lt;/d-math&gt; 附近达到最大值。目前我们不用担心 X 轴或 Y 轴的单位。
+    &lt;/p&gt;
+    &lt;figure class=&quot;smaller-img&quot;&gt;
+      &lt;d-figure&gt;&lt;img src=&quot;images/MAB_gifs/GT.svg&quot; /&gt;&lt;/d-figure&gt;
+    &lt;/figure&gt;
+
+
+    &lt;h4 id=&quot;priormodel&quot;&gt;先验模型&lt;/h4&gt;
+
+    &lt;p&gt;
+      我们根据对黑盒函数的初始信念定义一个函数集合上的先验&lt;d-cite key=&quot;Rasmussen2004&quot;&gt;&lt;/d-cite&gt;。我们通过适当设置先验，认为黄金分布是平滑的。&lt;d-footnote&gt;我们使用 Matern 5/2 核，因为它倾向于产生二阶可微函数。相比之下，Matern 3/2 倾向于产生一阶可微函数。
+
+      有关 Matern 核的详细信息，请参阅 &lt;a href=&quot;http://www.gaussianprocess.org/gpml/&quot;&gt;Rasmussen and Williams 2004&lt;/a&gt; 和 &lt;a href=&quot;https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.kernels.Matern.html&quot;&gt;scikit-learn&lt;/a&gt;。
+    &lt;/d-footnote&gt; 黑色实线和灰色阴影区域分别表示钻探前我们对黄金分布估计的均值（&lt;d-math&gt;\mu&lt;/d-math&gt;）和不确定性（&lt;d-math&gt;\mu \pm \sigma &lt;/d-math&gt;）。
+
+    &lt;/p&gt;
+
+    &lt;figure&gt;
+      &lt;d-figure&gt;&lt;img src=&quot;images/MAB_gifs/prior.svg&quot; /&gt;&lt;/d-figure&gt;
+    &lt;/figure&gt;
+
+    &lt;h4 id=&quot;addingtrainingdata&quot;&gt;添加训练数据&lt;/h4&gt;
+
+    &lt;p&gt;
+      现在让我们将点 &lt;d-math&gt;&lt; x = 0.5, \ y = f(0.5) &gt;&lt;/d-math&gt; 添加到训练集中。
+    &lt;/p&gt;
+
+    &lt;figure&gt;
+      &lt;d-figure&gt;&lt;img src=&quot;images/MAB_gifs/posterior.svg&quot; /&gt;&lt;/d-figure&gt;
+    &lt;/figure&gt;
+
+    &lt;p&gt;
+      我们看到替代模型的后验在 &lt;d-math&gt;x = 0.5&lt;/d-math&gt; 附近非常确定，而远离该点的位置则不确定。我们可以类似地添加更多训练点，从而获得对 &lt;d-math&gt;f(x)&lt;/d-math&gt; 更确定的估计。然而，我们希望最小化评估次数。因此，我们应该使用主动学习“聪明地”选择下一个查询点。&lt;!-- &lt;d-footnote&gt;我们可以对数据进行变换，拟合一个关于 &lt;d-math&gt;\log\left(f(x)\right)&lt;/d-math&gt; 而非 &lt;d-math&gt;f(x)&lt;/d-math&gt; 的 GP，以确保预测值非负&lt;/d-footnote&gt;。 --&gt;
+    现在我们来讨论主动学习的核心思想。&lt;/p&gt;
+    &lt;h3 id=&quot;activelearningprocedure&quot;&gt;主动学习流程
+    &lt;/h3&gt;</p>
+      
+    
+      
+        <div class="list-content">选择不确定性最高的点并将其添加到训练集中（通过查询/标注该点）
+在新的训练集上进行训练
+返回第 1 步，直到收敛或预算用尽</div>
+      
+    
+      
+        <p>现在让我们可视化这个过程，看看在每次迭代中（每次钻探后）我们的后验如何变化。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>可视化结果表明，只需几次迭代就能估计出真实分布。此外，最不确定的位置通常是当前评估点最远的位置。在每次迭代中，主动学习都会探索整个空间以改进估计。</p>
+      
+    
+      
+        <h2>贝叶斯优化</h2>
+        
+      
+    
+      
+        <p>在前一节中，我们选择点是为了建立一个准确的黄金含量模型。但如果我们的目标仅仅是找到黄金含量最高的位置呢？当然，我们可以先进行主动学习来准确估计真实函数，然后再找到其最大值。但这似乎相当浪费——为什么要在那些函数预期含金量很低的区域花费评估来改进估计呢，当我们只关心最大值的时候？</p>
+      
+    
+      
+        <p>这正是贝叶斯优化的核心问题：“基于我们目前所知，接下来应该评估哪个点？”请记住，评估每个点的代价都很高，因此我们必须谨慎选择！在主动学习中，我们选择不确定性最大的点，从而探索函数。但在贝叶斯优化中，我们需要在探索不确定区域（这些区域可能意外含有高金含量）与专注于已知含金量较高的区域（一种利用策略）之间取得平衡。</p>
+      
+    
+      
+        <p>我们通过所谓的采集函数（acquisition function）来做出这个决策。采集函数是根据当前模型判断评估某个点有多值得的启发式方法<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup>。本节的大部分内容将介绍不同的采集函数选项。</p>
+      
+    
+      
+        <p>这就引出了贝叶斯优化的工作原理。在每一步中，我们根据采集函数优化它来确定下一个最佳评估点。然后更新我们的模型，并重复这个过程来确定下一个要评估的点。</p>
+      
+    
+      
+        <p>你可能会好奇，如果我们只是在优化这些采集函数，那么贝叶斯优化中的“贝叶斯”体现在哪里呢？实际上，在每一步中，我们都维护一个描述每个点估计值和不确定性的模型，并根据贝叶斯法则在每一步更新它<cite>[settles2009active]</cite>。我们的采集函数正是基于这个模型，如果没有它，一切都无从谈起！</p>
+      
+    
+      
+        <p>&lt;p&gt;
+        在这个问题中，我们的目标是找到黄金含量最高的位置。找到最大值的一种方法是先运行主动学习来准确估计真实函数，然后再找到其最大值。然而，当我们只关心找到最大值时，是否应该浪费评估来改进估计呢？假设我们的黑盒函数是光滑的，那么在替代模型预测值最高的位置或其附近进行评估（即&lt;strong&gt;利用&lt;/strong&gt;）可能是个好主意。然而，由于评估次数有限，我们模型的预测并不准确。可以通过在方差较大的点进行评估来改进模型，即进行&lt;strong&gt;探索&lt;/strong&gt;。贝叶斯优化将&lt;strong&gt;利用&lt;/strong&gt;和&lt;strong&gt;探索&lt;/strong&gt;结合起来，而主动学习则只进行&lt;strong&gt;探索&lt;/strong&gt;。
+      &lt;/p&gt;</p>
+      
+    
+      
+        <h3>形式化贝叶斯优化</h3>
+        
+      
+    
+      
+        <p>现在让我们正式介绍贝叶斯优化。我们的目标是找到对应于函数全局最大值（或最小值）的点（</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="{x \in \mathbb{R}^d}">{x \in \mathbb{R}^d}</span></p>
+      
+    
+      
+        <p>），该函数记为</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="f: \mathbb{R}^d \mapsto \mathbb{R}">f: \mathbb{R}^d \mapsto \mathbb{R}</span></p>
+      
+    
+      
+        <p>。
+        我们将介绍贝叶斯优化的一般约束，并将其与我们黄金开采例子中的约束进行对比</p>
+      
+    
+      
+        <p><sup id="fnref-f5n"><a href="#f5n">[5]</a></sup></p>
+      
+    
+      
+        <div class="table-container"><table>
+<tbody><tr>
+<th><h3>General Constraints</h3></th>
+<th><h3>Constraints in Gold Mining example</h3></th>
+</tr>
+<tr>
+<td><span><span class="math-inline" data-math="f">f</span></span>’s feasible set <span><span class="math-inline" data-math="A">A</span></span> is simple,
+          e.g., box constraints.</td>
+<td>Our domain in the gold mining problem is a single-dimensional box constraint: <span><span class="math-inline" data-math="0 \leq x \leq 6">0 \leq x \leq 6</span></span>.</td>
+</tr>
+<tr>
+<td><span><span class="math-inline" data-math="f">f</span></span> is continuous but lacks special structure,
+          e.g., concavity, that would make it easy to optimize.</td>
+<td>Our true function is neither a convex nor a concave function, resulting in local optimums.</td>
+</tr>
+<tr>
+<td><span><span class="math-inline" data-math="f">f</span></span> is derivative-free:
+          evaluations do not give gradient information.</td>
+<td>Our evaluation (by drilling) of the amount of gold content at a location did not give us any gradient information.</td>
+</tr>
+<tr>
+<td><span><span class="math-inline" data-math="f">f</span></span> is expensive to evaluate:
+          the number of times we can evaluate it
+          is severely limited.</td>
+<td>Drilling is costly.</td>
+</tr>
+<tr>
+<td><span><span class="math-inline" data-math="f">f</span></span> may be noisy. If noise is present, we will assume it is independent and normally distributed, with common but unknown variance.</td>
+<td>We assume noiseless measurements in our modeling (though, it is easy to incorporate normally distributed noise for GP regression).</td>
+</tr>
+</tbody></table></div>
+      
+    
+      
+        <p>为了解决这个问题，我们将遵循以下算法：</p>
+      
+    
+      
+        <div class="list-content">首先选择一个替代模型来建模真实函数 <span class="math-inline" data-math="f">f</span>，并定义其先验。
+        
+
+          给定观测集合（函数评估值），使用贝叶斯法则获得后验。
+        
+
+          使用采集函数 <span class="math-inline" data-math="\alpha(x)">\alpha(x)</span>（它是后验的函数）来决定下一个采样点 <span class="math-inline" data-math="x_t = \text{argmax}_x \alpha(x)">x_t = \text{argmax}_x \alpha(x)</span>。
+        
+
+          将新采样的数据添加到观测集合中，然后返回第 2 步，直到收敛或预算用尽。</div>
+      
+    
+      
+        <p>&lt;p&gt;
+        我们的黄金开采问题非常适合使用贝叶斯优化。在我们去获取最大黄金之前，让我们先介绍一些额外的话题！
+      &lt;/p&gt;</p>
+      
+    
+      
+        <h3>采集函数</h3>
+        
+      
+    
+      
+        <p>采集函数对贝叶斯优化至关重要，而且有各种各样的选择<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup>。在接下来的部分中，我们将介绍多种选项，并提供直观解释和示例。</p>
+      
+    
+      
+        <p>&lt;p&gt;
+      贝叶斯优化的核心问题是“基于我们目前所知，接下来应该评估哪个点？”请记住，评估每个点的代价都很高，因此我们必须谨慎选择！在主动学习中，我们选择不确定性最大的点，但在贝叶斯优化中，我们不会在那些没有前景的不确定区域浪费宝贵的评估。
+    &lt;/p&gt;
+
+    &lt;p&gt;
+      采集函数是根据当前模型判断评估某个点有多值得的启发式方法&lt;d-footnote&gt;https://botorch.org/docs/acquisition&lt;/d-footnote&gt;。在每一步中，我们根据采集函数确定下一个最佳评估点。然后更新我们的模型，并重复这个过程来确定下一个要评估的点。
+      &lt;d-footnote&gt;
+        请参考 &lt;a href=&quot;https://www.cse.wustl.edu/~garnett/cse515t/spring_2015/files/lecture_notes/12.pdf&quot;&gt;这些&lt;/a&gt; 来自圣路易斯华盛顿大学的幻灯片，了解更多关于采集函数的内容。
+      &lt;/d-footnote&gt;。
+    &lt;/p&gt;</p>
+      
+    
+      
+        <p>&lt;p&gt;
+        采集函数对贝叶斯优化至关重要，而且有各种各样的选择。在接下来的部分中，我们将介绍多种选项，并提供直观解释和示例。
+      &lt;/p&gt;
+
+      &lt;p&gt;
+        我们最初的优化问题 &lt;d-math&gt;x^* = \text{argmax}_{x \in A} f(x)&lt;/d-math&gt; 之所以困难，是因为 &lt;d-math&gt;f&lt;/d-math&gt; 的评估代价&lt;strong&gt;昂贵&lt;/strong&gt;。
+        贝叶斯优化的思想是将最初的优化问题&lt;strong&gt;转化&lt;/strong&gt;为一系列更容易的、对被称为&lt;strong&gt;采集函数&lt;/strong&gt;（&lt;d-math&gt;\alpha(x)&lt;/d-math&gt;）的函数进行的&lt;strong&gt;廉价&lt;/strong&gt;优化。
+        直观上，采集函数是评估一个点对最大化 &lt;d-math&gt;f(x)&lt;/d-math&gt; 有多少效用的启发式方法&lt;d-footnote&gt;https://botorch.org/docs/acquisition&lt;/d-footnote&gt;&lt;d-footnote&gt;请参考 &lt;a href=&quot;https://www.cse.wustl.edu/~garnett/cse515t/spring_2015/files/lecture_notes/12.pdf&quot;&gt;这些&lt;/a&gt; 来自圣路易斯华盛顿大学的幻灯片了解更多&lt;/d-footnote&gt;。
+        在每一步中，我们&lt;strong&gt;优化&lt;/strong&gt;该&lt;strong&gt;采集函数&lt;/strong&gt;来确定下一个要采样/查询的点。
+      &lt;/p&gt;</p>
+      
+    
+      
+        <p>&lt;p&gt;
+      让我们回顾并串联前面讨论的内容，通过列出贝叶斯优化的步骤&lt;d-footnote&gt;请参考 Javier González 在 2019 年高斯过程暑期学校（The Gaussian Process Summer School 2019）的这个精彩视频 &lt;a href=&quot;https://youtu.be/EnXxO3BAgYk&quot;&gt;视频&lt;/a&gt;。&lt;/d-footnote&gt;，并明确突出贝叶斯优化中的“贝叶斯”部分。
+    &lt;/p&gt;
+    &lt;p&gt;
+      &lt;ol&gt;
+        &lt;li&gt;
+          首先选择一个替代模型来建模真实函数 &lt;d-math&gt;f&lt;/d-math&gt;，并定义其&lt;strong&gt;先验&lt;/strong&gt;。
+        &lt;/li&gt;
+        &lt;li&gt;
+          给定&lt;b&gt;观测&lt;/b&gt;集合（函数评估值），使用贝叶斯法则获得&lt;strong&gt;后验&lt;/strong&gt;。
+        &lt;/li&gt;
+        &lt;li&gt;
+          使用采集函数 &lt;d-math&gt;\alpha(x)&lt;/d-math&gt;（它是后验的函数）来决定下一个采样点 &lt;d-math&gt;x_t = \text{argmax}_x \alpha(x)&lt;/d-math&gt;。
+        &lt;/li&gt;
+        &lt;li&gt;
+          将新采样的数据添加到&lt;b&gt;观测&lt;/b&gt;集合中，然后返回第 2 步，直到收敛或预算用尽。
+        &lt;/li&gt;
+      &lt;/ol&gt;
+    &lt;/p&gt;
+
+    &lt;p&gt;
+      因此，贝叶斯优化中的“贝叶斯”指的是通过贝叶斯法则，随着每次评估逐步精炼我们替代模型的后验（以及相应的不确定性）&lt;d-cite key=&quot;nandoBOLoop&quot;&gt;&lt;/d-cite&gt;。
+    &lt;/p&gt;
+    &lt;p&gt;现在让我们来看几个常见的采集函数。&lt;/p&gt;</p>
+      
+    
+      
+        <h4>改进概率（Probability of Improvement，PI）</h4>
+        
+      
+    
+      
+        <p>这个采集函数选择下一个查询点为那个相比当前最大值 <span class="math-inline" data-math="f(x^+)">f(x^+)</span> 具有最高改进概率的点。从数学上，我们将下一个点的选择写成如下形式，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+        x_{t+1} = argmax(\alpha_{PI}(x)) = argmax(P(f(x) \geq (f(x^+) +\epsilon)))
+      ">
+        x_{t+1} = argmax(\alpha_{PI}(x)) = argmax(P(f(x) \geq (f(x^+) +\epsilon)))
+      </span></div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+        \begin{aligned}
+        x_{t+1} &amp; = argmax(\alpha_{PI}(x))\\
+        &amp; = argmax(P(f(x) \geq (f(x^+) +\epsilon)))
+        \end{aligned}
+      ">
+        \begin{aligned}
+        x_{t+1} &amp; = argmax(\alpha_{PI}(x))\\
+        &amp; = argmax(P(f(x) \geq (f(x^+) +\epsilon)))
+        \end{aligned}
+      </span></div>
+      
+    
+      
+        <p>其中，</p>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="P(\cdot)">P(\cdot)</span> 表示概率
+<span class="math-inline" data-math="\epsilon">\epsilon</span> 是一个小的正数
+并且，<span class="math-inline" data-math=" x^+ = \text{argmax}_{x_i \in x_{1:t}}f(x_i)"> x^+ = \text{argmax}_{x_i \in x_{1:t}}f(x_i)</span> 其中 <span class="math-inline" data-math="x_i">x_i</span> 是在第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 时间步查询的位置。</div>
+      
+    
+      
+        <p>仔细观察，我们只是在计算替代模型后验的上尾概率（或累积分布函数）。此外，如果我们使用 GP 作为替代模型，上面的表达式可以转化为，</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="x_{t+1} = argmax_x \Phi\left(\frac{\mu_t(x) - f(x^+) - \epsilon}{\sigma_t(x)}\right)">x_{t+1} = argmax_x \Phi\left(\frac{\mu_t(x) - f(x^+) - \epsilon}{\sigma_t(x)}\right)</span></div>
+      
+    
+      
+        <p>其中，</p>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="\Phi(\cdot)">\Phi(\cdot)</span> 表示累积分布函数</div>
+      
+    
+      
+        <p>下面的可视化展示了 <span class="math-inline" data-math="\alpha_{PI}(x)">\alpha_{PI}(x)</span> 的计算过程。橙色线表示当前最大值（加上一个 <span class="math-inline" data-math=" \epsilon"> \epsilon</span>）或 <span class="math-inline" data-math=" f(x^+) + \epsilon"> f(x^+) + \epsilon</span>。紫色区域显示了每个点的概率密度。灰色区域显示了当前最大值以下的概率密度。每个点处紫色区域的“面积”代表“超过当前最大值的改进概率”。通过 PI 准则选择的下一个评估点（用蓝色虚线表示）是 <span class="math-inline" data-math="x = 6">x = 6</span>。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/density_pi.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>PI 中</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="\epsilon">\epsilon</span></p>
+      
+    
+      
+        <p>的直观理解</p>
+      
+    
+      
+        <p>PI 使用 <span class="math-inline" data-math="\epsilon">\epsilon</span> 来平衡探索和利用。
+      增大 <span class="math-inline" data-math="\epsilon">\epsilon</span> 会导致查询那些具有更大 <span class="math-inline" data-math="\sigma">\sigma</span> 的位置，因为它们的概率密度分布更广。</p>
+      
+    
+      
+        <p>现在让我们看看 PI 采集函数的实际效果。我们从 <span class="math-inline" data-math="\epsilon=0.075">\epsilon=0.075</span> 开始。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>从上面的图中可以看到，我们在几次迭代内就达到了全局最大值<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup>。
+      在最初的几次迭代中，我们的替代模型在 <span class="math-inline" data-math="x \in [2, 4]">x \in [2, 4]</span> 处具有较大的不确定性<sup id="fnref-f8n"><a href="#f8n">[8]</a></sup>。
+      采集函数最初会利用那些前景较好的区域<sup id="fnref-f9n"><a href="#f9n">[9]</a></sup>，这导致了 <span class="math-inline" data-math="x \in [2, 4]">x \in [2, 4]</span> 区域出现较高的不确定性。这一观察也表明，我们不需要构建黑盒函数的精确估计就能找到其最大值。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>上面的可视化表明，将 <span class="math-inline" data-math="\epsilon">\epsilon</span> 增加到 0.3 可以让我们进行更多探索。然而，似乎我们探索得超过了必要程度。</p>
+      
+    
+      
+        <p>如果我们把 <span class="math-inline" data-math="\epsilon">\epsilon</span> 再增加一点会发生什么？</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>我们看到情况变糟了！我们的模型现在使用了 <span class="math-inline" data-math="\epsilon = 3">\epsilon = 3</span>，当接近全局最大值时无法进行利用。而且，由于探索程度过高，这种设置变得类似于主动学习。</p>
+      
+    
+      
+        <p>上面快速实验帮助我们得出结论：<span class="math-inline" data-math="\epsilon">\epsilon</span> 控制了 PI 采集函数的探索程度。</p>
+      
+    
+      
+        <h4>期望改进（Expected Improvement，EI）</h4>
+        
+      
+    
+      
+        <p>改进概率只考虑了改进的可能性，但没有考虑我们可以改进多少。下一个准则称为期望改进（EI），它正是做这件事的<sup id="fnref-f10n"><a href="#f10n">[10]</a></sup>！
+      其思想相当简单——选择下一个查询点为那个相比当前最大值 <span class="math-inline" data-math="f(x^+)">f(x^+)</span> 具有最高期望改进的点，其中 <span class="math-inline" data-math=" x^+ = \text{argmax}_{x_i \in x_{1:t}}f(x_i)"> x^+ = \text{argmax}_{x_i \in x_{1:t}}f(x_i)</span> 且 <span class="math-inline" data-math="x_i">x_i</span> 是在第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 时间步查询的位置。</p>
+      
+    
+      
+        <p>在这个采集函数中，<span class="math-inline" data-math="t + 1^{th}">t + 1^{th}</span> 查询点 <span class="math-inline" data-math="x_{t+1}">x_{t+1}</span> 是根据以下方程选择的。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+      x_{t+1} = argmin_x \mathbb{E} \left( ||h_{t+1}(x) - f(x^\star) || \ | \ \mathcal{D}_t \right)
+    ">
+      x_{t+1} = argmin_x \mathbb{E} \left( ||h_{t+1}(x) - f(x^\star) || \ | \ \mathcal{D}_t \right)
+    </span></div>
+      
+    
+      
+        <p>其中，<span class="math-inline" data-math="f">f</span> 是真实的地面真实函数，<span class="math-inline" data-math="h_{t+1}">h_{t+1}</span> 是替代模型在第 <span class="math-inline" data-math="t+1^{th}">t+1^{th}</span> 时间步的后验均值，<span class="math-inline" data-math="\mathcal{D}_t">\mathcal{D}_t</span> 是训练数据 <span class="math-inline" data-math="\{(x_i,
+        f(x_i))\} \ \forall x \in x_{1:t}">\{(x_i,
+        f(x_i))\} \ \forall x \in x_{1:t}</span>，而 <span class="math-inline" data-math="x^\star">x^\star</span> 是 <span class="math-inline" data-math="f">f</span> 取得最大值的实际位置。</p>
+      
+    
+      
+        <p>本质上，我们试图选择能最小化到目标在最大值处评估结果的距离的点。不幸的是，我们不知道地面真实函数 <span class="math-inline" data-math="f">f</span>。Mockus[<cite>[mockusEI]</cite>] 提出了以下采集函数来解决这个问题。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+      x_{t+1} = argmax_x \mathbb{E} \left( {max} \{ 0, \ h_{t+1}(x) - f(x^+) \} \ | \ \mathcal{D}_t \right)
+      ">
+      x_{t+1} = argmax_x \mathbb{E} \left( {max} \{ 0, \ h_{t+1}(x) - f(x^+) \} \ | \ \mathcal{D}_t \right)
+      </span></div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+        \begin{aligned}
+          x_{t+1} = \ &amp; argmax_x \mathbb{E} \\
+          &amp; \left( {max} \{ 0, \ h_{t+1}(x) - f(x^+) \} \ | \ \mathcal{D}_t \right)
+        \end{aligned}
+      ">
+        \begin{aligned}
+          x_{t+1} = \ &amp; argmax_x \mathbb{E} \\
+          &amp; \left( {max} \{ 0, \ h_{t+1}(x) - f(x^+) \} \ | \ \mathcal{D}_t \right)
+        \end{aligned}
+      </span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="f(x^+)">f(x^+)</span> 是迄今为止遇到的最大值。对于 GP 替代模型，这个方程有一个解析表达式，如下所示。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+        EI(x)=
+        \begin{cases}
+        (\mu_t(x) - f(x^+) - \epsilon)\Phi(Z) + \sigma_t(x)\phi(Z), &amp; \text{if}\ \sigma_t(x) &gt; 0 \\
+        0, &amp; \text{if}\ \sigma_t(x) = 0
+        \end{cases}
+      ">
+        EI(x)=
+        \begin{cases}
+        (\mu_t(x) - f(x^+) - \epsilon)\Phi(Z) + \sigma_t(x)\phi(Z), &amp; \text{if}\ \sigma_t(x) &gt; 0 \\
+        0, &amp; \text{if}\ \sigma_t(x) = 0
+        \end{cases}
+      </span></div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+        EI(x)= \begin{cases}
+          [(\mu_t(x) - f(x^+) - \epsilon) &amp; \ \sigma_t(x) &gt; 0 \\
+          \quad * \Phi(Z)] + \sigma_t(x)\phi(Z),\\
+          0, &amp; \ \sigma_t(x) = 0
+        \end{cases}
+      ">
+        EI(x)= \begin{cases}
+          [(\mu_t(x) - f(x^+) - \epsilon) &amp; \ \sigma_t(x) &gt; 0 \\
+          \quad * \Phi(Z)] + \sigma_t(x)\phi(Z),\\
+          0, &amp; \ \sigma_t(x) = 0
+        \end{cases}
+      </span></div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="Z= \frac{\mu_t(x) - f(x^+) - \epsilon}{\sigma_t(x)}">Z= \frac{\mu_t(x) - f(x^+) - \epsilon}{\sigma_t(x)}</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\Phi(\cdot)">\Phi(\cdot)</span> 表示累积分布函数，<span class="math-inline" data-math="\phi(\cdot)">\phi(\cdot)</span> 表示概率密度函数。</p>
+      
+    
+      
+        <p>从上面的表达式可以看出，当以下情况之一发生时，期望改进会较高：i) <span class="math-inline" data-math="\mu_t(x) - f(x^+)">\mu_t(x) - f(x^+)</span> 的期望值较高，或者 ii) 某个点周围的不确定性 <span class="math-inline" data-math="\sigma_t(x)">\sigma_t(x)</span> 较高。</p>
+      
+    
+      
+        <p>与 PI 采集函数类似，我们可以通过修改 <span class="math-inline" data-math="\epsilon">\epsilon</span> 来调节 EI 采集函数的探索量。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>对于 <span class="math-inline" data-math="\epsilon = 0.01">\epsilon = 0.01</span>，我们在几次迭代内就接近了全局最大值。</p>
+      
+    
+      
+        <p>现在我们增加 <span class="math-inline" data-math="\epsilon">\epsilon</span> 以进行更多探索。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>正如我们所料，将值增加到 <span class="math-inline" data-math="\epsilon = 0.3">\epsilon = 0.3</span> 使采集函数探索得更多。与之前的评估相比，我们看到利用行为减少了。我们看到它只在全局最大值附近评估了两个点。</p>
+      
+    
+      
+        <p>让我们把 <span class="math-inline" data-math="\epsilon">\epsilon</span> 增加得更多一些。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>这比之前更好吗？结果是既是也不是；我们在 <span class="math-inline" data-math="\epsilon = 3">\epsilon = 3</span> 探索过多，并迅速到达全局最大值附近。但遗憾的是，我们没有进行足够的利用来在全局最大值附近获得更多收益。</p>
+      
+    
+      
+        <h4>PI 与 EI</h4>
+        
+      
+    
+      
+        <p>我们已经看到了两种密切相关的方法：改进概率和期望改进。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>上面的散点图显示了不同策略的采集函数在不同点上的评估结果<sup id="fnref-f11n"><a href="#f11n">[11]</a></sup>。
+        我们看到 <span class="math-inline" data-math="\alpha_{EI}">\alpha_{EI}</span> 和 <span class="math-inline" data-math="\alpha_{PI}">\alpha_{PI}</span> 分别达到了 0.3 和大约 0.47 的最大值。选择具有低 <span class="math-inline" data-math="\alpha_{PI}">\alpha_{PI}</span> 和高 <span class="math-inline" data-math="\alpha_{EI}">\alpha_{EI}</span> 的点意味着高风险<sup id="fnref-f12n"><a href="#f12n">[12]</a></sup>和高回报<sup id="fnref-f13n"><a href="#f13n">[13]</a></sup>。
+        如果有多个点具有相同的 <span class="math-inline" data-math="\alpha_{EI}">\alpha_{EI}</span>，我们应该优先选择风险较低（<span class="math-inline" data-math="\alpha_{PI}">\alpha_{PI}</span> 较高）的点。类似地，当风险相同时（<span class="math-inline" data-math="\alpha_{PI}">\alpha_{PI}</span> 相同），我们应该选择回报更大的点（<span class="math-inline" data-math="\alpha_{EI}">\alpha_{EI}</span> 更高）。</p>
+      
+    
+      
+        <h3>Thompson 采样</h3>
+        
+      
+    
+      
+        <p>另一个常见的采集函数是 Thompson 采样[<cite>[thompson]</cite>]。在每一步中，我们从替代模型的后验中采样一个函数并对其进行优化。例如，在黄金开采的例子中，我们会根据已有证据采样一个可能的黄金分布，然后在它峰值所在的位置进行评估（钻探）。</p>
+      
+    
+      
+        <p>下面是一张图片，展示了针对我们黄金开采问题，从学到的替代模型后验中采样的三个函数。训练数据由点 <span class="math-inline" data-math="x = 0.5">x = 0.5</span> 及其对应的函数值构成。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/thompson.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>我们可以通过两个观察来理解 Thompson 采样的直观原理：</p>
+      
+    
+      
+        <div class="list-content">具有高不确定性（<span class="math-inline" data-math=" \sigma(x) "> \sigma(x) </span>）的位置，在从替代模型后验中采样的函数值上会表现出较大的方差。因此，存在非平凡的概率使样本在高度不确定的区域取得高值。优化这样的样本有助于探索。
+          
+
+            例如，三个样本（样本 #1、#2、#3）在 <span class="math-inline" data-math="x=6">x=6</span> 附近显示出较高的方差。优化样本 3 将通过评估 <span class="math-inline" data-math="x=6">x=6</span> 来帮助探索。
+          
+
+
+
+            采样的函数必须经过当前最大值，因为在已评估的位置没有不确定性。因此，优化来自替代模型后验的样本将确保利用行为。
+          
+
+            作为这种行为的一个例子，我们看到上面所有采样的函数都经过了当前最大值所在的 <span class="math-inline" data-math="x = 0.5">x = 0.5</span>。如果 <span class="math-inline" data-math="x = 0.5">x = 0.5</span> 接近全局最大值，那么我们就能够进行利用并选择更好的最大值。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>上面的可视化使用了 Thompson 采样进行优化。同样，我们可以在相对较少的迭代中达到全局最优。</p>
+      
+    
+      
+        <h3>随机</h3>
+        
+      
+    
+      
+        <p>直到现在，我们一直在使用智能的采集函数。
+        我们可以通过随机采样 <span class="math-inline" data-math="x">x</span>
+        来创建一个随机采集函数。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>上面的可视化表明，随机采集函数的表现并不算差！然而，如果我们的优化问题更加复杂（具有更多维度），那么随机采集可能会表现得很差。</p>
+      
+    
+      
+        <h3>采集函数总结</h3>
+        
+      
+    
+      
+        <p>现在让我们总结与采集函数相关的核心思想：i) 它们是评估点效用的启发式方法；ii) 它们是替代模型后验的函数；iii) 它们结合了探索和利用；iv) 它们评估起来代价低廉。</p>
+      
+    
+      
+        <h4>其他采集函数</h4>
+        
+      
+    
+      
+        <p>截至目前我们已经看到了多种采集函数。想出采集函数的一个简单方法是进行探索/利用的组合。</p>
+      
+    
+      
+        <h3>上置信界（Upper Confidence Bound，UCB）</h3>
+        
+      
+    
+      
+        <p>一种将探索/利用权衡结合起来的简单采集函数，是我们替代模型均值和不确定性的线性组合。模型均值代表利用（利用我们模型的知识），而模型不确定性代表探索（由于我们模型缺乏观测）。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="\alpha(x) = \mu(x) + \lambda \times \sigma(x)">\alpha(x) = \mu(x) + \lambda \times \sigma(x)</span></div>
+      
+    
+      
+        <p>UCB 采集函数背后的直观理解是在替代模型的均值与不确定性之间权衡重要性。上面的 <span class="math-inline" data-math="\lambda">\lambda</span> 是一个超参数，可以控制是偏好利用还是探索。</p>
+      
+    
+      
+        <p>我们还可以通过组合现有的采集函数来形成新的采集函数，尽管这种组合的物理可解释性可能并不那么直接。我们可能想要组合两种方法的一个原因是克服单个方法的局限性。</p>
+      
+    
+      
+        <h3>改进概率 +<span class="math-inline" data-math="\lambda \ \times">\lambda \ \times</span>期望改进（EI-PI）</h3>
+        
+      
+    
+      
+        <p>一种这样的组合可以是 PI 和 EI 的线性组合。
+
+          我们知道 PI 关注改进的概率，而 EI 关注期望的改进。这种组合可以帮助根据 <span class="math-inline" data-math="\lambda">\lambda</span> 的值在这两者之间取得权衡。</p>
+      
+    
+      
+        <h3>高斯过程上置信界（Gaussian Process Upper Confidence Bound，GP-UCB）</h3>
+        
+      
+    
+      
+        <p>在讨论 GP-UCB 之前，让我们快速谈谈遗憾（regret）。想象一下，如果最大黄金含量是 <span class="math-inline" data-math="a">a</span> 单位，而我们的优化却采样了一个含有 <span class="math-inline" data-math="b &lt; a">b &lt; a</span> 单位的位置，那么我们的遗憾是
+              <span class="math-inline" data-math="a -
+              b">a -
+              b</span>。如果我们将 <span class="math-inline" data-math="n">n</span> 次迭代的遗憾累加起来，就得到了所谓的累积遗憾。
+
+          GP-UCB[<cite>[gpucb]</cite>] 的公式为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+          \alpha_{GP-UCB}(x) = \mu_t(x) + \sqrt{\beta_t}\sigma_t(x)
+        ">
+          \alpha_{GP-UCB}(x) = \mu_t(x) + \sqrt{\beta_t}\sigma_t(x)
+        </span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="t">t</span> 是时间步。</p>
+      
+    
+      
+        <p>Srinivas 等人[<cite>[gpucbBounds]</cite>] 为 <span class="math-inline" data-math="\beta">\beta</span> 开发了一个调度方案，他们在理论上证明该方案可以最小化累积遗憾。</p>
+      
+    
+      
+        <h3>比较</h3>
+        
+      
+    
+      
+        <p>现在我们比较不同采集函数在黄金开采问题上的性能<sup id="fnref-f14n"><a href="#f14n">[14]</a></sup>。我们为每个采集函数都使用了最优的超参数。
+
+          我们使用不同的随机种子多次运行随机采集函数，并绘制每次迭代感知到的平均黄金量。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/comp.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>随机策略在最初的表现与其他采集函数相当甚至更好<sup id="fnref-f15n"><a href="#f15n">[15]</a></sup>。然而，随机策略感知到的最大黄金量增长得较为缓慢。相比之下，其他采集函数可以在较少的迭代次数内找到一个好的解。事实上，大多数采集函数在仅仅三次迭代内就能达到非常接近全局最大值的位置。</p>
+      
+    
+      
+        <h2>超参数调优</h2>
+        
+      
+    
+      
+        <p>在讨论用于超参数调优的贝叶斯优化[<cite>[Snoek2012,NIPS2011_4443,Bergstra]</cite>]之前，我们先快速区分超参数和参数：超参数是在学习之前设置的，而参数则是从数据中学习得到的。为了说明这种区别，我们以岭回归为例。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+        \hat{\theta}_{ridge} = argmin_{\theta\ \in \ \mathbb{R}^p} \sum\limits_{i=1}^{n} \left(y_i - x_i^T\theta \right)^2 + \lambda \sum\limits_{j=1}^{p} \theta^2_j
+      ">
+        \hat{\theta}_{ridge} = argmin_{\theta\ \in \ \mathbb{R}^p} \sum\limits_{i=1}^{n} \left(y_i - x_i^T\theta \right)^2 + \lambda \sum\limits_{j=1}^{p} \theta^2_j
+      </span></div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+        \begin{aligned}
+        \hat{\theta}_{ridge} = &amp; argmin_{\theta\ \in \ \mathbb{R}^p} \sum\limits_{i=1}^{n} \left(y_i - x_i^T\theta \right)^2 \\
+        &amp; + \lambda \sum\limits_{j=1}^{p} \theta^2_j
+        \end{aligned}
+      ">
+        \begin{aligned}
+        \hat{\theta}_{ridge} = &amp; argmin_{\theta\ \in \ \mathbb{R}^p} \sum\limits_{i=1}^{n} \left(y_i - x_i^T\theta \right)^2 \\
+        &amp; + \lambda \sum\limits_{j=1}^{p} \theta^2_j
+        \end{aligned}
+      </span></div>
+      
+    
+      
+        <p>在岭回归中，权重矩阵 <span class="math-inline" data-math="\theta">\theta</span> 是参数，而正则化系数 <span class="math-inline" data-math="\lambda \geq 0">\lambda \geq 0</span> 是超参数。
+        如果我们通过梯度下降优化来求解上述回归问题，我们还会引入另一个优化参数，即学习率 <span class="math-inline" data-math="\alpha">\alpha</span>。</p>
+      
+    
+      
+        <p>贝叶斯优化最常见的应用场景是超参数调优：为机器学习模型找到表现最佳的超参数。</p>
+      
+    
+      
+        <p>当训练一个模型并不昂贵且不耗时，我们可以使用网格搜索来找到最优超参数。然而，如果函数评估代价高昂（如训练一个大型神经网络需要数天），网格搜索就不可行了。此外，网格搜索在超参数数量增加时扩展性很差。</p>
+      
+    
+      
+        <p>我们转向贝叶斯优化来应对评估黑盒函数（准确率）代价高昂的问题。</p>
+      
+    
+      
+        <h3>示例 1——支持向量机（Support Vector Machine，SVM）</h3>
+        
+      
+    
+      
+        <p>在这个例子中，我们使用 SVM 在 sklearn 的 moons 数据集上进行分类，并使用贝叶斯优化来优化 SVM 的超参数。</p>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="\gamma">\gamma</span>——修改 SVM 核函数的行为。直观上，它衡量了单个训练样本的影响力<sup id="fnref-f16n"><a href="#f16n">[16]</a></sup>。
+          
+
+<span class="math-inline" data-math="C">C</span>——修改分类的松弛程度，<span class="math-inline" data-math="C">C</span> 越高，SVM 对噪声就越敏感。</div>
+      
+    
+      
+        <p>现在让我们看看这个数据集，它有两个类别和两个特征。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/moons.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>现在让我们应用贝叶斯优化来学习这个分类任务的最佳超参数<sup id="fnref-f17n"><a href="#f17n">[17]</a></sup>。&lt;<span class="math-inline" data-math="C, \ \gamma">C, \ \gamma</span>&gt; 的最优值是通过在高粒度下运行网格搜索找到的。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>上面我们看到一个滑块，展示了改进概率采集函数在寻找最佳超参数过程中的工作。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>上面我们看到一个滑块，展示了期望改进采集函数在寻找最佳超参数过程中的工作。</p>
+      
+    
+      
+        <h3>比较</h3>
+        
+      
+    
+      
+        <p>下面是一个比较不同采集函数的图。我们多次运行随机采集函数以对其结果进行平均。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/comp3d.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>我们的所有采集函数在七次迭代后都超过了随机采集函数。我们看到随机方法最初似乎表现得更好，但它无法达到全局最优，而贝叶斯优化能够相当接近。贝叶斯优化最初表现不佳可以归因于初始的探索阶段。</p>
+      
+    
+      
+        <h4>其他示例</h4>
+        
+      
+    
+      
+        <h3>示例 2——随机森林</h3>
+        
+      
+    
+      
+        <p>在随机森林分类器中使用贝叶斯优化。[<cite>[scikit]</cite>]</p>
+      
+    
+      
+        <p>现在我们将继续在之前用于支持向量机模型的 moons 数据集上训练一个随机森林。我们希望优化准确率的主要超参数是决策树的数目以及每棵决策树的最大深度。</p>
+      
+    
+      
+        <p>随机森林的参数是各个训练好的决策树模型。</p>
+      
+    
+      
+        <p>我们将再次使用带有 Matern 核的高斯过程来估计和预测关于这两个超参数的准确率函数。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>上面是一个使用改进概率采集函数的典型贝叶斯优化运行过程。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>上面我们看到一个运行过程，展示了期望改进采集函数在优化超参数中的工作。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>现在使用高斯过程上置信界采集函数来优化超参数。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/0.png" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>现在让我们使用随机采集函数。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/RFcomp3d.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>在这个例子中，优化策略似乎遇到了困难。这可以归因于地面真实函数不光滑。这表明贝叶斯优化的有效性取决于替代模型对实际黑盒函数的建模能力。有趣的是，贝叶斯优化框架使用各种采集函数仍然优于随机策略。</p>
+      
+    
+      
+        <h3>示例 3——神经网络</h3>
+        
+      
+    
+      
+        <p>让我们通过这个例子来了解如何将贝叶斯优化应用于训练神经网络。这里我们将使用 scikit-optim，它还支持对具有分类、整数和实数变量搜索空间的函数进行优化。我们不会在这里绘制地面真实函数，因为这样做代价极高。下面是一些代码片段，展示了使用贝叶斯优化包进行超参数调优的简便性。</p>
+      
+    
+      
+        <p>代码首先为优化问题声明了一个搜索空间。我们将搜索空间限制为以下内容：</p>
+      
+    
+      
+        <div class="list-content">batch_size——这个超参数设置了在梯度下降的单步中组合多少个训练样本来计算梯度。
+              我们搜索的批量大小可能值为满足 batch_size = <span class="math-inline" data-math="2^i \ \forall \ 2 \leq i \leq 7 \ \&amp; \ i \in \mathbb{Z}">2^i \ \forall \ 2 \leq i \leq 7 \ \&amp; \ i \in \mathbb{Z}</span> 的整数。
+            
+
+              learning rate——这个超参数设置了我们在神经网络中进行梯度下降的步长。
+              我们将在 <span class="math-inline" data-math="[10^{-6}, \ 1]">[10^{-6}, \ 1]</span> 范围内的所有实数上进行搜索。
+            
+
+              activation——我们将有一个分类变量，即应用于神经网络层的激活函数。这个变量可以取 <span class="math-inline" data-math="\{ relu, \ sigmoid \}">\{ relu, \ sigmoid \}</span> 集合中的值。</div>
+      
+    
+      
+        <pre><code>
+          log_batch_size = Integer(
+            low=2,
+            high=7,
+            name=&#x27;log_batch_size&#x27;
+          )
+            lr = Real(
+            low=1e-6,
+            high=1e0,
+            prior=&#x27;log-uniform&#x27;,
+            name=&#x27;lr&#x27;
+          )
+          activation = Categorical(
+            categories=[&#x27;relu&#x27;, &#x27;sigmoid&#x27;],
+            name=&#x27;activation&#x27;
+          )
+
+          dimensions = [
+            dim_num_batch_size_to_base,
+            dim_learning_rate,
+            dim_activation
+          ]
+        </code></pre>
+      
+    
+      
+        <p>现在从 scikit-optim 中导入 gp-minimize<sup id="fnref-f18n"><a href="#f18n">[18]</a></sup> 来执行优化。下面我们展示使用期望改进调用优化器，当然我们也可以从多种其他采集函数中选择。</p>
+      
+    
+      
+        <pre><code>
+          # initial parameters (1st point)
+          default_parameters = 
+            [4, 1e-1, &#x27;relu&#x27;]
+
+          # bayesian optimization
+            search_result = gp_minimize(
+            func=train,
+            dimensions=dimensions,
+            acq_func=&#x27;EI&#x27;, # Expctd Imprv.
+            n_calls=11,
+            x0=default_parameters
+          )
+        </code></pre>
+      
+    
+      
+        <figure>
+          <img src="../images/2020-bayesian-optimization/conv.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>在上面的图中，y 轴表示到目前为止的最佳准确率 <span class="math-inline" data-math="\left( f(x^+) \right)">\left( f(x^+) \right)</span>，x 轴表示评估次数。</p>
+      
+    
+      
+        <p>从上面的例子可以看出，引入贝叶斯优化并不困难，而且可以节省大量时间。在大约七次迭代内将准确率优化到接近 1 是令人印象深刻的！<sup id="fnref-f19n"><a href="#f19n">[19]</a></sup></p>
+      
+    
+      
+        <p>让我们把数字放在整体视角下。如果我们使用网格搜索运行这个优化，它将需要大约 <span class="math-inline" data-math="(5 \times 2 \times 7)">(5 \times 2 \times 7)</span> 次迭代。而贝叶斯优化只用了七次迭代。每次迭代大约需要十五分钟，这意味着网格搜索完成大约需要十七个小时！</p>
+      
+    
+      
+        <p>结论与总结</p>
+      
+    
+      
+        <p>在本文中，我们介绍了用于优化黑盒函数的贝叶斯优化。当函数评估代价高昂，使得网格搜索或穷举搜索不切实际时，贝叶斯优化非常适用。我们介绍了贝叶斯优化的关键组成部分。首先，我们了解了使用替代函数（对目标函数空间设置先验）来建模黑盒函数的概念。接下来，我们介绍了贝叶斯优化中的“贝叶斯”——函数评估被用作数据来获得替代模型的后验。我们介绍了采集函数，它们是替代模型后验的函数，并被依次优化。这种新的序贯优化代价低廉，因此对我们很有用。我们还介绍了几种采集函数，并展示了这些不同函数如何平衡探索和利用。最后，我们看了一些将贝叶斯优化用于优化机器学习模型超参数的实际例子。</p>
+      
+    
+      
+        <p>希望您阅读本文时度过了一段愉快的时光，并准备好利用贝叶斯优化的强大能力。如果您希望进一步探索，请阅读下面的“进一步阅读”部分。我们还提供了 <a href="https://github.com/distillpub/post--bayesian-optimization" target="_blank" rel="noopener">代码仓库</a> 以复现整篇文章。</p>
+      
+    
+  </div>
+
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <a href="#fnref-f1n">[1]</a> 有趣的是，我们的例子与高斯过程（也称为 kriging）最早的应用之一[<cite>[goldKridge]</cite>] 类似，当时 Krige 教授使用高斯过程对黄金浓度进行了建模。
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <a href="#fnref-f2n">[2]</a> 高斯过程支持通过特定的核函数和均值函数来设置先验。读者可能想参考这篇优秀的 Distill 文章[<cite>[görtler2019a]</cite>]关于高斯过程[<cite>[Rasmussen2004]</cite>]的介绍，以了解更多信息。
+          请观看 Javier González 关于高斯过程的精彩视频。
+    </div>
+    
+    <div class="footnote-item" id="f3n">
+      <a href="#fnref-f3n">[3]</a> 具体说明：我们使用 Matern 5/2 核，因为它倾向于产生二阶可微函数。有关 Matern 核的详细信息，请参阅 Rasmussen and Williams 2004 和 scikit-learn。
+    </div>
+    
+    <div class="footnote-item" id="f4n">
+      <a href="#fnref-f4n">[4]</a> 有关采集函数的更多细节可通过此链接访问。
+    </div>
+    
+    <div class="footnote-item" id="f5n">
+      <a href="#fnref-f5n">[5]</a> 下面的部分基于 Peter Fraizer 在 Uber 关于贝叶斯优化的幻灯片/演讲：
+          
+ YouTube 演讲视频，
+ 幻灯片
+    </div>
+    
+    <div class="footnote-item" id="f6n">
+      <a href="#fnref-f6n">[6]</a> 请参考这些来自圣路易斯华盛顿大学的幻灯片，了解更多关于采集函数的内容。
+    </div>
+    
+    <div class="footnote-item" id="f7n">
+      <a href="#fnref-f7n">[7]</a> 平局时随机打破。
+    </div>
+    
+    <div class="footnote-item" id="f8n">
+      <a href="#fnref-f8n">[8]</a> 不确定性的比例由灰色半透明区域标识。
+    </div>
+    
+    <div class="footnote-item" id="f9n">
+      <a href="#fnref-f9n">[9]</a> 当前最大值附近的位置
+    </div>
+    
+    <div class="footnote-item" id="f10n">
+      <a href="#fnref-f10n">[10]</a> 关于期望改进采集函数的一个很好的介绍是 Thomas Huijskens 的这篇文章以及 Peter Frazier 的这些幻灯片
+    </div>
+    
+    <div class="footnote-item" id="f11n">
+      <a href="#fnref-f11n">[11]</a> 每个点都是搜索空间中的一个点。此外，制作该图时使用的训练集只包含一个观测 <span class="math-inline" data-math="(0.5, f(0.5))">(0.5, f(0.5))</span>
+    </div>
+    
+    <div class="footnote-item" id="f12n">
+      <a href="#fnref-f12n">[12]</a> 因为“改进概率”较低
+    </div>
+    
+    <div class="footnote-item" id="f13n">
+      <a href="#fnref-f13n">[13]</a> 因为“期望改进”较高
+    </div>
+    
+    <div class="footnote-item" id="f14n">
+      <a href="#fnref-f14n">[14]</a> 要了解更多关于采集函数之间差异的信息，请参阅 Nando De Freitas 的这些精彩幻灯片
+    </div>
+    
+    <div class="footnote-item" id="f15n">
+      <a href="#fnref-f15n">[15]</a> UCB 和 GP-UCB 已在可折叠部分中提及
+    </div>
+    
+    <div class="footnote-item" id="f16n">
+      <a href="#fnref-f16n">[16]</a> StackOverflow 关于超参数直观理解的回答。
+    </div>
+    
+    <div class="footnote-item" id="f17n">
+      <a href="#fnref-f17n">[17]</a> 注意：您在下面看到的地面真实准确率的表面图只是为了展示目的而对每个可能的超参数计算得到的。在实际应用中我们并没有这些值。
+    </div>
+    
+    <div class="footnote-item" id="f18n">
+      <a href="#fnref-f18n">[18]</a> 注意：由于我们使用的是 scikit-optim 中的最小化函数，因此需要对准确率值取负。
+    </div>
+    
+    <div class="footnote-item" id="f19n">
+      <a href="#fnref-f19n">[19]</a> 上面的例子受到了 Hvass Laboratories 的教程笔记本的启发，该笔记本展示了如何在 TensorFlow 中使用 scikit-optim 进行超参数优化。
+    </div>
+    
+  </section>
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

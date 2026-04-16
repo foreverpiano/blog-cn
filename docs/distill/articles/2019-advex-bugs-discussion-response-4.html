@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>讨论《对抗样本不是 bug，而是 feature》：对抗鲁棒的神经风格迁移 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>讨论《对抗样本不是 bug，而是 feature》：对抗鲁棒的神经风格迁移</h1>
+    <div class="meta">
+      2019-08-06 · 
+      <a href="https://distill.pub/2019/advex-bugs-discussion/response-4" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>本文是对 Ilyas 等人的论文《Adversarial examples are not bugs, they are features》讨论的一部分。您可以在<a href="2019-advex-bugs-discussion.html">关于《对抗样本不是 bug，而是 feature》的讨论</a>中了解更多关于主讨论文章的内容。</p>
+      
+    
+      
+        <p>其他评论</p>
+      
+    
+      
+        <p>Ilyas 等人的评论</p>
+      
+    
+      
+        <p>Ilyas 等人的论文[<cite>[ilyas2019adversarial]</cite>]中有一幅图让我特别感兴趣，它展示了对抗样本在不同网络架构之间的可迁移性，与这些架构学习相似非鲁棒特征的倾向之间存在相关性。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-4/transferability.png" alt="">
+          <figcaption>Adversarial transferability vs test accuracy of different architectures trained on ResNet-50′s
+                non-robust features.</figcaption>
+        </figure>
+      
+    
+      
+        <p>对这张图的一种解读是，它反映了特定架构捕捉图像中非鲁棒特征的能力强弱。<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup></p>
+      
+    
+      
+        <p>请注意 VGG[<cite>[simonyan2014very]</cite>] 与其他模型相比落后了多少。</p>
+      
+    
+      
+        <p>在神经风格迁移[<cite>[gatys2015]</cite>]这个看似无关的领域中，基于 VGG[<cite>[simonyan2014very]</cite>] 的神经网络也相当特别，因为已知非 VGG 架构如果不采用某种参数化技巧[<cite>[mordvintsev2018differentiable]</cite>]，效果通常很差<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>。上面对图的解读为这一现象提供了另一种解释。由于 VGG 捕捉非鲁棒特征的能力不如其他架构，因此风格迁移的输出对人类而言反而看起来更正确！<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup></p>
+      
+    
+      
+        <p>在继续之前，我们先快速讨论一下 Mordvintsev 等人在中的结果。他们表明，非 VGG 架构可以通过一种先前在特征可视化[<cite>[olah2017feature]</cite>]中确立的简单技术来实现风格迁移。在他们的实验中，不是在 RGB 空间中优化输出图像，而是在傅里叶空间中进行优化，并在将图像送入神经网络之前对其进行一系列变换（例如抖动、旋转、缩放）。<a href="2018-differentiable-parameterizations.html">可微分图像参数化</a><cite>[mordvintsev2018differentiable]</cite></p>
+      
+    
+      
+        <p>我们能否将这一结果与我们将神经风格迁移和非鲁棒特征联系起来的假设相调和呢？</p>
+      
+    
+      
+        <p>一种可能的理论是，所有这些图像变换都会削弱甚至破坏非鲁棒特征。由于优化过程无法再可靠地通过操纵非鲁棒特征来降低损失，它被迫转而使用鲁棒特征，而这些特征大概对所施加的图像变换具有更强的抵抗力（一个经过旋转和抖动的 flapping ear 看起来仍然像 flapping ear）。</p>
+      
+    
+      
+        <h2>一个快速实验</h2>
+        
+      
+    
+      
+        <p>验证我们的假设相当直接：使用对抗鲁棒的分类器进行神经风格迁移[<cite>[gatys2015]</cite>]，然后观察结果。</p>
+      
+    
+      
+        <p>我评估了一个常规训练（非鲁棒）的 ResNet-50 和 Engstrom 等人的鲁棒训练 ResNet-50[<cite>[engstrom2019learning]</cite>]在神经风格迁移[<cite>[gatys2015]</cite>]上的性能。为了对比，我还使用常规的 VGG-19[<cite>[simonyan2014very]</cite>]运行了相同的算法。</p>
+      
+    
+      
+        <p>为了在不同网络具有不同最优超参数的情况下确保公平比较，我对每张图像进行了一次小型网格搜索，并手动挑选每个网络的最佳输出。更多细节可参阅脚注<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup>或在配套的 Colaboratory 笔记本中查看。</p>
+      
+    
+      
+        <p>该实验的结果可以在下面的图表中探索。</p>
+      
+    
+      
+        <p>成功了！鲁棒 ResNet 相比常规 ResNet 显示出显著改进。请记住，我们所做的只是更换了 ResNet 的权重，执行风格迁移的其余代码完全相同！</p>
+      
+    
+      
+        <p>在 VGG-19 和鲁棒 ResNet 之间可以进行更有趣的比较。乍一看，鲁棒 ResNet 的输出似乎与 VGG-19 不相上下。然而，仔细观察后会发现，ResNet 的输出似乎略微更噪一些，并且表现出一些伪影<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup>。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-4/vgg_texture.jpg" alt="">
+          <figcaption>Texture synthesized with VGG.
+Mild artifacts.</figcaption>
+        </figure>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-4/resnet_texture.jpg" alt="">
+          <figcaption>Texture synthesized with robust ResNet.
+Severe artifacts.</figcaption>
+        </figure>
+      
+    
+      
+        <p>VGG 与 ResNet 合成的纹理之间伪影的对比。通过在图像上悬停进行交互。该图改编自</p>
+      
+    
+      
+        <p>Deconvolution and Checkerboard Artifacts</p>
+      
+    
+      
+        <p>作者 Odena 等。</p>
+      
+    
+      
+        <p>目前尚不清楚这些伪影的确切成因。一种理论认为它们是由卷积层中核尺寸和步长不可整除导致的棋盘伪影[<cite>[odena2016deconvolution]</cite>]。它们也可能是 ResNet 中存在最大池化层[<cite>[Hnaff2016GeodesicsOL]</cite>]所引起的伪影。一个有趣的含义是，这些伪影虽然有问题，但似乎与对抗鲁棒性在神经风格迁移中所解决的问题是正交的。</p>
+      
+    
+      
+        <h2>VGG 仍是一个谜</h2>
+        
+      
+    
+      
+        <p>虽然这个实验最初源于对 VGG 网络特殊特性的观察，但它并未为这一现象提供解释。事实上，如果我们接受“对抗鲁棒性是 VGG 在神经风格迁移中开箱即用的原因”这一理论，那么现有文献中应该会有些迹象表明 VGG 天生比其他架构更具鲁棒性。</p>
+      
+    
+      
+        <p>几篇论文[<cite>[Galloway2019BatchNI,Hendrycks2019BenchmarkingNN,Su2018IsRT]</cite>]确实显示 VGG 架构比 ResNet 略微更鲁棒一些。然而，它们也表明 AlexNet[<cite>[krizhevsky2012]</cite>]——它并不以在神经风格迁移中表现良好而闻名<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup>——在这种“天然鲁棒性”上要高于 VGG。</p>
+      
+    
+      
+        <p>或许对抗鲁棒性只是偶然修复或掩盖了非 VGG 架构在风格迁移（或其他类似算法<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup>）中失败的真正原因，即对抗鲁棒性是实现良好风格迁移的充分但非必要条件。无论原因是什么，我都认为对 VGG 的进一步研究是一个非常有趣的未来工作方向。</p>
+      
+    
+      
+        <p>要引用 Ilyas 等人的回应，请引用他们的</p>
+      
+    
+      
+        <p>回应合集</p>
+      
+    
+      
+        <p>回应摘要：非常有趣的结果，突出了非鲁棒特征的影响以及鲁棒模型在下游任务中的实用性。我们很高兴看到鲁棒训练模型将在神经网络艺术中产生怎样的影响！我们也对风格迁移背景下 VGG 的神秘性[<cite>[gatys2015]</cite>]深感好奇。因此，我们进行了更深入的探究，发现了鲁棒性与风格迁移之间的一些有趣联系，这表明鲁棒性可能确实在此发挥了作用。</p>
+      
+    
+      
+        <p>回应：这些实验真的很酷！有趣的是，即使没有明确的任务相关目标（即我们没有专门训练网络使其更适合风格迁移），阻止模型依赖非鲁棒特征也能提升风格迁移的性能。</p>
+      
+    
+      
+        <p>我们也觉得将 VGG 视为“神秘网络”的讨论非常有趣——更全面地理解哪些因素影响风格迁移性能将很有价值。虽然不是完整的答案，但我们在进一步研究中观察到以下几点：</p>
+      
+    
+      
+        <p>风格迁移在 AlexNet 上也能工作：关于“鲁棒性是风格迁移的秘密成分”这一想法的一个小问题在于，VGG 并非天然鲁棒性最强的网络——AlexNet 才是。然而，根据我们自己的测试，风格迁移在 AlexNet 上似乎也能开箱即用，只要我们使用网络的前几个早期层（与 VGG 的使用方式类似）：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-4/alexnetworks.png" alt="">
+          <figcaption>Style transfer using AlexNet, using conv_1 through conv_4.</figcaption>
+        </figure>
+      
+    
+      
+        <p>请注意，尽管风格迁移仍然有效，但出现了棋盘格图案——这似乎与评论中在鲁棒模型背景下注意到的现象类似。这可能进一步表明，这两种现象（棋盘格图案和风格迁移有效）并不像之前认为的那样紧密交织。</p>
+      
+    
+      
+        <p>从预测鲁棒性到层鲁棒性：另一个潜在的问题是，AlexNet 和 VGG 的鲁棒性其实并不比 ResNet（在该网络上风格迁移完全失败）高多少，却表现得明显更好。为了解释这一点，请回想风格迁移是通过最小化风格损失和内容损失的组合目标来实现的。然而，我们发现，用于计算风格损失的网络远比用于内容损失的网络重要。以下演示说明了这一点——我们实际上可以使用非鲁棒的 ResNet 来计算内容损失，一切仍然工作得很好：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-4/stylematters.png" alt="">
+          <figcaption>Style transfer seems to be rather
+                        invariant to the choice of content network used, and very sensitive
+                        to the style network used.</figcaption>
+        </figure>
+      
+    
+      
+        <p>因此，从现在起，我们固定使用 ResNet-50 作为内容损失的控制网络，只关注风格损失。</p>
+      
+    
+      
+        <p>现在，请注意风格损失的工作方式是使用相关网络的前几层。因此，或许重要的不是 VGG 预测的鲁棒性，而是我们实际用于风格迁移的那些层的鲁棒性？</p>
+      
+    
+      
+        <p>为了验证这一假设，我们将第 l 层的鲁棒性 <span class="math-inline" data-math="f">f</span> 定义为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+                R(f) = \frac{\mathbb{E}_{x_1\sim D}\left[\max_{x’} \|f(x’) - f(x_1)\|_2 \right]}
+                {\mathbb{E}_{x_1, x_2 \sim D}\left[\|f(x_1) - f(x_2)\|_2\right]}
+            ">
+                R(f) = \frac{\mathbb{E}_{x_1\sim D}\left[\max_{x’} \|f(x’) - f(x_1)\|_2 \right]}
+                {\mathbb{E}_{x_1, x_2 \sim D}\left[\|f(x_1) - f(x_2)\|_2\right]}
+            </span></div>
+      
+    
+      
+        <p>本质上，这个量告诉我们在一个小的扰动球内，我们能将该层的输出 <span class="math-inline" data-math="f(x)">f(x)</span> 改变多少，并按图像之间表征的总体差异进行归一化。我们将几个不同网络前几层的该值绘制如下：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-4/robustnesses.png" alt="">
+          <figcaption>The robustness <span class="math-inline" data-math="R(f)">R(f)</span> of the first
+                        four layers of VGG16, AlexNet, and robust/standard ResNet-50
+                        trained on ImageNet.</figcaption>
+        </figure>
+      
+    
+      
+        <p>这里可以清楚看到，VGG 和 AlexNet 的前几层实际上几乎和鲁棒 ResNet 的前几层一样鲁棒！这或许是一个更有说服力的证据，表明鲁棒性确实与 VGG 在风格迁移中的成功有关。</p>
+      
+    
+      
+        <p>最后，假设我们限制风格迁移在计算风格损失时只使用网络的单个层<sup id="fnref-f8n"><a href="#f8n">[8]</a></sup>。同样，更鲁棒的层似乎确实在风格迁移中表现更好！由于鲁棒 ResNet 的所有层都是鲁棒的，即使仅使用最后一层也能产生有意义的风格迁移结果。相反，VGG 和 AlexNet 在早期层（它们具有显著鲁棒性的层）表现优异，但在仅使用后期（非鲁棒）层时则失败：</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-advex-bugs-discussion-response-4/styletransfer.png" alt="">
+          <figcaption>Style transfer using a single layer. The
+                        names of the layers and their robustness <span class="math-inline" data-math="R(f)">R(f)</span> are printed below
+                        each style transfer result. We find that for both networks, the robust
+                        layers seem to work (for the robust ResNet, every layer is robust).</figcaption>
+        </figure>
+      
+    
+      
+        <p>当然，这里还有很多工作要做，但我们很高兴看到未来有更多工作来理解鲁棒性和 VGG 在基于网络的图像处理中的作用。</p>
+      
+    
+      
+        <p>您可以在</p>
+      
+    
+      
+        <p>主讨论文章</p>
+      
+    
+  </div>
+
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <a href="#fnref-f1n">[1]</a> 由于非鲁棒特征是由非鲁棒 ResNet-50 所捕捉的特征定义的，即 <span class="math-inline" data-math="NRF_{resnet}">NRF_{resnet}</span>，因此这张图真正展示的是一个架构捕捉 <span class="math-inline" data-math="NRF_{resnet}">NRF_{resnet}</span> 的能力强弱。
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <a href="#fnref-f2n">[2]</a> 这一现象在本 Reddit 帖子中得到了详细讨论。
+    </div>
+    
+    <div class="footnote-item" id="f3n">
+      <a href="#fnref-f3n">[3]</a> 要理解这个论点，需要注意神经风格迁移中使用的感知损失依赖于匹配一个单独训练的图像分类器所学习的特征。如果这些学习到的特征对人类没有意义（即非鲁棒特征），那么神经风格迁移的输出也不会有意义。
+    </div>
+    
+    <div class="footnote-item" id="f4n">
+      <a href="#fnref-f4n">[4]</a> 优化时使用了 L-BFGS[<cite>[liu1989limited]</cite>]，因为它比 Adam 收敛更快。对于 ResNet-50，风格层使用的是 4 个残差块之后各自的 ReLU 输出 <span class="math-inline" data-math="[relu2\_x, relu3\_x, relu4\_x, relu5\_x]">[relu2\_x, relu3\_x, relu4\_x, relu5\_x]</span>，而内容层使用的是 <span class="math-inline" data-math="relu4\_x">relu4\_x</span>。对于 VGG-19，使用了风格层 <span class="math-inline" data-math="[relu1\_1,relu2\_1,relu3\_1,relu4\_1,relu5\_1]">[relu1\_1,relu2\_1,relu3\_1,relu4\_1,relu5\_1]</span> 和内容层 <span class="math-inline" data-math="relu4\_2">relu4\_2</span>。在 VGG-19 中，最大池化层被替换为平均池化层，正如 Gatys 等人的论文[<cite>[gatys2015]</cite>]所述。
+    </div>
+    
+    <div class="footnote-item" id="f5n">
+      <a href="#fnref-f5n">[5]</a> 当输出图像不是用内容图像初始化，而是用高斯噪声初始化时，这种现象会更加明显。
+    </div>
+    
+    <div class="footnote-item" id="f6n">
+      <a href="#fnref-f6n">[6]</a> 如 Dávid Komorowicz[<cite>[komorowicz2016neural]</cite>]在 这篇博客文章 中所示。
+    </div>
+    
+    <div class="footnote-item" id="f7n">
+      <a href="#fnref-f7n">[7]</a> 事实上，神经风格迁移并不是唯一一种基于预训练分类器的迭代图像优化技术，却能因为对抗鲁棒性而神奇地表现更好。在 Engstrom 等人的工作[<cite>[engstrom2019learning]</cite>]中，他们展示了通过激活最大化[<cite>[olah2017feature]</cite>]实现的特征可视化在鲁棒分类器上无需施加任何先验或正则化（例如图像变换和去相关参数化），就能正常工作，而这些是先前工作[<cite>[olah2017feature,olah2018the]</cite>]所使用的。在最近与 Chris Olah 的交流中，他指出上述特征可视化技术其实在 VGG 上无需这些先验就能很好地工作，就像风格迁移一样！
+    </div>
+    
+    <div class="footnote-item" id="f8n">
+      <a href="#fnref-f8n">[8]</a> 通常风格迁移会在损失函数中使用多个层以获得最具有视觉吸引力的结果——这里我们只关心风格迁移是否有效（即是否真的将某种风格转移到了图像上）。
+    </div>
+    
+  </section>
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

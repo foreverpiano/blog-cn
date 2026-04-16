@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>元学习：学会快速学习 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>元学习：学会快速学习</h1>
+    <div class="meta">
+      2018-11-30 · 
+      <a href="https://lilianweng.github.io/posts/2018-11-30-meta-learning/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">定义元学习问题
+
+简单视角
+
+训练方式与测试方式一致
+
+学习器与元学习器
+
+常见方法
+
+
+基于度量
+
+卷积孪生神经网络
+
+匹配网络
+
+简单嵌入
+
+全上下文嵌入
+
+
+关系网络
+
+原型网络
+
+
+基于模型
+
+记忆增强神经网络
+
+用于元学习的 MANN
+
+用于元学习的寻址机制
+
+
+元网络
+
+快速权重
+
+模型组件
+
+训练过程
+
+
+
+基于优化
+
+LSTM 元学习器
+
+为什么用 LSTM？
+
+模型设置
+
+
+MAML
+
+一阶 MAML
+
+
+Reptile
+
+优化假设
+
+Reptile 与 FOMAML 的比较
+
+
+
+参考文献</div>
+      
+    
+      
+        <p>元学习（meta-learning），也称为“学会学习”，旨在设计这样的模型：仅用少量训练样本，就能快速学习新技能或适应新环境。常见的方法有三种：1）学习一个高效的距离度量（基于度量）；2）使用带有外部或内部记忆的（循环）网络（基于模型）；3）显式地优化模型参数以实现快速学习（基于优化）。</p>
+      
+    
+      
+        <p>[2019-10-01 更新：感谢 Tianhao，我们的这篇文章已有<a href="https://wei-tianhao.github.io/blog/2019/09/17/meta-learning.html" target="_blank" rel="noopener">中文</a>译版！]</p>
+      
+    
+      
+        <p>一个好的机器学习模型通常需要用大量样本进行训练。相比之下，人类学习新概念和新技能的速度要快得多、效率也高得多。只见过几次猫和鸟的孩子，就能迅速把它们区分开来。会骑自行车的人，往往只需要很少甚至没有示范，就能很快掌握骑摩托车的方法。我们能否设计出具有类似特性的机器学习模型——仅用少量训练样本就能快速学习新概念和技能？这正是元学习试图解决的核心问题。</p>
+      
+    
+      
+        <p>我们期望一个优秀的元学习模型能够很好地适应或泛化到训练时从未见过的新任务和新环境。这种适应过程本质上是一次小型学习会话，在测试阶段发生，但仅对新任务的配置有有限的接触。最终，适应后的模型能够完成新任务。这也是为什么元学习也被称为<a href="https://www.cs.cmu.edu/~rsalakhu/papers/LakeEtAl2015Science.pdf" target="_blank" rel="noopener">learning to learn</a>（学会学习）。</p>
+      
+    
+      
+        <p>这里的“任务”可以是任何定义明确的机器学习问题家族：监督学习、强化学习等。例如，下面是几个具体的元学习任务：</p>
+      
+    
+      
+        <div class="list-content">在非猫图像上训练的分类器，在看过少量猫的图片后，就能判断给定图像是否包含猫。
+游戏机器人能够快速掌握一款新游戏。
+一台微型机器人在测试时能在上坡表面完成指定任务，尽管它只在平坦表面环境中训练过。</div>
+      
+    
+      
+        <h2>定义元学习问题</h2>
+        
+      
+    
+      
+        <p>在本文中，我们重点关注每个目标任务都是监督学习问题（如图像分类）的情况。关于强化学习问题的元学习（即“元强化学习”）已有大量有趣文献，但本文不作讨论。</p>
+      
+    
+      
+        <h2>简单视角</h2>
+        
+      
+    
+      
+        <p>一个好的元学习模型应该在一系列学习任务上进行训练，并针对任务的分布进行优化，以在包括可能未见过的任务上取得最佳性能。每个任务都关联一个数据集 <span class="math-inline" data-math="\mathcal{D}">\mathcal{D}</span>，其中包含特征向量和真实标签。最优模型参数为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\theta^* = \arg\min_\theta \mathbb{E}_{\mathcal{D}\sim p(\mathcal{D})} [\mathcal{L}_\theta(\mathcal{D})]
+">
+\theta^* = \arg\min_\theta \mathbb{E}_{\mathcal{D}\sim p(\mathcal{D})} [\mathcal{L}_\theta(\mathcal{D})]
+</span></div>
+      
+    
+      
+        <p>这看起来与普通学习任务非常相似，只是把一个数据集当作一个数据样本。</p>
+      
+    
+      
+        <p>少样本分类是元学习在监督学习领域的一个具体实例。数据集 <span class="math-inline" data-math="\mathcal{D}">\mathcal{D}</span> 通常被分成两部分：用于学习的 support set <span class="math-inline" data-math="S">S</span> 和用于训练或测试的 prediction set <span class="math-inline" data-math="B">B</span>，记作 <span class="math-inline" data-math="\mathcal{D}=\langle S, B\rangle">\mathcal{D}=\langle S, B\rangle</span>。我们常考虑 K-shot N-class 分类任务：support set 对 N 个类别中的每一类都包含 K 个带标签的样本。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-11-30-meta-learning/few-shot-classification.png" alt="">
+          <figcaption>An example of 4-shot 2-class image classification. (Image thumbnails are fromPinterest)</figcaption>
+        </figure>
+      
+    
+      
+        <h2>训练方式与测试方式一致</h2>
+        
+      
+    
+      
+        <p>数据集 <span class="math-inline" data-math="\mathcal{D}">\mathcal{D}</span> 包含特征向量和标签的配对 <span class="math-inline" data-math="\mathcal{D} = \{(\mathbf{x}_i, y_i)\}">\mathcal{D} = \{(\mathbf{x}_i, y_i)\}</span>，每个标签属于一个已知的标签集合 <span class="math-inline" data-math="\mathcal{L}^\text{label}">\mathcal{L}^\text{label}</span>。假设我们的分类器 <span class="math-inline" data-math="f_\theta">f_\theta</span> 带参数 <span class="math-inline" data-math="\theta">\theta</span>，它在给定特征向量 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 时输出数据点属于类别 <span class="math-inline" data-math="y">y</span> 的概率 <span class="math-inline" data-math="P_\theta(y\vert\mathbf{x})">P_\theta(y\vert\mathbf{x})</span>。</p>
+      
+    
+      
+        <p>最优参数应当最大化多个训练批次上真实标签的概率 <span class="math-inline" data-math="B \subset \mathcal{D}">B \subset \mathcal{D}</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\theta^* &amp;= {\arg\max}_{\theta} \mathbb{E}_{(\mathbf{x}, y)\in \mathcal{D}}[P_\theta(y \vert \mathbf{x})] &amp;\\
+\theta^* &amp;= {\arg\max}_{\theta} \mathbb{E}_{B\subset \mathcal{D}}[\sum_{(\mathbf{x}, y)\in B}P_\theta(y \vert \mathbf{x})] &amp; \scriptstyle{\text{; trained with mini-batches.}}
+\end{aligned}
+">
+\begin{aligned}
+\theta^* &amp;= {\arg\max}_{\theta} \mathbb{E}_{(\mathbf{x}, y)\in \mathcal{D}}[P_\theta(y \vert \mathbf{x})] &amp;\\
+\theta^* &amp;= {\arg\max}_{\theta} \mathbb{E}_{B\subset \mathcal{D}}[\sum_{(\mathbf{x}, y)\in B}P_\theta(y \vert \mathbf{x})] &amp; \scriptstyle{\text{; trained with mini-batches.}}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>在少样本分类中，目标是在给定少量 support set 以实现“快速学习”的情况下，降低对未知标签样本的预测误差（想想“微调”是如何工作的）。为了让训练过程模拟推理时的情形，我们需要“伪造”只包含部分标签的数据集，避免将所有标签都暴露给模型，并相应地修改优化过程以鼓励快速学习：</p>
+      
+    
+      
+        <div class="list-content">采样一个标签子集 <span class="math-inline" data-math="L\subset\mathcal{L}^\text{label}">L\subset\mathcal{L}^\text{label}</span>。
+采样一个 support set <span class="math-inline" data-math="S^L \subset \mathcal{D}">S^L \subset \mathcal{D}</span> 和一个训练批次 <span class="math-inline" data-math="B^L \subset \mathcal{D}">B^L \subset \mathcal{D}</span>。两者都只包含标签属于已采样标签集 <span class="math-inline" data-math="L">L</span> 的数据点 <span class="math-inline" data-math="y \in L, \forall (x, y) \in S^L, B^L">y \in L, \forall (x, y) \in S^L, B^L</span>。
+support set 作为模型输入的一部分。<span class="math-inline" data-math="\hat{y}=f\_\theta(\mathbf{x}, S^L)">\hat{y}=f\_\theta(\mathbf{x}, S^L)</span>
+最终优化使用 mini-batch <span class="math-inline" data-math="B^L">B^L</span> 来计算损失，并通过反向传播更新模型参数，与监督学习中的用法相同。</div>
+      
+    
+      
+        <p>你可以把每对采样得到的数据集 <span class="math-inline" data-math="(S^L, B^L)">(S^L, B^L)</span> 看作一个数据点。模型经过训练后能够泛化到其他数据集。红色符号是为元学习在监督学习目标之上额外添加的。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\theta = \arg\max_\theta \color{red}{E_{L\subset\mathcal{L}}[} E_{\color{red}{S^L \subset\mathcal{D}, }B^L \subset\mathcal{D}} [\sum_{(x, y)\in B^L} P_\theta(x, y\color{red}{, S^L})] \color{red}{]}
+">
+\theta = \arg\max_\theta \color{red}{E_{L\subset\mathcal{L}}[} E_{\color{red}{S^L \subset\mathcal{D}, }B^L \subset\mathcal{D}} [\sum_{(x, y)\in B^L} P_\theta(x, y\color{red}{, S^L})] \color{red}{]}
+</span></div>
+      
+    
+      
+        <p>这个想法在一定程度上类似于在图像分类（ImageNet）或语言建模（大型文本语料）中，当只有有限的任务特定数据样本可用时，使用预训练模型。元学习将这个想法又推进了一步：它不是针对某一个下游任务进行微调，而是优化模型使其在许多（如果不是全部）任务上都表现良好。</p>
+      
+    
+      
+        <h2>学习器与元学习器</h2>
+        
+      
+    
+      
+        <p>元学习的另一个流行视角是将模型更新分解为两个阶段：</p>
+      
+    
+      
+        <div class="list-content">分类器 <span class="math-inline" data-math="f_\theta">f_\theta</span> 是“学习器”（learner）模型，针对给定任务进行训练；
+与此同时，一个优化器 <span class="math-inline" data-math="g_\phi">g_\phi</span> 学习如何使用 support set <span class="math-inline" data-math="S">S</span> 来更新学习器的参数 <span class="math-inline" data-math="\theta’ = g_\phi(\theta, S)">\theta’ = g_\phi(\theta, S)</span>。</div>
+      
+    
+      
+        <p>最终优化步骤中，我们需要同时更新 <span class="math-inline" data-math="\theta">\theta</span> 和 <span class="math-inline" data-math="\phi">\phi</span> 以最大化：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbb{E}_{L\subset\mathcal{L}}[ \mathbb{E}_{S^L \subset\mathcal{D}, B^L \subset\mathcal{D}} [\sum_{(\mathbf{x}, y)\in B^L} P_{g_\phi(\theta, S^L)}(y \vert \mathbf{x})]]
+">
+\mathbb{E}_{L\subset\mathcal{L}}[ \mathbb{E}_{S^L \subset\mathcal{D}, B^L \subset\mathcal{D}} [\sum_{(\mathbf{x}, y)\in B^L} P_{g_\phi(\theta, S^L)}(y \vert \mathbf{x})]]
+</span></div>
+      
+    
+      
+        <h2>常见方法</h2>
+        
+      
+    
+      
+        <p>元学习主要有三种方法：基于度量、基于模型和基于优化。Oriol Vinyals 在 2018 年 NIPS 元学习研讨会上的<a href="http://metalearning-symposium.ml/files/vinyals.pdf" target="_blank" rel="noopener">报告</a>中给出了一个很好的总结：</p>
+      
+    
+      
+        <p>| ————- | ————- | ————- | ————- |</p>
+      
+    
+      
+        <div class="table-container"><table>
+<thead>
+<tr>
+<th></th>
+<th>Model-based</th>
+<th>Metric-based</th>
+<th>Optimization-based</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Key idea</strong></td>
+<td>RNN; memory</td>
+<td>Metric learning</td>
+<td>Gradient descent</td>
+</tr>
+<tr>
+<td><strong>How <span class="math-inline" data-math="P_\theta(y \vert \mathbf{x})">P_\theta(y \vert \mathbf{x})</span> is modeled?</strong></td>
+<td><span class="math-inline" data-math="f_\theta(\mathbf{x}, S)">f_\theta(\mathbf{x}, S)</span></td>
+<td><span class="math-inline" data-math="\sum_{(\mathbf{x}_i, y_i) \in S} k_\theta(\mathbf{x}, \mathbf{x}_i)y_i">\sum_{(\mathbf{x}_i, y_i) \in S} k_\theta(\mathbf{x}, \mathbf{x}_i)y_i</span> (*)</td>
+<td><span class="math-inline" data-math="P_{g_\phi(\theta, S^L)}(y \vert \mathbf{x})">P_{g_\phi(\theta, S^L)}(y \vert \mathbf{x})</span></td>
+</tr>
+</tbody>
+</table></div>
+      
+    
+      
+        <p>(*) <span class="math-inline" data-math="k_\theta">k_\theta</span> 是一个核函数，用于衡量 <span class="math-inline" data-math="\mathbf{x}_i">\mathbf{x}_i</span> 和 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 之间的相似性。</p>
+      
+    
+      
+        <p>接下来我们将逐一回顾每种方法中的经典模型。</p>
+      
+    
+      
+        <h2>基于度量</h2>
+        
+      
+    
+      
+        <p>基于度量的元学习核心思想与最近邻算法（即<a href="https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm" target="_blank" rel="noopener">k-NN</a> 分类器和<a href="https://en.wikipedia.org/wiki/K-means_clustering" target="_blank" rel="noopener">k-means</a> 聚类）以及<a href="https://en.wikipedia.org/wiki/Kernel_density_estimation" target="_blank" rel="noopener">核密度估计</a>相似。对已知标签集合 <span class="math-inline" data-math="y">y</span> 的预测概率是 support set 样本标签的加权和，权重由核函数 <span class="math-inline" data-math="k_\theta">k_\theta</span> 产生，用于衡量两个数据样本之间的相似度。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+P_\theta(y \vert \mathbf{x}, S) = \sum_{(\mathbf{x}_i, y_i) \in S} k_\theta(\mathbf{x}, \mathbf{x}_i)y_i 
+">
+P_\theta(y \vert \mathbf{x}, S) = \sum_{(\mathbf{x}_i, y_i) \in S} k_\theta(\mathbf{x}, \mathbf{x}_i)y_i 
+</span></div>
+      
+    
+      
+        <p>学习一个好的核函数对基于度量的元学习模型的成功至关重要。<a href="https://en.wikipedia.org/wiki/Similarity_learning#Metric_learning" target="_blank" rel="noopener">度量学习</a>（Metric learning）与这一目标高度一致，因为它旨在学习对象之间的度量或距离函数。一个好的度量的定义取决于具体问题。它应当能够体现任务空间中输入之间的关系，并有助于解决问题。</p>
+      
+    
+      
+        <p>下面介绍的所有模型都会显式学习输入数据的嵌入向量，并利用它们来设计合适的核函数。</p>
+      
+    
+      
+        <h2>卷积孪生神经网络</h2>
+        
+      
+    
+      
+        <p><a href="https://papers.nips.cc/paper/769-signature-verification-using-a-siamese-time-delay-neural-network.pdf" target="_blank" rel="noopener">Siamese Neural Network</a>（孪生神经网络）由两个完全相同的子网络组成，它们的输出在顶层通过一个函数联合训练，以学习输入数据样本对之间的关系。这两个子网络是相同的，共享相同的权重和网络参数。换句话说，它们指向同一个嵌入网络，该网络学习一个高效的嵌入来揭示数据点对之间的关系。</p>
+      
+    
+      
+        <p><a href="http://www.cs.toronto.edu/~rsalakhu/papers/oneshot1.pdf" target="_blank" rel="noopener">Koch, Zemel &amp;amp; Salakhutdinov (2015)</a> 提出了一种使用孪生神经网络进行单样本图像分类的方法。首先，孪生网络被训练完成一个验证任务，即判断两张输入图像是否属于同一类。它输出两张图像属于同一类的概率。然后，在测试时，孪生网络处理测试图像与 support set 中每一张图像的所有配对。最终预测是概率最高的那张 support 图像所属的类别。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-11-30-meta-learning/siamese-conv-net.png" alt="">
+          <figcaption>The architecture of convolutional siamese neural network for few-show image classification.</figcaption>
+        </figure>
+      
+    
+      
+        <div class="list-content">首先，卷积孪生网络通过一个包含若干卷积层的嵌入函数 <span class="math-inline" data-math="f_\theta">f_\theta</span> 将两张图像编码为特征向量。
+两个嵌入之间的 L1 距离为 <span class="math-inline" data-math="\vert f_\theta(\mathbf{x}_i) - f_\theta(\mathbf{x}_j) \vert">\vert f_\theta(\mathbf{x}_i) - f_\theta(\mathbf{x}_j) \vert</span>。
+该距离通过一个线性前馈层和 sigmoid 转换为概率 <span class="math-inline" data-math="p">p</span>，表示两张图像是否来自同一类的概率。
+直观上损失函数是交叉熵，因为标签是二元的。</div>
+      
+    
+      
+        <p>通过这种方式，训练出一个高效的图像嵌入，使得两个嵌入之间的距离与两张图像的相似度成正比。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+p(\mathbf{x}_i, \mathbf{x}_j) &amp;= \sigma(\mathbf{W}\vert f_\theta(\mathbf{x}_i) - f_\theta(\mathbf{x}_j) \vert) \\
+\mathcal{L}(B) &amp;= \sum_{(\mathbf{x}_i, \mathbf{x}_j, y_i, y_j)\in B} \mathbf{1}_{y_i=y_j}\log p(\mathbf{x}_i, \mathbf{x}_j) + (1-\mathbf{1}_{y_i=y_j})\log (1-p(\mathbf{x}_i, \mathbf{x}_j))
+\end{aligned}
+">
+\begin{aligned}
+p(\mathbf{x}_i, \mathbf{x}_j) &amp;= \sigma(\mathbf{W}\vert f_\theta(\mathbf{x}_i) - f_\theta(\mathbf{x}_j) \vert) \\
+\mathcal{L}(B) &amp;= \sum_{(\mathbf{x}_i, \mathbf{x}_j, y_i, y_j)\in B} \mathbf{1}_{y_i=y_j}\log p(\mathbf{x}_i, \mathbf{x}_j) + (1-\mathbf{1}_{y_i=y_j})\log (1-p(\mathbf{x}_i, \mathbf{x}_j))
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>训练批次 <span class="math-inline" data-math="B">B</span> 中的图像可以使用失真进行增强。当然，你也可以用其他距离度量（如 L2、余弦等）替换 L1 距离。只要它们可微分，其余部分就完全一样。</p>
+      
+    
+      
+        <p>给定 support set <span class="math-inline" data-math="S">S</span> 和测试图像 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span>，最终预测类别为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\hat{c}_S(\mathbf{x}) = c(\arg\max_{\mathbf{x}_i \in S} P(\mathbf{x}, \mathbf{x}_i))
+">
+\hat{c}_S(\mathbf{x}) = c(\arg\max_{\mathbf{x}_i \in S} P(\mathbf{x}, \mathbf{x}_i))
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="c(\mathbf{x})">c(\mathbf{x})</span> 是图像 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 的类别标签，<span class="math-inline" data-math="\hat{c}(.)">\hat{c}(.)</span> 是预测标签。</p>
+      
+    
+      
+        <p>其假设是学到的嵌入能够泛化到未知类别图像的距离度量上。这与通过采用预训练模型进行迁移学习的假设相同；例如，在 ImageNet 上预训练的模型学到的卷积特征有望帮助其他图像任务。然而，当新任务与模型原始训练任务差异较大时，预训练模型带来的收益会下降。</p>
+      
+    
+      
+        <h2>匹配网络</h2>
+        
+      
+    
+      
+        <p>匹配网络（Matching Networks，<a href="http://papers.nips.cc/paper/6385-matching-networks-for-one-shot-learning.pdf" target="_blank" rel="noopener">Vinyals et al., 2016</a>）的任务是为任意给定的（小型）support set <span class="math-inline" data-math="S=\{x_i, y_i\}_{i=1}^k">S=\{x_i, y_i\}_{i=1}^k</span> 学习一个分类器 <span class="math-inline" data-math="c_S">c_S</span>（k-shot 分类）。该分类器为测试样本 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 定义了一个在输出标签 <span class="math-inline" data-math="y">y</span> 上的概率分布。与其他基于度量的模型类似，分类器输出被定义为 support 样本标签的加权和，权重来自注意力核函数 <span class="math-inline" data-math="a(\mathbf{x}, \mathbf{x}_i)">a(\mathbf{x}, \mathbf{x}_i)</span>——它应当与 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 和 <span class="math-inline" data-math="\mathbf{x}_i">\mathbf{x}_i</span> 之间的相似度成正比。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-11-30-meta-learning/matching-networks.png" alt="">
+          <figcaption>The architecture of Matching Networks. (Image source:original paper)</figcaption>
+        </figure>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+c_S(\mathbf{x}) = P(y \vert \mathbf{x}, S) = \sum_{i=1}^k a(\mathbf{x}, \mathbf{x}_i) y_i
+\text{, where }S=\{(\mathbf{x}_i, y_i)\}_{i=1}^k
+">
+c_S(\mathbf{x}) = P(y \vert \mathbf{x}, S) = \sum_{i=1}^k a(\mathbf{x}, \mathbf{x}_i) y_i
+\text{, where }S=\{(\mathbf{x}_i, y_i)\}_{i=1}^k
+</span></div>
+      
+    
+      
+        <p>注意力核函数依赖于两个嵌入函数 <span class="math-inline" data-math="f">f</span> 和 <span class="math-inline" data-math="g">g</span>，分别用于编码测试样本和 support set 样本。两个数据点之间的注意力权重是它们嵌入向量之间的余弦相似度 <span class="math-inline" data-math="\text{cosine}(.)">\text{cosine}(.)</span>，再经过 softmax 归一化：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+a(\mathbf{x}, \mathbf{x}_i) = \frac{\exp(\text{cosine}(f(\mathbf{x}), g(\mathbf{x}_i))}{\sum_{j=1}^k\exp(\text{cosine}(f(\mathbf{x}), g(\mathbf{x}_j))}
+">
+a(\mathbf{x}, \mathbf{x}_i) = \frac{\exp(\text{cosine}(f(\mathbf{x}), g(\mathbf{x}_i))}{\sum_{j=1}^k\exp(\text{cosine}(f(\mathbf{x}), g(\mathbf{x}_j))}
+</span></div>
+      
+    
+      
+        <h3>简单嵌入</h3>
+        
+      
+    
+      
+        <p>在简单版本中，嵌入函数是一个以单个数据样本为输入的神经网络。可能我们可以令 <span class="math-inline" data-math="f=g">f=g</span>。</p>
+      
+    
+      
+        <h3>全上下文嵌入</h3>
+        
+      
+    
+      
+        <p>嵌入向量是构建良好分类器的关键输入。仅以单个数据点作为输入可能不足以有效衡量整个特征空间。因此，匹配网络模型进一步提出，除了原始输入外，还将整个 support set <span class="math-inline" data-math="S">S</span> 作为输入，从而让学到的嵌入能够根据与其他 support 样本的关系进行调整。</p>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="g_\theta(\mathbf{x}_i, S)">g_\theta(\mathbf{x}_i, S)</span> 使用双向 LSTM 在整个 support set <span class="math-inline" data-math="S">S</span> 的上下文中对 <span class="math-inline" data-math="\mathbf{x}_i">\mathbf{x}_i</span> 进行编码。
+
+
+<span class="math-inline" data-math="f_\theta(\mathbf{x}, S)">f_\theta(\mathbf{x}, S)</span> 通过一个在 support set <span class="math-inline" data-math="S">S</span> 上带有读注意力的 LSTM 来编码测试样本 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span>。
+
+首先测试样本经过一个简单的神经网络（如 CNN）提取基本特征 <span class="math-inline" data-math="f’(\mathbf{x})">f’(\mathbf{x})</span>。
+然后用一个读注意力向量作为 LSTM 隐藏状态的一部分进行训练：</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+  \begin{aligned}
+  \hat{\mathbf{h}}_t, \mathbf{c}_t &amp;= \text{LSTM}(f&#x27;(\mathbf{x}), [\mathbf{h}_{t-1}, \mathbf{r}_{t-1}], \mathbf{c}_{t-1}) \\
+  \mathbf{h}_t &amp;= \hat{\mathbf{h}}_t + f&#x27;(\mathbf{x}) \\
+  \mathbf{r}_{t-1} &amp;= \sum_{i=1}^k a(\mathbf{h}_{t-1}, g(\mathbf{x}_i)) g(\mathbf{x}_i) \\
+  a(\mathbf{h}_{t-1}, g(\mathbf{x}_i)) &amp;= \text{softmax}(\mathbf{h}_{t-1}^\top g(\mathbf{x}_i)) = \frac{\exp(\mathbf{h}_{t-1}^\top g(\mathbf{x}_i))}{\sum_{j=1}^k \exp(\mathbf{h}_{t-1}^\top g(\mathbf{x}_j))}
+  \end{aligned}
+  ">
+  \begin{aligned}
+  \hat{\mathbf{h}}_t, \mathbf{c}_t &amp;= \text{LSTM}(f&#x27;(\mathbf{x}), [\mathbf{h}_{t-1}, \mathbf{r}_{t-1}], \mathbf{c}_{t-1}) \\
+  \mathbf{h}_t &amp;= \hat{\mathbf{h}}_t + f&#x27;(\mathbf{x}) \\
+  \mathbf{r}_{t-1} &amp;= \sum_{i=1}^k a(\mathbf{h}_{t-1}, g(\mathbf{x}_i)) g(\mathbf{x}_i) \\
+  a(\mathbf{h}_{t-1}, g(\mathbf{x}_i)) &amp;= \text{softmax}(\mathbf{h}_{t-1}^\top g(\mathbf{x}_i)) = \frac{\exp(\mathbf{h}_{t-1}^\top g(\mathbf{x}_i))}{\sum_{j=1}^k \exp(\mathbf{h}_{t-1}^\top g(\mathbf{x}_j))}
+  \end{aligned}
+  </span></div>
+      
+    
+      
+        <div class="list-content">如果我们执行 K 步“读取”，最终得到 <span class="math-inline" data-math="f(\mathbf{x}, S)=\mathbf{h}_K">f(\mathbf{x}, S)=\mathbf{h}_K</span>。</div>
+      
+    
+      
+        <p>这种嵌入方法被称为“Full Contextual Embeddings (FCE)”。有趣的是，它确实能显著提升在困难任务（mini ImageNet 上的少样本分类）上的性能，但在简单任务（Omniglot）上则没有差别。</p>
+      
+    
+      
+        <p>匹配网络的训练过程被设计成与测试时的推理过程相匹配，具体细节见前面的章节。值得一提的是，匹配网络的论文进一步完善了“训练和测试条件应当一致”的思想。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\theta^* = \arg\max_\theta \mathbb{E}_{L\subset\mathcal{L}}[ \mathbb{E}_{S^L \subset\mathcal{D}, B^L \subset\mathcal{D}} [\sum_{(\mathbf{x}, y)\in B^L} P_\theta(y\vert\mathbf{x}, S^L)]]
+">
+\theta^* = \arg\max_\theta \mathbb{E}_{L\subset\mathcal{L}}[ \mathbb{E}_{S^L \subset\mathcal{D}, B^L \subset\mathcal{D}} [\sum_{(\mathbf{x}, y)\in B^L} P_\theta(y\vert\mathbf{x}, S^L)]]
+</span></div>
+      
+    
+      
+        <h2>关系网络</h2>
+        
+      
+    
+      
+        <p>关系网络（Relation Network，RN）（<a href="http://openaccess.thecvf.com/content_cvpr_2018/papers_backup/Sung_Learning_to_Compare_CVPR_2018_paper.pdf" target="_blank" rel="noopener">Sung et al., 2018</a>）与孪生网络类似，但有几点不同：</p>
+      
+    
+      
+        <div class="list-content">关系不是由特征空间中简单的 L1 距离捕捉，而是由一个 CNN 分类器 <span class="math-inline" data-math="g_\phi">g_\phi</span> 预测。一对输入 <span class="math-inline" data-math="\mathbf{x}_i">\mathbf{x}_i</span> 和 <span class="math-inline" data-math="\mathbf{x}_j">\mathbf{x}_j</span> 之间的关系得分是 <span class="math-inline" data-math="r_{ij} = g_\phi([\mathbf{x}_i, \mathbf{x}_j])">r_{ij} = g_\phi([\mathbf{x}_i, \mathbf{x}_j])</span>，其中 <span class="math-inline" data-math="[.,.]">[.,.]</span> 表示拼接。
+目标函数是均方误差（MSE）损失而不是交叉熵，因为从概念上 RN 更关注预测关系得分，这更像回归而非二分类 <span class="math-inline" data-math="\mathcal{L}(B) = \sum_{(\mathbf{x}_i, \mathbf{x}_j, y_i, y_j)\in B} (r_{ij} - \mathbf{1}_{y_i=y_j})^2">\mathcal{L}(B) = \sum_{(\mathbf{x}_i, \mathbf{x}_j, y_i, y_j)\in B} (r_{ij} - \mathbf{1}_{y_i=y_j})^2</span>。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-11-30-meta-learning/relation-network.png" alt="">
+          <figcaption>Relation Network architecture for a 5-way 1-shot problem with one query example. (Image source:original paper)</figcaption>
+        </figure>
+      
+    
+      
+        <p>（注意：DeepMind 还提出过另一个用于关系推理的<a href="https://deepmind.com/blog/neural-approach-relational-reasoning/" target="_blank" rel="noopener">Relation Network</a>，不要混淆。）</p>
+      
+    
+      
+        <h2>原型网络</h2>
+        
+      
+    
+      
+        <p>原型网络（Prototypical Networks，<a href="http://papers.nips.cc/paper/6996-prototypical-networks-for-few-shot-learning.pdf" target="_blank" rel="noopener">Snell, Swersky &amp;amp; Zemel, 2017</a>）使用嵌入函数 <span class="math-inline" data-math="f_\theta">f_\theta</span> 将每个输入编码为 <span class="math-inline" data-math="M">M</span> 维特征向量。为每个类别 <span class="math-inline" data-math="c \in \mathcal{C}">c \in \mathcal{C}</span> 定义一个原型特征向量，即该类别中所有嵌入后的 support 数据样本的均值向量。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbf{v}_c = \frac{1}{|S_c|} \sum_{(\mathbf{x}_i, y_i) \in S_c} f_\theta(\mathbf{x}_i)
+">
+\mathbf{v}_c = \frac{1}{|S_c|} \sum_{(\mathbf{x}_i, y_i) \in S_c} f_\theta(\mathbf{x}_i)
+</span></div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-11-30-meta-learning/prototypical-networks.png" alt="">
+          <figcaption>Prototypical networks in the few-shot and zero-shot scenarios. (Image source:original paper)</figcaption>
+        </figure>
+      
+    
+      
+        <p>对于给定的测试输入 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span>，类别上的分布是测试数据嵌入与原型向量之间距离倒数的 softmax。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+P(y=c\vert\mathbf{x})=\text{softmax}(-d_\varphi(f_\theta(\mathbf{x}), \mathbf{v}_c)) = \frac{\exp(-d_\varphi(f_\theta(\mathbf{x}), \mathbf{v}_c))}{\sum_{c&#x27; \in \mathcal{C}}\exp(-d_\varphi(f_\theta(\mathbf{x}), \mathbf{v}_{c&#x27;}))}
+">
+P(y=c\vert\mathbf{x})=\text{softmax}(-d_\varphi(f_\theta(\mathbf{x}), \mathbf{v}_c)) = \frac{\exp(-d_\varphi(f_\theta(\mathbf{x}), \mathbf{v}_c))}{\sum_{c&#x27; \in \mathcal{C}}\exp(-d_\varphi(f_\theta(\mathbf{x}), \mathbf{v}_{c&#x27;}))}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="d_\varphi">d_\varphi</span> 可以是任意可微分的距离函数。论文中他们使用了平方欧氏距离。<span class="math-inline" data-math="\varphi">\varphi</span></p>
+      
+    
+      
+        <p>损失函数是负对数似然：<span class="math-inline" data-math="\mathcal{L}(\theta) = -\log P_\theta(y=c\vert\mathbf{x})">\mathcal{L}(\theta) = -\log P_\theta(y=c\vert\mathbf{x})</span>。</p>
+      
+    
+      
+        <h2>基于模型</h2>
+        
+      
+    
+      
+        <p>基于模型的元学习不对 <span class="math-inline" data-math="P_\theta(y\vert\mathbf{x})">P_\theta(y\vert\mathbf{x})</span> 的形式做任何假设，而是依赖一个专门为快速学习设计的模型——一个只需少量训练步就能快速更新参数的模型。这种快速参数更新既可以通过其内部架构实现，也可以通过另一个元学习器模型来控制。</p>
+      
+    
+      
+        <h2>记忆增强神经网络</h2>
+        
+      
+    
+      
+        <p>一类模型架构使用外部记忆存储来辅助神经网络的学习过程，包括<a href="posts-2018-06-24-attention.html">注意力？注意力！</a>和<a href="https://arxiv.org/abs/1410.3916" target="_blank" rel="noopener">Memory Networks</a>。有了显式的存储缓冲区，网络就能更容易地快速吸收新信息且不易遗忘。这类模型被称为 MANN（Memory-Augmented Neural Network，记忆增强神经网络）。注意，仅具有内部记忆的循环神经网络（如 vanilla RNN 或 LSTM）不属于 MANN。</p>
+      
+    
+      
+        <p>由于 MANN 被期望能够快速编码新信息，从而在仅见过少量样本后就能适应新任务，因此它非常适合元学习。以 Neural Turing Machine (NTM) 为基础模型，<a href="http://proceedings.mlr.press/v48/santoro16.pdf" target="_blank" rel="noopener">Santoro et al. (2016)</a> 对训练设置和记忆检索机制（或称“寻址机制”，决定如何为记忆向量分配注意力权重）进行了一系列修改。如果你不熟悉 NTM，请先阅读我另一篇文章中的再继续阅读。<a href="posts-2018-06-24-attention.html">注意力？注意力！</a></p>
+      
+    
+      
+        <p>简单回顾一下，NTM 将一个控制器神经网络与外部记忆存储耦合。控制器通过软注意力学习读写记忆行，而记忆则作为一个知识库。注意力权重由其寻址机制生成：基于内容 + 基于位置。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-11-30-meta-learning/NTM.png" alt="">
+          <figcaption>The architecture of Neural Turing Machine (NTM). The memory at time t, <span class="math-inline" data-math="\mathbf{M}\_t">\mathbf{M}\_t</span> is a matrix of size <span class="math-inline" data-math="N \times M">N \times M</span>, containing N vector rows and each has M dimensions.</figcaption>
+        </figure>
+      
+    
+      
+        <h3>用于元学习的 MANN</h3>
+        
+      
+    
+      
+        <p>要将 MANN 用于元学习任务，需要以这样一种方式训练它：让记忆能够快速编码和捕捉新任务的信息，同时任何存储的表示都能被容易且稳定地访问。</p>
+      
+    
+      
+        <p><a href="http://proceedings.mlr.press/v48/santoro16.pdf" target="_blank" rel="noopener">Santoro et al., 2016</a> 中描述的训练方式非常有趣，它迫使记忆将信息保持更长时间，直到稍后合适的标签被呈现。在每个训练 episode 中，真实标签 <span class="math-inline" data-math="y_t">y_t</span> 会延迟一步呈现 <span class="math-inline" data-math="(\mathbf{x}_{t+1}, y_t)">(\mathbf{x}_{t+1}, y_t)</span>：它是前一个时刻 t 输入的真实标签，但作为时刻 t+1 输入的一部分出现。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-11-30-meta-learning/mann-meta-learning.png" alt="">
+          <figcaption>Task setup in MANN for meta-learning (Image source:original paper).</figcaption>
+        </figure>
+      
+    
+      
+        <p>通过这种方式，MANN 被激励去记忆新数据集的信息，因为记忆必须保存当前输入直到标签出现，然后再检索旧信息来做出相应预测。</p>
+      
+    
+      
+        <p>接下来我们看看记忆是如何被更新以实现高效的信息检索和存储的。</p>
+      
+    
+      
+        <h3>用于元学习的寻址机制</h3>
+        
+      
+    
+      
+        <p>除了训练过程之外，还采用了一种全新的纯基于内容的寻址机制，使模型更适合元学习。</p>
+      
+    
+      
+        <p>» 如何从记忆中读取？
+读取注意力完全基于内容相似性构建。</p>
+      
+    
+      
+        <p>首先，控制器在时刻 t 根据输入 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 产生一个关键特征向量 <span class="math-inline" data-math="\mathbf{k}_t">\mathbf{k}_t</span>。与 NTM 类似，计算一个包含 N 个元素的读取权重向量 <span class="math-inline" data-math="\mathbf{w}_t^r">\mathbf{w}_t^r</span>，它是关键向量与每个记忆向量行的余弦相似度，再经过 softmax 归一化。读取向量 <span class="math-inline" data-math="\mathbf{r}_t">\mathbf{r}_t</span> 是记忆记录按这些权重的加权和：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbf{r}_i = \sum_{i=1}^N w_t^r(i)\mathbf{M}_t(i)
+\text{, where } w_t^r(i) = \text{softmax}(\frac{\mathbf{k}_t \cdot \mathbf{M}_t(i)}{\|\mathbf{k}_t\| \cdot \|\mathbf{M}_t(i)\|})
+">
+\mathbf{r}_i = \sum_{i=1}^N w_t^r(i)\mathbf{M}_t(i)
+\text{, where } w_t^r(i) = \text{softmax}(\frac{\mathbf{k}_t \cdot \mathbf{M}_t(i)}{\|\mathbf{k}_t\| \cdot \|\mathbf{M}_t(i)\|})
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="M_t">M_t</span> 是时刻 t 的记忆矩阵，<span class="math-inline" data-math="M_t(i)">M_t(i)</span> 是该矩阵中的第 i 行。</p>
+      
+    
+      
+        <p>» 如何写入记忆？
+将新接收的信息写入记忆的寻址机制很像<a href="https://en.wikipedia.org/wiki/Cache_replacement_policies" target="_blank" rel="noopener">缓存替换</a>策略。为使 MANN 更好地适应元学习场景，设计了 Least Recently Used Access (LRUA) 写入器。LRUA 写入头倾向于将新内容写到最少使用的记忆位置或最近使用的记忆位置。</p>
+      
+    
+      
+        <div class="list-content">很少使用的位置：这样我们可以保留经常使用的信息（参见<a href="https://en.wikipedia.org/wiki/Least_frequently_used" target="_blank" rel="noopener">LFU</a>）；
+最后使用的位置：动机是一旦某条信息被检索过一次，短时间内可能不会再被调用（参见<a href="https://en.wikipedia.org/wiki/Cache_replacement_policies#Most_recently_used_(MRU)" target="_blank" rel="noopener">MRU</a>）。</div>
+      
+    
+      
+        <p>存在许多缓存替换算法，每一种都可能在不同使用场景下提供更好性能来替代这里的设计。此外，不随意设定而是学习记忆使用模式和寻址策略会是一个好主意。</p>
+      
+    
+      
+        <p>LRUA 的偏好以完全可微分的方式实现：</p>
+      
+    
+      
+        <div class="list-content">时刻 t 的使用权重 <span class="math-inline" data-math="\mathbf{w}^u_t">\mathbf{w}^u_t</span> 是当前读写向量之和，再加上衰减后的上一个使用权重 <span class="math-inline" data-math="\gamma \mathbf{w}^u_{t-1}">\gamma \mathbf{w}^u_{t-1}</span>，其中 <span class="math-inline" data-math="\gamma">\gamma</span> 是衰减因子。
+写入向量是前一个读权重（偏好“最后使用的位置”）与前一个最少使用权重（偏好“很少使用的位置”）之间的插值，插值参数是超参数 <span class="math-inline" data-math="\alpha">\alpha</span> 的 sigmoid。
+最少使用权重 <span class="math-inline" data-math="\mathbf{w}^{lu}">\mathbf{w}^{lu}</span> 根据使用权重 <span class="math-inline" data-math="\mathbf{w}_t^u">\mathbf{w}_t^u</span> 进行缩放，其中任何维度如果小于向量中第 n 小的元素则保持为 1，否则为 0。</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\mathbf{w}_t^u &amp;= \gamma \mathbf{w}_{t-1}^u + \mathbf{w}_t^r + \mathbf{w}_t^w \\
+\mathbf{w}_t^r &amp;= \text{softmax}(\text{cosine}(\mathbf{k}_t, \mathbf{M}_t(i))) \\
+\mathbf{w}_t^w &amp;= \sigma(\alpha)\mathbf{w}_{t-1}^r + (1-\sigma(\alpha))\mathbf{w}^{lu}_{t-1}\\
+\mathbf{w}_t^{lu} &amp;= \mathbf{1}_{w_t^u(i) \leq m(\mathbf{w}_t^u, n)}
+\text{, where }m(\mathbf{w}_t^u, n)\text{ is the }n\text{-th smallest element in vector }\mathbf{w}_t^u\text{.}
+\end{aligned}
+">
+\begin{aligned}
+\mathbf{w}_t^u &amp;= \gamma \mathbf{w}_{t-1}^u + \mathbf{w}_t^r + \mathbf{w}_t^w \\
+\mathbf{w}_t^r &amp;= \text{softmax}(\text{cosine}(\mathbf{k}_t, \mathbf{M}_t(i))) \\
+\mathbf{w}_t^w &amp;= \sigma(\alpha)\mathbf{w}_{t-1}^r + (1-\sigma(\alpha))\mathbf{w}^{lu}_{t-1}\\
+\mathbf{w}_t^{lu} &amp;= \mathbf{1}_{w_t^u(i) \leq m(\mathbf{w}_t^u, n)}
+\text{, where }m(\mathbf{w}_t^u, n)\text{ is the }n\text{-th smallest element in vector }\mathbf{w}_t^u\text{.}
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>最后，将由 <span class="math-inline" data-math="\mathbf{w}_t^{lu}">\mathbf{w}_t^{lu}</span> 指示的最少使用记忆位置清零后，每个记忆行被更新：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbf{M}_t(i) = \mathbf{M}_{t-1}(i) + w_t^w(i)\mathbf{k}_t, \forall i
+">
+\mathbf{M}_t(i) = \mathbf{M}_{t-1}(i) + w_t^w(i)\mathbf{k}_t, \forall i
+</span></div>
+      
+    
+      
+        <h2>元网络</h2>
+        
+      
+    
+      
+        <p>元网络（Meta Networks，<a href="https://arxiv.org/abs/1703.00837" target="_blank" rel="noopener">Munkhdalai &amp;amp; Yu, 2017</a>），简称 MetaNet，是一种为跨任务快速泛化而专门设计架构和训练过程的元学习模型。</p>
+      
+    
+      
+        <h3>快速权重</h3>
+        
+      
+    
+      
+        <p>MetaNet 的快速泛化依赖于“快速权重”（fast weights）。关于这个主题已有不少论文，但我没有全部细读，也未能找到非常具体的定义，只有概念上的模糊共识。通常神经网络中的权重是通过随机梯度下降在目标函数上更新的，这个过程被认为是缓慢的。更快的学习方式之一是利用一个神经网络去预测另一个神经网络的参数，生成出来的权重被称为快速权重。相比之下，普通的基于 SGD 的权重被称为慢权重（slow weights）。</p>
+      
+    
+      
+        <p>在 MetaNet 中，损失梯度被用作元信息来填充学习快速权重的模型。慢权重和快速权重被组合起来在神经网络中进行预测。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-11-30-meta-learning/combine-slow-fast-weights.png" alt="">
+          <figcaption>Combining slow and fast weights in a MLP. <span class="math-inline" data-math="\bigoplus">\bigoplus</span> is element-wise sum. (Image source:original paper).</figcaption>
+        </figure>
+      
+    
+      
+        <h3>模型组件</h3>
+        
+      
+    
+      
+        <blockquote>免责声明：下面你会发现我的注解与论文中的不同。在我看来，这篇论文写得不太好，但思想仍然很有趣。所以我用自己的语言来呈现这个想法。</blockquote>
+      
+    
+      
+        <p>MetaNet 的关键组件包括：</p>
+      
+    
+      
+        <div class="list-content">一个由 <span class="math-inline" data-math="\theta">\theta</span> 参数化的嵌入函数 <span class="math-inline" data-math="f_\theta">f_\theta</span>，将原始输入编码为特征向量。与孪生神经网络类似，这些嵌入被训练用于判断两个输入是否属于同一类（验证任务）。
+一个由权重 <span class="math-inline" data-math="\phi">\phi</span> 参数化的基础学习器模型 <span class="math-inline" data-math="g_\phi">g_\phi</span>，完成实际的学习任务。</div>
+      
+    
+      
+        <p>如果我们停在这里，看起来就和关系网络一样。而 MetaNet 额外显式地建模了两个函数的快速权重，然后将它们聚合回模型中（见图 8）。</p>
+      
+    
+      
+        <p>因此我们需要额外两个函数，分别输出 <span class="math-inline" data-math="f">f</span> 和 <span class="math-inline" data-math="g">g</span> 的快速权重。</p>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="F_w">F_w</span>：一个由 <span class="math-inline" data-math="w">w</span> 参数化的 LSTM，用于学习嵌入函数 <span class="math-inline" data-math="f">f</span> 的快速权重 <span class="math-inline" data-math="\theta^+">\theta^+</span>。它的输入是 <span class="math-inline" data-math="f">f</span> 的验证任务嵌入损失的梯度。
+<span class="math-inline" data-math="G_v">G_v</span>：一个由 <span class="math-inline" data-math="v">v</span> 参数化的神经网络，从基础学习器 <span class="math-inline" data-math="g">g</span> 的损失梯度中学习其快速权重 <span class="math-inline" data-math="\phi^+">\phi^+</span>。在 MetaNet 中，学习器的损失梯度被视为任务的元信息。</div>
+      
+    
+      
+        <p>现在来看看元网络是如何训练的。训练数据包含多对数据集：一个 support set <span class="math-inline" data-math="S=\{\mathbf{x}’_i, y’_i\}_{i=1}^K">S=\{\mathbf{x}’_i, y’_i\}_{i=1}^K</span> 和一个 test set <span class="math-inline" data-math="U=\{\mathbf{x}_i, y_i\}_{i=1}^L">U=\{\mathbf{x}_i, y_i\}_{i=1}^L</span>。回想一下我们有四个网络和四组需要学习的模型参数 <span class="math-inline" data-math="(\theta, \phi, w, v)">(\theta, \phi, w, v)</span>。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-11-30-meta-learning/meta-network.png" alt="">
+          <figcaption>Fig.9. The MetaNet architecture.</figcaption>
+        </figure>
+      
+    
+      
+        <h3>训练过程</h3>
+        
+      
+    
+      
+        <div class="list-content">在每个时刻 t，从 support set <span class="math-inline" data-math="S">S</span>、<span class="math-inline" data-math="(\mathbf{x}’_i, y’_i)">(\mathbf{x}’_i, y’_i)</span> 和 <span class="math-inline" data-math="(\mathbf{x}’_j, y_j)">(\mathbf{x}’_j, y_j)</span> 中采样一对随机输入。令 <span class="math-inline" data-math="\mathbf{x}_{(t,1)}=\mathbf{x}’_i">\mathbf{x}_{(t,1)}=\mathbf{x}’_i</span> 和 <span class="math-inline" data-math="\mathbf{x}_{(t,2)}=\mathbf{x}’_j">\mathbf{x}_{(t,2)}=\mathbf{x}’_j</span>。
+对于 <span class="math-inline" data-math="t = 1, \dots, K">t = 1, \dots, K</span>：
+
+a. 计算表征学习的损失，即验证任务的交叉熵：
+<span class="math-inline" data-math="\mathcal{L}^\text{emb}_t = \mathbf{1}_{y’_i=y’_j} \log P_t + (1 - \mathbf{1}_{y’_i=y’_j})\log(1 - P_t)\text{, where }P_t = \sigma(\mathbf{W}\vert f_\theta(\mathbf{x}_{(t,1)}) - f_\theta(\mathbf{x}_{(t,2)})\vert)">\mathcal{L}^\text{emb}_t = \mathbf{1}_{y’_i=y’_j} \log P_t + (1 - \mathbf{1}_{y’_i=y’_j})\log(1 - P_t)\text{, where }P_t = \sigma(\mathbf{W}\vert f_\theta(\mathbf{x}_{(t,1)}) - f_\theta(\mathbf{x}_{(t,2)})\vert)</span>
+
+
+
+计算任务级快速权重：
+<span class="math-inline" data-math="\theta^+ = F_w(\nabla_\theta \mathcal{L}^\text{emb}_1, \dots, \mathcal{L}^\text{emb}_T)">\theta^+ = F_w(\nabla_\theta \mathcal{L}^\text{emb}_1, \dots, \mathcal{L}^\text{emb}_T)</span>
+
+
+接下来遍历 support set <span class="math-inline" data-math="S">S</span> 中的样本，计算样本级快速权重。同时，用学到的表征更新记忆。
+对于 <span class="math-inline" data-math="i=1, \dots, K">i=1, \dots, K</span>：
+
+a. 基础学习器输出概率分布 <span class="math-inline" data-math="P(\hat{y}_i \vert \mathbf{x}_i) = g_\phi(\mathbf{x}_i)">P(\hat{y}_i \vert \mathbf{x}_i) = g_\phi(\mathbf{x}_i)</span>，损失可以是交叉熵或 MSE：<span class="math-inline" data-math="\mathcal{L}^\text{task}_i = y’_i \log g_\phi(\mathbf{x}’_i) + (1- y’_i) \log (1 - g_\phi(\mathbf{x}’_i))">\mathcal{L}^\text{task}_i = y’_i \log g_\phi(\mathbf{x}’_i) + (1- y’_i) \log (1 - g_\phi(\mathbf{x}’_i))</span>
+b. 提取任务的元信息（损失梯度）并计算样本级快速权重：
+<span class="math-inline" data-math="\phi_i^+ = G_v(\nabla_\phi\mathcal{L}^\text{task}_i)">\phi_i^+ = G_v(\nabla_\phi\mathcal{L}^\text{task}_i)</span>
+
+然后将 <span class="math-inline" data-math="\phi^+_i">\phi^+_i</span> 存入“value”记忆 <span class="math-inline" data-math="\mathbf{M}">\mathbf{M}</span> 的第 <span class="math-inline" data-math="i">i</span> 个位置。
+
+
+d. 使用慢权重和快速权重共同将 support 样本编码为任务特定的输入表征：<span class="math-inline" data-math="r’_i = f_{\theta, \theta^+}(\mathbf{x}’_i)">r’_i = f_{\theta, \theta^+}(\mathbf{x}’_i)</span>
+
+然后将 <span class="math-inline" data-math="r’_i">r’_i</span> 存入“key”记忆 <span class="math-inline" data-math="\mathbf{R}">\mathbf{R}</span> 的第 <span class="math-inline" data-math="i">i</span> 个位置。
+
+
+
+
+
+最后使用 test set <span class="math-inline" data-math="U=\{\mathbf{x}_i, y_i\}_{i=1}^L">U=\{\mathbf{x}_i, y_i\}_{i=1}^L</span> 构建训练损失。
+从 <span class="math-inline" data-math="\mathcal{L}_\text{train}=0">\mathcal{L}_\text{train}=0</span> 开始：
+对于 <span class="math-inline" data-math="j=1, \dots, L">j=1, \dots, L</span>：
+
+a. 将测试样本编码为任务特定的输入表征：
+<span class="math-inline" data-math="r_j = f_{\theta, \theta^+}(\mathbf{x}_j)">r_j = f_{\theta, \theta^+}(\mathbf{x}_j)</span>
+b. 通过对记忆 <span class="math-inline" data-math="\mathbf{R}">\mathbf{R}</span> 中 support set 样本的表征进行注意力，计算快速权重。注意力函数可自行选择。这里 MetaNet 使用余弦相似度：</div>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+ \begin{aligned}
+ a_j &amp;= \text{cosine}(\mathbf{R}, r_j) = [\frac{r&#x27;_1\cdot r_j}{\|r&#x27;_1\|\cdot\|r_j\|}, \dots, \frac{r&#x27;_N\cdot r_j}{\|r&#x27;_N\|\cdot\|r_j\|}]\\
+ \phi^+_j &amp;= \text{softmax}(a_j)^\top \mathbf{M}
+ \end{aligned}
+ ">
+ \begin{aligned}
+ a_j &amp;= \text{cosine}(\mathbf{R}, r_j) = [\frac{r&#x27;_1\cdot r_j}{\|r&#x27;_1\|\cdot\|r_j\|}, \dots, \frac{r&#x27;_N\cdot r_j}{\|r&#x27;_N\|\cdot\|r_j\|}]\\
+ \phi^+_j &amp;= \text{softmax}(a_j)^\top \mathbf{M}
+ \end{aligned}
+ </span></div>
+      
+    
+      
+        <div class="list-content">c. 更新训练损失：<span class="math-inline" data-math="\mathcal{L}_\text{train} \leftarrow \mathcal{L}_\text{train} + \mathcal{L}^\text{task}(g_{\phi, \phi^+}(\mathbf{x}_i), y_i) ">\mathcal{L}_\text{train} \leftarrow \mathcal{L}_\text{train} + \mathcal{L}^\text{task}(g_{\phi, \phi^+}(\mathbf{x}_i), y_i) </span>
+
+
+
+使用 <span class="math-inline" data-math="\mathcal{L}_\text{train}">\mathcal{L}_\text{train}</span> 更新所有参数 <span class="math-inline" data-math="(\theta, \phi, w, v)">(\theta, \phi, w, v)</span>。</div>
+      
+    
+      
+        <h2>基于优化</h2>
+        
+      
+    
+      
+        <p>深度学习模型通过梯度的反向传播来学习。然而，基于梯度的优化既不是为少量训练样本设计的，也不旨在少量优化步骤内收敛。有没有办法调整优化算法，让模型擅长用少量样本学习？这就是基于优化的元学习算法试图解决的问题。</p>
+      
+    
+      
+        <h2>LSTM 元学习器</h2>
+        
+      
+    
+      
+        <p>优化算法可以被显式建模。<a href="https://openreview.net/pdf?id=rJY0-Kcll" target="_blank" rel="noopener">Ravi &amp;amp; Larochelle (2017)</a> 这样做了，并将其称为“meta-learner”（元学习器），而原来处理任务的模型称为“learner”（学习器）。元学习器的目标是使用少量 support set 高效地更新学习器的参数，使学习器能够快速适应新任务。</p>
+      
+    
+      
+        <p>我们将学习器模型记为由 <span class="math-inline" data-math="\theta">\theta</span> 参数化的 <span class="math-inline" data-math="M_\theta">M_\theta</span>，元学习器记为带参数 <span class="math-inline" data-math="\Theta">\Theta</span> 的 <span class="math-inline" data-math="R_\Theta">R_\Theta</span>，损失函数为 <span class="math-inline" data-math="\mathcal{L}">\mathcal{L}</span>。</p>
+      
+    
+      
+        <h3>为什么用 LSTM？</h3>
+        
+      
+    
+      
+        <p>元学习器被建模为 LSTM，原因在于：</p>
+      
+    
+      
+        <div class="list-content">反向传播中的基于梯度的更新与 LSTM 中的细胞状态更新有相似性。
+知道梯度的历史对梯度更新有益；想想<a href="http://ruder.io/optimizing-gradient-descent/index.html#momentum" target="_blank" rel="noopener">动量</a>（momentum）是如何工作的。</div>
+      
+    
+      
+        <p>学习器参数在时刻 t 带学习率 <span class="math-inline" data-math="\alpha_t">\alpha_t</span> 的更新为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\theta_t = \theta_{t-1} - \alpha_t \nabla_{\theta_{t-1}}\mathcal{L}_t
+">
+\theta_t = \theta_{t-1} - \alpha_t \nabla_{\theta_{t-1}}\mathcal{L}_t
+</span></div>
+      
+    
+      
+        <p>如果我们令遗忘门 <span class="math-inline" data-math="f_t=1">f_t=1</span>、输入门 <span class="math-inline" data-math="i_t = \alpha_t">i_t = \alpha_t</span>、细胞状态 <span class="math-inline" data-math="c_t = \theta_t">c_t = \theta_t</span> 和新的细胞状态 <span class="math-inline" data-math="\tilde{c}_t = -\nabla_{\theta_{t-1}}\mathcal{L}_t">\tilde{c}_t = -\nabla_{\theta_{t-1}}\mathcal{L}_t</span>，它与 LSTM 中的细胞状态更新具有相同形式：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+c_t &amp;= f_t \odot c_{t-1} + i_t \odot \tilde{c}_t\\
+    &amp;= \theta_{t-1} - \alpha_t\nabla_{\theta_{t-1}}\mathcal{L}_t
+\end{aligned}
+">
+\begin{aligned}
+c_t &amp;= f_t \odot c_{t-1} + i_t \odot \tilde{c}_t\\
+    &amp;= \theta_{t-1} - \alpha_t\nabla_{\theta_{t-1}}\mathcal{L}_t
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>虽然固定 <span class="math-inline" data-math="f_t=1">f_t=1</span> 和 <span class="math-inline" data-math="i_t=\alpha_t">i_t=\alpha_t</span> 可能不是最优的，但两者都可以是可学习的，并能适应不同数据集。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+f_t &amp;= \sigma(\mathbf{W}_f \cdot [\nabla_{\theta_{t-1}}\mathcal{L}_t, \mathcal{L}_t, \theta_{t-1}, f_{t-1}] + \mathbf{b}_f) &amp; \scriptstyle{\text{; how much to forget the old value of parameters.}}\\
+i_t &amp;= \sigma(\mathbf{W}_i \cdot [\nabla_{\theta_{t-1}}\mathcal{L}_t, \mathcal{L}_t, \theta_{t-1}, i_{t-1}] + \mathbf{b}_i) &amp; \scriptstyle{\text{; corresponding to the learning rate at time step t.}}\\
+\tilde{\theta}_t &amp;= -\nabla_{\theta_{t-1}}\mathcal{L}_t &amp;\\
+\theta_t &amp;= f_t \odot \theta_{t-1} + i_t \odot \tilde{\theta}_t &amp;\\
+\end{aligned}
+">
+\begin{aligned}
+f_t &amp;= \sigma(\mathbf{W}_f \cdot [\nabla_{\theta_{t-1}}\mathcal{L}_t, \mathcal{L}_t, \theta_{t-1}, f_{t-1}] + \mathbf{b}_f) &amp; \scriptstyle{\text{; how much to forget the old value of parameters.}}\\
+i_t &amp;= \sigma(\mathbf{W}_i \cdot [\nabla_{\theta_{t-1}}\mathcal{L}_t, \mathcal{L}_t, \theta_{t-1}, i_{t-1}] + \mathbf{b}_i) &amp; \scriptstyle{\text{; corresponding to the learning rate at time step t.}}\\
+\tilde{\theta}_t &amp;= -\nabla_{\theta_{t-1}}\mathcal{L}_t &amp;\\
+\theta_t &amp;= f_t \odot \theta_{t-1} + i_t \odot \tilde{\theta}_t &amp;\\
+\end{aligned}
+</span></div>
+      
+    
+      
+        <h3>模型设置</h3>
+        
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-11-30-meta-learning/lstm-meta-learner.png" alt="">
+          <figcaption>How the learner <span class="math-inline" data-math="M\_\theta">M\_\theta</span> and the meta-learner <span class="math-inline" data-math="R\_\Theta">R\_\Theta</span> are trained. (Image source:original paperwith more annotations)</figcaption>
+        </figure>
+      
+    
+      
+        <p>训练过程模拟测试时发生的情况，因为 Matching Networks 已证明这样做是有益的。在每个训练 epoch 中，我们先采样一个数据集 <span class="math-inline" data-math="\mathcal{D} = (\mathcal{D}_\text{train}, \mathcal{D}_\text{test}) \in \hat{\mathcal{D}}_\text{meta-train}">\mathcal{D} = (\mathcal{D}_\text{train}, \mathcal{D}_\text{test}) \in \hat{\mathcal{D}}_\text{meta-train}</span>，然后从中采样 mini-batches 来更新 <span class="math-inline" data-math="\theta">\theta</span> 共 <span class="math-inline" data-math="T">T</span> 轮。学习器参数的最终状态 <span class="math-inline" data-math="\theta_T">\theta_T</span> 被用于在测试数据 <span class="math-inline" data-math="\mathcal{D}_\text{test}">\mathcal{D}_\text{test}</span> 上训练元学习器。<span class="math-inline" data-math="\mathcal{D}_\text{train}">\mathcal{D}_\text{train}</span></p>
+      
+    
+      
+        <p>有两个实现细节需要特别注意：</p>
+      
+    
+      
+        <div class="list-content">如何压缩 LSTM 元学习器中的参数空间？由于元学习器在对另一个神经网络的参数建模，它需要学习的变量可能有数十万个。遵循<a href="https://arxiv.org/abs/1606.04474" target="_blank" rel="noopener">参数跨坐标共享</a>的思想，
+为了简化训练过程，元学习器假设损失 <span class="math-inline" data-math="\mathcal{L}_t">\mathcal{L}_t</span> 和梯度 <span class="math-inline" data-math="\nabla_{\theta_{t-1}} \mathcal{L}_t">\nabla_{\theta_{t-1}} \mathcal{L}_t</span> 是相互独立的。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-11-30-meta-learning/train-meta-learner.png" alt="">
+          <figcaption>Diagram of MAML. (Image source:original paper)</figcaption>
+        </figure>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>高斯过程的可视化探索 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>高斯过程的可视化探索</h1>
+    <div class="meta">
+      2019-04-02 · 
+      <a href="https://distill.pub/2019/visual-exploration-gaussian-processes" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>即使你已经花了一些时间阅读机器学习的相关内容，也很可能从未听说过 Gaussian processes。
+    如果你听说过，重温基础知识总是一个刷新记忆的好方法。
+    通过这篇博客文章，我们希望为大家介绍 Gaussian processes，并让它们背后的数学直观性变得更容易理解。</p>
+      
+    
+      
+        <p>Gaussian processes 是机器学习工具箱中的强大工具[<cite>[Rasmussen2004]</cite>]。
+它们允许我们通过融入先验知识来对数据进行预测。
+它们最明显的应用领域是将函数拟合到数据上。
+这被称为回归，例如在机器人学或时间序列预测中使用。
+但 Gaussian processes 并不局限于回归——它们也可以扩展到分类和聚类任务[<cite>[Kapoor2010]</cite>][<cite>[Kim2007]</cite>]。
+
+对于一组给定的训练点，可能存在无限多个能够拟合数据的函数。
+Gaussian processes 通过为这些函数中的每一个分配一个概率，提供了一个优雅的解决方案[<cite>[Rasmussen2004]</cite>]。
+这种概率分布的均值则代表了对数据最可能的刻画。
+此外，使用概率方法允许我们将预测的置信度纳入回归结果中。</p>
+      
+    
+      
+        <p>我们将首先探索 Gaussian processes 所建立的数学基础——我们邀请你使用交互式图表和动手示例一起跟随学习。
+它们有助于解释各个组件的影响，并展示 Gaussian processes 的灵活性。
+读完这篇文章后，我们希望你能对 Gaussian processes 的工作原理以及如何针对不同类型的数据进行配置产生直观的可视化理解。</p>
+      
+    
+      
+        <h2>多元高斯分布</h2>
+        
+      
+    
+      
+        <p>在我们能够探索 Gaussian processes 之前，需要先理解它们所基于的数学概念。
+顾名思义，Gaussian distribution（也常被称为 normal distribution）是 Gaussian processes 的基本构建块。
+具体来说，我们对这种分布的多元情况感兴趣，其中每个随机变量都服从正态分布，且它们的联合分布也是高斯的。
+多元高斯分布由均值向量 <span class="math-inline" data-math="\mu">\mu</span> 和协方差矩阵 <span class="math-inline" data-math="\Sigma">\Sigma</span> 定义。
+你可以在下面的图中看到这类分布的交互示例。</p>
+      
+    
+      
+        <p>均值向量 <span class="math-inline" data-math="\mu">\mu</span> 描述了分布的期望值。
+它的每个分量描述了对应维度的均值。
+<span class="math-inline" data-math="\Sigma">\Sigma</span> 对每个维度上的方差进行建模，并决定不同随机变量之间的相关性。
+协方差矩阵总是对称且半正定的[<cite>[Hazewinkel1994]</cite>]。
+<span class="math-inline" data-math="\Sigma">\Sigma</span> 的对角线由第 <span class="math-inline" data-math="i">i</span> 个随机变量的方差 <span class="math-inline" data-math="\sigma_i^2">\sigma_i^2</span> 组成。
+而非对角线元素 <span class="math-inline" data-math="\sigma_{ij}">\sigma_{ij}</span> 则描述了第 <span class="math-inline" data-math="i">i</span> 个和第 <span class="math-inline" data-math="j">j</span> 个随机变量之间的相关性。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+        X = \begin{bmatrix} X_1 \\ X_2 \\ \vdots \\ X_n \end{bmatrix} \sim \mathcal{N}(\mu, \Sigma)
+    ">
+        X = \begin{bmatrix} X_1 \\ X_2 \\ \vdots \\ X_n \end{bmatrix} \sim \mathcal{N}(\mu, \Sigma)
+    </span></div>
+      
+    
+      
+        <p>我们称 <span class="math-inline" data-math="X">X</span> 服从正态分布。协方差矩阵 <span class="math-inline" data-math="\Sigma">\Sigma</span> 描述了分布的形状。它由期望值 <span class="math-inline" data-math="E">E</span> 定义：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+      \Sigma = \text{Cov}(X_i, X_j) = E \left[ (X_i - \mu_i)(X_j - \mu_j)^T \right]
+    ">
+      \Sigma = \text{Cov}(X_i, X_j) = E \left[ (X_i - \mu_i)(X_j - \mu_j)^T \right]
+    </span></div>
+      
+    
+      
+        <p>从视觉上看，分布以均值为中心，协方差矩阵定义了它的形状。下图展示了这些参数对二维高斯分布的影响。每个随机变量的方差位于协方差矩阵的对角线上，而其他值则显示了它们之间的协方差。</p>
+      
+    
+      
+        <p>高斯分布被广泛用于对现实世界进行建模。
+      例如，我们可以利用它们来描述测量误差或基于中心极限定理假设的现象
+<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>。
+      在下一节中，我们将更仔细地探讨如何操作高斯分布并从中提取有用的信息。</p>
+      
+    
+      
+        <h3>边缘化和条件化</h3>
+        
+      
+    
+      
+        <p>高斯分布具有一个很好的代数性质，即在条件化和边缘化下是封闭的。
+    在条件化和边缘化下封闭意味着这些操作得到的结果分布仍然是高斯的，这使得统计学和机器学习中的许多问题变得易于处理。
+    接下来我们将更仔细地研究这两种操作，因为它们是 Gaussian processes 的基础。</p>
+      
+    
+      
+        <p>边缘化和条件化都作用于原始分布的子集，我们将使用以下记号：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="P_{X,Y} = \begin{bmatrix} X \\ Y \end{bmatrix} \sim \mathcal{N}(\mu, \Sigma) = \mathcal{N} \left( \begin{bmatrix} \mu_X \\ \mu_Y \end{bmatrix}, \begin{bmatrix} \Sigma_{XX} \, \Sigma_{XY} \\ \Sigma_{YX} \, \Sigma_{YY} \end{bmatrix} \right)">P_{X,Y} = \begin{bmatrix} X \\ Y \end{bmatrix} \sim \mathcal{N}(\mu, \Sigma) = \mathcal{N} \left( \begin{bmatrix} \mu_X \\ \mu_Y \end{bmatrix}, \begin{bmatrix} \Sigma_{XX} \, \Sigma_{XY} \\ \Sigma_{YX} \, \Sigma_{YY} \end{bmatrix} \right)</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 代表原始随机变量的子集。</p>
+      
+    
+      
+        <p>通过边缘化，我们可以从多元概率分布中提取部分信息。具体来说，给定一个关于随机变量向量 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 的正态概率分布 <span class="math-inline" data-math="P(X,Y)">P(X,Y)</span>，我们可以用以下方式确定它们的边缘化概率分布：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+      \begin{aligned}
+        X &amp;\sim \mathcal{N}(\mu_X, \Sigma_{XX}) \\
+        Y &amp;\sim \mathcal{N}(\mu_Y, \Sigma_{YY})
+      \end{aligned}
+    ">
+      \begin{aligned}
+        X &amp;\sim \mathcal{N}(\mu_X, \Sigma_{XX}) \\
+        Y &amp;\sim \mathcal{N}(\mu_Y, \Sigma_{YY})
+      \end{aligned}
+    </span></div>
+      
+    
+      
+        <p>这个方程的含义是，每个分块 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 只依赖于 <span class="math-inline" data-math="\mu">\mu</span> 和 <span class="math-inline" data-math="\Sigma">\Sigma</span> 中对应的条目。
+      要从高斯分布中边缘化掉一个随机变量，我们可以简单地从 <span class="math-inline" data-math="\mu">\mu</span> 和 <span class="math-inline" data-math="\Sigma">\Sigma</span> 中去掉这些变量。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+        p_X(x) = \int_y p_{X,Y}(x,y)dy = \int_y p_{X|Y}(x|y) p_Y(y) dy
+    ">
+        p_X(x) = \int_y p_{X,Y}(x,y)dy = \int_y p_{X|Y}(x|y) p_Y(y) dy
+    </span></div>
+      
+    
+      
+        <p>对这个方程的解释是，如果我们对
+    <span class="math-inline" data-math="X = x">X = x</span> 的概率密度感兴趣，就必须考虑所有可能共同导致该结果的
+    <span class="math-inline" data-math="Y">Y</span> 的可能取值
+<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>。</p>
+      
+    
+      
+        <p>高斯过程的另一个重要操作是条件化。
+  它用于确定一个变量依赖于另一个变量的概率。
+  与边缘化类似，这个操作也是封闭的，并产生一个修改后的高斯分布。
+  这个操作是 Gaussian processes 的基石，因为它允许进行贝叶斯推断，我们将在下一节中讨论这一点。
+  条件化的定义是：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+      \begin{aligned}
+      X|Y &amp;\sim \mathcal{N}(\:\mu_X + \Sigma_{XY}\Sigma_{YY}^{-1}(Y - \mu_Y),\: \Sigma_{XX}-\Sigma_{XY}\Sigma_{YY}^{-1}\Sigma_{YX}\:) \\
+      Y|X &amp;\sim \mathcal{N}(\:\mu_Y + \Sigma_{YX}\Sigma_{XX}^{-1}(X - \mu_X),\: \Sigma_{YY}-\Sigma_{YX}\Sigma_{XX}^{-1}\Sigma_{XY}\:) \\
+      \end{aligned}
+    ">
+      \begin{aligned}
+      X|Y &amp;\sim \mathcal{N}(\:\mu_X + \Sigma_{XY}\Sigma_{YY}^{-1}(Y - \mu_Y),\: \Sigma_{XX}-\Sigma_{XY}\Sigma_{YY}^{-1}\Sigma_{YX}\:) \\
+      Y|X &amp;\sim \mathcal{N}(\:\mu_Y + \Sigma_{YX}\Sigma_{XX}^{-1}(X - \mu_X),\: \Sigma_{YY}-\Sigma_{YX}\Sigma_{XX}^{-1}\Sigma_{XY}\:) \\
+      \end{aligned}
+    </span></div>
+      
+    
+      
+        <p>注意，新的均值只依赖于被条件化的变量，而协方差矩阵则与该变量无关。</p>
+      
+    
+      
+        <p>现在我们已经推导出了必要的方程，接下来思考如何从视觉上理解这两种操作。
+    虽然边缘化和条件化可以应用于许多维度的多元分布，但考虑如下图所示的二维情况是合理的。
+    边缘化可以看作是沿着高斯分布的某个维度进行积分，这与边缘分布的一般定义一致。
+    条件化也有一个很好的几何解释——我们可以将其想象为在多元分布上做一次切割，得到一个维度更少的新高斯分布。</p>
+      
+    
+      
+        <h2>高斯过程</h2>
+        
+      
+    
+      
+        <p>现在我们已经回顾了多元高斯分布的一些基本性质，接下来将它们组合起来定义 Gaussian processes，并展示如何用它们解决回归问题。</p>
+      
+    
+      
+        <p>首先，我们将从连续视角转向函数的离散表示：
+      与寻找隐式函数不同，我们感兴趣的是在具体点（我们称之为测试点 <span class="math-inline" data-math="X">X</span>）预测函数值。
+      那么，我们如何从目前为止考虑的多元正态分布中推导出这种函数视角呢？
+      随机过程，例如 Gaussian processes，本质上是一组随机变量。
+      此外，每个随机变量都有一个对应的索引 <span class="math-inline" data-math="i">i</span>。
+      我们将使用这个索引来引用 <span class="math-inline" data-math="n">n</span> 维多元分布的第 <span class="math-inline" data-math="i">i</span> 维。
+      下图展示了二维情况下的一个例子：</p>
+      
+    
+      
+        <p>现在，Gaussian processes 的目标是从训练数据中学习这个底层分布。
+      相对于测试数据 <span class="math-inline" data-math="X">X</span>，我们将训练数据记为 <span class="math-inline" data-math="Y">Y</span>。
+      正如我们之前提到的，Gaussian processes 的核心思想是将 <span class="math-inline" data-math="X">X</span> 和 <span class="math-inline" data-math="Y">Y</span> 的底层分布建模为一个多元正态分布。
+      这意味着联合概率分布 <span class="math-inline" data-math="P_{X,Y}">P_{X,Y}</span> 涵盖了我们想要预测的函数所有可能函数值的空间。
+      请注意，这个测试数据和训练数据的联合分布具有 <span class="math-inline" data-math="|X| + |Y|">|X| + |Y|</span> 维。</p>
+      
+    
+      
+        <p>为了对训练数据进行回归，我们将这个问题视为贝叶斯推断。
+      贝叶斯推断的核心思想是随着新信息的出现更新当前假设。
+      在 Gaussian processes 的情况下，这些信息就是训练数据。
+      因此，我们感兴趣的是条件概率 <span class="math-inline" data-math="P_{X|Y}">P_{X|Y}</span>。
+      最后，我们回想一下高斯分布在条件化下是封闭的——因此 <span class="math-inline" data-math="P_{X|Y}">P_{X|Y}</span> 也服从正态分布。</p>
+      
+    
+      
+        <p>现在我们已经有了 Gaussian processes 的基本框架，只剩下一件事：
+      如何建立这个分布并定义均值 <span class="math-inline" data-math="\mu">\mu</span> 和协方差矩阵 <span class="math-inline" data-math="\Sigma">\Sigma</span>？
+      协方差矩阵 <span class="math-inline" data-math="\Sigma">\Sigma</span> 由其协方差函数 <span class="math-inline" data-math="k">k</span> 决定，该函数通常也被称为 Gaussian process 的核函数。
+      我们将在下一节详细讨论这一点。
+      但在此之前，让我们思考如何使用多元高斯分布来估计函数值。
+      下图展示了一个使用十个测试点的例子，我们希望在这些点上预测函数：</p>
+      
+    
+      
+        <p>在 Gaussian processes 中，我们将每个测试点视为一个随机变量。
+      多元高斯分布的维度数与随机变量的数量相同。
+      由于我们想要在
+      <span class="math-inline" data-math="|X|=N">|X|=N</span>
+      个测试点上预测函数值，对应的多元高斯分布也是
+      <span class="math-inline" data-math="N">N</span>
+      维的。
+      使用 Gaussian process 进行预测最终归结为从这个分布中抽取样本。
+      然后我们将所得向量的第 <span class="math-inline" data-math="i">i</span> 个分量解释为对应于第 <span class="math-inline" data-math="i">i</span> 个测试点的函数值。</p>
+      
+    
+      
+        <h3>核函数</h3>
+        
+      
+    
+      
+        <p>回想一下，为了建立我们的分布，需要定义 <span class="math-inline" data-math="\mu">\mu</span> 和 <span class="math-inline" data-math="\Sigma">\Sigma</span>。
+      在 Gaussian processes 中，通常假设 <span class="math-inline" data-math="\mu = 0">\mu = 0</span>，这简化了条件化所需的方程。
+      我们始终可以假设这样的分布，即使 <span class="math-inline" data-math="\mu \neq 0">\mu \neq 0</span>，并在预测步骤之后将 <span class="math-inline" data-math="\mu">\mu</span> 加回到结果函数值中。
+      这个过程也称为数据的中心化。
+      因此配置 <span class="math-inline" data-math="\mu">\mu</span> 很简单——当我们观察分布的另一个参数时，事情会变得更有趣。</p>
+      
+    
+      
+        <p>Gaussian processes 的巧妙之处在于我们如何建立协方差矩阵 <span class="math-inline" data-math="\Sigma">\Sigma</span>。
+      协方差矩阵不仅会描述分布的形状，最终还会决定我们想要预测的函数的特性。
+      我们通过在所有点上成对计算核函数 <span class="math-inline" data-math="k">k</span>（也常称为协方差函数）来生成协方差矩阵。
+      核函数接收两个点 <span class="math-inline" data-math="t,t’ \in \mathbb{R}^n">t,t’ \in \mathbb{R}^n</span> 作为输入，并以标量形式返回这些点之间的相似性度量：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+      k: \mathbb{R}^n \times \mathbb{R}^n \rightarrow \mathbb{R},\quad 
+      \Sigma = \text{Cov}(X,X’) = k(t,t’)
+    ">
+      k: \mathbb{R}^n \times \mathbb{R}^n \rightarrow \mathbb{R},\quad 
+      \Sigma = \text{Cov}(X,X’) = k(t,t’)
+    </span></div>
+      
+    
+      
+        <p>我们对测试点的每对组合计算这个函数，以得到协方差矩阵。
+      这一步也在上图中有所展示。
+      为了更好地理解核函数的作用，让我们思考协方差矩阵中的条目所描述的内容。
+      条目 <span class="math-inline" data-math="\Sigma_{ij}">\Sigma_{ij}</span> 描述了第 <span class="math-inline" data-math="i">i</span> 个和第 <span class="math-inline" data-math="j">j</span> 个点之间的相互影响程度。
+      这源于多元高斯分布的定义，即 <span class="math-inline" data-math="\Sigma_{ij}">\Sigma_{ij}</span> 定义了第 <span class="math-inline" data-math="i">i</span> 个和第 <span class="math-inline" data-math="j">j</span> 个随机变量之间的相关性。
+      由于核函数描述了我们函数值之间的相似性，它控制了拟合函数可能采用的形状。
+      请注意，当我们选择核函数时，需要确保得到的矩阵满足协方差矩阵的性质。</p>
+      
+    
+      
+        <p>核函数在机器学习中被广泛使用，例如在 support vector machines[<cite>[Vapnik2000]</cite>] 中。
+      其原因在于它们允许的相似性度量远远超出了标准的欧几里得距离（<span class="math-inline" data-math="L2">L2</span> 距离）。
+      许多这样的核函数在概念上将输入点嵌入到一个更高维的空间中，然后在那里度量相似性<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>。
+      下图展示了一些 Gaussian processes 常用核函数的例子。
+      对于每个核函数，协方差矩阵都是由 <span class="math-inline" data-math="N=25">N=25</span> 个从 <span class="math-inline" data-math="[-5,5]">[-5,5]</span> 开始线性间隔的值创建的。矩阵中的每个条目显示了 <span class="math-inline" data-math="[0,1]">[0,1]</span> 范围内点之间的协方差。</p>
+      
+    
+      
+        <p>核函数可以分为平稳核和非平稳核。平稳核，例如
+    RBF 核或周期核，是对平移不变的函数，两个点之间的协方差只
+    取决于它们的相对位置。非平稳核，例如线性核，则没有这个
+    约束，而是依赖于绝对位置。RBF 核的平稳性质可以从
+    其协方差矩阵对角线周围的带状结构观察到（如图所示）。增大长度参数会增加带宽，因为
+    彼此相距较远的点会变得更加相关。对于周期核，我们有一个额外的参数
+    <span class="math-inline" data-math="P">P</span>，它决定了周期性，从而控制函数每次重复之间的距离。
+    相比之下，线性核的参数 <span class="math-inline" data-math="C">C</span> 允许我们改变所有函数所围绕的支点位置。</p>
+      
+    
+      
+        <p>还有许多其他核函数可以描述不同类别的函数，用于对期望的函数形状进行建模。
+    Duvenaud[<cite>[Duvenaud2014]</cite>] 给出了不同核函数的良好概述。
+    也可以将多个核函数组合起来——但我们稍后会谈到这一点。</p>
+      
+    
+      
+        <h3>先验分布</h3>
+        
+      
+    
+      
+        <p>我们现在将注意力转回最初的回归任务。
+      正如我们之前提到的，Gaussian processes 定义了一个关于可能函数的概率分布。
+      在上面的图中，我们展示了这种联系：
+      我们的多元正态分布的每个样本都代表函数值的一种实现。
+      因为这个分布是多元高斯分布，所以函数的分布是正态的。
+      回想一下，我们通常假设 <span class="math-inline" data-math="\mu=0">\mu=0</span>。
+      现在，让我们考虑尚未观察到任何训练数据的情况。
+      在贝叶斯推断的背景下，这被称为先验分布 <span class="math-inline" data-math="P_X">P_X</span>。</p>
+      
+    
+      
+        <p>如果我们尚未观察到任何训练样本，根据我们最初的假设，这个分布围绕 <span class="math-inline" data-math="\mu=0">\mu=0</span> 旋转。
+      先验分布将具有与测试点数量 <span class="math-inline" data-math="N = |X|">N = |X|</span> 相同的维度。
+      我们将使用核函数来建立协方差矩阵，其维度为 <span class="math-inline" data-math="N \times N">N \times N</span>。</p>
+      
+    
+      
+        <p>在前一节中，我们已经看了不同核函数的例子。
+      核函数用于定义协方差矩阵的条目。
+      因此，协方差矩阵决定了所有可能函数空间中哪些类型的函数更可能出现。
+      由于先验分布尚未包含任何额外信息，它非常适合可视化核函数对函数分布的影响。
+      下图展示了使用不同核函数创建的先验分布中潜在函数的样本：</p>
+      
+    
+      
+        <p>调整参数可以让你控制生成函数的形状。
+    这也会改变预测的置信度。
+    当减小所有核函数共有的方差参数 <span class="math-inline" data-math="\sigma">\sigma</span> 时，采样得到的函数会更集中在均值 <span class="math-inline" data-math="\mu">\mu</span> 周围。
+    对于线性核，设置方差 <span class="math-inline" data-math="\sigma_b=0">\sigma_b=0</span> 会产生一组被约束为严格经过偏移点 <span class="math-inline" data-math="c">c</span> 的函数。
+    如果我们设置 <span class="math-inline" data-math="\sigma_b=0.2">\sigma_b=0.2</span>，就可以对不确定性进行建模，生成接近 <span class="math-inline" data-math="c">c</span> 的函数。</p>
+      
+    
+      
+        <h3>后验分布</h3>
+        
+      
+    
+      
+        <p>那么如果我们观察到训练数据会发生什么？
+      让我们回到贝叶斯推断模型，该模型表明我们可以将这些额外信息纳入我们的模型，得到后验分布 <span class="math-inline" data-math="P_{X|Y}">P_{X|Y}</span>。
+      我们现在将更仔细地看看如何对 Gaussian processes 做到这一点。</p>
+      
+    
+      
+        <p>首先，我们在测试点 <span class="math-inline" data-math="X">X</span> 和训练点 <span class="math-inline" data-math="Y">Y</span> 之间形成联合分布 <span class="math-inline" data-math="P_{X,Y}">P_{X,Y}</span>。
+      结果是一个维度为 <span class="math-inline" data-math="|Y| + |X|">|Y| + |X|</span> 的多元高斯分布。
+      正如下图所示，我们将训练点和测试点拼接起来计算对应的协方差矩阵。</p>
+      
+    
+      
+        <p>下一步我们需要用到前面定义的高斯分布上的一个操作。
+      使用条件化，我们可以从 <span class="math-inline" data-math="P_{X,Y}">P_{X,Y}</span> 中得到 <span class="math-inline" data-math="P_{X|Y}">P_{X|Y}</span>。
+      这个新分布的维度与测试点的数量 <span class="math-inline" data-math="N">N</span> 匹配，并且分布也是正态的。
+      重要的是要注意，条件化会得到均值和标准差的衍生版本：<span class="math-inline" data-math="X|Y \sim \mathcal{N}(\mu’, \Sigma’)">X|Y \sim \mathcal{N}(\mu’, \Sigma’)</span>。
+      更多细节可以在关于多元高斯分布条件化的相关章节中找到。
+      这一步背后的直观理解是，训练点将函数集约束为那些经过训练点的函数。</p>
+      
+    
+      
+        <p>如前所述，条件分布 <span class="math-inline" data-math="P_{X|Y}">P_{X|Y}</span> 迫使函数集精确地经过每个训练点。
+       在许多情况下，这可能导致拟合的函数不必要地复杂。
+       此外，到目前为止，我们认为训练点 <span class="math-inline" data-math="Y">Y</span> 是完美的测量值。
+       但在现实世界场景中，这是一个不现实的假设，因为我们的大部分数据都受到测量误差或不确定性的影响。
+       Gaussian processes 通过对测量误差进行建模，为这个问题提供了一个简单的解决方案。
+       为此，我们需要为每个训练点添加一个误差项 <span class="math-inline" data-math="\epsilon \sim \mathcal{N}(0, \psi^2)">\epsilon \sim \mathcal{N}(0, \psi^2)</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+       Y = f(X) + \epsilon
+    ">
+       Y = f(X) + \epsilon
+    </span></div>
+      
+    
+      
+        <p>我们通过稍微修改联合分布 <span class="math-inline" data-math="P_{X,Y}">P_{X,Y}</span> 的设置来实现这一点：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="P_{X,Y} = \begin{bmatrix} X \\ Y \end{bmatrix} \sim \mathcal{N}(0, \Sigma) = \mathcal{N} \left( \begin{bmatrix} 0 \\ 0 \end{bmatrix}, \begin{bmatrix} \Sigma_{XX} &amp; \Sigma_{XY} \\ \Sigma_{YX} &amp; \Sigma_{YY}+\psi^2I \end{bmatrix} \right)">P_{X,Y} = \begin{bmatrix} X \\ Y \end{bmatrix} \sim \mathcal{N}(0, \Sigma) = \mathcal{N} \left( \begin{bmatrix} 0 \\ 0 \end{bmatrix}, \begin{bmatrix} \Sigma_{XX} &amp; \Sigma_{XY} \\ \Sigma_{YX} &amp; \Sigma_{YY}+\psi^2I \end{bmatrix} \right)</span></div>
+      
+    
+      
+        <p>同样，我们可以使用条件化来推导出预测分布 <span class="math-inline" data-math="P_{X|Y}">P_{X|Y}</span>。
+      在这个表述中，<span class="math-inline" data-math="\psi">\psi</span> 是我们模型的额外参数。</p>
+      
+    
+      
+        <p>与先验分布类似，我们可以通过从这个分布中抽样来获得函数值的预测。
+      但是，由于抽样涉及随机性，得到的数据拟合将不是确定的，我们的预测可能会成为离群值。
+      为了做出更有意义的预测，我们可以使用高斯分布的另一个基本操作。</p>
+      
+    
+      
+        <p>通过对每个随机变量进行边缘化，我们可以为第 <span class="math-inline" data-math="i">i</span> 个测试点提取相应的均值函数值 <span class="math-inline" data-math="\mu’_i">\mu’_i</span> 和标准差 <span class="math-inline" data-math="\sigma’_i = \Sigma’_{ii}">\sigma’_i = \Sigma’_{ii}</span>。
+      与先验分布中我们将均值设为 <span class="math-inline" data-math="\mu=0">\mu=0</span> 不同，对测试数据和训练数据的联合分布进行条件化后，结果很可能具有非零均值 <span class="math-inline" data-math="\mu’ \neq 0">\mu’ \neq 0</span>。
+      提取 <span class="math-inline" data-math="\mu’">\mu’</span> 和 <span class="math-inline" data-math="\sigma’">\sigma’</span> 不仅能得到更有意义的预测，还允许我们对预测的置信度做出声明。</p>
+      
+    
+      
+        <p>下图展示了条件分布的一个例子。
+      最初，没有观察到任何训练点。
+      因此，均值预测保持在 <span class="math-inline" data-math="0">0</span>，且每个测试点的标准差都相同。
+      通过悬停在协方差矩阵上，你可以看到每个点对当前测试点的影响。
+      只要没有观察到训练点，邻近点的影响就仅限于局部。</p>
+      
+    
+      
+        <p>训练点可以通过点击来激活，这将导致一个受约束的分布。
+      这种变化反映在协方差矩阵的条目中，并导致预测函数的均值和标准差进行调整。
+      正如我们所预期的，预测的不确定性在靠近训练数据的区域较小，随着我们远离这些点而增大。</p>
+      
+    
+      
+        <p>在受约束的协方差矩阵中，我们可以看到邻近点的相关性受到
+    训练数据的影响。
+    如果一个预测点位于训练数据上，则与其他点没有相关性。
+    因此，函数必须直接经过它。
+    更远的预测值也会受到训练数据的影响——与其距离成正比。</p>
+      
+    
+      
+        <h3>组合不同核函数</h3>
+        
+      
+    
+      
+        <p>如前所述，Gaussian processes 的强大之处在于核函数的选择。
+      这一特性允许专家将领域知识引入过程中，并赋予 Gaussian processes 捕捉训练数据中趋势的灵活性。
+      例如，通过为 RBF 核选择合适的带宽，我们可以控制生成函数的平滑程度。</p>
+      
+    
+      
+        <p>核函数提供的一个重大好处是它们可以组合在一起，从而得到一个更加专门化的核函数。
+      选择使用哪个核函数高度依赖于关于数据的先验知识，例如是否期望某些特性。
+      这方面的例子包括平稳性、或全局趋势和模式。
+      正如在核函数一节中介绍的，平稳意味着核函数对平移不变，因此不依赖于索引 <span class="math-inline" data-math="i">i</span>。
+      这也意味着我们无法使用严格平稳的核函数来对全局趋势进行建模。
+      请记住，Gaussian processes 的协方差矩阵必须是半正定的。
+      在选择最优核函数组合时，所有保持这一性质的方法都是允许的。
+      最常见的核函数组合是加法和乘法。</p>
+      
+    
+      
+        <p>让我们考虑两个核函数，例如线性核 <span class="math-inline" data-math="k_{\text{lin}}">k_{\text{lin}}</span> 和周期核 <span class="math-inline" data-math="k_{\text{per}}">k_{\text{per}}</span>。
+      以下是我们将两者相乘的方式：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+        k^{\ast}(t,t’) = k_{\text{lin}}(t,t’) \cdot k_{\text{per}}(t,t’)
+    ">
+        k^{\ast}(t,t’) = k_{\text{lin}}(t,t’) \cdot k_{\text{per}}(t,t’)
+    </span></div>
+      
+    
+      
+        <p>然而，组合并不局限于上述例子，还有更多可能性，例如拼接或与函数复合[<cite>[mackay2003information]</cite>]。
+    为了展示核函数组合的影响以及它如何保留各个核函数的定性特征，请看下面的图。
+    如果我们将周期核和线性核相加，线性核的全局趋势就被纳入到组合核中。
+    结果是一个遵循线性趋势的周期函数。
+    如果通过乘法组合相同的核函数，结果是一个周期函数，其振幅远离线性核参数 <span class="math-inline" data-math="c">c</span> 呈线性增长。</p>
+      
+    
+      
+        <p>了解了核函数组合如何影响结果分布的形状之后，我们可以转向一个更复杂的例子。
+      在下图中，观察到的训练数据具有上升趋势并伴随周期性偏差。
+      仅使用线性核，我们可以模拟这些点的普通线性回归。
+      乍一看，RBF 核准确地逼近了这些点。
+      但由于 RBF 核是平稳的，它在远离观察到的训练数据的区域总是会回到 <span class="math-inline" data-math="\mu=0">\mu=0</span>。
+      这降低了进一步预测过去或未来的准确性。
+      通过将各个核函数通过加法组合，可以创建一个改进的模型，它同时保留了数据的周期性质和全局上升趋势。
+      例如，这个过程可以用于天气数据的分析。</p>
+      
+    
+      
+        <p>正如在关于 GP 的章节中所讨论的，Gaussian process 可以对不确定的观测进行建模。
+      当只选择线性核时可以看到这一点，因为即使观察到超过两个点，它也允许我们进行线性回归，并且并非所有函数都必须直接经过观察到的训练数据。</p>
+      
+    
+      
+        <h2>总结</h2>
+        
+      
+    
+      
+        <p>通过这篇文章，你应该已经对 Gaussian processes 有了全面了解，并对它们的工作原理有了更深入的理解。
+      正如我们所见，Gaussian processes 为回归提供了一个灵活的框架，并且存在若干扩展，使它们更加多功能。</p>
+      
+    
+      
+        <p>例如，有时可能无法用简单术语描述核函数。
+      为了克服这一挑战，从底层数据中学习专门的核函数，例如通过使用深度学习[<cite>[Hinton2008,Wilson2016]</cite>]，是一个正在进行的研究领域。
+      此外，贝叶斯推断、Gaussian processes 和深度学习之间的联系已在多篇论文中被描述[<cite>[Lee2018,Damianou2013]</cite>]。
+      虽然我们主要在回归的背景下讨论 Gaussian processes，但它们可以被调整用于
+      不同目的，例如模型剥离和假设检验。
+      通过在数据集上比较不同的核函数，领域专家可以通过
+      核函数的适当组合和参数化引入额外的知识。</p>
+      
+    
+      
+        <p>如果我们激发了你的兴趣，我们已经整理了一份关于 Gaussian processes 主题的进一步博客文章列表。
+  此外，我们还链接了两个 Python 笔记本，它们将为你提供一些实践经验，并帮助你立即开始。</p>
+      
+    
+  </div>
+
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <a href="#fnref-f1n">[1]</a> 该定理的一个含义是，一组独立同分布、具有有限方差的随机变量的均值服从正态分布。
+        Khan Academy 的这个视频对中心极限定理给出了很好的介绍。
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <a href="#fnref-f2n">[2]</a> 对应的 Wikipedia
+      文章对边缘分布有很好的描述，包括若干示例。
+    </div>
+    
+    <div class="footnote-item" id="f3n">
+      <a href="#fnref-f3n">[3]</a> 如果核函数遵循 Mercer 定理，它就可以用于定义 Hilbert 空间。更多信息可以在 Wikipedia 上找到。
+    </div>
+    
+  </section>
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

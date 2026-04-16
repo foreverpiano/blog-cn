@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>计算卷积神经网络的感受野 · Distill.pub</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Distill.pub</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>计算卷积神经网络的感受野</h1>
+    <div class="meta">
+      2019-11-04 · 
+      <a href="https://distill.pub/2019/computing-receptive-fields" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>虽然深度神经网络已在众多人工智能问题上确立了压倒性的最先进成果，但它们在开发和调试时仍可能面临困难。最近对深度学习理解的研究主要集中在特征可视化 [<cite>[erhan2009visualizing,zeiler2014visualizing]</cite>]、理论保证 [<cite>[haeffele2017global,chizat2018onthe]</cite>]、模型可解释性 [<cite>[zhou2015object,zhou2018interpreting]</cite>] 以及泛化能力 [<cite>[neyshabur2014insearch,zhang2017understanding]</cite>] 等方面。</p>
+      
+    
+      
+        <p>在这项工作中，我们从一个互补的角度分析深度神经网络，重点关注卷积模型。我们希望理解输入信号能在多大程度上影响输出特征，并将网络任意部分的特征映射回输入中产生这些特征的区域。将输出特征与输入区域关联起来的关键参数是卷积网络的感受野，它被定义为输入中产生该特征的区域大小。</p>
+      
+    
+      
+        <p>作为我们的第一个贡献，我们提出了一种数学推导和一个高效算法，用于计算现代卷积神经网络的感受野。之前的工作 [<cite>[hien2017aguide,le2017what]</cite>] 讨论了简单卷积网络的感受野计算，其中输入到输出只有单条路径，并提供了适用于这种情况的递推方程。在这项工作中，我们重新审视这些推导，得到了单路径情况下感受野计算的闭式表达式。此外，我们将感受野计算扩展到现代卷积网络，其中输入到输出可能存在多条路径。据我们所知，这是首次对这类最近出现的卷积架构进行感受野计算的详细阐述。</p>
+      
+    
+      
+        <p>如今，感受野计算在各种应用中都不可或缺。例如，在计算机视觉的目标检测任务中，为了识别小尺寸和大尺寸的目标实例，重要的是在多个尺度上表示目标；为此通常需要理解卷积特征的跨度（例如，如果网络的感受野较小，则可能无法识别大目标）。然而，这些计算通常是手动完成的，既繁琐又容易出错。这是因为目前没有能够自动计算这些参数的库。作为我们的第二个贡献，我们引入了一个<a href="https://github.com/google-research/receptive_field" target="_blank" rel="noopener">开源库</a>来填补这一空白，该库可以便捷地执行本文所述的计算。该库已集成到 TensorFlow 代码库中，可以轻松用于分析各种模型，正如本文所展示的那样。</p>
+      
+    
+      
+        <p>为了让社区更好地理解其模型的感受野，我们引入了一个库</p>
+      
+    
+      
+        <p>我们期望这些推导和开源代码能够增进对复杂深度学习模型的理解，从而推动更高效的机器学习研究。</p>
+      
+    
+      
+        <h2>文章概览</h2>
+        
+      
+    
+      
+        <p>我们考虑全卷积神经网络，并推导其相对于输入信号的输出特征的感受野大小和感受野位置。虽然这里给出的推导对于卷积神经网络输入的任何类型信号都足够通用，但我们以图像作为贯穿始终的示例，并在合适的地方引用现代计算机视觉架构。</p>
+      
+    
+      
+        <p>首先，我们推导当网络从输入到输出只有单条路径时（例如 AlexNet [<cite>[krizhevsky2012imagenet]</cite>] 或 VGG [<cite>[simonyan2015very]</cite>]）的闭式表达式。然后，我们讨论更一般的情况，即具有从输入到输出的多条路径的任意计算图（例如 ResNet [<cite>[he2016deep]</cite>] 或 Inception [<cite>[szegedy2016inception]</cite>]）。我们考虑在此背景下可能出现的对齐问题，并解释一种计算感受野大小和位置的算法。</p>
+      
+    
+      
+        <p>最后，我们分析了现代卷积神经网络的感受野，展示了使用我们开源库获得的结果。</p>
+      
+    
+      
+        <h2>问题设定</h2>
+        
+      
+    
+      
+        <p>考虑一个具有 \(L\) 层（\(l = 1,2,\ldots,L\)）的全卷积网络 (FCN)。定义特征图 \(f_l \in R^{h_l\times w_l\times d_l}\) 表示第 \(l\) 层的输出，具有高度 \(h_l\)、宽度 \(w_l\) 和深度 \(d_l\)。我们用 \(f_0\) 表示输入图像，最终的输出特征图对应于 \(f_{L}\)。</p>
+      
+    
+      
+        <p>为简化表述，本文中的推导均考虑一维输入信号和特征图。对于更高维信号（例如 2D 图像），推导可以独立地应用于每个维度。类似地，图中展示的是一维深度，因为这不影响感受野的计算。</p>
+      
+    
+      
+        <p>每一层 \(l\) 的空间配置由 4 个变量参数化，如下图所示：</p>
+      
+    
+      
+        <div class="list-content">\(k_l\)：核大小（正整数）  
+\(s_l\)：步长（正整数）  
+
+\(p_l\)：应用于输入特征图左侧的填充（非负整数）  
+<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>  
+
+\(q_l\)：应用于输入特征图右侧的填充（非负整数）</div>
+      
+    
+      
+        <p>我们考虑输出特征局部依赖于输入特征的层，例如卷积、池化，或逐元素操作如非线性、加法和特征拼接。这些是当今最先进网络中常用的操作。我们将逐元素操作定义为具有“核大小”1，因为每个输出特征仅依赖于输入特征图的单个位置。</p>
+      
+    
+      
+        <p>我们的记号通过下面这个简单网络进一步说明。在这个例子中，\(L=4\)，模型由一个卷积、随后是 ReLU、第二个卷积和最大池化组成。<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup></p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-computing-receptive-fields/pointer.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <h2>单路径网络</h2>
+        
+      
+    
+      
+        <p>在本节中，我们为从输入到输出只有单条路径的全卷积网络（例如 AlexNet [<cite>[krizhevsky2012imagenet]</cite>] 或 VGG [<cite>[simonyan2015very]</cite>]）计算递推关系和闭式表达式。</p>
+      
+    
+      
+        <h3>计算感受野大小</h3>
+        
+      
+    
+      
+        <p>定义 \(r_l\) 为最终输出特征图 \(f_{L}\) 相对于特征图 \(f_l\) 的感受野大小。换句话说，\(r_l\) 对应于特征图 \(f_l\) 中对生成 \(f_{L}\) 中一个特征有贡献的特征数量。注意 \(r_{L}=1\)。</p>
+      
+    
+      
+        <p>作为一个简单例子，考虑第 \(L\) 层，它以 \(f_{L-1}\) 的特征作为输入，生成 \(f_{L}\) 作为输出。下面是示意图：</p>
+      
+    
+      
+        <p>显然，\(f_{L-1}\) 中的 \(k_{L}\) 个特征可以影响 \(f_{L}\) 中的一个特征，因为 \(f_{L}\) 的每个特征都直接连接到 \(f_{L-1}\) 中的 \(k_{L}\) 个特征。因此，\(r_{L-1} = k_{L}\)。</p>
+      
+    
+      
+        <p>现在，考虑更一般的情况，我们已知 \(r_{l}\) 并希望计算 \(r_{l-1}\)。每个特征 \(f_{l}\) 都连接到 \(f_{l-1}\) 中的 \(k_{l}\) 个特征。</p>
+      
+    
+      
+        <p>首先，考虑 \(k_l=1\) 的情况：在这种情况下，\(f_{l}\) 中的 \(r_{l}\) 个特征将覆盖 \(f_{l-1}\) 中的 \(r_{l-1}=s_l\cdot r_{l} - (s_l - 1)\) 个特征。这在下图中进行了说明，其中 \(r_{l}=2\)（用红色高亮）。第一项 \(s_l \cdot r_{l}\)（绿色）覆盖了特征来源的整个区域，但它会多覆盖 \(s_l - 1\) 个特征（紫色），因此需要将其减去。<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup></p>
+      
+    
+      
+        <p>对于 \(k_l &gt; 1\) 的情况，我们只需要额外加上 \(k_l-1\) 个特征，这些特征将覆盖区域左侧和右侧的部分。例如，如果我们使用核大小为 5（\(k_l=5\)），则每侧会额外使用 2 个特征，总共增加 4 个。如果 \(k_l\) 是偶数，这同样适用，因为左右填充之和为 \(k_l-1\)。<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup></p>
+      
+    
+      
+        <p>因此，我们得到一般的递推方程（这是一个<a href="https://en.wikipedia.org/wiki/Recurrence_relation#Solving_first-order_non-homogeneous_recurrence_relations_with_variable_coefficients" target="_blank" rel="noopener">一阶非齐次变系数</a>递推关系）：</p>
+      
+    
+      
+        <p>\(\begin{align}
+      r_{l-1} = s_l \cdot r_{l} + (k_l - s_l)
+      \label{eq:rf_recurrence}\
+      \end{align}\)</p>
+      
+    
+      
+        <p>这个方程可用于通过递归算法计算网络的感受野大小 \(r_0\)。然而，我们可以做得更好：我们可以求解这个递推方程，得到用各层 \(k_l\) 和 \(s_l\) 表示的解：</p>
+      
+    
+      
+        <p>\begin{equation}
+      r_0 = \sum_{l=1}^{L} \left((k_l-1)\prod_{i=1}^{l-1}
+      s_i\right) + 1 \label{eq:rf_recurrence_final} \end{equation}</p>
+      
+    
+      
+        <p>这个表达式具有直观意义，可以通过一些特殊情况看出。例如，如果所有核大小均为 1，那么感受野自然也为 1。如果所有步长均为 1，那么感受野就是所有层上 \((k_l-1)\) 的总和加 1，这很容易理解。如果某一层的步长大于 1，那么该层以下所有层的区域都会按比例增大。最后要注意的是，在这个推导中不需要考虑填充。</p>
+      
+    
+      
+        <h3>计算输入图像中的感受野区域</h3>
+        
+      
+    
+      
+        <p>虽然知道输出特征图中一个特征所对应区域的大小很重要，但在许多情况下，精确地定位生成某个特征的区域也至关重要。例如，给定特征 \(f_{L}(i, j)\)，输入图像中生成它的区域是什么？本节将解决这个问题。</p>
+      
+    
+      
+        <p>我们用 \(u_l\) 和 \(v_l\) 分别表示用于计算 \(f_{L}\) 中目标特征的区域在 \(f_l\) 中的最左侧和最右侧坐标。在这些推导中，坐标从零开始索引（即每个特征图中的第一个特征位于坐标 0）。注意 \(u_{L} = v_{L}\) 对应于 \(f_{L}\) 中目标特征的位置。下图展示了一个简单的两层网络，我们高亮了用于计算 \(f_2\) 中第一个特征的 \(f_0\) 中的区域。注意在这个例子中该区域包含了一些填充。在此例中，\(u_2=v_2=0\)，\(u_1=0,v_1=1\)，以及 \(u_0=-1, v_0=4\)。</p>
+      
+    
+      
+        <p>我们先提出以下问题：给定 \(u_{l}, v_{l}\)，能否计算出 \(u_{l-1},v_{l-1}\)？</p>
+      
+    
+      
+        <p>从一个简单情况开始：假设 \(u_{l}=0\)（这对应于 \(f_{l}\) 中的第一个位置）。在这种情况下，最左侧特征 \(u_{l-1}\) 显然位于 \(-p_l\)，因为第一个特征是通过将核的左端放置在该位置生成的。如果 \(u_{l}=1\)，我们关注的是第二个特征，其最左侧位置 \(u_{l-1}\) 为 \(-p_l + s_l\)；对于 \(u_{l}=2\)，\(u_{l-1}=-p_l + 2\cdot s_l\)；以此类推。一般地：</p>
+      
+    
+      
+        <p>\(\begin{align}
+      u_{l-1}&amp;= -p_l + u_{l}\cdot s_l \label{eq:rf_loc_recurrence_u} \\
+      v_{l-1}&amp;= -p_l + v_{l}\cdot s_l + k_l -1
+      \label{eq:rf_loc_recurrence_v}
+      \end{align}\)</p>
+      
+    
+      
+        <p>其中 \(v_l\) 的计算仅多了 \(k_l-1\)，这是因为此时我们需要找到最右侧的位置。</p>
+      
+    
+      
+        <p>注意这些表达式与感受野大小的递推公式 \eqref{eq:rf_recurrence} 非常相似。同样，我们可以在网络上实现递归来获得每一层的 \(u_l,v_l\)；但我们也可以直接求解 \(u_0,v_0\)，得到用网络参数表示的闭式表达式：</p>
+      
+    
+      
+        <p>\(\begin{align}
+      u_0&amp;= u_{L}\prod_{i=1}^{L}s_i - \sum_{l=1}^{L}
+      p_l\prod_{i=1}^{l-1} s_i
+      \label{eq:rf_loc_recurrence_final_left}
+      \end{align}\)</p>
+      
+    
+      
+        <p>这给了我们输入图像中最左侧特征位置，它是网络每一层所应用的填充（\(p_l\)）和步长（\(s_l\)），以及输出特征图中特征位置（\(u_{L}\)）的函数。</p>
+      
+    
+      
+        <p>而最右侧特征位置 \(v_0\) 为：</p>
+      
+    
+      
+        <p>\(\begin{align}
+      v_0&amp;= v_{L}\prod_{i=1}^{L}s_i -\sum_{l=1}^{L}(1 + p_l -
+      k_l)\prod_{i=1}^{l-1} s_i
+      \label{eq:rf_loc_recurrence_final_right}
+      \end{align}\)</p>
+      
+    
+      
+        <p>注意，与 \eqref{eq:rf_loc_recurrence_final_left} 不同，这个表达式还依赖于每一层的核大小（\(k_l\)）。</p>
+      
+    
+      
+        <p>感受野大小与区域之间的关系。你可能在想感受野大小 \(r_0\) 一定与 \(u_0\) 和 \(v_0\) 有直接关系。确实如此；很容易证明 \(r_0 = v_0 - u_0 + 1\)，我们将其留给有兴趣的读者作为练习。需要强调的是，这意味着我们可以将 \eqref{eq:rf_loc_recurrence_final_right} 重写为：</p>
+      
+    
+      
+        <p>\(\begin{align}
+      v_0&amp;= u_0 + r_0 - 1
+      \label{eq:rf_loc_recurrence_final_right_rewrite}
+      \end{align}\)</p>
+      
+    
+      
+        <p>有效步长和有效填充。为了在实践中计算 \(u_0\) 和 \(v_0\)，定义另外两个仅依赖于不同层填充和步长的变量会很方便：</p>
+      
+    
+      
+        <div class="list-content">有效步长  
+\(S_l = \prod_{i=l+1}^{L}s_i\)：给定特征图 \(f_l\) 与输出特征图 \(f_{L}\) 之间的步长  
+
+有效填充  
+\(P_l = \sum_{m=l+1}^{L}p_m\prod_{i=l+1}^{m-1} s_i\)：  
+给定特征图 \(f_l\) 与输出特征图 \(f_{L}\) 之间的填充</div>
+      
+    
+      
+        <p>利用这些定义，我们可以将 \eqref{eq:rf_loc_recurrence_final_left} 重写为：</p>
+      
+    
+      
+        <p>\(\begin{align}
+      u_0&amp;= -P_0 + u_{L}\cdot S_0
+      \label{eq:rf_loc_recurrence_final_left_effective}
+      \end{align}\)</p>
+      
+    
+      
+        <p>注意 \eqref{eq:rf_loc_recurrence_final_left_effective} 与 \eqref{eq:rf_loc_recurrence_u} 之间的相似性。通过使用 \(S_l\) 和 \(P_l\)，可以根据输出特征图的位置 \(u_{L}\) 计算特征图 \(f_l\) 的位置 \(u_l,v_l\)。当需要为给定网络计算特征位置时，预先计算三个变量 \(P_0、S_0、r_0\) 非常方便。使用这三个变量，可以通过 \eqref{eq:rf_loc_recurrence_final_left_effective} 得到 \(u_0\)，并通过 \eqref{eq:rf_loc_recurrence_final_right_rewrite} 得到 \(v_0\)。这使我们能够获得从任意输出特征位置到影响它的输入区域的映射。</p>
+      
+    
+      
+        <p>还可以推导有效步长和有效填充的递推方程。很容易证明：</p>
+      
+    
+      
+        <p>\(\begin{align}
+      S_{l-1}&amp;= s_l \cdot S_l \label{eq:effective_stride_recurrence} \\
+      P_{l-1}&amp;= s_l \cdot P_l + p_l \label{eq:effective_padding_recurrence}
+      \end{align}\)</p>
+      
+    
+      
+        <p>这些表达式在下一节推导用于任意计算图的算法时将会非常有用。</p>
+      
+    
+      
+        <p>感受野区域的中心。推导影响特定输出特征的感受野区域中心也很有意义。这可以作为该特征在输入图像中的位置（例如最近基于深度学习的局部特征工作 [<cite>[noh2017large]</cite>] 就是这样做的）。</p>
+      
+    
+      
+        <p>我们将每一层 \(l\) 的感受野区域中心定义为 \(c_l = \frac{u_l + v_l}{2}\)。根据上述 \(u_0、v_0、r_0\) 的表达式，很容易推导出 \(c_0\)（记住 \(u_{L}=v_{L}\)）：</p>
+      
+    
+      
+        <p>\(\begin{align}
+      c_0&amp;= u_{L}\prod_{i=1}^{L}s_i
+      - \sum_{l=1}^{L}
+      \left(p_l - \frac{k_l - 1}{2}\right)\prod_{i=1}^{l-1} s_i \nonumber \\&amp;= u_{L}\cdot S_0
+      - \sum_{l=1}^{L}
+      \left(p_l - \frac{k_l - 1}{2}\right)\prod_{i=1}^{l-1} s_i
+      \nonumber \\&amp;= -P_0 + u_{L}\cdot S_0 + \left(\frac{r_0 - 1}{2}\right)
+      \label{eq:rf_loc_recurrence_final_center_effective}
+      \end{align}\)</p>
+      
+    
+      
+        <p>将这个表达式与 \eqref{eq:rf_loc_recurrence_final_left_effective} 比较可以发现，中心相对于最左侧像素偏移了 \(\frac{r_0 - 1}{2}\)，这是合理的。注意不同输出特征的感受野中心之间以有效步长 \(S_0\) 间隔，这符合预期。还有一点值得注意的是，如果对所有 \(l\) 都有 \(p_l = \frac{k_l - 1}{2}\)，则输出特征的感受野区域中心将与图像第一个像素对齐，位置为 \({0, S_0, 2S_0, 3S_0, \ldots}\)（注意这种情况下所有 \(k_l\) 必须是奇数）。</p>
+      
+    
+      
+        <p>其他网络操作。本节提供的推导涵盖了卷积神经网络核心的大多数基本操作。有好奇心的读者可能会想了解其他常用的操作，例如空洞卷积、上采样等。你可以在附录中找到对这些操作的讨论。</p>
+      
+    
+      
+        <h2>任意计算图</h2>
+        
+      
+    
+      
+        <p>当今大多数最先进的卷积神经网络（例如 ResNet [<cite>[he2016deep]</cite>] 或 Inception [<cite>[szegedy2016inception]</cite>]）都依赖于每一层可能有多个输入的模型，这意味着从输入图像到最终输出特征图可能存在多条不同的路径。这些架构通常用有向无环计算图来表示，其中节点集合 \(\mathcal{L}\) 表示各层，边集合 \(\mathcal{E}\) 编码它们之间的连接（特征图沿着边流动）。</p>
+      
+    
+      
+        <p>上一节的计算可以独立地应用于从输入到输出的每一条可能路径。当我们希望同时考虑所有不同路径来确定网络的感受野大小以及对应于每个输出特征的感受野区域时，情况会变得更加复杂。</p>
+      
+    
+      
+        <p>对齐问题。第一个潜在问题是，一个输出特征可能会根据从输入到输出的不同路径，使用输入图像中未对齐的区域。此外，用于计算每个输出特征的图像区域之间的相对位置也可能变化。因此，感受野大小可能不是平移不变的。这在下面的玩具示例图中进行了说明，在这个例子中，从输入到输出的两条路径在输入图像中使用区域的中心是不同的。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-computing-receptive-fields/pointer.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>在这个例子中，填充仅用于左侧分支。前三层是卷积层，而最后一层执行简单的加法。左右两条路径的感受野区域之间的相对位置对于不同的输出特征是不一致的，这导致了对齐缺失（通过悬停在不同输出特征上可以看出）。此外，请注意每个输出特征的感受野大小可能不同。对于最左侧的第二个特征，使用了 6 个输入样本，而第三个特征仅使用了 5 个。这意味着当网络未对齐时，感受野大小可能不是平移不变的。</p>
+      
+    
+      
+        <p>对于许多计算机视觉任务而言，输出特征保持对齐是非常理想的：“图像到图像翻译”任务（例如语义分割、边缘检测、表面法线估计、着色等）、局部特征匹配和检索等都是如此。</p>
+      
+    
+      
+        <p>当网络是对齐的时，所有不同路径都会使输出特征在相同的位置一致地居中。所有不同路径必须具有相同的有效步长。很容易看出，感受野大小将是所有可能路径中最大的感受野。同时，网络的有效填充对应于具有最大感受野大小路径的有效填充，这样就可以应用 \eqref{eq:rf_loc_recurrence_final_left_effective} 和 \eqref{eq:rf_loc_recurrence_final_center_effective} 来定位生成输出特征的区域。</p>
+      
+    
+      
+        <p>下图给出了一个对齐网络的简单例子。在这种情况下，两条不同路径使特征居中于相同的位置。感受野大小为 3，有效步长为 4，有效填充为 1。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/2019-computing-receptive-fields/pointer.svg" alt="">
+          
+        </figure>
+      
+    
+      
+        <p>对齐准则。更准确地说，为了使网络在每一层都对齐，我们需要任意一对路径 \(i\) 和 \(j\) 对于任意层 \(l\) 和输出特征 \(u_{L}\) 都满足 \(c_l^{(i)} = c_l^{(j)}\)。为此，从 \eqref{eq:rf_loc_recurrence_final_center_effective} 可以看出，必须满足两个条件：</p>
+      
+    
+      
+        <p>\(\begin{align}
+      S_l^{(i)}&amp;= S_l^{(j)} \label{eq:align_crit_1} \\
+      -P_l^{(i)} + \left(\frac{r_l^{(i)} - 1}{2}\right)&amp;= -P_l^{(j)} + \left(\frac{r_l^{(j)} - 1}{2}\right)
+      \label{eq:align_crit_2}
+      \end{align}\)</p>
+      
+    
+      
+        <p>对所有 \(i,j,l\) 成立。</p>
+      
+    
+      
+        <p>计算感受野参数的算法：概要。开发一个高效算法来计算此类计算图的感受野大小及相关参数是直截了当的。自然地，一种暴力方法是使用上面给出的表达式，独立地为从输入到输出的每条路径计算感受野参数，并结合一些记录工作来得到整个网络的参数。这种方法的最坏情况复杂度为 \(\mathcal{O}\left(\left|\mathcal{E}\right| \times \left|\mathcal{L}\right|\right)\)。</p>
+      
+    
+      
+        <p>但我们可以做得更好。首先对计算图进行拓扑排序。排序后的表示按依赖关系排列各层：每一层的输出只依赖于排在它之前的层。通过以逆拓扑顺序访问各层，我们确保当访问层 \(l\) 时，所有从 \(l\) 到输出层 \(L\) 的路径都已被考虑。当到达输入层 \(l=0\) 时，所有路径都已被考虑，从而得到整个模型的感受野参数。该算法的复杂度为 \(\mathcal{O}\left(\left|\mathcal{E}\right| + \left|\mathcal{L}\right|\right)\)，远优于暴力方法。</p>
+      
+    
+      
+        <p>在访问每一层时，需要进行一些记录工作以跟踪网络的感受野参数。特别需要注意的是，从层 \(l\) 到输出层 \(L\) 可能存在多条不同路径。为了处理这种情况，我们跟踪层 \(l\) 的参数，并在发现具有更大感受野的新路径时使用表达式 \eqref{eq:rf_recurrence}、\eqref{eq:effective_stride_recurrence} 和 \eqref{eq:effective_padding_recurrence} 来更新它们。同样，在遍历图的过程中，检查网络是否对齐也很重要。这可以通过确保不同路径的感受野参数满足 \eqref{eq:align_crit_1} 和 \eqref{eq:align_crit_2} 来完成。</p>
+      
+    
+      
+        <h2>讨论：现代网络的感受野</h2>
+        
+      
+    
+      
+        <p>在本节中，我们展示了使用新开源库（脚本<a href="https://github.com/google-research/receptive_field/blob/master/receptive_field/python/util/examples/rf_benchmark.py" target="_blank" rel="noopener">在此</a>）计算得到的现代卷积网络的感受野参数。<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup> AlexNet [<cite>[krizhevsky2012imagenet]</cite>]、VGG [<cite>[simonyan2015very]</cite>]、ResNet [<cite>[he2016deep]</cite>]、Inception [<cite>[szegedy2016inception]</cite>] 和 MobileNet [<cite>[howard2017mobilenets]</cite>] 的预计算参数呈现在下表中。更完整的列表，包括中间网络端点，请参见<a href="https://github.com/google-research/receptive_field/blob/master/receptive_field/RECEPTIVE_FIELD_TABLE.md" target="_blank" rel="noopener">此表格</a>。</p>
+      
+    
+      
+        <div class="table-container"><table class="model_table" style="margin: 0px auto;">
+<thead>
+<tr>
+<th align="center">ConvNet Model</th>
+<th align="center">Receptive <br/>Field (r)</th>
+<th align="center">Effective <br/>Stride (S)</th>
+<th align="center">Effective <br/>Padding (P)</th>
+<th align="center">Model Year</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">alexnet_v2</td>
+<td align="center">195</td>
+<td align="center">32</td>
+<td align="center">64</td>
+<td align="center"><a href="https://arxiv.org/abs/1404.5997v2" target="_new">2014</a></td>
+</tr>
+<tr>
+<td align="center">vgg_16</td>
+<td align="center">212</td>
+<td align="center">32</td>
+<td align="center">90</td>
+<td align="center"><a href="https://arxiv.org/abs/1409.1556" target="_new">2014</a></td>
+</tr>
+<tr>
+<td align="center">mobilenet_v1</td>
+<td align="center">315</td>
+<td align="center">32</td>
+<td align="center">126</td>
+<td align="center"><a href="https://arxiv.org/abs/1704.04861" target="_new">2017</a></td>
+</tr>
+<tr>
+<td align="center">mobilenet_v1_075</td>
+<td align="center">315</td>
+<td align="center">32</td>
+<td align="center">126</td>
+<td align="center"><a href="https://arxiv.org/abs/1704.04861" target="_new">2017</a></td>
+</tr>
+<tr>
+<td align="center">resnet_v1_50</td>
+<td align="center">483</td>
+<td align="center">32</td>
+<td align="center">239</td>
+<td align="center"><a href="https://arxiv.org/abs/1512.03385" target="_new">2015</a></td>
+</tr>
+<tr>
+<td align="center">inception_v2</td>
+<td align="center">699</td>
+<td align="center">32</td>
+<td align="center">318</td>
+<td align="center"><a href="https://arxiv.org/abs/1502.03167" target="_new">2015</a></td>
+</tr>
+<tr>
+<td align="center">resnet_v1_101</td>
+<td align="center">1027</td>
+<td align="center">32</td>
+<td align="center">511</td>
+<td align="center"><a href="https://arxiv.org/abs/1512.03385" target="_new">2015</a></td>
+</tr>
+<tr>
+<td align="center">inception_v3</td>
+<td align="center">1311</td>
+<td align="center">32</td>
+<td align="center">618</td>
+<td align="center"><a href="https://arxiv.org/abs/1512.00567" target="_new">2015</a></td>
+</tr>
+<tr>
+<td align="center">resnet_v1_152</td>
+<td align="center">1507</td>
+<td align="center">32</td>
+<td align="center">751</td>
+<td align="center"><a href="https://arxiv.org/abs/1512.03385" target="_new">2015</a></td>
+</tr>
+<tr>
+<td align="center">resnet_v1_200</td>
+<td align="center">1763</td>
+<td align="center">32</td>
+<td align="center">879</td>
+<td align="center"><a href="https://arxiv.org/abs/1512.03385" target="_new">2015</a></td>
+</tr>
+<tr>
+<td align="center">inception_v4</td>
+<td align="center">2071</td>
+<td align="center">32</td>
+<td align="center">998</td>
+<td align="center"><a href="https://arxiv.org/abs/1602.07261" target="_new">2016</a></td>
+</tr>
+<tr>
+<td align="center">inception_resnet_v2</td>
+<td align="center">3039</td>
+<td align="center">32</td>
+<td align="center">1482</td>
+<td align="center"><a href="https://arxiv.org/abs/1602.07261" target="_new">2016</a></td>
+</tr>
+</tbody>
+</table></div>
+      
+    
+      
+        <p>随着模型从 AlexNet 到 VGG，再到 ResNet 和 Inception 的演进，感受野不断增大（这是层数增加的自然结果）。在最新的网络中，感受野通常覆盖整个输入图像：这意味着最终输出特征图中每个特征所使用的上下文包含了所有输入像素。</p>
+      
+    
+      
+        <p>我们还可以将感受野的增长与分类精度的提升联系起来。下图绘制了上述相同网络的 ImageNet top-1 精度与网络感受野大小的关系。每个数据点的圆圈大小与该架构的浮点运算次数 (FLOPs) 成正比。</p>
+      
+    
+      
+        <p>我们观察到分类精度与感受野大小之间存在对数关系，这表明大型感受野对于高层识别任务是必要的，但回报会逐渐递减。例如，请注意 MobileNets 即使使用非常紧凑的架构也能实现很高的识别性能：通过深度可分离卷积，感受野以很小的计算开销得以增大。相比之下，VGG-16 需要的 FLOPs 是 MobileNets 的 27 倍，但产生的感受野却更小；尽管复杂得多，VGG 的精度仅比 MobileNet 略好一点。这表明能够高效生成大感受野的网络可能会获得更好的识别性能。</p>
+      
+    
+      
+        <p>不过我们需要强调，感受野大小并不是上述性能改进的唯一因素。其他因素也起着非常重要的作用：网络深度（即层数）和宽度（即每层滤波器数量）、残差连接、批量归一化等等。换句话说，虽然我们推测大的感受野是必要的，但它绝不是充分条件。<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup></p>
+      
+    
+      
+        <p>最后，请注意给定特征并不会同等程度地受到其感受野区域内所有输入像素的影响：靠近感受野中心的输入像素有更多“路径”来影响该特征，因此权重更大。每个输入像素的相对重要性定义了该特征的有效感受野。最近的工作 [<cite>[luo2016understanding]</cite>] 提供了数学表述和测量有效感受野的程序，实验观察到其形状呈高斯分布，峰值位于感受野中心。更好地理解卷积神经网络中输入像素的相对重要性是一个活跃的研究课题。</p>
+      
+    
+  </div>
+
+  
+  <section class="footnotes">
+    <h2>注释</h2>
+    
+    <div class="footnote-item" id="f1n">
+      <a href="#fnref-f1n">[1]</a> 也可以考虑更一般的填充定义：负填充可解释为裁剪，在我们的推导中可以不做任何修改地使用。为了使文章更简洁，我们的表述仅聚焦于非负填充。
+    </div>
+    
+    <div class="footnote-item" id="f2n">
+      <a href="#fnref-f2n">[2]</a> 我们采用的约定是，每一层的第一个输出特征是通过将核放置在输入最左侧位置（包括填充）来计算的。这一约定被所有主流深度学习库所采用。
+    </div>
+    
+    <div class="footnote-item" id="f3n">
+      <a href="#fnref-f3n">[3]</a> 如下面插图所示，注意在某些情况下，感受野区域可能包含“空洞”，即对于给定层，某些输入特征可能未被使用。
+    </div>
+    
+    <div class="footnote-item" id="f4n">
+      <a href="#fnref-f4n">[4]</a> 由于边界效应，注意用于计算每个输出特征的原始图像中区域的大小可能不同。当使用填充时就会发生这种情况，此时边界特征的感受野会包含填充区域。本文后续部分将讨论如何计算每个特征的感受野区域，这可以用来精确确定每个输出特征使用了哪些图像像素。
+    </div>
+    
+    <div class="footnote-item" id="f5n">
+      <a href="#fnref-f5n">[5]</a> 用于感受野计算的模型，以及在 ImageNet 实验中报告的精度，均来自 TF-Slim 图像分类模型库。
+    </div>
+    
+    <div class="footnote-item" id="f6n">
+      <a href="#fnref-f6n">[6]</a> 需要进行额外的实验来验证这一假设：例如，研究人员可以实验性地探究当不同架构的核大小和步长变化时分类精度如何改变。这可能表明至少对于这些架构而言，大感受野是必要的。
+    </div>
+    
+  </section>
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://distill.pub" target="_blank" rel="noopener">distill.pub</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'distill_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多臂老虎机问题及其解决方案 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>多臂老虎机问题及其解决方案</h1>
+    <div class="meta">
+      2018-01-23 · 
+      <a href="https://lilianweng.github.io/posts/2018-01-23-multi-armed-bandit/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">利用与探索
+
+什么是多臂老虎机？
+
+定义
+
+老虎机策略
+
+
+ε-贪婪算法
+
+上置信界
+
+Hoeffding 不等式
+
+UCB1
+
+贝叶斯 UCB
+
+
+Thompson 采样
+
+案例研究
+
+总结
+
+参考文献</div>
+      
+    
+      
+        <p>多臂老虎机问题是展示探索与利用困境的经典示例。本文将介绍老虎机问题以及如何使用不同的探索策略来解决它。</p>
+      
+    
+      
+        <p>这些算法针对伯努利老虎机在 <a href="http://github.com/lilianweng/multi-armed-bandit" target="_blank" rel="noopener">lilianweng/multi-armed-bandit</a> 中实现。</p>
+      
+    
+      
+        <h2>利用与探索</h2>
+        
+      
+    
+      
+        <p>探索与利用的困境在我们的生活中随处可见。比如，你最喜欢的餐厅就在街角。如果你每天都去那儿，就会非常清楚能得到什么，但也会错过发现更好选择的机会。如果你总是尝试新地方，很可能会时不时吃到难吃的食物。同样，线上广告系统也需要在已知最吸引人的广告和可能更成功的新广告之间保持平衡。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-01-23-multi-armed-bandit/exploration_vs_exploitation.png" alt="">
+          <figcaption>A real-life example of the exploration vs exploitation dilemma: where to eat? (Image source: UC Berkeley AI courseslide,lecture 11.)</figcaption>
+        </figure>
+      
+    
+      
+        <p>如果我们已经掌握了环境的全部信息，即使只用暴力模拟也能找到最佳策略，更不用说许多其他聪明的方法了。这种困境源于信息不完整：我们需要在控制风险的同时收集足够的信息来做出全局最佳决策。利用是指我们充分利用已知的最佳选项。探索则是冒一定风险去收集未知选项的信息。最佳的长期策略可能需要短期的牺牲。例如，一次探索尝试可能完全失败，但它能提醒我们未来不要过于频繁地选择该行动。</p>
+      
+    
+      
+        <h2>什么是多臂老虎机？</h2>
+        
+      
+    
+      
+        <p><a href="https://en.wikipedia.org/wiki/Multi-armed_bandit" target="_blank" rel="noopener">多臂老虎机</a> 问题是经典的、很好地展示了探索与利用困境的问题。想象一下你在赌场里面对多台老虎机，每台机器都设置了未知的中奖概率。问题是：如何制定最佳策略以获得最高的长期收益？</p>
+      
+    
+      
+        <p>本文中我们只讨论试验次数无限的情况。对试验次数有限的限制会引入一种新的探索问题。例如，如果试验次数少于老虎机数量，我们甚至无法尝试每台机器来估算中奖概率（！），因此我们必须在有限的知识和资源（即时间）下做出明智的行为。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-01-23-multi-armed-bandit/bern_bandit.png" alt="">
+          <figcaption>An illustration of how a Bernoulli multi-armed bandit works. The reward probabilities are **unknown** to the player.</figcaption>
+        </figure>
+      
+    
+      
+        <p>一种朴素的方法是持续在一台机器上玩很多很多轮，最终根据 <a href="https://en.wikipedia.org/wiki/Law_of_large_numbers" target="_blank" rel="noopener">大数定律</a> 来估算“真实”的奖励概率。然而，这种做法非常浪费，而且肯定无法保证获得最佳的长期收益。</p>
+      
+    
+      
+        <h2>定义</h2>
+        
+      
+    
+      
+        <p>现在让我们给出一个科学的定义。</p>
+      
+    
+      
+        <p>伯努利多臂老虎机可以描述为一个元组 <span class="math-inline" data-math="\langle \mathcal{A}, \mathcal{R} \rangle">\langle \mathcal{A}, \mathcal{R} \rangle</span>，其中：</p>
+      
+    
+      
+        <div class="list-content">我们有 <span class="math-inline" data-math="K">K</span> 台机器，各自的奖励概率为 <span class="math-inline" data-math="\{ \theta_1, \dots, \theta_K \}">\{ \theta_1, \dots, \theta_K \}</span>。
+在每个时间步 t，我们对其中一台老虎机采取动作 a 并收到奖励 r。
+<span class="math-inline" data-math="\mathcal{A}">\mathcal{A}</span> 是一组动作，每个动作对应与一台老虎机的交互。动作 a 的价值是期望奖励 <span class="math-inline" data-math="Q(a) = \mathbb{E} [r \vert a] = \theta">Q(a) = \mathbb{E} [r \vert a] = \theta</span>。如果在时间步 t 选择的动作 <span class="math-inline" data-math="a_t">a_t</span> 是第 i 台机器，则 <span class="math-inline" data-math="Q(a_t) = \theta_i">Q(a_t) = \theta_i</span>。
+<span class="math-inline" data-math="\mathcal{R}">\mathcal{R}</span> 是奖励函数。在伯努利老虎机中，我们以随机方式观察到奖励 r。在时间步 t，<span class="math-inline" data-math="r_t = \mathcal{R}(a_t)">r_t = \mathcal{R}(a_t)</span> 可能以概率 <span class="math-inline" data-math="Q(a_t)">Q(a_t)</span> 返回奖励 1，否则返回 0。</div>
+      
+    
+      
+        <p>它是 <a href="https://en.wikipedia.org/wiki/Markov_decision_process" target="_blank" rel="noopener">马尔可夫决策过程</a> 的简化版本，因为不存在状态 <span class="math-inline" data-math="\mathcal{S}">\mathcal{S}</span>。</p>
+      
+    
+      
+        <p>目标是最大化累积奖励 <span class="math-inline" data-math="\sum_{t=1}^T r_t">\sum_{t=1}^T r_t</span>。
+如果我们知道具有最佳奖励的最优动作，那么目标就等同于最小化因未选择最优动作而产生的潜在 <a href="https://en.wikipedia.org/wiki/Regret_(decision_theory)" target="_blank" rel="noopener">遗憾</a> 或损失。</p>
+      
+    
+      
+        <p>最优动作 <span class="math-inline" data-math="a^{*}">a^{*}</span> 的最优奖励概率 <span class="math-inline" data-math="\theta^{*}">\theta^{*}</span> 为：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\theta^{*}=Q(a^{*})=\max_{a \in \mathcal{A}} Q(a) = \max_{1 \leq i \leq K} \theta_i
+">
+\theta^{*}=Q(a^{*})=\max_{a \in \mathcal{A}} Q(a) = \max_{1 \leq i \leq K} \theta_i
+</span></div>
+      
+    
+      
+        <p>我们的损失函数是直到时间步 T 为止，因未选择最优动作而可能产生的总遗憾：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathcal{L}_T = \mathbb{E} \Big[ \sum_{t=1}^T \big( \theta^{*} - Q(a_t) \big) \Big]
+">
+\mathcal{L}_T = \mathbb{E} \Big[ \sum_{t=1}^T \big( \theta^{*} - Q(a_t) \big) \Big]
+</span></div>
+      
+    
+      
+        <h2>老虎机策略</h2>
+        
+      
+    
+      
+        <p>根据探索方式的不同，解决多臂老虎机问题有几种方法。</p>
+      
+    
+      
+        <div class="list-content">不探索：最朴素也是最糟糕的方法。
+随机探索
+智能探索，偏好不确定性</div>
+      
+    
+      
+        <h2>ε-贪婪算法</h2>
+        
+      
+    
+      
+        <p>ε-贪婪算法大部分时间会选择当前已知的最佳动作，但偶尔会进行随机探索。动作价值根据过去经验估算，即对目标动作 a 到目前为止（直到当前时间步 t）观察到的所有奖励取平均：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\hat{Q}_t(a) = \frac{1}{N_t(a)} \sum_{\tau=1}^t r_\tau \mathbb{1}[a_\tau = a]
+">
+\hat{Q}_t(a) = \frac{1}{N_t(a)} \sum_{\tau=1}^t r_\tau \mathbb{1}[a_\tau = a]
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\mathbb{1}">\mathbb{1}</span> 是二值指示函数，<span class="math-inline" data-math="N_t(a)">N_t(a)</span> 是到目前为止动作 a 被选择的次数，即 <span class="math-inline" data-math="N_t(a) = \sum_{\tau=1}^t \mathbb{1}[a_\tau = a]">N_t(a) = \sum_{\tau=1}^t \mathbb{1}[a_\tau = a]</span>。</p>
+      
+    
+      
+        <p>根据 ε-贪婪算法，我们以小概率 <span class="math-inline" data-math="\epsilon">\epsilon</span> 选择随机动作，而在其余大部分时间（概率 1-<span class="math-inline" data-math="\epsilon">\epsilon</span>）选择目前已知的最佳动作：<span class="math-inline" data-math="\hat{a}^{*}_t = \arg\max_{a \in \mathcal{A}} \hat{Q}_t(a)">\hat{a}^{*}_t = \arg\max_{a \in \mathcal{A}} \hat{Q}_t(a)</span>。</p>
+      
+    
+      
+        <p>查看我的简单实现 <a href="https://github.com/lilianweng/multi-armed-bandit/blob/master/solvers.py#L45" target="_blank" rel="noopener">在此</a>。</p>
+      
+    
+      
+        <h2>上置信界</h2>
+        
+      
+    
+      
+        <p>随机探索让我们有机会尝试那些我们了解不多的选项。然而，由于随机性，我们有可能最终去探索过去已经确认不好的动作（运气不好！）。为了避免这种低效的探索，一种方法是随时间减小参数 ε，另一种方法是对具有高不确定性的选项保持乐观，从而优先选择那些我们还没有获得可靠价值估计的动作。换句话说，我们偏好探索那些具有很大潜力达到最优价值的动作。</p>
+      
+    
+      
+        <p>上置信界（UCB）算法通过奖励价值的上置信界 <span class="math-inline" data-math="\hat{U}_t(a)">\hat{U}_t(a)</span> 来衡量这种潜力，使得真实价值低于该界限 <span class="math-inline" data-math="Q(a) \leq \hat{Q}_t(a) + \hat{U}_t(a)">Q(a) \leq \hat{Q}_t(a) + \hat{U}_t(a)</span> 的概率很高。上界 <span class="math-inline" data-math="\hat{U}_t(a)">\hat{U}_t(a)</span> 是 <span class="math-inline" data-math="N_t(a)">N_t(a)</span> 的函数；试验次数 <span class="math-inline" data-math="N_t(a)">N_t(a)</span> 越多，界限 <span class="math-inline" data-math="\hat{U}_t(a)">\hat{U}_t(a)</span> 应该越小。</p>
+      
+    
+      
+        <p>在 UCB 算法中，我们总是选择使上置信界最大的贪婪动作：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+a^{UCB}_t = argmax_{a \in \mathcal{A}} \hat{Q}_t(a) + \hat{U}_t(a)
+">
+a^{UCB}_t = argmax_{a \in \mathcal{A}} \hat{Q}_t(a) + \hat{U}_t(a)
+</span></div>
+      
+    
+      
+        <p>现在的问题是如何估计上置信界。</p>
+      
+    
+      
+        <h2>Hoeffding 不等式</h2>
+        
+      
+    
+      
+        <p>如果我们不想对分布的形态做任何先验假设，可以借助 <a href="http://cs229.stanford.edu/extra-notes/hoeffding.pdf" target="_blank" rel="noopener">“Hoeffding 不等式”</a> —— 这是一个适用于任何有界分布的定理。</p>
+      
+    
+      
+        <p>设 <span class="math-inline" data-math="X_1, \dots, X_t">X_1, \dots, X_t</span> 是 i.i.d.（独立同分布）的随机变量，且均被限制在区间 [0, 1] 内。样本均值为 <span class="math-inline" data-math="\overline{X}_t = \frac{1}{t}\sum_{\tau=1}^t X_\tau">\overline{X}_t = \frac{1}{t}\sum_{\tau=1}^t X_\tau</span>。那么对于 <span class="math-inline" data-math="u &gt; 0">u &gt; 0</span>，我们有：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbb{P} [ \mathbb{E}[X] &gt; \overline{X}_t + u] \leq e^{-2tu^2}
+">
+\mathbb{P} [ \mathbb{E}[X] &gt; \overline{X}_t + u] \leq e^{-2tu^2}
+</span></div>
+      
+    
+      
+        <p>对于某个目标动作 <span class="math-inline" data-math="a">a</span>，我们考虑：</p>
+      
+    
+      
+        <div class="list-content"><span class="math-inline" data-math="r_t(a)">r_t(a)</span> 为随机变量，
+<span class="math-inline" data-math="Q(a)">Q(a)</span> 为真实均值，
+<span class="math-inline" data-math="\hat{Q}_t(a)">\hat{Q}_t(a)</span> 为样本均值，
+<span class="math-inline" data-math="u">u</span> 为上置信界，即 <span class="math-inline" data-math="u = U_t(a)">u = U_t(a)</span></div>
+      
+    
+      
+        <p>则有：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\mathbb{P} [ Q(a) &gt; \hat{Q}_t(a) + U_t(a)] \leq e^{-2t{U_t(a)}^2}
+">
+\mathbb{P} [ Q(a) &gt; \hat{Q}_t(a) + U_t(a)] \leq e^{-2t{U_t(a)}^2}
+</span></div>
+      
+    
+      
+        <p>我们希望选择一个界限，使得真实均值低于样本均值加上上置信界的概率很高。因此 <span class="math-inline" data-math="e^{-2t U_t(a)^2}">e^{-2t U_t(a)^2}</span> 应该是一个很小的概率。假设我们接受一个极小的阈值 p：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+e^{-2t U_t(a)^2} = p \text{  Thus, } U_t(a) = \sqrt{\frac{-\log p}{2 N_t(a)}}
+">
+e^{-2t U_t(a)^2} = p \text{  Thus, } U_t(a) = \sqrt{\frac{-\log p}{2 N_t(a)}}
+</span></div>
+      
+    
+      
+        <h2>UCB1</h2>
+        
+      
+    
+      
+        <p>一种启发式方法是随时间减小阈值 p，因为我们希望在观察到更多奖励后能做出更可靠的界限估计。将 <span class="math-inline" data-math="p=t^{-4}">p=t^{-4}</span> 设为可得到 UCB1 算法：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+U_t(a) = \sqrt{\frac{2 \log t}{N_t(a)}} \text{  and  }
+a^{UCB1}_t = \arg\max_{a \in \mathcal{A}} Q(a) + \sqrt{\frac{2 \log t}{N_t(a)}}
+">
+U_t(a) = \sqrt{\frac{2 \log t}{N_t(a)}} \text{  and  }
+a^{UCB1}_t = \arg\max_{a \in \mathcal{A}} Q(a) + \sqrt{\frac{2 \log t}{N_t(a)}}
+</span></div>
+      
+    
+      
+        <h2>贝叶斯 UCB</h2>
+        
+      
+    
+      
+        <p>在 UCB 或 UCB1 算法中，我们不对奖励分布做任何先验假设，因此必须依赖 Hoeffding 不等式来进行非常通用的估计。如果我们能够提前知道分布，就能做出更好的界限估计。</p>
+      
+    
+      
+        <p>例如，如果我们预期每台老虎机的平均奖励服从如图 2 所示的高斯分布，就可以将上界设为 95% 置信区间，令 <span class="math-inline" data-math="\hat{U}_t(a)">\hat{U}_t(a)</span> 等于两倍标准差。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-01-23-multi-armed-bandit/bern_UCB.png" alt="">
+          <figcaption>When the expected reward has a Gaussian distribution. <span class="math-inline" data-math="\sigma(a\_i)">\sigma(a\_i)</span> is the standard deviation and <span class="math-inline" data-math="c\sigma(a\_i)">c\sigma(a\_i)</span> is the upper confidence bound. The constant <span class="math-inline" data-math="c">c</span> is a adjustable hyperparameter. (Image source:UCL RL course lecture 9&#x27;s slides)</figcaption>
+        </figure>
+      
+    
+      
+        <p>查看我对 <a href="https://github.com/lilianweng/multi-armed-bandit/blob/master/solvers.py#L76" target="_blank" rel="noopener">UCB1</a> 和使用 Beta 先验于 θ 的 <a href="https://github.com/lilianweng/multi-armed-bandit/blob/master/solvers.py#L99" target="_blank" rel="noopener">Bayesian UCB</a> 的简单实现。</p>
+      
+    
+      
+        <h2>Thompson 采样</h2>
+        
+      
+    
+      
+        <p>Thompson 采样思想简单，但在解决多臂老虎机问题上表现非常出色。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-01-23-multi-armed-bandit/klay-thompson.jpg" alt="">
+          <figcaption>Oops, I guess not this Thompson? (Credit goes toBen Taborsky; he has a full theorem of how Thompson invented while pondering over who to pass the ball. Yes I stole his joke.)</figcaption>
+        </figure>
+      
+    
+      
+        <p>在每个时间步，我们希望按照动作 a 是最优动作的概率来选择它：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\pi(a \; \vert \; h_t) 
+&amp;= \mathbb{P} [ Q(a) &gt; Q(a&#x27;), \forall a&#x27; \neq a \; \vert \; h_t] \\
+&amp;= \mathbb{E}_{\mathcal{R} \vert h_t} [ \mathbb{1}(a = \arg\max_{a \in \mathcal{A}} Q(a)) ]
+\end{aligned}
+">
+\begin{aligned}
+\pi(a \; \vert \; h_t) 
+&amp;= \mathbb{P} [ Q(a) &gt; Q(a&#x27;), \forall a&#x27; \neq a \; \vert \; h_t] \\
+&amp;= \mathbb{E}_{\mathcal{R} \vert h_t} [ \mathbb{1}(a = \arg\max_{a \in \mathcal{A}} Q(a)) ]
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\pi(a ; \vert ; h_t)">\pi(a ; \vert ; h_t)</span> 是给定历史 <span class="math-inline" data-math="h_t">h_t</span> 下选择动作 a 的概率。</p>
+      
+    
+      
+        <p>对于伯努利老虎机，很自然地假设 <span class="math-inline" data-math="Q(a)">Q(a)</span> 服从 <a href="https://en.wikipedia.org/wiki/Beta_distribution" target="_blank" rel="noopener">Beta</a> 分布，因为 <span class="math-inline" data-math="Q(a)">Q(a)</span> 本质上是 <a href="https://en.wikipedia.org/wiki/Bernoulli_distribution" target="_blank" rel="noopener">伯努利</a> 分布中的成功概率 θ。<span class="math-inline" data-math="\text{Beta}(\alpha, \beta)">\text{Beta}(\alpha, \beta)</span> 的取值范围是 [0, 1]；α 和 β 分别对应我们成功或失败获得奖励的次数。</p>
+      
+    
+      
+        <p>首先，根据对每个动作的先验知识或信念来初始化 Beta 参数 α 和 β。例如：</p>
+      
+    
+      
+        <div class="list-content">α = 1 且 β = 1；我们预期奖励概率为 50%，但不是很确定。
+α = 1000 且 β = 9000；我们强烈相信奖励概率为 10%。</div>
+      
+    
+      
+        <p>在每个时间 t，我们从每个动作的先验分布 <span class="math-inline" data-math="\text{Beta}(\alpha_i, \beta_i)">\text{Beta}(\alpha_i, \beta_i)</span> 中采样一个期望奖励 <span class="math-inline" data-math="\tilde{Q}(a)">\tilde{Q}(a)</span>。然后在这些采样值中选择最佳动作：<span class="math-inline" data-math="a^{TS}_t = \arg\max_{a \in \mathcal{A}} \tilde{Q}(a)">a^{TS}_t = \arg\max_{a \in \mathcal{A}} \tilde{Q}(a)</span>。观察到真实奖励后，我们可以相应地更新 Beta 分布，这本质上是在已知先验和观测数据似然的情况下进行贝叶斯推断来计算后验。</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+\alpha_i &amp; \leftarrow \alpha_i + r_t \mathbb{1}[a^{TS}_t = a_i] \\ 
+\beta_i &amp; \leftarrow \beta_i + (1-r_t) \mathbb{1}[a^{TS}_t = a_i]
+\end{aligned}
+">
+\begin{aligned}
+\alpha_i &amp; \leftarrow \alpha_i + r_t \mathbb{1}[a^{TS}_t = a_i] \\ 
+\beta_i &amp; \leftarrow \beta_i + (1-r_t) \mathbb{1}[a^{TS}_t = a_i]
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>Thompson 采样实现了 <a href="https://en.wikipedia.org/wiki/Probability_matching" target="_blank" rel="noopener">概率匹配</a> 的思想。因为它的奖励估计 <span class="math-inline" data-math="\tilde{Q}">\tilde{Q}</span> 是从后验分布中采样得到的，每个这样的概率都等价于在观测历史条件下对应动作是最优动作的概率。</p>
+      
+    
+      
+        <p>然而，对于许多实际且复杂的问题，使用贝叶斯推断基于观测到的真实奖励来估计后验分布可能在计算上不可行。如果我们能够使用 Gibbs 采样、Laplace 近似和自助法等方法来近似后验分布，Thompson 采样仍然可以工作。这篇 <a href="https://arxiv.org/pdf/1707.02038.pdf" target="_blank" rel="noopener">教程</a> 提供了全面的综述；如果你想深入了解 Thompson 采样，强烈推荐阅读。</p>
+      
+    
+      
+        <h2>案例研究</h2>
+        
+      
+    
+      
+        <p>我在 <a href="https://github.com/lilianweng/multi-armed-bandit" target="_blank" rel="noopener">lilianweng/multi-armed-bandit</a> 中实现了上述算法。可以使用随机或预定义的奖励概率列表来构造 <a href="https://github.com/lilianweng/multi-armed-bandit/blob/master/bandits.py#L13" target="_blank" rel="noopener">BernoulliBandit</a> 对象。老虎机算法被实现为 <a href="https://github.com/lilianweng/multi-armed-bandit/blob/master/solvers.py#L9" target="_blank" rel="noopener">Solver</a> 的子类，将 Bandit 对象作为目标问题。累积遗憾会随时间被跟踪记录。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-01-23-multi-armed-bandit/bandit_experiment.png" alt="">
+          <figcaption>The result of a small experiment on solving a Bernoulli bandit with K = 10 slot machines with reward probabilities, {0.0, 0.1, 0.2, ..., 0.9}. Each solver runs 10000 steps.</figcaption>
+        </figure>
+      
+    
+      
+        <p>（左）时间步与累积遗憾的关系图。
+（中）真实奖励概率与估计概率的关系图。
+（右）在 10000 步运行中每个动作被选择的比例。*</p>
+      
+    
+      
+        <h2>总结</h2>
+        
+      
+    
+      
+        <p>我们需要探索，因为信息是有价值的。从探索策略的角度来看，我们可以完全不探索，只关注短期回报；或者偶尔进行随机探索；甚至更进一步，我们不仅探索，而且对探索哪些选项非常挑剔——具有更高不确定性的动作会受到偏好，因为它们能提供更高的信息增益。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2018-01-23-multi-armed-bandit/bandit_solution_summary.png" alt="">
+          
+        </figure>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>

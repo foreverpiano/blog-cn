@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>域随机化用于 Sim2Real 转移 · Lil'Log (Lilian Weng)</title>
+  <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+</head>
+<body>
+  <div class="container">
+    <header class="site-header">
+      <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
+      <p class="subtitle">中文翻译版 · 仅供个人学习</p>
+    </header>
+
+    <main>
+      
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+<article>
+  <header class="article-header">
+    <h1>域随机化用于 Sim2Real 转移</h1>
+    <div class="meta">
+      2019-05-05 · 
+      <a href="https://lilianweng.github.io/posts/2019-05-05-domain-randomization/" target="_blank" rel="noopener">阅读原文</a>
+    </div>
+  </header>
+
+  <div class="article-content">
+    
+      
+        <p>目录</p>
+      
+    
+      
+        <div class="list-content">什么是域随机化？
+
+均匀域随机化
+
+为什么域随机化有效？
+
+将 DR 视为优化
+
+将 DR 视为元学习
+
+
+引导式域随机化
+
+针对任务性能进行优化
+
+匹配真实数据分布
+
+由模拟器中的数据引导
+
+
+参考文献</div>
+      
+    
+      
+        <p>如果一个模型或策略主要在模拟器中训练，却期望能在真实机器人上运行，那么它必然会面临 Sim2Real 的差距。*域随机化*（Domain Randomization，简称 DR）是一个简单却强大的想法，通过随机化训练环境的各种属性来缩小这一差距。</p>
+      
+    
+      
+        <p>在机器人学中，最困难的问题之一是如何让模型迁移到现实世界。由于深度强化学习算法样本效率低下，以及在真实机器人上采集数据的成本高昂，我们通常需要在模拟器中训练模型——理论上模拟器能提供无限量的数据。然而，模拟器与物理世界之间的现实差距，往往导致模型在物理机器人上运行时失败。这种差距由物理参数（如摩擦力、kp、阻尼、质量、密度）的不一致引发，更致命的是物理建模本身的不准确（如软表面之间的碰撞）。</p>
+      
+    
+      
+        <p>要弥合 Sim2Real 差距，我们需要改进模拟器，使其更接近现实。以下是一些常见方法：</p>
+      
+    
+      
+        <div class="list-content">系统辨识
+
+系统辨识是指为物理系统建立数学模型；在强化学习背景下，这个数学模型就是模拟器。为了让模拟器更贴近现实，必须进行仔细的校准。
+不幸的是，校准成本很高。此外，同一台机器的许多物理参数可能会因温度、湿度、位置或随时间产生的磨损而显著变化。
+
+
+域适配
+
+域适配（Domain Adaptation，DA）是一系列迁移学习技术的统称，旨在通过任务模型施加的映射或正则化，将模拟器中的数据分布更新为与真实分布匹配。
+许多 DA 模型，尤其是用于图像分类或端到端基于图像的强化学习任务的模型，都是基于对抗损失或 <a href="posts-2017-08-20-gan.html">从 GAN 到 WGAN</a> 构建的。
+
+
+域随机化
+
+通过域随机化（DR），我们能够创建具有随机化属性的多种模拟环境，并训练一个能在所有这些环境中工作的模型。
+这个模型很可能能够适应真实世界环境，因为真实系统可以被视为该丰富训练变体分布中的一个样本。</div>
+      
+    
+      
+        <p>DA 和 DR 都是无监督的方法。与 DA 需要大量真实数据样本来捕捉分布不同，DR 可能只需要很少甚至不需要真实数据。本文重点讨论 DR。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-05-05-domain-randomization/sim2real-transfer.png" alt="">
+          <figcaption>Conceptual illustrations of three approaches for sim2real transfer.</figcaption>
+        </figure>
+      
+    
+      
+        <h2>什么是域随机化？</h2>
+        
+      
+    
+      
+        <p>为了让定义更具普适性，我们把可以完全访问的环境（即模拟器）称为源域，把希望将模型迁移到的环境（即物理世界）称为目标域。训练在源域中进行。我们可以控制源域中一组 <span class="math-inline" data-math="N">N</span> 随机化参数 <span class="math-inline" data-math="e_\xi">e_\xi</span>，这些参数由一个配置 <span class="math-inline" data-math="\xi">\xi</span> 指定，该配置从随机化空间 <span class="math-inline" data-math="\xi \in \Xi \subset \mathbb{R}^N">\xi \in \Xi \subset \mathbb{R}^N</span> 中采样得到。</p>
+      
+    
+      
+        <p>在策略训练过程中，从应用了随机化的源域中采集轨迹。因此，策略会接触到多种环境并学会泛化。策略参数 <span class="math-inline" data-math="\theta">\theta</span> 的训练目标是最大化在配置分布上的期望奖励 <span class="math-inline" data-math="R(.)">R(.)</span>：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\theta^* = \arg\max_\theta \mathbb{E}_{\xi \sim \Xi} [\mathbb{E}_{\pi_\theta, \tau \sim e_\xi} [R(\tau)]]
+">
+\theta^* = \arg\max_\theta \mathbb{E}_{\xi \sim \Xi} [\mathbb{E}_{\pi_\theta, \tau \sim e_\xi} [R(\tau)]]
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\tau_\xi">\tau_\xi</span> 是在用 <span class="math-inline" data-math="\xi">\xi</span> 随机化后的源域中采集的轨迹。从某种意义上说，“源域与目标域之间的差异被建模为源域中的变异性。”（引自 <a href="https://arxiv.org/abs/1710.06537" target="_blank" rel="noopener">Peng et al. 2018</a>）。</p>
+      
+    
+      
+        <h2>均匀域随机化</h2>
+        
+      
+    
+      
+        <p>在 DR 的原始形式中（<a href="https://arxiv.org/abs/1703.06907" target="_blank" rel="noopener">Tobin et al, 2017</a>；<a href="https://arxiv.org/pdf/1611.04201.pdf" target="_blank" rel="noopener">Sadeghi et al. 2016</a>），每个随机化参数 <span class="math-inline" data-math="\xi_i">\xi_i</span> 都被限制在一个区间 <span class="math-inline" data-math="\xi_i \in [\xi_i^\text{low}, \xi_i^\text{high}], i=1,\dots,N">\xi_i \in [\xi_i^\text{low}, \xi_i^\text{high}], i=1,\dots,N</span> 内，并在该范围内进行均匀采样。</p>
+      
+    
+      
+        <p>随机化参数可以控制场景的外观，包括但不限于以下方面（见图 2）。在模拟且随机化的图像上训练的模型，能够迁移到非随机化的真实图像。</p>
+      
+    
+      
+        <div class="list-content">物体的位置、形状和颜色，
+材质纹理，
+光照条件，
+图像中添加的随机噪声，
+模拟器中摄像头的位置、方向和视场。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-05-05-domain-randomization/DR.png" alt="">
+          <figcaption>Images captured in the training environment are randomized. (Image source:Tobin et al, 2017)</figcaption>
+        </figure>
+      
+    
+      
+        <p>模拟器中的物理动力学也可以被随机化（<a href="https://arxiv.org/abs/1710.06537" target="_blank" rel="noopener">Peng et al. 2018</a>）。研究表明，循环策略能够适应不同的物理动力学，包括部分可观测的现实。物理动力学特征包括但不限于：</p>
+      
+    
+      
+        <div class="list-content">物体的质量和尺寸，
+机器人身体的质量和尺寸，
+关节的阻尼、kp、摩擦，
+PID 控制器的增益（P 项），
+关节限制，
+动作延迟，
+观测噪声。</div>
+      
+    
+      
+        <p>借助视觉和动力学 DR，在 OpenAI Robotics，我们成功训练出一个能在真实灵巧机器人手上运行的策略（<a href="https://arxiv.org/abs/1808.00177" target="_blank" rel="noopener">OpenAI, 2018</a>）。我们的操作任务是让机器人手持续旋转一个物体，达到 50 个连续的随机目标姿态。该任务的 Sim2Real 差距非常大，原因包括：（a）机器人与物体之间存在大量同时接触；（b）物体碰撞及其他运动的模拟不够完美。最初，策略几乎无法存活超过 5 秒就会掉落物体。但在 DR 的帮助下，策略最终在现实中表现得惊人地好。</p>
+      
+    
+      
+        <h2>为什么域随机化有效？</h2>
+        
+      
+    
+      
+        <p>现在你可能会问，为什么域随机化效果这么好？这个想法听起来非常简单。我认为以下两种互不排斥的解释最有说服力。</p>
+      
+    
+      
+        <h2>将 DR 视为优化</h2>
+        
+      
+    
+      
+        <p>一种观点（<a href="https://arxiv.org/abs/1903.11774" target="_blank" rel="noopener">Vuong, et al, 2019</a>）是将 DR 中学习随机化参数的过程视为双层优化。假设我们可以访问真实环境 <span class="math-inline" data-math="e_\text{real}">e_\text{real}</span>，且随机化配置是从由 <span class="math-inline" data-math="\phi">\phi</span> 参数化的分布 <span class="math-inline" data-math="\xi \sim P_\phi(\xi)">\xi \sim P_\phi(\xi)</span> 中采样的，我们希望学习一个分布，让在这个分布上训练的策略 <span class="math-inline" data-math="\pi_\theta">\pi_\theta</span> 能在 <span class="math-inline" data-math="e_\text{real}">e_\text{real}</span> 中获得最大性能：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\begin{aligned}
+&amp;\phi^* = \arg\min_{\phi} \mathcal{L}(\pi_{\theta^*(\phi)}; e_\text{real}) \\
+\text{where } &amp;\theta^*(\phi) = \arg\min_\theta \mathbb{E}_{\xi \sim P_\phi(\xi)}[\mathcal{L}(\pi_\theta; e_\xi)]
+\end{aligned}
+">
+\begin{aligned}
+&amp;\phi^* = \arg\min_{\phi} \mathcal{L}(\pi_{\theta^*(\phi)}; e_\text{real}) \\
+\text{where } &amp;\theta^*(\phi) = \arg\min_\theta \mathbb{E}_{\xi \sim P_\phi(\xi)}[\mathcal{L}(\pi_\theta; e_\xi)]
+\end{aligned}
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="\mathcal{L}(\pi; e)">\mathcal{L}(\pi; e)</span> 是策略 <span class="math-inline" data-math="\pi">\pi</span> 在环境 <span class="math-inline" data-math="e">e</span> 中评估的损失函数。</p>
+      
+    
+      
+        <p>虽然在均匀 DR 中随机化范围是人工选取的，但这通常涉及领域知识，并且需要根据迁移性能进行几轮试错调整。本质上这是一个手动优化 <span class="math-inline" data-math="\phi">\phi</span> 以获得最优 <span class="math-inline" data-math="\mathcal{L}(\pi_{\theta^*(\phi)}; e_\text{real})">\mathcal{L}(\pi_{\theta^*(\phi)}; e_\text{real})</span> 的过程。</p>
+      
+    
+      
+        <p>下一节介绍的引导式域随机化很大程度上受这一观点启发，目标是自动进行双层优化并学习最佳的参数分布。</p>
+      
+    
+      
+        <h2>将 DR 视为元学习</h2>
+        
+      
+    
+      
+        <p>在我们的灵巧操作项目中（<a href="https://arxiv.org/abs/1808.00177" target="_blank" rel="noopener">OpenAI, 2018</a>），我们训练了一个 LSTM 策略，让它能在不同的环境动力学之间泛化。我们观察到，一旦机器人完成第一次旋转，后续成功所需的时间会显著缩短。此外，没有记忆的前馈策略无法迁移到物理机器人上。这两点都是策略动态学习并适应新环境的证据。</p>
+      
+    
+      
+        <p>从某种意义上说，域随机化构成了一系列不同的任务。循环网络中的记忆赋予策略在任务之间实现 <a href="posts-2018-11-30-meta-learning.html">元学习：学会快速学习</a> 的能力，并进一步在真实世界环境中工作。</p>
+      
+    
+      
+        <h2>引导式域随机化</h2>
+        
+      
+    
+      
+        <p>vanilla DR 假设无法访问真实数据，因此在模拟器中尽可能广泛且均匀地采样随机化配置，希望真实环境能被这个宽泛分布所覆盖。更复杂一点的策略是合理的——用任务性能、真实数据或模拟器提供的引导来替代均匀采样。</p>
+      
+    
+      
+        <p>引导式 DR 的一个动机是节省计算资源，避免在不现实的环境中训练模型。另一个动机是避免因随机化分布过宽而产生不可行的解，从而阻碍策略的成功学习。</p>
+      
+    
+      
+        <h2>针对任务性能进行优化</h2>
+        
+      
+    
+      
+        <p>假设我们使用不同的随机化参数 <span class="math-inline" data-math="\xi \sim P_\phi(\xi)">\xi \sim P_\phi(\xi)</span> 训练一组策略，其中 <span class="math-inline" data-math="P_\xi">P_\xi</span> 是由 <span class="math-inline" data-math="\phi">\phi</span> 参数化的 <span class="math-inline" data-math="\xi">\xi</span> 的分布。随后，我们决定在目标域的下游任务上（即在真实环境中控制机器人或在验证集上评估）逐一测试它们以收集反馈。这些反馈能告诉我们某个配置 <span class="math-inline" data-math="\xi">\xi</span> 的好坏，并为优化 <span class="math-inline" data-math="\phi">\phi</span> 提供信号。</p>
+      
+    
+      
+        <p>受 <a href="https://ai.google/research/pubs/pub45826" target="_blank" rel="noopener">NAS</a> 启发，AutoAugment（<a href="https://arxiv.org/abs/1805.09501" target="_blank" rel="noopener">Cubuk, et al. 2018</a>）将为图像分类学习最佳数据增强操作（如剪切、旋转、反转等）的问题建模为强化学习问题。注意 AutoAugment 并非针对 Sim2Real 迁移提出，但属于由任务性能引导的 DR 类别。每个增强配置都在评估集上测试，性能提升被用作奖励来训练 PPO 策略。该策略会为不同数据集输出不同的增强策略；例如，对于 CIFAR-10，AutoAugment 主要选择基于颜色的变换，而 ImageNet 则偏好基于几何的变换。</p>
+      
+    
+      
+        <p><a href="https://arxiv.org/abs/1810.02513" target="_blank" rel="noopener">Ruiz (2019)</a> 将任务反馈视为强化学习问题中的奖励，并提出了一种基于 RL 的方法，称为“learning to simulate”，用于调整 <span class="math-inline" data-math="\xi">\xi</span>。一个策略被训练来预测 <span class="math-inline" data-math="\xi">\xi</span>，使用主任务验证数据的性能指标作为奖励，该奖励被建模为多元高斯分布。整体思路与 AutoAugment 类似，即在数据生成上应用 NAS。根据他们的实验，即使主任务模型尚未收敛，它仍能为数据生成策略提供合理的信号。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-05-05-domain-randomization/learning-to-simulate.png" alt="">
+          <figcaption>An overview of the &quot;learning to simulate&quot; approach. (Image source:Ruiz (2019))</figcaption>
+        </figure>
+      
+    
+      
+        <p>进化算法是另一种途径，其中反馈被视为指导进化的适应度（<a href="https://openreview.net/forum?id=H1g6osRcFQ" target="_blank" rel="noopener">Yu et al, 2019</a>）。在这项研究中，他们使用了 <a href="https://en.wikipedia.org/wiki/CMA-ES" target="_blank" rel="noopener">CMA-ES</a>（协方差矩阵自适应进化策略），适应度是条件策略 <span class="math-inline" data-math="\xi">\xi</span> 在目标环境中的性能。在附录中，他们将 CMA-ES 与其他建模 <span class="math-inline" data-math="\xi">\xi</span> 动态的方法进行了比较，包括贝叶斯优化或神经网络。主要结论是这些方法不如 CMA-ES 稳定或样本高效。有趣的是，当把 <span class="math-inline" data-math="P(\xi)">P(\xi)</span> 建模为神经网络时，发现 LSTM 明显优于前馈网络。</p>
+      
+    
+      
+        <p>有人认为 Sim2Real 差距是外观差距和内容差距的结合；即大多数受 GAN 启发的 DA 模型都专注于外观差距。Meta-Sim（<a href="https://arxiv.org/abs/1904.11621" target="_blank" rel="noopener">Kar, et al. 2019</a>) 旨在通过生成针对特定任务的合成数据集来弥合内容差距。Meta-Sim 以自动驾驶汽车训练为例，因此场景可能非常复杂。在这种情况下，合成场景由具有属性（如位置、颜色）以及对象间关系的对象层次结构来参数化。该层次结构由类似于结构化域随机化（SDR；<a href="https://arxiv.org/abs/1810.10093" target="_blank" rel="noopener">Prakash et al., 2018</a>）的概率场景文法指定，并假设事先已知。一个模型 <span class="math-inline" data-math="G">G</span> 被训练来通过以下方式增强场景属性分布 <span class="math-inline" data-math="s">s</span>：</p>
+      
+    
+      
+        <div class="list-content">先学习先验：预训练 <span class="math-inline" data-math="G">G</span> 以学习恒等函数 <span class="math-inline" data-math="G(s) = s">G(s) = s</span>。
+最小化真实数据与模拟数据分布之间的 MMD 损失。这涉及到通过不可微的渲染器进行反向传播。论文通过扰动 <span class="math-inline" data-math="G(s)">G(s)</span> 的属性来数值计算该损失。
+最小化在合成数据上训练但在真实数据上评估时的 REINFORCE 任务损失。同样，这与 AutoAugment 非常相似。</div>
+      
+    
+      
+        <p>不幸的是，这类方法并不适合 Sim2Real 场景。无论是 RL 策略还是进化算法模型，都需要大量真实样本。而将物理机器人的实时反馈采集纳入训练循环成本极高。你是否愿意用更少的计算资源换取真实数据采集，取决于你的具体任务。</p>
+      
+    
+      
+        <h2>匹配真实数据分布</h2>
+        
+      
+    
+      
+        <p>使用真实数据来引导域随机化，这听起来很像在做系统辨识或域适配。DA 的核心思想是改进合成数据，使其匹配真实数据分布。在由真实数据引导的 DR 中，我们希望学习随机化参数 <span class="math-inline" data-math="\xi">\xi</span>，使模拟器中的状态分布接近真实世界的状态分布。</p>
+      
+    
+      
+        <p>SimOpt 模型（<a href="https://arxiv.org/abs/1810.05687" target="_blank" rel="noopener">Chebotar et al, 2019</a>）首先在一个初始随机化分布 <span class="math-inline" data-math="P_\phi(\xi)">P_\phi(\xi)</span> 下训练，得到策略 <span class="math-inline" data-math="\pi_{\theta, P_\phi}">\pi_{\theta, P_\phi}</span>。然后将该策略部署到模拟器和物理机器人上，分别采集轨迹 <span class="math-inline" data-math="\tau_\xi">\tau_\xi</span> 和 <span class="math-inline" data-math="\tau_\text{real}">\tau_\text{real}</span>。优化目标是最小化模拟与真实轨迹之间的差异：</p>
+      
+    
+      
+        <div class="math-block"><span class="math-display" data-math="
+\phi^* = \arg\min_{\phi}\mathbb{E}_{\xi \sim P_\phi(\xi)} [\mathbb{E}_{\pi_{\theta, P_\phi}} [D(\tau_\text{sim}, \tau_\text{real})]]
+">
+\phi^* = \arg\min_{\phi}\mathbb{E}_{\xi \sim P_\phi(\xi)} [\mathbb{E}_{\pi_{\theta, P_\phi}} [D(\tau_\text{sim}, \tau_\text{real})]]
+</span></div>
+      
+    
+      
+        <p>其中 <span class="math-inline" data-math="D(.)">D(.)</span> 是基于轨迹的差异度量。与“Learning to simulate”论文类似，SimOpt 也必须解决如何将梯度传播通过不可微模拟器这一棘手问题。它使用了一种称为 <a href="https://www.aaai.org/ocs/index.php/AAAI/AAAI10/paper/viewFile/1851/2264" target="_blank" rel="noopener">relative entropy policy search</a> 的方法，详情见论文。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-05-05-domain-randomization/simopt.png" alt="">
+          <figcaption>An overview of the SimOpt framework. (Image source:Chebotar et al, 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>RCAN（<a href="https://arxiv.org/abs/1812.07252" target="_blank" rel="noopener">James et al., 2019</a>），全称“Randomized-to-Canonical Adaptation Networks”，是 DA 与 DR 针对端到端强化学习任务的优雅结合。一个图像条件 GAN（<a href="https://arxiv.org/abs/1611.07004" target="_blank" rel="noopener">cGAN</a>）在模拟器中训练，用于将域随机化图像转换为非随机化版本（即“规范版本”）。之后同一模型被用于将真实图像转换为对应的模拟版本，使智能体能接收到与训练时一致的观测。基本的假设仍是域随机化模拟图像的分布足够宽广，能够覆盖真实世界的样本。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-05-05-domain-randomization/RCAN.png" alt="">
+          <figcaption>RCAN is an image-conditional generator that can convert a domain-randomized or real image into its corresponding non-randomized simulator version. (Image source:James et al., 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>强化学习模型在模拟器中端到端训练，用于基于视觉的机器人臂抓取。每一步都应用随机化，包括托盘分隔器的位置、要抓取的物体、随机纹理，以及灯光的位置、方向和颜色。规范版本是模拟器的默认外观。RCAN 试图学习一个生成器</p>
+      
+    
+      
+        <p><span class="math-inline" data-math="G">G</span>：随机化图像 <span class="math-inline" data-math="\to">\to</span> → {规范图像，分割图，深度图}</p>
+      
+    
+      
+        <p>其中分割掩码和深度图像被用作辅助任务。RCAN 的零样本迁移效果优于均匀 DR，尽管两者都比仅在真实图像上训练的模型差。从概念上讲，RCAN 的工作方向与 <a href="https://arxiv.org/abs/1709.07857" target="_blank" rel="noopener">GraspGAN</a> 相反，后者通过域适配将合成图像转换为真实图像。</p>
+      
+    
+      
+        <h2>由模拟器中的数据引导</h2>
+        
+      
+    
+      
+        <p>网络驱动的域随机化（<a href="https://arxiv.org/abs/1904.02750" target="_blank" rel="noopener">Zakharov et al., 2019</a>），也称为 DeceptionNet，其动机是学习哪些随机化对弥合图像分类任务的域差距真正有用。</p>
+      
+    
+      
+        <p>随机化通过一组具有编码器-解码器结构的欺骗模块来应用。这些欺骗模块被专门设计用于转换图像，例如改变背景、添加失真、改变光照等。另一个识别网络则处理主要任务，在转换后的图像上进行分类。</p>
+      
+    
+      
+        <p>训练包括两个步骤：</p>
+      
+    
+      
+        <div class="list-content">固定识别网络，通过在反向传播时使用反向梯度来最大化预测与标签之间的差异。这样欺骗模块就能学会最具有迷惑性的技巧。
+固定欺骗模块，用经过变换的输入图像训练识别网络。</div>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-05-05-domain-randomization/deception-net.png" alt="">
+          <figcaption>How DeceptionNet works. (Image source:Zakharov et al., 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>用于训练欺骗模块的反馈由下游分类器提供。但与上一节中试图最大化任务性能不同，随机化模块的目标是创造更难的样本。一个重大缺点是，你需要为不同数据集或任务手动设计不同的欺骗模块，这使得它难以扩展。鉴于它是零样本方法，其在 MNIST 和 LineMOD 上的结果仍不如 SOTA 的 DA 方法。</p>
+      
+    
+      
+        <p>同样，主动域随机化（ADR；<a href="https://arxiv.org/abs/1904.04762" target="_blank" rel="noopener">Mehta et al., 2019</a>）也依赖模拟数据来创建更难的训练样本。ADR 在给定的随机化范围内搜索最具信息量的环境变体，其中信息量由随机化环境与参考（原始、非随机化）环境中策略 rollout 的差异来衡量。这听起来有点像 SimOpt？需要注意的是，SimOpt 衡量的是模拟与真实 rollout 之间的差异，而 ADR 衡量的是随机化与非随机化模拟之间的差异，从而避免了昂贵的真实数据采集部分。</p>
+      
+    
+      
+        <figure>
+          <img src="../images/posts-2019-05-05-domain-randomization/ADR.png" alt="">
+          <figcaption>How active domain randomization (ADR) works. (Image source:Mehta et al., 2019)</figcaption>
+        </figure>
+      
+    
+      
+        <p>具体的训练过程如下：</p>
+      
+    
+      
+        <div class="list-content">给定一个策略，在参考环境和随机化环境中分别运行它并采集两组轨迹。
+训练一个判别器模型来判断一个 rollout 轨迹是否来自随机化环境（与参考运行区分开）。预测的 <span class="math-inline" data-math="\log p">\log p</span>（被随机化的概率）被用作奖励。随机化与参考 rollout 差异越大，越容易预测，奖励就越高。
+
+其直觉是：如果环境简单，同一个策略智能体就能产生与参考环境中相似的轨迹。那么模型就应该通过鼓励不同行为来奖励并探索困难的环境。
+
+
+判别器给出的奖励被输入到 Stein Variational Policy Gradient（<a href="https://arxiv.org/abs/1704.02399" target="_blank" rel="noopener">SVPG</a>）粒子中，输出一组多样化的随机化配置。</div>
+      
+    
+      
+        <p>ADR 的想法非常吸引人，但有两个小顾虑。在运行随机策略时，轨迹之间的相似性可能不是衡量环境难度的好方法。Sim2Real 的实验结果遗憾地并不那么令人兴奋，但论文指出 ADR 的优势在于它探索的随机化参数范围更小。</p>
+      
+    
+      
+        <p>引用格式：</p>
+      
+    
+      
+        <pre><code>@article{weng2019DR,
+  title   = &quot;Domain Randomization for Sim2Real Transfer&quot;,
+  author  = &quot;Weng, Lilian&quot;,
+  journal = &quot;lilianweng.github.io&quot;,
+  year    = &quot;2019&quot;,
+  url     = &quot;https://lilianweng.github.io/posts/2019-05-05-domain-randomization/&quot;
+}
+</code></pre>
+      
+    
+      
+        <p>总的来说，读完这篇文章后，我希望你能和我一样喜欢域随机化 :）。</p>
+      
+    
+      
+        <h2>参考文献</h2>
+        
+      
+    
+      
+        <p>[1] Josh Tobin, et al. <a href="https://arxiv.org/pdf/1703.06907.pdf" target="_blank" rel="noopener">“Domain randomization for transferring deep neural networks from simulation to the real world.”</a> IROS, 2017.</p>
+      
+    
+      
+        <p>[2] Fereshteh Sadeghi and Sergey Levine. <a href="https://arxiv.org/abs/1611.04201" target="_blank" rel="noopener">“CAD2RL: Real single-image flight without a single real image.”</a> arXiv:1611.04201 (2016).</p>
+      
+    
+      
+        <p>[3] Xue Bin Peng, et al. <a href="https://arxiv.org/abs/1710.06537" target="_blank" rel="noopener">“Sim-to-real transfer of robotic control with dynamics randomization.”</a> ICRA, 2018.</p>
+      
+    
+      
+        <p>[4] Nataniel Ruiz, et al. <a href="https://openreview.net/forum?id=HJgkx2Aqt7" target="_blank" rel="noopener">“Learning to Simulate.”</a> ICLR 2019</p>
+      
+    
+      
+        <p>[5] OpenAI. <a href="https://arxiv.org/abs/1808.00177" target="_blank" rel="noopener">“Learning Dexterous In-Hand Manipulation.”</a> arXiv:1808.00177 (2018).</p>
+      
+    
+      
+        <p>[6] OpenAI Blog. <a href="https://openai.com/blog/learning-dexterity/" target="_blank" rel="noopener">“Learning dexterity”</a> July 30, 2018.</p>
+      
+    
+      
+        <p>[7] Quan Vuong, et al. <a href="https://arxiv.org/abs/1903.11774" target="_blank" rel="noopener">“How to pick the domain randomization parameters for sim-to-real transfer of reinforcement learning policies?.”</a> arXiv:1903.11774 (2019).</p>
+      
+    
+      
+        <p>[8] Ekin D. Cubuk, et al. <a href="https://arxiv.org/abs/1805.09501" target="_blank" rel="noopener">“AutoAugment: Learning augmentation policies from data.”</a> arXiv:1805.09501 (2018).</p>
+      
+    
+      
+        <p>[9] Wenhao Yu et al. <a href="https://openreview.net/forum?id=H1g6osRcFQ" target="_blank" rel="noopener">“Policy Transfer with Strategy Optimization.”</a> ICLR 2019</p>
+      
+    
+      
+        <p>[10] Yevgen Chebotar et al. <a href="https://arxiv.org/abs/1810.05687" target="_blank" rel="noopener">“Closing the Sim-to-Real Loop: Adapting Simulation Randomization with Real World Experience.”</a> Arxiv: 1810.05687 (2019).</p>
+      
+    
+      
+        <p>[11] Stephen James et al. <a href="https://arxiv.org/abs/1812.07252" target="_blank" rel="noopener">“Sim-to-real via sim-to-sim: Data-efficient robotic grasping via randomized-to-canonical adaptation networks”</a> CVPR 2019.</p>
+      
+    
+      
+        <p>[12] Bhairav Mehta et al. <a href="https://arxiv.org/abs/1904.04762" target="_blank" rel="noopener">“Active Domain Randomization”</a> arXiv:1904.04762</p>
+      
+    
+      
+        <p>[13] Sergey Zakharov,et al. <a href="https://arxiv.org/abs/1904.02750" target="_blank" rel="noopener">“DeceptionNet: Network-Driven Domain Randomization.”</a> arXiv:1904.02750 (2019).</p>
+      
+    
+      
+        <p>[14] Amlan Kar, et al. <a href="https://arxiv.org/abs/1904.11621" target="_blank" rel="noopener">“Meta-Sim: Learning to Generate Synthetic Datasets.”</a> arXiv:1904.11621 (2019).</p>
+      
+    
+      
+        <p>[15] Aayush Prakash, et al. <a href="https://arxiv.org/abs/1810.10093" target="_blank" rel="noopener">“Structured Domain Randomization: Bridging the Reality Gap by Context-Aware Synthetic Data.”</a> arXiv:1810.10093 (2018).</p>
+      
+    
+  </div>
+
+  
+</article>
+
+<a href="../index.html" class="back-link">&larr; 返回目录</a>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>原文来源：<a href="https://lilianweng.github.io" target="_blank" rel="noopener">lilianweng.github.io</a></p>
+      <p>本站内容由 AI 翻译，仅供个人学习参考</p>
+      <p><a href="../../index.html">← 返回站点导航</a></p>
+    </footer>
+  </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var KEY = 'lilianweng_read';
+  var read;
+  try { read = JSON.parse(localStorage.getItem(KEY) || '{}'); if (typeof read !== 'object' || Array.isArray(read)) read = {}; } catch(e) { read = {}; }
+
+  var slug = location.pathname.match(/articles\/([^\/]+)\.html/);
+  if (slug) { read[slug[1]] = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(read)); } catch(e) {} }
+
+  var items = document.querySelectorAll('.article-list a');
+  var total = 0, done = 0;
+  items.forEach(function(a){
+    var href = a.getAttribute('href') || '';
+    var m = href.match(/articles\/([^\/]+)\.html/);
+    if (!m) return;
+    total++;
+    if (read[m[1]]) {
+      a.style.opacity = '0.5';
+      a.insertAdjacentHTML('afterbegin', '<span style="color:#2d5a7b;margin-right:6px">✓</span>');
+      done++;
+    }
+  });
+  var h = document.querySelector('.nav-section h2');
+  if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
+});
+</script>
+</body>
+</html>
