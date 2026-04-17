@@ -49,7 +49,19 @@
     
       
         
-          <div class="list-content">我们在 2025 年 1 月从 Confluence 迁移到 Notion，留下了一批明显过时且错误的旧页面。这些页面让其他文档也显得维护不善，产生了一种“文档很糟糕”的负面观感。我们在“用 Git 管理文件文档”和“用 Notion 管理文档”之间缺乏一致的方法，导致大量内容重复。重复又让人觉得与其费力找出已有 N 个版本中哪个正确，还不如干脆再创建一个 N+1 版。过去一年我们引入了很多新人，他们不确定自己是否有权限更新文档，也不知道某个文件是否由专人负责。我们开始主要依靠 Notion AI 来获取和呈现内容，这使得层级结构的重要性降低，而那些不准确的片段即使被藏在角落里，也会产生负面影响。</div>
+          <ul>
+            <li>We migrated from Confluence to Notion in January, 2025,
+which had left around a bunch of old pages that were
+“obviously wrong.”These files created a bad smell around our other docs, as folks
+felt like things weren’t well maintained.</li><li>We had inconsistent approach to what we documented in Git-managed files
+versus managing in Notion. This led to duplication.</li><li>Duplication meant that it felt safer to create an N+1th version,
+rather than debugging why N versions already existed.</li><li>We’ve had a bunch of new folks join over the past year,
+who weren’t sure if they were empowered to update documentation
+or if someone else was managing any given file</li><li>We started using Notion AI as the primary mechanism for exposing content,
+which meant that hierarchical organization was less important,
+and that having inaccurate snippets was harmful even if they were
+tucked away into a quiet corner</li>
+          </ul>
         
       
     
@@ -59,7 +71,14 @@
     
       
         
-          <div class="list-content">无法通过 API 判断非 wiki 页面是否经过验证。虽然可以通过 API 判断 wiki 页面是否验证，但没人使用 wiki 页面。无法通过 API 获取 Notion Teamspace 中的所有页面，必须手动列出该 Teamspace 的顶级页面，再逐层获取其子页面。Notion 没有“归档”功能，无法将文档从搜索结果中排除。除最近编辑时间外，无法通过 API 查看页面的浏览量或使用情况。</div>
+          <ul>
+            <li>You cannot tell if a non-wiki page is verified or not via API.
+You can tell if a wiki page is verified via API, but no one uses wiki pages</li><li>You cannot retrieve all pages in a Notion Teamspace via API,
+you instead have to manually take list of the top-level pages in that Teamspace,
+and find the children from those pages</li><li>There is no “archive” functionality in Notion that allows you to exclude a document
+from search results</li><li>There is no programmatic visibility into views or usage of a page via API except
+for how recently it was edited</li>
+          </ul>
         
       
     
@@ -74,7 +93,17 @@
     
       
         
-          <div class="list-content">优先优化 Notion AI 结果，而非手动查找：我们现在使用 Notion 的主要方式是通过直接链接或 Notion AI，而不是手动浏览。这意味着那些容易过时的“FAQ”类重复页面反而有害，而以前它们很有价值。重复和过时内容比没有内容更糟糕：不要自己写一份流程指南，而是直接链接到原始文档，或者去更新源文档。优先采用版本控制中的自然文档：我们更倾向于链接到 GitHub 中的 README，而不是在 Notion 中重复这些内容，因为 README 更可能保持更新。人人都可以整理文档：我们宁愿大家积极尝试清理文档（即使犯一些小错），也不希望文档处于无人维护的状态。自动化永远优于手动：我们是一个忙碌的团队，同时要做很多事情，很难持续投入大量时间进行深度手动整理，针对性的 curation 很好，但全局性的手动维护不现实。</div>
+          <ol>
+            <li>Optimize for NotionAI results, not manual discovery: a significant majority of our Notion use
+is now via either direct links to a specific page, or via Notion AI, not via manual discovery.
+That means that things like “FAQ” pages that duplicate content and go stale are actively harmful,
+whereas previously they were very valuable.</li><li>Duplication and stale content is worse than nothing: do not write your own guide to a process.
+Link to it instead, or update the source document</li><li>Prefer natural documentation in version control: we’d rather link to a README in Github than
+duplicate those instructions in Notion, because the README is more likely to be kept current</li><li>Everyone tidies our documentation: we’d rather be people who try to clean up a document,
+even if we make a small mistake, rather than someone who leaves documentation in a poor state</li><li>Automatic beats manual every time: we’re a busy team doing a lot of things,
+it’s always going to be difficult to consistently find time to manually curate content deeply,
+focused curation is great, but global is unreasonable</li>
+          </ol>
         
       
     
@@ -89,7 +118,27 @@
     
       
         
-          <div class="list-content">创建了“Scheduled to Archive”和“Archive”两个 Teamspace。Archive 是私有 Teamspace，放入其中的文档不会污染搜索索引。Scheduled to Archive 则是公开的，任何人都可以把文档添加到其根页面下。我们有一个每周运行的脚本，将 Scheduled to Archive 中的所有内容迁移到 Archive。这是我们在 Notion 现有约束下能找到的最有效的归档方式。清理过期页面。编写了一个脚本，从根页面开始递归构建层级，为每个页面补充子页面的最后编辑日期，然后将自身及所有子页面最后编辑时间都在 N 天之前的页面全部归档。对 3-4 个最关键的顶级页面运行此脚本后，我们归档了约 1500 页过期的文档。压缩陈旧层级。编写了第二个脚本，用于发现深埋在陈旧层级中的当前有效页面（例如 15 个不准确文档中唯一被更新的那个）。找到“被埋藏的有效页面”后，将其提升到祖父页面层级，并把原父页面及其陈旧子页面移到 Scheduled to Archive。该脚本会找出所有候选页面，然后由我逐个审核通过或拒绝。最大的困难是 API 中缺少“验证”状态，无法为特定页面及其所有后代打上可信标记。失效链接检测器。编写了第三个脚本，递归遍历层级并找出返回 404 的链接。必须确保该脚本无法访问 Archive 中的内容，否则归档页面都会显示为 404，否则就得手动去已归档内容中排查。这两种方式都可以，属于偏好问题。在大规模迁移后运行此脚本，以确保不会留下大量指向已归档文档的“幽灵链接”，否则即使移除了很多坏内容，文档体验依然会很差。对关键页面进行人工审核。在完成上述所有步骤后，我又仔细检查了所有新员工文档，确保它们都链接到顶级入职指南、写明清晰的前置条件、标出遇到问题时可以求助的 Slack 频道，并且不重复 Git 管理的 README，而是适当地链接到它们。对顶级工程和技术页面，我也进行了较轻度的类似检查，因为这些页面整体已经比较好了。</div>
+          <ol>
+            <li>Create Scheduled to Archive and Archive teamspaces.
+The Archive teamspace is a private teamspace, such that documents added there don’t pollute the search index.
+Conversely, Scheduled to Archive is public, where anyone can add documents to its root document.We have a weekly script that migrates everything from Scheduled to Archive to Archive.This was the most effective mechanism we could find to implement archiving within Notion’s constraints.</li><li>Prune expired pages. Created a script which recursively builds hierarchy from a root page,
+enriches each page with the last_edited_date for each child, and then prunes all pages
+where it and all children were last edited more than N days ago.Using this script on 3-4 most relevant top-level pages, we archived about 1,500 pages of expired documentation.</li><li>Compact stale hierarchies. Created a second script which identifies current pages deep in stale hierarchies,
+e.g. the one updated page among 15 inaccurate docs. After finding a “buried current page”, promotes it to the grandparent page,
+and move the parent page (and its stale children) to Scheduled to Archive.This ended up as a script that found all the candidates, and then I worked through approving/rejecting
+each suggestion. The biggest issue being the lack of “verification” status within the API, such that there’s
+no way to bless given pages and their descendants.</li><li>Stale link finder. Created a third script which recursively works through a hierarchy and finds 404s.
+It’s essential that this script does not have access to the Archive so those scripts show up as 404s,
+otherwise you would have to scan through Archived to find things there. Both approaches would work,
+just a bit of a matter of preference.Ran this after the mass migrations to ensure we didn’t leave a “haunted forest” of links into
+archived documents that folks can’t see, which would make the documentation still feel bad even though
+much of the bad content was removed.</li><li>Manual review of key pages. After running all of the above steps, I then worked through all
+new-hire documentation to ensure it was linked to top-level onboarding guide, stated clear prerequisites,
+indicated the Slack channel to get help if folks ran into trouble,
+and ensured that instructions did not duplicate our Git-managed READMEs, instead linking to them where
+appropriate.I did a lighter pass of this approach for our top-level engineering and technology pages,
+although those were generally in a good place.</li>
+          </ol>
         
       
     

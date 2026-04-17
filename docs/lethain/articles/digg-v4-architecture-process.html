@@ -107,7 +107,24 @@
     
       
         
-          <div class="list-content">我们使用 Git 进行源代码管理，使用 Gerrit 进行代码审查。每一段代码都必须经过同行审查和批准，并通过所有单元测试。每次提交 patchset 到 Gerrit 进行审查时，Jenkins 会自动运行单元测试，测试完成后会将结果更新到 Gerrit 上。这意味着代码审查者不必浪费时间去审查失败的补丁，也确保我们从未将单元测试失败的代码合并到 Git 仓库中。一旦某个 Gerrit patchset 通过测试并获得审查者批准，它就会被合并到 Git 的 master 分支，并通过 Puppet 自动部署到 alpha 环境。在成功完成针对 alpha 环境的集成测试后，最后一步是将该 patchset 合并到 Git 的 production 分支。我们通过手动触发 Jenkins 任务来部署到生产环境，该任务会与 Puppet 协作完成代码更新。我们最初采用的是持续部署到生产环境，但在经历了几次灾难性的深夜部署事故后，我们决定在上线生产前加入人工把关会更适合我们。如果当时坚持持续部署，我们最终可能会不断完善测试以减少错误上线，但在那时，这似乎不是最值得投入时间的方向。</div>
+          <ol>
+            <li>We used Git for source control, and Gerrit
+for code review. Every piece of code had be reviewed and approved by a peer, as well as
+pass all unittests.</li><li>Each time a patchset was submitted to Gerrit for code review, Jenkins
+would automatically runs its unittests, and when the tests finished would update
+Gerrit with the success or failure of the tests.This meant that code reviewers didn’t have to waste their time reviewing failing patches.
+It also meant that we never merged unittest broken code into our Git repositories.</li><li>Once a Gerrit patchset passed its tests and was approved by a code reviewer, then it would be merged
+into the Git master branch, and would be automatically deployed via Puppet
+to our alpha environment.
+The final step of deployment to the alpha environment (and after successfully running integration tests
+against the alpha environment), the new patchset would also be merged into the production branch in Git.</li><li>We deployed to our production environment by manually building a Jenkins job, which would then
+work with Puppet to deploy the updated code.We started out with continuous deployment
+to production, but after a few disasterous late night deployments
+we decided that having a human in the loop before going to production was going to
+work better for us.If we had stuck with continuous deployment, we would have eventually
+improved our tests to the extent that very few bad changes got through, but that didn’t seem like
+the right investment of time for us at that point.</li>
+          </ol>
         
       
     
@@ -126,7 +143,25 @@
     
       
         
-          <div class="list-content">我们最初拥有极高的单元测试覆盖率，但随着团队缩减，我们后来几乎不再编写新的测试。这并非明确的政策，而是因为我们认为单元测试无法有效防止我们最常遇到的两类问题：涉及多个组件在生产负载下的系统性故障，以及前端渲染问题。与那些多年后仍能提供价值的单元测试不同，我们的 Selenium 测试一旦停止积极维护，几乎立刻就腐化了，并在 QA 团队解散后不久便被淘汰。我们使用 Thrift 来定义前端和平台团队之间的接口，这通常让团队间的沟通和协作变得简单直接。虽然最终出现了一些设计糟糕的接口，造成了不少困惑，但总体而言，用 Thrift 来定义团队间的类型和接口是一种极好的沟通辅助手段。我们很少修改现有 Thrift 接口的行为，而是推出新的接口来实现所需功能，更新客户端使用新接口，然后再移除旧接口。这个过程略显繁琐，但由于我们可以独立部署前端和后端代码（完成所有前端或后端服务器的完整 rollout 只需几分钟），这是一种安全、合理的方式，避免把自己搞崩。我们上线所有前端改动时，都会带上一个机制，可以将其逐步 rollout 给部分用户，或在出现问题时快速关闭。这让我们得以将部署和 rollout 分离，既让部署过程更加平稳，也能精准控制功能上线时机。我们原本打算用这个机制来进行新功能的 A/B 测试，但后来发现它在管理发布和从一小批信任用户那里获取反馈方面价值更高。我们还会对预期会带来性能或负载影响的后端功能进行暗中上线（dark launch），以避免在盯着 Jenkins 进度条无助等待时把整个系统拖垮。</div>
+          <ol>
+            <li>We started out with extremely high unittest coverage, but as the team shrank, we ended up writing very few new tests.
+This wasn’t an explicit policy, but stemmed from the belief that unittests didn’t help prevent the types
+of breakages we experienced most: systemic failures involving multiple components under production load,
+and frontend rendering issues.Unlike our unittests which continued providing value years later, our Selenium
+tests rotted almost immediately once we stopped actively maintaining them, and the Selenium tests departed
+soon after the QA team.</li><li>We used Thrift for defining interfaces between our frontend and platform teams, which generally made
+communication and coordination between the teams straightforward. We did end up with some poorly designed
+interfaces, which created much confusion, but in general using Thrift for defining the
+types and interfaces between teams was a great communication aid.</li><li>We rarely changed behavior of existing Thrift interfaces, rather we would push out a new interface with
+the desired functionality, update the clients to use that functionality, and then remove the old interface.
+This was a somewhat awkward process, but since we deployed frontend and backend code independently (and
+doing a full rollout of all frontend or backend servers took a few minutes), it was a safe, sane way to
+ensure we didn’t break ourselves.</li><li>We launched all frontend changes with a mechanism to roll them out to a subset of users, or to disable them
+if they ran into problems. This allowed us to separate deployment from rollout, which made deploying code
+more peaceful, and gave us the ability to time rolling out features precisely.We had initially intended to use this mechanism for A/B testing new features, but it ended up being most
+valuable for managing releases and getting feedback from small trusted groups of users.We also dark launched backend features which we expected to have a performance or load impact,
+to avoid bringing down the world while we stared helplessly at a Jenkins progress bar.</li>
+          </ol>
         
       
     

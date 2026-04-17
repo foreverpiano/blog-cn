@@ -40,57 +40,46 @@
     
       
         
-          <div class="list-content">方法概览
+          <ul>
+            <li>Methods Overview</li><li>Distillation</li><li>Quantization
 
-蒸馏
+Challenges for Transformer Quantization
 
-量化
+Post-training quantization (PTQ)
 
-Transformer 量化的挑战
+Mixed-precision quantization
 
-训练后量化 (PTQ)
+Quantization at fine-grained granularity
 
-混合精度量化
+Second order information for quantization
 
-细粒度量化
+Outlier smoothing
 
-用于量化的二阶信息
 
-离群值平滑
+Quantization-aware training (QAT)</li><li>Pruning
 
-量化感知训练 (QAT)
+How to prune?
 
-剪枝
+How to retrain?</li><li>Sparsity
 
-如何剪枝？
+N:M Sparsity via Pruning
 
-如何重训练？
+Sparsified Transformer
 
-稀疏性
+Mixture-of-Experts
 
-通过剪枝实现 N:M 稀疏
+Routing Strategy Improvement
 
-稀疏化 Transformer
+Kernel Improvement</li><li>Architectural Optimization
 
-专家混合模型
+Sparse Attention Patterns
 
-路由策略改进
+Recurrence
 
-内核改进
+Memory Saving Designs
 
-架构优化
-
-稀疏注意力模式
-
-循环机制
-
-节省内存的设计
-
-自适应注意力
-
-引用
-
-参考文献</div>
+Adaptive Attention</li><li>Citation</li><li>References</li>
+          </ul>
         
       
     
@@ -108,13 +97,12 @@ Transformer 量化的挑战
     
       
         
-          <div class="list-content">巨大的内存占用。在推理时，模型参数和中间状态都需要保存在内存中。例如，
+          <ol>
+            <li>Large memory footprint. Both model parameters and intermediate states are needed in memory at inference time. For example,
 
-KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 512、上下文长度为 2048 的情况，KV cache 总计达到 3TB，是模型大小的 3 倍（！）。
-注意力机制的推理成本随输入序列长度呈平方级增长。
-
-
-并行性低。推理生成以自回归方式执行，这使得解码过程难以并行化。</div>
+The KV cache should be stored in memory during decoding time; E.g. For a batch size of 512 and context length of 2048, the KV cache totals 3TB, that is 3x the model size (!).
+Inference cost from the attention mechanism scales quadratically with input sequence length.</li><li>Low parallelizability. Inference generation is executed in an autoregressive fashion, making the decoding process hard to parallel.</li>
+          </ol>
         
       
     
@@ -133,9 +121,9 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
     
       
         
-          <div class="list-content">通过使用更少的 GPU 设备和更少的 GPU 内存来减少模型的内存占用；
-通过降低所需的 FLOPs 数量来减少计算复杂度；
-降低推理延迟并加快运行速度。</div>
+          <ul>
+            <li>通过使用更少的 GPU 设备和更少的 GPU 内存来减少模型的内存占用；</li><li>通过降低所需的 FLOPs 数量来减少计算复杂度；</li><li>降低推理延迟并加快运行速度。</li>
+          </ul>
         
       
     
@@ -145,11 +133,9 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
     
       
         
-          <div class="list-content">应用各种并行策略，在大量 GPU 上扩展模型。对模型组件和数据的智能并行化，使得运行万亿参数模型成为可能。
-内存卸载：将临时不使用的数据卸载到 CPU，需要时再读回。这有助于内存使用，但会增加延迟。
-智能批处理策略；例如 <a href="https://github.com/bytedance/effective_transformer" target="_blank" rel="noopener">EffectiveTransformer</a> 将连续序列打包在一起，以去除一个批次内的 padding。
-网络压缩技术，如剪枝、量化、蒸馏。更小规模的模型（参数量或位宽方面）需要更少的内存且运行更快。
-针对目标模型架构的特定改进。许多架构改动，尤其是注意力层的改动，有助于提升 Transformer 解码速度。</div>
+          <ol>
+            <li>应用各种并行策略，在大量 GPU 上扩展模型。对模型组件和数据的智能并行化，使得运行万亿参数模型成为可能。</li><li>内存卸载：将临时不使用的数据卸载到 CPU，需要时再读回。这有助于内存使用，但会增加延迟。</li><li>智能批处理策略；例如 <a href="https://github.com/bytedance/effective_transformer" target="_blank" rel="noopener">EffectiveTransformer</a> 将连续序列打包在一起，以去除一个批次内的 padding。</li><li>网络压缩技术，如剪枝、量化、蒸馏。更小规模的模型（参数量或位宽方面）需要更少的内存且运行更快。</li><li>针对目标模型架构的特定改进。许多架构改动，尤其是注意力层的改动，有助于提升 Transformer 解码速度。</li>
+          </ol>
         
       
     
@@ -208,8 +194,9 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
     
       
         
-          <div class="list-content">训练后量化（PTQ）：模型首先训练至收敛，然后将其权重转换为更低精度，无需额外训练。与训练相比，它通常实现成本很低。
-量化感知训练（QAT）：在预训练或进一步微调过程中应用量化。QAT 能够获得更好的性能，但需要额外的计算资源和具有代表性的训练数据。</div>
+          <ol>
+            <li>训练后量化（PTQ）：模型首先训练至收敛，然后将其权重转换为更低精度，无需额外训练。与训练相比，它通常实现成本很低。</li><li>量化感知训练（QAT）：在预训练或进一步微调过程中应用量化。QAT 能够获得更好的性能，但需要额外的计算资源和具有代表性的训练数据。</li>
+          </ol>
         
       
     
@@ -276,8 +263,9 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
     
       
         
-          <div class="list-content">因为矩阵乘法包含一组独立的行向量与列向量之间的内积，我们可以对每个内积施加独立的量化：每行和每列都按绝对最大值进行缩放，然后量化为 INT8。
-离群激活特征（例如比其他维度大 20 倍）保持为 FP16，但它们仅占总权重的很小一部分。如何识别离群值是经验性的。</div>
+          <ol>
+            <li>因为矩阵乘法包含一组独立的行向量与列向量之间的内积，我们可以对每个内积施加独立的量化：每行和每列都按绝对最大值进行缩放，然后量化为 INT8。</li><li>离群激活特征（例如比其他维度大 20 倍）保持为 FP16，但它们仅占总权重的很小一部分。如何识别离群值是经验性的。</li>
+          </ol>
         
       
     
@@ -401,8 +389,9 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
     
       
         
-          <div class="list-content">非结构化剪枝允许丢弃任意权重或连接，因此不会保留原始网络架构。非结构化剪枝通常与现代硬件不兼容，也不会带来实际的推理加速。
-结构化剪枝旨在保持稠密矩阵乘法的形式，只是其中部分元素为零。它们可能需要遵循一定的模式限制，以适配硬件内核支持。本文重点关注结构化剪枝，以在 Transformer 模型中实现高稀疏度。</div>
+          <ul>
+            <li>非结构化剪枝允许丢弃任意权重或连接，因此不会保留原始网络架构。非结构化剪枝通常与现代硬件不兼容，也不会带来实际的推理加速。</li><li>结构化剪枝旨在保持稠密矩阵乘法的形式，只是其中部分元素为零。它们可能需要遵循一定的模式限制，以适配硬件内核支持。本文重点关注结构化剪枝，以在 Transformer 模型中实现高稀疏度。</li>
+          </ul>
         
       
     
@@ -412,9 +401,9 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
     
       
         
-          <div class="list-content">训练一个稠密网络直至收敛；
-对网络进行剪枝，移除不需要的结构；
-可选地重训练网络，使用新的权重恢复性能。</div>
+          <ol>
+            <li>训练一个稠密网络直至收敛；</li><li>对网络进行剪枝，移除不需要的结构；</li><li>可选地重训练网络，使用新的权重恢复性能。</li>
+          </ol>
         
       
     
@@ -467,8 +456,9 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
     
       
         
-          <div class="list-content">稀疏化的稠密层，包括自注意力和 FFN 层。
-稀疏模型架构；即通过引入 Mixture-of-Experts (MoE) 组件。</div>
+          <ul>
+            <li>稀疏化的稠密层，包括自注意力和 FFN 层。</li><li>稀疏模型架构；即通过引入 Mixture-of-Experts (MoE) 组件。</li>
+          </ul>
         
       
     
@@ -528,8 +518,9 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
     
       
         
-          <div class="list-content">有界回归：在实践中随机交换两个通道，最多固定次数。解搜索被限制在一个通道交换的深度，以保持搜索空间宽而浅。
-窄而深的搜索：选择多个条带并同时对其进行优化。</div>
+          <ol>
+            <li>有界回归：在实践中随机交换两个通道，最多固定次数。解搜索被限制在一个通道交换的深度，以保持搜索空间宽而浅。</li><li>窄而深的搜索：选择多个条带并同时对其进行优化。</li>
+          </ol>
         
       
     
@@ -593,7 +584,9 @@ W_{t+1} \gets W_t - \gamma \frac{\partial\mathcal{L}}{\partial\widetilde{W}}  + 
     
       
         
-          <div class="list-content">稀疏前向传递：选择每层中幅度最大的 top-<span class="math-inline" data-math="K">K</span> 参数子集 <span class="math-inline" data-math="A^t \subset \Theta">A^t \subset \Theta</span>，限制在权重总量的 top <span class="math-inline" data-math="D">D</span> 比例。参数化 <span class="math-inline" data-math="\alpha^t">\alpha^t</span> 在时刻 <span class="math-inline" data-math="t">t</span> 中，如果不在 <span class="math-inline" data-math="A^t">A^t</span>（活跃权重）中，则参数被置零。</div>
+          <ol>
+            <li>稀疏前向传递：选择每层中幅度最大的 top-<span class="math-inline" data-math="K">K</span> 参数子集 <span class="math-inline" data-math="A^t \subset \Theta">A^t \subset \Theta</span>，限制在权重总量的 top <span class="math-inline" data-math="D">D</span> 比例。参数化 <span class="math-inline" data-math="\alpha^t">\alpha^t</span> 在时刻 <span class="math-inline" data-math="t">t</span> 中，如果不在 <span class="math-inline" data-math="A^t">A^t</span>（活跃权重）中，则参数被置零。</li>
+          </ol>
         
       
     
@@ -617,7 +610,9 @@ W_{t+1} \gets W_t - \gamma \frac{\partial\mathcal{L}}{\partial\widetilde{W}}  + 
     
       
         
-          <div class="list-content">稀疏反向传递：然后将梯度应用于更大的参数子集 <span class="math-inline" data-math="B \subset \Theta">B \subset \Theta</span>，其中 <span class="math-inline" data-math="B">B</span> 包含 <span class="math-inline" data-math="(D+M)">(D+M)</span> 比例的权重和 <span class="math-inline" data-math="A \subset B">A \subset B</span>。更新更大比例的权重能够更有效地探索不同的剪枝掩码，从而更有可能在 top <span class="math-inline" data-math="D">D</span> 比例的活跃权重中产生置换。</div>
+          <ol>
+            <li>稀疏反向传递：然后将梯度应用于更大的参数子集 <span class="math-inline" data-math="B \subset \Theta">B \subset \Theta</span>，其中 <span class="math-inline" data-math="B">B</span> 包含 <span class="math-inline" data-math="(D+M)">(D+M)</span> 比例的权重和 <span class="math-inline" data-math="A \subset B">A \subset B</span>。更新更大比例的权重能够更有效地探索不同的剪枝掩码，从而更有可能在 top <span class="math-inline" data-math="D">D</span> 比例的活跃权重中产生置换。</li>
+          </ol>
         
       
     
@@ -870,27 +865,21 @@ y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
     
       
         
-          <div class="list-content">固定模式限制注意力矩阵的视野，使用预定义的固定模式。
+          <ol>
+            <li>Fixed Patterns limit the field of view for the attention matrix, using predefined, fixed patterns.
 
-将输入序列分块为固定块，例如<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a>；
-<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 使用局部注意力；
-<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 使用 stride 注意力模式。
+Chunk input sequences into fixed blocks, such as <a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a>;
+<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> uses local attention;
+<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> uses strided attention patterns.</li><li>Combined Patterns learn to sort/cluster the input tokens - enabling a more optimal global view of the sequence while maintaining the efficiency benefits of fixed patterns.
 
+<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> combines strided and local attention;
+Given a high dimensional input tensor, instead of applying attention to the flattened version of the input, <a href="https://arxiv.org/abs/1912.12180" target="_blank" rel="noopener">Axial Transformer</a> applies multiple attentions, each along a single axis of the input tensor.
+<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> combines local and global context, as well as strided or random attention.</li><li>Learnable Patterns identify the optimal attention pattern via learning.
 
-
-组合模式学习对输入 token 进行排序/聚类——在保持固定模式效率优势的同时，实现对序列更优的全局视野。
-
-<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 组合 stride 和局部注意力；
-给定高维输入张量，<a href="https://arxiv.org/abs/1912.12180" target="_blank" rel="noopener">Axial Transformer</a> 不对展平后的输入应用注意力，而是沿输入张量的单个轴分别应用多个注意力。
-<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 组合局部和全局上下文，以及 stride 或随机注意力。
-
-
-
-可学习模式通过学习来确定最优注意力模式。
-
-<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 基于基于哈希的相似性（LSH）将 token 聚类；
-<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 对 token 运行 <span class="math-inline" data-math="k">k</span>-means 聚类；
-<a href="https://arxiv.org/abs/2002.11296" target="_blank" rel="noopener">Sinkhorn Sorting Network</a> 学习对输入序列块进行排序。</div>
+<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> clusters tokens into clusters based on hash-based similarity (LSH);
+<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> runs <span class="math-inline" data-math="k">k</span>-means clustering on tokens;
+<a href="https://arxiv.org/abs/2002.11296" target="_blank" rel="noopener">Sinkhorn Sorting Network</a> learns to sort blocks of input sequence.</li>
+          </ol>
         
       
     
@@ -905,9 +894,9 @@ y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
     
       
         
-          <div class="list-content"><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 通过在片段之间复用隐藏状态来利用更长的上下文。
-<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 将自注意力与 RNN 中的循环机制结合。
-<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 是 Transformer-XL 的扩展，增加了额外内存，包含一组用于过去激活的内存槽和用于压缩激活的压缩内存槽。每当模型接受新的输入片段时，主内存中最旧的激活会被移动到压缩内存，并应用压缩函数。</div>
+          <ul>
+            <li><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 通过在片段之间复用隐藏状态来利用更长的上下文。</li><li><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 将自注意力与 RNN 中的循环机制结合。</li><li><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 是 Transformer-XL 的扩展，增加了额外内存，包含一组用于过去激活的内存槽和用于压缩激活的压缩内存槽。每当模型接受新的输入片段时，主内存中最旧的激活会被移动到压缩内存，并应用压缩函数。</li>
+          </ul>
         
       
     
@@ -922,9 +911,9 @@ y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
     
       
         
-          <div class="list-content"><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 将 key 和 value 的长度维度投影到低维表示（<span class="math-inline" data-math="N \to k">N \to k</span>），从而将内存复杂度从 <span class="math-inline" data-math="N \times N">N \times N</span> 降低到 <span class="math-inline" data-math="N \times k">N \times k</span>。
-<a href="https://arxiv.org/abs/1911.02150" target="_blank" rel="noopener">Shazeer (2019)</a> 提出了 multi-query attention，让不同注意力“head”共享 key 和 value，大幅减少这些张量的大小和内存成本。
-<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 使用核方法实现自注意力机制更廉价的数学形式。</div>
+          <ul>
+            <li><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 将 key 和 value 的长度维度投影到低维表示（<span class="math-inline" data-math="N \to k">N \to k</span>），从而将内存复杂度从 <span class="math-inline" data-math="N \times N">N \times N</span> 降低到 <span class="math-inline" data-math="N \times k">N \times k</span>。</li><li><a href="https://arxiv.org/abs/1911.02150" target="_blank" rel="noopener">Shazeer (2019)</a> 提出了 multi-query attention，让不同注意力“head”共享 key 和 value，大幅减少这些张量的大小和内存成本。</li><li><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 使用核方法实现自注意力机制更廉价的数学形式。</li>
+          </ul>
         
       
     
@@ -939,9 +928,9 @@ y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
     
       
         
-          <div class="list-content"><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 通过 token 与其他 key 之间的软掩码，训练模型为每个 head 的每个 token 学习最优注意力跨度。
-<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 引入循环机制，并使用<a href="posts-2020-04-07-the-transformer-family.html">Transformer 家族</a> 来动态决定循环步数。
-<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 使用置信度度量来学习每个 token 何时提前退出计算层，从而在性能和效率之间取得良好平衡。</div>
+          <ul>
+            <li><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 通过 token 与其他 key 之间的软掩码，训练模型为每个 head 的每个 token 学习最优注意力跨度。</li><li><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 引入循环机制，并使用<a href="posts-2020-04-07-the-transformer-family.html">Transformer 家族</a> 来动态决定循环步数。</li><li><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 使用置信度度量来学习每个 token 何时提前退出计算层，从而在性能和效率之间取得良好平衡。</li>
+          </ul>
         
       
     

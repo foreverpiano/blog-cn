@@ -121,37 +121,66 @@ python manage.py loaddata tmp.json
     
       
         
-          <div class="list-content">首先你需要通过 SVN 获取代码：  
-然后需要在你的 site-packages 目录中创建符号链接。（我觉得 Leopard 最棒的一点就是 site-packages 目录终于放在了一个容易记住的位置。以前要把包加到 site-packages 目录里，感觉就像复活节早上找彩蛋一样。）  
-
-我使用了基于 git-python 的后端，这需要你已经安装了 Git 和 git-python。  
-django-rcsfield 项目还支持 Bazaar 和 Subversion 后端。从代码来看，为 Mercurial 添加支持大概需要 1-3 小时的 hacking，具体取决于会出多少莫名其妙的问题。（主要花时间是因为命令行使用 Mercurial 的文档似乎不多，虽然我相信其源码本身文档写得很好。）
-
-现在打开你项目的 settings.py 文件，添加以下内容：  
-请注意 RCS_BACKEND 的值是你想使用的后端所在模块的名称。因为一开始不太清楚应该填什么，我最初写的是 &#x27;git&#x27;，结果导致了一段让人困惑的调试过程——我一直在 rcsfield.backends.gitcore 里找错误，而实际上根本没有加载那个文件。它加载的是真正的 git-python 模块（git），两者都有 .commit 属性，这让我更加混乱了。  
-（当然，如果我一开始就仔细读错误信息，就马上能发现问题所在，哎呀。）
-
-如果你想使用 Bazaar 后端，应该这样写：  
-如果想使用 Subversion 后端：  
-不过要注意，你不需要自己手动初始化仓库，至少 Git 后端是这样（我猜其他后端也是）。
-
-接下来你需要修改你的模型，加入 RcsTextField。（注意快速入门指南在这个配置部分提供了一段很棒的代码示例。）大概像这样：  
-任何不使用 RcsTextField 能做的事，使用 RcsTextField 也都能做。它真的可以很干净地插入进去。  
-如果你已经有一个自定义的 manager，可以给 RevisionManager 换个名字，然后记得使用对应的那个就行。
-
-我不能严格地说这时候必须重置你的 app，但我试了其他办法都没成功。幸运的是，你可以先把现有数据 dump 出来，之后再重新加载，重置操作不会造成太大问题。  
-说清楚一点：我把一个模型从 TextField 改成 RcsTextField，dump 出数据，重置了 app，然后成功地把数据加载回去，期间没有修改 dump 文件。这说明把 TextField 替换成 RcsTextField 是相当无痛的（这也合理，因为在数据库表里两者存储方式相同，RcsField 的魔法发生在数据库之外）。
-
-另外，即使你没有真正往数据库里添加新的结构，也还是需要运行 syncdb。  
-至此一切都应该能正常工作了——除非你在用 OSX。在 OSX 上，Git 无法正确找到它创建的文件，导致无法将其加入仓库。我的解决办法是修改 rcsfield/gitcore.py 的第 71 行。
-
-我把第 71 行从：  
-改成了：  
-我一开始想提交一个 patch，但后来发现原始代码在 Ubuntu 上运行是正常的。我怀疑这个问题应该在 git-python 或 Git 本身中修复。当然，也有可能这只是因为我通过 Port 和 Aptitude 安装了不同版本的 Git 导致的。
-
-所以这里有些奇怪的问题，但要彻底搞清楚是什么、何时、何地、谁、为什么，以及最重要的是该如何正确修复，还需要一番调查。
-
-现在当你编辑 rcsfield 字段时，应该能看到你在 GIT_REPO_PATH 中指定的 Git 仓库里出现了变更。成功的感觉真甜。（除非你遇到了其他问题而感到恼火，那我的成功就变苦了，我发誓。）</div>
+          <ol>
+            <li>First you need to grab an SVN checkout:</li><li>Then you need to setup symlinks into your site-packages directory.(I think my favorite thing about Leopard is that the site-packages
+directory is finally in an easy to remember location. Adding packages
+to the site-packages dir used to be like looking for eggs on
+Easter morning.)</li><li>I used the backend based on git-python, which requires that you have Git installed, as well as git-python.The django-rcsfield project also supports using Bazaar
+and Subversion backends as well. Looking at the code,
+adding support for Mercurial would probably be a 1-3
+hour hack session depending on how many things went
+horribly wrong. (Mostly it would take that long because
+there doesn&#x27;t seem to be much documentation for using
+Mercurial from the command line, although I believe
+the source itself is well documented.)</li><li>Now open up your project&#x27;s settings.py file and add
+these lines:Notice that the value for RCS_BACKEND is the
+name of the module containing the backend you want
+to use. Since it wasn&#x27;t clear what to put there,
+I initially specified &#x27;git&#x27;, which lead to a
+bewildering debug session where I tried to find
+the error in rcsfield.backends.gitcore,
+when that file wasn&#x27;t actually being loaded. Instead it was loading the actual git-python module (git), but
+they both have a .commit attribute, which
+helped perpetrate the confusion in my mind.
+(Of course, if I had carefully read the error
+message to begin with, then I would have realized
+what was going wrong right away, woops.)If you want to use the Bazaar backend, you would
+specify:and if you wanted to use the Subversion backend:Note, though, that it is not necessary to initialize the
+repository yourself, at least for the Git backend (and
+I assume for the others as well).</li><li>Now you will need to modify your model to include
+an RcsTextField. (Note that the QuickStart Guide
+provides an excellent snippet covering this part
+of configuration.) Something like:Anything you can do without RcsTextField, you can do
+with RcsTextField. It really just slots in cleanly.
+If you already have a custom manager, you could
+simply chose a different name for the RevisionManagerand just remember to use the appropriate one.</li><li>I can&#x27;t strictly say that you must reset your app at this
+point, but I didn&#x27;t have any success otherwise. Fortunately,
+you can dump your existing data out, and reload it afterward,
+and the reset won&#x27;t cause too many issues.To be clear: I changed a model from using TextField to using
+RcsTextField, dumped out the data, reset the app, and was able
+to load the data back in successfully without editing the
+data dump. This means that replacing a TextField with an
+RcsField is quite painless (and it makes sense, since in the
+database table they are both stored in the same way, RcsField&#x27;s
+magic happens outside of the database).Also, it is necessary to run syncdb as well, even if you are
+not necessarily adding any new structures to the database.</li><li>At this point everything should work, unless you&#x27;re
+using OSX. For OSX, Git wasn&#x27;t able to properly locate
+the files that it was creating in order to add them
+to the repository. I worked around that by editing
+line 71 in rcsfield/gitcore.py.I changed line 71 from:toI was initially tempted to submit a patch, but it
+turns out that the original code performs correctly
+on Ubuntu, and instead I suspect that the issue should
+be patched in either git-python or git itself.
+Then again, it is equally possible that this is simply
+a symptom of different versions of git being installed
+from Port and Aptitude.So there is something screwy occuring, but it would
+involve some investigation to figure out exactly
+what/when/where/who/why and most importantly how to
+fix it appropriately.</li><li>Now when you edit the rcsfields, you should see changes
+occur in the Git repository you specified in GIT_REPO_PATH.
+Success is sweet. (Unless you ran into different issues
+and are angry. Then my success is bitter. I swear.)</li>
+          </ol>
         
       
     
@@ -189,8 +218,9 @@ def update_obj(request):
     
       
         
-          <div class="list-content">把保存到仓库的操作放到独立的线程中。线程很邪恶，blah blah blah，但这似乎是一个适合把 commit 操作扔到线程里以显著提升响应速度的场景。（这是那种“有点 hack 但可能很棒”的方案。）  
-把 commit 任务加入任务队列，由另一个服务来处理。（这是“我们是可扩展性工程师，哇哦”的方案。）</div>
+          <ol>
+            <li>把保存到仓库的操作放到独立的线程中。线程很邪恶，blah blah blah，但这似乎是一个适合把 commit 操作扔到线程里以显著提升响应速度的场景。（这是那种“有点 hack 但可能很棒”的方案。）</li><li>把 commit 任务加入任务队列，由另一个服务来处理。（这是“我们是可扩展性工程师，哇哦”的方案。）</li>
+          </ol>
         
       
     

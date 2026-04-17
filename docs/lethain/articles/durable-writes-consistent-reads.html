@@ -69,7 +69,9 @@ Sender ! {self(), received, {set, Key, Value}},
     
       
         
-          <div class="list-content">既然我们需要在告知客户端写入成功之前等待，那么到底应该等待多少个节点呢？同样地，当我们读取值时，在返回给客户端之前应该查询多少个节点？</div>
+          <ul>
+            <li>Knowing that we need to wait before informing the client of a successful write, how many nodes should we wait for?</li><li>In the same vein, when we are reading values, how many nodes should we query before returning the value to the client?</li>
+          </ul>
         
       
     
@@ -83,7 +85,11 @@ Sender ! {self(), received, {set, Key, Value}},
     
       
         
-          <div class="list-content">N 是每份数据被复制到的节点数量（在我们当前的实现中，N 等于系统中的节点总数）。W 是数据被写入多少个节点后才通知用户成功的阈值（我们的实现目前是 W := N，某种程度上如此³）。R 是读取一个键时需要咨询的节点数量（当前实现中 R := 1）。</div>
+          <ul>
+            <li>N is the number of nodes where each piece of data is replicated (for our current implementation N is
+equal to the number of nodes in the system).</li><li>W is the number of nodes where each piece of data is written before notifying the user of success (our implementation is W := N, sort of 3).</li><li>R is the number of nodes which are consulted for their value of a key (currently in our implementation
+R := 1).</li>
+          </ul>
         
       
     
@@ -524,7 +530,33 @@ started
     
       
         
-          <div class="list-content">进程组有可能被死亡的 pid 污染，尤其是当你比较懒散（像我们目前这样）使用 spawn 的进程而不是 gen_server 时。即使使用 gen_server，如果你没有 trap_exit，那么 gen_server 完全有可能在没有调用终止清理函数的情况下终止。最后，即使你正确地在 gen_server 上设置了 trap_exit，如果进程是被粗暴杀掉的（kill -9 等），终止清理函数也可能不会被执行。不过请放心，可以通过 erlang:node/1、rpc:call/3 和 erlang:is_alive/1 的组合来检测死亡进程（erlang:is_alive/1 必须在进程所在的节点上执行，这意味着你必须先发现节点，然后远程检查它的存活状态）。在预期可能出现进程被粗暴杀死的系统中，你必须设计系统，使其能够容忍向死亡 pid 发送消息（使用 gen_server:call 你会收到某种错误，虽然它可能不会立刻让你明白问题所在；而 gen_server:cast 和直接用 ! 发送消息则可能不会引发任何问题，因此你要么需要用超时来检测丢失的消息，要么在发送前显式验证进程是否存活……其中超时方式的错误更少）。↩这种一阶段提交仍然存在一个弱点，即当部分节点失败时，如何回滚已写入的部分。我们需要类似两阶段提交（two-phase commit）的东西才能真正妥善解决这个问题。这应该会在后面的文章中出现——我最近好像经常这么说。↩这只有在我们能信任 pg2:get_members/1 包含所有节点（包括所有崩溃或宕机的节点）的前提下才成立。在真正的 W := N 条件下，如果有任何节点崩溃，那么对系统的所有写入都会失败。↩将运行中的代码从之前的 record 定义迁移到新的定义时也会有性能损失，需要手工编写转换代码。一般来说，把系统停掉然后重新启动（使用新的 record 定义）比尝试迁移它要容易得多，除非你真的无法让进程停机。如果你认为自己会频繁更新 record 定义，不妨接受性能损失，直接使用属性列表就好了。没有人早上醒来就想做一次手动迁移。↩</div>
+          <ol>
+            <li>It is possible for process groups to become contaminated with dead pids,
+especially if you are being slack (like we are, for the time being) and using
+spawned processes instead of gen_servers. Even with a gen_server, if you don&#x27;t
+trap_exit, then it is entirely possibly for a gen_server to terminate without
+calling its termination cleanup function.Finally, even if you properly set trap_exit on a gen_server, the termination
+cleanup function can fail to fire if the process is killed brutally (kill -9, etc).Rest assured, however, that it is possible to detect dead processes, using a combination
+of erlang:node/1, rpc:call/3 and erlang:is_alive/1 (erlang:is_alive/1 must be executed on the node where
+the process lives, which means you must first discover the node and then remotely check its liveliness).In systems where you anticipate the possibility of processes being brutally killed,
+it is necessary to design your system in such a way that it survives sending messages
+to dead pids (with gen_server:call you&#x27;ll receive some kind of error, although it
+may not immediately lead you to understand the issue, but gen_server:cast and
+using ! probably won&#x27;t raise any issue, so you&#x27;ll either need a timeout to detect
+dropped messages, or to explicitly verify a process is alive before sending... with
+the timeout being much less error prone).↩</li><li>This one-phase commit still suffers from a weakness, which is how to back out
+a write where a portion of the nodes fail. We&#x27;ll need something along the lines of a two-phase
+commit to really address that adequately. This should come in a later entry. Which I guess I say
+a lot these days.↩</li><li>This is only true to the extent that we can trust pg2:get_members/1 to contain all nodes,
+including all crashed or downed nodes. In a true W := N condition, if any nodes are crashed then all
+writes to the system would fail.↩</li><li>There is also a penalty in migrating running code from a previous
+definition of a record to a new one, which requires hand-crafted transition code.
+In general, it&#x27;s easier to bring a system down and then bring it back up again
+(starting with the new record definition) than attempting to migrate it, unless
+you really can&#x27;t bring your processes down.In situations where you think you&#x27;ll be frequently updating a record definition,
+consider taking the performance hit and just using a property list instead.
+No one ever woke up wanting to do a manual migration.↩</li>
+          </ol>
         
       
     

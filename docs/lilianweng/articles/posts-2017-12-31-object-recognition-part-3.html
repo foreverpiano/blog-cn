@@ -40,33 +40,33 @@
     
       
         
-          <div class="list-content">R-CNN
+          <ul>
+            <li>R-CNN
 
-模型流程  
-边界框回归  
-常用技巧  
-速度瓶颈  
+Model Workflow
 
-Fast R-CNN
+Bounding Box Regression
 
-RoI Pooling  
-模型流程  
-损失函数  
-速度瓶颈  
+Common Tricks
 
-Faster R-CNN
+Speed Bottleneck</li><li>Fast R-CNN
 
-模型流程  
-损失函数  
+RoI Pooling
 
-Mask R-CNN
+Model Workflow
 
-RoIAlign  
-损失函数  
+Loss Function
 
-R-CNN 家族模型总结
+Speed Bottleneck</li><li>Faster R-CNN
 
-参考文献</div>
+Model Workflow
+
+Loss Function</li><li>Mask R-CNN
+
+RoIAlign
+
+Loss Function</li><li>Summary of Models in the R-CNN family</li><li>Reference</li>
+          </ul>
         
       
     
@@ -153,7 +153,9 @@ R-CNN 家族模型总结
     
       
         
-          <div class="list-content">在图像分类任务上预训练一个 CNN 网络，例如在 <a href="http://image-net.org/index" target="_blank" rel="noopener">ImageNet</a> 数据集上训练的 VGG 或 ResNet。分类任务包含 N 个类别。</div>
+          <ol>
+            <li>在图像分类任务上预训练一个 CNN 网络，例如在 <a href="http://image-net.org/index" target="_blank" rel="noopener">ImageNet</a> 数据集上训练的 VGG 或 ResNet。分类任务包含 N 个类别。</li>
+          </ol>
         
       
     
@@ -163,13 +165,11 @@ R-CNN 家族模型总结
     
       
         
-          <div class="list-content">使用 selective search 提出类别无关的候选区域（每张图像约 2000 个）。这些区域可能包含目标物体，且尺寸各不相同。
-将候选区域变形（warp）成 CNN 要求的固定尺寸。
-在变形后的候选区域上继续微调 CNN，使其能分类 K+1 个类别；额外的那一类代表背景（不含感兴趣物体）。微调阶段应使用更小的学习率，且 mini-batch 要过采样正样本，因为大部分候选区域其实是背景。
-对每个图像区域做一次 CNN 前向传播，得到特征向量。该特征向量随后被送入每个类别独立训练的二分类 SVM。
+          <ol>
+            <li>Propose category-independent regions of interest by selective search (~2k candidates per image). Those regions may contain target objects and they are of different sizes.</li><li>Region candidates are warped to have a fixed size as required by CNN.</li><li>Continue fine-tuning the CNN on warped proposal regions for K + 1 classes; The additional one class refers to the background (no object of interest). In the fine-tuning stage, we should use a much smaller learning rate and the mini-batch oversamples the positive cases because most proposed regions are just background.</li><li>Given every image region, one forward propagation through the CNN generates a feature vector. This feature vector is then consumed by a binary SVM trained for each class independently.
 
-正样本是 IoU（Intersection over Union）重叠度 ≥ 0.3 的候选区域，负样本是其他不相关的区域。
-为了减少定位误差，还会训练一个回归模型，利用 CNN 提取的特征来修正预测边界框的偏移量。</div>
+The positive samples are proposed regions with IoU (intersection over union) overlap threshold &gt;= 0.3, and negative samples are irrelevant others.</li><li>To reduce the localization errors, a regression model is trained to correct the predicted detection window on bounding box correction offset using CNN features.</li>
+          </ol>
         
       
     
@@ -297,9 +297,9 @@ t_h &amp;= \log(g_h/p_h)
     
       
         
-          <div class="list-content">对每张图像运行 selective search 提出约 2000 个候选区域；
-为每个候选区域生成 CNN 特征向量（N 张图像 × 2000 个）。
-整个过程涉及三个相互独立的模型，计算共享很少：用于图像分类和特征提取的卷积神经网络、用于识别目标物体的 SVM 分类器，以及用于修正边界框的回归模型。</div>
+          <ul>
+            <li>对每张图像运行 selective search 提出约 2000 个候选区域；</li><li>为每个候选区域生成 CNN 特征向量（N 张图像 × 2000 个）。</li><li>整个过程涉及三个相互独立的模型，计算共享很少：用于图像分类和特征提取的卷积神经网络、用于识别目标物体的 SVM 分类器，以及用于修正边界框的回归模型。</li>
+          </ul>
         
       
     
@@ -346,18 +346,15 @@ t_h &amp;= \log(g_h/p_h)
     
       
         
-          <div class="list-content">首先在图像分类任务上预训练一个卷积神经网络。
-使用 selective search 提出候选区域（每张图像约 2000 个）。
-对预训练的 CNN 进行修改：
+          <ol>
+            <li>First, pre-train a convolutional neural network on image classification tasks.</li><li>Propose regions by selective search (~2k candidates per image).</li><li>Alter the pre-trained CNN:
 
-将预训练 CNN 的最后一个最大池化层替换为 RoI Pooling 层。RoI Pooling 层能输出固定长度的候选区域特征向量。对同一图像的多个高度重叠的候选区域共享 CNN 计算非常合理。
-将最后一个全连接层和最后的 softmax 层（K 类）替换为一个全连接层和针对 K+1 类的 softmax。
+Replace the last max pooling layer of the pre-trained CNN with a RoI pooling layer. The RoI pooling layer outputs fixed-length feature vectors of region proposals. Sharing the CNN computation makes a lot of sense, as many region proposals of the same images are highly overlapped.
+Replace the last fully connected layer and the last softmax layer (K classes) with a fully connected layer and softmax over K + 1 classes.</li><li>Finally the model branches into two output layers:
 
-
-最后模型分支为两个输出层：
-
-一个 K+1 类的 softmax 分类器（与 R-CNN 一样，+1 为“背景”类），为每个 RoI 输出一个离散概率分布。
-一个边界框回归模型，为每个类别预测相对于原始 RoI 的偏移量。</div>
+A softmax estimator of K + 1 classes (same as in R-CNN, +1 is the “background” class), outputting a discrete probability distribution per RoI.
+A bounding-box regression model which predicts offsets relative to the original RoI for each of K classes.</li>
+          </ol>
         
       
     
@@ -474,17 +471,12 @@ L_1^\text{smooth}(x) = \begin{cases}
     
       
         
-          <div class="list-content">在图像分类任务上预训练一个 CNN 网络。
-对 RPN（区域提议网络）进行端到端微调，使其完成区域提议任务，初始化权重来自预训练的图像分类器。正样本定义为 IoU（交并比）&gt; 0.7，负样本为 IoU &lt; 0.3。
+          <ol>
+            <li>Pre-train a CNN network on image classification tasks.</li><li>Fine-tune the RPN (region proposal network) end-to-end for the region proposal task, which is initialized by the pre-train image classifier. Positive samples have IoU (intersection-over-union) &gt; 0.7, while negative samples have IoU &lt; 0.3.
 
-在整个图像的卷积特征图上滑动一个小的 n×n 空间窗口。
-在每个滑动窗口的中心，同时预测多个不同尺度与比例的区域。一个 anchor 是（滑动窗口中心、尺度、比例）的组合。例如，3 个尺度 + 3 个比例 =&gt; 每个滑动位置有 k=9 个 anchor。
-
-
-使用当前 RPN 生成的提议来训练 Fast R-CNN 目标检测模型。
-然后用 Fast R-CNN 网络初始化 RPN 的训练。在保持共享卷积层不变的前提下，只微调 RPN 特有的层。此时 RPN 和检测网络已经共享卷积层！
-最后微调 Fast R-CNN 中特有的层。
-如果需要，步骤 4-5 可以重复交替训练 RPN 和 Fast R-CNN。</div>
+Slide a small n x n spatial window over the conv feature map of the entire image.
+At the center of each sliding window, we predict multiple regions of various scales and ratios simultaneously. An anchor is a combination of (sliding window center, scale, ratio). For example, 3 scales + 3 ratios =&gt; k=9 anchors at each sliding position.</li><li>Train a Fast R-CNN object detection model using the proposals generated by the current RPN</li><li>Then use the Fast R-CNN network to initialize RPN training. While keeping the shared convolutional layers, only fine-tune the RPN-specific layers. At this stage, RPN and the detection network have shared convolutional layers!</li><li>Finally fine-tune the unique layers of Fast R-CNN</li><li>Step 4-5 can be repeated to train RPN and Fast R-CNN alternatively if needed.</li>
+          </ol>
         
       
     

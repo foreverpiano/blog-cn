@@ -272,83 +272,72 @@ dev_appserver.py ./
     
       
         
-          <div class="list-content">首先注册一个新的 Google App Engine 应用。我使用的是 djangosearch，因为我第一次写那个简陋的 Yahoo! BOSS on GAE 教程时已经注册过了。看来我还没有陷入僵化，这挺好的。
-
-从 GitHub 上检出 django-springsteen 的源代码。
-
-现在我们要从 django-springsteen 的代码仓库中挑选一些有用的部分，根据我们的新需求进行调整，并丢弃其余内容。
-
-接下来从 djangoproject.com/download/ 下载最新的 Django tarball。
-
-（我们需要删除这些文件以满足 Google App Engine 单个应用不超过 1000 个文件的限制。你也可以通过文件压缩等技巧来规避，但这种方式相对简单一些。）
-
-实际上，django-springsteen 与 Django 0.96 基本兼容，唯一的问题是部分模板中使用了 safe 过滤器。如果你愿意把这些 safe 过滤器去掉，就不必安装较新版本的 Django。
-
-接下来我们需要从 Google App Engine 的 django_example 中借用几个文件。
-
-首先创建 djangosearch/main.py 文件，内容如下。
-
-接下来创建 djangosearch/app.yaml 文件。（请记得将 djangosearch 替换为你注册的应用名称。）
-
-最后创建 djangosearch/index.yaml。
-
-然后打开 djangosearch/local_settings.py，在文件末尾添加以下内容。
-
-创建 djangosearch/boss_settings.py 文件，只需包含 BOSS_APP_ID 参数，如果你有 Amazon 密钥，也可以加上 AMAZON_ACCESS_KEY。
-
-（如果你希望在搜索结果中包含 Amazon 商品，需要在这里和这里注册以获取 AWS Affiliate ID。对于开箱即用的 Springsteen 服务来说，这是最没创意的 monetization 方式。）
-
-修改 djangosearch/urls.py 文件，删除所有对 example_project 的引用，并移除多余的 URL 模式。
-
-暂停一下。让我们为新的搜索引擎选一个主题。嗯……嗯……好吧，我们做一个专注于 Apple 产品的搜索引擎。能出什么问题呢？
-
-接下来配置我们的搜索结果。打开 djangosearch/views.py，先把所有内容清空。
-
-然后从添加以下 import 开始重建：
-
-接下来创建 Amazon 商品服务（如果你有 Amazon Affiliates AWS 密钥的话）。
-
-接着创建一个 Apple 风味的 Twitter 服务。
-
-最后我们只需混入来自 Yahoo! BOSS 的网页搜索结果，然后把新的搜索引擎暴露出去。
-
-简短提醒
-
-请注意，当你在本地测试 springsteen 应用时，Yahoo! BOSS 的搜索结果无法成功获取。但一旦你将应用推送到生产环境，结果就能正常获取。我会研究一个补丁来解决这个问题，但不必过于担心。
-
-至此所有功能都已正常工作，但搜索结果只是简单地堆叠在一起。当然，你可能喜欢把 Amazon 联盟链接放在最上面，但用户未必喜欢。现在是浅尝一下相关性排序的好时机。
-
-你肯定希望最相关的结果排在最前面（可以在这里玩个冒泡排序的梗），但简单地把不同来源的结果堆叠在一起无法实现这一点，除非来源 A 的所有结果都比来源 B 更相关，来源 B 的所有结果都比来源 C 更相关，以此类推。下面我们尝试实现一个非常简单的相关性算法来解决这些问题。
-
-你可以把相关性方法分为两类：
-- 根据结果自身特点打分，我们可以称之为内在相关性（intrinsic relevance）。
-- 根据结果之间的相互关系打分，我们可以称之为上下文相关性（contextual relevance）。
-
-我们在这里会两者都用一点。首先提升标题中包含查询词的结果，其次对来自已出现过的域名的第 2 至第 N 条结果进行惩罚。
-
-把以下代码放在 views.py 中 search 函数的上方。
-
-然后更新 search 函数，让它使用这个排序函数。
-
-现在我们的结果会使用上面的排序函数进行排名。这是一种相当基础的相关性处理方式，但希望能说明基本概念。
-
-现在搜索引擎已经可以正常运行了，是时候定制网站的模板了。
-
-首先在 djangosearch 目录下创建一个 templates 文件夹，再创建一个 templates/springsteen 子文件夹，并放入几个空文件。
-
-然后编辑 templates/base.html 文件。
-
-接下来编辑 templates/springsteen/base.html（这个文件内容很简短）。
-
-随着你继续定制搜索结果的外观，你可能会想要覆盖 templates/springsteen/results.html，但目前它已经是一个合理的默认模板了。
-
-创建一些 CSS 来美化网站。
-
-当前的 base.html 假设你会有 reset.css 和 search.css 文件。最近我倾向于使用 YUI 的 reset.css，然后为 search.css 拼凑了一些自定义样式。
-
-测试一切是否正常。
-
-如果一切正常，就可以推送到 Google App Engine，大功告成。</div>
+          <ol>
+            <li>First register a new Google App Engine applicaton.
+I&#x27;m using djangosearch, because apparently I registered
+it the first time I did a lame Yahoo! BOSS on GAE tutorial.
+It&#x27;s good to know I&#x27;m not stuck in a rut or anything.</li><li>Checkout the django-springsteen source from GitHub.</li><li>Now we&#x27;re going to salvage some relevant pieces of django-springsteen&#x27;s repository,
+adapt them to our new purposes, and throw away the rest.</li><li>Next we want to grab a recent Django tarball
+from djangoproject.com/download/.(We need to remove these files to get under the 1000
+file limit for Google App Engine. You can also do some
+file zipping magic to get around it, but this approach is
+a bit simpler.)Actually, django-springsteen pretty much works with
+Django 0.96 except for using the safe template
+filter in some of the templates. If you&#x27;re willing
+to strip it out, then you could skip installing a
+more recent version of Django.</li><li>And next we need to scavenge several pieces from the
+django_example for Google App Engine.
+First create the djangosearch/main.py file with
+these contents.Next we need to create the djangosearch/app.yaml file.
+(Be sure to replace djangosearch with the name of the
+application you registered.)And finally djangosearch/index.yaml.</li><li>Next open up djangosearch/local_settings.py and add
+these at the bottom.</li><li>Create the djangosearch/boss_settings.py file,
+which contains only the BOSS_APP_ID parameter,
+and AMAZON_ACCESS_KEY if you have one.
+(You&#x27;ll need to sign up here and here
+to get a AWS Affiliate ID if you want Amazon search results, which is
+the uninspired man&#x27;s choice for monetizing a Springsteen service out
+of the box.)</li><li>Tweak the djangosearch/urls.py file to
+remove all references to example_project,
+as well as removing the extra url patterns.</li><li>Time out. Let&#x27;s pick a topic for our new
+search engine. Hmm... hmm.... Okay, let&#x27;s
+make it a search engine that is specialized
+on Apple products. What could go wrong?</li><li>Next let&#x27;s configure our search results.
+Go ahead and open up djangosearch/views.py,
+and start by removing everything.Start rebuilding by adding these imports:Next let&#x27;s create our Amazon product service (if you have an Amazon Affiliates AWS key).Followed by creating an Apple flavored Twitter service.Finally we just need to mix in web results from Yahoo!
+BOSS and then expose our new search engine.A Short WarningPlease note that Yahoo! BOSS search results won&#x27;t be
+retrieved successfully when you are testing your springsteen
+application locally. However, they will be correctly retrieved
+once you push your app to production. I&#x27;ll look into some kind
+of patch for this, but no need to panic.</li><li>At this point we have everything working correctly,
+but results are just stacked on top of each other.
+Sure, you might love having those Amazon affiliate links
+clustered at the top, but your users might not.
+Now&#x27;s a nice time to dip our toes into relevency.You want the most relevant results to bubble to the top (feel free to make a bubble sort pun),
+but naively stacking results from different services doesn&#x27;t
+permit that unless all results from source A are more
+relevant than those from source B, all results from B are more
+relevant than those from source C and so on. Let&#x27;s take a stab
+at a very simple relevency algorithm to address these problems.You can think of two kinds of relevency approachs:Scoring results on their individual merits. We might call this intrinsic relevance.Scoring results in regard to each other. We might call this contextual relevance.We&#x27;re going to do a little bit of both here.
+First we&#x27;re going to boost results which contain
+the query term in their title, and second we&#x27;re
+going to punish the 2nd-Nth results from an already
+encountered domain.Place this code in views.py above the search
+function.And then update the search function to use this
+ranking function.Now our results are ranked using the above ranking function.
+This is a pretty basic approach to relevancy, but hopefully shows the
+basic concepts.</li><li>Now we have our search engine up and running,
+and is a good time to customize your site&#x27;s templates.First make a templates directory within djangosearch,
+as well as a templates/springsteen directory and a few
+empty files.Then let&#x27;s edit the templates/base.html file.Next edit templates/springsteen/base.html (this one
+if pretty brief).As you continue customizing the appearance of your results, you&#x27;ll
+probably want to override `templates/springsteen/results.html,
+but for the time being it should be a reasonable default.</li><li>Create some CSS to style the site.The current base.html assumes you&#x27;ll have
+reset.css and search.css files.
+Recently I tend to use YUI&#x27;s reset.css,
+and just mashed together some custom stylings for search.css.</li><li>Test everything out.Assuming that worked, go ahead and push it to
+Google App Engine, and you&#x27;re done.</li>
+          </ol>
         
       
     
@@ -365,13 +354,22 @@ SPRINGSTEEN_MAX_MATCHES = 10
     
       
         
-          <div class="list-content">你会发现默认情况下只能翻到 3-4 页。这是因为 Springsteen 内置了一个安全机制，当你对接大量数据源时这个机制很有意义，但当你实际上只使用一个数据源时就显得有点烦人了。
-
-你可以在 local_settings.py 中添加下面这行来覆盖该设置：
-
-另外，目前这个配置没有使用任何缓存，因此在翻到较后面的页数时（例如显示第 100-110 条结果）效率会明显下降。
-
-在 GAE 上是可以使用 memcache 的，我会在接下来一两天内写一个补丁，让 Springsteen 能够利用这项功能。</div>
+          <ol>
+            <li>You&#x27;ll notice by default you
+won&#x27;t be able to paginate past 3-4 pages. This
+is because of a safety mechanism in Springsteen
+that makes sense when you&#x27;re dealing with a large
+number of sources, but is a bit annoying when
+you&#x27;re really only dealing with one source.
+You can override this setting in local_settings.py
+by adding this line:</li><li>Also, at the moment this setup isn&#x27;t using any caching,
+and as a result it simply will not behave efficiently at higher pages
+(display results 100-110, for example).It is possible to
+use memcache on GAE,
+and I&#x27;ll write a patch which enables Springsteen
+to take advantage of that functionality in the next
+day or two.</li>
+          </ol>
         
       
     

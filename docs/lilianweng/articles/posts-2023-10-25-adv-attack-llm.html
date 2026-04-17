@@ -40,28 +40,31 @@
     
       
         
-          <div class="list-content">基础概念
+          <ul>
+            <li>Basics
 
-威胁模型  
-分类  
-文本生成  
-白盒 vs 黑盒
+Threat Model
 
-对抗攻击的类型
+Classification
 
-Token 操作  
-基于梯度的攻击  
-越狱提示（Jailbreak Prompting）  
-带人类参与的红队测试  
-模型红队测试
+Text Generation
 
-缓解措施一瞥
+White-box vs Black-box</li><li>Types of Adversarial Attacks
 
-鞍点问题  
-大语言模型鲁棒性相关工作
+Token Manipulation
 
-引用  
-参考文献</div>
+Gradient based Attacks
+
+Jailbreak Prompting
+
+Humans in the Loop Red-teaming
+
+Model Red-teaming</li><li>Peek into Mitigation
+
+Saddle Point Problem
+
+Some work on LLM Robustness</li><li>Citation</li><li>References</li>
+          </ul>
         
       
     
@@ -412,9 +415,9 @@ x_i \sim P_{\Theta_i} = \text{Categorical}(\pi_i) = \text{Categorical}(\text{Sof
     
       
         
-          <div class="list-content">变体 #1：UAT-LM（带语言模型损失的通用对抗触发器）在触发 token 上增加语言模型 logprob 约束 <span class="math-inline" data-math="\sum_{j=1}^{\vert\mathbf{t}\vert} \log p(\textbf{t}_j \mid \textbf{t}_{1:j−1}; \theta)">\sum_{j=1}^{\vert\mathbf{t}\vert} \log p(\textbf{t}_j \mid \textbf{t}_{1:j−1}; \theta)</span>，以鼓励模型学习有意义的 token 组合。
-
-变体 #2：UTSC（带选择标准的 Unigram Trigger）通过以下几个步骤生成攻击消息：（1）先生成一组 unigram UAT token，（2）然后将这些 unigram 触发器和对话历史传递给语言模型生成不同的攻击话语。生成的攻击根据不同毒性分类器的毒性分数进行过滤。UTSC-1、UTSC-2 和 UTSC-3 分别采用三种过滤标准：最大毒性分数、超过阈值时的最大毒性分数和最小分数。</div>
+          <ul>
+            <li>变体 #1：UAT-LM（带语言模型损失的通用对抗触发器）在触发 token 上增加语言模型 logprob 约束 <span class="math-inline" data-math="\sum_{j=1}^{\vert\mathbf{t}\vert} \log p(\textbf{t}_j \mid \textbf{t}_{1:j−1}; \theta)">\sum_{j=1}^{\vert\mathbf{t}\vert} \log p(\textbf{t}_j \mid \textbf{t}_{1:j−1}; \theta)</span>，以鼓励模型学习有意义的 token 组合。</li><li>变体 #2：UTSC（带选择标准的 Unigram Trigger）通过以下几个步骤生成攻击消息：（1）先生成一组 unigram UAT token，（2）然后将这些 unigram 触发器和对话历史传递给语言模型生成不同的攻击话语。生成的攻击根据不同毒性分类器的毒性分数进行过滤。UTSC-1、UTSC-2 和 UTSC-3 分别采用三种过滤标准：最大毒性分数、超过阈值时的最大毒性分数和最小分数。</li>
+          </ul>
         
       
     
@@ -457,9 +460,9 @@ x_i \sim P_{\Theta_i} = \text{Categorical}(\pi_i) = \text{Categorical}(\text{Sof
     
       
         
-          <div class="list-content">对于对抗后缀 <span class="math-inline" data-math="t_j, 1 \leq j \leq L">t_j, 1 \leq j \leq L</span> 中的每个 token，我们找到 NLL 损失负梯度最大的 top <span class="math-inline" data-math="k">k</span> 个值 <span class="math-inline" data-math="\sum_{i=1}^{m_c} \nabla_{\textbf{e}_{t_j}} p(\mathbf{y}^{(i)} \vert \mathbf{x}^{(i)}, \mathbf{t})">\sum_{i=1}^{m_c} \nabla_{\textbf{e}_{t_j}} p(\mathbf{y}^{(i)} \vert \mathbf{x}^{(i)}, \mathbf{t})</span>，使用语言模型 <span class="math-inline" data-math="p">p</span>。<span class="math-inline" data-math="m_c">m_c</span> 从 1 开始。  
-然后从 <span class="math-inline" data-math="kL">kL</span> 个选项中随机选出 <span class="math-inline" data-math="B &lt; kL">B &lt; kL</span> 个 token 替换候选 <span class="math-inline" data-math="{\mathbf{t}^{(1)}, \dots, \mathbf{t}^{(B)}}">{\mathbf{t}^{(1)}, \dots, \mathbf{t}^{(B)}}</span>，并选择损失最好（即对数似然最大）的那个作为下一版本的 <span class="math-inline" data-math="\mathbf{t} = \mathbf{t}^{(b^*)}">\mathbf{t} = \mathbf{t}^{(b^*)}</span>。该过程基本上是（1）先用一阶泰勒展开近似缩小替换候选的大致集合，（2）然后为最有前景的候选计算确切的损失变化。第（2）步计算昂贵，因此我们无法为大量候选执行。该过程仅在当前 <span class="math-inline" data-math="\mathbf{t}">\mathbf{t}</span> 成功触发 <span class="math-inline" data-math="{ (\mathbf{x}^{(i)}, \mathbf{y}^{(i)}) }_{i=1}^{m_c}">{ (\mathbf{x}^{(i)}, \mathbf{y}^{(i)}) }_{i=1}^{m_c}</span> 时，才增加 <span class="math-inline" data-math="m_c = m_c + 1">m_c = m_c + 1</span>。他们发现这种增量调度比一次性优化整组 <span class="math-inline" data-math="m">m</span> 提示效果更好。这近似于课程学习。  
-以上 1-3 步重复多次迭代。</div>
+          <ol>
+            <li>Per token in the adversarial suffix <span class="math-inline" data-math="t_j, 1 \leq j \leq L">t_j, 1 \leq j \leq L</span>, we find the top <span class="math-inline" data-math="k">k</span> values with largest negative gradient of NLL loss, <span class="math-inline" data-math="\sum_{i=1}^{m_c} \nabla_{\textbf{e}_{t_j}} p(\mathbf{y}^{(i)} \vert \mathbf{x}^{(i)}, \mathbf{t})">\sum_{i=1}^{m_c} \nabla_{\textbf{e}_{t_j}} p(\mathbf{y}^{(i)} \vert \mathbf{x}^{(i)}, \mathbf{t})</span>, of the language model <span class="math-inline" data-math="p">p</span>. And <span class="math-inline" data-math="m_c">m_c</span> starts at 1.</li><li>Then <span class="math-inline" data-math="B &lt; kL">B &lt; kL</span> token substitution candidates <span class="math-inline" data-math="{\mathbf{t}^{(1)}, \dots, \mathbf{t}^{(B)}}">{\mathbf{t}^{(1)}, \dots, \mathbf{t}^{(B)}}</span> are selected out of <span class="math-inline" data-math="kL">kL</span> options at random and the one with best loss (i.e. largest log-likelihood) is selected to set as the next version of <span class="math-inline" data-math="\mathbf{t} = \mathbf{t}^{(b^*)}">\mathbf{t} = \mathbf{t}^{(b^*)}</span>. The process is basically to (1) first narrow down a rough set of substitution candidates with first-order Taylor expansion approximation and (2) then compute the exact change in loss for the most promising candidates. Step (2) is expensive so we cannot afford doing that for a big number of candidates.</li><li>Only when the current <span class="math-inline" data-math="\mathbf{t}">\mathbf{t}</span> successfully triggers  <span class="math-inline" data-math="{ (\mathbf{x}^{(i)}, \mathbf{y}^{(i)}) }_{i=1}^{m_c}">{ (\mathbf{x}^{(i)}, \mathbf{y}^{(i)}) }_{i=1}^{m_c}</span>, we increase <span class="math-inline" data-math="m_c = m_c + 1">m_c = m_c + 1</span>. They found this incremental scheduling works better than trying to optimize the whole set of <span class="math-inline" data-math="m">m</span> prompts all at once. This approximates to curriculum learning.</li><li>The above step 1-3 are repeated for a number of iterations.</li>
+          </ol>
         
       
     
@@ -480,8 +483,9 @@ x_i \sim P_{\Theta_i} = \text{Categorical}(\pi_i) = \text{Categorical}(\text{Sof
     
       
         
-          <div class="list-content">关于名人的贬损评论：<span class="math-inline" data-math="\phi(\mathbf{x}, \mathbf{y}) = \texttt{StartsWith}(\mathbf{x}, [\text{celebrity}]) + \texttt{NotToxic}(\mathbf{x}) + \texttt{Toxic}(\mathbf{y})">\phi(\mathbf{x}, \mathbf{y}) = \texttt{StartsWith}(\mathbf{x}, [\text{celebrity}]) + \texttt{NotToxic}(\mathbf{x}) + \texttt{Toxic}(\mathbf{y})</span>。  
-语言切换：<span class="math-inline" data-math="\phi(\mathbf{x}, \mathbf{y}) = \texttt{French}(\mathbf{x}) + \texttt{English}(\mathbf{y})">\phi(\mathbf{x}, \mathbf{y}) = \texttt{French}(\mathbf{x}) + \texttt{English}(\mathbf{y})</span>。</div>
+          <ul>
+            <li>关于名人的贬损评论：<span class="math-inline" data-math="\phi(\mathbf{x}, \mathbf{y}) = \texttt{StartsWith}(\mathbf{x}, [\text{celebrity}]) + \texttt{NotToxic}(\mathbf{x}) + \texttt{Toxic}(\mathbf{y})">\phi(\mathbf{x}, \mathbf{y}) = \texttt{StartsWith}(\mathbf{x}, [\text{celebrity}]) + \texttt{NotToxic}(\mathbf{x}) + \texttt{Toxic}(\mathbf{y})</span>。</li><li>语言切换：<span class="math-inline" data-math="\phi(\mathbf{x}, \mathbf{y}) = \texttt{French}(\mathbf{x}) + \texttt{English}(\mathbf{y})">\phi(\mathbf{x}, \mathbf{y}) = \texttt{French}(\mathbf{x}) + \texttt{English}(\mathbf{y})</span>。</li>
+          </ul>
         
       
     
@@ -583,19 +587,19 @@ s^\text{aut}_i(\mathbf{v}; \mathbf{x}, \mathbf{y}) &amp;= \lambda_\text{LLM}\;p(
     
       
         
-          <div class="list-content">竞争目标：指模型能力（例如“应始终遵循指令”）与安全目标冲突的情况。利用竞争目标的越狱攻击示例包括：
+          <ol>
+            <li>Competing objective: This refers to a scenario when a model’s capabilities (E.g. &quot;should always follow instructions&quot;) and safety goals conflict. Examples of jailbreak attacks that exploit competing objectives include:
 
-前缀注入：要求模型以肯定确认开始。  
-拒绝抑制：给予模型详细指令，不要以拒绝格式回应。  
-风格注入：要求模型不要使用长单词，从而模型无法进行专业写作来给出免责声明或解释拒绝。  
-其他：角色扮演为 DAN（Do Anything Now）、AIM（always intelligent and Machiavellian）等。
+Prefix Injection: Ask the model to start with an affirmative confirmation.
+Refusal suppression: Give the model detailed instruction not to respond in refusal format.
+Style injection: Ask the model not to use long words, and thus the model cannot do professional writing to give disclaimers or explain refusal.
+Others: Role-play as DAN (Do Anything Now), AIM (always intelligent and Machiavellian), etc.</li><li>Mismatched generalization: Safety training fails to generalize to a domain for which capabilities exist. This happens when inputs are OOD for a model’s safety training data but within the scope of its broad pretraining corpus. For example,
 
-泛化不匹配：安全训练未能泛化到模型能力存在但训练数据中不存在的领域。这发生在输入对于模型的安全训练数据是 OOD，但在其广泛的预训练语料库范围内时。例如：
-
-特殊编码：对抗输入使用 Base64 编码。  
-字符变换：ROT13 密码、leetspeak（用视觉相似的数字和符号替换字母）、摩尔斯电码。  
-单词变换：Pig Latin（用同义词替换敏感词，如用“pilfer”代替“steal”）、payload splitting（又称“token smuggling”，将敏感词拆分为子字符串）。  
-提示级混淆：翻译成其他语言，要求模型以 <a href="https://www.lesswrong.com/posts/bNCDexejSZpkuu3yz/you-can-use-gpt-4-to-create-prompt-injections-against-gpt-4" target="_blank" rel="noopener">它能理解</a> 的方式进行混淆。</div>
+Special encoding: Adversarial inputs use Base64 encoding.
+Character transformation: ROT13 cipher, leetspeak (replacing letters with visually similar numbers and symbols), Morse code
+Word transformation: Pig Latin (replacing sensitive words with synonyms such as “pilfer” instead of “steal”), payload splitting (a.k.a. “token smuggling” to split sensitive words into substrings).
+Prompt-level obfuscations: Translation to other languages, asking the model to obfuscate in a way that <a href="https://www.lesswrong.com/posts/bNCDexejSZpkuu3yz/you-can-use-gpt-4-to-create-prompt-injections-against-gpt-4" target="_blank" rel="noopener">it can understand</a></li>
+          </ol>
         
       
     
@@ -605,9 +609,9 @@ s^\text{aut}_i(\mathbf{v}; \mathbf{x}, \mathbf{y}) &amp;= \lambda_\text{LLM}\;p(
     
       
         
-          <div class="list-content">combination_1 组合了前缀注入、拒绝抑制和 Base64 攻击  
-combination_2 增加了风格注入  
-combination_3 增加了生成网站内容和格式约束</div>
+          <ul>
+            <li>combination_1 组合了前缀注入、拒绝抑制和 Base64 攻击</li><li>combination_2 增加了风格注入</li><li>combination_3 增加了生成网站内容和格式约束</li>
+          </ul>
         
       
     
@@ -645,8 +649,9 @@ combination_3 增加了生成网站内容和格式约束</div>
     
       
         
-          <div class="list-content">功能 1：显示每个 token 的显著性分数。该工具界面高亮那些移除后最可能影响分类器输出的 token。token 的显著性分数是分类器输出关于该 token 嵌入的梯度幅度，与 <a href="https://arxiv.org/abs/1809.02701" target="_blank" rel="noopener">Wallace et al. (2019)</a> 中的方法相同。  
-功能 2：Token 替换和插入。该功能使通过 BERT-Attack 进行的 token 操作变得容易访问。随后由人类写作者审查 token 更新。一旦点击片段中的某个 token，就会弹出一个下拉列表，列出按降低当前模型分数多少排序的新 token。</div>
+          <ul>
+            <li>功能 1：显示每个 token 的显著性分数。该工具界面高亮那些移除后最可能影响分类器输出的 token。token 的显著性分数是分类器输出关于该 token 嵌入的梯度幅度，与 <a href="https://arxiv.org/abs/1809.02701" target="_blank" rel="noopener">Wallace et al. (2019)</a> 中的方法相同。</li><li>功能 2：Token 替换和插入。该功能使通过 BERT-Attack 进行的 token 操作变得容易访问。随后由人类写作者审查 token 更新。一旦点击片段中的某个 token，就会弹出一个下拉列表，列出按降低当前模型分数多少排序的新 token。</li>
+          </ul>
         
       
     
@@ -676,9 +681,9 @@ combination_3 增加了生成网站内容和格式约束</div>
     
       
         
-          <div class="list-content">从红队大语言模型 <span class="math-inline" data-math="\mathbf{x} \sim p_\text{red}(.)">\mathbf{x} \sim p_\text{red}(.)</span> 中采样测试输入。  
-使用目标大语言模型 <span class="math-inline" data-math="p(\mathbf{y} \mid \mathbf{x})">p(\mathbf{y} \mid \mathbf{x})</span> 为每个测试用例 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 生成输出 <span class="math-inline" data-math="\mathbf{y}">\mathbf{y}</span>。  
-根据分类器 <span class="math-inline" data-math="r(\mathbf{x}, \mathbf{y})">r(\mathbf{x}, \mathbf{y})</span> 识别导致有害输出的测试用例子集。</div>
+          <ol>
+            <li>从红队大语言模型 <span class="math-inline" data-math="\mathbf{x} \sim p_\text{red}(.)">\mathbf{x} \sim p_\text{red}(.)</span> 中采样测试输入。</li><li>使用目标大语言模型 <span class="math-inline" data-math="p(\mathbf{y} \mid \mathbf{x})">p(\mathbf{y} \mid \mathbf{x})</span> 为每个测试用例 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 生成输出 <span class="math-inline" data-math="\mathbf{y}">\mathbf{y}</span>。</li><li>根据分类器 <span class="math-inline" data-math="r(\mathbf{x}, \mathbf{y})">r(\mathbf{x}, \mathbf{y})</span> 识别导致有害输出的测试用例子集。</li>
+          </ol>
         
       
     
@@ -688,10 +693,9 @@ combination_3 增加了生成网站内容和格式约束</div>
     
       
         
-          <div class="list-content">零样本生成：这是找到一些在预设提示条件下能触发有害输出的提示。  
-随机少样本生成：从上述步骤中找到的红队提示被用作少样本示例来生成更多类似案例。每个零样本测试用例可能以概率 <span class="math-inline" data-math="\propto \exp(r(\mathbf{x}, \mathbf{y}) / \tau)">\propto \exp(r(\mathbf{x}, \mathbf{y}) / \tau)</span> 被选为少样本示例。  
-监督学习：红队模型可以在失败的零样本测试用例上进行微调。训练仅轻度运行一个 epoch，以避免过拟合并保持样本多样性。  
-强化学习：由于采样步骤不可微分，需要标准的 RL 微调来最大化奖励 <span class="math-inline" data-math="\mathbb{E}_{\mathbf{x} \sim p_\text{red}(.)} [r(\mathbf{x}, \mathbf{y})]">\mathbb{E}_{\mathbf{x} \sim p_\text{red}(.)} [r(\mathbf{x}, \mathbf{y})]</span>，并在当前 <span class="math-inline" data-math="p_\text{red}">p_\text{red}</span> 与初始模型行为之间加入 KL 散度项，其中 <span class="math-inline" data-math="\mathbf{y}">\mathbf{y}</span> 是来自目标模型的样本 <span class="math-inline" data-math="\mathbf{y} \sim p(. \mid \mathbf{x})">\mathbf{y} \sim p(. \mid \mathbf{x})</span>。论文从监督微调版本开始预热模型，并应用了 <a href="posts-2018-04-08-policy-gradient.html">策略梯度算法</a> RL 算法。</div>
+          <ul>
+            <li>零样本生成：这是找到一些在预设提示条件下能触发有害输出的提示。</li><li>随机少样本生成：从上述步骤中找到的红队提示被用作少样本示例来生成更多类似案例。每个零样本测试用例可能以概率 <span class="math-inline" data-math="\propto \exp(r(\mathbf{x}, \mathbf{y}) / \tau)">\propto \exp(r(\mathbf{x}, \mathbf{y}) / \tau)</span> 被选为少样本示例。</li><li>监督学习：红队模型可以在失败的零样本测试用例上进行微调。训练仅轻度运行一个 epoch，以避免过拟合并保持样本多样性。</li><li>强化学习：由于采样步骤不可微分，需要标准的 RL 微调来最大化奖励 <span class="math-inline" data-math="\mathbb{E}_{\mathbf{x} \sim p_\text{red}(.)} [r(\mathbf{x}, \mathbf{y})]">\mathbb{E}_{\mathbf{x} \sim p_\text{red}(.)} [r(\mathbf{x}, \mathbf{y})]</span>，并在当前 <span class="math-inline" data-math="p_\text{red}">p_\text{red}</span> 与初始模型行为之间加入 KL 散度项，其中 <span class="math-inline" data-math="\mathbf{y}">\mathbf{y}</span> 是来自目标模型的样本 <span class="math-inline" data-math="\mathbf{y} \sim p(. \mid \mathbf{x})">\mathbf{y} \sim p(. \mid \mathbf{x})</span>。论文从监督微调版本开始预热模型，并应用了 <a href="posts-2018-04-08-policy-gradient.html">策略梯度算法</a> RL 算法。</li>
+          </ul>
         
       
     
@@ -736,12 +740,11 @@ combination_3 增加了生成网站内容和格式约束</div>
     
       
         
-          <div class="list-content">探索：从模型中采样并检查输出。应用基于嵌入的聚类进行下采样以保证足够多样性。  
-确立：人类判断模型输出为好 vs 坏。然后使用人类标签训练一个有害性分类器。
+          <ol>
+            <li>Explore: Sample from the model and examine the outputs. Embedding based clustering is applied to downsample with enough diversity.</li><li>Establish: Humans judge the model outputs as good vs bad. Then a harmfulness classifier is trained with human labels.
 
-在不诚实实验中，论文比较了人类标签与 GPT-3.5-turbo 标签。虽然他们在几乎一半的示例上意见不一致，但用 GPT-3.5-turbo 或人类标签训练的分类器达到了相当的准确率。使用模型替代人类标注者是相当可行的；参见类似声明 <a href="https://arxiv.org/abs/2303.15056" target="_blank" rel="noopener">这里</a>、<a href="https://arxiv.org/abs/2305.14387" target="_blank" rel="noopener">这里</a> 和 <a href="https://openai.com/blog/using-gpt-4-for-content-moderation" target="_blank" rel="noopener">这里</a>。
-
-利用：最后一步是使用 RL 训练一个对抗提示生成器，以触发多样化的有害输出分布。奖励结合了有害性分类器分数和用目标 LM 嵌入的批内余弦距离衡量的多样性约束。多样性项是为了避免模式崩溃，如果在 RL 损失中移除该项会导致完全失败，生成无意义提示。</div>
+On the dishonesty experiment, the paper compared human labels with GPT-3.5-turbo labels. Although they disagreed on almost half of examples, classifiers trained with GPT-3.5-turbo or human labels achieved comparable accuracy. Using models to replace human annotators is quite feasible; See similar claims <a href="https://arxiv.org/abs/2303.15056" target="_blank" rel="noopener">here</a>, <a href="https://arxiv.org/abs/2305.14387" target="_blank" rel="noopener">here</a> and <a href="https://openai.com/blog/using-gpt-4-for-content-moderation" target="_blank" rel="noopener">here</a>.</li><li>Exploit: The last step is to use RL to train an adversarial prompt generator to trigger a diverse distribution of harmful outputs. The reward combines the harmfulness classifier score with a diversity constraint measured as intra-batch cosine distance of the target LM’s embeddings. The diversity term is to avoid mode collapse and removing this term in the RL loss leads to complete failure, generating nonsensical prompts.</li>
+          </ol>
         
       
     
@@ -762,10 +765,9 @@ combination_3 增加了生成网站内容和格式约束</div>
     
       
         
-          <div class="list-content">红 LM <span class="math-inline" data-math="p_\text{red}">p_\text{red}</span> 生成对抗提示 <span class="math-inline" data-math="\mathbf{x} \sim p_\text{red}(. \mid {\small{\text{examples}}})">\mathbf{x} \sim p_\text{red}(. \mid {\small{\text{examples}}})</span>；初始上下文示例由人工手工制作；  
-生成模型 <span class="math-inline" data-math="p">p</span> 根据该提示 <span class="math-inline" data-math="\mathbf{y} \sim p(.\mid \mathbf{x})">\mathbf{y} \sim p(.\mid \mathbf{x})</span> 生成图像或文本输出 <span class="math-inline" data-math="\mathbf{y}">\mathbf{y}</span>；  
-生成的 content <span class="math-inline" data-math="\mathbf{y}">\mathbf{y}</span> 使用例如分类器评估是否安全；  
-如果被认为不安全，则使用触发提示 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 来更新 <span class="math-inline" data-math="p_\text{red}">p_\text{red}</span> 的上下文示例，根据策略生成新的对抗提示。</div>
+          <ol>
+            <li>红 LM <span class="math-inline" data-math="p_\text{red}">p_\text{red}</span> 生成对抗提示 <span class="math-inline" data-math="\mathbf{x} \sim p_\text{red}(. \mid {\small{\text{examples}}})">\mathbf{x} \sim p_\text{red}(. \mid {\small{\text{examples}}})</span>；初始上下文示例由人工手工制作；</li><li>生成模型 <span class="math-inline" data-math="p">p</span> 根据该提示 <span class="math-inline" data-math="\mathbf{y} \sim p(.\mid \mathbf{x})">\mathbf{y} \sim p(.\mid \mathbf{x})</span> 生成图像或文本输出 <span class="math-inline" data-math="\mathbf{y}">\mathbf{y}</span>；</li><li>生成的 content <span class="math-inline" data-math="\mathbf{y}">\mathbf{y}</span> 使用例如分类器评估是否安全；</li><li>如果被认为不安全，则使用触发提示 <span class="math-inline" data-math="\mathbf{x}">\mathbf{x}</span> 来更新 <span class="math-inline" data-math="p_\text{red}">p_\text{red}</span> 的上下文示例，根据策略生成新的对抗提示。</li>
+          </ol>
         
       
     
@@ -775,17 +777,15 @@ combination_3 增加了生成网站内容和格式约束</div>
     
       
         
-          <div class="list-content">FIFO：可以替换种子人工策划的示例，因此生成可能会发散。  
-LIFO：从不替换种子示例集，仅替换最后一个为最新的成功攻击。但在多样性和攻击有效性方面相当有限。  
-评分：本质上这是一个优先队列，示例按分数排序。好的攻击预计会优化有效性（最大化不安全生成）、多样性（语义多样化的提示）和低毒性（意味着文本提示能欺骗文本毒性分类器）。
+          <ul>
+            <li>FIFO: Can replace the seed hand-curated examples, and thus the generation can diverge.</li><li>LIFO: Never replace the seed set of examples and only the last one gets replaced with the latest successful attacks. But quite limited in terms of diversity and attack effectiveness.</li><li>Scoring: Essentially this is a priority queue where examples are ranked by scores. Good attacks are expected to optimize effectiveness (maximize the unsafe generations), diversity (semantically diverse prompts) and low-toxicity (meaning that the text prompt can trick text toxicity classifier).
 
-有效性通过为不同实验设计的攻击目标函数衡量：  
-- 在文本到图像实验中，他们使用了 Q16（<a href="https://arxiv.org/abs/2202.06675" target="_blank" rel="noopener">Schramowski et al. 2022</a>）和 NudeNet（<a href="https://github.com/notAI-tech/NudeNet)" target="_blank" rel="noopener">https://github.com/notAI-tech/NudeNet)</a>）。  
-- 文本到文本实验：TOXIGEN。  
-多样性通过成对不相似的形式衡量，为 <span class="math-inline" data-math="\sum_{(\mathbf{x}_i, \mathbf{x}_j) \in \text{All pairs}} [1 - \text{sim}(\mathbf{x}_i, \mathbf{x}_j)]">\sum_{(\mathbf{x}_i, \mathbf{x}_j) \in \text{All pairs}} [1 - \text{sim}(\mathbf{x}_i, \mathbf{x}_j)]</span>。  
-低毒性通过 <a href="https://perspectiveapi.com/" target="_blank" rel="noopener">Perspective API</a> 衡量。
-
-Scoring-LIFO：结合 LIFO 和 Scoring 策略，并在队列长时间未更新时强制更新最后一个条目。</div>
+Effectiveness is measured by attack objective functions designed for different experiments:
+- In text-to-image experiment, they used Q16 (<a href="https://arxiv.org/abs/2202.06675" target="_blank" rel="noopener">Schramowski et al. 2022</a>) and NudeNet (<a href="https://github.com/notAI-tech/NudeNet)" target="_blank" rel="noopener">https://github.com/notAI-tech/NudeNet)</a>.
+- text-to-text experiment: TOXIGEN
+Diversity is measured by pairwise dissimilarity, in form of <span class="math-inline" data-math="\sum_{(\mathbf{x}_i, \mathbf{x}_j) \in \text{All pairs}} [1 - \text{sim}(\mathbf{x}_i, \mathbf{x}_j)]">\sum_{(\mathbf{x}_i, \mathbf{x}_j) \in \text{All pairs}} [1 - \text{sim}(\mathbf{x}_i, \mathbf{x}_j)]</span>
+Low-toxicity is measured by <a href="https://perspectiveapi.com/" target="_blank" rel="noopener">Perspective API</a>.</li><li>Scoring-LIFO: Combine LIFO and Scoring strategies and force to update the last entry if the queue hasn’t been updated for a long time.</li>
+          </ul>
         
       
     
@@ -832,8 +832,9 @@ Scoring-LIFO：结合 LIFO 和 Scoring 策略，并在队列长时间未更新�
     
       
         
-          <div class="list-content">内层最大化：找到最有效的对抗数据点 <span class="math-inline" data-math="\mathbf{x} + \boldsymbol{\delta}">\mathbf{x} + \boldsymbol{\delta}</span>，使其导致高损失。所有对抗攻击方法最终都归结为在内循环中最大化损失的方法。  
-外层最小化：找到最佳的模型参数化，使得由内层最大化过程触发的、最有效的攻击所导致的损失被最小化。训练鲁棒模型的朴素方法是用它们的扰动版本替换每个数据点，这可以是一个数据点的多个对抗变体。</div>
+          <ul>
+            <li>内层最大化：找到最有效的对抗数据点 <span class="math-inline" data-math="\mathbf{x} + \boldsymbol{\delta}">\mathbf{x} + \boldsymbol{\delta}</span>，使其导致高损失。所有对抗攻击方法最终都归结为在内循环中最大化损失的方法。</li><li>外层最小化：找到最佳的模型参数化，使得由内层最大化过程触发的、最有效的攻击所导致的损失被最小化。训练鲁棒模型的朴素方法是用它们的扰动版本替换每个数据点，这可以是一个数据点的多个对抗变体。</li>
+          </ul>
         
       
     
@@ -878,8 +879,9 @@ Scoring-LIFO：结合 LIFO 和 Scoring 策略，并在队列长时间未更新�
     
       
         
-          <div class="list-content">改写：使用大语言模型改写输入文本，这可能会对下游任务性能产生较小影响。  
-重分词：将 token 拆开并用多个更小的 token 表示，例如通过 BPE-dropout（随机丢弃 p% 的 token）。假设是对抗提示很可能利用特定的 token 对抗组合。这确实有助于降低攻击成功率，但效果有限，例如从 90+% 降到 40%。</div>
+          <ul>
+            <li>改写：使用大语言模型改写输入文本，这可能会对下游任务性能产生较小影响。</li><li>重分词：将 token 拆开并用多个更小的 token 表示，例如通过 BPE-dropout（随机丢弃 p% 的 token）。假设是对抗提示很可能利用特定的 token 对抗组合。这确实有助于降低攻击成功率，但效果有限，例如从 90+% 降到 40%。</li>
+          </ul>
         
       
     

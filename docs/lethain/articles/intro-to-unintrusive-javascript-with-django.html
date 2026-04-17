@@ -40,7 +40,9 @@
     
       
         
-          <div class="list-content">有丰富经验的 Web 开发者，他们使用过大量其他框架（年轻时甚至管理过由信鸽组成的网络），只需要了解几个底层细节；掌握了另一款框架（通常是 Ruby on Rails）的 Web 开发者，他们需要稍高层次的细节来适应 Django 的做事方式与之前经验的差异；缺乏经验的 Web 开发者，他们从未掌握过 Web 框架，对 Python、JavaScript 以及 Ajax 应用中的客户端-服务器交互等高层概念可能理解有限。</div>
+          <ol>
+            <li>Experienced web developers who have used a multitude of other frameworks (and used to administer networks composed of passenger pigeons in their younger days) who just need a couple of low-level details.</li><li>Web developers who have mastered one other framework (often Ruby on Rails), but need a slightly higher level of detail to get used to the differences between Django&#x27;s way of doing things and their previous experience.</li><li>Inexperienced web developers who have never mastered a web framework, and may have a limited grasp on Python, JavaScript, and the high-level concepts of client-server interaction that occur in Ajax applications.</li>
+          </ol>
         
       
     
@@ -210,7 +212,12 @@ index 0000000..60f00ef
     
       
         
-          <div class="list-content">它不是被动阅读，所以你不会只是走马观花，而是必须真正理解每次改动。即使我在教程中忘记写下某部分说明，仓库也忠实地记录了每一个改变它的按键操作，它是拥有所有答案的缪斯。</div>
+          <ol>
+            <li>It isn&#x27;t passive, so you won&#x27;t just zone out while reading,
+you&#x27;ll actually have to comprehend the changes.</li><li>Even if I forget to write a set of instructions in the tutorial,
+the repository has devotedly recorded each and every keystroke
+that has changed, so it is the muse with all the answers.</li>
+          </ol>
         
       
     
@@ -485,7 +492,88 @@ return HttpResponseServerError(error_msg)
     
       
         
-          <div class="list-content">创建一个新的 Django 项目。创建 notes 应用。创建若干个目录。打开 settings.py，在文件顶部添加以下内容：然后修改这些值：这些改动可能看起来有点费解，但对创建开发项目非常有帮助。这些设置允许项目检测它当前所在的位置，然后为 sqlite 数据库、media 目录和模板目录生成正确的路径。如果没有这些设置，你就必须自己输入绝对路径；而有了它们之后，你可以移动项目目录——甚至把它打包发给同事——它依然能正常工作。我几乎在每一个开发项目中都会使用它们。接下来我们需要编辑 ajax_tut/urls.py，让它使用 Django 的媒体服务器（仅用于开发目的，部署时不要使用！），并将所有传入的 URL 转发到 ajax_tut/notes/urls.py 文件（我们还没有编写它）。ajax_tut/urls.py 应该看起来像这样：注意 URL 是按照顺序匹配的，所以即使第二个正则能匹配任何 URL，传入的 URL 也会先与第一个 URL 进行匹配。r&#x27;^media/(?P.*)$&#x27; 这个正则的作用是允许我们在开发服务器中提供静态媒体文件，而 r&#x27;^&#x27; 则表示把所有到达这里的 URL 都交给 notes 应用的 urls.py 文件处理。现在是运行开发服务器并检查是否有拼写错误的好时机。然后访问 http://127.0.0.1:8000，你应该会看到一个漂亮的错误页面，提示 ajax_tut.notes.urls 模块不存在。我们走在了正确的轨道上。接下来我们要创建 Note 模型来存储 Web 应用的数据。打开 ajax_tut/notes/models.py，让它看起来像这样：我们现在定义 get_absolute_url 方法其实稍微有点超前，因为我们还没有编写对应的 URL，但这样做可以稍微节省一点时间。之后，前往命令行同步数据库，为 Note 模型创建相应的数据表。现在我们可以编写 ajax_tut/notes/urls.py 文件了。对于所有展示内容的需求，我们将使用两个通用视图：list_detail.object_list 和 list_detail.object_detail。前者将显示所有笔记，后者将根据 URL 正则中捕获的 slug 参数显示某一篇特定的笔记。通用视图操作的是对象的 queryset，这就是为什么我们要创建 notes 这个 queryset 并把它传给视图。我们还指定了两个自定义视图 create_note 和 update_note，我们需要手动编写它们，通过向它们 POST 数据来创建和修改笔记。通用视图有一套简单的机制来确定用于显示对象的模板。对于列表视图，它会尝试加载 appName/modelName_list.html；对于详情视图，它会尝试加载 appName/modelName_detail.html。在本例中它们将是 notes/note_list.html 和 notes/note_detail.html。因此我们下一步是创建这两个模板，但首先我们要创建一个 base.html 模板，让其他两个模板继承它以减少重复代码。在 notes/templates/ 目录下创建一个名为 base.html 的新文件，并填入以下代码：这是一个非常简单的基础模板，它为我们处理了一些静态资源导入和基本的 HTML 结构。注意我们在顶部添加了一个样式表并导入了 jQuery 库，但我们还没有把它们实际放到 media/ 目录中。我们会在再走几步之后再做这件事。下一步是创建 notes/note_list.html 模板来在首页显示笔记列表。创建文件 ajax_tut/notes/templates/notes/note_list.html，并加入以下内容：我们创建了一个简单的表单用于新建笔记，以及一个简单的有序列表来显示它们。表单会将内容发送到 /create/ 这个 URL，而这个 URL 正好被指向 notes.views 中的 create_note 方法。让我们去实现它。打开 notes/views.py，我们来实现 create_note。它需要确保接收到的是 POST 请求，并且请求中包含 title 和 slug 的值。否则它应该返回一条多少有点帮助的错误信息。注意第 10 行我们验证了 slug 没有被使用，以防止 slug 重复（这会导致两个具有相同 slug 的笔记都无法通过通用详情视图访问）。我们的应用现在已经实现了一半，并且运作连贯。我们可以查看笔记列表，并创建新的笔记。我们只需要再实现查看和编辑单个笔记的功能。继续前进。打开 notes/templates/notes/note_detail.html 并赋予它生命：这次表单将其内容 POST 到 update/，这是一个相对 URL，不像 /create/ 是绝对 URL。这让生活稍微轻松了一些，而且笔记的 slug 已经包含在它的 URL 中，所以我们不需要每次更新时都提交 slug（当前表单每次提交时确实会发送所有内容，但在我们后续的 Ajax 版本中则不一定如此）。接下来我们需要编写 update_note，这是用来处理 note_detail.html 提交的表单数据的视图。打开 notes/views.py，在已有代码下方添加这个函数：注意这是一种相当灵活的更新方式，如果三个字段都存在，它会更新全部；但它也能处理只更新其中一个或两个字段的情况。我们再次在处理更新前验证 slug 没有被占用（slug 必须是唯一的）。最后，我们仍然在努力提供有帮助的错误信息，这将帮助用户弄清楚他们哪里做错了，并且对于让我们的 Ajax 版本拥有良好用户体验至关重要。呼。现在我们基本上完成了网站的非 Ajax 版本，但在继续添加一些 JavaScript 之前，我们要先稍微加一点 CSS，让整个界面看起来不那么难以忍受。在 ajax_tut/media/ 文件夹中创建一个名为 style.css 的文件，并输入以下 CSS：嘿，现在看起来稍微顺眼一些了。保存所有文件，然后运行开发服务器，确保没有拼写错误溜进代码里：然后访问 http://127.0.0.1:8000 确认一切都在正常工作。</div>
+          <ol>
+            <li>Create a new Django project.</li><li>Create the notes app.</li><li>Create a handful of directories.</li><li>Open up settings.py and add these lines at the top:Then change these values:These changes may seem a bit confusing, but are incrediably
+helpful in creating development projects. These settings
+allow the project to detect its current position and then
+create the correct the paths for its sqlite database,
+media directory, and template directory.Without these settings you&#x27;d have to type in the absolute
+path yourself, but with them you can change the project&#x27;s
+directory--or even zip it up and send it to a colleague--
+and it will just work.I use them in pretty much every development project.</li><li>Next we need to edit ajax_tut/urls.py to use the
+Django media server (which is for development purposes
+only, don&#x27;t use it for deployment!), and to pass all
+incoming urls to the ajax_tut/notes/urls.py file
+(which we haven&#x27;t written quite yet).ajax_tut/urls.py should look like this:Note that urls are matched in order, so even though the second regex
+will match any incoming url, the incoming url will be matched against
+the first url before reaching it.The r&#x27;^media/(?P.*)$&#x27;regex is what allows us to serve
+static media using the development server, andr&#x27;^&#x27;` simply
+means to pass any urls that reach it to the urls.py file
+in the notes app.</li><li>Now is a good time to run the development server and check to
+see if any typos have entered the system.Then navigate to http://127.0.0.1:8000
+and you should get a shiny error page complaining that the
+ajax_tut.notes.urls module doesn&#x27;t exist.We&#x27;re on the right track.</li><li>Next we want to create the Note model that will store the
+data for our webapp. Open up ajax_tut/notes/models.py and
+make it look like this:We&#x27;re kind of jumping ahead of ourselves a bit by defining the
+get_absolute_url method already, since we haven&#x27;t written
+the corresponding url yet, but we&#x27;re just saving ourselves a
+wee bit of time by doing it now.After that, go to the command line and sync the database to
+create the appropriate tables for the Note model.</li><li>Now we can write the ajax_tut/notes/urls.py file.For all our displaying content needs we will using the two generic
+views list_detail.object_list and list_detail.object_detail.The former will display all the notes, and the later will display
+one specific note based on the slug parameter detected in the
+url&#x27;s regex.The generic views operate on a queryset of objects, which is why
+we have to create the notes queryset and pass it to the views.We are also specifying two custom views, create_note and
+update_note which we will need to write by hand, which
+will allow us to create and make changes to notes by POSTing
+data to them.</li><li>Generic views have a simple mechanism for determining the
+template to use to display an object. For the list view, it
+will attempt to load appName/modelName_list.html, and
+for the detail view it will attempt to load
+appName/modelName_detail.html.In this case they will be notes/note_list.html and
+notes/note_detail.html.So our next step is to create those two templates, but
+first we&#x27;ll want to create a base.html template that
+the other two can extend to reduce repetition.In the notes/templates/ directory make a new file
+named base.html, and fill it with this code:This is a very simple base template, which just handles a few
+static imports and basic html structure for us.Notice at the top we are adding a stylesheet and importing the jquery
+library, which we haven&#x27;t actually placed in the media/ directory
+yet. We&#x27;ll do that after a few more steps.</li><li>The next step is to create the notes/note_list.html template to
+display the list of notes on our index page.Create the file ajax_tut/notes/templates/notes/note_list.html,
+and add these contents to it:We&#x27;re creating a simple form for creating new notes, and a
+simple ordered list for displaying them. We&#x27;re sending the
+contents of the form to the /create/ url, which just
+so happens to be directed to the create_note method
+in notes.views.Let&#x27;s go implement that.</li><li>Open up notes/views.py, and we&#x27;ll implement create_note.
+It&#x27;ll need to make sure that it&#x27;s recieving a POST request, and
+and also that the request contains values for title and slug.Otherwise it should return a somewhat helpful error message.Notice that on line 10 we are verifying that the slug
+isn&#x27;t already in use to prevent slug duplication (which would
+prevent either of the notes with the duplicated slug from
+being accessed with the generic detail view).</li><li>Half of our application is now implemented and working coherently.
+We can view the list of notes, and create new ones. We just need
+to view and edit individual notes.Onward we go.Open up notes/templates/notes/note_detail.html and imbue
+it with life:This time the form is POSTing its contents to update/,
+which is a relative url, unlike /create/ which was posting
+to an absolute url.That makes life a bit easier, but the note&#x27;s slug is already
+included in its url, so we don&#x27;t have to post the slug each
+time we update (the current form will indeed post all the content
+each time it is sent, but for our Ajax remix that won&#x27;t necessarily
+be the case).</li><li>Next we need to write update_note, which is the view that will
+handle the submitted form data from note_detail.html.Open up notes/views.py and add this function below the code
+that is already there:Notice that this is a fairly flexible approach to updating,
+if all three fields are present it will update all of them,
+but it can also handle updating only one or two of the fields
+as well.Once again we are verifying that the slug is not already in
+use before we process the update (slugs must be unique).Lastly, we&#x27;re still trying to provide helpful error messages
+which will help users figure out what they&#x27;re doing wrong,
+and will be essential in making our Ajax version have a good
+user experience.</li><li>Phew. Now we&#x27;re pretty much done with the non-Ajax version of
+the website, but before we move forward with some JavaScript,
+we&#x27;re going to apply just a little bit of CSS to make the whole
+thing a bit more bearable to look at.In the ajax_tut/media/ folder create a file named style.css,
+and enter this CSS into it:Hey, it actually looks slightly handsome now.</li><li>Go ahead and save everything and then run the
+dev server to make sure that no typos have
+snuck into the code:And go over to http://127.0.0.1:8000/
+to make sure it&#x27;s all working.</li>
+          </ol>
         
       
     
@@ -865,7 +953,126 @@ $(&quot;input[type=submit]&quot;).remove()
     
       
         
-          <div class="list-content">第一步是下载 jQuery JavaScript 库，你可以在这里下载它。然后把它移动到 media/ 目录。我们已经在 base.html 模板中添加了导入语句，看起来像这样：这样 jQuery 就“安装”好了。我们要尝试的第一个 Ajax 改进是优化笔记创建流程。目前，当你尝试创建新笔记时，你输入笔记的标题和 slug，然后点击创建。它随后会带你进入那篇笔记的页面。我们要稍微改变一下。相反，当你创建一个新笔记时，新笔记的链接会出现在笔记列表的顶部，而不需要离开当前页面。这让一次性创建多个笔记变得更容易，同时创建后仍然容易访问笔记。为了实现这一点，我们将在 notes/note_list.html 模板中添加一些 JavaScript。打开 notes/note_list.html 文件，在 {% endblock %} 模板标签正上方插入这段代码。我将把它拆成两个函数，但它们应该都放在同一个 &lt;script&gt;&lt;/script&gt; 标签内。这里的 create_note 函数使用 jQuery 的 ajax 函数向 /create/ URL 发送异步请求。它提取 title 和 slug 输入框的值，并作为 POST 参数传递。它还指定了 done 函数，在收到响应后调用它。（我们马上就会看这个函数。）最后，非常重要的一点是 create_note 必须返回 false。为了覆盖 HTML 按钮（或者这里是 submit 输入框）的默认点击行为，你必须返回 false。否则按钮的正常行为仍然会发生（在本例中意味着会尝试创建相同的笔记两次，并把用户重定向到一个错误页面，而不是新创建的笔记）。处理响应的 done 函数看起来是这样的：done 函数稍微复杂一些，因为我们需要从响应（它碰巧是 HTML）中解析出 slug 和文本。在提取数据之后，我们使用 jQuery 创建一个新的 &lt;li&gt; 元素，并把它前插到 &lt;ol id=&quot;notes&quot;&gt; 中。最后，我们还需要把 create_note 函数与表单中的提交按钮关联起来：现在测试一下。它确实是一个改进。现在我们有点回避了一个重要问题：错误处理。目前，如果出了问题，用户完全不知道发生了什么。这对用户来说相当不友好，所以我们要改进这一点。这种错误通知模式我们也会在 note_detail.html 模板中使用，因此我们要确保编写可复用的代码，并把它放到 media 目录下的一个 .js 文件中。创建一个新文件 media/notes.js，并填入这个函数：这个 display_error 函数创建一个带有指定错误信息的新 div 元素，然后淡入它，显示五秒钟，然后淡出（并移除该 div）。然后我们需要在 base.html 模板中加载它，在加载 jQuery 库的那一行下面添加这行：最后我们需要把它集成到 notes/note_list.html 模板中的两个地方。把：替换为下面真正处理错误的代码：在 create_note 中把这一行替换为：现在我们的 Ajax 笔记创建功能真正变得可用了，而不再是一个让用户痛苦摸索的雷区。我们不知怎的又鼓起勇气继续深入这片可怕的新领域。现在我们要将注意力从 notes/note_list.html 转移到详情模板 notes/note_detail.html。我们要实现两个有趣的想法：slug 和 title 输入框在鼠标不悬停时会变成纯文本，当鼠标悬停时则变成输入框。我们要让提交按钮消失，并在我们离开对应的输入框或文本域时立即更新数据。我们先做一个非常简单的版本，之后再稍作完善。打开 notes/note_detail.html。在 {% endblock %} 标签上方，我们将添加另一个 &lt;script&gt;&lt;/script&gt; 代码块。现在我们要做一件在 notes_list.html 中没有做、但其实应该做的事。我们要把所有 JavaScript 都包裹在这个函数里：这是 jQuery 的一个有用技巧，它确保你的 JavaScript 在 DOM 数据可用之后才加载。本质上它确保页面不会在你的脚本被调用时还在自我构建（这可能会导致脚本无法正常执行）。现在，在这个函数内部，我们要先让输入框在鼠标不在上面时变成 span。我们从 title 输入框开始。你可以看到我们在这里开始使用更多 jQuery 的功能。hover 函数允许你指定鼠标悬停在元素上时调用的函数，以及离开元素时调用的第二个函数。我们用它来调用我们在输入框和 span 之间转换的函数。这里我使用了较为详细的写法，但你无疑可以把这些 JavaScript 压缩到更少的行……但我觉得目前这样更易读。我们还需要为 slug 输入框编写对应的函数。把它们也放到 $(document).ready() 函数里面：如你所见，我们还需要在页面加载时调用两个 _to_span 函数一次，以便它们一开始就显示为 span。去页面上测试一下吧。你可能会觉得这挺烦人的，因为大小变化真的会让布局跳来跳去。让我们在 style.css 里加几行 CSS 来缓解这个问题。首先，删除这些行：然后……放弃吧。虽然有可能让这个技术看起来不错，但我们需要在标记中添加几个 div，而本教程的目标并不是视觉上的完美。现在我们让输入框能够在 span 和 input 之间切换，但我们仍然需要使用老式的按钮来提交数据。所以，首先让我们去掉那个按钮（针对启用了 JavaScript 的用户），然后用鼠标离开编辑字段时保存的功能来代替它。要去掉提交按钮，我们只需在已有的 JavaScript 中（在 ready() 函数内）添加这一行：而更新则稍微复杂一点。在我们实现更新之前，我们要先绕个小弯，创建一个 display_success 函数来配合我们之前创建的 display_error 函数。打开 media/notes.js 并添加这个函数：然后我们要为 display_success 和 display_error 函数创建的 div 设置样式。打开 media/style.css 并添加以下内容：这些 CSS 将让成功和错误消息易于区分，同时让它们看起来更体面一些。现在我们准备好在 notes/note_detail.html 中添加更新功能了。这一步我们要修改相当多的代码，所以我先分别看各个部分，然后再展示完整的代码（方便复制粘贴）。首先，我们需要创建一个向 update/ URL 发送更新的函数。使用这个函数更新值非常简单：记住我们让 notes.views 中的 update 视图足够灵活，既能一次性接收所有值，也能一次只接收一个值，这让我们可以写出如此简单的 update 函数。还要注意 perform_update 在完成后会调用 done 函数，而我们还没有写它。done 看起来是这样的：它使用我们有帮助的 display_error 和 display_success 函数来处理大部分细节。最后，我们必须修改 title_to_span 和 slug_to_span 函数，让它们调用发送更新的功能。只要把它们改成这样就行：但这导致了一个问题：我们在页面加载时会调用 _to_span 函数，所以我们一加载页面就会发送更新。我们可以通过使用一对变量来跟踪这是否是初始使用，从而避免在那种情况下发送更新。做了这个改动之后，我们的程序已经工作得相当不错了，而整个代码块（&lt;script&gt;&lt;/script&gt; 标签内的所有内容）看起来是这样的：就这么几行……对吧？细心的读者或严苛的批评者会很快指出，这个实现存在很多不完美之处。例如，如果它能明确指出是哪个字段被更新了岂不是更好？更好的是，如果更新失败时能撤销所有改动岂不是更好？是的。那会很棒。然而，要实现它们，我们就需要编写额外的自定义视图来提供那些情况下所需的信息。例如，适合 Ajax 的 update 方法可能看起来像这样：如果我们使用那个，我们就有了足够的数据来把无效的修改还原到之前的值，我们可以对修改做更多花哨的操作。本教程不会明确地沿着那条路走下去，但如果你简单地在 notes.urls 中创建一个新的 URL 正则，把上面的 ajax_update_note 代码粘贴进去，并修改 notes/note_detail.html 中的 perform_update 函数，那么你就差不多完成了。你还需要重写 done 函数，以利用传入的 JSON。它可能看起来像：当你开始编写更复杂的 Ajax 功能时，你不可避免地需要编写自定义的 Django 视图来支持这些功能。这只是做（Ajax）业务的代价。最后，我们需要设置文本域也能更新。因为我们已经写好了工具函数，这会非常快：在 notes/note_detail.html 的 JavaScript 结尾处添加这一行，让它看起来像这样：现在它就能像文本字段一样更新了。</div>
+          <ol>
+            <li>The first step is to download the jQuery JavaScript library,
+which you can download here.Then move it into the media/ directory.We already added the import into the base.html
+template, which looked like this:And with that jQuery is &#x27;installed&#x27;.</li><li>The first Ajaxosity we&#x27;re going to attempt is to improve
+upon the note creation process.As it stands, when you attempt to create a new note, you
+type in the note&#x27;s title and slug and then hit create.
+It&#x27;ll then take you to the note&#x27;s page.We&#x27;re going to change it a bit. Instead, when you create
+a new note the link to the new note will appear at the top
+of the note&#x27;s list, without leaving the page.This makes it easier to create multiple notes at once, and
+still makes it easy to access the note once it is created.To accomplish this we&#x27;re going to add some JavaScript to
+the notes/note_list.html template.Open up the notes/notes_list.html file, and insert
+this code right above the {% endblock %} template tag.
+I&#x27;m going to break it down into two functions, but they
+should all be within one &lt;script&gt;&lt;/script&gt; block.The create_note function here is use the jQuery ajax
+function to send an asynchronous request to the /create/
+url. It extracts the values of the title and slug inputs
+and passes them as POST parameters.It also specifies the done function to be called
+once it receives a response. (We&#x27;ll look at that function
+in just a second.)Finally, it is very important that create_note return
+the value false. In order to override an html button&#x27;s (or in this
+case a submit input&#x27;s) default click behavior, you must return
+false. Otherwise the button&#x27;s normal behavior will still occur
+(which in this case would mean trying to create the same note twice,
+and redirecting the user to an error page instead of the freshly
+minted note).The done function that is handing the reponse looks like this:The done function is a bit more complex because we&#x27;re parsing
+the slug and text out of the response, which happens to be html.After we extact the data, then we use jQuery to create a new 
+element, and prepend it to .Finally, the last thing we need to do is associate the create_note
+function with the submit button in the form:Now give it a test. It&#x27;s a bit of an improvement.</li><li>Now we kind of skirted around an important issue:
+error handling. As it stands, if something goes wrong
+then the user has no idea what has transpired. That&#x27;s
+a pretty mean thing to do to a user, so we&#x27;re going to
+improve upon that.This error notification is a pattern that we&#x27;ll use in
+the note_detail.html template as well, so we&#x27;re going
+to make sure we write reusable code and throw it into a
+.js file in the media directory.Go ahead and create a new file media/notes.js,
+and fill it with this function:This display_error function creates a new div element
+with a specified error message, then fades it in, display
+it for five seconds, and then fades it out (and removes
+the div).Then we have to load it in our base.html template,
+adding this line beneath loading the jQuery library:And finally we have to integrate it into our notes/note_list.html
+template in two places.Replace:With this code that actually handles errors:And in create_note replace this lineWith this:Now our Ajax note creation is actually usable, instead of
+simply being a minefield for users to unhappily navigate.And somehow we muster the strength to continue further into
+this fearsome new land.</li><li>Now we&#x27;re going to shift focus from notes/note_list.html
+to the detail template, notes/note_detail.html.We&#x27;re going to implement a couple two cute ideas:The slug and title input will be converted to plain
+text until the mouse hovers over them, at which point
+they will turn into inputs.We&#x27;re going to make the submit button disappear, and
+update data as soon as we leave the corresponding
+input or textfield.We&#x27;re going to do a very simple job of it at first, and
+fix it up a bit afterwards.Go ahead and open up notes/note_detail.html.Just above the {% endblock %} tag we&#x27;re going to
+add another &lt;script&gt;&lt;/script&gt; block.Now we&#x27;re going to do something we didn&#x27;t do in notes_list.html,
+but probably should have. We&#x27;re going to wrap all of our JavaScript
+within this function:That is a helpful jQuery trick which makes sure your JavaScript
+loads after the DOM data is available to manipulate. Essentially
+it makes sure the page isn&#x27;t still construction itself when your
+script gets called (which could prevent the script from executing
+properly).Now, within that function we&#x27;re going to start out by making
+the inputs change into spans when the mouse isn&#x27;t over them.
+Let&#x27;s start with the title input.You can see that we&#x27;re starting to use a bit more of jQuery here.
+The hover function allows you to specify a function to call
+when the mouse is above an element, as well as a second function
+to call when it leaves the element.We&#x27;re using it to call our functions to convert between inputs
+and spans. I&#x27;m using a verbose style here, but you could
+undoubtedly compact that JavaScript down to fewer lines...
+but I find it more legible as it is.We also need to write equivalent functions for the slug input.
+Throws these inside of the $(document.ready() function as
+well:As you can see, we also need to call the two _to_span functions
+once when the page loads, so that they begin as spans.Go ahead and test it out on the page.You&#x27;ll probably think to yourself that its pretty annoying, seeing
+as the resizing really shifts things around. Lets throw a few lines
+of CSS into style.css to help relieve that.First, remove these lines:And then... give up. It&#x27;s possible to make this technique look okay,
+but we&#x27;d need to add a few divs to the markup, and this tutorial
+isn&#x27;t aiming for visual perfection.</li><li>Now we have the input&#x27;s flitting between span and input, but
+we still have to submit data using the &#x27;ole fashioned button.So, first let&#x27;s get rid of that button (for people who have
+JavaScript enabled), and then lets replace its functionality
+by saving when the mouse leaves the editing field.To get rid of the submit button we simply add this line of
+JavaScript to what we already have (inside the ready()
+function):And updating is just a wee bit more complex.</li><li>Before we implement updating, we&#x27;re going to take a brief detour
+to create a display_success
+function to complement the display_error function we previously
+created.Go ahead and open media/notes.js and add this function:Then we&#x27;re going to style the divs created by both the
+display_success and display_error functions.
+Open up media/style.css and add these lines:This CSS will make it easy to distinguish between success
+and error messages, as well as make them look a little more
+presentable.</li><li>Now we&#x27;re ready to add updating to notes/note_detail.html.
+There is a fair amount of code that we&#x27;re going to modify in
+this step, so first I&#x27;ll look at the individual pieces, and then
+show the entirety of it (to facilitate copy-pasting).First, we need to create a function for sending the updates to
+the update/ url.Using this function to update values is as simple as:Remember that we made the update view in notes.views
+flexible enough to handle recieving all values at once, or
+to also handle recieving one value at a time, which allows
+us to write this simple update function.Also notice that perform_update is caling the done
+function on completion, which we haven&#x27;t written yet.
+done looks like this:It uses our helpful display_error and display_success
+functions to handle most of the details.Finally, we have to modify the title_to_span and
+slug_to_span functions to call send updates.That is as simple as changing them to look like:But that leads to a problem: we call the _to_span functions
+when we load the page, so we&#x27;d be sending updates right as we
+loaded the page.We can prevent that scenario by using a pair of variables to
+track whether or not this is the initial usage, and to prevent
+sending the update in that situation.With that change we have thing working decently well,
+and that entire chunk of code (everything inside the
+&lt;script&gt;&lt;/script&gt; block) looks like this:Just a couple-few lines... right?</li><li>An astute reader, or aggressive critic, will be quick to note
+that there are a number of ways in which this implementation
+is imperfect.For example, wouldn&#x27;t it be great if it specifically mentioned
+which field was updated? Even better, wouldn&#x27;t it be great if it
+reverted all changes when an update failed?Yep. Those would be pretty sweet. However, implementing them
+would require us to write additional custom views to feed us
+the knowledge we need for those situations.For example, the ajax friendly update method might look something
+like this:If we were using that, then we&#x27;d have sufficient data on hand
+to revert invalid changes to their previous value, and we could
+be much more fanciful with out modifications.This tutorial won&#x27;t explicitly walk down that path, but if you
+simple create a new url regex in notes.urls, paste in the
+above ajax_update_note request, and modify the perform_update
+function in notes/note_detail.html, then you&#x27;d be pretty
+close to finished.You would have to rewrite done as well, to take advantage of
+the incoming JSON. It might look like:When you start writing more complex Ajax functionality,
+then you will inevitably have to write custom Django views
+to support that functionality.It&#x27;s just the cost of doing (Ajax) business.</li><li>Finally, we need to setup the textfield to update as well.
+Since we already have the utility functions written, this
+will be really quick:Add that line so the end of the JavaScript in notes/note_detail.html
+looks like this:And now it updates just like the text fields do.</li>
+          </ol>
         
       
     
@@ -895,7 +1102,9 @@ $(&quot;input[type=submit]&quot;).remove()
     
       
         
-          <div class="list-content">使用额外的视图来改进 Ajax 体验，以及为这个应用添加验证层。</div>
+          <ol>
+            <li>using additional views to improve the Ajax experience, and</li><li>adding a verification layer to this application.</li>
+          </ol>
         
       
     
@@ -905,7 +1114,9 @@ $(&quot;input[type=submit]&quot;).remove()
     
       
         
-          <div class="list-content">当然，能够运行 JavaScript 的浏览器越来越多了。曾经有很多移动浏览器在 JS 上遇到困难，但现在连这似乎也成为过去。确实有人出于安全原因禁用 JavaScript，但即便不考虑这一小部分人，为不依赖 JavaScript 的网站进行设计也有诸多好处。首先，它促进了客户端和服务器之间标准且可预测的 API（POST 或 GET 请求万岁）。其次，它让你的网站对可访问性目的和搜索引擎都更易爬取。↩</div>
+          <ol>
+            <li>当然，能够运行 JavaScript 的浏览器越来越多了。曾经有很多移动浏览器在 JS 上遇到困难，但现在连这似乎也成为过去。确实有人出于安全原因禁用 JavaScript，但即便不考虑这一小部分人，为不依赖 JavaScript 的网站进行设计也有诸多好处。首先，它促进了客户端和服务器之间标准且可预测的 API（POST 或 GET 请求万岁）。其次，它让你的网站对可访问性目的和搜索引擎都更易爬取。↩</li>
+          </ol>
         
       
     

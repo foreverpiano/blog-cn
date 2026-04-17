@@ -59,7 +59,15 @@
     
       
         
-          <div class="list-content">双重实现：流处理和批处理组件往往差异很大，导致同一逻辑需要在两种不同的编程范式中重复实现。实时正确性保证较弱：批处理计算不仅用于处理回填，还必须用来达到较高的数据正确性，因为实时组件当时仅支持 at-most-once 和 at-least-once 保证。运维负担：虽然 Hadoop 生态系统经过多年发展已趋向易于维护，但这些实时组件还不够成熟，往往带来显著的运维负担，尤其是 Storm 对 Mesos 和 ZooKeeper 的依赖让不少采用者感到头疼。</div>
+          <ol>
+            <li>dual implementations: the streaming and batch components tended to diverge significantly
+enough that they required logic to be implemented twice, in different paradigms.</li><li>weak real-time correctness guarantees: not only was the batch computation necessary to handle
+backfills, it was also necessary to reach a high degree of data correctness, as the
+real-time components only supported at-most-once and at-least-once guarantees.</li><li>operational toil: while the Hadoop ecosystem has had years to trends towards maintainability,
+these real-time components were less mature and tended to introduce significant operational toil, in particular
+Storm’s dependency on Mesos and ZooKeeper
+frustrated some adopters.</li>
+          </ol>
         
       
     
@@ -69,7 +77,23 @@
     
       
         
-          <div class="list-content">Google 发表了 The Dataflow Model，提出了一种统一处理流处理、微批处理和批处理的方法，尤其提供了 exactly-once 处理的保证。Twitter 将 Lambda 模型投入实际生产，他们走了两条路线：一是开发 Heron——一个运维体验更好但正确性限制与 Storm 类似的版本；二是投资开发 Summingbird，它允许同一份代码既能在 Storm（或 Heron）上运行，也能在 Cascading（特别是 Scalding）这一基于 Hadoop 的批处理库上运行。大约同一时期，Jay Kreps 对日志的倡导逐渐成熟为 Kafka 的实现，最终提供 exactly-once 保证；同时还有流处理框架 Samza 提供了 exactly-once 的流计算能力，以及更具普适性的 Kappa 架构（所有流量都通过一个中心化的事件总线，而不是要求发布者了解下游消费者的行为和需求）。</div>
+          <ul>
+            <li>Google published The Dataflow Model,
+which proposed an unified approach to streaming, micro-batch and batch processing,
+which in particular gave guarantees around exactly-once processing.</li><li>Twitter operationalized the lambda model. They took two paths:
+building Heron,
+an operationally improved version of Storm which shared its correctness limitations, and investing
+into
+summingbird which allowed the same code to run on
+Storm (or Heron) and Cascading
+(in particular, Scalding),
+a batch processing library that ran on Hadoop.</li><li>At approximately the same time, Jay Kreps’ log evangelism was maturing into a Kafka implementation
+that would eventually offer exactly-once guarantees, the stream processing framework Samza which offered exactly-once
+stream computation, and more generally the
+Kappa architecture
+(where all traffic goes through a centralized event bus rather than requiring
+publishers to understand behavior and needs of their downstream consumers).</li>
+          </ul>
         
       
     

@@ -44,7 +44,11 @@
     
       
         
-          <div class="list-content">是否有好的实现方式？能否在不让发布事件和处理事件的进程实现紧密耦合的情况下做到这一点？发布者能否不感知写逻辑，同时还能提供同步行为？</div>
+          <ol>
+            <li>is there a good way to do this?</li><li>can you do it without tight coupling of implementations between the processes that
+publish the events and those that process the events?</li><li>is there a way for publishers to be unaware of write logic and to
+provide synchronous behavior?</li>
+          </ol>
         
       
     
@@ -229,7 +233,17 @@ for message in consumer:
     
       
         
-          <div class="list-content">Web 向一个同步协调进程发送消息；该进程把消息推入 Kafka，并在每条消息中注入一个唯一标识，同时保持与 Web 的连接不关闭；各个消费者进程在完成处理后向同步进程“ack”；同步进程要么维护一份需要确认的消费者清单（最好通过静态分析生成，而不是手动维护），要么通过采样系统行为来学习预期需要多少个 ack。采样听起来有些过度设计，但在实践中你可能会希望使用 p99 延迟来快速失败并继续处理。实际上，作为一个轻量级实现的小技巧，我觉得可能只需要依赖 p95 延迟，甚至完全不用实现“ack”机制。</div>
+          <ol>
+            <li>web sends message to a sync process.</li><li>sync pushes into kafka, injecting a unique identifier into each message,
+and keeping the connection to web open.</li><li>Various consumer processes “ack” completion back to sync. sync would either
+have a manifest of consumers that should acknowledge (hopefully built from static analysis,
+rather than being manually maintained),
+or would sample system behavior to learn the expected number of acks.The idea of sampling feels a bit overdesigned, but in practice I think you’d want
+p99 timings which you’d use to fail-fast and move forward with processing.
+Actually, as an interesting hack, for a lightweight implementation, I imagine
+you could probably only rely on the p95 timings
+and not implement the “ack” at all.</li>
+          </ol>
         
       
     

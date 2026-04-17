@@ -54,19 +54,25 @@
     
       
         
-          <div class="list-content">从高层次描述 Transformer 的架构。详细描述单个注意力头的工作原理，用矩阵 <span class="math-inline" data-math="W_Q">W_Q</span>、<span class="math-inline" data-math="W_K">W_K</span>、<span class="math-inline" data-math="W_V">W_V</span> 和 <span class="math-inline" data-math="W_{out}">W_{out}</span> 来表示。（注意力头的公式和代码通常是把一层中所有注意力头拼接在一起一次性计算。这种实现计算效率更高，但更难推理，因此我们希望针对单个注意力头进行描述。）注意力头会把一个 token 的残差流子空间中的信息搬运到另一个 token 的残差流的不同子空间中。哪一个矩阵控制要读取的子空间？哪一个矩阵控制要写入的子空间？它们的乘积代表什么？注意力头关注哪些 token，仅由定义注意力头的四个矩阵中的两个决定。这两个矩阵是哪两个？注意力头可以用两个矩阵而非四个来表示，即 <span class="math-inline" data-math="W_Q^T \cdot W_k">W_Q^T \cdot W_k</span> 和 <span class="math-inline" data-math="W_{out} \cdot W_v">W_{out} \cdot W_v</span>。在前两个问题中，你已经给出了这两个矩阵的含义。现在请仅用这两个矩阵写出一个注意力头的表达式。</div>
+          <ul>
+            <li>Describe the transformer architecture at a high level</li><li>Describe how an individual attention head works in detail, in terms of the matrices <span class="math-inline" data-math="W_Q">W_Q</span>, <span class="math-inline" data-math="W_K">W_K</span>, <span class="math-inline" data-math="W_V">W_V</span>, and <span class="math-inline" data-math="W_{out}">W_{out}</span>. (The equations and code for an attention head are often written for all attention heads in a layer concatenated together at once. This implementation is more computationally efficient, but harder to reason about, so we&#x27;d like to describe a single attention head.)</li><li>Attention heads move information from a subspace of the residual stream of one token to a different subspace in the residual stream of another. Which matrix controls the subspace that gets read, and which matrix controls the subspace written to? What does their product mean?</li><li>Which tokens an attention head attends to is controlled by only two of the four matrices that define an attention head. Which two matrices are these?</li><li>Attention heads can be written in terms of two matrices instead of four, <span class="math-inline" data-math="W_Q^T \cdot W_k">W_Q^T \cdot W_k</span> and <span class="math-inline" data-math="W_{out} \cdot W_v">W_{out} \cdot W_v</span>. In the previous two questions, you gave interpretations to these matrices. Now write out an attention head with only reference to them.</li>
+          </ul>
         
       
     
       
         
-          <div class="list-content">这些矩阵的秩是多少？</div>
+          <ul>
+            <li>这些矩阵的秩是多少？</li>
+          </ul>
         
       
     
       
         
-          <div class="list-content">你想知道某个注意力头是否正在读取前一个注意力头的输出。这时 <span class="math-inline" data-math="W_V^2 \cdot W_{out}^1">W_V^2 \cdot W_{out}^1</span> 能告诉你什么？其奇异值又能告诉你什么？</div>
+          <ul>
+            <li>你想知道某个注意力头是否正在读取前一个注意力头的输出。这时 <span class="math-inline" data-math="W_V^2 \cdot W_{out}^1">W_V^2 \cdot W_{out}^1</span> 能告诉你什么？其奇异值又能告诉你什么？</li>
+          </ul>
         
       
     
@@ -85,7 +91,9 @@
     
       
         
-          <div class="list-content">(a) 写出 head 1 的 <span class="math-inline" data-math="W_V^1">W_V^1</span> 和 <span class="math-inline" data-math="W_{out}^1">W_{out}^1</span>，使得该头将其输入的第 0-3 维复制到输出的第 8-11 维。(b) 写出 head 2 的 <span class="math-inline" data-math="W_V^2">W_V^2</span> 和 <span class="math-inline" data-math="W_{out}^2">W_{out}^2</span>，使得它再复制前一个 token 的 3 个维度，并从两个 token 之前复制 1 个维度（使用被前一个头写入的那个维度）。(c) 展开 <span class="math-inline" data-math="W_{\text{net}}^1 = W_{out}^1 \cdot W_V^1">W_{\text{net}}^1 = W_{out}^1 \cdot W_V^1</span> 和 <span class="math-inline" data-math="W_{\text{net}}^2 = W_{out}^2 \cdot W_V^2">W_{\text{net}}^2 = W_{out}^2 \cdot W_V^2</span>。这些矩阵告诉你什么？(d) 展开以下矩阵：Two token copy: <span class="math-inline" data-math="W_{\text{net}}^2 \cdot W_{\text{net}}^1">W_{\text{net}}^2 \cdot W_{\text{net}}^1</span>。One token copy: <span class="math-inline" data-math="W_{\text{net}}^2 \cdot \text{Id} ~+~ \text{Id} \cdot W_{\text{net}}^1">W_{\text{net}}^2 \cdot \text{Id} ~+~ \text{Id} \cdot W_{\text{net}}^1</span>。观察：当我们通常考虑一个注意力头时，它需要把全部容量都用于一个任务。在这个例子中，两个头把 7/8 的容量用于一个任务，把 1/8 的容量用于另一个任务。</div>
+          <ul>
+            <li>(a) Write down <span class="math-inline" data-math="W_V^1">W_V^1</span> and <span class="math-inline" data-math="W_{out}^1">W_{out}^1</span> for head 1, such that the head copies dimensions 0-3 of its input to 8-11 in its output.</li><li>(b) Write down <span class="math-inline" data-math="W_V^2">W_V^2</span> and <span class="math-inline" data-math="W_{out}^2">W_{out}^2</span> for head 2, such that it copies 3 more dimensions of the previous token, and one dimension from two tokens ago (using a dimension written to by the previous head).</li><li>(c) Expand out <span class="math-inline" data-math="W_{\text{net}}^1 = W_{out}^1 \cdot W_V^1">W_{\text{net}}^1 = W_{out}^1 \cdot W_V^1</span> and <span class="math-inline" data-math="W_{\text{net}}^2 = W_{out}^2 \cdot W_V^2">W_{\text{net}}^2 = W_{out}^2 \cdot W_V^2</span>. What do these matrices tell you?</li><li>(d) Expand out the following matrices: Two token copy: <span class="math-inline" data-math="W_{\text{net}}^2 \cdot W_{\text{net}}^1">W_{\text{net}}^2 \cdot W_{\text{net}}^1</span>. One token copy: <span class="math-inline" data-math="W_{\text{net}}^2 \cdot \text{Id} ~+~ \text{Id} \cdot W_{\text{net}}^1">W_{\text{net}}^2 \cdot \text{Id} ~+~ \text{Id} \cdot W_{\text{net}}^1</span>.</li><li>Observation: When we think of an attention head normally, they need to dedicate all their capacity to one task. In this case, the two heads dedicated 7/8ths of their capacity to one task and 1/8th to another.</li>
+          </ul>
         
       
     
@@ -104,7 +112,9 @@
     
       
         
-          <div class="list-content">(a) 令 <span class="math-inline" data-math="u^{\text{cont}}_0, ~~ u^{\text{cont}}_1, ~~ \ldots ~~ u^{\text{cont}}_n">u^{\text{cont}}_0, ~~ u^{\text{cont}}_1, ~~ \ldots ~~ u^{\text{cont}}_n</span> 为内容嵌入的主成分。写出一个注意力头（查询和键均为 4 维）的 <span class="math-inline" data-math="W_Q">W_Q</span> 和 <span class="math-inline" data-math="W_K">W_K</span>，使其选择与当前 token 内容相似的 token（包括当前 token 本身）。(b) 令 <span class="math-inline" data-math="u^{\cos}_0, ~ u^{\sin}_0, ~ u^{\cos}_1, ~ u^{\sin}_1, ~ ...">u^{\cos}_0, ~ u^{\sin}_0, ~ u^{\cos}_1, ~ u^{\sin}_1, ~ ...</span> 是一组基向量，用于描述位置嵌入，它由对 token 位置进行正弦和余弦编码的向量（例如 <span class="math-inline" data-math="\lambda\cos(\alpha_0 n_{tok})">\lambda\cos(\alpha_0 n_{tok})</span>）按幅度递减排列而成。写出一个注意力头（查询和键均为 4 维）的 <span class="math-inline" data-math="W_Q">W_Q</span> 和 <span class="math-inline" data-math="W_K">W_K</span>，使其选择当前 token 的位置。（即自我选择当前 token 位置）(c) 使用 (b) 中描述的位置嵌入基，写出一个注意力头（查询和键均为 4 维）的 <span class="math-inline" data-math="W_Q">W_Q</span> 和 <span class="math-inline" data-math="W_K">W_K</span>，使其选择*前一个* token 的位置。提示：思考二维旋转矩阵。(d) 写出一个注意力头（查询和键均为 8 维）的 <span class="math-inline" data-math="W_Q">W_Q</span> 和 <span class="math-inline" data-math="W_K">W_K</span>，使其选择与当前 token 内容相似的 token，但不倾向于关注自身。提示：参考 (b)，并为键和查询额外使用 4 个维度。(e) 为 (d) 中描述的注意力头写出 <span class="math-inline" data-math="W_V">W_V</span> 和 <span class="math-inline" data-math="W_{out}">W_{out}</span>，使它从所关注的 token 中提取位置嵌入中最大的 8 个维度，并将其写入向量 <span class="math-inline" data-math="v_0, v_1, ...">v_0, v_1, ...</span>。(f) 写出一个注意力头的 <span class="math-inline" data-math="W_Q">W_Q</span> 和 <span class="math-inline" data-math="W_K">W_K</span>，使其关注当前 token 上一次出现之后的那个 token。提示：使用 (e) 中头的输出以及你在 (c) 中使用的策略。</div>
+          <ul>
+            <li>(a) Let <span class="math-inline" data-math="u^{\text{cont}}_0, ~~ u^{\text{cont}}_1, ~~ \ldots ~~ u^{\text{cont}}_n">u^{\text{cont}}_0, ~~ u^{\text{cont}}_1, ~~ \ldots ~~ u^{\text{cont}}_n</span> be the principal components of the content embedding. Write <span class="math-inline" data-math="W_Q">W_Q</span> and <span class="math-inline" data-math="W_K">W_K</span> for an attention head (with 4 dimensional queries and keys) selecting tokens with similar content to the present token, including the present token itself.</li><li>(b) Let <span class="math-inline" data-math="u^{\cos}_0, ~ u^{\sin}_0, ~ u^{\cos}_1, ~ u^{\sin}_1, ~ ...">u^{\cos}_0, ~ u^{\sin}_0, ~ u^{\cos}_1, ~ u^{\sin}_1, ~ ...</span> be a basis describing the position embedding in terms of vectors that code for the sine and cosine embedding of the token position (eg. <span class="math-inline" data-math="\lambda\cos(\alpha_0 n_{tok})">\lambda\cos(\alpha_0 n_{tok})</span>) with descending magnitudes. Write <span class="math-inline" data-math="W_Q">W_Q</span> and <span class="math-inline" data-math="W_K">W_K</span> for an attention head (with 4 dimensional queries and keys) that self-selects the present token position.</li><li>(c) Using the position embedding basis described in (b), write <span class="math-inline" data-math="W_Q">W_Q</span> and <span class="math-inline" data-math="W_K">W_K</span> for an attention head (with 4 dimensional queries and keys) that self-selects the *previous* token position. Hint: think about a 2D rotation matrix.</li><li>(d) Write <span class="math-inline" data-math="W_Q">W_Q</span> and <span class="math-inline" data-math="W_K">W_K</span> for an attention head (with 8 dimensional queries and keys) selecting tokens with similar content to the present token, but disprefers attending to itself. Hint: refer to (b) and use extra 4 dimensions for keys and queries.</li><li>(e) Write down <span class="math-inline" data-math="W_V">W_V</span> and <span class="math-inline" data-math="W_{out}">W_{out}</span> for the attention head you described in (d), such that it extracts the largest 8 dimensions of the position embedding from the token it attends to, and writes them to the vectors <span class="math-inline" data-math="v_0, v_1, ...">v_0, v_1, ...</span>.</li><li>(f) Write <span class="math-inline" data-math="W_Q">W_Q</span> and <span class="math-inline" data-math="W_K">W_K</span> for an attention head which attends to the token after a previous copy of the present token. Hint: use the outputs of the head from (e) and the strategy you used in (c).</li>
+          </ul>
         
       
     

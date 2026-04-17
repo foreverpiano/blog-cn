@@ -82,7 +82,23 @@
     
       
         
-          <div class="list-content">在每条用户消息（包括工具响应）之后，添加一条系统消息，说明当前上下文窗口已消耗和可用的 token 数量。在这条系统消息中，我们还会附上最新的可读取文件列表。超过 10,000 token 的用户消息和工具响应会被转换成一个新的“虚拟文件”，只有前 1,000 token 会放入上下文窗口。Agent 如果需要读取超出这 1,000 token 的内容，必须使用文件操作工具（1k 和 10k 都是可配置的值）。为 Agent 增加一组始终可用的“基础工具”，特别包括虚拟文件操作工具，因为我们终于意识到，大多数 Agent 如果没有大量几乎隐形的内部工具就无法正常工作。这些工具包括 file_read（可读取整个文件、指定行范围或字节范围）和 file_regex（类似，但可对文件执行正则匹配，限制最大匹配次数）。每次使用文件都会记录在文件数据中，让 Agent 清楚哪些内容已被读入上下文窗口（对预加载文件尤其重要），大致结构如下：这个功能实现起来出乎意料地麻烦，主要是因为我是在这个兼职项目迭代了好几个月后才想到这个方案的。如果能重新开始，我会从一开始就把文件作为核心内部概念，而不是后来再叠加上去。当某条消息将上下文窗口占用推高到模型可用容量的 80%（可配置）以上时，触发 Reddit 上提到的 Claude Code 使用的压缩 prompt。这个 prompt 本身并不特别，只是现成的而且效果不错。压缩完成后，将之前的上下文窗口整体保存为一个虚拟文件，以便 Agent 后续可以找回可能丢失的上下文片段。</div>
+          <ol>
+            <li>After every user message (including tool responses), add a system message with the consumed and available tokens
+in the context window. In that system message, we also include the updated list of available files that can
+be read from</li><li>User messages and tool responses greater than 10,000 tokens are exposed as a new “virtual file”, with only
+their first 1,000 tokens included in the context window. The agent must use file manipulation tools to read more than
+those first 1,000 tokens (both 1k and 10k are configurable values)</li><li>Add a set of “base tools” that are always available to agents, specifically including the virtual file manipulation tools,
+as we’d finally reached a point where most agents simply could not operate without a large number of mostly invisible internal
+tools. These tools were file_read which can read entire files, lines ranges within a file, or byte ranges within a file,
+and file_regex which is similar but performs a regex scan against a file up to a certain number of matches.Every use of a file is recorded in the files data, so the agent knows what has and hasn’t been read into
+the context window (particularly relevant for preloaded files), along the lines of:This was surprisingly annoying to implement cleanly, mostly because I came onto this
+idea after iteratively building the agent as a part-time project for several months.
+If I could start over, I would start with files as a core internal construct, rather
+than adding it on later.</li><li>If a message pushed us over 80% (configurable value) of the model’s available context window,
+use the compaction prompt that Reddit claims Claude Code uses.
+The prompt isn’t particularly special, it just already exists and seems pretty good</li><li>After compacting, add the prior context window as a virtual file to allow the agent to retrieve pieces of context
+that it might have lost</li>
+          </ol>
         
       
     

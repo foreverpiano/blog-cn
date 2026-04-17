@@ -44,7 +44,9 @@
     
       
         
-          <div class="list-content">调度（Scheduling）是决定任务是否应该运行以及何时运行。编排（Orchestration）则是决定任务在哪里以及如何运行。</div>
+          <ul>
+            <li>Scheduling is deciding when and whether a task should run.</li><li>Orchestration is deciding where and how a task should run.</li>
+          </ul>
         
       
     
@@ -62,7 +64,20 @@
     
       
         
-          <div class="list-content">语言无关——我们希望有一个统一的框架，能够为我们使用的所有编程语言运行定期任务，而不是为每种语言单独部署一套。熟悉的部署范式——正确做好部署（包括代码审查、静态检查、回滚等）本身就很难，我们更倾向于对定期任务和长期运行的服务采用同一套部署方式和机制。这一点既出于杠杆效应（我们可以在一个地方提升所有人的体验），也出于培训和推广的考虑。可靠性——这些都是业务关键任务，调度和编排组件都必须可靠且可预测。可复用——理想情况下，我们能用同一套编排器同时服务定期任务和长期运行任务。这能降低维护开销，让我们更快积累运维经验，也为后续基于装箱（bin-packing）的集群效率优化留下空间。避免厂商锁定——最好找到一个不依赖特定云厂商的方案，例如不采用 AWS、GCP 或 Azure 的专有云服务。</div>
+          <ul>
+            <li>Language agnostic - we’d like to have one framework which can run
+periodic tasks for all programming languages we use, not have to deploy
+one for each language.</li><li>Familiar deployment paradigm - getting deployment right (with code review,
+linting, rollbacks, etc) is hard, and we’d prefer to use a single deployment
+paradigm and mechanism for periodic and long-running processes if possible.
+This is important both from a leverage perspective (we can improve everyone’s
+experience in one place), and also from a training and adoption perspective.</li><li>Reliable - these are business critical tasks, and the scheduling and
+orchestration components both need to be reliable and predictable.</li><li>Reusible - ideally we could use the same orchestrator for both our
+periodic tasks and long-running ones. This will reduce our maintenance overhead,
+allow us to gain operational expertise more quickly, and also leave the door
+open to bin-packing based fleet efficiency optimization further down the line.</li><li>No vendor lock-in - ideally we’d find a solution that doesn’t require vendor
+lock-in, e.g. proprietary cloud solutions from AWS, GCP or Azure.</li>
+          </ul>
         
       
     
@@ -72,21 +87,9 @@
     
       
         
-          <div class="list-content">AWS Lambda 结合 Scheduled Events 是一个云端解决方案，能够满足大部分常规使用场景，在调度和编排两方面均能提供支持。它在灵活性上不算特别突出，但提供了类似 cron 的基础能力。如果你刚好在使用它支持的语言（Node.js、Java、C#、Python），那可能已经足够了。（如果你需要在编排层获得更多灵活性，也可以使用 Amazon EC2 Container Service 和 AWS Lambda 的混合方案。）
-
-Google 的 Cloud Functions 可以搭配 App Engine Cron Service，并通过 Google Cloud Pub/Sub 进行协调，从而获得与 AWS Lambda Scheduled Events 类似甚至完全一致的调度行为，只是需要调用的组件更多一些。目前 Cloud Functions 对语言的支持仍有限，仅支持 Node.js 运行时，不过可以预期未来会逐步增加。（当然，你也可以发挥创意，让任务去调用已运行的服务，从而突破 Cloud Compute 的语言限制。）
-
-Chronos 是一个运行在 Mesos 之上的调度器，它同时帮你处理了调度和编排两部分，并在两方面都提供了不错的灵活性。运行 Mesos 本身有一定复杂度，但如果你已经具备运维 Mesos 的经验，这会是一个很好的选择。
-
-Kubernetes 的 Cron Jobs 提供了与 Chronos 类似的方案，只不过运行在 Kubernetes 而非 Mesos 上，适合已经部署了 Kubernetes 的组织。
-
-cron 至今仍被广泛用作调度器。如果你将其运行在预制的 AMI 上，并置于大小为 1 的 Auto Scaling Group 中，那么可以依靠 ASG 来完成“选举”，确保只有一个实例在运行。虽然存在单点故障，但系统恢复速度相对较快。它的缺点是不提供任何编排原语，因此你仍需要将其与另一套系统集成来处理编排（例如在 Amazon EC2 Container Service 上启动容器，或调用 AWS Lambda）。好处是你可以继续使用现有的服务器镜像和部署策略。
-
-Python Celery 被许多 Python 团队用来实现这类功能，但它在调度方面面临与 cron 类似的问题，且编排功能较为简单，同时仅限于 Python（不过我最近发现了一个用 Go 实现的 Celery worker，实在令人惊讶）。在这个类别里，无论在 Python 还是其他语言生态中，都存在大量类似的解决方案。
-
-Dkron 是一个纯粹的调度器，旨在提供容错的调度能力，即使部分节点失效也能正常工作（即替你解决了领导者选举和领导者切换的问题，而不需要自己基于 Zookeeper 等自行实现）。它还提供了一个不错的 UI，不过根据你的安全和合规要求，这个 UI 可能是利弊共存。
-
-Bistro 大体上也属于这个领域，但它更侧重于对集群中每台资源都运行一次任务，而不是在集群中某台资源上只运行一次任务。</div>
+          <ol>
+            <li>AWS Lambda 结合 Scheduled Events 是一个云端解决方案，能够满足大部分常规使用场景，在调度和编排两方面均能提供支持。它在灵活性上不算特别突出，但提供了类似 cron 的基础能力。如果你刚好在使用它支持的语言（Node.js、Java、C#、Python），那可能已经足够了。（如果你需要在编排层获得更多灵活性，也可以使用 Amazon EC2 Container Service 和 AWS Lambda 的混合方案。）</li><li>Google 的 Cloud Functions 可以搭配 App Engine Cron Service，并通过 Google Cloud Pub/Sub 进行协调，从而获得与 AWS Lambda Scheduled Events 类似甚至完全一致的调度行为，只是需要调用的组件更多一些。目前 Cloud Functions 对语言的支持仍有限，仅支持 Node.js 运行时，不过可以预期未来会逐步增加。（当然，你也可以发挥创意，让任务去调用已运行的服务，从而突破 Cloud Compute 的语言限制。）</li><li>Chronos 是一个运行在 Mesos 之上的调度器，它同时帮你处理了调度和编排两部分，并在两方面都提供了不错的灵活性。运行 Mesos 本身有一定复杂度，但如果你已经具备运维 Mesos 的经验，这会是一个很好的选择。</li><li>Kubernetes 的 Cron Jobs 提供了与 Chronos 类似的方案，只不过运行在 Kubernetes 而非 Mesos 上，适合已经部署了 Kubernetes 的组织。</li><li>cron 至今仍被广泛用作调度器。如果你将其运行在预制的 AMI 上，并置于大小为 1 的 Auto Scaling Group 中，那么可以依靠 ASG 来完成“选举”，确保只有一个实例在运行。虽然存在单点故障，但系统恢复速度相对较快。它的缺点是不提供任何编排原语，因此你仍需要将其与另一套系统集成来处理编排（例如在 Amazon EC2 Container Service 上启动容器，或调用 AWS Lambda）。好处是你可以继续使用现有的服务器镜像和部署策略。</li><li>Python Celery 被许多 Python 团队用来实现这类功能，但它在调度方面面临与 cron 类似的问题，且编排功能较为简单，同时仅限于 Python（不过我最近发现了一个用 Go 实现的 Celery worker，实在令人惊讶）。在这个类别里，无论在 Python 还是其他语言生态中，都存在大量类似的解决方案。</li><li>Dkron 是一个纯粹的调度器，旨在提供容错的调度能力，即使部分节点失效也能正常工作（即替你解决了领导者选举和领导者切换的问题，而不需要自己基于 Zookeeper 等自行实现）。它还提供了一个不错的 UI，不过根据你的安全和合规要求，这个 UI 可能是利弊共存。</li><li>Bistro 大体上也属于这个领域，但它更侧重于对集群中每台资源都运行一次任务，而不是在集群中某台资源上只运行一次任务。</li>
+          </ol>
         
       
     

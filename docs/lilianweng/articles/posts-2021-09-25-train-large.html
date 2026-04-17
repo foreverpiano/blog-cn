@@ -40,35 +40,27 @@
     
       
         
-          <div class="list-content">训练并行策略
+          <ul>
+            <li>Training Parallelism
 
-数据并行
+Data Parallelism
 
-模型并行
+Model Parallelism
 
-流水线并行
+Pipeline Parallelism
 
-张量并行
+Tensor Parallelism</li><li>Mixture-of-Experts (MoE)</li><li>Other Memory Saving Designs
 
+CPU Offloading
 
-专家混合（Mixture-of-Experts, MoE）
+Activation Recomputation
 
-其他节省显存的设计
+Mixed Precision Training
 
-CPU 卸载
+Compression
 
-激活值重计算
-
-混合精度训练
-
-压缩
-
-显存高效优化器
-
-
-引用
-
-参考文献</div>
+Memory Efficient Optimizer</li><li>Citation</li><li>References</li>
+          </ul>
         
       
     
@@ -117,8 +109,9 @@ CPU 卸载
     
       
         
-          <div class="list-content">批量同步并行（Bulk Synchronous Parallel, BSP）：每个小批量结束时所有工作节点同步数据。它能防止模型权重陈旧，保证良好的学习效率，但每台机器都必须停下来等待其他机器传送梯度。
-异步并行（Asynchronous Parallel, ASP）：每个 GPU 工作节点异步处理数据，无需等待或停顿。然而，这容易导致使用陈旧的权重，从而降低统计学习效率。虽然增加了计算时间，但整体训练收敛时间未必能加快。</div>
+          <ol>
+            <li>批量同步并行（Bulk Synchronous Parallel, BSP）：每个小批量结束时所有工作节点同步数据。它能防止模型权重陈旧，保证良好的学习效率，但每台机器都必须停下来等待其他机器传送梯度。</li><li>异步并行（Asynchronous Parallel, ASP）：每个 GPU 工作节点异步处理数据，无需等待或停顿。然而，这容易导致使用陈旧的权重，从而降低统计学习效率。虽然增加了计算时间，但整体训练收敛时间未必能加快。</li>
+          </ol>
         
       
     
@@ -206,8 +199,9 @@ CPU 卸载
     
       
         
-          <div class="list-content">权重暂存（Weight stashing）：每个工作节点保存多个模型版本，确保对同一个数据批次，前向和反向使用相同版本的权重。
-垂直同步（可选）：模型权重的版本随激活值和梯度一起在 stage 工作节点间流动。随后计算会采用从前一个工作节点传播过来的对应暂存版本。这样可以保持跨工作节点的版本一致性。注意它是异步的，与 GPipe 不同。</div>
+          <ul>
+            <li>权重暂存（Weight stashing）：每个工作节点保存多个模型版本，确保对同一个数据批次，前向和反向使用相同版本的权重。</li><li>垂直同步（可选）：模型权重的版本随激活值和梯度一起在 stage 工作节点间流动。随后计算会采用从前一个工作节点传播过来的对应暂存版本。这样可以保持跨工作节点的版本一致性。注意它是异步的，与 GPipe 不同。</li>
+          </ul>
         
       
     
@@ -330,8 +324,9 @@ Y &amp;=\text{GeLU}(XA) \\
     
       
         
-          <div class="list-content"><span class="math-inline" data-math="n">n</span> 个前馈网络作为专家 <span class="math-inline" data-math="\{E_i\}^n_{i=1}">\{E_i\}^n_{i=1}</span>
-一个可训练的门控网络 <span class="math-inline" data-math="G">G</span>，它会学习在 <span class="math-inline" data-math="n">n</span> 个专家上的概率分布，从而将输入路由到少数选定的专家。</div>
+          <ul>
+            <li><span class="math-inline" data-math="n">n</span> 个前馈网络作为专家 <span class="math-inline" data-math="\{E_i\}^n_{i=1}">\{E_i\}^n_{i=1}</span></li><li>一个可训练的门控网络 <span class="math-inline" data-math="G">G</span>，它会学习在 <span class="math-inline" data-math="n">n</span> 个专家上的概率分布，从而将输入路由到少数选定的专家。</li>
+          </ul>
         
       
     
@@ -409,10 +404,9 @@ L_\text{aux} = w_\text{aux} \cdot \text{CV}(\sum_{x \in X} G(x))^2
     
       
         
-          <div class="list-content">专家容量（Expert capacity）：通过一个专家的 token 数量不能超过某个阈值，称为“专家容量”。如果一个 token 被路由到已达容量上限的专家，则该 token 会被标记为“overflowed”，门控输出改为零向量。
-本地分组派发（Local group dispatching）：将 token 均匀划分到多个本地组，在组级别上强制执行专家容量限制。
-辅助损失（Auxiliary loss）：动机与原始 MoE 的辅助损失类似，添加一个辅助损失来最小化路由到每个专家的数据比例的均方。
-随机路由（Random routing）：以权重为比例选择第 2 优的专家；否则采用随机路由，从而引入一定随机性。</div>
+          <ul>
+            <li>专家容量（Expert capacity）：通过一个专家的 token 数量不能超过某个阈值，称为“专家容量”。如果一个 token 被路由到已达容量上限的专家，则该 token 会被标记为“overflowed”，门控输出改为零向量。</li><li>本地分组派发（Local group dispatching）：将 token 均匀划分到多个本地组，在组级别上强制执行专家容量限制。</li><li>辅助损失（Auxiliary loss）：动机与原始 MoE 的辅助损失类似，添加一个辅助损失来最小化路由到每个专家的数据比例的均方。</li><li>随机路由（Random routing）：以权重为比例选择第 2 优的专家；否则采用随机路由，从而引入一定随机性。</li>
+          </ul>
         
       
     
@@ -440,9 +434,9 @@ L_\text{aux} = w_\text{aux} \cdot \text{CV}(\sum_{x \in X} G(x))^2
     
       
         
-          <div class="list-content">选择性精度。他们发现只将模型的局部部分转换为 FP32 精度可以改善稳定性，同时避免了 FP32 张量昂贵的通信开销。FP32 精度仅在 router 函数内部使用，结果会被重新转换回 FP16。
-更小的初始化。权重矩阵的初始化采样自均值为 <span class="math-inline" data-math="\mu=0">\mu=0</span>、标准差为 <span class="math-inline" data-math="\sigma = \sqrt{s/n}">\sigma = \sqrt{s/n}</span> 的截断正态分布。他们还建议将 Transformer 的初始化缩放参数 <span class="math-inline" data-math="s=1">s=1</span> 降低到 <span class="math-inline" data-math="s=0.1">s=0.1</span>。
-使用更高的专家 dropout。微调通常使用较小的数据集。为了防止过拟合，每个专家内部的 dropout 率被显著提高。有趣的是，他们发现如果在所有层都提高 dropout 反而会导致性能变差。在论文中，他们在非专家层使用 0.1 的 dropout，而在专家 FF 层使用 0.4。</div>
+          <ul>
+            <li>选择性精度。他们发现只将模型的局部部分转换为 FP32 精度可以改善稳定性，同时避免了 FP32 张量昂贵的通信开销。FP32 精度仅在 router 函数内部使用，结果会被重新转换回 FP16。</li><li>更小的初始化。权重矩阵的初始化采样自均值为 <span class="math-inline" data-math="\mu=0">\mu=0</span>、标准差为 <span class="math-inline" data-math="\sigma = \sqrt{s/n}">\sigma = \sqrt{s/n}</span> 的截断正态分布。他们还建议将 Transformer 的初始化缩放参数 <span class="math-inline" data-math="s=1">s=1</span> 降低到 <span class="math-inline" data-math="s=0.1">s=0.1</span>。</li><li>使用更高的专家 dropout。微调通常使用较小的数据集。为了防止过拟合，每个专家内部的 dropout 率被显著提高。有趣的是，他们发现如果在所有层都提高 dropout 反而会导致性能变差。在论文中，他们在非专家层使用 0.1 的 dropout，而在专家 FF 层使用 0.4。</li>
+          </ul>
         
       
     
@@ -601,9 +595,9 @@ M(\ell)
     
       
         
-          <div class="list-content">全精度主权重副本。维护一份全精度（FP32）的模型权重副本用于累积梯度。在前向和反向传播时将数值四舍五入为半精度。动机是每个梯度更新（即梯度乘以学习率）可能太小，无法完全容纳在 FP16 的表示范围内（即 <span class="math-inline" data-math="2^{-24}">2^{-24}</span> 在 FP16 中会变成零）。
-损失缩放。将损失放大以更好地处理幅度很小的梯度（见图 16）。放大梯度有助于将其移动到可表示范围中数值更大的右侧区域，从而保留原本会丢失的值。
-算术精度。对于常见的网络运算（例如向量点积、对向量元素求和归约），我们可以先用 FP32 累积中间结果，最后在存入内存前再保存为 FP16。逐元素操作可以在 FP16 或 FP32 下执行。</div>
+          <ul>
+            <li>全精度主权重副本。维护一份全精度（FP32）的模型权重副本用于累积梯度。在前向和反向传播时将数值四舍五入为半精度。动机是每个梯度更新（即梯度乘以学习率）可能太小，无法完全容纳在 FP16 的表示范围内（即 <span class="math-inline" data-math="2^{-24}">2^{-24}</span> 在 FP16 中会变成零）。</li><li>损失缩放。将损失放大以更好地处理幅度很小的梯度（见图 16）。放大梯度有助于将其移动到可表示范围中数值更大的右侧区域，从而保留原本会丢失的值。</li><li>算术精度。对于常见的网络运算（例如向量点积、对向量元素求和归约），我们可以先用 FP32 累积中间结果，最后在存入内存前再保存为 FP16。逐元素操作可以在 FP16 或 FP32 下执行。</li>
+          </ul>
         
       
     
@@ -656,8 +650,9 @@ M(\ell)
     
       
         
-          <div class="list-content">大部分显存被模型状态占用，包括优化器状态（例如 Adam 的动量和方差）、梯度和参数。混合精度训练会消耗大量显存，因为除了 FP16 版本外，优化器还需要保存一份 FP32 参数以及其他优化器状态。
-剩余部分被激活值、临时缓冲区和无法使用的碎片化内存（论文中称为残余状态）占用。</div>
+          <ol>
+            <li>大部分显存被模型状态占用，包括优化器状态（例如 Adam 的动量和方差）、梯度和参数。混合精度训练会消耗大量显存，因为除了 FP16 版本外，优化器还需要保存一份 FP32 参数以及其他优化器状态。</li><li>剩余部分被激活值、临时缓冲区和无法使用的碎片化内存（论文中称为残余状态）占用。</li>
+          </ol>
         
       
     

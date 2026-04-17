@@ -90,7 +90,15 @@
     
       
         
-          <div class="list-content">调用LLM API的程序设计者必须同时定义一组允许LLM建议使用的工具。每次对LLM的API调用都会包含这组已定义的工具，作为LLM可以推荐的选项。带有已定义函数的API调用响应可能是以下两种之一：像其他LLM调用一样生成的文本；或者推荐调用某个特定工具并带有一组特定参数。例如，一个知道get_weather工具的LLM，在被问到巴黎天气时，可能会返回这样的响应：调用LLM API的程序随后决定是否以及如何满足这个工具使用请求。程序可能会因为该工具最近使用过于频繁而拒绝请求（例如进行限流），它可能会检查关联用户是否有权限使用该工具（例如这可能是仅限高级用户的工具），它还可能检查参数是否符合用户的基于角色的权限（例如用户可以查询天气，但只有管理员才能查询法国的天气）。如果程序决定调用工具，它就会调用该工具，然后用工具的输出追加到先前调用的上下文窗口中，再次调用LLM API。</div>
+          <ol>
+            <li>The program designer that calls the LLM API must also define a set of tools that the LLM is allowed to suggest using.</li><li>Every API call to the LLM includes that defined set of tools as options that the LLM is allowed to recommend</li><li>The response from the API call with defined functions is either:Generated text as any other call to an LLM might provideA recommendation to call a specific tool with a specific set of parameters, e.g. an LLM that knows about a
+get_weather tool, when prompted about the weather in Paris, might return this response:</li><li>The program that calls the LLM API then decides whether and how to honor that requested tool use.
+The program might decide to reject the requested tool because it’s been used too frequently recently (e.g. rate limiting),
+it might check if the associated user has permission to use the tool (e.g. maybe it’s a premium only tool),
+it might check if the parameters match the user’s role-based permissions as well (e.g. the user can check weather, but only admin users
+are allowed to check weather in France).</li><li>If the program does decide to call the tool, it invokes the tool, then calls the LLM API with the output of the tool
+appended to the prior call’s context window.</li>
+          </ol>
         
       
     
@@ -108,7 +116,11 @@
     
       
         
-          <div class="list-content">基于规则的流程控制对工具如何使用有具体的规则。一些例子包括：它可能只允许某个工具在给定工作流中被使用一次（或对每个用户设置工具使用上限等）；它可能要求人类在环（human-in-the-loop）批准超过某个值的参数（例如超过100美元的退款需要人工批准）；它可能运行一个生成的Python程序并返回输出以分析数据集（或者如果失败则提供错误信息）；对工具使用应用权限系统，限制谁可以使用哪些工具，以及给定用户能够使用的参数（例如你只能检索自己的个人数据）；升级到人类代表的工具只能在与LLM智能体进行了五轮来回对话后才能被调用。基于统计的流程控制可以使用统计数据来识别并对异常行为采取行动：如果退款金额高于同等订单规模下99%的其他退款，你可能想升级到人工处理；如果用户使用某个工具的频率高于99%的其他用户，那么你可能想拒绝其当天剩余时间的访问；如果工具参数与之前需要升级到人工智能体的参数更为相似，它可能会升级到人类代表。</div>
+          <ol>
+            <li>Flow control via rules has concrete rules about how tools can be used.
+Some examples:it might only allow a given tool to be used once in a given workflow (or a usage limit of a tool for each user, etc)it might require that a human-in-the-loop approves parameters over a certain value (e.g. refunds more than $100 require human approval)it might run a generated Python program and return the output to analyze a dataset (or provide error messages if it fails)apply a permission system to tool use, restricting who can use which tools and
+which parameters a given user is able to use (e.g. you can only retrieve your own personal data)a tool to escalate to a human representative can only be called after five back and forths with the LLM agent</li><li>Flow control via statistics can use statistics to identify and act on abnormal behavior:if the size of a refund is higher than 99% of other refunds for the order size, you might want to escalate to a humanif a user has used a tool more than 99% of other users, then you might want to reject usage for the rest of the dayit might escalate to a human representative if tool parameters are more similar to prior parameters that required escalation to a human agent</li>
+          </ol>
         
       
     
@@ -122,7 +134,9 @@
     
       
         
-          <div class="list-content">构建通用上下文添加到上下文窗口，有时被认为是维护记忆；基于票务跟踪器、客户支持系统等传入的工单来启动工作流；定期在特定时间启动工作流，例如每小时审查传入的工单。</div>
+          <ol>
+            <li>Building general context to add to context window, sometimes thought of as maintaining memory</li><li>Initiating a workflow based on an incoming ticket in a ticket tracker, customer support system, etc</li><li>Periodically initiating workflows at a certain time, such as hourly review of incoming tickets</li>
+          </ol>
         
       
     
@@ -132,7 +146,9 @@
     
       
         
-          <div class="list-content">使用LLM评估上下文窗口并获得结果；使用LLM建议与上下文窗口相关的工具，然后用工具的响应丰富上下文窗口；通过规则或统计分析来管理工具使用的流程控制；智能体是软件程序，可以做其他软件程序能做的任何事情。</div>
+          <ol>
+            <li>Use an LLM to evaluate a context window and get a result</li><li>Use an LLM to suggest tools relevant to the context window, then enrich the context window with the tool’s response</li><li>Manage flow control for tool usage via rules or statistical analysis</li><li>Agents are software programs, and can do anything other software programs do</li>
+          </ol>
         
       
     
@@ -155,7 +171,21 @@
     
       
         
-          <div class="list-content">让工单（或支持聊天）流入AI智能体；为智能体提供各种工具来支持：检索用户信息（最近的客户支持工单、账户历史、账户状态等）；升级到下一层客户支持；退款购买（几乎肯定实现为“退款特定购买”，引用用户具体的购买记录，而不是“退款金额”，以防止智能体被骗退款过多）；根据请求关闭用户账户；在上下文窗口中包含客户支持指南，描述客户问题，将这些问题映射到应该用来解决问题的特定工具；流程控制规则，确保所有呼叫如果在一定时间内未解决、超过一定来回次数、遇到智能体错误等，都升级到人工。这些规则应该既基于规则也基于统计，确保规则中的漏洞既不可被利用，也不会造成糟糕的客户体验；审查智能体与客户的互动以进行质量控制，对提供给AI智能体的支持指南进行改进。最初你会想审查每一次互动，然后转向那些导致异常结果（例如升级到人工）的互动，并进行一定程度的随机抽样；每小时、然后每天、然后每周审查智能体性能指标；基于你从指标审查中获得的经验，你应该为需要更及时响应的警报设定基线。例如，如果一个新话题频繁出现，这可能意味着你的产品或流程出现了严重退化，需要立即审查而不是定期审查。</div>
+          <ol>
+            <li>Allow tickets (or support chats) to flow into an AI agent</li><li>Provide a variety of tools to the agent to support:Retrieving information about the user: recent customer support tickets, account history, account state, and so onEscalating to next tier of customer supportRefund a purchase (almost certainly implemented as “refund purchase” referencing a specific purchase by the user,
+rather than “refund amount” to prevent scenarios
+where the agent can be fooled into refunding too much)Closing the user account on request</li><li>Include customer support guidelines in the context window, describe customer problems, map those problems
+to specific tools that should be used to solve the problems</li><li>Flow control rules that ensure all calls escalate to a human if not resolved within a certain time period,
+number of back-and-forth exchanges,
+if they run into an error in the agent, and so on.
+These rules should be both rules-based and statistics-based, ensuring that gaps in your rules
+are neither exploitable nor create a terrible customer experience</li><li>Review agent-customer interactions for quality control, making improvements to the support guidelines
+provided to AI agents. Initially you would want to review every interaction, then move to interactions
+that lead to unusual outcomes (e.g. escalations to human) and some degree of random sampling</li><li>Review hourly, then daily, and then weekly metrics of agent performance</li><li>Based on your learnings from the metric reviews, you should set baselines for alerts
+which require more immediate response.
+For example, if a new topic comes up frequently, it probably means a serious regression
+in your product or process, and it requires immediate review rather than periodical review.</li>
+          </ol>
         
       
     
@@ -165,7 +195,9 @@
     
       
         
-          <div class="list-content">一层处理最复杂呼叫的人类智能体；审查定期性能统计的人类；对AI智能体与客户的互动进行质量控制的人类。</div>
+          <ul>
+            <li>a tier of human agents dealing with the most complex calls</li><li>humans reviewing the periodic performance statistics</li><li>humans performing quality control on AI agent-customer interactions</li>
+          </ul>
         
       
     
@@ -192,7 +224,29 @@
     
       
         
-          <div class="list-content">将所有创建的事件和所有创建的工单都输送给这个智能体进行审查。为智能体暴露以下工具：打开一个事件；检索当前事件；检索最近创建的工单；检索生产指标；检索部署日志；检索功能标志变更日志；切换已知安全的特征标志；提议将一个事件与另一个合并以供人工批准；提议将一个工单与另一个工单合并以供人工批准。对关键工作流使用冗余的LLM提供商。如果LLM提供商的API不可用，则在十秒内重试三次，然后转而使用第二个模型提供商（例如先用Anthropic，如果不可用则尝试OpenAI），最后创建一个事件说明分诊机制不可用。对于关键工作流，我们不能简单假设API会可用，因为实际上所有主要提供商似乎每月都会出现可用性问题。合并重复项。当一个工单进来时，首先检查正在进行的事件和最近创建的工单，看是否有潜在的重复。如果存在可能的重复，建议将工单或事件与现有问题合并并退出工作流。评估影响。如果生产统计数据受到严重影响，或者生产中出现了一种新的错误类型，那么这很可能是一个值得快速人工审查的问题。如果是高优先级，打开一个事件。如果是低优先级，创建一个工单。提出可能原因。现在事件已经 sizing 完成，切换到分析事件可能的原因。查看最近部署中的代码提交，并建议可能导致当前错误的问题。在某些情况下这会很明显（例如最近更改的某行代码出现错误激增并带有traceback），而在其他情况下这只是时间上的接近。应用已知安全的功能标志。建立一个已知安全的功能标志白名单，允许系统自行激活它们。例如，如果有一些昂贵但可以安全禁用的功能，它可以被允许禁用它们，例如在负载下限制对更深搜索结果的分页，这可能是稳定性和用户体验之间的合理权衡。将控制权交给人类。在这一点上，依靠人类来推动事件或工单的补救工作直到完成。起草初始事件报告。如果打开了一个事件，智能体应该起草一份包含时间线、相关变更以及事件过程中人类所采取活动的初始事件报告。这份报告随后应由参与事件的人类最终定稿。运行事件审查。你现有的事件审查流程应该接收事件审查，并决定如何修改你的系统，包括分诊智能体，以随着时间推移提高可靠性。对重新启用功能标志的保障措施。由于我们现在有一个会禁用功能标志的智能体，我们还需要添加一个定期检查（由智能体驱动或其他方式），以便在没有正在进行的事件时重新启用“已知安全”的功能标志，避免意外地将它们长时间禁用。</div>
+          <ol>
+            <li>Pipe all created incidents and all created tickets to this agent for review.</li><li>Expose these tools to the agent:Open an incidentRetrieve current incidentsRetrieve recently created ticketsRetrieve production metricsRetrieve deployment logsRetrieve feature flag change logsToggle known-safe feature flagsPropose merging an incident with another for human approvalPropose merging a ticket with another ticket for human approval</li><li>Redundant LLM providers for critical workflows. If the LLM provider’s API is unavailable, retry three times over ten seconds,
+then resort to using a second model provider (e.g. Anthropic first, if unavailable try OpenAI),
+and then finally create an incident that the triaging mechanism is unavailable.
+For critical workflows, we can’t simply assume the APIs will be available, because in practice
+all major providers seem to have monthly availability issues.</li><li>Merge duplicates. When a ticket comes in, first check ongoing incidents and recently created tickets
+for potential duplicates.
+If there is a probable duplicate, suggest merging the ticket or incident with the existing issue
+and exit the workflow.</li><li>Assess impact. If production statistics are severely impacted, or if there is a new kind of error in production,
+then this is likely an issue that merits quick human review.
+If it’s high priority, open an incident. If it’s low priority, create a ticket.</li><li>Propose cause. Now that the incident has been sized, switch to analyzing the potential causes
+of the incident. Look at the code commits in recent deploys and suggest potential issues that might
+have caused the current error. In some cases this will be obvious (e.g. spiking errors with a traceback
+of a line of code that changed recently), and in other cases it will only be proximity in time.</li><li>Apply known-safe feature flags. Establish an allow list of known safe feature flags that the system is
+allowed to activate itself. For example, if there are expensive features that are safe to disable, it could
+be allowed to disable them, e.g. restricting paginating through deeper search results when under load might
+be a reasonable tradeoff between stability and user experience.</li><li>Defer to humans. At this point, rely on humans to drive incident, or ticket, remediation to completion.</li><li>Draft initial incident report. If an incident was opened, the agent should draft an initial incident report
+including the timeline, related changes, and the human activities taken over the course of the incident.
+This report should then be finalized by the human involved in the incident.</li><li>Run incident review. Your existing incident review process should take the incident review and determine how
+to modify your systems, including the triaging agent, to increase reliability over time.</li><li>Safeguard to reenable feature flags. Since we now have an agent disabling feature flags, we also need to
+add a periodic check (agent-driven or otherwise) to reenable the “known safe” feature flags if there isn’t
+an ongoing incident to avoid accidentally disabling them for long periods of time.</li>
+          </ol>
         
       
     
@@ -202,7 +256,24 @@
     
       
         
-          <div class="list-content">人类在事件响应和审查中的角色将保持重要，只是得到这个智能体的辅助。这在审查流程中尤为真实，因为智能体无法解决审查流程——它关乎基于事件主动学习要做什么改变。你可以提出一个合理的论点，即智能体可以决定要做什么改变，然后将该规范交给另一个智能体去实现它。即使在今天，你也可以很容易想象低风险的变更（例如文案修改）被自动添加到工单中供人工批准。对更复杂或更有风险的变更这样做是可能的，但需要非凡的细心和细微差别：这与“只要添加智能体，事情就会变容易”的想法完全相反。相反，实现这种自动化将需要在约束变更上投入巨大的细心，以确保系统不会表现出不安全的行为。例如，我知道的一家初创公司将其领域逻辑用一个领域特定语言（DSL）来表示，这个DSL可以被LLM安全地生成，并且能够仅通过这个DSL来表示许多客户特定的功能。扩展已知安全功能标志的列表，使事件可以被补救。要广泛做到这一点将需要对软件开发方式强制执行非常具体的要求。即使狭义地做这件事，也需要进行变更以确保已知安全的功能标志在软件开发过程中保持安全。随着时间推移定期审查事件统计数据，以确保平均解决时间（MTTR）在下降。如果智能体真的在发挥作用，这应该会下降。如果智能体没有推动MTTR降低，那么它的实现细节中一定出了问题。</div>
+          <ol>
+            <li>The role of humans in incident response and review will remain significant, merely aided by this agent.
+This is especially true in the review process, where an agent cannot solve the review process because it’s
+about actively learning what to change based on the incident.You can make a reasonable argument that an agent could decide what to change and then hand that specification
+off to another agent to implement it.
+Even today, you can easily imagine low risk changes
+(e.g. a copy change) being automatically added to a ticket for human approval.Doing this for more complex, or riskier changes, is possible but requires an extraordinary degree of care and nuance:
+it is the polar opposite of the idea of “just add agents and things get easy.”
+Instead, enabling that sort of automation will require immense care in constraining changes to
+systems that cannot expose unsafe behavior. For example, one startup I know has represented their domain logic
+in a domain-specific language (DSL) that can be safely generated by an LLM, and are able to represent many customer-specific
+features solely through that DSL.</li><li>Expanding the list of known-safe feature flags to make incidents remediable.
+To do this widely will require enforcing very specific requirements for how software is developed.
+Even doing this narrowly will require changes to ensure the known-safe feature flags remain safe
+as software is developed.</li><li>Periodically reviewing incident statistics over time to ensure mean-time-to-resolution (MTTR) is decreasing.
+If the agent is truly working, this should decrease. If the agent isn’t driving a reduction in MTTR,
+then something is rotten in the details of the implementation.</li>
+          </ol>
         
       
     

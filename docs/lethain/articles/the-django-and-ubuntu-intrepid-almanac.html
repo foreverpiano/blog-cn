@@ -681,7 +681,110 @@ application = django.core.handlers.wsgi.WSGIHandler()
     
       
         
-          <div class="list-content">想办法获得一台 Ubuntu Intrepid 的服务器或 VPS（比如登录 SliceHost 控制台，申请一台运行 Ubuntu Intrepid 8.10 的 Slice）。记下 root 密码和服务器的 IP 地址。通过 SSH 登录服务器。更新 apt-get 软件源。确保系统上有一个你喜欢的编辑器。Vim 已经预装，但我更喜欢 Emacs……创建你需要的非 root 账户，其中一个用于运行 Django。除非你特别喜欢 sh，否则把默认 shell 改成更人性化的。（这些修改要下次登录时才会生效。）给你的账户（但不要给 django 账户）授予 root 权限。然后用方向键找到类似下面这一行：把你的用户名替换上去：打开另一个终端（在我们继续配置 SSH 的过程中，让第一个终端保持登录状态，以防出现严重问题），用新创建的非 root 用户 SSH 登录。确认可以正常登录后退出回到自己的电脑。现在该设置免密码登录了。回到你的本地电脑，现在退出并重新 SSH 登录，应该已经不需要输入密码了。现在该稍微收紧一下 SSH 配置了。做如下修改：并在文件末尾添加以下内容：保存文件，然后重启 ssh 服务。退出 VPS，再次尝试登录。如果成功，再次打开 /etc/ssh/sshd_config，在文件末尾追加这一行：再次重启 ssh 服务。最后，禁用 root 账户的密码登录。现在你的 VPS 只能通过已授权的账户和正确的 SSH 密钥从特定机器访问了。现在开始安装一些通用库。现在该配置 Postgres 了，首先需要安装一些依赖库。上面这条命令我确实需要执行两次才能成功安装，并不是打字错误。接下来需要配置 postgres 用户。（请确保使用的是真实密码，而不是上面示例里的“password”。）我们还需要修改 Postgres 的配置文件。移动到文件底部，把所有以 host 开头的行都注释掉（在行首加 #）。（这样可以防止外部直接访问数据库。）修改后应该类似这样：注意我们把第二行的 ident sameuser 改成了 password！然后重启 Postgres 让它重新加载配置。到此为止，Postgres 就已经配置好并正常运行了。现在该设置 memcached 了。这分为两步：第一步启动 memcached，非常简单；第二步编译 cmemcache，稍微麻烦一点。这条命令会让 memcached 在标准端口运行，使用标准的 www-data 用户（Ubuntu 默认用户），分配 32MB 内存。根据你预期要在 memcached 里存储的数据量以及 VPS 的内存大小，你可能需要调高这个值。接下来我们要安装 cmemcache。首先获取 libmemcache，然后实际编译 cmemcache。稍后在我们设置 virtualenv 的时候还会需要真正安装这个库。如果你无法成功安装 cmemcache，可以参考这些说明。或者，如果你想使用纯 Python 的 python-memcached（速度稍慢，但无需编译 C 模块），也可以这样做。我更推荐 cmemcache 主要是因为速度。但 python-memcached 也完全够用，如果你只能在“使用 python-memcached”和“不使用任何 memcached 缓存”之间二选一，那么选择前者毫无疑问是更好的。现在该安装 Nginx 了，它是一个轻量级服务器，我们用它来提供静态内容，并把动态请求反向代理给 Apache2。我们可以快速验证它是否安装成功。应该会返回：现在我们要稍微修改一下 nginx.conf 文件（基于这里的建议）。目前我们只需要做两个小改动，首先把第 2 行改成使用 4 个 worker 进程，然后把第 18 行取消注释。我们之后不用再修改这个文件了，因为最后一行 include /etc/nginx/sites-enabled/*；使得我们可以把每个站点的配置放在独立的文件里，大大减少了 nginx.conf 的杂乱。我们还需要创建一个 proxy.conf 文件，这是 Nginx 保持主配置文件干净的常见做法。内容如下：最后，停止并启动 Nginx（我不知道当前版本的 Nginx 是否还是这样，但历史上我从未成功通过 reload 或 restart 让它重新加载配置）。现在该配置 Apache2 了。首先安装必要的库。因为我们已经让 Nginx 绑定了 80 端口，所以它会报一点小错。不过不用担心，我们很快就能搞定。首先要把 Apache 配置成监听内部地址 127.0.0.1:80 而不是直接监听 80 端口。然后修改下面这些行：我们还要对 apache2.conf 做一点修改：找到 KeepAlive（大约在 77 行附近），把它的值改成：我们这样做是因为 Nginx 目前还不支持 KeepAlive 选项。现在我们再尝试启动 Apache。可能会再次报错。不过再一次，不用担心，这只是过程中的一个小插曲。最后我们终于可以获取 Django 了。切换到之前创建的 /home/django 目录，是时候创建一些文件夹了。然后做一些权限调整。接着获取 Django 的源代码。通常这时我们会把包软链接到 /usr/lib/python2.5/site-packages，但我们打算换一种更优雅的方式——使用 virtualenv 把每个项目都封装起来。我们稍后会在每个项目的基础上再设置 virtualenv。最后一步通用准备工作是移除 Apache 和 Nginx 的默认站点。在正确配置了 Nginx/Apache 的站点文件后（我们很快就会讲到），你很少会意外看到默认页面，但当直接通过 IP 地址访问时还是可能会显示。虽说这种情况并不常见，但还是去掉比较好。你需要重启服务器才能让改动生效。现在我们要真正开始创建一个 Django 项目了。之后你可以用同样流程搭建任意数量的 Django 项目。首先为每个域名创建对应的文件夹。（我用 substanceis.com 这个域名来举例，它曾经托管过一个早已被遗忘的老项目。）有些人还喜欢创建 private 和 backup 目录。你可以根据需要加入自己的特殊设置。public 目录用于存放由 Nginx 直接提供的公开可访问文件。log 目录用于存放该域名的 Apache 和 Nginx 日志。我们把项目目录放在 substanceis.com 文件夹内。（mod_wsgi 配置文件也放在项目目录里。）现在需要为这个项目创建一个虚拟环境。如果你还没接触过 virtualenv，它能让你轻松地把项目沙箱化，让每个项目可以使用不同版本的库（比如一个项目用 Django 0.97pre，另一个用 1.1；一个用 Pygments 0.6，另一个用 1.1，等等）。这让它成为在一台服务器上开发或托管多个应用时不可或缺的工具。注意我们之前已经把 Django 从 SVN 下载到了 /home/django/libs/django 目录。你还需要安装 psycopg2（Python 的 Postgres 接口）。对于没有 easy_install 或 setup.py 的包，你可以把它们软链接到虚拟环境的 site-packages 目录：安装完成后，就可以测试一下了。然后尝试导入它。而如果你用普通的 python 命令：得到的结果则完全不同：virtualenv 设置完成后，退出 django 用户。接下来我们要为该域名创建一个 Nginx 虚拟主机。如果你想去掉域名中的 www，应该用下面这个 server 块作为文件开头：你需要把 255.255.255.255 改成你 VPS/服务器的实际 IP 地址。不管怎样，文件其余部分应该遵循以下格式：同样要把 255.255.255.255 改成实际 IP。如果你的静态资源经常变化，建议去掉 expires 1d 这行。它会添加一个头，告诉浏览器该内容在接下来一天内不会变化，浏览器就不会在这段时间内重新请求。这能让用户页面加载更快，也能降低你的服务器压力。如果你既想要 expires 的好处，又有频繁更新的静态资源，标准做法是给资源文件加上版本号（me.1.png、me.2.png 等）。django-compress 对此提供了一定支持，能自动为 JavaScript 和 CSS 文件加上版本（强烈推荐）。接下来通过软链接把站点从 sites-available 启用到 sites-enabled，让 Nginx 知道这个站点已启用。最后你需要停止并启动 Nginx，Nginx 才会识别这个新的虚拟主机。到此 Nginx 的配置就完成了。现在快速创建一个默认的 Django 项目。把 Django admin 媒体文件链接到 public/media/ 目录。然后把 hello/settings.py 中的 ADMIN_MEDIA_PREFIX 设置修改为如下：接下来为这个项目创建一个 Postgres 数据库。然后更新 settings.py 文件，填入正确的配置。把 DATABASE_* 字段修改成这样：最后尝试同步数据库，验证配置是否正确。如果你正确输入了用户名、数据库名和密码，应该会看到熟悉的提示。下一步是为项目配置 memcached 作为缓存后端。并添加以下设置：你需要根据具体项目决定 CACHE_MIDDLEWARE_SECONDS 和 CACHE_MIDDLEWARE_ANONYMOUS_ONLY 的合适值。更多信息可以参考这里。CACHE_MIDDLEWARE_KEY_PREFIX 的值在所有使用同一 memcached 的项目中必须唯一。经过漫长的旅程，我们终于来到最后一步：配置 mod_wsgi 和 Apache 来提供我们的项目。在 hello.wsgi 中加入以下代码：接下来为域名创建一个 Apache 虚拟主机。添加这个 VirtualHost 定义。最后启用 substanceis.com 并重启 Apache2 让它加载新站点。你可以重复这些步骤来托管任意数量的项目。</div>
+          <ol>
+            <li>Somehow get a Ubuntu Intrepid server or VPS. (Perhaps go to your SliceHost console and request
+a new Slice running Ubuntu Intrepid (8.10). ;)</li><li>Write down root password and IP address for your box.</li><li>SSH into your server.</li><li>Update your apt-get sources.</li><li>Make sure there is an editor that suits your taste
+available on the system. Vim is pre-installed, but
+I prefer Emacs...</li><li>Setup any non-root accounts you want, and one for Django.</li><li>Unless you like sh, change your default shell to
+something more humane.(These changes won&#x27;t be applied until you log in the
+next time.)</li><li>Give your account (but not Django) root permissions.Then use the down arrow for find a line that looks like this:Replicate that with your username:</li><li>Open a second terminal (leave the first one logged in while we keep configuring SSH, incase
+something goes horribly awry), and SSH in as your non-root user.Verify it works, then exit back to your system.</li><li>Now it&#x27;s time to setup password-less login. Return to your home system,Now exit and ssh back in. You should have
+been logged in without needing to supply your password.</li><li>Now it&#x27;s time to restrict ssh a bit.Make these changes:And add these lines to the end of the file:Save the file, and then restart the ssh service.exit your VPS, and once again try
+logging back in. If that worked,
+again open /etc/ssh/sshd_config.And append this line to the end of the file:And once again restart the ssh service.Finally, disable password access to the root account.Now your VPS is only accessible through your approved
+account from machines with the correct SSH key.</li><li>Now it&#x27;s time to start installing some general libraries.</li><li>Now it&#x27;s time to configure Postgres,
+first we need to grab some libraries.Rather than a typo, I really did need to run the above command twice
+for a successful installation.Next we need to configure the postgres user.(Make sure that you used a real password, rather than
+&#x27;password&#x27; in the above example.)We also need to modify Postgres&#x27; configuration file.Move to the bottom of the file, and comment out (add
+a # at the beginning of the line) all lines which
+begin with host. (This prevents external access
+to your database.)It should look like this:Note that we switched ident sameuser to password for the second local line!
+Then restart Postgres to have it reload its settings.And there we have it, Postgres is setup and functioning.</li><li>And now it&#x27;s time to setup memcached.
+This is a two part process.
+First we need to start memcached, which is very easy, and second
+we need to build cmemcache, which is a bit harder.That runs memcached on the standard port, with the
+standard www-data user (standard for Ubuntu, that is),
+with 32 megabytes of ram. You might want to allocate more,
+depending on how much data you&#x27;re expecting to store in memcached,
+and the size of your VPS.Next we need to setup cmemcache. First grab libmemcache,Next we actually build cmemcache.We&#x27;ll need to actually install the library later when we setup our virtualenv.If you are unable to install cmemcache, follow these instructions.Alternatively, if you want to use the Python based
+python-memcached
+(runs a bit slower, but no C module to build and install), you can do that as follows.The preference for cmemcache is strictly based on speed.
+But python-memcached is still quite usable, and if the
+choice is between python-memcached and not running memcached
+as your caching backend, picking python-memcached is the
+clear winner.</li><li>Next it&#x27;s time to setup Nginx, which
+is a lightweight server we&#x27;ll use to serve static content as well as
+proxy requests to Apache21.We can quickly verify that it installed correctly.Should return:Now we&#x27;re going to modify the nginx.conf file a bit
+(based on the advice here).Right now we only need to make two minor changes, first change line
+2 to use four worker processes,And next uncomment line 18,We won&#x27;t need to edit this file again, because of the last line,which makes it easy to declare site specific settings in their own
+files, and really cuts down on clutter in nginx.conf.We also need to create a proxy.conf file, which is a common
+Nginx practice for keeping nginx.conf clean.Which should contain these lines:Finally, stop and start Nginx (I don&#x27;t know if this is still the case
+with the current version of Nginx, but historically I&#x27;ve never gotten
+it to reload a configuration file with just a reload or restart).</li><li>Now it&#x27;s time to setup Apache2.
+First we grab the necessary libraries.Because we already have Nginx bound on port 80 it will throw
+a bit of a complaintBut no worries, we&#x27;re going to be alright.The first thing we need to do is to setup Apache to run on the internal 127.0.0.1:80 instead
+of on port 80.Then modify these lines:We also want to make a modification to apache2.conf:Search for KeepAlive (it&#x27;s around line 77), and change its value
+as follows:We do this because Nginx doesn&#x27;t yet support the KeepAlive option.
+Now let&#x27;s try starting Apache, again.Which may complain yet, again.But once, again, no worries, it&#x27;s just a phase in the process.</li><li>Finally we get to actually grab Django. Switch
+over to the /home/django folder we created earlier,
+and it&#x27;s time for us to create some folders.Then let&#x27;s do some permissions wrangling.Then let&#x27;s grab the Django source code.Normally this would be a great time to symlink the packages into
+/usr/lib/python2.5/site-packages, but we&#x27;re going to go a
+slightly different route instead and use
+virtualenv to encapsulate
+each of our projects.We&#x27;ll take care of setting up virtualenv later, because it is
+done on a per-project basis.</li><li>Our last step of generic preparation is to remove
+the default sites for both Apache and Nginx.
+With properly configured setup files for Nginx/Apache
+(we&#x27;ll get to those soon ;) you won&#x27;t run into many
+situations where you are accidentally showing the
+default pages, but they often will be displayed
+when visiting the page directly via it&#x27;s IP address.While that isn&#x27;t a terribly common event, it&#x27;s
+probably undesirable nonetheless.You&#x27;ll need to restart the server for the changes to take effect.</li><li>Now we&#x27;re going to actually setup a Django project.
+You&#x27;ll be able to follow this same process to setup
+any number of Django projects later.First we need to create the folders for each
+domain. (I&#x27;ll walk through this example using
+the domain substanceis.com, which was hosting
+an old project long since forgotten.)Some people like to have private and
+backup directories as well. Feel free
+to add your own special spice.The public directory will be for publicly
+accessible files served by Nginx.The log directory will store the Apache
+and Nginx logs for the domain.We&#x27;ll keep the project dir in the substanceis.com
+folder itself. (And the mod_wsgi config file
+in the project directory.)Now we need to setup a virtual environment for the project.
+If you haven&#x27;t experiment with virtualenv, it makes it easy
+to sandbox your projects, so that each project can have different
+versions of libraries (Django 0.97pre for one project, Django 1.1
+for another, Pygments 0.6 for one project, Pygments 1.1 for another,
+etc).This makes it an essential tool for developing or hosting multiple
+applications on one server.Note that we previously downloaded Django from SVN into the folder /home/django/libs/django.You will also need to install psycopg2 (Python interface for Postgres).For packages without easy_install or setup.py support,
+you can symlink them into the virtual environment&#x27;s site-packages
+folder:Now that we&#x27;ve done our installations, go ahead and test it out.Then try importing it.Whereas if you do that with the normal python:You get a different experience:Now that we&#x27;re done setting up the virtualenv go ahead and exit
+the django user.Next we need to create an Nginx virtual host for
+the domain.If you wish to strip www from your domain, you should
+begin the file with this server directive:You&#x27;ll need to update 255.255.255.255 to be the IP address of your VPS/server.Regardless, the remainder of the file should be in this format:You&#x27;ll need to update 255.255.255.255 to be the IP address of your VPS/server.Note that if your static media changes frequently, then you&#x27;ll
+want to remove the expires 1d setting. That adds a header
+saying that such content will not change for the next day,
+which means that the browser won&#x27;t try to refetch it for that
+period of time.This means faster page loads for your users, and lower server load
+for you. If you want the benefits of
+future expires,
+but have frequently changing media, then the standard solution is to
+add a version number for your media files (me.1.png, me.2.png,
+etc). django-compress
+provides some support for automating the versioning process for JavaScript
+and CSS files (and is highly recommended).Next we need to let Nginx know that the site is enabled, by symlinking
+it from sites-available to sites-enabled.Finally you&#x27;ll need to stop and start Nginx before Nginx knows
+that this virtual environment exists.And you&#x27;re done configuring Nginx.Now let&#x27;s quickly create a default Django project.Link the Django admin media into the public/media/ folder.Then update the ADMIN_MEDIA_PREFIX setting in your hello/settings.py fileto look like thisNext let&#x27;s create a Postgres database for this project to use.Then we need to update the settings.py file with the
+proper settings.And modify the DATABASE_* fields to look like this:Finally let&#x27;s try to sync the database to verify that
+we got the settings correct.Assuming you entered your username, database and password
+correctly you should see something familiar.Our next step is to setup the project to memcached
+as its caching backend.And add these settings:You&#x27;ll have to decide what values of CACHE_MIDDLEWARE_SECONDS
+and CACHE_MIDDLEWARE_ANONYMOUS_ONLY are appropriate for the
+particular project you&#x27;re configuring. There is more information
+available here.The value of CACHE_MIDDLEWARE_KEY_PREFIX should be unique
+for each project using memcached.After a tremendous journey, we reach the final step:
+configuring mod_wsgi and Apache to serve our project.And add this code to hello.wsgi:Next we need to create a virtual host for our domain.And add this VirtualHost definition.And finally enable substanceis.com.And restart Apache2 to have it pick up the new site.You can repeat these steps to host as many projects as you want.</li>
+          </ol>
         
       
     
@@ -849,7 +952,80 @@ sudo apache2ctl graceful
     
       
         
-          <div class="list-content">目前如果你直接访问 VPS 的 IP 地址，会发现它什么也不提供。对大多数人来说这可能是正确的行为，但你也许希望当用户通过 IP 访问时能返回一个静态页面（此外，你也可以用类似方法为某些域名只提供静态内容，而不是完整的 Django 项目）。首先创建一些文件夹，然后创建一个 index 页面，内容为以下 HTML。现在用下面的配置来设置 Nginx 站点（记得把 255.255.255.255 换成你 VPS 的 IP）：然后把它软链接到 sites-enabled 目录。最后停止并重启 nginx。现在当你在浏览器中访问 VPS 的 IP 地址时，就会看到你的静态站点了。（注意浏览器通常会限制对同一域名的并发 HTTP 连接数，所以如果你有比较重的页面，可以通过这些步骤为 Django 站点建立一个专门的静态子域名——比如 media.example.com——来提供静态资源，从而加快页面加载速度。）最有用的软件包之一是 PIL，它支持大量图像处理技术，也被一些 Django 应用所使用。它用 easy_install 安装时似乎存在问题，但手动安装依然很简单。现在 substanceis.com 的虚拟环境就可以使用 Image 模块了：你做的 Django 开发越多，就会创建越多可复用的应用，也会复用其他人开发的库，因此熟悉这个流程非常重要。让我们花点时间安装几个 Django 社区开发的常用可复用应用。使用 virtualenv 的一个缺点是，你需要为每个虚拟环境分别安装这些可插拔应用。当然，这也意味着你可以把生产环境锁定在某个特定版本的可插拔应用上，而另一个环境则可以大胆尝试最新版本。值得注意的是，使用 setup.py 或 easy_install 配合 virtualenv 安装的好处在于，你会得到一份冻结的代码副本，即使之后更新了源代码，这些环境也不会运行不同版本的代码。另一方面，如果你正在积极开发代码，那么最好把代码软链接到环境的 site-packages 目录，这样修改后就不需要重新部署了。两种方式各有用途，只要合理使用即可。首先安装之前提到过的 django-compress，它可以帮助自动合并和压缩 JavaScript 和 CSS 文件。现在确认它是否可用。在 Python 中尝试：只要没有报错，就说明安装成功了。接下来安装 django-faq，这是一个可以在网站上创建 FAQ 的可插拔应用（可通过 Django admin 管理）。为了好玩，我们这次用软链接的方式安装（对活跃开发更方便），而不是用 setup.py。最后安装 django-mailer，它为 Django 提供了更强大的邮件发送框架。等等，推荐我自己的项目合适吗？好吧。你可以考虑看一看 django-monetize，它支持根据页面上下文动态提供不同类型的广告（以及捐赠请求等）。除了这些可插拔应用，还有一些项目已经发展成构建在 Django 之上的小型框架。它们提供了大量功能，但往往安装方式不太标准。其中比较受欢迎的两个是社交框架 Pinax（安装方法）和网店平台 Satchmo（安装方法）。我还喜欢把 VPS 当作 Git 仓库来使用——得益于 DVCS 的各种优点——这其实出奇地简单。然后退出 VPS 回到你的本地机器。在本地可以用 SSH 克隆该仓库。注意使用 --bare 参数意味着仓库的所有文件都会放在 .git 目录里，因此你无法直接在托管的仓库里操作文件。如果你想在本地直接操作该 Git 仓库的文件，应该从 origin 仓库 clone，然后像平时一样 push 和 pull。（如果你想用 Git 作为部署 Django 项目的机制，建议阅读关于 Fabric 的资料。）虽然没有成为 Djangonaut 那么光鲜，但在某些情况下你可能还是希望 Apache 也能运行一些 PHP 脚本。那就只需把 .php 文件放在由 Apache（而不是 Nginx）服务的目录下，它们就会被执行。你可能会希望把本文中我们逐步搭建的 Django 配置和静态 Nginx 配置组合使用。</div>
+          <ol>
+            <li>At the moment if you go to your VPS&#x27;s ip address,
+then you&#x27;ll notice that it isn&#x27;t serving anything
+at all. For most people that is probably the correct
+behavior, but you might want to serve a static page
+when they reach your VPS via its IP address
+(also, you can do the same thing to serve static content
+for some of your domains, rather than a full Django project).First we need to create some foldersThen create an index pagewith this htmlNow we need to configure the Nginx sitewith these settings (you&#x27;ll need to change 255.255.255.255 to
+your VPS&#x27;s ip address):Then symlink it into the sites-enabled folder.And finally we need to stop-start nginx.Now if you navigate to your VPS&#x27;s ip address in a browser,
+you&#x27;ll see your static site. (Note that browsers typically
+limit the number of concurrent http connections to one domain,
+so you can speed up page load for heavy pages by using these
+steps to setup a media only subdomain--media.example.com, etc--for
+your Django sites and serving static media from them instead of the
+same domain as your site.)</li><li>One of the most helpful packages around is PIL, which
+supports a wide variety of image manipulation techniques.
+It&#x27;s also used by some pieces of Django. It seems to be
+improperly packaged for installation with easy_install,
+but it is still straightforward to install.And now the substanceis.com virtual environment will have
+access to the Image module:</li><li>The more Django development you do, the more
+you&#x27;ll be creating pluggable applications
+and reusing those made by others,
+so it&#x27;s a good process to be familiar with.
+So let&#x27;s take a few moments to install a couple
+common reusable Django applications developed
+by the Django community.One of the downsides of using virtualenv is that
+you&#x27;ll need to install pluggable apps into each of
+your environments one at a time. Of course, it also
+means that you can freeze a production site to use
+a certian version of a pluggable app while another
+plunges ahead into the unknown.It is important to note the benefits of installing with setup.py
+or easy_install in conjunction with virtualenv.
+It means that you&#x27;ll get a frozen copy of the code, and even if
+you update the source code later on, the environments won&#x27;t be
+running different code.On the other hand, if you&#x27;re actively developing code, then you
+would be better off symlinking the code into the environment&#x27;s
+site-packages directory so that you don&#x27;t have to redeploy
+the code on changes.Both approaches have their place, just be careful to use them appropriately.First let&#x27;s install django-compress,
+which I mentioned earlier and helps automating the merging and compression of
+JavaScript and CSS files.Now let&#x27;s make sure it&#x27;s usable.Then within Python tryAs long as you don&#x27;t get an error, then it installed correctly.Next let&#x27;s install django-faq,
+which is a pluggable application for creating faqs on websites (managable via the
+Django admin).Just for fun, let&#x27;s symlink it in (more convenient for active development)
+instead of using setup.py.Finally let&#x27;s install django-mailer,
+which supplements Django with a more robust mailing framework.Wait, is it okay to recommend one of my projects? Ok. You should
+consider taking a look at django-monetize,
+which supports dynamically serving different kinds of advertisements (and requests
+for donations, etc) based on a page&#x27;s context.Moving past these pluggable apps,
+there are also a number of projects which have expanded to be
+something akin to mini-frameworks on top of Django. They provide
+a great amount of functionality, but often at the expense of somewhat
+non-standard installation patterns.Two of the more popular are the social framework Pinax
+( installation ),
+and the webshop platform Satchmo
+( installation ).</li><li>Another thing I like doing is to use my VPS
+as a Git repository,
+which is--thanks to the manifold joys of
+DVCS--unexpectedly
+simple.Then exit your VPS and return to your machine.
+From your home machine you can clone that repository
+by using SSH.Note that using the --bare keyword means that repository
+will keep all its files in its .git folder, so you won&#x27;t be able
+directly interact with your files in that hosted repository.
+If you do want to interact with the files from that git repository
+on your machine, you should git clone from the origin
+repository and then push and pull like you normally would.(If you&#x27;re wanting to use Git as a mechanism for pushing code
+for your Django projects, you might want to read up about
+using something like Fabric.)</li><li>Although admittedly not as glamorous as being a Djangonaut,
+there are a number of situations where you may want Apache
+to also run some php scripts for you.Then just place .php files in a directory served
+by Apache (not by Nginx), and they&#x27;ll be executed.
+You&#x27;ll probably want a combination of the Django
+and static Nginx configuration files that we&#x27;ve put
+together through the course of this walkthrough.</li>
+          </ol>
         
       
     
@@ -864,7 +1040,9 @@ sudo apache2ctl graceful
     
       
         
-          <div class="list-content">Google Code 上的 mod_wsgi 页面是一个很好的起点。mod_wsgi 与 Django 集成的页面也值得一看。在 Ubuntu 上设置 Nginx 虚拟主机。完整的 Nginx 配置文件示例。用 mod_wsgi 运行 Django。让 Nginx 响应 IP 地址。用 virtualenv 配合 mod_wsgi。</div>
+          <ol>
+            <li>The mod_wsgi page on Google Code is a great launching point.</li><li>As is the mod_wsgi page on integrating with Django.</li><li>Setting up Nginx Virtual Hosts on Ubuntu.</li><li>A full example of an Nginx config file.</li><li>Setting up mod_wsgi with Django.</li><li>Having Nginx serve ip addresses.</li><li>Using virtualenv with mod_wsgi.</li>
+          </ol>
         
       
     
@@ -892,7 +1070,9 @@ sudo apache2ctl graceful
     
       
         
-          <div class="list-content">朋友们，你们知道 Nginx 的正确发音是“engine x”吗？我以前真的不知道。其实之前有同事告诉过我怎么读，但没有看到“engine x”这个写法我一直没记住。现在我终于明白了。终于。↩</div>
+          <ol>
+            <li>朋友们，你们知道 Nginx 的正确发音是“engine x”吗？我以前真的不知道。其实之前有同事告诉过我怎么读，但没有看到“engine x”这个写法我一直没记住。现在我终于明白了。终于。↩</li>
+          </ol>
         
       
     

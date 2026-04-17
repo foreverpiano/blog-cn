@@ -275,55 +275,67 @@ return self;
     
       
         
-          <div class="list-content">简单的输入管理。这里说的“简单”（dumb）不是指愚蠢，而是像“傻瓜导弹”那样，只会笔直飞行直到撞上目标。更准确的描述是它不关心全局状态。虽然这种方式通常无法直接用于非演示类应用，但它是另外两种方法的基础，因此非常重要。
-
-只需继承 CocosNode，并实现下面三个方法中的一个或多个（你不需要在接口中声明它们，父类已经定义好了）。
-
-这三个方法的区别在于：touchesBegan 在用户手指首次按下屏幕时触发；touchesMoved 在用户按住屏幕并移动手指时触发（抬起之前）；touchesEnded 则在用户抬起手指时触发。
-
-利用这三个方法，你可以轻松地在 Sprite（或其他任何 Cocos2d 子类）被触摸时触发相应的动作。对于简单的应用来说，这可能就足够了。
-
-自顶向下的全局输入管理。下一种方法允许你对输入处理进行非常高级的控制，但也容易导致产生一个处理应用所有输入的巨型方法。
-
-首先，你需要持有所有想要检测输入的 Sprite 对象的引用。你可以手动管理这些引用，也可以让子类自动跟踪所有实例。
-
-跟踪实例引用相对简单，可以参考下面的代码：
-
-以及其实现部分：
-
-所以，设置起来可能有点麻烦，但它在其他场景下也非常有用（比如找出哪些 MySprite 实例位于某个点的一定距离内）。
-
-接着，你需要在 Scene 对象中实现上面提到的三个方法，并用它来处理和分发点击事件。
-
-这种方法的优势在于你对输入管理拥有极细粒度的控制。如果你只想在同时触摸到两个 MySprite 实例时才执行动作，可以做到；或者只在某个全局条件满足时才响应，等等。这种方法让你能在掌握最多信息的地方做出决策。
-
-但根据你想为用户输入管理实现的逻辑类型，它也可能变得难以维护。为了控制这种情况，我通常会设计一个简单的用户输入模式系统。
-
-具体实现取决于你的应用，但你可以先创建一个继承自 NSObject 的 UIMode 类。
-
-所有 UIMode 类的实现都应该是空的存根方法，然后由子类按需重写。我的做法是让 touch?At 方法在决定处理某个触摸时返回 YES，否则返回 NO。这样用户界面模式既可以实现自定义逻辑，也可以将触摸传递给默认的触摸处理逻辑。
-
-接下来按以下方式更新你 Scene 子类的接口：
-
-然后在实现中加入类似下面的代码：
-
-最后，你需要更新 touchesBegan:withEvent 方法，让它询问当前的 UIMode 是否要处理每个具体的点击。
-
-这是我最喜欢的方法，因为它相当简单，同时又提供了极高的灵活性。我知道这里一下子 dumping 了很多代码，对此表示抱歉。希望你仍然能在这些混杂的代码中找到思路的主线。
-
-自底向上的全局输入管理。对于这种方法我不会提供太多代码，因为我自己并不常用，但它是介于第一种和第二种方法之间的折中方案。
-
-对于某个 MySprite 类的每个实例，重写 touchesBegan:withEvent: 方法（如果你需要，也可以重写 moved 和 ended 版本），然后通知一个全局对象说发生了触摸事件。
-
-代码大概像这样：
-
-当然，这意味着你需要把当前场景的引用传递给每个 MySprite 实例，或者使用单例模式来简化。
-
-在我看来，这段代码有点乱，但仍然相当方便，因为它允许我们把 touchesBegan:withEvent 方法改写成这样：
-
-而且我们不需要显式地把 CurrentScene 的引用传递给每一个 MySprite 实例。
-
-Objective-C 有很多这种实现起来比较痛苦但一旦实现就能节省大量工作的代码。我的建议是尽早使用它们，但不要频繁使用。</div>
+          <ol>
+            <li>Dumb input management. This isn&#x27;t dumb in the sense of stupid,
+but instead is dumb in the sense of a dumb missile that will
+keep flying straight until it hits something. A more precise
+description would be ignorant of global state.While usually not usable as-is in non-demo applications,
+this approach underpins the other two approaches, and is
+thus important.Simply subclass CocosNode and implement any or all of
+these three methods (you don&#x27;t have to define them in the
+interface, they&#x27;re already defined by a superclass).The distinction between the three methods is, touchesBegan
+is fired when the user first presses their finger on the screen,
+touchesMoved is fired after the user has pressed their finger
+on the screen and moves it (but before they pick it up), and
+touchesEnded is fired when the user picks their finger up.Using these three methods, you can easily fire actions whenever
+a Sprite (or any other Cocos2d subclass) is touched.
+For a simple application that may be sufficient.</li><li>Top-down global input management. The next approach allows
+a very high level of control over handling input, but is prone
+to creating a monolithic method that handles all input management
+for your application.First, it requires that you have references to all Sprite objects
+that you are interested in detecting input for. You can do that by
+managing the references manually, or can setup the subclass to track
+all instances.You can track instance references fairly easily, modeling after this
+code:And the implementation:So, maybe this is a bit of a pain to set up, but it can be
+pretty useful in other situations as well (like discovering
+which instances of MySprite are within a certain distance
+of a point).Then, you implement the three methods from above in your Scene
+object, and use it to handle and route clicks.The advantage of this approach is that you have an extremely
+granular level of control over input management. If you only
+wanted to perform actions on touches that touch two instances
+of MySprite, you could do that. Or you could only perform
+actions when a certain global condition is activated, and so
+on. This approach lets you make decisions at the point in your
+application that has the most information.But it can get unwieldy depending on the type of logic you
+want to implement for your user input management. To help
+control that, I usually roll a simple system for user input
+modes.The implementation depends on your specific app, but you&#x27;d start
+by subclassing NSObject into a UIMode object.The implementation of all those classes for UIMode should be
+inert stubs that can then be overridden in subclasses as appropriate.
+My system is to have the touch?At methods return YES if they
+decide to handle a specific touch, and otherwise return NO.
+This lets user interface modes implement custom logic, or to
+let a touch pass on to your default touch handling.Next update the interface for your subclass of Scene like this:Then, in your implementation you&#x27;d add some code along these
+lines:Finally, you&#x27;d need to update the touchesBegan:withEvent method
+to query the UIMode whether it wants to handle each specific click.This is the approach I prefer, because it is fairly simple,
+and allows an extremely high amount of flexibility. I realize
+that I dumped a ton of code here, and apologize. Hopefully you
+can still find the thread of thought intertwined into the jumble.</li><li>Bottom-up global input management. I won&#x27;t provide much code for
+this approach, as it isn&#x27;t one that I use, but it&#x27;s a compromise
+between the first and second approaches.For each instance of some MySprite class, override the
+touchesBegan:withEvent: (and moved and ended variants as
+well, if you want them) method, and then notify a global
+object about the touch occuring.It would look something like this:Of course, this means you&#x27;d need to pass a reference to
+the current scene to each instance of MySprite, or
+you can use a singleton to simplify.The code is a bit of a clusterfuck, in my humble opinion,
+but it is still quite convenient, as it allows us to convert
+the touchesBegan:withEvent method to this:And we don&#x27;t have to explicitly pass the reference to the
+CurrentScene instance to each instance of MySprite.
+Objective-C has a lot of these painful pieces of code that
+are rather annoying to implement, but can save a lot of
+effort once they are implemented. My advice is to
+use them, early and infrequently.</li>
+          </ol>
         
       
     

@@ -78,7 +78,50 @@
     
       
         
-          <div class="list-content">产品基础设施团队每六个月会选出三个最高优先级的领域，并将绝大多数精力投入其中。对其他领域我们只会提供最基本的支持。我们承诺在每次开发者生产力调研结束后，及时更新我们的优先级，并在每个季度的业务回顾（Quarterly Business Review）中分享我们的成果和最新优先级。本半年的三个最高优先级领域是：为 Ruby 代码库中价值最高的部分添加静态类型支持，以便我们能在本地和测试机器上运行类型检查器，更快地发现错误。支持选择性测试执行，让工程师能够在自己的机器上快速判断并运行最合适的测试，而不必等到测试在构建服务器上运行后再反馈。检测测试失败情况，以便我们获得更好的数据来指导未来的优先级排序。静态类型并不是提升开发者生产力的常规方案，因此当我们说这是最高优先投资领域时，需要做一些解释。更何况我们也承认，要让类型检查器达到实用水平，可能需要投入团队大量时间，耗时 12 到 24 个月。我们计划将这个类型检查器命名为 Sorbet，它能让我们继续在现有的 Ruby 代码库中进行开发。同时，它还能让产品工程师继续专注于开发新功能，而不是被迫将现有功能迁移到新的服务或编程语言。相反，我们的产品基础设施团队将集中负责类型检查器的开发以及在代码库中的初步推广。尽管团队规模固定，但产品基础设施团队有能力同时承担这两项工作。我们将采用混合策略：对特别复杂的区域进行深度介入添加类型，对较简单的部分则通过脚本改写代码的抽象语法树（AST）。如果这种方法最终失败（概率较低），对 Stripe 而言代价也是明确且可控的：大约相当于产品基础设施团队一半人力投入六个月，这是我们预估用来验证该方法是否可行的成本。根据我们对 Facebook Hack 项目的了解，我们相信能够构建一个可在本地运行、速度明显快于测试套件的静态类型检查器。虽然现在很难给出精确数字，但我们估计即使代码库规模很大，类型检查整个代码库的时间也能控制在 30 秒以内。这将带来极高的本地开发体验，即使我们没能加快本地测试的速度。即便我们确实加快了本地测试，类型检查还能帮助我们消除测试一直无法覆盖的一类错误——即在已针对预期场景进行测试、但未覆盖完全意外场景的代码路径中，传递了不符合预期的类型。一旦类型检查器得到验证，我们就可以逐步优先为代码库中价值最高的部分添加类型。我们无需把整个代码库全部加上类型，就能开始获得显著价值。为了支持这些静态类型工作，我们将推动 Stripe 的产品工程师开始采用命令查询职责分离（Command Query Responsibility Segregation，CQRS）设计模式。我们相信这能提供高杠杆的接口，帮助我们逐步向代码库中引入静态类型。选择性测试执行将允许开发者在本地快速运行合适的测试。这能让工程师保持紧凑的本地开发循环，从而加快高质量代码的开发。由于我们的代码库目前尚未采用静态类型，推断应该运行哪些测试相当具有挑战性。但凭借我们极高的测试覆盖率，以及所有测试在部署到生产环境前仍会全部执行的事实，我们相信可以依靠统计推断来判断修改某个文件时哪些测试最有可能失败。对测试失败进行检测是我们本半年的第三个、也是优先级最低的项目。本半年的重点纯粹是对那些我们对错误来源有较高把握的情况进行标注，无论是基础设施问题还是测试本身的问题。如有升级或问题，请在 #product-infra 频道中联系我们。</div>
+          <ul>
+            <li>Every six months, Product Infrastructure will select its three highest priority areas to focus,
+and invest a significant majority of its energy into those.
+We will provide minimal support for other areas.We commit to refreshing our priorities every half after running the developer productivity survey.
+We will further share our results, and priorities, in each Quarterly Business Review.</li><li>Our three highest priority areas for this half are:Add static typing to the highest value portions of our Ruby codebase,
+such that we can run the type checker locally and on the test machines to identify
+errors more quickly.Support selective test execution such that engineers can quickly determine and run
+the most appropriate tests on their machine rather than delaying until tests run
+on the build server.Instrument test failures such that we have better data to prioritize
+future efforts.</li><li>Static typing is not a typical solution to developer productivity, so it
+requires some explanation when we say this is our highest priority area
+for investment. Doubly so when we acknowledge that it will take us 12-24 months
+of much of the team’s time to get our type checker to an effective place.Our type checker, which we plan to name Sorbet, will allow us to continue developing
+within our existing Ruby codebase. It will further allow our product engineers
+to remain focused on developing new functionality rather than migrating existing
+functionality to new services or programming languages.
+Instead, our Product Infrastructure team will centrally absorb both the development
+of the type checker and the initial rollout to our codebase.It’s possible for Product Infrastructure to take on both, despite its fixed size.
+We’ll rely on a hybrid approach of deep-dives to add typing to particularly complex areas,
+and scripts to rewrite our code’s Abstract Syntax Trees (AST) for less complex portions.
+In the relatively unlikely event that this approach fails, the cost to Stripe is of a small, known size:
+approximately six months of half the Product Infrastructure team, which is what we anticipate
+requiring to determine if this approach is viable.Based on our knowledge of Facebook’s Hack
+project, we believe we can build a static type checker
+that runs locally and significantly faster than our test suite.
+It’s hard to make a precise guess now, but we think less than 30 seconds to type our entire codebase,
+despite it being quite large.
+This will allow for a highly productive local development experience, even if we are not able to
+speed up local testing. Even if we do speed up local testing, typing would help us eliminate
+one of the categories of errors that testing has been unable to eliminate, which is passing
+of unexpected types across code paths which have been tested for expected scenarios but not
+for entirely unexpected scenarios.Once the type checker has been validated, we can incrementally prioritize adding typing
+to the highest value places across the codebase. We do not need to wholly type
+our codebase before we can start getting meaningful value.</li><li>In support of these static typing efforts, we will advocate for product engineers at Stripe to begin development
+using the Command Query Responsibility Segregation
+(CQRS) design pattern, which we believe
+will provide high-leverage interfaces for incrementally introducing static typing into our codebase.</li><li>Selective test execution will allow developers to quickly run appropriate tests locally.
+This will allow engineers to stay in a tight local development loop, speeding up development
+of high quality code.Given that our codebase is not currently statically typed, inferring which tests to run is rather challenging.
+With our very high test coverage, and the fact that all tests will still be run before deployment to the
+production environment,
+we believe that we can rely on statistically inferring which tests are likely to fail when a given file is modified.</li><li>Instrumenting test failures is our third, and lowest priority, project for this half.
+Our focus this half is purely on annotating errors for which we have high conviction about their source, whether infrastructure or test issues.</li><li>For escalations and issues, reach out in the #product-infra channel.</li>
+          </ul>
         
       
     
@@ -97,7 +140,41 @@
     
       
         
-          <div class="list-content">我们主要通过产品基础设施团队来为编写 Ruby 代码的软件工程师提供开发者生产力支持。该团队中专注于 Ruby 的部分目前约有十名工程师，未来也不太可能显著扩张。（如果我们确实要扩张，更可能会投入非 Ruby 生态，例如 Scala 或 Golang。）我们有两种主要机制来了解工程师的开发者体验。第一种是围绕部署时间、部署稳定性、测试覆盖率、测试耗时、测试不稳定性等标准生产力指标。第二种是每年两次的开发者生产力调研。从生产力指标来看，我们的测试覆盖率仍然极高，覆盖超过 99% 的代码行，但本地运行测试相当慢。在我们的基础设施中，测试运行速度较快，因为它们被分发到大量测试执行器上并行处理。本地测试已经慢到让越来越多的开发者只运行极小范围的测试子集，甚至完全跳过本地测试，直接把改动 push 上去。他们转而依赖我们的测试服务器对 pull request 分支运行测试。这种方式效果还不错，但显著拖慢了开发者的迭代速度，因为合并、构建和测试的完整周期需要二三十分钟才能完成。等到构建-测试周期完成时，他们往往已经失去专注力，可能需要几个小时才能重新回来处理结果。对于测试是否因为测试基础设施问题或测试本身的质量问题而变得越来越不稳定，团队内存在较大分歧。目前还没有可信的数据集能让我们在这两个原因之间做出归因。每半年一次的开发者生产力调研反馈支持了上述诊断，并增加了一些细微差别。最令人担忧的是，虽然在 Stripe 工作多年的老员工觉得在我们的代码库中仍然非常高效，但调研中越来越多来自其他公司、有较长工作年限的新员工却表示在我们的代码库中效率低下。具体来说，他们发现很难判断如何安全地对代码库进行修改。我们的产品代码完全实现在一个单一的 Ruby 单体应用中。只有一个例外是一个处理支付 tokenization 的窄范围 Golang 服务，我们认为它不在讨论范围内，原因有二。首先，它被有意保持得很窄，以承担我们的 SOC1 合规义务。其次，在那个环境工作的开发者并未对他们的生产力提出过担忧。我们的数据基础设施使用 Scala 实现。虽然这些开发者也有顾虑——主要是构建时间过长——但他们独立管理自己的构建和部署基础设施，而且这个团队规模相对较小。Ruby 并不是一门高性能的编程语言，但我们发现它对我们的需求来说已经足够高效。同样，其他语言在计算资源成本上可能更具优势，但我们绝大部分的支出都花在实时存储和批处理计算上。仅凭这些理由，我们也不会考虑替换 Ruby 作为核心编程语言。我们的产品基础设施团队约有十名工程师，支持大约 250 名产品工程师。我们预计这个团队会随时间适度增长，但肯定会显著低于产品工程师整体的增长速度。使用 Golang 和 Scala 的开发者经常请求更多的集中支持，但我们很难优先考虑这些需求，因为我们必须权衡为 240 名 Ruby 产品工程师改进体验，与为 10 名 Golang 工程师或 40 名 Scala 数据工程师改进体验之间的回报。如果引入更多编程语言，这个优先级排序问题会变得越来越困难，而我们实际上已经无法很好地支持额外的语言了。</div>
+          <ul>
+            <li>We primarily fund developer productivity for our Ruby-authoring software engineers via our Product Infrastructure team.
+The Ruby-focused portion of that team has about ten engineers on it today, and is unlikely to significantly grow in the future.
+(If we do expand, we are likely to staff non-Ruby ecosystems like Scala or Golang.)</li><li>We have two primary mechanisms for understanding our engineer’s developer experience.
+The first is standard productivity metrics around deploy time, deploy stability, test coverage, test time, test flakiness, and so on.
+The second is a twice annual developer productivity survey.</li><li>Looking at our productivity metrics, our test coverage remains extremely high, with coverage above 99% of lines,
+and tests are quite slow to run locally. They run quickly in our infrastructure because they are multiplexed
+across a large fleet of test runners.</li><li>Tests have become slow enough to run locally that an increasing number of developers
+run an overly narrow subset of tests, or entirely skip running tests until after pushing their changes.
+They instead rely on our test servers to run against their pull request’s branch,
+which works well enough, but significantly slows down developer iteration time because the
+merge, build, and test cycle takes twenty to thirty minutes to complete.By the time their build-test cycle completes, they’ve lost their focus and maybe take several hours
+to return to addressing the results.</li><li>There is significant disagreement about whether tests are becoming flakier due to test infrastructure
+issues, or due to quality issues of the tests themselves. At this point, there is no trustworthy dataset
+that allows us to attribute between those two causes.</li><li>Feedback from the twice annual developer productivity survey supports the above diagnosis,
+and adds some additional nuance.
+Most concerning, although long-tenured Stripe engineers find themselves highly productive in our codebase,
+we increasingly hear in the survey that newly hired engineers with long tenures at other companies
+find themselves unproductive in our codebase.
+Specifically, they find it very difficult to determine how to safely make changes in our codebase.</li><li>Our product codebase is entirely implemented in a single Ruby monolith.
+There is one narrow exception, a Golang service handling payment tokenization,
+which we consider out of scope for two reasons.
+First, it is kept intentionally narrow in order to absorb our SOC1 compliance obligations.
+Second, developers in that environment have not raised concerns about their productivity.Our data infrastructure is implemented in Scala. While these developers have concerns–primarily
+slow build times–they manage their build and deployment infrastructure independently, and the group remains relatively small.</li><li>Ruby is not a highly performant programming language, but we’ve found it sufficiently efficient
+for our needs. Similarly, other languages are more cost-efficient from a compute resources perspective,
+but a significant majority of our spend is on real-time storage and batch computation.
+For these reasons alone, we would not consider replacing Ruby as our core programming language.</li><li>Our Product Infrastructure team is about ten engineers, supporting about 250 product engineers.
+We anticipate this group growing modestly over time, but certainly sublinearly
+to the overall growth of product engineers.</li><li>Developers working in Golang and Scala routinely ask for more centralized support,
+but it’s challenging to prioritize those requests as we’re forced to consider the return
+on improving the experience for 240 product engineers working in Ruby vs 10 in Golang
+or 40 data engineers in Scala.If we introduced more programming languages, this prioritization problem would become
+increasingly difficult, and we are already failing to support additional languages.</li>
+          </ul>
         
       
     

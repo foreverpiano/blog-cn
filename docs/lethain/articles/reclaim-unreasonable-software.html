@@ -103,7 +103,11 @@
     
       
         
-          <div class="list-content">所有由 HTTP 请求引起的状态变更都是原子写入的。进程总是先尝试从 Redis 读取状态，再从 MySQL 读取。在写之后进行的读只有在主库上才是安全的，在从库上则不安全，除非当前时间已超过写入时间加上当前的复制延迟。进程没有状态，因此无论哪个进程处理请求，结果都正确。</div>
+          <ul>
+            <li>All state changes caused by an HTTP request are written atomically.</li><li>Processes always attempts to read state from Redis before reading from MySQL.</li><li>Reads after writes are only safe if performed against the primary server,
+and are unsafe against secondaries until the current time is greater than the time of write
+plus the current replication lag.</li><li>Processes have no state, so requests will be handled correctly regardless of which process handles them.</li>
+          </ul>
         
       
     
@@ -121,7 +125,20 @@
     
       
         
-          <div class="list-content">“每个文件至少有一个测试”是你可以在构建服务器上强制执行的属性。“99.99% 的请求在两秒内完成”是你可以在生产环境中监控的行为。“每个执行分支都被测试覆盖”是一个属性，因为可以通过在主机或构建主机上运行覆盖率测试来验证，它不需要特定的运行环境。“所有写后读操作都在主数据库上执行”——大多数公司会通过（a）记录日志并验证日志中的行为，或（b）实时断言在错误的写后读行为时报错——这两种方式都把它归为行为。“每个请求的状态变更都在单个事务中处理”——你可以通过强迫所有变更进入一个具有合适语义的受限接口来静态验证，这就让它成为一个属性。当然，有些公司可能不愿意对行为施加如此强的约束，而是选择监控每个请求的事务数，那它就变成了行为。</div>
+          <ul>
+            <li>“Every file has at least one test” is a property you can enforce on your build server.</li><li>“99.99% of requests complete within two seconds” is a behavior that you
+can monitor in your production environment.</li><li>“Every execution branch is exercised by tests” is a property
+because it can be verified by running coverage tests on your host
+or on a build host. It doesn’t require an environment to exercise against.</li><li>“All reads after write are performed against the primary database” is
+the sort of thing that most companies would verify by either (a) logging and
+verifying the behavior in logs or (b) a real-time assertion that errors
+on bad read-after-write behavior, both of which would make it a behavior.</li><li>“State mutation for each requests is handled within a single transaction”
+is something you can verify statically by forcing all mutation into a constrained
+interface that has appropriate sematics, which makes it a property.
+Then again, some companies might be unwilling to constrain behavior to that extent,
+and might instead monitor the number of transactions per request, which would
+make it a behavior.</li>
+          </ul>
         
       
     
@@ -131,7 +148,15 @@
     
       
         
-          <div class="list-content">被观察的行为（Observed behaviors）是你能在日志、指标或仪表盘中注意到的行为。被跟踪的行为（Tracked behaviors）是当它们发生变化时你会收到通知的行为，但只有在更新后的软件在环境中运行之后才会触发，例如一条告警告诉你生产环境的延迟上升了。已验证的行为（Verified behaviors）是你可以确信始终为真的行为，因为存在一个及时的机制在部署完成前确保它们。最常见的三种确保行为的机制是：（a）端到端集成测试，（b）常规触发相关失败模式的故障注入，（c）在完成部署前验证软件的负载或性能测试。</div>
+          <ol>
+            <li>Observed behaviors are those which you can notice in your logs, metrics or dashboards.</li><li>Tracked behaviors are those which you’ll get informed when they change, but only after operating
+updated software in an environment, for example an alert informing you about an increase in production latency.</li><li>Verified behaviors are behaviors that you can rely on being consistently true
+because there is a timely mechanism that ensures them before deployment is complete.
+The three most common mechanisms for ensuring behavior are:
+(a) end-to-end integration tests,
+(b) fault injection that routinely trigger relevant failure modes,
+(c) load or performance testing that verifies software before completing deployment.</li>
+          </ol>
         
       
     
@@ -145,7 +170,13 @@
     
       
         
-          <div class="list-content">期望的属性（Intended properties）是你要求团队在软件中维护的内容，通常通过设计评审、培训、最佳实践文档等方式传达。被跟踪的属性（Tracked properties）是会被报告但没有强制执行机制的属性。对许多公司来说，代码覆盖率就属于这一类——他们会报告变化，但不会阻塞部署。已断言的属性（Asserted properties）是在部署开始前就被强制执行的属性，通常通过静态分析、代码 linter 或单元测试实现。</div>
+          <ol>
+            <li>Intended properties are those that you ask folks to maintain in their software,
+often propagated through design reviews, training, best practices documents and such.</li><li>Tracked properties are those that are reported on but without an enforcement mechanism.
+Code coverage falls into this category for many companies, where they report on changes
+but don’t block deployment.</li><li>Asserted properties are enforced before deployment begins, generally through static analysis,
+code linters or unit tests.</li>
+          </ol>
         
       
     

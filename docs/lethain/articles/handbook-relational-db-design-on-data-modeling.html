@@ -70,7 +70,9 @@
     
       
         
-          <div class="list-content">正确性是指模型真实反映了它所建模的业务过程。它不会用取巧的方式掩盖真实世界的复杂行为，而是完整地将其呈现出来。一致性对应 ACID 中的 Consistency：系统状态永远不会进入无效配置。如果你在为租房业务建模，那么租户的房屋和房屋的租户信息永远不应反映出相互矛盾的现实。可共享的模型能够被多个不同应用使用。对房屋租赁这一底层过程的准确表示，应该能够支撑租户申请房屋的应用、房东管理出租物业的应用、计费应用、与维修公司对接的集成等。灵活的模型具有可进化性，当它所代表的真实系统发生变化时，仍能保持其正确性。</div>
+          <ul>
+            <li>Correct means that the model reflects the reality of the process it models. It doesn’t hide the complexity of the real-world behavior in creative ways, it represents it fully.</li><li>Consistent is ACID’s Consistency: state should never reach invalid configurations. If you’re modeling rental homes, a renter’s home and the home’s renter should never reflect different realities.</li><li>Sharable models are usable by many different applications. An accurate representation of the underlying process of renting homes should make it possible to support an application for renters applying for homes, for home owners to manage their rental properties, a billing application, an integration with a maintenance company for repairs, and so on.</li><li>Flexible models are evolvable, preserving their correctness as the real systems they represent continue to change.</li>
+          </ul>
         
       
     
@@ -97,7 +99,9 @@
     
       
         
-          <div class="list-content">构建用户视图骨架。明确你正在为哪些类型的用户构建系统，为每个用户群体记录他们视角下的主要实体和关系。利用这些信息建立整个系统的数据字典（你将终身维护它）。为用户视图添加键。首先确定能唯一标识某个实体的键的组合（主键），以及用于检索的键的组合（候选键）。其次，确定将在模型间使用的外键。最后，明确管理数据变更的业务规则（例如合法的插入、删除和更新行为）。为用户视图添加细节。增加不属于主键的属性（“非键属性”）。这一部分特别反对使用枚举值（例如用“1032”代表“MEDICAL INDUSTRY”），因为这会让数据难以理解。当然，后续的规范化技术很可能也会要求你把行业做成一张单独的表。通过规范化验证用户视图。本书介绍了一系列“范式”，每种范式都是将带有冗余信息的 schema 转换为冗余更少的 schema 的过程。我本来打算把它们都整理出来，但算了，不做了——直接去读一篇数据库规范化的文章吧。如果你不太想死记那些规则，一个粗略的经验法则是：对任何实体进行的修改，都应该可以通过一个范围很窄的更新来完成，例如你的查询的 where 子句应该只影响一行记录。确定额外的属性业务规则。引用书中的话：“如果不理解与信息完整性相关的规则，那么理解业务中信息的结构是毫无意义的。”这一节讲述了如何为每个属性定义域（基于它们所代表的事物，什么是合法的值、最大值、最小值等等），确保主键唯一，定义外键关系的规则（哪些是可选的，哪些是有效的等），以及定义触发器（数据库在变更事件上强制执行的检查）。整合用户视图。现在你已经完善了每个用户视图，将它们合并成一个统一模型，使其能够满足所有用户视图的需求。</div>
+          <ol>
+            <li>Build skeletal user views. Identify the kinds of users you are building for, and for each user document the major entities and relationships from their perspective. Use this to build a data dictionary of all data within the system (you’ll be maintaining this forever).</li><li>Add keys to user views. First, determine the combination of keys which uniquely define an entity (primary keys), and also the combination of keys that will be used for retrieval (alternate keys). Second, determine foreign keys that will operate across models. Finally, identify the business rules that govern mutation (e.g. what are legal insert, delete and update behaviors).</li><li>Add detail to user views. Add attributes which are not used in primary keys (“nonkey attributes”). This section makes a particular callout against using enumerated values (e.g. “1032” as a coded value for say “MEDICAL INDUSTRY”), as they make data hard to understand. That said, the later normalization technique would likely want you to make industry into a separate table anyway.</li><li>Validate user views through normalization. The book introduces a number of “normal forms”, each of which is a transformation of a schema with redundant information into a schema with less redundant information. I started typing them all up, but wow, nope not doing that, just read an article on database normalization instead. If you’re less excited to memorize those rules, a rule of thumb is roughly: any modification you make to any entity should be achievable with a narrowly scoped update, e.g. the where clause on your query should only edit a single row.</li><li>Determine additional attribute business rules. To quote, “It is useless to understand the structure of information within the business without understanding rules pertaining to that information’s integrity.” This section goes through defining domains for each attribute (what are the legal values for each attribute based on the thing they’re representing, maximum values, minimum values, and so on), ensuring primary keys are unique, defining rules about foreign key relationships (which are optional, which are valid, etc), and defining triggers (what are database enforced checks on mutation events).</li><li>Integrate user views. Now that you’ve refined each of your user views, merge them together into a unified model that incorporates each user view’s needs.</li>
+          </ol>
         
       
     
@@ -116,7 +120,9 @@
     
       
         
-          <div class="list-content">与用户紧密合作。通常用户是在建模过程后期才被引入的，尤其是在采用实现中心而非数据中心方法的情况下。这会导致模型的正确性降低。正确的做法是从用户开始，然后再回到实现层面。遵循结构化的方法论。设计数据模型是一种<a href="product-management-infra-engineering.html">基础设施工程中的产品管理</a>，受益于同样严谨、有意的方法论。使用结构和完整性约束。为每个属性的合法值域定义明确的约束，并控制对象之间关系的修改，以确保底层数据始终保持正确。使用概念化和规范化技术。利用大量正式的规范化方法，将数据模型简化为冗余最少的形式。尽可能使用图表。纯文字描述的模型比图表模型更难让人直观理解，而图表的信息密度要高得多。建立数据字典。以文档或文本形式，自动或手动地收集与数据模型相关的所有信息，与图表配合使用，作为持久的真相来源。</div>
+          <ol>
+            <li>Work closely with users. Often users are brought into a modeling process late, particularly in cases where folks are taking an implementation-centric approach as opposed to a data-centric approach. This leads to less correct models. Instead start with users and work back to implementation second.</li><li>Follow a structured methodology. Designing a data model is a <a href="product-management-infra-engineering.html">基础设施工程中的产品管理</a>, and benefits from the same rigorous, intentional methodology.</li><li>Use structural and integrity constraints. Define explicit constraints on the domain of legal values for each attribute, and control the modification of the relations between objects to ensure the underlying data remains correct.</li><li>Use conceptualization and normalization techniques. Use the numerous formal normalization methods to simplify the data model into its least redundant possible form.</li><li>Use diagrams whenever possible. Prose models are harder for readers to intuit than diagram model, and diagrams have much higher information density.</li><li>Build a data dictionary. An automated or manual collection of all information related to your data model, in document or textual format, to pair with your diagrams and serve as an enduring source of truth.</li>
+          </ol>
         
       
     
@@ -127,7 +133,9 @@
     
       
         
-          <div class="list-content">“实体（Entity）是你希望记录事实的某个人、地点、事物或概念”“关系（Relationship）是两个实体之间的关联”“属性（Attribute）是描述实体且不可再分解的信息片段”主键（Primary key）是“标识属性或属性集合”“外键（Foreign key）是一个属性或属性集合，通过标识关联实体来完成一个关系。‘外’这个词传达了该属性‘属于’或引用另一个……实体的意思。”一对多关系描述一个实体（例如一位作者）与多个其他实体（例如多本书）的关联。一对一关系描述一个实体（例如一本书）恰好与另一个实体（例如它的出版社）相关联。业务规则描述了模型的合法状态。它们通过限制假设的值（例如必填字段和可空引用）来维护完整性。触发操作是一种业务规则，在变更（插入、更新和删除）时被执行。完整性有三种形式：实体完整性、参照完整性和域完整性。实体完整性描述单个属性，特别是主键的所有组成部分都必须存在。参照完整性管理跨表的外键，特别是引用中的外键必须真实存在。域完整性应用于列，例如数据类型、默认值、唯一性等。</div>
+          <ul>
+            <li>“Entity is a person, place, thing or concept about which you wish to record facts”</li><li>“Relationship is association between two entiities”</li><li>“Attribute is a nondecomposable piece of information describing an entity”</li><li>Primary key is the “identify attribute or set of attributes”</li><li>“Foreign key is an attribute or set of attributes that completes a relationship by identifying the associated entity. The term foreign conveys the idea that the attribute ‘belongs’ or refers to another… entity.”</li><li>One-to-many relationship describes one entity (e.g. an author) relating to many others (e.g. books).</li><li>One-to-one relationship describes an entity (e.g. a book) relating to exactly one other (e.g. its publisher)</li><li>Business rules describe valid model states. They preserve integrity by limiting assumed values, for example required fields and nullable references</li><li>Triggering operations are a kind of business rule which are applied during mutation (insert, update and delete)</li><li>Integrity comes in three flavors: entity, referential and domain. Entity integrity describes individual attributes, in particular that all components of a primary key exist. Referential integrity governs foreign keys across tables, in particular that a foreign key in a reference does exist. Domain integrity applies to columns, for example the data type, default value, uniqueness, and so on.</li>
+          </ul>
         
       
     

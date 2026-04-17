@@ -220,7 +220,59 @@ session.commit()
     
       
         
-          <div class="list-content">首先我们需要下载 SQLAlchemy。最简单的方式是使用 easy_install。当然你也可以从他们的下载页面获取 0.5 版本。本教程使用的是 0.5beta2，只要不使用 0.4 系列的版本，应该都能正常工作。如果你选择手动下载文件，之后需要进行安装：如果你使用的是 Python 2.5 之前的版本，还需要安装 pysqlite 和 SQLite。现在让我们确认安装是否成功。如果 SQLAlchemy 无法正确导入，或者版本不是 0.5 的某个衍生版本，那么你需要重新执行第一和第二步。创建一个 Django 项目和应用。创建几个模板目录。接下来我们需要在 settings.py 文件中做一些简单的修改。我们将修改 INSTALLED_APPS、TEMPLATE_DIRS 和 MIDDLEWARE_CLASSES。由于我们不再使用 Django ORM，因此不会使用任何依赖数据库的中间件或应用。现在我们来编辑 loosely_coupled/urls.py 文件。通常我们会从 with_sqlalchemy 应用中 include 一个 urls.py 到项目的主 urls.py 中，但这里我们尽量保持简单。接下来我们要使用 SQLAlchemy ORM 创建一个简单的表来做实验。因为 models.py 文件已经存在，我们就把表的定义放在里面，打开 with_sqlalchemy/models.py 即可。我们可以看到 SQLAlchemy 定义模型的方式与 Django 非常相似。这里我们不深入讨论，但 SQLAlchemy 也可以更加底层，先定义数据库表，再将其映射到 Python 类。你甚至可以完全跳过 ORM，使用他们提供的接口来构造 SQL。下面我们来编写 views.py 文件。首先，在文件开头加入一些 import。然后我们需要配置 SQLAlchemy，让 Language 类可用。sqlite:///loose.sqlite 这条指令会在相对路径 loose.sqlite 处创建一个 SQLite 数据库，即 with_sqlalchemy 目录内。SQLAlchemy 也可以同样轻松地指定绝对路径，或在内存中创建数据库。如果我们想让它更接近 Django 的风格，可以在 settings.py 中设置 DATABASE_NAME，然后像这样加载它：另外，Base.metadata.create_all(engine) 实际上只需要在 SQLAlchemy 首次创建表时执行一次（虽然多次执行也不会有问题），但那就需要创建一个类似 python manage.py syncdb 的脚本，会让示例变得更复杂，所以我们暂时跳过这一步。接下来，我们创建两个非常简单的工具函数，用于填充数据：这些简单的函数将用来为数据库填充一些数据。它也提供了一个最小的示例，展示了 SQLAlchemy 的查询和对象创建语法，这些语法与 Django ORM 非常相似。最后，我们需要编写 index 函数。在设计更好的应用中，我们不需要每次调用 index 视图时都确保创建测试数据，那样视图会变成这样：这看起来几乎和使用 Django ORM 编写时一模一样（只是获取数据时的语法略有不同）。现在我们需要创建 with_sqlalchemy/index.html 模板，也就是我们渲染的模板。首先我们创建一个基础模板，放在 loose_coupling/templates 目录下，命名为 base.html。它看起来是这样的：接下来我们创建 index.html 模板。打开 with_sqlalchemy/templates/with_sqlalchemy/index.html，将内容填写如下：关于这些模板，最重要的一点是，我们传递给它们的是由 SQLAlchemy ORM 生成的实例，但模板看起来与使用 Django ORM 时完全相同：模板语言对 Django ORM 的细节一无所知，它可以处理普通的 Django Model 实例，也可以处理普通的 Python 字典。现在一切都准备好了，只等我们测试了。然后访问 http://127.0.0.1:8000/。你会看到四个编程语言及其扩展名的简单展示。</div>
+          <ol>
+            <li>First we need to download SQLAlchemy. The easiest way to do this is
+to use easy_install.But you can also
+grab a copy of the 0.5 release at their download page..
+This tutorial is using the 0.5beta2, but as long as you don&#x27;t grab a
+0.4 release things should work correctly.If you chose to manually download the files, you&#x27;ll then need to install
+them:</li><li>If you are using a Python before 2.5 you&#x27;ll need to install
+pysqlite and SQLite
+as well.</li><li>Now lets make sure the install worked correctly.If SQLAlchemy doesn&#x27;t import correctly, or if the version isn&#x27;t
+some derivative of 0.5, then you&#x27;ll need to revisit steps one
+and two.</li><li>Create a Django project and app.</li><li>Create a couple of template directories.</li><li>Next we need to make a few simple changes in our settings.py file.
+We&#x27;ll be changing INSTALLED_APPS, TEMPLATE_DIRS, and
+MIDDLEWARE_CLASSES.Since we&#x27;re not using the Django ORM, we won&#x27;t use any of the
+database reliant middleware or apps.</li><li>Now we&#x27;ll edit the loosely_coupled/urls.py file.Normally we&#x27;d use include a urls.py file from the
+with_sqlalchemy app into the project&#x27;s urls.py file,
+but we&#x27;re trying to keep things simple.</li><li>Now we&#x27;re going to use the SQLAlchemy ORM to create a simple
+table to play around with. Because the file already exists, we&#x27;re
+going to throw the table definition into the models.py,
+so go ahead and open up with_sqlalchemy/models.py.We can see that SQLAlchemy can define models very similar to
+those we&#x27;d define for Django. We won&#x27;t delve into it here, but SQLAlchemy can also get much
+more low level by defining database tables and then
+mapping them onto a Python class.
+You could even skip out on using ORM completely and take advantage
+of their interface for constructing SQL.</li><li>And now we&#x27;ll write our views.py file. First, we have some imports
+to begin our file with.Then we need to setup SQLAlchemy to make our Language class available.The sqlite:///loose.sqlite instruction creates an SQLite database
+at the relative path loose.sqlite, i.e. within the with_sqlalchemy
+directory. SQLAlchemy makes it equally easy to specifiy an absolute path,
+or to create the database in memory. If we wanted to make this more Django-like,
+we could have specified the DATABASE_NAME setting in settings.py, and
+then loaded the value like this:Also, the Base.metadata.create_all(engine) only really needs to be
+done once when SQLAlchemy first creates the table (although doing it multiple
+times doesn&#x27;t hurt anything), but that would involve creating a counter-part
+to the python manage.py syncdb functionality in a script, and would
+make the example more complex, so we&#x27;re skipping that at the moment.Next, we&#x27;ll create two really simple utility functions that we&#x27;ll use to
+populate our data:These simple functions are going to be used to populate our database with
+some data. It also provides a minimal example of the SQLAlchemy querying
+and object creation syntaxes, which are very similar to those in the Django ORM.Finally, we need to write the index function.In a better designed application we wouldn&#x27;t need to make sure we&#x27;d created the
+test data each time we call the index view, and then the view would look
+like this:Which looks almost identical to what it would have looked like writing it
+with the Django ORM (just a slight syntax difference for retrieving data).</li><li>And now we need to create the with_sqlalchemy/index.html
+template that we are rendering. First we&#x27;ll create a base
+template, located in loose_coupling/templates, and named
+base.html. It will look like this:And next we&#x27;ll create the index.html template.
+Open up with_sqlalchemy/templates/with_sqlalchemy/index.html,
+and fill it in:The most important thing to notice about these templates is that
+we are passing them instances generated by the SQLAlchemy ORM,
+but it looks identical to how it would look if the template was dealing
+with the Django ORM: the template language is ignorant of the
+details of the Django ORM, and can be used to anything from
+normal Django Model instances to normal Python dicts.</li><li>Now everything is finished, just waiting for us to test.Then navigate over the http://127.0.0.1:8000/.
+You&#x27;ll see a simple display of the four programming languages and
+their extension.</li>
+          </ol>
         
       
     
@@ -246,7 +298,9 @@ session.commit()
     
       
         
-          <div class="list-content">我觉得自己有义务至少讲一个蹩脚的炼金术相关的笑话或双关语。就当这个痒已经挠过了。↩</div>
+          <ol>
+            <li>我觉得自己有义务至少讲一个蹩脚的炼金术相关的笑话或双关语。就当这个痒已经挠过了。↩</li>
+          </ol>
         
       
     
