@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>用 SQLAlchemy 替换 Django 的 ORM · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Will Larson 文集</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -213,7 +219,9 @@ session.commit()
       
     
       
-        <div class="list-content">首先我们需要下载 SQLAlchemy。最简单的方式是使用 easy_install。当然你也可以从他们的下载页面获取 0.5 版本。本教程使用的是 0.5beta2，只要不使用 0.4 系列的版本，应该都能正常工作。如果你选择手动下载文件，之后需要进行安装：如果你使用的是 Python 2.5 之前的版本，还需要安装 pysqlite 和 SQLite。现在让我们确认安装是否成功。如果 SQLAlchemy 无法正确导入，或者版本不是 0.5 的某个衍生版本，那么你需要重新执行第一和第二步。创建一个 Django 项目和应用。创建几个模板目录。接下来我们需要在 settings.py 文件中做一些简单的修改。我们将修改 INSTALLED_APPS、TEMPLATE_DIRS 和 MIDDLEWARE_CLASSES。由于我们不再使用 Django ORM，因此不会使用任何依赖数据库的中间件或应用。现在我们来编辑 loosely_coupled/urls.py 文件。通常我们会从 with_sqlalchemy 应用中 include 一个 urls.py 到项目的主 urls.py 中，但这里我们尽量保持简单。接下来我们要使用 SQLAlchemy ORM 创建一个简单的表来做实验。因为 models.py 文件已经存在，我们就把表的定义放在里面，打开 with_sqlalchemy/models.py 即可。我们可以看到 SQLAlchemy 定义模型的方式与 Django 非常相似。这里我们不深入讨论，但 SQLAlchemy 也可以更加底层，先定义数据库表，再将其映射到 Python 类。你甚至可以完全跳过 ORM，使用他们提供的接口来构造 SQL。下面我们来编写 views.py 文件。首先，在文件开头加入一些 import。然后我们需要配置 SQLAlchemy，让 Language 类可用。sqlite:///loose.sqlite 这条指令会在相对路径 loose.sqlite 处创建一个 SQLite 数据库，即 with_sqlalchemy 目录内。SQLAlchemy 也可以同样轻松地指定绝对路径，或在内存中创建数据库。如果我们想让它更接近 Django 的风格，可以在 settings.py 中设置 DATABASE_NAME，然后像这样加载它：另外，Base.metadata.create_all(engine) 实际上只需要在 SQLAlchemy 首次创建表时执行一次（虽然多次执行也不会有问题），但那就需要创建一个类似 python manage.py syncdb 的脚本，会让示例变得更复杂，所以我们暂时跳过这一步。接下来，我们创建两个非常简单的工具函数，用于填充数据：这些简单的函数将用来为数据库填充一些数据。它也提供了一个最小的示例，展示了 SQLAlchemy 的查询和对象创建语法，这些语法与 Django ORM 非常相似。最后，我们需要编写 index 函数。在设计更好的应用中，我们不需要每次调用 index 视图时都确保创建测试数据，那样视图会变成这样：这看起来几乎和使用 Django ORM 编写时一模一样（只是获取数据时的语法略有不同）。现在我们需要创建 with_sqlalchemy/index.html 模板，也就是我们渲染的模板。首先我们创建一个基础模板，放在 loose_coupling/templates 目录下，命名为 base.html。它看起来是这样的：接下来我们创建 index.html 模板。打开 with_sqlalchemy/templates/with_sqlalchemy/index.html，将内容填写如下：关于这些模板，最重要的一点是，我们传递给它们的是由 SQLAlchemy ORM 生成的实例，但模板看起来与使用 Django ORM 时完全相同：模板语言对 Django ORM 的细节一无所知，它可以处理普通的 Django Model 实例，也可以处理普通的 Python 字典。现在一切都准备好了，只等我们测试了。然后访问 http://127.0.0.1:8000/。你会看到四个编程语言及其扩展名的简单展示。</div>
+        
+          <div class="list-content">首先我们需要下载 SQLAlchemy。最简单的方式是使用 easy_install。当然你也可以从他们的下载页面获取 0.5 版本。本教程使用的是 0.5beta2，只要不使用 0.4 系列的版本，应该都能正常工作。如果你选择手动下载文件，之后需要进行安装：如果你使用的是 Python 2.5 之前的版本，还需要安装 pysqlite 和 SQLite。现在让我们确认安装是否成功。如果 SQLAlchemy 无法正确导入，或者版本不是 0.5 的某个衍生版本，那么你需要重新执行第一和第二步。创建一个 Django 项目和应用。创建几个模板目录。接下来我们需要在 settings.py 文件中做一些简单的修改。我们将修改 INSTALLED_APPS、TEMPLATE_DIRS 和 MIDDLEWARE_CLASSES。由于我们不再使用 Django ORM，因此不会使用任何依赖数据库的中间件或应用。现在我们来编辑 loosely_coupled/urls.py 文件。通常我们会从 with_sqlalchemy 应用中 include 一个 urls.py 到项目的主 urls.py 中，但这里我们尽量保持简单。接下来我们要使用 SQLAlchemy ORM 创建一个简单的表来做实验。因为 models.py 文件已经存在，我们就把表的定义放在里面，打开 with_sqlalchemy/models.py 即可。我们可以看到 SQLAlchemy 定义模型的方式与 Django 非常相似。这里我们不深入讨论，但 SQLAlchemy 也可以更加底层，先定义数据库表，再将其映射到 Python 类。你甚至可以完全跳过 ORM，使用他们提供的接口来构造 SQL。下面我们来编写 views.py 文件。首先，在文件开头加入一些 import。然后我们需要配置 SQLAlchemy，让 Language 类可用。sqlite:///loose.sqlite 这条指令会在相对路径 loose.sqlite 处创建一个 SQLite 数据库，即 with_sqlalchemy 目录内。SQLAlchemy 也可以同样轻松地指定绝对路径，或在内存中创建数据库。如果我们想让它更接近 Django 的风格，可以在 settings.py 中设置 DATABASE_NAME，然后像这样加载它：另外，Base.metadata.create_all(engine) 实际上只需要在 SQLAlchemy 首次创建表时执行一次（虽然多次执行也不会有问题），但那就需要创建一个类似 python manage.py syncdb 的脚本，会让示例变得更复杂，所以我们暂时跳过这一步。接下来，我们创建两个非常简单的工具函数，用于填充数据：这些简单的函数将用来为数据库填充一些数据。它也提供了一个最小的示例，展示了 SQLAlchemy 的查询和对象创建语法，这些语法与 Django ORM 非常相似。最后，我们需要编写 index 函数。在设计更好的应用中，我们不需要每次调用 index 视图时都确保创建测试数据，那样视图会变成这样：这看起来几乎和使用 Django ORM 编写时一模一样（只是获取数据时的语法略有不同）。现在我们需要创建 with_sqlalchemy/index.html 模板，也就是我们渲染的模板。首先我们创建一个基础模板，放在 loose_coupling/templates 目录下，命名为 base.html。它看起来是这样的：接下来我们创建 index.html 模板。打开 with_sqlalchemy/templates/with_sqlalchemy/index.html，将内容填写如下：关于这些模板，最重要的一点是，我们传递给它们的是由 SQLAlchemy ORM 生成的实例，但模板看起来与使用 Django ORM 时完全相同：模板语言对 Django ORM 的细节一无所知，它可以处理普通的 Django Model 实例，也可以处理普通的 Python 字典。现在一切都准备好了，只等我们测试了。然后访问 http://127.0.0.1:8000/。你会看到四个编程语言及其扩展名的简单展示。</div>
+        
       
     
       
@@ -237,7 +245,9 @@ session.commit()
       
     
       
-        <div class="list-content">我觉得自己有义务至少讲一个蹩脚的炼金术相关的笑话或双关语。就当这个痒已经挠过了。↩</div>
+        
+          <div class="list-content">我觉得自己有义务至少讲一个蹩脚的炼金术相关的笑话或双关语。就当这个痒已经挠过了。↩</div>
+        
       
     
   </div>
@@ -279,6 +289,19 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   var h = document.querySelector('.nav-section h2');
   if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
 });
 </script>
 </body>

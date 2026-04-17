@@ -10,6 +10,11 @@
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -34,7 +39,8 @@
       
     
       
-        <div class="list-content">方法概览
+        
+          <div class="list-content">方法概览
 
 蒸馏
 
@@ -85,6 +91,7 @@ Transformer 量化的挑战
 引用
 
 参考文献</div>
+        
       
     
       
@@ -100,13 +107,15 @@ Transformer 量化的挑战
       
     
       
-        <div class="list-content">巨大的内存占用。在推理时，模型参数和中间状态都需要保存在内存中。例如，
+        
+          <div class="list-content">巨大的内存占用。在推理时，模型参数和中间状态都需要保存在内存中。例如，
 
 KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 512、上下文长度为 2048 的情况，KV cache 总计达到 3TB，是模型大小的 3 倍（！）。
 注意力机制的推理成本随输入序列长度呈平方级增长。
 
 
 并行性低。推理生成以自回归方式执行，这使得解码过程难以并行化。</div>
+        
       
     
       
@@ -123,9 +132,11 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <div class="list-content">通过使用更少的 GPU 设备和更少的 GPU 内存来减少模型的内存占用；
+        
+          <div class="list-content">通过使用更少的 GPU 设备和更少的 GPU 内存来减少模型的内存占用；
 通过降低所需的 FLOPs 数量来减少计算复杂度；
 降低推理延迟并加快运行速度。</div>
+        
       
     
       
@@ -133,11 +144,13 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <div class="list-content">应用各种并行策略，在大量 GPU 上扩展模型。对模型组件和数据的智能并行化，使得运行万亿参数模型成为可能。
+        
+          <div class="list-content">应用各种并行策略，在大量 GPU 上扩展模型。对模型组件和数据的智能并行化，使得运行万亿参数模型成为可能。
 内存卸载：将临时不使用的数据卸载到 CPU，需要时再读回。这有助于内存使用，但会增加延迟。
 智能批处理策略；例如 <a href="https://github.com/bytedance/effective_transformer" target="_blank" rel="noopener">EffectiveTransformer</a> 将连续序列打包在一起，以去除一个批次内的 padding。
 网络压缩技术，如剪枝、量化、蒸馏。更小规模的模型（参数量或位宽方面）需要更少的内存且运行更快。
 针对目标模型架构的特定改进。许多架构改动，尤其是注意力层的改动，有助于提升 Transformer 解码速度。</div>
+        
       
     
       
@@ -156,7 +169,7 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/distillation.png" alt="">
-          <figcaption>The generic framework of teacher-student knowledge distillation training. (Image source:Gou et al. 2020)</figcaption>
+          <figcaption>教师-学生知识蒸馏训练的通用框架。（图片来源：Gou et al. 2020）</figcaption>
         </figure>
       
     
@@ -194,8 +207,10 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <div class="list-content">训练后量化（PTQ）：模型首先训练至收敛，然后将其权重转换为更低精度，无需额外训练。与训练相比，它通常实现成本很低。
+        
+          <div class="list-content">训练后量化（PTQ）：模型首先训练至收敛，然后将其权重转换为更低精度，无需额外训练。与训练相比，它通常实现成本很低。
 量化感知训练（QAT）：在预训练或进一步微调过程中应用量化。QAT 能够获得更好的性能，但需要额外的计算资源和具有代表性的训练数据。</div>
+        
       
     
       
@@ -214,7 +229,7 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/quantization-experiment-table.png" alt="">
-          <figcaption>Only quantizing model weights to 8-bit while keeping activation at full precision (`W8A32`) achieves much better results when activations are quantized to 8-bit irrespective of whether weights are in lower precision (`W8A8` and `W32A8`). (Image source:Bondarenko et al. 2021)</figcaption>
+          <figcaption>仅将模型权重量化为 8-bit 而保持激活为全精度（`W8A32`）的效果，远好于将激活也量化为 8-bit 的情况（无论权重是否为低精度，即 `W8A8` 和 `W32A8`）。（图片来源：Bondarenko et al. 2021）</figcaption>
         </figure>
       
     
@@ -229,7 +244,7 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/OPT-models-outlier.png" alt="">
-          <figcaption>The mean zero-shot accuracy over a set of language tasks (WinoGrande, HellaSwag, PIQA, LAMBADA) of OPT models of increasing sizes. (Image source:Dettmers et al. 2022)</figcaption>
+          <figcaption>不同规模 OPT 模型在一组语言任务（WinoGrande、HellaSwag、PIQA、LAMBADA）上的平均 zero-shot 准确率。（图片来源：Dettmers et al. 2022）</figcaption>
         </figure>
       
     
@@ -260,14 +275,16 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <div class="list-content">因为矩阵乘法包含一组独立的行向量与列向量之间的内积，我们可以对每个内积施加独立的量化：每行和每列都按绝对最大值进行缩放，然后量化为 INT8。
+        
+          <div class="list-content">因为矩阵乘法包含一组独立的行向量与列向量之间的内积，我们可以对每个内积施加独立的量化：每行和每列都按绝对最大值进行缩放，然后量化为 INT8。
 离群激活特征（例如比其他维度大 20 倍）保持为 FP16，但它们仅占总权重的很小一部分。如何识别离群值是经验性的。</div>
+        
       
     
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/LLM-int8.png" alt="">
-          <figcaption>Two mixed-precision decompositions of `LLM.int8()`. (Image source:Dettmers et al. 2022)</figcaption>
+          <figcaption>`LLM.int8()` 的两种混合精度分解。（图片来源：Dettmers et al. 2022）</figcaption>
         </figure>
       
     
@@ -279,7 +296,7 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/quantization-granularity.png" alt="">
-          <figcaption>Comparison of quantization at different granularity. <span class="math-inline" data-math="d">d</span> is the model size / hidden state dimension and <span class="math-inline" data-math="h">h</span> is the number of heads in one MHSA (multi-head self-attention) component.</figcaption>
+          <figcaption>不同粒度量化的对比。<span class="math-inline" data-math="d">d</span> 是模型大小 / 隐藏状态维度，<span class="math-inline" data-math="h">h</span> 是单个 MHSA（多头自注意力）组件中的注意力头数。</figcaption>
         </figure>
       
     
@@ -288,7 +305,7 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <p>Q-BERT（<a href="https://arxiv.org/abs/1909.05840" target="_blank" rel="noopener">Shen, Dong &amp;amp; Ye, et al. 2020</a>）对微调后的 BERT 模型应用了 group-wise 量化，将 MHSA（多头自注意力）中每个 head 对应的单个矩阵 <span class="math-inline" data-math="W">W</span> 视为一个组，然后应用基于 Hessian 的混合精度量化。</p>
+        <p>Q-BERT（<a href="https://arxiv.org/abs/1909.05840" target="_blank" rel="noopener">Shen, Dong &amp; Ye, et al. 2020</a>）对微调后的 BERT 模型应用了 group-wise 量化，将 MHSA（多头自注意力）中每个 head 对应的单个矩阵 <span class="math-inline" data-math="W">W</span> 视为一个组，然后应用基于 Hessian 的混合精度量化。</p>
       
     
       
@@ -305,7 +322,7 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <p>Q-BERT（<a href="https://arxiv.org/abs/1909.05840" target="_blank" rel="noopener">Shen, Dong &amp;amp; Ye, et al. 2020</a>）为其混合精度量化开发了 Hessian Aware Quantization (HAWQ)。其动机是具有更高 Hessian 谱（即更大的 top 特征值）的参数对量化更敏感，因此需要更高的精度。这本质上是一种识别离群值的方法。</p>
+        <p>Q-BERT（<a href="https://arxiv.org/abs/1909.05840" target="_blank" rel="noopener">Shen, Dong &amp; Ye, et al. 2020</a>）为其混合精度量化开发了 Hessian Aware Quantization (HAWQ)。其动机是具有更高 Hessian 谱（即更大的 top 特征值）的参数对量化更敏感，因此需要更高的精度。这本质上是一种识别离群值的方法。</p>
       
     
       
@@ -321,7 +338,7 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <p>GPTQ（<a href="https://arxiv.org/abs/2210.17323" target="_blank" rel="noopener">Frantar et al. 2022</a>）将权重矩阵 <span class="math-inline" data-math="\mathbf{W}">\mathbf{W}</span> 视为行向量 <span class="math-inline" data-math="{\mathbf{w}}">{\mathbf{w}}</span> 的集合，并对每一行独立应用量化。GPTQ 迭代地对更多贪心选择的权重进行量化，以最小化量化误差。对所选权重的更新有闭式公式，利用 Hessian 矩阵。如果感兴趣，可阅读论文及 OBQ（Optimal Brain Quantization；<a href="https://arxiv.org/abs/2208.11580" target="_blank" rel="noopener">Frantar &amp;amp; Alistarh 2022</a>）方法的更多细节。GPTQ 可将 OPT-175B 的权重位宽降低到 3 或 4 bit 而不会造成太大性能损失，但它仅适用于模型权重，不适用于激活。</p>
+        <p>GPTQ（<a href="https://arxiv.org/abs/2210.17323" target="_blank" rel="noopener">Frantar et al. 2022</a>）将权重矩阵 <span class="math-inline" data-math="\mathbf{W}">\mathbf{W}</span> 视为行向量 <span class="math-inline" data-math="{\mathbf{w}}">{\mathbf{w}}</span> 的集合，并对每一行独立应用量化。GPTQ 迭代地对更多贪心选择的权重进行量化，以最小化量化误差。对所选权重的更新有闭式公式，利用 Hessian 矩阵。如果感兴趣，可阅读论文及 OBQ（Optimal Brain Quantization；<a href="https://arxiv.org/abs/2208.11580" target="_blank" rel="noopener">Frantar &amp; Alistarh 2022</a>）方法的更多细节。GPTQ 可将 OPT-175B 的权重位宽降低到 3 或 4 bit 而不会造成太大性能损失，但它仅适用于模型权重，不适用于激活。</p>
       
     
       
@@ -330,13 +347,13 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <p>众所周知，在 Transformer 模型中，激活比权重更难量化。SmoothQuant（<a href="https://arxiv.org/abs/2211.10438" target="_blank" rel="noopener">Xiao &amp;amp; Lin 2022</a>）提出了一种巧妙的解决方案，通过数学等价变换将激活中的离群特征平滑转移到权重上，从而实现对权重和激活的同时量化（W8A8）。因此，SmoothQuant 比混合精度量化具有更好的硬件效率。</p>
+        <p>众所周知，在 Transformer 模型中，激活比权重更难量化。SmoothQuant（<a href="https://arxiv.org/abs/2211.10438" target="_blank" rel="noopener">Xiao &amp; Lin 2022</a>）提出了一种巧妙的解决方案，通过数学等价变换将激活中的离群特征平滑转移到权重上，从而实现对权重和激活的同时量化（W8A8）。因此，SmoothQuant 比混合精度量化具有更好的硬件效率。</p>
       
     
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/SmoothQuant.png" alt="">
-          <figcaption>SmoothQuant migrates the scale variance from activations to weights offline to reduce the difficulty of activation quantization. Both the resulting new weight and activation matrices are easy to quantize. (Image source:Xiao &amp; Lin 2022)</figcaption>
+          <figcaption>SmoothQuant 通过离线将激活的尺度方差迁移到权重上，降低激活量化的难度。转换后的新权重和激活矩阵都更容易量化。（图片来源：Xiao &amp; Lin 2022）</figcaption>
         </figure>
       
     
@@ -383,8 +400,10 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <div class="list-content">非结构化剪枝允许丢弃任意权重或连接，因此不会保留原始网络架构。非结构化剪枝通常与现代硬件不兼容，也不会带来实际的推理加速。
+        
+          <div class="list-content">非结构化剪枝允许丢弃任意权重或连接，因此不会保留原始网络架构。非结构化剪枝通常与现代硬件不兼容，也不会带来实际的推理加速。
 结构化剪枝旨在保持稠密矩阵乘法的形式，只是其中部分元素为零。它们可能需要遵循一定的模式限制，以适配硬件内核支持。本文重点关注结构化剪枝，以在 Transformer 模型中实现高稀疏度。</div>
+        
       
     
       
@@ -392,9 +411,11 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <div class="list-content">训练一个稠密网络直至收敛；
+        
+          <div class="list-content">训练一个稠密网络直至收敛；
 对网络进行剪枝，移除不需要的结构；
 可选地重训练网络，使用新的权重恢复性能。</div>
+        
       
     
       
@@ -411,7 +432,7 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <p><a href="https://arxiv.org/abs/1710.01878" target="_blank" rel="noopener">Zhu &amp;amp; Gupta (2017)</a> 发现大型稀疏模型能够超越其小型但稠密的对应模型。他们提出了 Gradual Magnitude Pruning (GMP) 算法，在训练过程中逐步增加网络的稀疏度。在每个训练步骤中，将绝对值最小的权重掩码为零，以达到期望的稀疏度 <span class="math-inline" data-math="s">s</span>，且被掩码的权重在反向传播期间不更新梯度。期望的稀疏度 <span class="math-inline" data-math="s">s</span> 随着更多训练步骤而增加。GMP 过程对学习率调度很敏感，其学习率应高于稠密网络训练所用的水平，但也不能太高以免无法收敛。</p>
+        <p><a href="https://arxiv.org/abs/1710.01878" target="_blank" rel="noopener">Zhu &amp; Gupta (2017)</a> 发现大型稀疏模型能够超越其小型但稠密的对应模型。他们提出了 Gradual Magnitude Pruning (GMP) 算法，在训练过程中逐步增加网络的稀疏度。在每个训练步骤中，将绝对值最小的权重掩码为零，以达到期望的稀疏度 <span class="math-inline" data-math="s">s</span>，且被掩码的权重在反向传播期间不更新梯度。期望的稀疏度 <span class="math-inline" data-math="s">s</span> 随着更多训练步骤而增加。GMP 过程对学习率调度很敏感，其学习率应高于稠密网络训练所用的水平，但也不能太高以免无法收敛。</p>
       
     
       
@@ -445,8 +466,10 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <div class="list-content">稀疏化的稠密层，包括自注意力和 FFN 层。
+        
+          <div class="list-content">稀疏化的稠密层，包括自注意力和 FFN 层。
 稀疏模型架构；即通过引入 Mixture-of-Experts (MoE) 组件。</div>
+        
       
     
       
@@ -461,7 +484,7 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/2-to-4-sparsity.png" alt="">
-          <figcaption>A matrix of 2:4 structured sparsity and its compressed representation. (Image source:Nvidia blog)</figcaption>
+          <figcaption>具有 2:4 结构化稀疏的矩阵及其压缩表示。（图片来源：Nvidia 博客）</figcaption>
         </figure>
       
     
@@ -470,7 +493,7 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <p>对列进行置换可以在剪枝过程中提供更多选项，以保留大幅值参数或满足 N:M 稀疏等特殊限制（<a href="https://proceedings.neurips.cc/paper/2021/hash/6e8404c3b93a9527c8db241a1846599a-Abstract.html" target="_blank" rel="noopener">Pool &amp;amp; Yu 2021</a>）。只要两个矩阵的配对轴按相同顺序置换，矩阵乘法的结果就不会改变。例如，</p>
+        <p>对列进行置换可以在剪枝过程中提供更多选项，以保留大幅值参数或满足 N:M 稀疏等特殊限制（<a href="https://proceedings.neurips.cc/paper/2021/hash/6e8404c3b93a9527c8db241a1846599a-Abstract.html" target="_blank" rel="noopener">Pool &amp; Yu 2021</a>）。只要两个矩阵的配对轴按相同顺序置换，矩阵乘法的结果就不会改变。例如，</p>
       
     
       
@@ -480,7 +503,7 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/permutation-QK.png" alt="">
-          <figcaption>Illustration of same permutation on <span class="math-inline" data-math="\mathbf{Q}">\mathbf{Q}</span> (axis 1) and <span class="math-inline" data-math="\mathbf{K}^\top">\mathbf{K}^\top</span> (axis 0) to keep the results of a self-attention module unchanged.</figcaption>
+          <figcaption>对 <span class="math-inline" data-math="\mathbf{Q}">\mathbf{Q}</span>（第 1 轴）和 <span class="math-inline" data-math="\mathbf{K}^\top">\mathbf{K}^\top</span>（第 0 轴）应用相同置换以保持自注意力模块结果不变的示意图。</figcaption>
         </figure>
       
     
@@ -491,7 +514,7 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/permutation-FFN.png" alt="">
-          <figcaption>Illustration of the same permutation on <span class="math-inline" data-math="\mathbf{W}_1">\mathbf{W}_1</span> (axis 1) and <span class="math-inline" data-math="\mathbf{W}_2">\mathbf{W}_2</span> (axis 0) to keep the FFN layer&#x27;s output unchanged. For simplicity, the bias terms are skipped but the same permutation should be applied on them too.</figcaption>
+          <figcaption>对 <span class="math-inline" data-math="\mathbf{W}_1">\mathbf{W}_1</span>（第 1 轴）和 <span class="math-inline" data-math="\mathbf{W}_2">\mathbf{W}_2</span>（第 0 轴）应用相同置换以保持 FFN 层输出不变的示意图。为简单起见省略了偏置项，但它们也应应用相同的置换。</figcaption>
         </figure>
       
     
@@ -500,18 +523,20 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <p><a href="https://proceedings.neurips.cc/paper/2021/hash/6e8404c3b93a9527c8db241a1846599a-Abstract.html" target="_blank" rel="noopener">Pool &amp;amp; Yu (2021)</a> 提出了一种迭代贪心算法，来寻找能最大化 N:M 稀疏下权重幅度的最优置换。所有通道对都被推测性地交换，只有导致幅度增幅最大的交换会被采用，从而生成新的置换并完成一次迭代。贪心算法可能只能找到局部最优，因此他们引入了两种技术来跳出局部最优：</p>
+        <p><a href="https://proceedings.neurips.cc/paper/2021/hash/6e8404c3b93a9527c8db241a1846599a-Abstract.html" target="_blank" rel="noopener">Pool &amp; Yu (2021)</a> 提出了一种迭代贪心算法，来寻找能最大化 N:M 稀疏下权重幅度的最优置换。所有通道对都被推测性地交换，只有导致幅度增幅最大的交换会被采用，从而生成新的置换并完成一次迭代。贪心算法可能只能找到局部最优，因此他们引入了两种技术来跳出局部最优：</p>
       
     
       
-        <div class="list-content">有界回归：在实践中随机交换两个通道，最多固定次数。解搜索被限制在一个通道交换的深度，以保持搜索空间宽而浅。
+        
+          <div class="list-content">有界回归：在实践中随机交换两个通道，最多固定次数。解搜索被限制在一个通道交换的深度，以保持搜索空间宽而浅。
 窄而深的搜索：选择多个条带并同时对其进行优化。</div>
+        
       
     
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/N-to-M-sparsity-permutation-algo.png" alt="">
-          <figcaption>Algorithm of finding the best permutation for N:M sparsity greedily and iteratively. (Image source:Pool &amp; Yu 2021)</figcaption>
+          <figcaption>贪心迭代地寻找 N:M 稀疏最佳置换的算法。（图片来源：Pool &amp; Yu 2021）</figcaption>
         </figure>
       
     
@@ -520,7 +545,7 @@ KV cache 在解码时必须保存在内存中；例如，对于 batch size 为 5
       
     
       
-        <p>为了从零开始训练具有 N:M 稀疏的模型，<a href="https://arxiv.org/abs/2102.04010" target="_blank" rel="noopener">Zhou &amp;amp; Ma, et al. (2021)</a> 将 STE（Straight-Through Estimator；<a href="https://arxiv.org/abs/1308.3432" target="_blank" rel="noopener">Bengio et al. 2013</a>）——常用于模型量化中的反向传播更新——扩展到幅度剪枝和稀疏参数更新。</p>
+        <p>为了从零开始训练具有 N:M 稀疏的模型，<a href="https://arxiv.org/abs/2102.04010" target="_blank" rel="noopener">Zhou &amp; Ma, et al. (2021)</a> 将 STE（Straight-Through Estimator；<a href="https://arxiv.org/abs/1308.3432" target="_blank" rel="noopener">Bengio et al. 2013</a>）——常用于模型量化中的反向传播更新——扩展到幅度剪枝和稀疏参数更新。</p>
       
     
       
@@ -554,7 +579,7 @@ W_{t+1} \gets W_t - \gamma \frac{\partial\mathcal{L}}{\partial\widetilde{W}}  + 
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/SR-STE.png" alt="">
-          <figcaption>Comparison of STE and SR-STE. <span class="math-inline" data-math="\odot">\odot</span> is element-wise product; <span class="math-inline" data-math="\otimes">\otimes</span> is matrix multiplication. (Image source:Zhou &amp; Ma, et al. 2021)</figcaption>
+          <figcaption>STE 与 SR-STE 的对比。<span class="math-inline" data-math="\odot">\odot</span> 是逐元素乘积；<span class="math-inline" data-math="\otimes">\otimes</span> 是矩阵乘法。（图片来源：Zhou &amp; Ma, et al. 2021）</figcaption>
         </figure>
       
     
@@ -567,7 +592,9 @@ W_{t+1} \gets W_t - \gamma \frac{\partial\mathcal{L}}{\partial\widetilde{W}}  + 
       
     
       
-        <div class="list-content">稀疏前向传递：选择每层中幅度最大的 top-<span class="math-inline" data-math="K">K</span> 参数子集 <span class="math-inline" data-math="A^t \subset \Theta">A^t \subset \Theta</span>，限制在权重总量的 top <span class="math-inline" data-math="D">D</span> 比例。参数化 <span class="math-inline" data-math="\alpha^t">\alpha^t</span> 在时刻 <span class="math-inline" data-math="t">t</span> 中，如果不在 <span class="math-inline" data-math="A^t">A^t</span>（活跃权重）中，则参数被置零。</div>
+        
+          <div class="list-content">稀疏前向传递：选择每层中幅度最大的 top-<span class="math-inline" data-math="K">K</span> 参数子集 <span class="math-inline" data-math="A^t \subset \Theta">A^t \subset \Theta</span>，限制在权重总量的 top <span class="math-inline" data-math="D">D</span> 比例。参数化 <span class="math-inline" data-math="\alpha^t">\alpha^t</span> 在时刻 <span class="math-inline" data-math="t">t</span> 中，如果不在 <span class="math-inline" data-math="A^t">A^t</span>（活跃权重）中，则参数被置零。</div>
+        
       
     
       
@@ -589,7 +616,9 @@ W_{t+1} \gets W_t - \gamma \frac{\partial\mathcal{L}}{\partial\widetilde{W}}  + 
       
     
       
-        <div class="list-content">稀疏反向传递：然后将梯度应用于更大的参数子集 <span class="math-inline" data-math="B \subset \Theta">B \subset \Theta</span>，其中 <span class="math-inline" data-math="B">B</span> 包含 <span class="math-inline" data-math="(D+M)">(D+M)</span> 比例的权重和 <span class="math-inline" data-math="A \subset B">A \subset B</span>。更新更大比例的权重能够更有效地探索不同的剪枝掩码，从而更有可能在 top <span class="math-inline" data-math="D">D</span> 比例的活跃权重中产生置换。</div>
+        
+          <div class="list-content">稀疏反向传递：然后将梯度应用于更大的参数子集 <span class="math-inline" data-math="B \subset \Theta">B \subset \Theta</span>，其中 <span class="math-inline" data-math="B">B</span> 包含 <span class="math-inline" data-math="(D+M)">(D+M)</span> 比例的权重和 <span class="math-inline" data-math="A \subset B">A \subset B</span>。更新更大比例的权重能够更有效地探索不同的剪枝掩码，从而更有可能在 top <span class="math-inline" data-math="D">D</span> 比例的活跃权重中产生置换。</div>
+        
       
     
       
@@ -613,7 +642,7 @@ W_{t+1} \gets W_t - \gamma \frac{\partial\mathcal{L}}{\partial\widetilde{W}}  + 
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/Top-KAST-stabilize.png" alt="">
-          <figcaption>The pruning mask of Top-KAST stabilizes in time. (Image source:Jayakumar et al. 2021)</figcaption>
+          <figcaption>Top-KAST 的剪枝掩码随时间稳定。（图片来源：Jayakumar et al. 2021）</figcaption>
         </figure>
       
     
@@ -649,7 +678,7 @@ L_\text{penalty}(\alpha^t_i) = \begin{cases}
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/scaling-transformer-speedup-table.png" alt="">
-          <figcaption>The speed of decoding a single token (unbatched inference) by a transformer model when sparsification is applied on different layers. (Image source:Jaszczur et al. 2021)</figcaption>
+          <figcaption>对不同层应用稀疏化后，Transformer 模型解码单个 token（无 batch 推理）的速度。（图片来源：Jaszczur et al. 2021）</figcaption>
         </figure>
       
     
@@ -680,7 +709,7 @@ Y_\text{sparse} &amp;= \max(0, xW_1 + b_1) \odot \text{Controller}(x) \\
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/sparse-FFN.png" alt="">
-          <figcaption>(a) Sparse FFN layer; columns in red are not loaded in memory for faster inference. (b) Sparse FFN controller for 1:4 sparsity. (Image source:Jaszczur et al. 2021) *Lilian&#x27;s side note*: Fig (a) in the illustration from the paper is actually <span class="math-inline" data-math="Y_\text{sparse} = \max\big(0, (xW_1 + b_1) \odot \text{Controller}(x)\big)">Y_\text{sparse} = \max\big(0, (xW_1 + b_1) \odot \text{Controller}(x)\big)</span>, but it doesn&#x27;t change the results.</figcaption>
+          <figcaption>（a）稀疏 FFN 层；红色列不会加载到内存中以加快推理。（b）用于 1:4 稀疏的稀疏 FFN 控制器。（图片来源：Jaszczur et al. 2021）*Lilian 注*：论文插图中图（a）实际上是 <span class="math-inline" data-math="Y_\text{sparse} = \max\big(0, (xW_1 + b_1) \odot \text{Controller}(x)\big)">Y_\text{sparse} = \max\big(0, (xW_1 + b_1) \odot \text{Controller}(x)\big)</span>，但不影响结果。</figcaption>
         </figure>
       
     
@@ -709,7 +738,7 @@ y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/sparse-QKV.png" alt="">
-          <figcaption>(a) A multiplicative layer is introduced to enable partitions to access any part of an embedding. (b) Combination of multiplicative dense layer and 2-D convolutional layer reduces the number of parameters and computation time of the attention layer. (Image source:Jaszczur et al. 2021)</figcaption>
+          <figcaption>（a）引入乘法层以使分区能够访问嵌入的任意部分。（b）乘法稠密层与二维卷积层的组合减少了注意力层的参数量和计算时间。（图片来源：Jaszczur et al. 2021）</figcaption>
         </figure>
       
     
@@ -762,7 +791,7 @@ y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/BPR.png" alt="">
-          <figcaption>How image patches are discarded according to priority scores when <span class="math-inline" data-math="C &lt; 1">C &lt; 1</span>. (Image source:Riquelme et al. 2021)</figcaption>
+          <figcaption>当 <span class="math-inline" data-math="C &lt; 1">C &lt; 1</span> 时，图像 patch 如何根据优先级得分被丢弃的示意图。（图片来源：Riquelme et al. 2021）</figcaption>
         </figure>
       
     
@@ -793,7 +822,7 @@ y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/PR-MoE.png" alt="">
-          <figcaption>Illustration of PR-MoE architecture in comparison with a standard MoE. (Image source:Rajbhandari et al. 2022)</figcaption>
+          <figcaption>PR-MoE 架构与标准 MoE 的对比示意图。（图片来源：Rajbhandari et al. 2022）</figcaption>
         </figure>
       
     
@@ -826,7 +855,7 @@ y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
       
         <figure>
           <img src="../images/posts-2023-01-10-inference-optimization/efficient-transformer.png" alt="">
-          <figcaption>Categorization of efficient transformer models.(Image source:Tay et al. 2020)</figcaption>
+          <figcaption>高效 Transformer 模型的分类。（图片来源：Tay et al. 2020）</figcaption>
         </figure>
       
     
@@ -840,7 +869,8 @@ y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
       
     
       
-        <div class="list-content">固定模式限制注意力矩阵的视野，使用预定义的固定模式。
+        
+          <div class="list-content">固定模式限制注意力矩阵的视野，使用预定义的固定模式。
 
 将输入序列分块为固定块，例如<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a>；
 <a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 使用局部注意力；
@@ -861,6 +891,7 @@ y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
 <a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 基于基于哈希的相似性（LSH）将 token 聚类；
 <a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 对 token 运行 <span class="math-inline" data-math="k">k</span>-means 聚类；
 <a href="https://arxiv.org/abs/2002.11296" target="_blank" rel="noopener">Sinkhorn Sorting Network</a> 学习对输入序列块进行排序。</div>
+        
       
     
       
@@ -873,9 +904,11 @@ y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
       
     
       
-        <div class="list-content"><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 通过在片段之间复用隐藏状态来利用更长的上下文。
+        
+          <div class="list-content"><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 通过在片段之间复用隐藏状态来利用更长的上下文。
 <a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 将自注意力与 RNN 中的循环机制结合。
 <a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 是 Transformer-XL 的扩展，增加了额外内存，包含一组用于过去激活的内存槽和用于压缩激活的压缩内存槽。每当模型接受新的输入片段时，主内存中最旧的激活会被移动到压缩内存，并应用压缩函数。</div>
+        
       
     
       
@@ -888,9 +921,11 @@ y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
       
     
       
-        <div class="list-content"><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 将 key 和 value 的长度维度投影到低维表示（<span class="math-inline" data-math="N \to k">N \to k</span>），从而将内存复杂度从 <span class="math-inline" data-math="N \times N">N \times N</span> 降低到 <span class="math-inline" data-math="N \times k">N \times k</span>。
+        
+          <div class="list-content"><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 将 key 和 value 的长度维度投影到低维表示（<span class="math-inline" data-math="N \to k">N \to k</span>），从而将内存复杂度从 <span class="math-inline" data-math="N \times N">N \times N</span> 降低到 <span class="math-inline" data-math="N \times k">N \times k</span>。
 <a href="https://arxiv.org/abs/1911.02150" target="_blank" rel="noopener">Shazeer (2019)</a> 提出了 multi-query attention，让不同注意力“head”共享 key 和 value，大幅减少这些张量的大小和内存成本。
 <a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 使用核方法实现自注意力机制更廉价的数学形式。</div>
+        
       
     
       
@@ -903,9 +938,11 @@ y_{s,m} = \sum_i x_i D_{i,s} E_{i,m}
       
     
       
-        <div class="list-content"><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 通过 token 与其他 key 之间的软掩码，训练模型为每个 head 的每个 token 学习最优注意力跨度。
+        
+          <div class="list-content"><a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 通过 token 与其他 key 之间的软掩码，训练模型为每个 head 的每个 token 学习最优注意力跨度。
 <a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 引入循环机制，并使用<a href="posts-2020-04-07-the-transformer-family.html">Transformer 家族</a> 来动态决定循环步数。
 <a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a> 使用置信度度量来学习每个 token 何时提前退出计算层，从而在性能和效率之间取得良好平衡。</div>
+        
       
     
       

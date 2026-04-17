@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>试用 Google Container Engine · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Will Larson 文集</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -49,7 +55,9 @@
       
     
       
-        <div class="list-content">创建一个由 GKE 托管的 Kubernetes 集群，使用三台 n1-standard-1 实例（每台有 1.8 GB 内存）。编写 Dockerfile，最初是把我现有的 Packer 配置直接翻译过来，让 Nginx 和 Go 二进制文件运行在同一个虚拟机里。（之前我一直在制作 AMI。）把我的博客代码库（叫 daedalus，虽然写得比较粗糙）从 Github 同步到 Google Source Repositories，基于“放在本地能降低构建延迟”这个合理但未经验证的假设。在 Container Builder 中创建一个构建触发器，每次我推送代码到 master 分支时就自动构建 Daedalus 的 Dockerfile，并将生成的镜像上传到 Container Registry，供 GKE 使用。（我曾短暂尝试用分支而非标签来标记容器镜像，结果发现 Kubernetes 不喜欢这种做法，而且还会破坏回滚功能。）让整个流程完全跑通，包括创建一个 Ingress 资源，使用 HTTP(S) Google Load Balancer 把流量路由到 daedalus。这时事情开始出现一点偏差，因为 GLB 没有类似 AWS ALB 那样的自动 SSL 证书管理能力，我显然需要自己管理证书。Let’s Encrypt 是最显而易见的选择，而 kube-lego 似乎是最常见的集成方式，于是我把它部署了上去。它确实能工作，但我真正想要的行为却很难用它来建模：我希望所有非 SSL 流量直接透传，所有 SSL 流量则先终止再透传。kube-lego 需要为每个域名和协议配置特定的路由规则（这从它要捕获 /.well-known/* 路径来响应 Let’s Encrypt 域名所有权挑战的角度来看是可以理解的），并且它会接管未匹配流量的路由，把它们导向一个默认的 Nginx 配置，而不是让我指向自己的 daedalus 节点。这对我需要处理的域名数量来说不太好用（大部分域名只是重定向到 lethain.com，但数量足够多到让每个域名一条规则会超出我对 GLB 限制的理解），于是我又回到了起点。经过一番思考，我认为最好的方案是将 Nginx 和 SSL 终止的工作拆出来做成独立的 Deployment，这样我就有了两个 Deployment：frontend 负责托管 Nginx 并进行 SSL 终止，daedalus 则只运行 Go 二进制文件。花了一些配置功夫后，我终于让它跑起来了：用一个 LoadBalancer 类型的 Service 把 TCP 流量导向 frontend Deployment，再由它反向代理到 daedalus Deployment 的 ClusterIP。我更新了 Nginx 配置，让它直接提供 Let’s Encrypt 的挑战文件，从而通过了验证。（我希望在切换 DNS 之前先给 lethain.com 申请一张新证书，所以实际上我临时修改了 AWS 实例上的 Nginx 配置，让它反向代理到 GCP 的负载均衡器来获取挑战文件。不过后来阅读资料时发现，用 301 重定向可能同样有效，而且没那么麻烦。）这样运行得相当不错，唯一的 caveat 是 frontend 只有一个 Pod，这是必要的简化，因为 certbot 会把文件写到本地，如果有多个 Pod，有些就拿不到文件来正确响应挑战。后来读了一些资料，最简单的解决办法是创建一个 cert-refresh Deployment，只运行一个实例，让 frontend Pod 把 /.well-known/* 的请求反向代理回这个实例。对于真正重要的事情（比如提供服务流量），仍然保持高可用；证书更新虽然严格来说不再是高可用的，但它的需求只是每天运行一次刷新脚本，所以即使可用性极差也能满足要求。大功告成！</div>
+        
+          <div class="list-content">创建一个由 GKE 托管的 Kubernetes 集群，使用三台 n1-standard-1 实例（每台有 1.8 GB 内存）。编写 Dockerfile，最初是把我现有的 Packer 配置直接翻译过来，让 Nginx 和 Go 二进制文件运行在同一个虚拟机里。（之前我一直在制作 AMI。）把我的博客代码库（叫 daedalus，虽然写得比较粗糙）从 Github 同步到 Google Source Repositories，基于“放在本地能降低构建延迟”这个合理但未经验证的假设。在 Container Builder 中创建一个构建触发器，每次我推送代码到 master 分支时就自动构建 Daedalus 的 Dockerfile，并将生成的镜像上传到 Container Registry，供 GKE 使用。（我曾短暂尝试用分支而非标签来标记容器镜像，结果发现 Kubernetes 不喜欢这种做法，而且还会破坏回滚功能。）让整个流程完全跑通，包括创建一个 Ingress 资源，使用 HTTP(S) Google Load Balancer 把流量路由到 daedalus。这时事情开始出现一点偏差，因为 GLB 没有类似 AWS ALB 那样的自动 SSL 证书管理能力，我显然需要自己管理证书。Let’s Encrypt 是最显而易见的选择，而 kube-lego 似乎是最常见的集成方式，于是我把它部署了上去。它确实能工作，但我真正想要的行为却很难用它来建模：我希望所有非 SSL 流量直接透传，所有 SSL 流量则先终止再透传。kube-lego 需要为每个域名和协议配置特定的路由规则（这从它要捕获 /.well-known/* 路径来响应 Let’s Encrypt 域名所有权挑战的角度来看是可以理解的），并且它会接管未匹配流量的路由，把它们导向一个默认的 Nginx 配置，而不是让我指向自己的 daedalus 节点。这对我需要处理的域名数量来说不太好用（大部分域名只是重定向到 lethain.com，但数量足够多到让每个域名一条规则会超出我对 GLB 限制的理解），于是我又回到了起点。经过一番思考，我认为最好的方案是将 Nginx 和 SSL 终止的工作拆出来做成独立的 Deployment，这样我就有了两个 Deployment：frontend 负责托管 Nginx 并进行 SSL 终止，daedalus 则只运行 Go 二进制文件。花了一些配置功夫后，我终于让它跑起来了：用一个 LoadBalancer 类型的 Service 把 TCP 流量导向 frontend Deployment，再由它反向代理到 daedalus Deployment 的 ClusterIP。我更新了 Nginx 配置，让它直接提供 Let’s Encrypt 的挑战文件，从而通过了验证。（我希望在切换 DNS 之前先给 lethain.com 申请一张新证书，所以实际上我临时修改了 AWS 实例上的 Nginx 配置，让它反向代理到 GCP 的负载均衡器来获取挑战文件。不过后来阅读资料时发现，用 301 重定向可能同样有效，而且没那么麻烦。）这样运行得相当不错，唯一的 caveat 是 frontend 只有一个 Pod，这是必要的简化，因为 certbot 会把文件写到本地，如果有多个 Pod，有些就拿不到文件来正确响应挑战。后来读了一些资料，最简单的解决办法是创建一个 cert-refresh Deployment，只运行一个实例，让 frontend Pod 把 /.well-known/* 的请求反向代理回这个实例。对于真正重要的事情（比如提供服务流量），仍然保持高可用；证书更新虽然严格来说不再是高可用的，但它的需求只是每天运行一次刷新脚本，所以即使可用性极差也能满足要求。大功告成！</div>
+        
       
     
       
@@ -111,6 +119,19 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   var h = document.querySelector('.nav-section h2');
   if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
 });
 </script>
 </body>

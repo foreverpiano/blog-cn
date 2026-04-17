@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dynamo 论文动手实践评测 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Will Larson 文集</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -170,7 +176,9 @@ start(N) -&gt;
       
     
       
-        <div class="list-content">我们尚未介绍 kvs:store/1 函数，因此上面的代码目前还无法成功编译。spawn/3 用于使用指定的函数和参数创建进程，并返回进程标识符。pg2:join/2 的第二个参数接受由 spawn/3 返回的进程标识符。2 你可以多次运行 start/1，也可以在多个节点上运行，所有创建的进程都会加入同一个进程组。因此，这个 start 函数已经支持跨多个物理主机利用进程。</div>
+        
+          <div class="list-content">我们尚未介绍 kvs:store/1 函数，因此上面的代码目前还无法成功编译。spawn/3 用于使用指定的函数和参数创建进程，并返回进程标识符。pg2:join/2 的第二个参数接受由 spawn/3 返回的进程标识符。2 你可以多次运行 start/1，也可以在多个节点上运行，所有创建的进程都会加入同一个进程组。因此，这个 start 函数已经支持跨多个物理主机利用进程。</div>
+        
       
     
       
@@ -232,7 +240,9 @@ Pid ! dict;store(name, &lt;&lt;&quot;Will&quot;&gt;&gt;, dict:new()).
       
     
       
-        <div class="list-content">我们使用属性列表（property list）来存储值，因为它非常简单。不用说，属性列表不适合存储大量数据（读写平均复杂度为 O(N/2)，最坏情况为 O(N)）。我们稍后会解决这个问题。我们在每个进程中都存储所有数据，也就是说，我们采用的是复制而非分片。这只是临时状态，我们会在整个系列中逐步改进。读取总是从单个进程读取，如果我们在报告写入成功前验证所有其他进程都已成功更新，那么这是合适的。这一行为也会随着时间推移而改进。</div>
+        
+          <div class="list-content">我们使用属性列表（property list）来存储值，因为它非常简单。不用说，属性列表不适合存储大量数据（读写平均复杂度为 O(N/2)，最坏情况为 O(N)）。我们稍后会解决这个问题。我们在每个进程中都存储所有数据，也就是说，我们采用的是复制而非分片。这只是临时状态，我们会在整个系列中逐步改进。读取总是从单个进程读取，如果我们在报告写入成功前验证所有其他进程都已成功更新，那么这是合适的。这一行为也会随着时间推移而改进。</div>
+        
       
     
       
@@ -296,7 +306,9 @@ end.
       
     
       
-        <div class="list-content">这是第一次出现 receive 关键字，它是 Erlang 中使用消息传递的后半部分（前半部分是 ! 操作符）。receive 和 ! 一起工作的方式如下：还要注意 self/0 函数返回调用它的进程的 pid，因此当发送者希望接收者回复时经常使用它。pg2:get_members/1 接受一个进程组名称，并返回当前所有成员的 pid 列表。它与 pg2:get_closest_pid/1 是从进程组获取 pid 的两种机制。注意我们在 set 和 update 之间做的区分：set 是更新值的外部接口，而 update 是传播值的内部接口。（同时注意我们目前忽略了 updated 消息。）</div>
+        
+          <div class="list-content">这是第一次出现 receive 关键字，它是 Erlang 中使用消息传递的后半部分（前半部分是 ! 操作符）。receive 和 ! 一起工作的方式如下：还要注意 self/0 函数返回调用它的进程的 pid，因此当发送者希望接收者回复时经常使用它。pg2:get_members/1 接受一个进程组名称，并返回当前所有成员的 pid 列表。它与 pg2:get_closest_pid/1 是从进程组获取 pid 的两种机制。注意我们在 set 和 update 之间做的区分：set 是更新值的外部接口，而 update 是传播值的内部接口。（同时注意我们目前忽略了 updated 消息。）</div>
+        
       
     
       
@@ -415,7 +427,9 @@ end.
       
     
       
-        <div class="list-content">好吧好吧。任何东西都是可以替代的。如果我们真的想，我猜我们也可以在 Hadoop 之上构建一个分布式键值存储。那肯定会很有趣。↩在更严肃的实现中，pg2:join/2 通常由 OTP gen_server 在创建时将自己加入进程组，并在终止时移除自己。对于这个示例，处理 spawn 出来的 pid 能让代码更简洁，而不必面对完整的 gen_server 那一套及其特有的怪癖。↩如果你想知道如何轻松扩展为只停止本地节点上启动的进程，可以看看 erlang:node/1 函数，它会返回特定进程所在的节点。↩由于前面提到的 gen_server，许多（如果不是大多数）Erlang 系统在编写时并不使用显式的消息传递操作符（即 !）。而是分别使用 gen_server:call/2 和 gen_server:cast/2 进行同步和异步通信。在系列接近尾声时，将代码转换为 gen_server 会很有价值，但在一开始我认为那样只会用样板代码掩盖真正有趣的想法。↩请注意这里不保证随机性，而且它总是会把工作分配到本地节点，因此在某些极端情况下，使用 pg2:get_closest_pid/1 可能会导致工作分布严重不均。如果你需要保证均衡，需要在 pg2:get_members/1 之上编写一个包装器，并进行检查。↩通常模块的所有 -define 语句都会放在 .hrl 文件中。由于我们只有一个定义，目前我觉得放在同一个文件里更简单，但一般来说这不是最佳实践。↩</div>
+        
+          <div class="list-content">好吧好吧。任何东西都是可以替代的。如果我们真的想，我猜我们也可以在 Hadoop 之上构建一个分布式键值存储。那肯定会很有趣。↩在更严肃的实现中，pg2:join/2 通常由 OTP gen_server 在创建时将自己加入进程组，并在终止时移除自己。对于这个示例，处理 spawn 出来的 pid 能让代码更简洁，而不必面对完整的 gen_server 那一套及其特有的怪癖。↩如果你想知道如何轻松扩展为只停止本地节点上启动的进程，可以看看 erlang:node/1 函数，它会返回特定进程所在的节点。↩由于前面提到的 gen_server，许多（如果不是大多数）Erlang 系统在编写时并不使用显式的消息传递操作符（即 !）。而是分别使用 gen_server:call/2 和 gen_server:cast/2 进行同步和异步通信。在系列接近尾声时，将代码转换为 gen_server 会很有价值，但在一开始我认为那样只会用样板代码掩盖真正有趣的想法。↩请注意这里不保证随机性，而且它总是会把工作分配到本地节点，因此在某些极端情况下，使用 pg2:get_closest_pid/1 可能会导致工作分布严重不均。如果你需要保证均衡，需要在 pg2:get_members/1 之上编写一个包装器，并进行检查。↩通常模块的所有 -define 语句都会放在 .hrl 文件中。由于我们只有一个定义，目前我觉得放在同一个文件里更简单，但一般来说这不是最佳实践。↩</div>
+        
       
     
   </div>
@@ -457,6 +471,19 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   var h = document.querySelector('.nav-section h2');
   if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
 });
 </script>
 </body>

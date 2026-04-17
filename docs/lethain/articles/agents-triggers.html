@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>构建内部 Agent：触发器 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Will Larson 文集</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -72,12 +78,14 @@
       
     
       
-        <div class="list-content">Notion webhook 可以配置为在任何页面或数据库修改时触发，包括从“草稿”状态变为“待审核”状态或其他更细粒度的变更。我们已将所有 Request for Comment（RFC）和其他结构化文档数据库都接入这些 webhook。这些触发器驱动了多种工作流。简单的场景下，可用于根据主题自动分配额外评审人；更复杂的场景下，则可以通过 Prompt 在文档中提供行内评论和建议。
+        
+          <div class="list-content">Notion webhook 可以配置为在任何页面或数据库修改时触发，包括从“草稿”状态变为“待审核”状态或其他更细粒度的变更。我们已将所有 Request for Comment（RFC）和其他结构化文档数据库都接入这些 webhook。这些触发器驱动了多种工作流。简单的场景下，可用于根据主题自动分配额外评审人；更复杂的场景下，则可以通过 Prompt 在文档中提供行内评论和建议。
 Slack 消息可以触发回复或其他工作流，这取决于 bot 被邀请进入哪些频道。后来我又实现了一个触发器，用于捕获频道创建事件，从而支持自动加入新频道以提升覆盖范围。（自动加入的频道使用一个简单的默认 Prompt，只有在 bot 被直接 @ 时才会回复，以免过度打扰。）
 我们也实现了在私有频道中的触发功能（不包括自动加入，仅响应消息）。难点在于确保日志系统不会记录任何加入或响应私有频道的痕迹。泄露私有消息会是快速失去信任的最简单方式。
 Jira webhook 可以配置为在 issue 创建、更新、评论等事件时触发通知。
 Slack 表情反应（reacji）是后来添加的功能，我们增加了对特定频道或 bot 所在任何频道中 Slack 表情反应的监听。这使得我们能够快速实现一个触发器：在任意频道中使用 :jira: 表情，就能把整个线程转化为一个 Jira ticket，并根据统一的路由规则进行分发（虽然规则并不完美，但远好于大多数人跨多个团队手动路由的能力）。
 定时事件是我们最近添加的功能，支持周期性触发。我已经完成了两个不同的 v0 实现，第一个依赖 Slack workflow 向新频道发送消息作为触发，第二个则依赖 GitHub Actions。两者虽然都有些繁琐，但实际运行效果都还不错。</div>
+        
       
     
       
@@ -145,6 +153,19 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   var h = document.querySelector('.nav-section h2');
   if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
 });
 </script>
 </body>

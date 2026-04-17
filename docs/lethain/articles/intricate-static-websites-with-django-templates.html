@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>使用 Django Templates 构建复杂的静态网站 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Will Larson 文集</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -317,7 +323,9 @@ This is some simple static text.
       
     
       
-        <div class="list-content">首先，创建一个文件夹来存放这个项目。我把它叫做 my_cms。接下来我们要创建几个子文件夹：然后在 my_cms 目录下创建一个非常简单的 settings.py 文件。这个 settings.py 中保存的设置将在构建脚本中使用，特别是其中的 CONTEXT 字典会在渲染模板时传递给模板，因此它非常适合存放经常变化的配置和数据。现在我们来编写构建脚本的初始版本。由于还没有创建任何内容，它会比较简陋，但它将按以下步骤执行：在 deploy 目录下创建 deploy/static 目录。将 static/ 目录下的所有内容复制到 deploy/static 中。创建 deploy/static/thumbnail 目录和 deploy/static/image 目录。对 images/ 目录中的所有图片，分别在 deploy/static/thumbnail 和 deploy/static/image 目录中创建对应的缩略图和图片。渲染我们提供的模板列表，并将它们复制到 deploy/ 目录下。综合起来，build.py 脚本大致如下：不得不承认作为一段代码片段来说它有点长（76 行代码？有点吓人），但里面的内容并不复杂，而且以后我们也不需要修改它（只需修改 settings.py 即可）。在开始编写模板之前，先往 images/ 文件夹里放几张随机图片，以便测试缩略图生成功能。我用了一张以前拍的照片，文件名是 bridge.png。你用什么图片其实关系不大（不过目前这个脚本只支持 .png 文件）。一张截图也可以。现在我们只需要开始编写模板来利用这个全新的构建系统。首先编写一个基础模板，文件名为 base.html，放在 templates/ 目录下。然后在 templates/ 目录下创建 header.html 文件：以及 footer.html 文件：说实话，我们也可以直接使用 {% now %} 模板标签，而不是把 now 变量存放在模板的 context 中。我这么做只是为了演示如何向模板添加动态的静态上下文。最后，我们来编写 index.html 模板。现在要把 index.html 页面加入渲染列表，只需将其添加到 settings.py 中的 PAGES_TO_RENDER 元组里：然后在命令行输入：这样就会在 deploy/ 目录下构建出网站。最后，base.html 模板已经设置好要引入 static/style.css 这个 CSS 文件，所以我们来写一个非常简单的 CSS 作为示例。创建 my_cms/static/style.css 文件：然后再次运行构建脚本：deploy/ 目录下的文件就会使用新的 CSS 样式来显示。</div>
+        
+          <div class="list-content">首先，创建一个文件夹来存放这个项目。我把它叫做 my_cms。接下来我们要创建几个子文件夹：然后在 my_cms 目录下创建一个非常简单的 settings.py 文件。这个 settings.py 中保存的设置将在构建脚本中使用，特别是其中的 CONTEXT 字典会在渲染模板时传递给模板，因此它非常适合存放经常变化的配置和数据。现在我们来编写构建脚本的初始版本。由于还没有创建任何内容，它会比较简陋，但它将按以下步骤执行：在 deploy 目录下创建 deploy/static 目录。将 static/ 目录下的所有内容复制到 deploy/static 中。创建 deploy/static/thumbnail 目录和 deploy/static/image 目录。对 images/ 目录中的所有图片，分别在 deploy/static/thumbnail 和 deploy/static/image 目录中创建对应的缩略图和图片。渲染我们提供的模板列表，并将它们复制到 deploy/ 目录下。综合起来，build.py 脚本大致如下：不得不承认作为一段代码片段来说它有点长（76 行代码？有点吓人），但里面的内容并不复杂，而且以后我们也不需要修改它（只需修改 settings.py 即可）。在开始编写模板之前，先往 images/ 文件夹里放几张随机图片，以便测试缩略图生成功能。我用了一张以前拍的照片，文件名是 bridge.png。你用什么图片其实关系不大（不过目前这个脚本只支持 .png 文件）。一张截图也可以。现在我们只需要开始编写模板来利用这个全新的构建系统。首先编写一个基础模板，文件名为 base.html，放在 templates/ 目录下。然后在 templates/ 目录下创建 header.html 文件：以及 footer.html 文件：说实话，我们也可以直接使用 {% now %} 模板标签，而不是把 now 变量存放在模板的 context 中。我这么做只是为了演示如何向模板添加动态的静态上下文。最后，我们来编写 index.html 模板。现在要把 index.html 页面加入渲染列表，只需将其添加到 settings.py 中的 PAGES_TO_RENDER 元组里：然后在命令行输入：这样就会在 deploy/ 目录下构建出网站。最后，base.html 模板已经设置好要引入 static/style.css 这个 CSS 文件，所以我们来写一个非常简单的 CSS 作为示例。创建 my_cms/static/style.css 文件：然后再次运行构建脚本：deploy/ 目录下的文件就会使用新的 CSS 样式来显示。</div>
+        
       
     
       
@@ -472,6 +480,19 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   var h = document.querySelector('.nav-section h2');
   if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
 });
 </script>
 </body>

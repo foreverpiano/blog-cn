@@ -10,6 +10,11 @@
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -34,49 +39,33 @@
       
     
       
-        <div class="list-content">符号说明
+        
+          <ul>
+            <li>Attention and Self-Attention</li><li>Multi-Head Self-Attention</li><li>Transformer</li><li>Adaptive Computation Time (ACT)</li><li>Improved Attention Span
 
-Attention 与 Self-Attention
+Longer Attention Span (Transformer-XL)
 
-Multi-Head Self-Attention
+Adaptive Attention Span
 
-Transformer
+Localized Attention Span (Image Transformer)</li><li>Less Time and Memory Cost
 
-自适应计算时间（ACT）
+Sparse Attention Matrix Factorization (Sparse Transformers)
 
-改进注意力跨度
-
-更长的注意力跨度（Transformer-XL）
-
-自适应注意力跨度
-
-局部注意力跨度（Image Transformer）
-
-减少时间与内存开销
-
-稀疏注意力矩阵分解（Sparse Transformers）
-
-局部敏感哈希（Reformer）
-
-使其具有循环特性（Universal Transformer）
-
-针对强化学习的稳定化措施（GTrXL）
-
-引用
-
-参考文献</div>
+Locality-Sensitive Hashing (Reformer)</li><li>Make it Recurrent (Universal Transformer)</li><li>Stabilization for RL (GTrXL)</li><li>Citation</li><li>Reference</li>
+          </ul>
+        
       
     
       
-        <p>[2023-01-27 更新：时隔近三年，我对本文进行了大规模重构，纳入了 2020 年以来众多新的 Transformer 模型。本文的增强版本请见：<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a>。关于该主题的内容建议参考该新版本。]</p>
+        <p>[2023-01-27 更新：时隔近三年，我对本文进行了大幅重构，加入了 2020 年以来众多新的 Transformer 模型。增强版内容请见：<a href="posts-2023-01-27-the-transformer-family-v2.html">Transformer 家族 2.0 版</a>。关于该主题的最新信息请参考该版本。]</p>
       
     
       
-        <p>自从我上次发表关于 <a href="posts-2018-06-24-attention.html">注意？注意！</a> 的文章已经过去了近两年。Transformer 新模型及改进版本的最新进展促使我再次撰写一篇关于这一主题的文章，重点讨论如何改进 vanilla Transformer，以实现更长的注意力跨度、更低的内存和计算消耗、更好地解决强化学习（RL）任务等。</p>
+        <p>自从我上次发表关于 <a href="posts-2018-06-24-attention.html">注意？注意！</a> 的文章以来，已经过去了近两年时间。Transformer 的各种新版本和改进工作激励我再次撰写一篇专题文章，重点讨论如何改进 vanilla Transformer，以实现更长的注意力范围、更低的内存和计算消耗、更好的强化学习任务解决能力等。</p>
       
     
       
-        <h2>符号说明#</h2>
+        <h2>符号说明</h2>
         
       
     
@@ -158,20 +147,20 @@ Transformer
       
     
       
-        <h2>Attention 与 Self-Attention#</h2>
+        <h2>Attention 与 Self-Attention</h2>
         
       
     
       
-        <p>Attention 是神经网络中的一种机制，模型可以通过选择性地关注给定数据来学习进行预测。注意力的大小通过学习到的权重来量化，因此输出通常表现为加权平均的形式。</p>
+        <p>Attention 是神经网络中的一种机制，模型可以通过选择性地关注给定数据中的特定部分来做出预测。注意力的强度由学习到的权重量化，因此输出通常表现为加权平均的形式。</p>
       
     
       
-        <p>Self-attention 是一种特殊的注意力机制，模型利用同一数据样本中其他部分的信息来对该样本的某一位置进行预测。从概念上讲，它与 <a href="https://en.wikipedia.org/wiki/Non-local_means" target="_blank" rel="noopener">non-local means</a> 非常相似。还需要注意的是，self-attention 是置换不变的；换句话说，它是对集合进行的操作。</p>
+        <p>Self-attention 是一种特殊的注意力机制，模型利用同一数据样本中其他部分的信息来对样本的某一部分进行预测。从概念上讲，它与 <a href="https://en.wikipedia.org/wiki/Non-local_means" target="_blank" rel="noopener">non-local means</a> 非常相似。还需要注意的是，self-attention 是置换不变的（permutation-invariant），换句话说，它是作用于集合的操作。</p>
       
     
       
-        <p>Attention / Self-Attention 有多种形式，Transformer（<a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">Vaswani et al., 2017</a>）采用的是缩放点积注意力（scaled dot-product attention）：给定查询矩阵 <span class="math-inline" data-math="\mathbf{Q}">\mathbf{Q}</span>、键矩阵 <span class="math-inline" data-math="\mathbf{K}">\mathbf{K}</span> 和值矩阵 <span class="math-inline" data-math="\mathbf{V}">\mathbf{V}</span>，输出是值向量的加权求和，其中分配给每个值向量的权重由查询与对应键的点积决定：</p>
+        <p>Attention / Self-Attention 有多种形式，Transformer（<a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">Vaswani et al., 2017</a>）采用的是缩放点积注意力（scaled dot-product attention）：给定查询矩阵 <span class="math-inline" data-math="\mathbf{Q}">\mathbf{Q}</span>、键矩阵 <span class="math-inline" data-math="\mathbf{K}">\mathbf{K}</span> 和值矩阵 <span class="math-inline" data-math="\mathbf{V}">\mathbf{V}</span>，输出是值向量的加权和，其中每个值对应的权重由查询与对应键的点积决定：</p>
       
     
       
@@ -183,7 +172,7 @@ Transformer
       
     
       
-        <p>对于查询向量和键向量 <span class="math-inline" data-math="\mathbf{q}_i, \mathbf{k}_j \in \mathbb{R}^d">\mathbf{q}_i, \mathbf{k}_j \in \mathbb{R}^d</span>（查询和键矩阵中的行向量），我们得到一个标量分数：</p>
+        <p>对于查询向量和键向量 <span class="math-inline" data-math="\mathbf{q}_i, \mathbf{k}_j \in \mathbb{R}^d">\mathbf{q}_i, \mathbf{k}_j \in \mathbb{R}^d</span>（查询和键矩阵中的行向量），其标量得分计算如下：</p>
       
     
       
@@ -201,12 +190,12 @@ a_{ij} = \text{softmax}(\frac{\mathbf{q}_i {\mathbf{k}_j}^\top}{\sqrt{d_k}})
       
     
       
-        <h2>Multi-Head Self-Attention#</h2>
+        <h2>Multi-Head Self-Attention</h2>
         
       
     
       
-        <p>多头自注意力模块是 Transformer 的核心组件之一。它不是只计算一次注意力，而是将输入拆分成多个更小的子空间，然后并行地在每个子空间上计算缩放点积注意力。最后将独立的注意力输出拼接起来，经过线性变换得到期望的维度。</p>
+        <p>多头自注意力模块是 Transformer 的核心组件。它并非只计算一次注意力，而是将输入拆分成多个更小的子空间，然后并行地在每个子空间上计算缩放点积注意力。独立的注意力输出被拼接在一起，再经过线性变换得到最终的期望维度。</p>
       
     
       
@@ -224,23 +213,23 @@ a_{ij} = \text{softmax}(\frac{\mathbf{q}_i {\mathbf{k}_j}^\top}{\sqrt{d_k}})
       
     
       
-        <p>其中 <span class="math-inline" data-math="[.;.]">[.;.]</span> 表示拼接操作，<span class="math-inline" data-math="\mathbf{W}^q_i, \mathbf{W}^k_i \in \mathbb{R}^{d \times d_k/h}, \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}">\mathbf{W}^q_i, \mathbf{W}^k_i \in \mathbb{R}^{d \times d_k/h}, \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}</span> 是将维度为 <span class="math-inline" data-math="L \times d">L \times d</span> 的输入嵌入映射为查询、键和值矩阵的权重矩阵，<span class="math-inline" data-math="\mathbf{W}^o \in \mathbb{R}^{d_v \times d}">\mathbf{W}^o \in \mathbb{R}^{d_v \times d}</span> 是最终的输出线性变换。所有权重均在训练过程中学习得到。</p>
+        <p>其中 <span class="math-inline" data-math="[.;.]">[.;.]</span> 表示拼接操作，<span class="math-inline" data-math="\mathbf{W}^q_i, \mathbf{W}^k_i \in \mathbb{R}^{d \times d_k/h}, \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}">\mathbf{W}^q_i, \mathbf{W}^k_i \in \mathbb{R}^{d \times d_k/h}, \mathbf{W}^v_i \in \mathbb{R}^{d \times d_v/h}</span> 是权重矩阵，用于将维度为 <span class="math-inline" data-math="L \times d">L \times d</span> 的输入嵌入映射为查询、键和值矩阵。<span class="math-inline" data-math="\mathbf{W}^o \in \mathbb{R}^{d_v \times d}">\mathbf{W}^o \in \mathbb{R}^{d_v \times d}</span> 是输出线性变换层。所有权重均在训练过程中学习得到。</p>
       
     
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/multi-head-attention.png" alt="">
-          <figcaption>Illustration of the multi-head scaled dot-product attention mechanism. (Image source: Figure 2 inVaswani, et al., 2017)</figcaption>
+          <figcaption>多头缩放点积注意力机制示意图。（图片来源：Vaswani, et al., 2017 中的图 2）</figcaption>
         </figure>
       
     
       
-        <h2>Transformer#</h2>
+        <h2>Transformer</h2>
         
       
     
       
-        <p>Transformer（为与后续改进版本区分，本文中称为“vanilla Transformer”；<a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">Vaswani et al., 2017</a>）采用经典的编码器-解码器架构，这在许多 <a href="posts-2018-06-24-attention.html">注意？注意！</a> 模型中很常见。后来，人们发现简化后的 Transformer 在语言建模任务中也能取得极佳性能，例如仅使用编码器的 <a href="posts-2019-01-31-lm.html">通用语言模型</a> 或仅使用解码器的 <a href="posts-2019-01-31-lm.html">通用语言模型</a>。</p>
+        <p>Transformer（为与后续改进版本区分，本文将其称为“vanilla Transformer”；<a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">Vaswani, et al., 2017</a>）采用编码器-解码器架构，这在许多 <a href="posts-2018-06-24-attention.html">注意？注意！</a> 模型中很常见。后来简化后的 Transformer 在语言建模任务中表现出色，例如仅使用编码器的 <a href="posts-2019-01-31-lm.html">通用语言模型</a> 或仅使用解码器的 <a href="posts-2019-01-31-lm.html">通用语言模型</a>。</p>
       
     
       
@@ -248,17 +237,17 @@ a_{ij} = \text{softmax}(\frac{\mathbf{q}_i {\mathbf{k}_j}^\top}{\sqrt{d_k}})
       
     
       
-        <p>编码器生成基于注意力的表示，能够从大量上下文中定位特定信息。它由 6 个完全相同的模块堆叠而成，每个模块包含两个子模块：一个多头自注意力层和一个逐位置全连接前馈网络。所谓“逐位置”，是指对序列中的每个元素使用相同的线性变换（共享权重）。这也可以看作是滤波器大小为 1 的卷积层。每个子模块都带有残差连接和层归一化，所有子模块输出的数据维度均为 <span class="math-inline" data-math="d">d</span>。</p>
+        <p>编码器生成基于注意力的表示，能够从大量上下文中定位特定信息。它由 6 个完全相同的模块堆叠而成，每个模块包含两个子模块：一个多头自注意力层和一个逐位置全连接前馈网络。所谓逐位置，是指对序列中的每个元素都应用相同的线性变换（使用相同权重）。这也可以看作是滤波器大小为 1 的卷积层。每个子模块都带有残差连接和层归一化。所有子模块输出的数据维度均为 <span class="math-inline" data-math="d">d</span>。</p>
       
     
       
-        <p>Transformer 解码器的作用是从编码后的表示中提取信息。其架构与编码器非常相似，不同之处在于每个重复模块中包含两个多头注意力子模块，而不是一个。第一个多头注意力子模块使用了掩码，以防止当前位置关注未来信息。</p>
+        <p>Transformer 解码器的功能是从编码后的表示中提取信息。其架构与编码器非常相似，不同之处在于每个重复模块中包含两个多头注意力子模块而非一个。第一个多头注意力子模块被施加掩码，以防止当前位置关注未来信息。</p>
       
     
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/transformer.png" alt="">
-          <figcaption>The architecture of the vanilla Transformer model. (Image source:Figure 17)</figcaption>
+          <figcaption>Vanilla Transformer 模型的架构示意图。（图片来源：图 17）</figcaption>
         </figure>
       
     
@@ -267,11 +256,11 @@ a_{ij} = \text{softmax}(\frac{\mathbf{q}_i {\mathbf{k}_j}^\top}{\sqrt{d_k}})
       
     
       
-        <p>由于自注意力操作具有置换不变性，使用合适的位置编码（positional encoding）来为模型提供顺序信息非常重要。位置编码 <span class="math-inline" data-math="\mathbf{P} \in \mathbb{R}^{L \times d}">\mathbf{P} \in \mathbb{R}^{L \times d}</span> 与输入嵌入具有相同的维度，因此可以直接加到输入上。Vanilla Transformer 考虑了两种位置编码方式：</p>
+        <p>由于自注意力操作具有置换不变性，必须使用合适的位置编码来为模型提供顺序信息。位置编码 <span class="math-inline" data-math="\mathbf{P} \in \mathbb{R}^{L \times d}">\mathbf{P} \in \mathbb{R}^{L \times d}</span> 与输入嵌入的维度相同，因此可以直接加在输入上。Vanilla Transformer 考虑了两种位置编码方式：</p>
       
     
       
-        <p>（1）正弦位置编码定义如下，其中 <span class="math-inline" data-math="i=1,\dots,L">i=1,\dots,L</span> 表示 token 的位置，<span class="math-inline" data-math="\delta=1,\dots,d">\delta=1,\dots,d</span> 表示维度：</p>
+        <p>(1) 正弦位置编码定义如下，其中 <span class="math-inline" data-math="i=1,\dots,L">i=1,\dots,L</span> 表示 token 的位置，<span class="math-inline" data-math="\delta=1,\dots,d">\delta=1,\dots,d</span> 表示维度：</p>
       
     
       
@@ -291,52 +280,54 @@ a_{ij} = \text{softmax}(\frac{\mathbf{q}_i {\mathbf{k}_j}^\top}{\sqrt{d_k}})
       
     
       
-        <p>这样，位置编码的每个维度对应不同波长的正弦函数，波长范围从 <span class="math-inline" data-math="2\pi">2\pi</span> 到 <span class="math-inline" data-math="10000 \cdot 2\pi">10000 \cdot 2\pi</span>。</p>
+        <p>这样，位置编码的每个维度对应于不同波长的正弦曲线，波长范围从 <span class="math-inline" data-math="2\pi">2\pi</span> 到 <span class="math-inline" data-math="10000 \cdot 2\pi">10000 \cdot 2\pi</span>。</p>
       
     
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/sinoidual-positional-encoding.png" alt="">
-          <figcaption>Sinusoidal positional encoding with <span class="math-inline" data-math="L=32">L=32</span> and <span class="math-inline" data-math="d=128">d=128</span>. The value is between -1 (black) and 1 (white) and the value 0 is in gray.</figcaption>
+          <figcaption>正弦位置编码（<span class="math-inline" data-math="L=32">L=32</span> 和 <span class="math-inline" data-math="d=128">d=128</span>）。数值范围在 -1（黑色）到 1（白色）之间，0 用灰色表示。</figcaption>
         </figure>
       
     
       
-        <p>（2）可学习的位置编码，正如其名称所示，为每个位置分配一个可学习的列向量，用于编码其绝对位置（<a href="https://arxiv.org/abs/1705.03122" target="_blank" rel="noopener">Gehring et al., 2017</a>）。</p>
+        <p>(2) 学习的位置编码，正如其名称所示，为每个位置分配一个可学习的列向量来编码其绝对位置（<a href="https://arxiv.org/abs/1705.03122" target="_blank" rel="noopener">Gehring, et al. 2017</a>）。</p>
       
     
       
-        <p>后续快速进展</p>
+        <p>后续改进</p>
       
     
       
-        <p>在 vanilla Transformer 之后，<a href="https://arxiv.org/abs/1808.04444" target="_blank" rel="noopener">Al-Rfou et al. (2018)</a> 引入了一组辅助损失，使得能够在字符级语言建模任务上训练更深的 Transformer 模型，其性能超过了 LSTM。他们使用了以下几种辅助任务：</p>
+        <p>在 vanilla Transformer 之后，<a href="https://arxiv.org/abs/1808.04444" target="_blank" rel="noopener">Al-Rfou et al. (2018)</a> 引入了一组辅助损失，使其能够在字符级语言建模任务上训练更深的 Transformer 模型，并超越了 LSTM。他们使用了以下几种辅助任务：</p>
       
     
       
-        <div class="list-content">不再只在序列末尾产生一个预测，而是要求每个中间位置也做出正确预测，迫使模型在更小的上下文（例如上下文窗口开头的前几个 token）下进行预测。
-每个中间 Transformer 层也被用于做出预测。随着训练进行，较低层的权重对总损失的贡献会越来越小。
-序列中的每个位置可以预测多个目标，即对未来两个或更多 token 进行预测。</div>
+        
+          <ul>
+            <li>不仅在序列末尾产生一个预测，还要求每个中间位置也做出正确预测，迫使模型在较小的上下文（例如上下文窗口开头的前几个 token）下进行预测。</li><li>每个中间 Transformer 层也被用于做出预测。随着训练推进，较低层对总损失的贡献权重逐渐降低。</li><li>序列中的每个位置可以预测多个目标，即对未来多个 token 进行预测。</li>
+          </ul>
+        
       
     
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/transformer-aux-losses.png" alt="">
-          <figcaption>Auxiliary prediction tasks used in deep Transformer for character-level language modeling. (Image source:Al-Rfou et al. (2018))</figcaption>
+          <figcaption>用于深度 Transformer 字符级语言建模的辅助预测任务示意图。（图片来源：Al-Rfou et al. (2018)）</figcaption>
         </figure>
       
     
       
-        <h2>自适应计算时间（ACT）#</h2>
+        <h2>Adaptive Computation Time (ACT)</h2>
         
       
     
       
-        <p>自适应计算时间（Adaptive Computation Time，简称 ACT；<a href="https://arxiv.org/abs/1603.08983" target="_blank" rel="noopener">Graves, 2016</a>）是一种动态决定循环神经网络需要执行多少计算步数的机制。distill.pub 上有一篇很棒的 <a href="https://distill.pub/2016/augmented-rnns/#adaptive-computation-time" target="_blank" rel="noopener">教程</a> 介绍了 ACT。</p>
+        <p>自适应计算时间（简称 ACT；<a href="https://arxiv.org/abs/1603.08983" target="_blank" rel="noopener">Graves, 2016</a>）是一种机制，用于动态决定循环神经网络在每个时间步需要执行多少计算步骤。distill.pub 上有一篇很棒的 <a href="https://distill.pub/2016/augmented-rnns/#adaptive-computation-time" target="_blank" rel="noopener">教程</a> 介绍 ACT。</p>
       
     
       
-        <p>假设我们有一个 RNN 模型 <span class="math-inline" data-math="\mathcal{R}">\mathcal{R}</span>，它包含输入权重 <span class="math-inline" data-math="W_x">W_x</span>、参数化的状态转移函数 <span class="math-inline" data-math="\mathcal{S}(.)">\mathcal{S}(.)</span>、输出权重 <span class="math-inline" data-math="W_y">W_y</span> 以及输出偏置 <span class="math-inline" data-math="b_y">b_y</span>。给定输入序列 <span class="math-inline" data-math="(x_1, \dots, x_L)">(x_1, \dots, x_L)</span>，输出序列 <span class="math-inline" data-math="(y_1, \dots, y_L)">(y_1, \dots, y_L)</span> 的计算方式为：</p>
+        <p>假设我们有一个 RNN 模型 <span class="math-inline" data-math="\mathcal{R}">\mathcal{R}</span>，它包含输入权重 <span class="math-inline" data-math="W_x">W_x</span>、参数化的状态转移函数 <span class="math-inline" data-math="\mathcal{S}(.)">\mathcal{S}(.)</span>、一组输出权重 <span class="math-inline" data-math="W_y">W_y</span> 和输出偏置 <span class="math-inline" data-math="b_y">b_y</span>。给定输入序列 <span class="math-inline" data-math="(x_1, \dots, x_L)">(x_1, \dots, x_L)</span>，输出序列 <span class="math-inline" data-math="(y_1, \dots, y_L)">(y_1, \dots, y_L)</span> 通过以下方式计算：</p>
       
     
       
@@ -348,7 +339,7 @@ s_t = \mathcal{S}(s_{t-1}, W_x x_t), \quad y_t = W_y s_t + b_y\quad\text{for }t=
       
     
       
-        <p>ACT 允许上述 RNN 在处理每个输入元素时执行可变数量的计算步骤。多次计算会产生一系列中间状态 <span class="math-inline" data-math="(s_t^1, \dots, s_t^{N(t)})">(s_t^1, \dots, s_t^{N(t)})</span> 和输出 <span class="math-inline" data-math="(y_t^1, \dots, y_t^{N(t)})">(y_t^1, \dots, y_t^{N(t)})</span>——它们共享相同的状态转移函数 <span class="math-inline" data-math="\mathcal{S}(.)">\mathcal{S}(.)</span>、输出权重 <span class="math-inline" data-math="W_y">W_y</span> 和偏置 <span class="math-inline" data-math="b_y">b_y</span>：</p>
+        <p>ACT 允许上述 RNN 在每个输入元素上执行可变数量的计算步骤。多个计算步骤会产生一系列中间状态 <span class="math-inline" data-math="(s_t^1, \dots, s_t^{N(t)})">(s_t^1, \dots, s_t^{N(t)})</span> 和输出 <span class="math-inline" data-math="(y_t^1, \dots, y_t^{N(t)})">(y_t^1, \dots, y_t^{N(t)})</span>——它们共享相同的状态转移函数 <span class="math-inline" data-math="\mathcal{S}(.)">\mathcal{S}(.)</span>、相同的输出权重 <span class="math-inline" data-math="W_y">W_y</span> 和偏置 <span class="math-inline" data-math="b_y">b_y</span>：</p>
       
     
       
@@ -368,11 +359,11 @@ y_t^n &amp;= W_y s_t^n + b_y
       
     
       
-        <p>其中 <span class="math-inline" data-math="\delta_{n,1}">\delta_{n,1}</span> 是一个二进制标志，表示是否已经递增了输入步数。</p>
+        <p>其中 <span class="math-inline" data-math="\delta_{n,1}">\delta_{n,1}</span> 是一个二进制标志，表示是否已递增输入步数。</p>
       
     
       
-        <p>计算步数 <span class="math-inline" data-math="N(t)">N(t)</span> 由一个额外的 sigmoid 停止单元 <span class="math-inline" data-math="h">h</span> 决定，该单元带有对应的权重矩阵 <span class="math-inline" data-math="W_h">W_h</span> 和偏置 <span class="math-inline" data-math="b_h">b_h</span>，在第 <span class="math-inline" data-math="n">n</span> 个即时步对第 <span class="math-inline" data-math="t">t</span> 个输入元素输出停止概率 <span class="math-inline" data-math="p_t^n">p_t^n</span>：</p>
+        <p>计算步数 <span class="math-inline" data-math="N(t)">N(t)</span> 由一个额外的 S 型停止单元 <span class="math-inline" data-math="h">h</span> 决定，该单元带有权重矩阵 <span class="math-inline" data-math="W_h">W_h</span> 和偏置 <span class="math-inline" data-math="b_h">b_h</span>，在第 <span class="math-inline" data-math="n">n</span> 个即时步骤为第 <span class="math-inline" data-math="t">t</span> 个输入元素输出停止概率 <span class="math-inline" data-math="p_t^n">p_t^n</span>：</p>
       
     
       
@@ -384,7 +375,7 @@ h_t^n = \sigma(W_h s_t^n + b_h)
       
     
       
-        <p>为了允许计算在一步之后即可停止，ACT 引入了一个很小的常数 <span class="math-inline" data-math="\epsilon">\epsilon</span>（例如 0.01），当累积概率超过 <span class="math-inline" data-math="1-\epsilon">1-\epsilon</span> 时计算就会停止。</p>
+        <p>为了允许计算在单步后即可停止，ACT 引入了一个很小的常数 <span class="math-inline" data-math="\epsilon">\epsilon</span>（例如 0.01），使得累积概率一旦超过 <span class="math-inline" data-math="1-\epsilon">1-\epsilon</span>，计算就会停止。</p>
       
     
       
@@ -412,7 +403,7 @@ R(t) = 1 - \sum_{n=1}^{N(t)-1} h_t^n &amp; \text{if }n= N(t)\\
       
     
       
-        <p>最终的状态和输出通过均场更新得到：</p>
+        <p>最终的状态和输出通过均值场更新得到：</p>
       
     
       
@@ -426,49 +417,54 @@ s_t = \sum_{n=1}^{N(t)} p_t^n s_t^n,\quad y_t = \sum_{n=1}^{N(t)} p_t^n y_t^n
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/ACT-computation-graph.png" alt="">
-          <figcaption>The computation graph of a RNN with ACT mechanism. (Image source:Graves, 2016)</figcaption>
+          <figcaption>带有 ACT 机制的 RNN 计算图。（图片来源：Graves, 2016）</figcaption>
         </figure>
       
     
       
-        <p>为了避免在每个输入上进行不必要的思考，ACT 在损失函数中加入了一个 ponder cost <span class="math-inline" data-math="\mathcal{P}(x) = \sum_{t=1}^L N(t) + R(t) ">\mathcal{P}(x) = \sum_{t=1}^L N(t) + R(t) </span>，以鼓励更少的中间计算步数。</p>
+        <p>为了避免在每个输入上进行不必要的思考，ACT 在损失函数中加入一个思考代价 <span class="math-inline" data-math="\mathcal{P}(x) = \sum_{t=1}^L N(t) + R(t) ">\mathcal{P}(x) = \sum_{t=1}^L N(t) + R(t) </span>，以鼓励更少的中间计算步骤。</p>
       
     
       
-        <h2>改进注意力跨度#</h2>
+        <h2>改进注意力范围</h2>
         
       
     
       
-        <p>改进注意力跨度的目标是使自注意力机制能够使用更长、更高效且更灵活的上下文。</p>
+        <p>改进注意力范围的目标是让自注意力机制能够利用更长、更高效且更灵活的上下文。</p>
       
     
       
-        <h2>更长的注意力跨度（Transformer-XL）#</h2>
+        <h2>更长的注意力范围 (Transformer-XL)</h2>
         
       
     
       
-        <p>Vanilla Transformer 的注意力跨度是固定且有限的。在每次更新时，模型只能关注同一段（segment）内的其他元素，不同固定长度段之间无法传递信息。</p>
+        <p>Vanilla Transformer 的注意力范围是固定且有限的。在每次更新时，模型只能关注同一段内的其他元素，信息无法在分隔开的固定长度段之间流动。</p>
       
     
       
-        <p>这种上下文切分导致了以下几个问题：</p>
+        <p>这种上下文分割导致了几个问题：</p>
       
     
       
-        <div class="list-content">模型无法捕捉极长期的依赖关系。
-由于上下文缺失或过少，很难预测每个段开头的几个 token。
-评估代价很高。每当段向右移动一个位置时，新的段都需要从头重新处理，尽管其中存在大量重叠的 token。</div>
+        
+          <ul>
+            <li>模型无法捕捉非常长期的依赖关系。</li><li>在每个段的前几个 token 缺乏足够上下文时，预测非常困难。</li><li>评估代价高昂。每当段向右移动一位时，新的段需要从头重新处理，尽管其中存在大量重叠的 token。</li>
+          </ul>
+        
       
     
       
-        <p>Transformer-XL（<a href="https://arxiv.org/abs/1901.02860" target="_blank" rel="noopener">Dai et al., 2019</a>；“XL”代表“extra long”）通过两个主要修改解决了上下文切分问题：</p>
+        <p>Transformer-XL（<a href="https://arxiv.org/abs/1901.02860" target="_blank" rel="noopener">Dai et al., 2019</a>；“XL”表示“extra long”）通过两个主要修改解决了上下文分割问题：</p>
       
     
       
-        <div class="list-content">在段之间复用隐藏状态。
-采用一种适合复用状态的新型位置编码。</div>
+        
+          <ol>
+            <li>在段之间复用隐藏状态。</li><li>采用一种适用于复用状态的新型位置编码。</li>
+          </ol>
+        
       
     
       
@@ -476,18 +472,18 @@ s_t = \sum_{n=1}^{N(t)} p_t^n s_t^n,\quad y_t = \sum_{n=1}^{N(t)} p_t^n y_t^n
       
     
       
-        <p>通过持续使用前一段的隐藏状态，将段之间的循环连接引入模型。</p>
+        <p>通过持续使用前一段的隐藏状态，模型引入了段之间的循环连接。</p>
       
     
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/transformer-XL-training.png" alt="">
-          <figcaption>A comparison between the training phrase of vanilla Transformer &amp; Transformer-XL with a segment length 4. (Image source: left part of Figure 2 inDai et al., 2019).</figcaption>
+          <figcaption>Vanilla Transformer 与 Transformer-XL（段长为 4）在训练时的对比。（图片来源：Dai et al., 2019 中图 2 的左侧部分）</figcaption>
         </figure>
       
     
       
-        <p>我们将模型中第 <span class="math-inline" data-math="n">n</span> 层、第 <span class="math-inline" data-math="(\tau + 1)">(\tau + 1)</span> 个段的隐藏状态记为 <span class="math-inline" data-math="\mathbf{h}_{\tau+1}^{(n)} \in \mathbb{R}^{L \times d}">\mathbf{h}_{\tau+1}^{(n)} \in \mathbb{R}^{L \times d}</span>。除了同一段最后一层的隐藏状态 <span class="math-inline" data-math="\mathbf{h}_{\tau+1}^{(n-1)}">\mathbf{h}_{\tau+1}^{(n-1)}</span> 外，它还依赖于前一段同一层的隐藏状态 <span class="math-inline" data-math="\mathbf{h}_{\tau}^{(n)}">\mathbf{h}_{\tau}^{(n)}</span>。通过引入先前隐藏状态的信息，模型能够将注意力跨度大幅向前延伸，跨越多个段。</p>
+        <p>我们将模型中第 <span class="math-inline" data-math="n">n</span> 层、第 <span class="math-inline" data-math="(\tau + 1)">(\tau + 1)</span> 段的隐藏状态记为 <span class="math-inline" data-math="\mathbf{h}_{\tau+1}^{(n)} \in \mathbb{R}^{L \times d}">\mathbf{h}_{\tau+1}^{(n)} \in \mathbb{R}^{L \times d}</span>。除了同一段最后一层的隐藏状态 <span class="math-inline" data-math="\mathbf{h}_{\tau+1}^{(n-1)}">\mathbf{h}_{\tau+1}^{(n-1)}</span> 外，它还依赖于前一段同一层的隐藏状态 <span class="math-inline" data-math="\mathbf{h}_{\tau}^{(n)}">\mathbf{h}_{\tau}^{(n)}</span>。通过整合来自先前隐藏状态的信息，模型将注意力范围大幅扩展到过去，跨越多个段。</p>
       
     
       
@@ -511,7 +507,7 @@ s_t = \sum_{n=1}^{N(t)} p_t^n s_t^n,\quad y_t = \sum_{n=1}^{N(t)} p_t^n y_t^n
       
     
       
-        <p>注意，键和值都依赖于扩展后的隐藏状态，而查询只使用当前步的隐藏状态。拼接操作 <span class="math-inline" data-math="[. \circ .]">[. \circ .]</span> 是沿着序列长度维度进行的。</p>
+        <p>注意，键和值都依赖于扩展后的隐藏状态，而查询只使用当前步的隐藏状态。拼接操作 <span class="math-inline" data-math="[. \circ .]">[. \circ .]</span> 沿序列长度维度进行。</p>
       
     
       
@@ -519,15 +515,15 @@ s_t = \sum_{n=1}^{N(t)} p_t^n s_t^n,\quad y_t = \sum_{n=1}^{N(t)} p_t^n y_t^n
       
     
       
-        <p>为了适应这种新的注意力跨度形式，Transformer-XL 提出了一种新的位置编码。如果像 vanilla Transformer 那样对绝对位置进行编码，前一段和当前段会被赋予相同的位置编码，这并不理想。</p>
+        <p>为了适应这种新的注意力范围形式，Transformer-XL 提出了一种新的位置编码。如果继续使用 vanilla Transformer 的绝对位置编码，那么前一段和当前段会被赋予相同的编码，这是我们不希望看到的。</p>
       
     
       
-        <p>为了让位置信息能够连贯地在段之间流动，Transformer-XL 改为对相对位置进行编码。因为只要知道位置偏移量，就足以做出良好的预测，即查询 <span class="math-inline" data-math="\mathbf{q}_{\tau, i}">\mathbf{q}_{\tau, i}</span> 与键 <span class="math-inline" data-math="\mathbf{k}_{\tau, j}">\mathbf{k}_{\tau, j}</span> 之间的偏移 <span class="math-inline" data-math="i-j">i-j</span>。</p>
+        <p>为了让位置信息能够连贯地在段之间流动，Transformer-XL 改用相对位置编码。因为只要知道位置偏移量就足以做出良好预测，即查询 <span class="math-inline" data-math="\mathbf{q}_{\tau, i}">\mathbf{q}_{\tau, i}</span> 与键 <span class="math-inline" data-math="\mathbf{k}_{\tau, j}">\mathbf{k}_{\tau, j}</span> 之间的相对距离 <span class="math-inline" data-math="i-j">i-j</span>。</p>
       
     
       
-        <p>如果省略 softmax 中的标量 <span class="math-inline" data-math="1/\sqrt{d_k}">1/\sqrt{d_k}</span> 和归一化项，但包含位置编码，那么位置 <span class="math-inline" data-math="i">i</span> 的查询与位置 <span class="math-inline" data-math="j">j</span> 的键之间的注意力分数可以写为：</p>
+        <p>如果忽略 softmax 中的标量 <span class="math-inline" data-math="1/\sqrt{d_k}">1/\sqrt{d_k}</span> 和归一化项，但包含位置编码，那么位于位置 <span class="math-inline" data-math="i">i</span> 的查询与位置 <span class="math-inline" data-math="j">j</span> 的键之间的注意力得分可以写成：</p>
       
     
       
@@ -547,7 +543,7 @@ a_{ij}
       
     
       
-        <p>Transformer-XL 对上述四个项进行了重新参数化：</p>
+        <p>Transformer-XL 对上述四个项进行了重参数化：</p>
       
     
       
@@ -567,33 +563,35 @@ a_{ij}^\text{rel} =
       
     
       
-        <div class="list-content">将 <span class="math-inline" data-math="\mathbf{p}_j">\mathbf{p}_j</span> 替换为相对位置编码 <span class="math-inline" data-math="\mathbf{r}_{i-j} \in \mathbf{R}^{d}">\mathbf{r}_{i-j} \in \mathbf{R}^{d}</span>；
-将 <span class="math-inline" data-math="\mathbf{p}_i\mathbf{W}^q">\mathbf{p}_i\mathbf{W}^q</span> 替换为两个可训练参数 <span class="math-inline" data-math="\mathbf{u}">\mathbf{u}</span>（用于内容）和 <span class="math-inline" data-math="\mathbf{v}">\mathbf{v}</span>（用于位置），分别用于两个不同项；
-将 <span class="math-inline" data-math="\mathbf{W}^k">\mathbf{W}^k</span> 拆分为两个矩阵，<span class="math-inline" data-math="\mathbf{W}^k_E">\mathbf{W}^k_E</span> 用于内容信息，<span class="math-inline" data-math="\mathbf{W}^k_R">\mathbf{W}^k_R</span> 用于位置信息。</div>
-      
-    
-      
-        <h2>自适应注意力跨度#</h2>
+        
+          <ul>
+            <li>将 <span class="math-inline" data-math="\mathbf{p}_j">\mathbf{p}_j</span> 替换为相对位置编码 <span class="math-inline" data-math="\mathbf{r}_{i-j} \in \mathbf{R}^{d}">\mathbf{r}_{i-j} \in \mathbf{R}^{d}</span>；</li><li>将 <span class="math-inline" data-math="\mathbf{p}_i\mathbf{W}^q">\mathbf{p}_i\mathbf{W}^q</span> 替换为两个可训练参数 <span class="math-inline" data-math="\mathbf{u}">\mathbf{u}</span>（用于内容）和 <span class="math-inline" data-math="\mathbf{v}">\mathbf{v}</span>（用于位置），分别用于两个不同项；</li><li>将 <span class="math-inline" data-math="\mathbf{W}^k">\mathbf{W}^k</span> 分成两个矩阵，<span class="math-inline" data-math="\mathbf{W}^k_E">\mathbf{W}^k_E</span> 用于内容信息，<span class="math-inline" data-math="\mathbf{W}^k_R">\mathbf{W}^k_R</span> 用于位置信息。</li>
+          </ul>
         
       
     
       
-        <p>Transformer 的一个关键优势是能够捕捉长期依赖关系。根据上下文不同，模型有时可能更希望关注更远的位置；或者不同的注意力头可能具有不同的注意力模式。如果注意力跨度能够灵活地调整长度，并且只在必要时才关注更远的位置，那么就能同时减少计算和内存开销，从而支持更大的最大上下文长度。</p>
+        <h2>自适应注意力范围</h2>
+        
       
     
       
-        <p>这正是自适应注意力跨度（Adaptive Attention Span）的动机。<a href="https://arxiv.org/abs/1905.07799" target="_blank" rel="noopener">Sukhbaatar et al. (2019)</a> 提出了一种寻找最优注意力跨度的自注意力机制。他们假设在同一个上下文窗口内，不同的注意力头可能会以不同方式分配注意力分数（见 Fig. 7），因此最优跨度应针对每个头单独训练。</p>
+        <p>Transformer 的一个关键优势是能够捕捉长期依赖关系。根据上下文不同，模型有时可能希望关注更远的位置；或者不同注意力头可能具有不同的注意力模式。如果注意力范围能够灵活地调整长度，仅在需要时才关注更远的位置，那么就能同时降低计算和内存开销，支持模型使用更长的最大上下文。</p>
+      
+    
+      
+        <p>这正是自适应注意力范围（Adaptive Attention Span）的出发点。<a href="https://arxiv.org/abs/1905.07799" target="_blank" rel="noopener">Sukhbaatar, et al., (2019)</a> 提出了一种能够寻找最优注意力范围的自注意力机制。他们假设在同一上下文窗口内，不同注意力头可能会赋予不同的注意力分数（见图 7），因此最优范围应按注意力头单独训练。</p>
       
     
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/attention-per-head.png" alt="">
-          <figcaption>Two attention heads in the same model, A &amp; B, assign attention differently within the same context window. Head A attends more to the recent tokens, while head B look further back into the past uniformly. (Image source:Sukhbaatar, et al. 2019)</figcaption>
+          <figcaption>同一模型中的两个注意力头 A 和 B 在相同上下文窗口内分配注意力的方式不同。头 A 更多关注最近的 token，而头 B 则均匀地关注更久远的历史。（图片来源：Sukhbaatar, et al. 2019）</figcaption>
         </figure>
       
     
       
-        <p>给定第 <span class="math-inline" data-math="i">i</span> 个 token，我们需要计算该 token 与位置在 <span class="math-inline" data-math="j \in S_i">j \in S_i</span> 的其他键之间的注意力权重，其中 <span class="math-inline" data-math="S_i">S_i</span> 定义了第 <span class="math-inline" data-math="i">i</span> 个 token 的上下文窗口。</p>
+        <p>给定第 <span class="math-inline" data-math="i">i</span> 个 token，我们需要计算它与位于位置 <span class="math-inline" data-math="j \in S_i">j \in S_i</span> 的其他键之间的注意力权重，其中 <span class="math-inline" data-math="S_i">S_i</span> 定义了第 <span class="math-inline" data-math="i">i</span> 个 token 的上下文窗口。</p>
       
     
       
@@ -613,7 +611,7 @@ a_{ij} &amp;= \text{softmax}(e_{ij}) = \frac{\exp(e_{ij})}{\sum_{r=i-s}^{i-1} \e
       
     
       
-        <p>引入了一个软掩码函数 <span class="math-inline" data-math="m_z">m_z</span> 来控制可调整的有效注意力跨度，它将查询和键之间的距离映射到 [0, 1] 区间。<span class="math-inline" data-math="m_z">m_z</span> 由 <span class="math-inline" data-math="z \in [0, s]">z \in [0, s]</span> 参数化，其中 <span class="math-inline" data-math="z">z</span> 是需要学习的：</p>
+        <p>引入一个软掩码函数 <span class="math-inline" data-math="m_z">m_z</span> 来控制可调节的有效注意力范围，它将查询与键之间的距离映射到 [0, 1] 区间。<span class="math-inline" data-math="m_z">m_z</span> 由 <span class="math-inline" data-math="z \in [0, s]">z \in [0, s]</span> 参数化，其中 <span class="math-inline" data-math="z">z</span> 是需要学习的：</p>
       
     
       
@@ -631,7 +629,7 @@ m_z(x) = \text{clamp}(\frac{1}{R}(R+z-x), 0, 1)
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/soft-masking-function.png" alt="">
-          <figcaption>The soft masking function used in the adaptive attention span. (Image source:Sukhbaatar, et al. 2019.)</figcaption>
+          <figcaption>自适应注意力范围中使用的软掩码函数。（图片来源：Sukhbaatar, et al. 2019）</figcaption>
         </figure>
       
     
@@ -648,82 +646,85 @@ a_{ij} = \frac{m_z(i-j)\exp(s_{ij})}{\sum_{r=i-s}^{i-1}m_z(i-r) \exp(s_{ir})}
       
     
       
-        <p>在上述公式中，<span class="math-inline" data-math="z">z</span> 是可微的，因此可以与模型其他部分联合训练。参数 <span class="math-inline" data-math="z^{(i)}, i=1, \dots, h">z^{(i)}, i=1, \dots, h</span> 针对每个注意力头单独学习。此外，损失函数中还对 <span class="math-inline" data-math="\sum_{i=1}^h z^{(i)}">\sum_{i=1}^h z^{(i)}</span> 施加了一个额外的 L1 正则化项。</p>
+        <p>在上述方程中，<span class="math-inline" data-math="z">z</span> 是可微的，因此可以与模型的其他部分联合训练。参数 <span class="math-inline" data-math="z^{(i)}, i=1, \dots, h">z^{(i)}, i=1, \dots, h</span> 按注意力头单独学习。此外，损失函数对 <span class="math-inline" data-math="\sum_{i=1}^h z^{(i)}">\sum_{i=1}^h z^{(i)}</span> 施加额外的 L1 正则化惩罚。</p>
       
     
       
-        <p>结合自适应计算时间（ACT），该方法可以进一步扩展为具有灵活注意力跨度长度，并能根据当前输入动态调整。在时间 <span class="math-inline" data-math="t">t</span> 时，注意力头的跨度参数 <span class="math-inline" data-math="z_t">z_t</span> 是一个 sigmoid 函数 <span class="math-inline" data-math="z_t = S \sigma(\mathbf{v} \cdot \mathbf{x}_t +b)">z_t = S \sigma(\mathbf{v} \cdot \mathbf{x}_t +b)</span>，其中向量 <span class="math-inline" data-math="\mathbf{v}">\mathbf{v}</span> 和偏置标量 <span class="math-inline" data-math="b">b</span> 与其他参数一起联合学习。</p>
+        <p>结合自适应计算时间（ACT），该方法可以进一步改进，使注意力范围长度能够根据当前输入动态调整。注意力头在时刻 <span class="math-inline" data-math="t">t</span> 的范围参数 <span class="math-inline" data-math="z_t">z_t</span> 是一个 S 型函数 <span class="math-inline" data-math="z_t = S \sigma(\mathbf{v} \cdot \mathbf{x}_t +b)">z_t = S \sigma(\mathbf{v} \cdot \mathbf{x}_t +b)</span>，其中向量 <span class="math-inline" data-math="\mathbf{v}">\mathbf{v}</span> 和偏置标量 <span class="math-inline" data-math="b">b</span> 与其他参数联合学习。</p>
       
     
       
-        <p>在使用自适应注意力跨度的 Transformer 实验中，<a href="https://arxiv.org/abs/1905.07799" target="_blank" rel="noopener">Sukhbaatar et al. (2019)</a> 发现一个普遍趋势：较低层通常不需要很长的注意力跨度，而较高层中的少数注意力头可能会使用特别长的跨度。自适应注意力跨度还能显著减少 FLOPS，尤其是在具有多层注意力且上下文长度很大的大型模型中。</p>
+        <p>在使用自适应注意力范围的 Transformer 实验中，<a href="https://arxiv.org/abs/1905.07799" target="_blank" rel="noopener">Sukhbaatar, et al. (2019)</a> 发现一个普遍趋势：较低层不需要非常长的注意力范围，而较高层中的少数注意力头可能会使用特别长的范围。自适应注意力范围还能大幅减少 FLOPS，尤其是在具有多层注意力和较大上下文长度的大型模型中。</p>
       
     
       
-        <h2>局部注意力跨度（Image Transformer）#</h2>
+        <h2>局部注意力范围 (Image Transformer)</h2>
         
       
     
       
-        <p>Transformer 最初也是最流行的应用场景是语言建模。文本序列是一维的，具有明确的时序，因此注意力跨度会随着上下文大小的增加而线性增长。</p>
+        <p>Transformer 最初也是最流行的应用场景是语言建模。文本序列是一维的，具有明确的时序，因此注意力范围随上下文大小线性增长。</p>
       
     
       
-        <p>然而，如果我们想在图像上使用 Transformer，如何定义上下文范围或顺序就不那么清晰了。Image Transformer（<a href="https://arxiv.org/abs/1802.05751" target="_blank" rel="noopener">Parmar et al., 2018</a>）在 Transformer 框架内采用了一种类似于序列建模的图像生成形式。此外，Image Transformer 将自注意力跨度限制在局部邻域内，从而使模型能够并行处理更多图像，并保持似然损失可控。</p>
+        <p>但如果要在图像上使用 Transformer，如何定义上下文范围或顺序并不明确。Image Transformer（<a href="https://arxiv.org/abs/1802.05751" target="_blank" rel="noopener">Parmer, et al 2018</a>）在 Transformer 框架内采用了一种类似于序列建模的图像生成形式。此外，Image Transformer 将自注意力范围限制在局部邻域内，从而使模型能够并行处理更多图像，并保持似然损失可控。</p>
       
     
       
-        <p>编码器-解码器架构依然保留，用于图像条件生成：</p>
+        <p>编码器-解码器架构在图像条件生成中依然保留：</p>
       
     
       
-        <div class="list-content">编码器生成源图像的、按像素通道上下文化的表示；
-解码器自回归地生成输出图像，每个时间步生成一个像素的一个通道。</div>
+        
+          <ul>
+            <li>编码器生成源图像的、每个像素通道的上下文感知表示；</li><li>解码器自回归地生成输出图像，每个时间步生成一个像素的一个通道。</li>
+          </ul>
+        
       
     
       
-        <p>我们将当前待生成像素的表示记为查询 <span class="math-inline" data-math="\mathbf{q}">\mathbf{q}</span>。其他将用于计算 <span class="math-inline" data-math="\mathbf{q}">\mathbf{q}</span> 的位置的表示作为键向量 <span class="math-inline" data-math="\mathbf{k}_1, \mathbf{k}_2, \dots">\mathbf{k}_1, \mathbf{k}_2, \dots</span>，它们共同构成内存矩阵 <span class="math-inline" data-math="\mathbf{M}">\mathbf{M}</span>。<span class="math-inline" data-math="\mathbf{M}">\mathbf{M}</span> 的范围定义了像素查询 <span class="math-inline" data-math="\mathbf{q}">\mathbf{q}</span> 的上下文窗口。</p>
+        <p>我们将当前待生成像素的表示记为查询 <span class="math-inline" data-math="\mathbf{q}">\mathbf{q}</span>。其他用于计算 <span class="math-inline" data-math="\mathbf{q}">\mathbf{q}</span> 的位置的表示是键向量 <span class="math-inline" data-math="\mathbf{k}_1, \mathbf{k}_2, \dots">\mathbf{k}_1, \mathbf{k}_2, \dots</span>，它们共同构成记忆矩阵 <span class="math-inline" data-math="\mathbf{M}">\mathbf{M}</span>。<span class="math-inline" data-math="\mathbf{M}">\mathbf{M}</span> 的范围定义了像素查询 <span class="math-inline" data-math="\mathbf{q}">\mathbf{q}</span> 的上下文窗口。</p>
       
     
       
-        <p>Image Transformer 提出了两种局部 <span class="math-inline" data-math="\mathbf{M}">\mathbf{M}</span>，如下图所示。</p>
+        <p>Image Transformer 提出了两种局部 <span class="math-inline" data-math="\mathbf{M}">\mathbf{M}</span>，如图所示。</p>
       
     
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/image-transformer-attention.png" alt="">
-          <figcaption>Illustration of 1D and 2D attention span for visual inputs in Image Transformer. The black line marks a query block and the cyan outlines the actual attention span for pixel q. (Image source: Figure 2 inParmer et al, 2018)</figcaption>
+          <figcaption>Image Transformer 中用于视觉输入的 1D 和 2D 注意力范围示意图。黑色线条表示查询块，青色轮廓表示像素 q 的实际注意力范围。（图片来源：Parmer et al, 2018 中的图 2）</figcaption>
         </figure>
       
     
       
-        <p>（1）1D 局部注意力：输入图像按照 <a href="https://en.wikipedia.org/wiki/Raster_scan#Scanning_pattern" target="_blank" rel="noopener">光栅扫描</a> 顺序展平，即从左到右、从上到下。然后将线性化后的图像分割成不重叠的查询块。上下文窗口包括与 <span class="math-inline" data-math="\mathbf{q}">\mathbf{q}</span> 位于同一查询块中的像素，以及在该查询块之前生成的一定数量的额外像素。</p>
+        <p>(1) 1D 局部注意力：输入图像按 <a href="https://en.wikipedia.org/wiki/Raster_scan#Scanning_pattern" target="_blank" rel="noopener">光栅扫描</a> 顺序展平，即从左到右、从上到下。然后将线性化后的图像分割成不重叠的查询块。上下文窗口包括与 <span class="math-inline" data-math="\mathbf{q}">\mathbf{q}</span> 位于同一查询块中的像素，以及在该查询块之前生成的一定数量的额外像素。</p>
       
     
       
-        <p>（2）2D 局部注意力：图像被分割成多个不重叠的矩形查询块。查询像素可以关注同一内存块中的所有其他像素。为了确保左上角的像素也能拥有有效的上下文窗口，内存块会分别向上、向左和向右扩展固定数量。</p>
+        <p>(2) 2D 局部注意力：图像被分割成多个不重叠的矩形查询块。查询像素可以关注同一记忆块中的所有其他像素。为了保证左上角的像素也能获得有效的上下文窗口，记忆块会分别向上、向左和向右扩展固定数量的像素。</p>
       
     
       
-        <h2>减少时间与内存开销#</h2>
+        <h2>减少时间与内存开销</h2>
         
       
     
       
-        <p>本节介绍几种针对 Transformer 的改进，以降低计算时间和内存消耗。</p>
+        <p>本节介绍几种对 Transformer 的改进，以降低计算时间和内存消耗。</p>
       
     
       
-        <h2>稀疏注意力矩阵分解（Sparse Transformers）#</h2>
+        <h2>稀疏注意力矩阵分解 (Sparse Transformers)</h2>
         
       
     
       
-        <p>Vanilla Transformer 的计算和内存开销随序列长度二次增长，因此很难应用于极长的序列。</p>
+        <p>Vanilla Transformer 的计算和内存开销随序列长度二次增长，因此很难应用于非常长的序列。</p>
       
     
       
-        <p>Sparse Transformer（<a href="https://arxiv.org/abs/1904.10509" target="_blank" rel="noopener">Child et al., 2019</a>）通过稀疏矩阵分解引入了因子分解自注意力，使得能够在序列长度高达 16384 的情况下训练具有数百层的稠密注意力网络，否则这在现代硬件上是不可行的。</p>
+        <p>Sparse Transformer（<a href="https://arxiv.org/abs/1904.10509" target="_blank" rel="noopener">Child et al., 2019</a>）通过稀疏矩阵分解引入了因子化自注意力，使得能够在序列长度高达 16,384 的情况下训练具有数百层的稠密注意力网络，否则在现代硬件上这是不可行的。</p>
       
     
       
@@ -745,38 +746,38 @@ a_{ij} = \frac{m_z(i-j)\exp(s_{ij})}{\sum_{r=i-s}^{i-1}m_z(i-r) \exp(s_{ir})}
       
     
       
-        <p>虽然 <span class="math-inline" data-math="S_i">S_i</span> 的大小不固定，但 <span class="math-inline" data-math="a(\mathbf{x}_i, S_i)">a(\mathbf{x}_i, S_i)</span> 始终是大小为 <span class="math-inline" data-math="d_v">d_v</span> 的，因此 <span class="math-inline" data-math="\text{Attend}(\mathbf{X}, \mathcal{S}) \in \mathbb{R}^{L \times d_v}">\text{Attend}(\mathbf{X}, \mathcal{S}) \in \mathbb{R}^{L \times d_v}</span>。</p>
+        <p>注意，虽然 <span class="math-inline" data-math="S_i">S_i</span> 的大小不固定，但 <span class="math-inline" data-math="a(\mathbf{x}_i, S_i)">a(\mathbf{x}_i, S_i)</span> 始终为 <span class="math-inline" data-math="d_v">d_v</span> 大小，因此 <span class="math-inline" data-math="\text{Attend}(\mathbf{X}, \mathcal{S}) \in \mathbb{R}^{L \times d_v}">\text{Attend}(\mathbf{X}, \mathcal{S}) \in \mathbb{R}^{L \times d_v}</span>。</p>
       
     
       
-        <p>在自回归模型中，一个注意力跨度被定义为 <span class="math-inline" data-math="S_i = \{j: j \leq i\}">S_i = \{j: j \leq i\}</span>，因为它允许每个 token 关注过去的所有位置。</p>
+        <p>在自回归模型中，一个注意力范围被定义为 <span class="math-inline" data-math="S_i = \{j: j \leq i\}">S_i = \{j: j \leq i\}</span>，因为它允许每个 token 关注过去的所有位置。</p>
       
     
       
-        <p>在因子分解自注意力中，集合 <span class="math-inline" data-math="S_i">S_i</span> 被分解为一个依赖树，使得对于每一对满足 <span class="math-inline" data-math="j \leq i">j \leq i</span> 的 <span class="math-inline" data-math="(i, j)">(i, j)</span>，都存在一条路径将 <span class="math-inline" data-math="i">i</span> 连接回 <span class="math-inline" data-math="j">j</span>，并且 <span class="math-inline" data-math="i">i</span> 可以直接或间接地关注 <span class="math-inline" data-math="j">j</span>。</p>
+        <p>在因子化自注意力中，集合 <span class="math-inline" data-math="S_i">S_i</span> 被分解为一棵依赖树，使得对于任意满足 <span class="math-inline" data-math="j \leq i">j \leq i</span> 的 <span class="math-inline" data-math="(i, j)">(i, j)</span> 对，都存在一条从 <span class="math-inline" data-math="i">i</span> 连回 <span class="math-inline" data-math="j">j</span> 的路径，且 <span class="math-inline" data-math="i">i</span> 可以直接或间接地关注 <span class="math-inline" data-math="j">j</span>。</p>
       
     
       
-        <p>具体而言，集合 <span class="math-inline" data-math="S_i">S_i</span> 被划分成 <span class="math-inline" data-math="p">p</span> 个不重叠的子集，其中第 <span class="math-inline" data-math="m">m</span> 个子集记为 <span class="math-inline" data-math="A^{(m)}_i \subset S_i, m = 1,\dots, p">A^{(m)}_i \subset S_i, m = 1,\dots, p</span>。因此，输出位置 <span class="math-inline" data-math="i">i</span> 与任意 <span class="math-inline" data-math="j">j</span> 之间的路径最大长度为 <span class="math-inline" data-math="p + 1">p + 1</span>。例如，如果 <span class="math-inline" data-math="(j, a, b, c, \dots, i)">(j, a, b, c, \dots, i)</span> 是 <span class="math-inline" data-math="i">i</span> 和 <span class="math-inline" data-math="j">j</span> 之间索引的路径，那么我们有 <span class="math-inline" data-math="j \in A_a^{(1)}, a \in A_b^{(2)}, b \in A_c^{(3)}, \dots">j \in A_a^{(1)}, a \in A_b^{(2)}, b \in A_c^{(3)}, \dots</span>，以此类推。</p>
+        <p>准确地说，集合 <span class="math-inline" data-math="S_i">S_i</span> 被划分为 <span class="math-inline" data-math="p">p</span> 个互不相交的子集，其中第 <span class="math-inline" data-math="m">m</span> 个子集记为 <span class="math-inline" data-math="A^{(m)}_i \subset S_i, m = 1,\dots, p">A^{(m)}_i \subset S_i, m = 1,\dots, p</span>。因此，输出位置 <span class="math-inline" data-math="i">i</span> 与任意 <span class="math-inline" data-math="j">j</span> 之间的路径最大长度为 <span class="math-inline" data-math="p + 1">p + 1</span>。例如，如果 <span class="math-inline" data-math="(j, a, b, c, \dots, i)">(j, a, b, c, \dots, i)</span> 是 <span class="math-inline" data-math="i">i</span> 和 <span class="math-inline" data-math="j">j</span> 之间的索引路径，则有 <span class="math-inline" data-math="j \in A_a^{(1)}, a \in A_b^{(2)}, b \in A_c^{(3)}, \dots">j \in A_a^{(1)}, a \in A_b^{(2)}, b \in A_c^{(3)}, \dots</span>，依此类推。</p>
       
     
       
-        <p>稀疏因子分解注意力</p>
+        <p>稀疏因子化注意力</p>
       
     
       
-        <p>Sparse Transformer 提出了两种因子分解注意力方式。用 2D 图像输入作为例子，图 10 能更直观地说明这些概念。</p>
+        <p>Sparse Transformer 提出了两种因子化注意力形式。用 2D 图像输入作为例子（如图 10 所示）更容易理解这些概念。</p>
       
     
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/sparse-attention.png" alt="">
-          <figcaption>The top row illustrates the attention connectivity patterns in (a) Transformer, (b) Sparse Transformer with strided attention, and (c) Sparse Transformer with fixed attention. The bottom row contains corresponding self-attention connectivity matrices. Note that the top and bottom rows are not in the same scale. (Image source:Child et al., 2019+ a few of extra annotations.)</figcaption>
+          <figcaption>第一行展示了 (a) Transformer、(b) 使用跨步注意力的 Sparse Transformer 和 (c) 使用固定注意力的 Sparse Transformer 的注意力连接模式。第二行是对应的自注意力连接矩阵。注意第一行和第二行的比例尺不同。（图片来源：Child et al., 2019 及少量额外标注）</figcaption>
         </figure>
       
     
       
-        <p>（1）步长为 <span class="math-inline" data-math="\ell \sim \sqrt{n}">\ell \sim \sqrt{n}</span> 的跨步注意力。这在图像数据上表现良好，因为图像结构与跨步对齐。在图像情况下，每个像素会关注光栅扫描顺序中之前的所有 <span class="math-inline" data-math="\ell">\ell</span> 个像素（自然覆盖图像的整个宽度），然后这些像素再关注同一列中的其他像素（由另一个注意力连接子集定义）。</p>
+        <p>(1) 步长为 <span class="math-inline" data-math="\ell \sim \sqrt{n}">\ell \sim \sqrt{n}</span> 的跨步注意力。这在图像数据上效果很好，因为图像结构与步长对齐。在图像情况下，每个像素会关注光栅扫描顺序中前 <span class="math-inline" data-math="\ell">\ell</span> 个像素（自然覆盖整个图像宽度），然后这些像素再关注同一列中的其他像素（由另一个注意力连接子集定义）。</p>
       
     
       
@@ -794,7 +795,7 @@ A_i^{(2)} &amp;= \{j: (i-j) \mod \ell = 0\}
       
     
       
-        <p>（2）固定注意力。一小组 token 对之前的位置进行汇总，并将信息传播到所有后续位置。</p>
+        <p>(2) 固定注意力。一小组 token 总结之前的位置信息，并将其传播到所有未来的位置。</p>
       
     
       
@@ -812,40 +813,44 @@ A_i^{(2)} &amp;= \{j: j \mod \ell \in \{\ell-c, \dots, \ell-1\} \}
       
     
       
-        <p>其中 <span class="math-inline" data-math="c">c</span> 是一个超参数。如果 <span class="math-inline" data-math="c=1">c=1</span>，则会限制表示，使得许多位置都依赖于少量位置。论文选择了 <span class="math-inline" data-math="c\in \{ 8, 16, 32 \}">c\in \{ 8, 16, 32 \}</span> 作为 <span class="math-inline" data-math="\ell \in \{ 128, 256 \}">\ell \in \{ 128, 256 \}</span>。</p>
+        <p>其中 <span class="math-inline" data-math="c">c</span> 是一个超参数。如果 <span class="math-inline" data-math="c=1">c=1</span>，则会限制表示，使得许多位置依赖于少数几个位置。论文选择了 <span class="math-inline" data-math="c\in \{ 8, 16, 32 \}">c\in \{ 8, 16, 32 \}</span> 作为 <span class="math-inline" data-math="\ell \in \{ 128, 256 \}">\ell \in \{ 128, 256 \}</span> 的取值。</p>
       
     
       
-        <p>在 Transformer 中使用因子分解自注意力</p>
+        <p>在 Transformer 中使用因子化自注意力</p>
       
     
       
-        <p>在 Transformer 架构中有三种方式来使用稀疏因子分解注意力模式：</p>
+        <p>在 Transformer 架构中有三种方式使用稀疏因子化注意力模式：</p>
       
     
       
-        <div class="list-content">每个残差块使用一种注意力类型，然后交替使用，形式为 <span class="math-inline" data-math="\text{attention}(\mathbf{X}) = \text{Attend}(\mathbf{X}, A^{(n \mod p)}) \mathbf{W}^o">\text{attention}(\mathbf{X}) = \text{Attend}(\mathbf{X}, A^{(n \mod p)}) \mathbf{W}^o</span>，其中 <span class="math-inline" data-math="n">n</span> 是当前残差块的索引。
-设置一个单独的头，关注所有因子分解头所关注的全部位置，即 <span class="math-inline" data-math="\text{attention}(\mathbf{X}) = \text{Attend}(\mathbf{X}, \cup_{m=1}^p A^{(m)}) \mathbf{W}^o ">\text{attention}(\mathbf{X}) = \text{Attend}(\mathbf{X}, \cup_{m=1}^p A^{(m)}) \mathbf{W}^o </span>。
-使用多头注意力机制，但与 vanilla Transformer 不同，每个头可以采用上述两种模式之一。=&gt; 这种方式通常性能最好。</div>
-      
-    
-      
-        <p>Sparse Transformer 还提出了一系列改动，以便能够训练多达数百层的 Transformer，包括梯度检查点、在反向传播时重新计算注意力与前馈层、混合精度训练、高效的块稀疏实现等。更多细节请参考 <a href="https://arxiv.org/abs/1904.10509" target="_blank" rel="noopener">原论文</a>。</p>
-      
-    
-      
-        <h2>局部敏感哈希（Reformer）#</h2>
+        
+          <ol>
+            <li>每个残差块使用一种注意力类型，然后交替使用，即 <span class="math-inline" data-math="\text{attention}(\mathbf{X}) = \text{Attend}(\mathbf{X}, A^{(n \mod p)}) \mathbf{W}^o">\text{attention}(\mathbf{X}) = \text{Attend}(\mathbf{X}, A^{(n \mod p)}) \mathbf{W}^o</span>，其中 <span class="math-inline" data-math="n">n</span> 是当前残差块的索引。</li><li>设置一个单一的注意力头，让它关注所有因子化头所关注的全部位置，即 <span class="math-inline" data-math="\text{attention}(\mathbf{X}) = \text{Attend}(\mathbf{X}, \cup_{m=1}^p A^{(m)}) \mathbf{W}^o ">\text{attention}(\mathbf{X}) = \text{Attend}(\mathbf{X}, \cup_{m=1}^p A^{(m)}) \mathbf{W}^o </span>。</li><li>使用多头注意力机制，但与 vanilla Transformer 不同，每个头可能采用上述模式 1 或 2。=&gt; 这种方式通常效果最好。</li>
+          </ol>
         
       
     
       
-        <p>Reformer 模型（<a href="https://arxiv.org/abs/2001.04451" target="_blank" rel="noopener">Kitaev et al., 2020</a>）提出的改进旨在解决 Transformer 中的以下痛点：</p>
+        <p>Sparse Transformer 还提出了一系列修改，以训练高达数百层的 Transformer，包括梯度检查点、在反向传播时重新计算注意力与前馈层、混合精度训练、高效的块稀疏实现等。更多细节请参阅 <a href="https://arxiv.org/abs/1904.10509" target="_blank" rel="noopener">论文</a>。</p>
       
     
       
-        <div class="list-content">具有 <span class="math-inline" data-math="N">N</span> 层的模型的内存是单层模型的 <span class="math-inline" data-math="N">N</span> 倍，因为我们需要为反向传播存储每一层的激活。
-中间的前馈层通常非常大。
-长度为 <span class="math-inline" data-math="L">L</span> 的序列上的注意力矩阵通常需要在内存和时间上消耗 <span class="math-inline" data-math="O(L^2)">O(L^2)</span>。</div>
+        <h2>局部敏感哈希 (Reformer)</h2>
+        
+      
+    
+      
+        <p>Reformer 模型（<a href="https://arxiv.org/abs/2001.04451" target="_blank" rel="noopener">Kitaev, et al. 2020</a>）提出的改进旨在解决 Transformer 中的以下痛点：</p>
+      
+    
+      
+        
+          <ul>
+            <li>具有 <span class="math-inline" data-math="N">N</span> 层的模型的内存是单层模型的 <span class="math-inline" data-math="N">N</span> 倍，因为我们需要保存激活值用于反向传播。</li><li>中间的前馈层通常非常大。</li><li>长度为 <span class="math-inline" data-math="L">L</span> 的序列上的注意力矩阵通常需要在内存和时间上消耗 <span class="math-inline" data-math="O(L^2)">O(L^2)</span>。</li>
+          </ul>
+        
       
     
       
@@ -853,8 +858,11 @@ A_i^{(2)} &amp;= \{j: j \mod \ell \in \{\ell-c, \dots, \ell-1\} \}
       
     
       
-        <div class="list-content">用局部敏感哈希（LSH）注意力替代点积注意力，将复杂度从 <span class="math-inline" data-math="O(L^2)">O(L^2)</span> 降低到 <span class="math-inline" data-math="O(L\log L)">O(L\log L)</span>。
-用可逆残差层替代标准残差块，这样在训练期间只需存储一次激活，而不是 <span class="math-inline" data-math="N">N</span> 次（即与层数成正比）。</div>
+        
+          <ol>
+            <li>用局部敏感哈希（LSH）注意力代替点积注意力，将复杂度从 <span class="math-inline" data-math="O(L^2)">O(L^2)</span> 降低到 <span class="math-inline" data-math="O(L\log L)">O(L\log L)</span>。</li><li>用可逆残差层代替标准残差块，这使得在训练期间只需保存一次激活值，而不是 <span class="math-inline" data-math="N">N</span> 次（即与层数成正比）。</li>
+          </ol>
+        
       
     
       
@@ -862,53 +870,36 @@ A_i^{(2)} &amp;= \{j: j \mod \ell \in \{\ell-c, \dots, \ell-1\} \}
       
     
       
-        <p>在注意力公式中的 <span class="math-inline" data-math="\mathbf{Q} \mathbf{K}^\top">\mathbf{Q} \mathbf{K}^\top</span> 部分，我们只对最大的元素感兴趣，因为 softmax 之后只有大元素会产生显著贡献。对于每个查询 <span class="math-inline" data-math="\mathbf{q}_i \in \mathbf{Q}">\mathbf{q}_i \in \mathbf{Q}</span>，我们需要找到 <span class="math-inline" data-math="\mathbf{K}">\mathbf{K}</span> 中与 <span class="math-inline" data-math="\mathbf{q}_i">\mathbf{q}_i</span> 最接近的行向量。为了在高维空间中快速找到最近邻，Reformer 将 <a href="https://en.wikipedia.org/wiki/Locality-sensitive_hashing" target="_blank" rel="noopener">局部敏感哈希（Locality-Sensitive Hashing, LSH）</a> 引入其注意力机制。</p>
+        <p>在注意力公式的 <span class="math-inline" data-math="\mathbf{Q} \mathbf{K}^\top">\mathbf{Q} \mathbf{K}^\top</span> 部分，我们只关心最大的元素，因为 softmax 之后只有较大元素会产生显著贡献。对于每个查询 <span class="math-inline" data-math="\mathbf{q}_i \in \mathbf{Q}">\mathbf{q}_i \in \mathbf{Q}</span>，我们寻找 <span class="math-inline" data-math="\mathbf{K}">\mathbf{K}</span> 中与 <span class="math-inline" data-math="\mathbf{q}_i">\mathbf{q}_i</span> 最接近的行向量。为了在高维空间中快速找到最近邻，Reformer 将 <a href="https://en.wikipedia.org/wiki/Locality-sensitive_hashing" target="_blank" rel="noopener">局部敏感哈希 (LSH)</a> 引入其注意力机制。</p>
       
     
       
-        <p>如果一个哈希方案 <span class="math-inline" data-math="x \mapsto h(x)">x \mapsto h(x)</span> 能够保留数据点之间的距离信息，使得相近的向量获得相似的哈希，而遥远的向量获得差异很大的哈希，则称其为局部敏感的。Reformer 采用的哈希方案如下：给定一个固定的随机矩阵 <span class="math-inline" data-math="\mathbf{R} \in \mathbb{R}^{d \times b/2}">\mathbf{R} \in \mathbb{R}^{d \times b/2}</span>（其中 <span class="math-inline" data-math="b">b</span> 是一个超参数），哈希函数为 <span class="math-inline" data-math="h(x) = \arg\max([xR; −xR])">h(x) = \arg\max([xR; −xR])</span>。</p>
-      
-    
-      
-        <p>如果省略自注意力中的标量，并将分母归纳为一个归一化项 <span class="math-inline" data-math="Z(.)">Z(.)</span>，普通的注意力输出如下所示：
-
-&lt;div&gt;</p>
-      
-    
-      
-        <div class="math-block"><span class="math-display" data-math="
-\mathbf{o}_i = \sum_{j \in S_i} \exp(\mathbf{q}_i \cdot \mathbf{k}_j - Z(i, S_i)) \mathbf{v}_j \text{, where } S_i = \{j: j \leq i\}
-">
-\mathbf{o}_i = \sum_{j \in S_i} \exp(\mathbf{q}_i \cdot \mathbf{k}_j - Z(i, S_i)) \mathbf{v}_j \text{, where } S_i = \{j: j \leq i\}
-</span></div>
-      
-    
-      
-        <p>&lt;/div&gt;</p>
+        <p>如果一个哈希方案 <span class="math-inline" data-math="x \mapsto h(x)">x \mapsto h(x)</span> 能够保持数据点之间的距离信息，即相似向量获得相似的哈希值，而差异大的向量获得差异大的哈希值，则称其为局部敏感的。Reformer 采用的哈希方案如下：给定一个固定的随机矩阵 <span class="math-inline" data-math="\mathbf{R} \in \mathbb{R}^{d \times b/2}">\mathbf{R} \in \mathbb{R}^{d \times b/2}</span>（其中 <span class="math-inline" data-math="b">b</span> 是超参数），哈希函数为 <span class="math-inline" data-math="h(x) = \arg\max([xR; −xR])">h(x) = \arg\max([xR; −xR])</span>。</p>
       
     
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/LSH-attention-matrix.png" alt="">
-          <figcaption>Illustration of Locality-Sensitive Hashing (LSH) attention. (Image source: right part of Figure 1 inKitaev, et al. 2020).</figcaption>
+          <figcaption>局部敏感哈希 (LSH) 注意力示意图。（图片来源：Kitaev, et al. 2020 中图 1 的右侧部分）</figcaption>
         </figure>
       
     
       
-        <p>在 LSH 注意力中，查询只能关注同一哈希桶内的位置 <span class="math-inline" data-math="S_i = \{j: h(\mathbf{q}_i) = h(\mathbf{k}_j)\}">S_i = \{j: h(\mathbf{q}_i) = h(\mathbf{k}_j)\}</span>。其过程如图 11 所示：</p>
+        <p>在 LSH 注意力中，查询只能关注落在同一哈希桶中的位置 <span class="math-inline" data-math="S_i = \{j: h(\mathbf{q}_i) = h(\mathbf{k}_j)\}">S_i = \{j: h(\mathbf{q}_i) = h(\mathbf{k}_j)\}</span>。其过程如图 11 所示：</p>
       
     
       
-        <div class="list-content">（a）完整注意力的注意力矩阵通常是稀疏的。
-（b）使用 LSH，我们可以将键和查询按照它们的哈希桶排序对齐。
-（c）设置 <span class="math-inline" data-math="\mathbf{Q} = \mathbf{K}">\mathbf{Q} = \mathbf{K}</span>（精确为 <span class="math-inline" data-math="\mathbf{k}_j = \mathbf{q}_j / |\mathbf{q}_j|">\mathbf{k}_j = \mathbf{q}_j / |\mathbf{q}_j|</span>），使得一个桶内键和查询的数量相等，便于批处理。有趣的是，这种“共享 QK”的配置不会影响 Transformer 的性能。
-（d）进行批处理，将 <span class="math-inline" data-math="m">m</span> 个连续查询分到一组。</div>
+        
+          <ul>
+            <li>(a) 完整注意力的注意力矩阵通常是稀疏的。</li><li>(b) 使用 LSH，我们可以将键和查询按照哈希桶排序对齐。</li><li>(c) 设置 <span class="math-inline" data-math="\mathbf{Q} = \mathbf{K}">\mathbf{Q} = \mathbf{K}</span>（准确说是 <span class="math-inline" data-math="\mathbf{k}_j = \mathbf{q}_j / |\mathbf{q}_j|">\mathbf{k}_j = \mathbf{q}_j / |\mathbf{q}_j|</span>），使每个桶中键和查询的数量相等，便于批处理。有趣的是，这种“共享 QK”的配置不会影响 Transformer 的性能。</li><li>(d) 对连续的 <span class="math-inline" data-math="m">m</span> 个查询进行分块批处理。</li>
+          </ul>
+        
       
     
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/LSH-attention.png" alt="">
-          <figcaption>The LSH attention consists of 4 steps: bucketing, sorting, chunking, and attention computation. (Image source: left part of Figure 1 inKitaev, et al. 2020).</figcaption>
+          <figcaption>LSH 注意力包括四个步骤：分桶、排序、分块和注意力计算。（图片来源：Kitaev, et al. 2020 中图 1 的左侧部分）</figcaption>
         </figure>
       
     
@@ -917,11 +908,11 @@ A_i^{(2)} &amp;= \{j: j \mod \ell \in \{\ell-c, \dots, \ell-1\} \}
       
     
       
-        <p>Reformer 的另一项改进是使用可逆残差层（<a href="https://arxiv.org/abs/1707.04585" target="_blank" rel="noopener">Gomez et al., 2017</a>）。可逆残差网络的设计目标是：任意一层的激活都可以仅通过模型参数从下一层的激活中恢复。因此，我们可以在反向传播时重新计算激活，而无需存储所有激活，从而节省内存。</p>
+        <p>Reformer 的另一项改进是使用可逆残差层（<a href="https://arxiv.org/abs/1707.04585" target="_blank" rel="noopener">Gomez et al. 2017</a>）。可逆残差网络的设计目标是：任何一层的激活值都可以仅通过模型参数从下一层的激活值中恢复。因此，我们可以在反向传播时重新计算激活值，而不必保存所有激活，从而节省内存。</p>
       
     
       
-        <p>对于一个层 <span class="math-inline" data-math="x \mapsto y">x \mapsto y</span>，普通残差层执行 <span class="math-inline" data-math="y = x + F(x)">y = x + F(x)</span>，而可逆层将输入和输出都拆分成两部分 <span class="math-inline" data-math="(x_1, x_2) \mapsto (y_1, y_2)">(x_1, x_2) \mapsto (y_1, y_2)</span>，然后执行以下操作：</p>
+        <p>对于一个层 <span class="math-inline" data-math="x \mapsto y">x \mapsto y</span>，普通残差层执行 <span class="math-inline" data-math="y = x + F(x)">y = x + F(x)</span>，而可逆层将输入和输出都拆分成对 <span class="math-inline" data-math="(x_1, x_2) \mapsto (y_1, y_2)">(x_1, x_2) \mapsto (y_1, y_2)</span>，然后执行以下操作：</p>
       
     
       
@@ -933,7 +924,7 @@ y_1 = x_1 + F(x_2),\; y_2 = x_2 + G(y_1)
       
     
       
-        <p>反向操作则非常简单：</p>
+        <p>反向操作则很简单：</p>
       
     
       
@@ -957,7 +948,7 @@ Y_1 = X_1 + \text{Attention}(X_2), \; Y_2 = X_2 + \text{FeedForward}(Y_1)
       
     
       
-        <p>通过对前馈计算进行分块，可以进一步减少内存消耗：</p>
+        <p>通过对前馈计算进行分块，内存可以进一步减少：</p>
       
     
       
@@ -969,35 +960,35 @@ Y_2 = [Y_2^{(1)}; \dots; Y_2^{(c)}] = [X_2^{(1)} + \text{FeedForward}(Y_1^{(1)})
       
     
       
-        <p>得到的可逆 Transformer 不需要在每一层都存储激活值。</p>
+        <p>最终得到的可逆 Transformer 无需在每一层都保存激活值。</p>
       
     
       
-        <h2>使其具有循环特性（Universal Transformer）#</h2>
+        <h2>使其具有循环特性 (Universal Transformer)</h2>
         
       
     
       
-        <p>Universal Transformer（<a href="https://arxiv.org/abs/1807.03819" target="_blank" rel="noopener">Dehghani et al., 2019</a>）将 Transformer 中的自注意力与 RNN 中的循环机制相结合，旨在同时受益于 Transformer 的长期全局感受野和 RNN 的归纳偏置学习能力。</p>
+        <p>Universal Transformer（<a href="https://arxiv.org/abs/1807.03819" target="_blank" rel="noopener">Dehghani, et al. 2019</a>）将 Transformer 中的自注意力与 RNN 中的循环机制相结合，旨在同时受益于 Transformer 的全局长期感受野和 RNN 学到的归纳偏置。</p>
       
     
       
-        <p>Universal Transformer 不是使用固定数量的层，而是通过自适应计算时间动态调整步数。如果固定步数，那么 Universal Transformer 就等价于一个在各层之间共享参数的多层 Transformer。</p>
+        <p>Universal Transformer 不再使用固定数量的层，而是通过自适应计算时间（ACT）动态调整步数。如果固定步数，那么 Universal Transformer 就等价于一个在各层间共享参数的多层 Transformer。</p>
       
     
       
-        <p>从高层来看，Universal Transformer 可以看作是一个循环函数，用于学习每个 token 的隐藏状态表示。该循环函数在所有 token 位置上并行演化，位置之间的信息通过自注意力进行共享。</p>
+        <p>从高层来看，Universal Transformer 可以看作是一个循环函数，用于学习每个 token 的隐藏状态表示。该循环函数在所有 token 位置上并行演化，位置之间的信息通过自注意力共享。</p>
       
     
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/universal-transformer-loop.png" alt="">
-          <figcaption>How the Universal Transformer refines a set of hidden state representations repeatedly for every position in parallel. (Image source: Figure 1 inDehghani, et al. 2019).</figcaption>
+          <figcaption>Universal Transformer 如何在每个位置并行地反复提炼一组隐藏状态表示。（图片来源：Dehghani, et al. 2019 中的图 1）</figcaption>
         </figure>
       
     
       
-        <p>给定长度为 <span class="math-inline" data-math="L">L</span> 的输入序列，Universal Transformer 在第 <span class="math-inline" data-math="t">t</span> 步迭代更新表示 <span class="math-inline" data-math="\mathbf{H}^t \in \mathbb{R}^{L \times d}">\mathbf{H}^t \in \mathbb{R}^{L \times d}</span>，步数可调。在第 0 步，<span class="math-inline" data-math="\mathbf{H}^0">\mathbf{H}^0</span> 被初始化为与输入嵌入矩阵相同。所有位置在多头自注意力机制中并行处理，然后经过一个循环转移函数。</p>
+        <p>给定长度为 <span class="math-inline" data-math="L">L</span> 的输入序列，Universal Transformer 在可调整的步数内，在第 <span class="math-inline" data-math="t">t</span> 步迭代更新表示 <span class="math-inline" data-math="\mathbf{H}^t \in \mathbb{R}^{L \times d}">\mathbf{H}^t \in \mathbb{R}^{L \times d}</span>。在第 0 步，<span class="math-inline" data-math="\mathbf{H}^0">\mathbf{H}^0</span> 被初始化为与输入嵌入矩阵相同。所有位置在多头自注意力机制中并行处理，然后经过一个循环转移函数。</p>
       
     
       
@@ -1015,7 +1006,7 @@ Y_2 = [Y_2^{(1)}; \dots; Y_2^{(c)}] = [X_2^{(1)} + \text{FeedForward}(Y_1^{(1)})
       
     
       
-        <p>其中 <span class="math-inline" data-math="\text{Transition}(.)">\text{Transition}(.)</span> 要么是 <a href="https://arxiv.org/abs/1610.02357" target="_blank" rel="noopener">可分离卷积</a>，要么是一个全连接神经网络，由两个逐位置（即对 <span class="math-inline" data-math="\mathbf{A}^t">\mathbf{A}^t</span> 的每一行分别应用）的仿射变换加一个 ReLU 组成。</p>
+        <p>其中 <span class="math-inline" data-math="\text{Transition}(.)">\text{Transition}(.)</span> 可以是 <a href="https://arxiv.org/abs/1610.02357" target="_blank" rel="noopener">可分离卷积</a>，也可以是全连接神经网络，由两个逐位置（即对 <span class="math-inline" data-math="\mathbf{A}^t">\mathbf{A}^t</span> 的每一行分别应用）的仿射变换加一个 ReLU 组成。</p>
       
     
       
@@ -1041,30 +1032,33 @@ Y_2 = [Y_2^{(1)}; \dots; Y_2^{(c)}] = [X_2^{(1)} + \text{FeedForward}(Y_1^{(1)})
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/universal-transformer.png" alt="">
-          <figcaption>A simplified illustration of Universal Transformer. The encoder and decoder share the same basic recurrent structure. But the decoder also attends to final encoder representation <span class="math-inline" data-math="\mathbf{H}^T">\mathbf{H}^T</span>. (Image source: Figure 2 inDehghani, et al. 2019)</figcaption>
+          <figcaption>Universal Transformer 的简化示意图。编码器和解码器共享相同的基本循环结构。但解码器还会关注最终的编码器表示 <span class="math-inline" data-math="\mathbf{H}^T">\mathbf{H}^T</span>。（图片来源：Dehghani, et al. 2019 中的图 2）</figcaption>
         </figure>
       
     
       
-        <p>在 Universal Transformer 的自适应版本中，循环步数 <span class="math-inline" data-math="T">T</span> 由 ACT 动态决定。每个位置都配备了一个动态的 ACT 停止机制。一旦某个 token 的循环块停止，它就不再进行更多的循环更新，而是将当前值简单复制到后续步骤，直到所有块都停止，或达到模型允许的最大步数。</p>
+        <p>在 Universal Transformer 的自适应版本中，循环步数 <span class="math-inline" data-math="T">T</span> 由 ACT 动态决定。每个位置都配备了一个动态的 ACT 停止机制。一旦某个 token 的循环块停止，它就不再接受更多的循环更新，而是简单地将当前值复制到下一步，直到所有块都停止或达到最大步数限制。</p>
       
     
       
-        <h2>针对强化学习的稳定化措施（GTrXL）#</h2>
+        <h2>用于强化学习的稳定机制 (GTrXL)</h2>
         
       
     
       
-        <p>自注意力机制避免了将整个历史压缩到一个固定大小的隐藏状态中，并且不像 RNN 那样容易出现梯度消失或爆炸问题。强化学习任务无疑可以从这些特性中受益。然而，即使在监督学习中，训练 Transformer 也相当困难，更不用说在 RL 环境中了。毕竟，单独稳定并训练一个 LSTM 智能体就已经很有挑战性了。</p>
+        <p>自注意力机制避免了将整个历史压缩到一个固定大小的隐藏状态中，也不会像 RNN 那样容易遭受梯度消失或爆炸问题。强化学习任务无疑可以从这些特性中受益。然而，即使在监督学习中训练 Transformer 都相当困难，更不用说在强化学习环境中了。毕竟，仅训练一个 LSTM 智能体本身就已经很有挑战性了。</p>
       
     
       
-        <p>Gated Transformer-XL（GTrXL；<a href="https://arxiv.org/abs/1910.06764" target="_blank" rel="noopener">Parisotto et al., 2019</a>）是尝试将 Transformer 用于 RL 的一种方案。GTrXL 在 Transformer-XL 的基础上通过两处修改成功稳定了训练过程：</p>
+        <p>Gated Transformer-XL（GTrXL；<a href="https://arxiv.org/abs/1910.06764" target="_blank" rel="noopener">Parisotto, et al. 2019</a>）是尝试将 Transformer 用于强化学习的一次探索。GTrXL 在 Transformer-XL 的基础上进行了两处修改，成功稳定了训练过程：</p>
       
     
       
-        <div class="list-content">层归一化只应用于残差模块的输入流，而不对快捷连接流应用。这种重排序的一个关键好处是允许原始输入从第一层一直流动到最后一层。
-残差连接被替换为类似 GRU（Gated Recurrent Unit；<a href="https://arxiv.org/abs/1412.3555" target="_blank" rel="noopener">Chung et al., 2014</a>）的门控机制。</div>
+        
+          <ol>
+            <li>层归一化仅应用于残差模块的输入流，而不对快捷（shortcut）流应用。这种重排序的一个关键好处是允许原始输入从第一层一直流动到最后一层。</li><li>残差连接被替换为 GRU 风格（Gated Recurrent Unit；<a href="https://arxiv.org/abs/1412.3555" target="_blank" rel="noopener">Chung et al., 2014</a>）的门控机制。</li>
+          </ol>
+        
       
     
       
@@ -1086,18 +1080,18 @@ g^{(l)}(x, y) &amp;= (1-z)\odot x + z\odot \hat{h}
       
     
       
-        <p>门控函数的参数被显式初始化为接近单位映射——这就是为什么存在 <span class="math-inline" data-math="b_g">b_g</span> 项。一个 <span class="math-inline" data-math="b_g &gt; 0">b_g &gt; 0</span> 可以显著加快学习速度。</p>
+        <p>门控函数的参数被显式初始化为接近单位映射——这就是为什么存在 <span class="math-inline" data-math="b_g">b_g</span> 项。一个接近 0.5 的 <span class="math-inline" data-math="b_g &gt; 0">b_g &gt; 0</span> 有助于显著加快学习速度。</p>
       
     
       
         <figure>
           <img src="../images/posts-2020-04-07-the-transformer-family/gated-transformer-XL.png" alt="">
-          <figcaption>Comparison of the model architecture of Transformer-XL, Transformer-XL with the layer norm reordered, and Gated Transformer-XL. (Image source: Figure 1 inParisotto, et al. 2019)</figcaption>
+          <figcaption>Transformer-XL、调整了层归一化顺序的 Transformer-XL 以及 Gated Transformer-XL 的模型架构对比。（图片来源：Parisotto, et al. 2019 中的图 1）</figcaption>
         </figure>
       
     
       
-        <h2>引用#</h2>
+        <h2>引用</h2>
         
       
     
@@ -1122,7 +1116,7 @@ g^{(l)}(x, y) &amp;= (1-z)\odot x + z\odot \hat{h}
       
     
       
-        <h2>参考文献#</h2>
+        <h2>参考文献</h2>
         
       
     
@@ -1151,7 +1145,7 @@ g^{(l)}(x, y) &amp;= (1-z)\odot x + z\odot \hat{h}
       
     
       
-        <p>[7] Alex Graves. <a href="https://arxiv.org/abs/1603.08983" target="_blank" rel="noopener">“Adaptive Computation Time for Recurrent Neural Networks”</a></p>
+        <p>[7] Alex Graves. (“Adaptive Computation Time for Recurrent Neural Networks”)[https://arxiv.org/abs/1603.08983]</p>
       
     
       

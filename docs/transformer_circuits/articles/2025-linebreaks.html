@@ -3,13 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>当模型操控流形：计数任务的几何结构 · Transformer Circuits Thread</title>
+  <title>当模型操控流形：一个计数任务的几何学 · Transformer Circuits Thread</title>
   <link rel="stylesheet" href="../static/css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Transformer Circuits Thread</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -20,7 +25,7 @@
 
 <article>
   <header class="article-header">
-    <h1>当模型操控流形：计数任务的几何结构</h1>
+    <h1>当模型操控流形：一个计数任务的几何学</h1>
     <div class="meta">
       October 2025 · 
       <a href="https://transformer-circuits.pub/2025/linebreaks/index.html" target="_blank" rel="noopener">阅读原文</a>
@@ -35,15 +40,15 @@
       
     
       
-        <p>智能系统需要感知能力来理解、预测并在环境中航行。这些感官能力反映了在特定环境中生存所需要的有用信息：蝙蝠使用回声定位，候鸟能感知磁场，北极驯鹿会随季节改变紫外线视觉。但当你的世界由文本构成时，你会“看到”什么？语言模型会遇到许多受益于视觉或空间推理的文本任务：解析ASCII艺术、解释表格，或处理文本换行约束。然而它们唯一的“感官”输入是一串代表token的整数。它们必须从零开始学习感知能力，并在此过程中发展出专门的机制。</p>
+        <p>智能系统需要感知能力来理解、预测并在环境中导航。这些感官能力反映了在特定环境中生存所需的有用信息：蝙蝠使用回声定位，迁徙的鸟类能感知磁场，北极驯鹿会随季节改变紫外线视觉。但当你的世界由文本构成时，你会“看到”什么？语言模型会遇到许多受益于视觉或空间推理的文本任务：解析ASCII艺术、解读表格，或处理文本换行约束。然而，它们唯一的“感官”输入只是代表token的整数序列。它们必须从零开始学习感知能力，并在过程中发展出专门的机制。</p>
       
     
       
-        <p>在这项工作中，我们研究了使Claude 3.5 Haiku能够执行一种自然感知任务的机制，这种任务在预训练语料中很常见，涉及跟踪文档中的位置。我们发现学到的位置表征在某些方面与哺乳动物执行类似任务时发现的生物神经元（小鼠的“位置细胞”和“边界细胞”）相当相似，但在其他方面则因语言模型残差流（residual stream）的约束而独具特色。我们研究这些表征并发现了双重解释：可以将它们理解为一组离散特征，或理解为一个一维“特征流形”（feature manifold）/“多维特征”[<cite>[olah2023manifold,olah2024multidimensional,gorton2024curve,engels2025not]</cite>]。<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>在前一种解释中，位置由哪些特征被激活以及激活强度决定；在后一种解释中，位置由特征流形上的角度移动决定。类似地，计算也有两种对偶解释，即离散电路或几何变换。</p>
+        <p>在这项工作中，我们研究了使Claude 3.5 Haiku能够执行一项自然感知任务的机制。该任务在预训练语料中很常见，涉及跟踪文档中的位置。我们发现学到的位置表征在某些方面与哺乳动物执行类似任务时发现的生物神经元（小鼠的“位置细胞”和“边界细胞”）颇为相似，但在其他方面则因语言模型残差流（residual stream）的约束而独具特色。我们研究这些表征并发现了双重解释：可以将它们理解为一组离散特征，也可以理解为一个一维“特征流形”/“多维特征” [<cite>(Olah et al., 2023; Olah, 2024; Gorton, 2024; Engels et al., 2025)</cite>]。<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup> 在第一种解释中，位置由哪些特征激活及其激活强度决定；在后一种解释中，位置由特征流形上的角度移动决定。类似地，计算也有两种对偶解释：离散电路或几何变换。</p>
       
     
       
-        <p>我们研究的任务是固定宽度文本的换行。在训练源代码、聊天记录、邮件存档、扫描文章或具有行宽约束的司法裁决时，模型如何学会预测何时换行？<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>人类的视觉感知让我们几乎完全下意识地完成这件事——写生日贺卡时，你能看到一行空间用尽时需要开始下一行——但语言模型看到的只是一串整数。为了正确预测下一个token，除了选择下一个词，模型还必须以某种方式计算当前行的字符数，从文档的行宽约束中减去该数字，并将剩余字符数与下一个词的长度进行比较。作为具体例子，考虑下面这对具有隐含50字符换行约束的prompt。<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>当下个词合适时，模型会输出它；当不合适时，模型会换行：</p>
+        <p>我们研究的任务是固定宽度文本中的换行。在训练源代码、聊天记录、电子邮件存档、扫描文章或具有行宽约束的司法裁决时，模型如何学会预测何时换行？<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup> 人类的视觉感知几乎能让我们完全下意识地完成这件事——写生日贺卡时，你能看出什么时候一行写不下，需要开始下一行——但语言模型看到的只是一串整数。为了正确预测下一个token，除了选择下一个词，模型还必须以某种方式统计当前行的字符数，用该数字减去文档的行宽约束，并将剩余字符数与下一个词的长度进行比较。举一个具体例子，考虑下面这对隐含50字符换行约束的提示。<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup> 当下一个词能容纳时，模型就输出它；当容纳不下时，模型就换行：</p>
       
     
       
@@ -4046,7 +4051,7 @@ eYUQovDU1BysWLNmecXUF8ZVDBvas+KxhztVPHDfrRX333uLEEIIIYQQQgghhBBCCCFioHu3DhUD
       
     
       
-        <p>为了理清计算的不同阶段，我们首先使用离散的字典特征来研究模型。在这个框架下，我们可以将计算理解为一个“归因图”（attribution graph）[<cite>[ameisen2025circuit]</cite>]，其中一系列特征相互激发或抑制。<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup></p>
+        <p>为了理清计算的各个阶段，我们首先使用离散的词典特征来研究模型。在这个框架下，我们可以将计算理解为一个“归因图”（attribution graph）[<cite>(Ameisen et al., 2025)</cite>]，其中一系列特征相互激发或抑制。<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup></p>
       
     
       
@@ -11667,20 +11672,24 @@ VPbo/g/txzvX27fr59rmxno7PDx8G88fPdxuF86f/PPyWrt5Y7N9f2sLgP/p1o3L7frVi+3alQsE
 AAAAZ8vTJ3vt2bOn7fDwr3fh/F08X+zNmzcAfDTHpz/x8fo1/2bxTqtvBwCQx/L9wvsWN6+bDgAA
 gLNqeZ+ZmZmZmZmZmZmZmZmZmZnNvr8BTmNb4y6o2qMAAAAASUVORK5CYII=
 " alt="">
-          <figcaption>Attribution Graph for Claude 3.5 Haiku’s prediction of a newline in the aluminum prompt. We see features relating to “width of the previous line” and “position in the current line” which together activate features for “distance from line limit”. Combined with features for the planned next word, these features activate “predict newline” features.</figcaption>
+          <figcaption>Claude 3.5 Haiku在aluminum提示中预测换行的归因图。我们看到与“前一行宽度”和“当前行位置”相关的特征，它们共同激活了“距行限距离”的特征。结合计划输出的下一个词的特征，这些特征又激活了“预测换行”特征。</figcaption>
         </figure>
       
     
       
-        <p>归因图显示了模型如何通过组合代表不同需要跟踪概念的特征来执行此任务：</p>
+        <p>归因图显示了模型如何通过组合代表不同需要追踪概念的特征来完成这项任务：</p>
       
     
       
-        <div class="list-content">当前行位置（字符计数）特征以及总行宽（约束）特征是通过累积单个token长度特征来计算的。模型随后将这两个表征——当前位置和行宽——结合起来以估计离行尾的距离，从而产生“剩余字符”特征。最后，模型使用这个剩余字符数的估计值以及计划输出的下一个词的特征，来判断下一个词是否能容纳在当前行内。</div>
+        
+          <ol>
+            <li>当前行位置（字符计数）特征以及总行宽（约束）特征，是通过累积单个token长度特征计算得到的。</li><li>模型接着将这两个表征——当前位置和行宽——结合起来，估计距行尾的距离，从而产生“剩余字符”特征。</li><li>最后，模型使用这个剩余字符估计值，连同计划输出下一个词的特征，来判断下一个词是否能容纳在当前行中。</li>
+          </ol>
+        
       
     
       
-        <p>归因图提供了一种算法的执行轨迹，显示在这个prompt上计算了哪些变量以及从何而来。在一个多样化的数据集中找到涉及表征这些量的庞大特征族后，我们猜测用低维特征流形进行几何交互可能提供一个更简单的视角。我们找到了以下问题的几何视角：</p>
+        <p>归因图提供了一种算法的执行轨迹，显示在这个提示中计算了哪些变量以及如何计算的。在一个多样化的数据集中发现涉及这些量的大规模特征家族后，我们猜测可能存在更简单的视角，即低维特征流形以几何方式相互作用。我们从几何视角研究了以下问题：</p>
       
     
       
@@ -23325,28 +23334,28 @@ XcU78zO/cc9fCCGEEEII0XgU5md9W5CXsTsvZ0duTmTrlmg4bW0kK3lBKCPl8WVLF3Xr07PHif37
 9vlply5d4nJirkwmk8lkMplMJpPJZDKZTCaTyWQymUwmk8lkMplMJjtI7f8D3+Rj/orrTSUAAAAA
 SUVORK5CYII=
 " alt="">
-          <figcaption>Key steps in the linebreaking behavior can be described in terms of the construction and manipulation of manifolds.</figcaption>
+          <figcaption>换行行为的关键步骤可以用流形的构建和操控来描述。</figcaption>
         </figure>
       
     
       
-        <p>模型如何表征不同的计数？token中的字符数、当前行中的字符数、整体行宽约束以及当前行剩余字符数，分别被表征在嵌入于残差流低维子空间中的高曲率一维特征流形上。这些流形具有离散特征的双重解释，这些特征以规范方式平铺在流形上，提供近似的局部坐标。具有相似几何结构的流形会出现在各种序数概念中，而我们在所有这些情况的嵌入几何中看到的振铃模式，在一个简单的物理模型下是最优的（§表征字符计数）。<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup></p>
+        <p>模型如何表示不同的计数值？token中的字符数、当前行中的字符数、整体行宽约束以及当前行剩余字符数，各自都表示在嵌入于残差流低维子空间中的一维特征流形上，这些流形具有较高的曲率。这些流形具有双重解释，即离散特征，它们以规范的方式平铺在流形上，提供近似的局部坐标。具有类似几何结构的流形也出现在各种序数概念中，而我们在所有这些情况的嵌入几何中看到的振铃模式，在一个简单的物理模型下是最优的（§表示字符计数）。<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup></p>
       
     
       
-        <p>模型如何检测边界？为了检测即将到来的行边界，模型必须比较两个量：当前字符计数和行宽。我们发现了一些注意力头，其QK矩阵将一个计数流形旋转到与另一个在特定偏移处对齐，从而在两个计数的差值落在目标范围内时产生较大的内积。具有不同偏移的多个头协同工作，以精确估计剩余字符数（§感知行边界）。</p>
+        <p>模型如何检测边界？为了检测即将到来的行边界，模型必须比较两个量：当前字符计数和行宽。我们发现了一些注意力头，其QK矩阵将一个计数流形旋转，使其与另一个在特定偏移处对齐，从而当计数差落在目标范围内时产生较大的内积。具有不同偏移的多个头协同工作，以精确估计剩余字符数（§感知行边界）。</p>
       
     
       
-        <p>模型如何知道下一个词是否合适？最终的决策——是否预测换行——需要将剩余字符数的估计与预测的下一个词的长度结合起来。我们发现模型将这些计数置于近正交的子空间上，创造了一种几何结构，使得正确的换行预测是线性可分的（§预测换行）。</p>
+        <p>模型如何知道下一个词是否合适？最终的决策——是否预测换行——需要将剩余字符估计值与预测的下一个词的长度结合起来。我们发现模型将这些计数值置于近正交的子空间中，创建了一个几何结构，使得正确的换行预测是线性可分的（§预测换行）。</p>
       
     
       
-        <p>模型如何构造这些弯曲几何？字符计数表征流形中的曲率是由许多注意力头协同产生的，每个头贡献整体曲率的一部分。这种分布式算法是必要的，因为单个组件无法产生足够的输出方差来创建完整的表征（§分布式字符计数算法）。</p>
+        <p>模型如何构造这些弯曲几何结构？字符计数表征流形中的曲率是由许多注意力头协同产生的，每个头贡献整体曲率的一部分。这种分布式算法是必要的，因为单个组件无法产生足够的输出方差来创建完整的表征（§分布式字符计数算法）。</p>
       
     
       
-        <p>我们通过有针对性的干预、消融和“视觉错觉”——即劫持特定注意力机制以扰乱空间感知的字符序列——来验证这些解释（§视觉错觉）。</p>
+        <p>我们通过有针对性的干预、消融和“视觉错觉”——即劫持特定注意力机制以破坏空间感知的字符序列——来验证这些解释（§视觉错觉）。</p>
       
     
       
@@ -23354,19 +23363,19 @@ SUVORK5CYII=
       
     
       
-        <p>当模型操控流形。对于表征标量量（例如，从<span class="math-inline" data-math="1">1</span>到<span class="math-inline" data-math="N">N</span>的整数计数），使用<span class="math-inline" data-math="N">N</span>个正交维度效率低下，而只用一个维度又不够有表达力。<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup>相反，模型学会在具有内在维度1（计数）的特征流形上表征这些量，该流形嵌入在具有外在维度<span class="math-inline" data-math="1 &lt; d \ll N">1 &lt; d \ll N</span>（例如[<cite>[gorton2024curve,engels2025not,modell2025origins]</cite>]）的子空间中，其中曲线会“起伏”。这种起伏的流形在容量约束（大致即维度）和保持不同标量值可区分性（曲率）之间实现了最优权衡。我们的工作展示了这些流形可以被以复杂方式操控来执行计算，并说明这可能需要将计算分布在多个模型组件上。</p>
+        <p>当模型操控流形。对于表示标量量（例如，从<span class="math-inline" data-math="1">1</span>到<span class="math-inline" data-math="N">N</span>的整数计数），使用<span class="math-inline" data-math="N">N</span>个正交维度效率低下，而仅使用一个维度又不够具表现力。<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup> 相反，模型学会在具有内在维度1（计数值）的特征流形上表示这些量，该流形嵌入在具有外在维度<span class="math-inline" data-math="1 &lt; d \ll N">1 &lt; d \ll N</span>的子空间中（例如，[<cite>(Gorton, 2024; Engels et al., 2025; Modell et al., 2025)</cite>]），其中曲线会“起伏”。这种起伏的流形在容量约束（大致即维度）和保持不同标量值可区分性（曲率）之间取得了最优的权衡。我们的工作展示了这些流形可以被以复杂的方式操控来执行计算，并表明这可能需要将计算分布在多个模型组件中。</p>
       
     
       
-        <p>特征与几何的对偶性。字典特征为发现机制提供了无监督的切入点，而归因图则突出了任何特定预测的重要特征。有时，离散特征（及其交互）可以用连续特征流形（及其变换）等价地描述。在可以显式参数化流形的情况下（就像我们研究的各种整数计数），我们可以直接研究几何结构，使某些操作更加清晰（例如边界检测）。但这种方法在研究者时间上代价高昂，且范围可能有限：当研究已知的连续变量时较为直接，但对于更复杂、难以参数化的概念，正确执行会变得困难。</p>
+        <p>特征与几何的对偶性。词典特征为发现机制提供了无监督的切入点，归因图则突出了任何特定预测的重要特征。有时，离散特征（及其相互作用）可以用连续特征流形（及其变换）来等价描述。在可以显式参数化流形的情况下（如我们研究的各种整数计数），我们可以直接研究其几何结构，使某些操作更清晰（例如，边界检测）。但这种方法会消耗大量研究者时间，且潜在适用范围有限：当研究已知的连续变量时较为直接，但对于更复杂、难以参数化的概念，正确执行变得困难。</p>
       
     
       
-        <p>复杂性税。虽然无监督发现本身就是胜利，但字典特征将模型碎片化为大量小片段和交互——这是一种解释上的复杂性税。在存在流形参数化的情况下，我们可以将几何描述视为降低了这种税。在其他情况下，我们将需要额外的工具来减轻解释负担，例如分层表征[<cite>[costa2025flat]</cite>]或全局权重中的宏观结构[<cite>[olah2023interpretability]</cite>]。我们期待看到将字典学习范式扩展到无监督发现其他类型几何结构（例如先前工作中发现的那些[<cite>[hewitt2019structural,reif2019visualizing,chang2022geometry,wattenberg2024relational,park2024geometry,li2025geometry,wollschlager2025geometry,hindupur2025projecting,modell2025origins]</cite>]）的方法。</p>
+        <p>复杂性税。虽然无监督发现本身就是胜利，但词典特征将模型拆分成大量小片段和相互作用——这是一种解释的复杂性税。在存在流形参数化的情况下，我们可以将几何描述视为减少这种税的方式。在其他情况下，我们需要额外工具来减轻解释负担，例如分层表征[<cite>(Costa et al., 2025)</cite>]或全局权重中的宏观结构[<cite>(Olah, 2023)</cite>]。我们期待看到将词典学习范式扩展到无监督发现其他类型几何结构（例如先前工作[<cite>(Hewitt et al., 2019; Coenen et al., 2019; Chang et al., 2022; Wattenberg et al., 2024; Park et al., 2024; Li et al., 2025; Wollschl\&quot;ager et al., 2025; Hindupur et al., 2025; Modell et al., 2025)</cite>]中发现的那些）的方法。</p>
       
     
       
-        <p>自然任务。我们发现的表征和电路的清晰度令人惊讶，这可能归因于模型在该任务上的出色表现。换行对于预训练语言模型来说是一种极其自然的行为，即使是极小的模型在足够的上下文下也能做到。研究那些对预训练语言模型而言自然的任务，而不是对人类研究者而言更具理论兴趣的任务，可能会为发现通用机制提供有前景的目标。</p>
+        <p>自然任务。我们发现的表征和电路的清晰度令人惊讶，这可能归因于模型执行任务的优秀程度。换行是预训练语言模型极其自然的行为，即使是极小的模型只要有足够上下文也能做到。研究对预训练语言模型来说自然的任务，而不是对人类研究者来说更具理论兴趣的任务，可能为发现一般机制提供有前景的目标。</p>
       
     
       
@@ -23375,7 +23384,7 @@ SUVORK5CYII=
       
     
       
-        <p>为了进行系统分析，我们使用一个包含多样散文文本的语料库创建了一个合成数据集，其中我们（1）剥离所有换行符，并（2）每<span class="math-inline" data-math="k">k</span>个字符在最接近的词边界<span class="math-inline" data-math="\leq k">\leq k</span>处重新插入换行符<span class="math-inline" data-math="k=15,20,\ldots,150">k=15,20,\ldots,150</span>。作为示例，下面是葛底斯堡演说开头的句子，换行至<span class="math-inline" data-math="k=40">k=40</span>个字符，并明确显示换行符。</p>
+        <p>为了进行系统分析，我们使用了一个多样散文文本语料创建了一个合成数据集，我们（1）去除了所有换行符，并（2）每<span class="math-inline" data-math="k">k</span>个字符重新插入换行符，到最近的词边界<span class="math-inline" data-math="\leq k">\leq k</span>，共<span class="math-inline" data-math="k=15,20,\ldots,150">k=15,20,\ldots,150</span>次。下面是葛底斯堡演说开头的句子，换行至<span class="math-inline" data-math="k=40">k=40</span>个字符，并明确显示了换行符。</p>
       
     
       
@@ -23399,36 +23408,40 @@ SUVORK5CYII=
       
     
       
-        <p>Claude 3.5 Haiku能够适应<span class="math-inline" data-math="k">k</span>的每种行长值，在第三行时就以高概率在正确位置预测换行（见附录）。</p>
+        <p>Claude 3.5 Haiku能够适应<span class="math-inline" data-math="k">k</span>的每一种行长，在第三行时就以高概率在正确位置预测换行（见附录）。</p>
       
     
       
-        <p>本文正文中的所有特征均来自一个在Claude 3.5 Haiku上训练的1000万特征Weakly Causal Crosscoder (WCC)字典[<cite>[lindsey2024crosscoders]</cite>]。特征激活值在全文中均被归一化到其最大值。</p>
+        <p>本文正文中出现的所有特征均来自一个在Claude 3.5 Haiku上训练的1000万特征弱因果交叉编码器（Weakly Causal Crosscoder, WCC）词典[<cite>(Lindsey et al., 2024)</cite>]。特征激活值已归一化到它们的最大值。</p>
       
     
       
-        <h3>表征字符计数</h3>
+        <h3>表示字符计数</h3>
         
       
     
       
-        <p>我们将prompt中给定token处的行字符计数（或字符计数）定义为自上一个换行符以来包括当前token字符在内的总字符数。</p>
+        <p>我们将提示中给定token处的行字符计数（或字符计数）定义为自上一个换行符以来的总字符数，包括当前token的字符。</p>
       
     
       
-        <p>一个自然要检查的事情是，模型是否将字符计数线性地表征为一个定量变量：即，我们能否通过对残差流进行线性回归以高精度预测字符计数？是的：在第1层之后的残差流上拟合的线性探针的<span class="math-inline" data-math="R^2">R^2</span>达到0.985。然而，这一成功并不意味着模型实际上是沿着单条直线表征字符计数的。</p>
+        <p>一个自然的检查是模型是否将字符计数线性表示为一个定量变量：即，我们能否通过对残差流进行线性回归以高准确率预测字符计数？是的：在第1层之后的残差流上拟合的线性探针的<span class="math-inline" data-math="R^2">R^2</span>为0.985。然而，这一成功并不意味着模型实际上是沿着单一直线表示字符计数的。</p>
       
     
       
-        <p>相反，我们发现了一种多维的字符计数表征，我们将从四个角度来分析它：</p>
+        <p>相反，我们发现了一种多维的字符计数表征，我们将从四个视角分析它：</p>
       
     
       
-        <div class="list-content">稀疏crosscoder特征。<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup>低维子空间。<sup id="fnref-f8n"><a href="#f8n">[8]</a></sup>包含在该低维子空间中的连续一维流形。<sup id="fnref-f9n"><a href="#f9n">[9]</a></sup>一组150个逻辑回归探针（对应行字符计数从1到150的值）。<sup id="fnref-f10n"><a href="#f10n">[10]</a></sup></div>
+        
+          <ol>
+            <li>稀疏交叉编码器特征。<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup></li><li>一个低维子空间。<sup id="fnref-f8n"><a href="#f8n">[8]</a></sup></li><li>包含在该低维子空间中的连续一维流形。<sup id="fnref-f9n"><a href="#f9n">[9]</a></sup></li><li>一组150个逻辑探针（对应行字符计数从1到150的值）。<sup id="fnref-f10n"><a href="#f10n">[10]</a></sup></li>
+          </ol>
+        
       
     
       
-        <p>这些视角中的每一个都对同一个底层对象提供了互补的视图。特征视角有助于定向，子空间适合因果干预，流形有助于理解表征如何被构建并随后被操控以检测边界，而逻辑探针则对分析所涉及的各个注意力头的OV和QK矩阵很有用。</p>
+        <p>这些视角中的每一个都提供了对同一底层对象的互补视图。特征视角有助于定位方向，子空间适合因果干预，流形有助于理解表征如何被构建以及随后如何被操控以检测边界，而逻辑探针则有助于分析所涉及的单个注意力头的OV和QK矩阵。</p>
       
     
       
@@ -23437,7 +23450,7 @@ SUVORK5CYII=
       
     
       
-        <p>我们从特征开始。在第1层和第2层，我们发现了似乎基于token在行内的字符位置而激活的特征。例如，在aluminum prompt的归因图中，最后一个词“called”上有两个激活的特征，它们似乎分别在行字符计数处于35–55和45–65之间时激活。为了找到更多这样的特征，我们计算了每个特征按行字符计数分箱的平均激活。有十个特征具有平滑的轮廓和较大的不同字符计数间的方差，如下所示：</p>
+        <p>我们从特征开始。在第1层和第2层，我们发现了似乎基于token在一行中的字符位置而激活的特征。例如，在aluminum提示的归因图中，最后一个词“called”上有两个激活的特征，似乎分别在行字符计数为35–55和45–65之间时触发。为了找到更多此类特征，我们计算了每个特征按行字符计数分箱后的平均激活。有十个特征具有平滑的轮廓和较大的字符计数间方差，如下所示：</p>
       
     
       
@@ -31010,33 +31023,33 @@ AAAAWHrCcwAAAAAAAACWnvAcAAAAAAAAgKUnPAcAAAAAAABg6QnPAQAAAAAAAFh6wnMAAAAAAAAA
 lp7wHAAAAAAAAIClJzwHAAAAAAAAYOkJzwEAAAAAAABYesJzAAAAAAAAAJae8BwAAAAAAACApSc8
 BwAAAAAAAGDp/QcAAAAAAAAAlt1/AdAB4/dG/XtsAAAAAElFTkSuQmCC
 " alt="">
-          <figcaption>A family of features representing the current character count in a line of text. The tuning curve of the features’ activity increases at larger line character counts.</figcaption>
+          <figcaption>一族表示文本行中当前字符计数的特征。这些特征的调谐曲线在较大的行字符计数处上升。</figcaption>
         </figure>
       
     
       
-        <p>我们发现这些特征特别有趣，因为它们与视觉模型中的曲线检测器特征[<cite>[cammarata2021curve,gorton2024missing]</cite>]和生物大脑中的位置细胞[<cite>[Moser2008PlaceCG]</cite>]相当相似。在这三种情况下，一个连续变量都是由一组在特定值范围内激活的离散元素来表征的。此外，我们还观察到感受野的扩张（即后续特征在越来越大的字符范围内激活），这是生物数字感知的常见特征（例如[<cite>[dehaene2003neural,piazza2004tuning]</cite>]）。</p>
+        <p>我们发现这些特征特别有趣，因为它们与视觉模型中的曲线检测器特征[<cite>(Cammarata et al., 2021; Gorton, 2024)</cite>]和生物大脑中的位置细胞[<cite>(Moser et al., 2008)</cite>]非常相似。在这三种情况下，一个连续变量都由一组离散元素表示，这些元素在特定值范围内激活。此外，我们还观察到感受野的扩张（即后续特征在越来越大的字符范围内激活），这是生物数字感知的常见特征（例如，[<cite>(Dehaene, 2003; Piazza et al., 2004)</cite>]）。</p>
       
     
       
-        <p>在附录中，我们展示了这些特征在不同大小的字典中是通用的，但相对于行宽约束会发生一些特征分裂。</p>
+        <p>在附录中，我们展示了这些特征在不同大小的词典中具有普遍性，但相对于行宽约束会出现一些特征分裂。</p>
       
     
       
-        <h4>模型在连续流形上表征字符计数</h4>
+        <h4>模型在连续流形上表示字符计数</h4>
         
       
     
       
-        <p>我们观察到字符计数特征的激活以偏移量上升和下降，大多数计数同时有两个特征处于激活状态。这种模式表明这些特征正在重构一个弯曲的连续流形，该流形局部由两个最活跃特征的活动来参数化。鉴于它们的联合激活轮廓遵循正弦模式，我们预期重构会落在相邻特征解码器之间的曲线上。</p>
+        <p>我们观察到字符计数特征的激活以偏移方式上升和下降，在大多数计数值上同时有两个特征处于激活状态。这种模式表明这些特征正在重构一个弯曲的连续流形，该流形局部由两个最活跃特征的活动参数化。鉴于它们的联合激活轮廓遵循正弦模式，我们预期重构会位于相邻特征解码器之间的曲线上。</p>
       
     
       
-        <p>为了可视化这一点，我们首先计算合成数据集上每个行字符计数值的平均第2层残差流。我们对这150个向量进行PCA，发现前6个主成分捕捉了95%的方差；我们将数据投影到这个称为“字符计数子空间”的6维子空间（左侧显示前3个PC，右侧显示后3个PC）。我们观察到数据形成了一条扭曲的曲线，从PC1–3的角度看像螺旋，从PC4–6的角度看则是更复杂的扭曲。</p>
+        <p>为了可视化这一点，我们首先计算合成数据集中每个行字符计数值对应的第2层残差流的平均值。我们对这150个向量进行PCA，发现前6个主成分捕捉了95%的方差；我们将数据投影到该6维子空间，称之为“字符计数子空间”（左侧为前3个主成分，右侧为后3个主成分）。我们观察到数据形成了一条扭曲的曲线，从PC1–3来看像螺旋，从PC4–6来看则呈现更复杂的扭曲。</p>
       
     
       
-        <p>我们还仅使用上面识别的10个字符计数特征来重构每个数据点的残差流，并计算平均重构残差流。我们将得到的曲线连同特征解码器一起投影到同一子空间中。我们发现平均行字符计数向量能被特征重构相当精确地逼近，尽管在特征向量本身附近有轻微的扭结，这让人想起对光滑曲线的样条逼近。虽然这10个特征向量将曲线离散化，但对同时激活的2–3个相邻特征进行插值，就能实现对150个数据点的高质量重构。</p>
+        <p>我们还仅使用上面识别的10个字符计数特征重构每个数据点的残差流，并计算平均重构残差流。我们将得到的曲线连同特征解码器一起投影到同一子空间中。我们发现平均行字符计数向量能被特征重构相当精确地近似，尽管在特征向量本身附近有轻微的扭结，这让人想起对光滑曲线的样条逼近。虽然10个特征向量将曲线离散化，但对同时激活的2–3个相邻特征进行插值，就能够高质量地重构150个数据点。</p>
       
     
       
@@ -31045,11 +31058,11 @@ BwAAAAAAAGDp/QcAAAAAAAAAlt1/AdAB4/dG/XtsAAAAAElFTkSuQmCC
       
     
       
-        <p>为了验证我们对字符计数子空间的解释，我们进行了一个粗粒度消融和一个细粒度干预。</p>
+        <p>为了验证我们对字符计数子空间的解释，我们进行了一个粗粒度消融和一个细粒度干预实验。</p>
       
     
       
-        <p>消融实验。在消融实验中，我们从单个早期层将对应于按字符计数平均激活前<span class="math-inline" data-math="k">k</span>个主成分的<span class="math-inline" data-math="k">k</span>维子空间置零，并与消融随机<span class="math-inline" data-math="k">k</span>维子空间的基线进行比较。下面我们衡量损失影响，按换行和非换行分开显示。<sup id="fnref-f11n"><a href="#f11n">[11]</a></sup></p>
+        <p>消融实验。在消融实验中，我们从单个早期层零消融对应于按字符计数平均激活的前<span class="math-inline" data-math="k">k</span>个主成分的<span class="math-inline" data-math="k">k</span>维子空间，并与消融随机<span class="math-inline" data-math="k">k</span>维子空间的基线进行比较。下面我们测量了损失影响，按换行和非换行分开显示。<sup id="fnref-f11n"><a href="#f11n">[11]</a></sup></p>
       
     
       
@@ -33630,12 +33643,12 @@ gCJU75m7ogQkIAEJSEACEpCABCQgAQlIQAIS6DsCilB998g9sAQkIAEJSEACEpCABCQgAQlIQAIS
 BCTQewKKUL1n7ooSkIAEJCABCUhAAhKQgAQkIAEJSKDvCChC9d0j98ASkIAEJCABCUhAAhKQgAQk
 IAEJSKD3BP4ETclv+7AO5G0AAAAASUVORK5CYII=
 " alt="">
-          <figcaption>Ablating the character count subspace has a large effect only when the next token is a newline.</figcaption>
+          <figcaption>消融字符计数子空间仅在下一个token是换行符时产生显著影响。</figcaption>
         </figure>
       
     
       
-        <p>干预实验。作为更精确的手术式干预，我们进行了一个实验来修改aluminum prompt结尾处感知到的字符计数（原为42个字符）。具体来说，我们在字符计数<span class="math-inline" data-math="c">c</span>上进行扫描，并用数据集中所有具有计数<span class="math-inline" data-math="c">c</span>的token的平均激活来替换。也就是说，对于激活<span class="math-inline" data-math="a">a</span>和平均激活矩阵<span class="math-inline" data-math="\mu">\mu</span>，有<span class="math-inline" data-math="a_{\text{patched}} = a_{\text{original}} - \mu_{\text{original}} + \mu_{c}">a_{\text{patched}} = a_{\text{original}} - \mu_{\text{original}} + \mu_{c}</span>。我们对三个相邻的早期层以及最后两个token执行此干预，对整个均值向量和在均值向量的6维PCA空间内都进行了操作。<sup id="fnref-f12n"><a href="#f12n">[12]</a></sup></p>
+        <p>干预实验。作为更精确的手术干预，我们进行了一个实验来修改aluminum提示末尾感知到的字符计数（原为42个字符）。具体来说，我们在字符计数<span class="math-inline" data-math="c">c</span>上进行扫描，并用数据集中所有具有计数<span class="math-inline" data-math="c">c</span>的token的平均激活来替换。也就是说，对于激活<span class="math-inline" data-math="a">a</span>和平均激活矩阵<span class="math-inline" data-math="\mu">\mu</span>，有<span class="math-inline" data-math="a_{\text{patched}} = a_{\text{original}} - \mu_{\text{original}} + \mu_{c}">a_{\text{patched}} = a_{\text{original}} - \mu_{\text{original}} + \mu_{c}</span>。我们在三个相邻的早期层以及aluminum提示最后两个token上执行此干预，对整个均值向量和均值向量的6维PCA空间都进行了操作。<sup id="fnref-f12n"><a href="#f12n">[12]</a></sup></p>
       
     
       
@@ -35971,7 +35984,7 @@ AQhAAAIQgAAEIAABCEAAAhCAAAQymgAiVEbfHgYHAQhAAAIQgAAEIAABCEAAAhCAAARygwAiVG7c
 R2YBAQhAAAIQgAAEIAABCEAAAhCAAAQymgAiVEbfHgYHAQhAAAIQgAAEIAABCEAAAhCAAARyg8D/
 A9va+aFkp8p+AAAAAElFTkSuQmCC
 " alt="">
-          <figcaption>Intervening on a rank 6 subspace is sufficient to change the model’s linebreaking behavior.</figcaption>
+          <figcaption>对秩6子空间进行干预足以改变模型的换行行为。</figcaption>
         </figure>
       
     
@@ -35981,11 +35994,11 @@ A9va+aFkp8p+AAAAAElFTkSuQmCC
       
     
       
-        <p>我们还训练了监督逻辑回归探针来预测字符计数。<sup id="fnref-f13n"><a href="#f13n">[13]</a></sup>在第1层之后训练的探针的均方根误差为5，表明字符计数表征中存在一定的内在噪声——这与我们的特征具有相对较宽感受野是一致的。对150个探针权重向量进行PCA，我们发现6个成分捕捉了82%的方差。</p>
+        <p>我们还训练了监督逻辑回归探针来预测字符计数。<sup id="fnref-f13n"><a href="#f13n">[13]</a></sup> 在第1层之后训练的探针的均方根误差为5，表明字符计数表征中存在一定的内在噪声——这与我们的特征具有相对较宽感受野的情况一致。对150个探针权重向量进行PCA，我们发现6个主成分捕捉了82%的方差。</p>
       
     
       
-        <p>当我们观察每个探针对具有不同行字符计数的token的平均响应时，我们看到了一个惊人的模式。除了对角带（探针像稀疏特征一样具有越来越宽的感受野），我们还在每一侧看到了两条微弱的非对角带！每个探针的响应曲线在其最大值之外并不是单调递减的，而是会反弹。这种“振铃”现象原来是将“起伏”流形嵌入到低维空间的自然结果。</p>
+        <p>当我们查看每个探针对具有不同行字符计数的token的平均响应时，我们看到了一个惊人的模式。除了对角带（探针像稀疏特征一样具有越来越宽的感受野），我们还在两侧看到了两个微弱的非对角带！每个探针的响应曲线在其最大值之外并非单调递减，而是会反弹。这种“振铃”现象原来是将“起伏”流形嵌入低维空间的自然结果。</p>
       
     
       
@@ -38764,7 +38777,7 @@ AAIIIIAAAgi0mgCRplbrUc4HAQQQQAABBBBAAAEEEEAAAQQQqJcAkaZ6yVMvAggggAACCCCAAAII
 IIAAAggg0GoCRJparUc5HwQQQAABBBBAAAEEEEAAAQQQQKBeAkSa6iVPvQgggAACCCCAAAIIIIAA
 AggggECrCfwf5L4PVlDhq4UAAAAASUVORK5CYII=
 " alt="">
-          <figcaption>Response curve of Line Character Count probes as a function of Line Character Count show widening receptive fields and a &quot;ringing&quot; pattern of off-diagonal stripes.</figcaption>
+          <figcaption>行字符计数探针对行字符计数的响应曲线，显示出变宽的感受野和非对角条带的“振铃”模式。</figcaption>
         </figure>
       
     
@@ -38774,7 +38787,7 @@ AggggECrCfwf5L4PVlDhq4UAAAAASUVORK5CYII=
       
     
       
-        <p>我们注意到，平均激活向量（在上图PCA空间中形成螺旋状曲线）、线性探针向量和特征解码器向量的余弦相似度都展现出与上图类似的振铃模式。<sup id="fnref-f14n"><a href="#f14n">[14]</a></sup>请注意，不仅相邻特征不正交，更远的特征具有负相似度，而那些更远的特征又再次具有正相似度。</p>
+        <p>我们注意到，平均激活向量的余弦相似性（其在上述PCA空间中形成螺旋状曲线）、线性探针向量和特征解码器向量，都表现出与上图类似的振铃模式。<sup id="fnref-f14n"><a href="#f14n">[14]</a></sup> 请注意，不仅相邻特征不是正交的，更远处的特征具有负相似性，再远一些的又具有正相似性。</p>
       
     
       
@@ -48110,7 +48123,7 @@ nddQQXneinQAAAAASUVORK5CYII=
       
     
       
-        <p>这种结构原来是具有所需相似度模式的结果，该模式在150维中可以平凡地实现，然后被投影到低维。作为一个玩具模型，假设我们希望拥有一组离散化圆上的单位向量，每个向量与其邻居相似但与其更远的向量正交。这可以通过150维中一组对称的单位向量来实现，其余弦相似度矩阵为<span class="math-inline" data-math="X">X</span>（如下左图所示）。将其投影到前5个特征向量上会得到相同向量的5维嵌入，其余弦相似度矩阵（下右图）展现出振铃。我们还绘制了这些向量在前3个特征向量中形成的曲线。我们可以将原始150维的圆嵌入视为高度弯曲的，而得到的5维嵌入则尽可能保留了那种曲率。这表现为圆的嵌入在3D投影中出现起伏。附录中讨论了这种构造与傅里叶特征的关系。</p>
+        <p>这种结构原来是具有期望相似性模式的结果，该模式在150维中可以平凡地实现，然后被投影到低维。作为一个玩具模型，假设我们希望拥有一组离散化圆的单位向量，每个向量与其邻居相似，但与其更远的向量正交。这可以通过150维中一组对称单位向量实现，其余弦相似性矩阵为<span class="math-inline" data-math="X">X</span>（如下左图所示）。将其投影到前5个特征向量上，得到相同向量的5维嵌入，其余弦相似性矩阵（下右图）表现出振铃。我们还绘制了这些向量在前3个特征向量中形成的曲线。我们可以将原始150维的圆嵌入视为高度弯曲的，而得到的5维嵌入则尽可能保留了那种曲率。这表现为在3D投影中观察圆的嵌入时出现的起伏。与傅里叶特征的关系在附录中讨论。</p>
       
     
       
@@ -53159,20 +53172,20 @@ EEJIrofmOSGEEEIIIYQQQgghhBBCCCGEkFwPzXNCCCGEEEIIIYQQQgghhBBCCCG5HprnhBBCCCGE
 EEIIIYQQQgghhBBCcj0wz3+iKIqiKIqiKIqiKIqiKIqiKIqiKIqiqNysPIQQQgghhBBCCCGEEEII
 IYQQQkhu5/8BfisgNy7AxTUAAAAASUVORK5CYII=
 " alt="">
-          <figcaption>Left panel shows an ideal similarity matrix for vectors representing points along a circle. Middle panel shows the optimal (PCA) approximation possible when embedding the points in 5 dimensions. Right panel shows the resulting projection of the circle to the top 3 dimensions, exhibiting rippling.</figcaption>
+          <figcaption>左图显示了表示圆上点的向量的理想相似性矩阵。中间图显示了将点嵌入5维时可能的最优（PCA）近似。右图显示了圆投影到前3维的结果，表现出起伏。</figcaption>
         </figure>
       
     
       
-        <p>或者，可以从稀疏特征解码器的角度将振铃视为一种干涉权重[<cite>[olah2025toy]</cite>]。在没有容量约束的情况下，模型可能会使用正交向量来表征每个特征对输入数据的定量响应，每个特征都有自己的感受野。当被迫将它们置于低维叠加中时，相似度矩阵会同时拾取更宽的对角条纹和上下对角振铃条纹。</p>
+        <p>或者，可以从稀疏特征解码器的角度将振铃视为一种干扰权重[<cite>(Olah et al., 2025)</cite>]。在没有容量约束的情况下，模型可能会使用正交向量来表示每个特征对输入数据的定量响应，每个特征都有自己的感受野。当被迫将它们置于低维叠加中时，相似性矩阵会同时获得更宽的对角带和上下对角振铃带。</p>
       
     
       
-        <p>最后，我们还构建了一个简单的物理模型，表明即使通过动态求解，当许多向量被 packing 到少量维度中时，起伏和振铃也会出现。下面我们展示了一个模拟的结果，其中100个被限制在<span class="math-inline" data-math="6">6</span>维超球面上的点受到对其每侧6个最近邻居（匹配我们探针的RMSE误差）的吸引力，以及对所有其他点的斥力。（为了避免边界条件，我们使用圆的拓扑而不是区间。）右下图是展现两个环的热图，左下图是6维曲线的3维投影。这个模拟是可交互的，鼓励读者尝试重新初始化点（↺）、切换环境维度，并修改吸引区域的宽度。减小吸引区域或增加嵌入维度都会增加曲率（和振铃量），反之亦然。<sup id="fnref-f15n"><a href="#f15n">[15]</a></sup>随着曲线上点数增多和吸引区域宽度（相对而言）缩小，曲率会变得极为极端，在极限情况下接近空间填充曲线。</p>
+        <p>最后，我们还构建了一个简单的物理模型，表明即使通过动态求解，当许多向量被 packing 到少量维度中时，起伏和振铃也会出现。下面，我们展示了一个模拟的结果，其中100个限制在<span class="math-inline" data-math="6">6</span>维超球面上的点受到对其每侧6个最近邻居（与我们探针的RMSE误差匹配）的吸引力，以及对所有其他点的排斥力。（为了避免边界条件，我们使用圆的拓扑而不是区间。）右下图是展示两个环的热图，左下图是6维曲线的3维投影。这个模拟是可交互的，鼓励读者尝试重新初始化点（↺）、切换环境维度并修改吸引区域的宽度。减小吸引区域或增加嵌入维度都会增加曲率（和振铃量），反之亦然。<sup id="fnref-f15n"><a href="#f15n">[15]</a></sup> 随着曲线上点数的增加和吸引区域宽度的相对缩小，曲率会变得极为极端，在极限情况下接近空间填充曲线。</p>
       
     
       
-        <p>特别有趣的是将环境维度设置为3<sup id="fnref-f16n"><a href="#f16n">[16]</a></sup>的结果：得到的是类似于棒球缝合线的曲线（下左图，圆），这与[<cite>[modell2025origins,engels2025not]</cite>]中观察到的三个内在一维现象的拓扑相匹配，即按色调的颜色、一年中的日期以及20世纪的年份（这些也表现出扩张）。Olah[<cite>[olah2023manifold]</cite>]曾预测会出现类似的起伏，随后Gorton[<cite>[gorton2024curve]</cite>]在Inception v1的曲线检测器特征中观察到这一现象。关于余弦相似度图中振铃以及低维嵌入中起伏螺旋/螺旋形状的最早观察之一来自GPT2中学习的token位置嵌入[<cite>[yedidia2023gpt2,yedidia2023positional]</cite>]。我们在其他表征中也发现了类似结构，我们在附录的“更多感官和计数表征”中进行了研究。</p>
+        <p>特别有趣的是将环境维度设置为3的结果<sup id="fnref-f16n"><a href="#f16n">[16]</a></sup>：结果是一条类似于棒球缝线的曲线（下左图，圆），这与[<cite>(Modell et al., 2025; Engels et al., 2025)</cite>]中观察到的三个内在一维现象的拓扑相匹配，即按色调的颜色、一年中的日期以及20世纪的年份（这些也表现出扩张）。类似的起伏曾被Olah预测[<cite>(Olah et al., 2023)</cite>]，随后被Gorton在Inception v1的曲线检测器特征中观察到[<cite>(Gorton, 2024)</cite>]。关于余弦相似性图中振铃以及低维嵌入中起伏螺旋/螺旋形状的最早观察之一，是GPT2中学习的token位置嵌入[<cite>(Yedidia, 2023; Yedidia, 2023)</cite>]。我们在其他表征中也发现了类似结构，在附录的“更多感官和计数表征”中进行了研究。</p>
       
     
       
@@ -60418,7 +60431,7 @@ Ya8zY1wECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIEGggICBugapIAAQIECBAgQIAAAQIECBAg
 QIAAAQIECBAgQIBArwICwl5nxrgIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQINBD4P9xH0Qqw
 o4YzAAAAAElFTkSuQmCC
 " alt="">
-          <figcaption>Left curve is a locally optimal high-curvature embedding of the circle onto the 2-sphere. Right figures, reproduced with permission from Modell et al. [<cite>[modell2025origins]</cite>], show 3-dimensional PCA projections of data or features related to colours, years, and dates.</figcaption>
+          <figcaption>左边的曲线是在2-球面上对圆的局部最优高曲率嵌入。右边的图经Modell等人[<cite>(Modell et al., 2025)</cite>]授权转载，显示了与颜色、年份和日期相关的数据或特征的3维PCA投影。</figcaption>
         </figure>
       
     
@@ -60428,7 +60441,7 @@ o4YzAAAAAElFTkSuQmCC
       
     
       
-        <p>我们现在研究字符计数表征如何被用来确定当前文本行是否正在接近行边界。为了检测行边界，模型需要（1）确定整体行宽约束，以及（2）将当前字符计数与行宽进行比较以计算剩余字符数。</p>
+        <p>我们现在研究字符计数表征如何被用来判断当前文本行是否正在接近行边界。为了检测行边界，模型需要（1）确定整体行宽约束，以及（2）将当前字符计数与行宽进行比较，以计算剩余字符数。</p>
       
     
       
@@ -60437,15 +60450,15 @@ o4YzAAAAAElFTkSuQmCC
       
     
       
-        <p>我们发现换行token有自己专用的字符计数特征，这些特征基于行的宽度激活，计算相邻换行符之间的字符数。</p>
+        <p>我们发现换行token有自己专用的字符计数特征，这些特征根据行的宽度激活，统计相邻换行符之间的字符数。</p>
       
     
       
-        <p>为了更好地理解这些表征之间的关系，我们像对“字符计数”所做的那样，为“行宽”的每个可能值训练了150个探针。使用归因图，我们识别出一个激活边界检测特征的注意力头。我们直接使用它们在残差流中联合PCA的前3个成分（左图）以及该边界头降维后的QK空间（右图）来可视化两组计数表征。<sup id="fnref-f17n"><a href="#f17n">[17]</a></sup></p>
+        <p>为了更好地理解这些表征之间的关系，我们为“行宽”的每个可能值训练了150个探针，就像我们为“字符计数”所做的那样。使用归因图，我们识别出一个激活边界检测特征的注意力头。我们直接使用它们在残差流中的联合PCA的前3个成分（左图）以及该边界头降维后的QK空间（右图）来可视化这两组计数表征。<sup id="fnref-f17n"><a href="#f17n">[17]</a></sup></p>
       
     
       
-        <p>我们发现这个注意力头“扭曲”了字符计数流形，使得字符计数<span class="math-inline" data-math="i">i</span>与行宽<span class="math-inline" data-math="k=i+\epsilon">k=i+\epsilon</span>对齐。这导致该头在字符计数刚好略小于行宽时去关注换行符，从而指示边界正在接近。这个算法非常通用，能够让这个头检测任意行宽下的即将到来的行边界！<sup id="fnref-f18n"><a href="#f18n">[18]</a></sup></p>
+        <p>我们发现这个注意力头“扭曲”了字符计数流形，使得字符计数<span class="math-inline" data-math="i">i</span>与行宽<span class="math-inline" data-math="k=i+\epsilon">k=i+\epsilon</span>对齐。这使得该头在字符计数刚好略小于行宽时关注换行符，从而指示边界正在接近。这个算法非常通用，能够让这个头检测任意行宽下的即将到来的行边界！<sup id="fnref-f18n"><a href="#f18n">[18]</a></sup></p>
       
     
       
@@ -75850,7 +75863,7 @@ CIIgCIIgCIIgCIIgCIJDj5jnQRAEQRAEQRAEQRAEQRAEQRAEQRAEwaFHzPMgCIIgCIIgCIIgCIIg
 CIIgCIIgCILg0OOEIAiCIAiCIAiCIAiCIAiCIAiCIAiCIDjs+H/X/FN71uVBpQAAAABJRU5ErkJg
 gg==
 " alt="">
-          <figcaption>Cosine similarity of previous line width and character count probes through different transforms. (Left) the identity map, (Center) QK of boundary head, (Right) QK of random head in the same layer. Boundary heads align the probes but with a small offset.</figcaption>
+          <figcaption>通过不同变换的前一行宽度和字符计数探针的余弦相似性。（左）恒等映射，（中）边界头的QK，（右）同一层中随机头的QK。边界头使探针对齐，但带有小的偏移。</figcaption>
         </figure>
       
     
@@ -75859,11 +75872,15 @@ gg==
       
     
       
-        <div class="list-content">在残差流中，字符计数<span class="math-inline" data-math="i">i</span>的探针与行宽探针<span class="math-inline" data-math="k">k</span>在<span class="math-inline" data-math="i=k">i=k</span>时达到最大对齐，但绝对对齐程度并不高——最大余弦相似度约为0.25。在边界头的QK空间中，探针在非对角线<span class="math-inline" data-math="i &lt; k">i &lt; k</span>上达到最大对齐，且绝对对齐程度几乎完美——最大余弦相似度为<span class="math-inline" data-math="\approx 1">\approx 1</span>。在随机头的QK空间中，探针之间几乎没有任何结构。</div>
+        
+          <ul>
+            <li>在残差流中，字符计数<span class="math-inline" data-math="i">i</span>的探针与行宽探针<span class="math-inline" data-math="k">k</span>在<span class="math-inline" data-math="i=k">i=k</span>时最大程度对齐，但在绝对意义上对齐程度不高——最大余弦相似度约为0.25。</li><li>在边界头的QK空间中，探针在非对角线<span class="math-inline" data-math="i &lt; k">i &lt; k</span>上最大程度对齐，并且在绝对意义上几乎完全对齐——最大余弦相似度为<span class="math-inline" data-math="\approx 1">\approx 1</span>。</li><li>在随机头的QK空间中，探针之间几乎没有结构。</li>
+          </ul>
+        
       
     
       
-        <p>由于字符计数表征中的振铃，我们也在内积中观察到振铃（见上文“起伏表征是最优的”）。模型通过应用于注意力分数的softmax对这些非对角干涉项具有鲁棒性。</p>
+        <p>由于字符计数表征中的振铃，我们在内积中也观察到了振铃（见上文“起伏表征是最优的”）。模型通过应用于注意力得分的softmax对这些非对角干扰项具有鲁棒性。</p>
       
     
       
@@ -75872,7 +75889,7 @@ gg==
       
     
       
-        <p>我们发现模型实际上使用了多个边界头，每个头以不同的偏移扭曲流形，以实现一种计算剩余字符数的“立体”算法。<sup id="fnref-f19n"><a href="#f19n">[19]</a></sup>我们在附录中附上了更多边界头的可视化。</p>
+        <p>我们发现模型实际上使用了多个边界头，每个头以不同的偏移扭曲流形，从而实现一种计算剩余字符数的“立体”算法。<sup id="fnref-f19n"><a href="#f19n">[19]</a></sup> 我们将在附录中附上更多边界头的可视化。</p>
       
     
       
@@ -95166,16 +95183,16 @@ T8HziIiIiIiIiIiIiIiIiIg4egqeR0RERERERERERERERETE0VPwPCIiIiIiIiIiIiIiIiIijp6C
 IiIiIiIiIiIiIiIiIuLoKXgeERERERERERERERERERFHT8HziIiIiIiIiIiIiIiIiIg4ev4PK5ek
 S/jzHuMAAAAASUVORK5CYII=
 " alt="">
-          <figcaption>Cosine similarity of line width and character count probes through three different boundary heads in the same layer with different amounts of twisting. Green line indicates the argmax for each row, and is used to calculate the average offset reported in the subtitles.</figcaption>
+          <figcaption>通过同一层中具有不同扭曲量的三个不同边界头的行宽和字符计数探针的余弦相似性。绿线表示每行的argmax，用于计算字幕中报告的平均偏移。</figcaption>
         </figure>
       
     
       
-        <p>为了更好地理解每个边界头的输出，我们为行中剩余字符数的每个值（即行宽<span class="math-inline" data-math="k">k</span>减去字符计数<span class="math-inline" data-math="i">i</span>，限制在<span class="math-inline" data-math="k - i &lt; 40">k - i &lt; 40</span>）训练了一组探针。对于每个边界头，我们展示了其在换行符上的注意力比例，以及每个头输出投影到探针空间的范数随剩余字符数的变化。</p>
+        <p>为了更好地理解每个边界头的输出，我们为行中剩余字符数的每个值（即行宽<span class="math-inline" data-math="k">k</span>减去字符计数<span class="math-inline" data-math="i">i</span>，限制在<span class="math-inline" data-math="k - i &lt; 40">k - i &lt; 40</span>）训练了一组探针。对于每个边界头，我们展示了其在换行符上的注意力比例，以及每个头输出在探针空间上的范数随剩余字符数的变化。</p>
       
     
       
-        <p>正如我们基于权重的分析所预测的那样，我们观察到边界头具有不同但重叠的响应曲线，这些曲线“平铺”了剩余字符数的可能取值。</p>
+        <p>正如我们基于权重的分析所预测的那样，我们观察到边界头具有不同但重叠的响应曲线，这些曲线“平铺”了剩余字符数的可能值。</p>
       
     
       
@@ -99201,16 +99218,16 @@ hBBCCCGEEEIICzwxz0MIIYQQQgghhBBCCCGEEEIIISzwxDwPIYQQQgghhBBCCCGEEEIIIYSwwBPz
 PIQQQgghhBBCCCGEEEIIIYQQwgJPzPMQQgghhBBCCCGEEEIIIYQQQggLPDHPQwghhBBCCCGEEEII
 IYQQQgghLPDEPA8hhBBCCCGEEEIIIYQQQgghhLDA8/8AkER8jisycLcAAAAASUVORK5CYII=
 " alt="">
-          <figcaption>Each boundary head’s response curve peaks at a different distance from the end of the line.</figcaption>
+          <figcaption>每个边界头的响应曲线在距行尾的不同距离处达到峰值。</figcaption>
         </figure>
       
     
       
-        <p>理解为什么模型需要多个边界头而不是只有一个是很重要的。如果模型只依赖边界头0，它将无法区分剩余5个字符和剩余17个字符——两者会产生相似的输出。通过让每个头的输出在不同范围内变化最大，它们的总和就能在整个相关的“剩余字符”值范围内实现高分辨率。</p>
+        <p>理解为什么模型需要多个边界头而不是只有一个是很重要的。如果模型只依赖边界头0，它就无法区分剩余5个字符和剩余17个字符——两者会产生相似的输出。通过让每个头的输出在不同范围内变化最大，它们的和就能在整个相关“剩余字符”值范围内实现高分辨率。</p>
       
     
       
-        <p>通过将每个头的输出绘制在剩余字符数空间的前两个主成分中（捕捉了92%的方差），我们可以更清楚地看到这一点。头0在[0,10]和[15,20]范围内显示出较大方差，头1在[10,20]范围内变化最大，头2在[5,15]范围内变化最大。虽然没有单个头能在整个曲线上提供高分辨率，但它们的总和产生了一个均匀间隔的表征，有效覆盖了所有值。</p>
+        <p>通过在剩余字符空间的前两个主成分（捕捉92%的方差）中绘制每个头的输出来更清楚地看到这一点。头0在[0,10]和[15,20]范围内显示出较大方差，头1在[10,20]范围内变化最大，头2在[5,15]范围内变化最大。虽然没有单个头能在整个曲线上提供高分辨率，但它们的和产生了一个均匀间隔的表征，有效地覆盖了所有值。</p>
       
     
       
@@ -102553,12 +102570,12 @@ AAAAKDzxHAAAAAAAAIDCE88BAAAAAAAAKDzxHAAAAAAAAIDCE88BAAAAAAAAKDzxHAAAAAAAAIDC
 E88BAAAAAAAAKDzxHAAAAAAAAIDCE88BAAAAAAAAKDzxHAAAAAAAAIDCE88BAAAAAAAAKLy/ALgC
 WQMU8c3EAAAAAElFTkSuQmCC
 " alt="">
-          <figcaption>Each head’s output as a function of characters remaining, and their sum in the PCA basis. Individual head outputs are almost one-dimensional, while the sum is a two-dimensional curve.</figcaption>
+          <figcaption>每个头随剩余字符数的输出，以及它们在PCA基下的和。单个头的输出几乎是一维的，而和是一条二维曲线。</figcaption>
         </figure>
       
     
       
-        <p>我们通过消融和干预实验验证了这个二维子空间的因果重要性。具体来说，我们进行了与之前相同的实验：消融子空间并按token衡量其对损失的影响（左图），并通过替换平均激活向量来精确调节aluminum prompt中最后一个token的剩余字符数估计。</p>
+        <p>我们通过消融和干预实验验证了这个二维子空间的因果重要性。具体来说，我们进行了与之前相同的实验：消融子空间并按token测量其对损失的影响（左），并通过替换平均激活向量精确调节aluminum提示中最后一个token的剩余字符估计。</p>
       
     
       
@@ -108707,7 +108724,7 @@ DyGEEEIIIYQQQgghhBBCCCGEsO+JeB5CCCGEEEIIIYQQQgghhBBCCGHfE/E8hBBCCCGEEEIIIYQQ
 QgghhBDCvifieQghhBBCCCGEEEIIIYQQQgghhH1PxPMQQgghhBBCCCGEEEIIIYQQQgj7nv8HuvR8
 TdNtZBIAAAAASUVORK5CYII=
 " alt="">
-          <figcaption>Characters remaining subspace can be causally intervened upon. (Left) Ablating the subspace has a large effect only when the next token is a newline. (Right) We surgically intervene on the characters remaining space to modulate the prediction of the newline by subtracting the true characters remaining mean activation and adding in a patched characters remaining activations. Note that the completion “ aluminum.” requires ten characters to fit.</figcaption>
+          <figcaption>可以对剩余字符子空间进行因果干预。（左）消融子空间仅在下一个token是换行符时产生显著影响。（右）我们对手术干预剩余字符空间，通过减去真实的剩余字符平均激活并加入修补的剩余字符激活，来调节换行预测。请注意，补全“ aluminum.”需要十个字符才能容纳。</figcaption>
         </figure>
       
     
@@ -108721,15 +108738,15 @@ TdNtZBIAAAAASUVORK5CYII=
       
     
       
-        <p>几何计算——多维表征使模型能够使用线性变换来旋转位置编码——这对一维表征来说是不可能的。例如，为了检测即将到来的行边界，模型可以旋转位置流形使其与行宽对齐，然后使用点积来识别何时只剩下少量字符。如果使用1D编码，线性操作就简化为缩放和平移，因此将位置与行宽比较只会将两个值相乘，产生单调递增的结果，而没有自然的阈值。超过2D的更高维度允许流形通过额外的曲率来 packing 更多信息。</p>
+        <p>几何计算——多维表征使模型能够使用线性变换旋转位置编码——这对一维表征来说是不可能的。例如，为了检测即将到来的行边界，模型可以旋转位置流形使其与行宽对齐，然后使用点积来识别何时只剩下几个字符。如果使用1D编码，线性运算就简化为缩放和平移，因此将位置与行宽比较只会将两个值相乘，产生单调递增的结果，而没有自然的阈值。超过2D的更高维度允许流形通过额外的曲率来 packing 更多信息。</p>
       
     
       
-        <p>分辨率——对于字符计数，模型必须在大范围的字符位置上区分相邻计数，因为这决定了下一个词是否合适。在一维表征中，位置会沿一条射线排列，每个位置之间相隔某个常数<span class="math-inline" data-math="\delta">\delta</span>。为了在噪声之上可靠地区分相邻位置，我们需要<span class="math-inline" data-math="||v_{42} - v_{41}|| = \delta">||v_{42} - v_{41}|| = \delta</span>超过某个阈值。但要表征150+个位置，这会产生一个难以接受的选择：要么使用巨大的动态范围（<span class="math-inline" data-math="||v_{150}|| \gg ||v_1||">||v_{150}|| \gg ||v_1||</span>），这对transformer计算来说是有问题的；要么牺牲相邻位置之间的分辨率。（归一化块只会加剧这种效应：虽然如果范数足够大，点可以在射线上隔得很远，但投影到单位超球面上的那条射线的角距离最多只有<span class="math-inline" data-math="\pi">\pi</span>。）将曲线嵌入到更高维度解决了这个问题：位置保持相似的范数，同时在环境空间中被良好分离，实现了精细分辨率而不会发生范数爆炸（见上文“起伏表征是最优的”）。对于计数剩余字符，由于动态范围较小，模型因此能够在更小的子空间中嵌入该表征。</p>
+        <p>分辨率——对于字符计数，模型必须在大范围的字符位置上区分相邻的计数值，因为这决定了下一个词是否合适。在一维表征中，位置会沿一条射线排列，每个位置之间相隔某个常数<span class="math-inline" data-math="\delta">\delta</span>。为了可靠地在噪声之上区分相邻位置，我们需要<span class="math-inline" data-math="||v_{42} - v_{41}|| = \delta">||v_{42} - v_{41}|| = \delta</span>超过某个阈值。但要表示150+个位置，这就产生了难以接受的选择：要么使用巨大的动态范围（<span class="math-inline" data-math="||v_{150}|| \gg ||v_1||">||v_{150}|| \gg ||v_1||</span>），这对transformer计算来说是有问题的，要么牺牲相邻位置之间的分辨率。（归一化块只会加剧这种影响：虽然如果范数足够大，点可以在射线上相距很远，但该射线投影到单位超球面上的角距离最多只有<span class="math-inline" data-math="\pi">\pi</span>。）将曲线嵌入更高维度解决了这个问题：位置保持相似的范数，同时在环境空间中良好分离，从而在不引起范数爆炸的情况下实现精细分辨率（见上文“起伏表征是最优的”）。对于计数剩余字符，动态范围较小，因此模型能够将表征嵌入到一个较小的子空间中。</p>
       
     
       
-        <p>为了实现必要高分辨率的曲率，需要多个注意力头来协同构建计数流形的弯曲几何。单个注意力头的输出是其输入的线性组合（按注意力加权并经OV电路变换），因此从根本上受那些输入中已存在的曲率限制。在没有MLP对计数表征做出贡献的情况下，如果输出流形需要表现出实质性的曲率，多个注意力头就需要协同——每个头贡献整体几何结构的一部分。我们将在“分布式字符计数算法”一节中看到分布式头计算的另一个例子。</p>
+        <p>为了实现必要高分辨率的曲率，需要多个注意力头协同构建计数流形的弯曲几何结构。单个注意力头的输出是其输入的线性组合（按注意力加权并由OV电路变换），因此从根本上受那些输入中已存在的曲率限制。在没有MLP对计数表征做出贡献的情况下，如果输出流形需要表现出显著的曲率，多个注意力头就需要协调——每个头贡献整体几何结构的一部分。我们将在“分布式字符计数算法”一节中看到分布式头计算的另一个例子。</p>
       
     
       
@@ -108738,7 +108755,7 @@ TdNtZBIAAAAASUVORK5CYII=
       
     
       
-        <p>我们最初是如何发现这个边界检测机制的？当我们第一次计算归因图时，我们看到从前一个换行特征和嵌入到预测换行特征的几条边。QK归因显示，排名最高的key特征是一个“前一行有40–60个字符长”的特征，而排名最高的query特征是“当前字符计数为35–50”的特征。在任何时刻通常都有多个不同强度的计数特征处于激活状态，这表明这些特征可能正在离散化一个流形。</p>
+        <p>我们最初是如何发现这个边界检测机制的？当我们第一次计算归因图时，我们看到从前一个换行特征和嵌入到预测换行特征的几条边。QK归因显示，顶级key特征是一个“前一行有40–60个字符长”的特征，顶级query特征是一个“当前字符计数为35–50”的特征。在任何时候通常都有多个计数特征以不同强度激活，这表明这些特征可能正在离散化一个流形。</p>
       
     
       
@@ -112064,11 +112081,11 @@ CCCAAAIIIIAAAnUT+D9Simk/VRag0gAAAABJRU5ErkJggg==
       
     
       
-        <p>边界头导致一族边界检测特征根据当前行离全局行宽的远近而激活。也就是说，它们感知到正在接近的行边界或行计数的逆向索引。对这三组特征族的调查引导我们找到了它们稀疏参数化的计数流形，而对相关注意力头的调查则让我们找到了边界头。</p>
+        <p>边界头导致一族边界检测特征根据当前行与全局行宽的接近程度而激活。也就是说，它们感知正在接近的行边界或行计数的逆索引。对这三组特征家族的调查引导我们找到了它们稀疏参数化的计数流形，而对相关注意力头的调查让我们找到了边界头。</p>
       
     
       
-        <p>最后，我们注意到这些边界感知表征与神经科学中一个被充分研究的现象平行：边界细胞[<cite>[solstad2008representation]</cite>]，它们在离环境边界（例如墙壁）特定距离处激活。人工特征和生物细胞都以具有不同感受野和偏移的族的形式出现。</p>
+        <p>最后，我们注意到这些边界感知表征与神经科学中一个被充分研究的现象平行：边界细胞[<cite>(Solstad et al., 2008)</cite>]，它们在距离环境边界（例如墙壁）的特定距离处激活。人工特征和生物细胞都以具有不同感受野和偏移的家族形式出现。</p>
       
     
       
@@ -112077,11 +112094,11 @@ CCCAAAIIIIAAAnUT+D9Simk/VRag0gAAAABJRU5ErkJggg==
       
     
       
-        <p>换行任务的最后一步是将行边界估计与下一个词的预测结合起来，以确定下一个词是否能容纳在当前行内，还是应该换行。</p>
+        <p>换行任务的最后一步是将行边界估计与下一个词的预测结合起来，以确定下一个词是否能容纳在行中，或者是否应该换行。</p>
       
     
       
-        <p>在aluminum prompt的归因图中，我们准确看到了路径的合并。整个图中最有影响力的特征<sup id="fnref-f20n"><a href="#f20n">[20]</a></sup>是一个在下一个词会导致当前行超过整体行宽的上下文中激活的晚期特征。对于我们的prompt，这个特征会提高换行的概率并降低“aluminum.”的概率。这个断行预测器特征的前两个输入是一个“说aluminum”特征和一个由前面提到的边界头激活的“边界检测”特征。</p>
+        <p>在aluminum提示的归因图中，我们正好看到了这种路径的合并。整个图中最有影响力的特征<sup id="fnref-f20n"><a href="#f20n">[20]</a></sup>是一个在下一个词会导致当前行超过整体行宽的上下文中激活的后期特征。对于我们的提示，这个特征提高了换行的概率并降低了“aluminum.”的概率。这个断行预测器特征的前两个输入是一个“说aluminum”特征和一个由前面提到的边界头激活的“边界检测”特征。</p>
       
     
       
@@ -115204,7 +115221,7 @@ EpCABCQgAQlIQAISkIAEJCABCUigmsD/A4Ea7Aq3YLeRAAAAAElFTkSuQmCC
       
     
       
-        <p>虽然边界检测器无论下一个token长度如何都会激活，但断行预测器特征仅在下一个token将超过当前行长度时（如同Aluminum prompt中那样）才会激活，从而提高换行的预测概率。<sup id="fnref-f21n"><a href="#f21n">[21]</a></sup>我们还看到断行抑制器特征，它们仅在下一个token刚好能勉强容纳在行内时激活，从而降低换行的预测概率。断行预测器和抑制器都以更大的特征族形式出现，我们在附录中展示了它们。</p>
+        <p>虽然边界检测器无论下一个token长度如何都会激活，但断行预测器特征仅在下一个token将超过当前行长度时（如同Aluminum提示中那样）激活，从而提高换行的预测概率。<sup id="fnref-f21n"><a href="#f21n">[21]</a></sup> 我们还看到了断行抑制器特征，这些特征仅在下一个token刚好能勉强容纳在行中时激活，从而降低换行的预测概率。断行预测器和抑制器都以更大的特征家族形式出现，我们在附录中展示。</p>
       
     
       
@@ -118765,7 +118782,7 @@ cfBUPI+IiIiIiIiIiIiIiIiIiIOn4nlERERERERERERERERERBw8Fc8jIiIiIiIiIiIiIiIiIuLg
 qXgeEREREREREREREREREREHT8XziIiIiIiIiIiIiIiIiIg4eCqeR0RERERERERERERERETEwVPx
 PCIiIiIiIiIiIiIiIiIiDp7/iYiIiIiIiIiIiIiIiIiIOHT+F9GfW8SHfJcNAAAAAElFTkSuQmCC
 " alt="">
-          <figcaption>Average activations of three features based on true next token character length and the characters remaining in a line (line width − character count).</figcaption>
+          <figcaption>三个特征基于真实下一个token字符长度和一行中剩余字符数（行宽−字符计数）的平均激活。</figcaption>
         </figure>
       
     
@@ -118775,23 +118792,23 @@ PCIiIiIiIiIiIiIiIiIiDp7/iYiIiIiIiIiIiIiIiIiIOHT+F9GfW8SHfJcNAAAAAElFTkSuQmCC
       
     
       
-        <p>模型能够判断下一个token是否能容纳在行内的底层几何是什么？换句话说，上面的断行预测器特征是如何从边界检测器和下一个词特征构建而来的？</p>
+        <p>模型判断下一个token是否能容纳在行中的几何基础是什么？换句话说，上面的断行预测器特征是如何从边界检测器和下一个词特征构造而来的？</p>
       
     
       
-        <p>为了研究这一点，我们计算了模型末尾（约90%深度）所有token在所有剩余字符数<span class="math-inline" data-math="i">i</span>和下一个token长度<span class="math-inline" data-math="j">j</span>下的平均激活。<sup id="fnref-f22n"><a href="#f22n">[22]</a></sup>通过对这些均值向量的组合进行PCA，我们看到两个计数被安排在正交子空间中，只有适度的曲率。请注意，这里较低维的几何可能就足够了，因为计数的动态范围要小得多。</p>
+        <p>为了研究这一点，我们计算了模型末尾（约90%深度）所有token在剩余字符数<span class="math-inline" data-math="i">i</span>和下一个token长度<span class="math-inline" data-math="j">j</span>所有取值下的平均激活。<sup id="fnref-f22n"><a href="#f22n">[22]</a></sup> 通过对这些均值向量的组合进行PCA，我们看到两个计数值被安排在正交子空间中，只有适度的曲率。请注意，这种较低维的几何在这里可能就足够了，因为计数的动态范围要小得多。</p>
       
     
       
-        <p>现在考虑每个可能的剩余字符向量<span class="math-inline" data-math="i">i</span>和下一个token长度向量<span class="math-inline" data-math="j">j</span>的逐对求和。<sup id="fnref-f23n"><a href="#f23n">[23]</a></sup>由于这些计数被正交排列，断行的决策<span class="math-inline" data-math="i-j \geq 0">i-j \geq 0</span>对应于一个简单的分离超平面。换句话说，断行的预测被底层几何变得 trivial 了！</p>
+        <p>现在考虑每个可能的剩余字符向量<span class="math-inline" data-math="i">i</span>和下一个token长度向量<span class="math-inline" data-math="j">j</span>的逐对相加。<sup id="fnref-f23n"><a href="#f23n">[23]</a></sup> 由于这些计数值被正交排列，是否断行的决策<span class="math-inline" data-math="i-j \geq 0">i-j \geq 0</span>对应于一个简单的分离超平面。换句话说，底层几何使得断行预测变得微不足道！</p>
       
     
       
-        <p>当我们使用这些平均嵌入PCA得到的分离超平面在真实数据上时，我们在下一个token是否应该是换行的真实标签上达到了0.91的AUC。这同时反映了三维分类器的误差以及Haiku对下一个token估计的误差。</p>
+        <p>当我们使用这些平均嵌入的PCA得到的分离超平面在真实数据上时，我们在下一个token是否应该是换行符的真实标签上达到了0.91的AUC。这同时反映了三维分类器的误差和Haiku对下一个token估计的误差。</p>
       
     
       
-        <p>如果最可能的下一个词的长度被线性表征，那么这个方案将允许模型在该词比行内剩余长度更长时预测换行。人们可以想象一个更一般的机制，其中模型将所有超过行限制的词的概率质量全面重定向到换行。Claude 3.5 Haiku似乎并没有利用这样的机制：当我们将行尾预测的token分布与相同但剥离了换行符的prompt上的分布进行比较时，我们发现它们有相当大的不同。</p>
+        <p>如果最可能的下一个词的长度被线性表示，那么这个方案将允许模型在该词比行中剩余长度更长时预测换行。可以想象一个更一般的机制，即模型将所有超过行限制的词的概率质量全面重定向到换行符。Claude 3.5 Haiku似乎并未利用这样的机制：当我们将行尾的预测token分布与删除了换行符的相同提示上的分布进行比较时，我们发现它们有很大不同。</p>
       
     
       
@@ -118804,11 +118821,11 @@ PCIiIiIiIiIiIiIiIiIiDp7/iYiIiIiIiIiIiIiIiIiIOHT+F9GfW8SHfJcNAAAAAElFTkSuQmCC
       
     
       
-        <p>我们将展示Haiku如何跨多个层使用许多注意力头来协同计算越来越精确的字符计数估计。这被证明是我们研究的最复杂的机制，尽管它与边界检测机制有许多相似之处。</p>
+        <p>我们将展示Haiku如何跨多个层使用许多注意力头协同计算越来越准确的字符计数估计。这结果证明是我们研究过的最复杂的机制，尽管它与边界检测机制有许多相似之处。</p>
       
     
       
-        <p>为了直观理解对计数重要的那些头的行为，我们将它们的输出投影到行字符计数探针的PCA空间中。<sup id="fnref-f24n"><a href="#f24n">[24]</a></sup>第0层的头（左图）各自沿着在第一3个主成分中可视化时看起来像射线的东西写入——是它们的和生成了弯曲的流形。第1层的头（右图）则输出曲线，这些曲线组合产生越来越复杂的流形。它们似乎负责锐化第0层的表征，从而锐化计数的估计。我们发现5个关键第0层头对字符计数预测<sup id="fnref-f25n"><a href="#f25n">[25]</a></sup>的<span class="math-inline" data-math="R^2">R^2</span>为0.93，而使用前两层中的11个头时为0.97。</p>
+        <p>为了直观地理解对计数重要的头的行为，我们将其输出投影到行字符计数探针的PCA空间中。<sup id="fnref-f24n"><a href="#f24n">[24]</a></sup> 第0层的头（左）每个都在前3个主成分中看起来像一条射线——正是它们的和生成了弯曲的流形。第1层的头（右）则输出曲线，这些曲线组合产生 increasingly 复杂的流形。它们似乎负责锐化第0层的表征，从而锐化计数的估计。我们发现5个关键第0层头对字符计数预测<sup id="fnref-f25n"><a href="#f25n">[25]</a></sup>的<span class="math-inline" data-math="R^2">R^2</span>为0.93，而使用前两层中的11个头时为0.97。</p>
       
     
       
@@ -118821,7 +118838,7 @@ PCIiIiIiIiIiIiIiIiIiDp7/iYiIiIiIiIiIiIiIiIiIOHT+F9GfW8SHfJcNAAAAAElFTkSuQmCC
       
     
       
-        <p>如前所述，我们可以为嵌入中每个不同的token长度训练探针或计算平均权重。我们可视化了字符长度1–14的token字符计数探针并显示它们的前几个主成分。使用捕捉70%方差的前3个主成分，我们看到嵌入字符计数被安排成圆形模式（PC1 vs PC2），并带有振荡成分（PC3）。这种模式与“起伏表征是最优的”一节中观察到的模式一致。</p>
+        <p>像之前一样，我们可以为嵌入中每个不同的token长度训练探针或计算平均权重。我们可视化了字符长度1–14的token字符计数探针，并可视化它们的前几个主成分。使用捕捉70%方差的前3个主成分，我们看到嵌入字符计数被排列成圆形模式（PC1 vs PC2），并带有振荡分量（PC3）。这种模式与“起伏表征是最优的”中观察到的一致。</p>
       
     
       
@@ -122605,7 +122622,7 @@ EAiBEAiBEOgkgUiyTnZbKh0CIRACIRACIRACIRACIdAPApFk/ejHtCIEQiAEQiAEQiAEQiAEQqCT
 BCLJOtltqXQIhEAIhEAIhEAIhEAIhEA/CESS9aMf04oQCIEQCIEQCIEQCIEQCIFOEogk62S3pdIh
 EAIhEAIhEAIhEAIhEAL9IPD/AQ7+/An5siqGAAAAAElFTkSuQmCC
 " alt="">
-          <figcaption>PCA of embedding vectors in <span class="math-inline" data-math="W_E">W_E</span> averaged by token character length.</figcaption>
+          <figcaption>按token字符长度平均的<span class="math-inline" data-math="W_E">W_E</span>中嵌入向量的PCA。</figcaption>
         </figure>
       
     
@@ -122623,7 +122640,11 @@ EAIhEAIhEAIhEAIhEAL9IPD/AQ7+/An5siqGAAAAAElFTkSuQmCC
       
     
       
-        <div class="list-content">忽略MLP——注意力头输出对字符计数表征的影响是MLP的4倍，因此我们将重点限制在注意力上；关注前两层——即使在第0层之后，计数探针也有合理的准确性，并且存在粗略的位置特征。因此，我们重点研究注意力如何将嵌入转换为计数，以及第1层如何进一步细化这个表征。</div>
+        
+          <ul>
+            <li>忽略MLP——注意力头输出对字符计数表征的影响是MLP的4倍，因此我们将重点限制在注意力上；</li><li>聚焦于前两层——即使在第0层之后，计数探针也有合理的准确率，并且存在粗略的位置特征。因此，我们重点关注注意力如何将嵌入转换为计数，以及第1层如何进一步细化这个表征。</li>
+          </ul>
+        
       
     
       
@@ -130154,12 +130175,12 @@ IYQQQgghhBBCCCHMPTHPQwghhBBCCCGEEEIIIYQQQgghzD0xz0MIIYQQQgghhBBCCCGEEEIIIcw9
 zPN/ZsuWLVu2bNmyZcuWLVu2bNmyZcuWLVu2bNmyZcuWLVu2bPO8Mc/fly1btmzZsmXLli1btmzZ
 smXLli1btmzZsmXLli1btmzZss3z9n9nz6GggeOzfAAAAABJRU5ErkJggg==
 " alt="">
-          <figcaption>The summed output of 5 important Layer 0 heads on one prompt by token. (Left) The inner product of the summed attention outputs and the character counting probes; (Right) How the argmax of this product compares to the true line count. Context position starts at the first newline, with newlines denoted with dashes.</figcaption>
+          <figcaption>一个提示中5个重要第0层头按token的求和输出。（左）求和注意力输出与字符计数探针的内积；（右）这个乘积的argmax与真实行计数的比较。上下文位置从第一个换行符开始，换行符用破折号表示。</figcaption>
         </figure>
       
     
       
-        <p>我们可以将上面的求和分解为来自第0层每个单独头输出的贡献。<sup id="fnref-f26n"><a href="#f26n">[26]</a></sup>在这个视角下，我们看到每个头都在执行相对低秩的计算，类似于分类。</p>
+        <p>我们可以将上面的和分解为第0层中每个单独头的输出贡献。<sup id="fnref-f26n"><a href="#f26n">[26]</a></sup> 在这个视角下，我们看到每个头都在执行一个相对低秩的计算，类似于分类。</p>
       
     
       
@@ -140032,16 +140053,16 @@ AMgTzwEAAAAAAADIE88BAAAAAAAAyBPPAQAAAAAAAMgTzwEAAAAAAADIE88BAAAAAAAAyBPPAQAA
 AAAAAMgTzwEAAAAAAADIE88BAAAAAAAAyBPPAQAAAAAAAMgTzwEAAAAAAADIE88BAAAAAAAAyHsA
 GTpfYGYdOIsAAAAASUVORK5CYII=
 " alt="">
-          <figcaption>The individual outputs of 4 important Layer 0 heads on one prompt projected onto the character count probes.</figcaption>
+          <figcaption>一个提示中4个重要第0层头的单个输出投影到字符计数探针上。</figcaption>
         </figure>
       
     
       
-        <p>单个头如何实现这种行为？我们可以通过分析其QK电路（它关注哪里）和OV电路（从嵌入到输出的线性变换）[<cite>[nelhage2021mathematical]</cite>]来分解单个头的行为。</p>
+        <p>单个头如何实现这种行为？我们可以通过分析其QK电路（它关注哪里）和OV电路（从嵌入到输出的线性变换）[<cite>(Elhage et al., 2021)</cite>]来分解单个头的行为。</p>
       
     
       
-        <p>QK电路。每个头<span class="math-inline" data-math="h">h</span>都使用前一个换行符作为“注意力汇”，以至于在换行符之后的某些数量的token（<span class="math-inline" data-math="s_h">s_h</span>）内，头只是关注换行符。在<span class="math-inline" data-math="s_h">s_h</span>个token之后，头开始在其感受野上模糊注意力，该感受野最大可达<span class="math-inline" data-math="r_h">r_h</span>个token。</p>
+        <p>QK电路。每个头<span class="math-inline" data-math="h">h</span>都使用前一个换行符作为“注意力汇”，使得换行符之后的一定数量token（<span class="math-inline" data-math="s_h">s_h</span>）内，头只是关注换行符。在<span class="math-inline" data-math="s_h">s_h</span>个token之后，头开始在其感受野上分散注意力，该感受野最大可达<span class="math-inline" data-math="r_h">r_h</span>个token。</p>
       
     
       
@@ -144219,16 +144240,16 @@ vQQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCbQkoNDeEqDFJSABCUhAAhKQgAQkIAEJSEACEpCA
 BCQgAQlIYLwJKLSPd//beglIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEmhJ4P8e/EcYgkpaBAAA
 AABJRU5ErkJggg==
 " alt="">
-          <figcaption>The average attention to the previous newline as a function of the token index in the line. Like boundary heads, these counting heads specialize with different positional offsets.</figcaption>
+          <figcaption>头在行中按token索引对前一个换行符的平均注意力。与边界头一样，这些计数头在不同的位置偏移上实现专门化。</figcaption>
         </figure>
       
     
       
-        <p>OV电路。OV电路与QK电路协同，根据行中token数乘以平均token长度（<span class="math-inline" data-math="\mu_c \approx 4">\mu_c \approx 4</span>）创建一个启发式估计，并附加一个长度校正项。当关注换行符时，每个头会提升由该头汇大小乘以平均token长度的权重：<span class="math-inline" data-math="s_h\times\mu_c">s_h\times\mu_c</span>个字符。如果没有对换行符付出注意力，那么从头的视角来看，当前token必须至少是行中的第<span class="math-inline" data-math="s_h+r_h">s_h+r_h</span>个token，并且应该提升<span class="math-inline" data-math="(s_h+r_h) \times \mu_c">(s_h+r_h) \times \mu_c</span>个字符的输出。最后，OV电路会根据感受野内的token长度是否高于或低于平均值施加额外的校正。</p>
+        <p>OV电路。OV电路与QK电路协调，根据行中token数乘以平均token长度（<span class="math-inline" data-math="\mu_c \approx 4">\mu_c \approx 4</span>）创建一个启发式估计，并附加一个长度校正项。当关注换行符时，每个头会提升由该头的汇大小乘以平均token长度的权重：<span class="math-inline" data-math="s_h\times\mu_c">s_h\times\mu_c</span>个字符。如果不关注换行符，那么从头的视角来看，当前token必须至少是行中的第<span class="math-inline" data-math="s_h+r_h">s_h+r_h</span>个token，并且应该提升<span class="math-inline" data-math="(s_h+r_h) \times \mu_c">(s_h+r_h) \times \mu_c</span>个字符的输出。最后，OV电路会根据感受野中的token长度是高于还是低于平均值应用额外的校正。</p>
       
     
       
-        <p>下面，我们包含了对L0H1的详细逐步说明。</p>
+        <p>下面，我们包含了对L0H1的详细演练。</p>
       
     
       
@@ -153412,12 +153433,12 @@ hmbl+csqRhqv4XhieE4IIYQQQgghhBBydRieE0IIsR1meF7ryJRfq2SZp3IkX5VKjqqgNKBFyi0P
 qzRZrZKkRJX43E5psHSqMnlQpctaFS81qkCm+dmG0t5aaLx3LVBZslSlGuMp3+f2YJkSGc/wnBBC
 CCGEEEIIIeQqhBBCCCGEEEIIIYQQQgghhBBCCCFDnX8DSIJfCT3zFtIAAAAASUVORK5CYII=
 " alt="">
-          <figcaption>The QK and OV circuit of counting head L0H1. Top right: the head output projected onto the character counting probes for 64 tokens of a single prompt (truncated to the first newline). Bottom right: the attention pattern (transposed of the canonical ordering). Top right: the average embedding vectors projected onto the character count probes via the OV matrix. Bottom right: a summary of the overall computation.</figcaption>
+          <figcaption>计数头L0H1的QK和OV电路。右上：单个提示前64个token（截断到第一个换行符）的头输出投影到字符计数探针上。右下：注意力模式（规范顺序的转置）。左上：通过OV矩阵投影到字符计数探针上的平均嵌入向量。左下：整体计算的摘要。</figcaption>
         </figure>
       
     
       
-        <p>关于每个头的更详细分析，见“头特化的机制”。第1层注意力头执行类似的操作，但还会额外利用字符计数的初始估计（见“第1层头OV”）。</p>
+        <p>关于每个头的更详细分析，请参见“头专门化的机制”。第1层注意力头执行类似的操作，但还会利用字符计数的初始估计（见“第1层头OV”）。</p>
       
     
       
@@ -153426,7 +153447,7 @@ CCGEEEIIIeQqhBBCCCGEEEIIIYQQQgghhBBCCCFDnX8DSIJfCT3zFtIAAAAASUVORK5CYII=
       
     
       
-        <p>为了计算行宽，模型似乎使用了类似的分布式计数算法来计算相邻换行符之间的字符数。然而，本工作中我们没有解决的一个微妙之处是行宽实际上是如何聚合的。模型可能是通过取文档中所有行长的最大值来计算全局行宽，或者使用最近几行行长的指数加权移动平均。我们确实注意到行宽使用了一组部分不相交的头，这可能是因为当当前token也是换行符时，“将前一个换行符作为汇进行关注”的机制需要修改。</p>
+        <p>为了计算行宽，模型似乎使用类似的分布式计数算法来统计相邻换行符之间的字符数。然而，我们在本工作中没有解决的一个微妙之处是行宽实际上是如何聚合的。模型可能通过取文档中所有行长的最大值来计算全局行宽，或者使用最近几个行长的指数加权移动平均。我们确实注意到行宽使用了一组部分不相交的头，这可能是因为当当前token也是换行符时，“关注前一个换行符作为汇”的机制需要修改。</p>
       
     
       
@@ -153435,7 +153456,7 @@ CCGEEEIIIeQqhBBCCCGEEEIIIYQQQgghhBBCCCFDnX8DSIJfCT3zFtIAAAAASUVORK5CYII=
       
     
       
-        <p>人类容易受到“视觉错觉”的影响，在这些错觉中，上下文线索可以以看似出乎意料的方式调节感知。著名的例子包括Müller-Lyer错觉，其中放置在线段两端的箭头可以改变对线段感知的长度[<cite>[howe2005muller]</cite>]；Ponzo和Sander错觉也调节感知的线段长度[<cite>[yildiz2022review]</cite>]；以及其他例子[<cite>[schwartz2007space]</cite>]。</p>
+        <p>人类容易受到“视觉错觉”的影响，在这些错觉中，上下文线索可以以看似意外的方式调节感知。著名的例子包括Müller-Lyer错觉，其中置于线段两端的箭头可以改变对线段长度的感知[<cite>(Howe et al., 2005)</cite>]；Ponzo和Sander错觉也调节感知的线段长度[<cite>(Yildiz et al., 2022)</cite>]；以及其他[<cite>(Schwartz et al., 2007)</cite>]。</p>
       
     
       
@@ -153897,16 +153918,16 @@ JLA4ASUXFmfoFSQgAQlIQAIS2CCBhw8fBqQXuqghvEHs3loCUxFA4/rjH//4SOfLVCd6kAQkIAEJ
 SEACEpBAmcCI5IIO3TIa1yUgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJ1IvAiEP3/wcqXRvTaU3T
 GQAAAABJRU5ErkJggg==
 " alt="">
-          <figcaption>Classic visual illusions in which perception of line-length is modulated.</figcaption>
+          <figcaption>经典视觉错觉，其中对线段长度的感知被调节。</figcaption>
         </figure>
       
     
       
-        <p>我们能否利用对字符计数机制的理解来为语言模型构造一个“视觉错觉”？</p>
+        <p>我们能否利用对字符计数机制的理解来为语言模型构建一个“视觉错觉”？</p>
       
     
       
-        <p>为了开始，我们选取了对字符计数重要的注意力头，并调查了它们在更广泛数据分布上执行的其他角色。我们发现了这样的情况：通常会从换行符关注前一个换行符的头，反而会从换行符关注两个字符的字符串@@。这个字符串在git diff中作为分隔符出现，在这种情况下你可能希望从换行符以外的位置开始你的行计数：</p>
+        <p>为了开始，我们选取了对字符计数重要的注意力头，并调查了它们在更广泛数据分布上执行的其他角色。我们识别出一些情况，其中通常从换行符关注前一个换行符的头，会改为从换行符关注两个字符的字符串@@。这个字符串作为git diff中的分隔符出现，在这种情况下你可能希望从换行符以外的位置开始你的行计数：</p>
       
     
       
@@ -153914,7 +153935,7 @@ GQAAAABJRU5ErkJggg==
       
     
       
-        <p>但当这个序列出现在git diff上下文之外时——例如，如果我们在aluminum prompt中插入@@而不改变行长，会发生什么？</p>
+        <p>但当这个序列出现在git diff上下文之外时会发生什么——例如，如果我们在不改变行长的情况下将@@插入aluminum提示中？</p>
       
     
       
@@ -157046,7 +157067,7 @@ UyA+5UwpkRoAAAAASUVORK5CYII=
       
     
       
-        <p>我们发现它确实调节了预测的下一个token，扰乱了换行预测！正如预测的那样，相关头被分散了注意力：与原始prompt中头从换行符关注换行符不同，在修改后的prompt中，头还会关注@@。</p>
+        <p>我们发现它确实调节了预测的下一个token，破坏了换行预测！正如预测的那样，相关头被分散了注意力：在原始提示中，头从换行符关注换行符，而在修改后的提示中，头还会关注@@。</p>
       
     
       
@@ -161038,16 +161059,16 @@ qeSZPJckSZIkSZIkSZIklTyT55IkSZIkSZIkSZKkkmfyXJIkSZIkSZIkSZJU8kyeS5IkSZIkSZIk
 SZJKHsnz710ul8vlcrlcLpfL5XK5XC6Xy+VyuVwul8vlKuVF8vxjl8vlcrlcLpfL5XK5XC6Xy+Vy
 uVwul8vlcrlKef0/+cPCpigxmyUAAAAASUVORK5CYII=
 " alt="">
-          <figcaption>Insertion of @@ ‘distracts’ an attention head which normally attends from \n back to the previous \n. (left) Original attention pattern (truncated). (right) Attention pattern (truncated) with @@ insertion. Now it also attends back to the @@.</figcaption>
+          <figcaption>插入@@“分散”了一个通常从\n关注前一个\n的注意力头。（左）原始注意力模式（截断）。（右）插入@@后的注意力模式（截断）。现在它也会关注回@@。</figcaption>
         </figure>
       
     
       
-        <p>这个结果有多特殊：任意无意义地插入prompt的一对字母是否会完全扰乱换行预测？我们分析了在相同两个位置插入180个不同双字符序列的影响，其中一半是重复字符。我们发现虽然大多数插入序列对预测换行的概率有中等影响，但换行通常仍是排名第一的预测。在由相同或不同字符组成的序列之间也没有明显差异。然而，有少数序列显著扰乱了换行预测，其中大多数似乎与代码或某种分隔符有关：`` &gt;&gt; }} ;| || `, @@。</p>
+        <p>这个结果有多特殊：任意一对无意义地插入提示中的字母是否会完全破坏换行预测？我们分析了在相同两个位置插入180个不同两个字符序列的影响，其中一半是重复字符。我们发现虽然大多数插入序列对预测换行的概率有中等影响，但换行通常仍是首要预测。在由相同或不同字符组成的序列之间也没有明显差异。然而，有少数序列显著破坏了换行预测，其中大多数似乎与代码或某种分隔符相关：`` &gt;&gt; }} ;| || `, @@。</p>
       
     
       
-        <p>我们进一步分析了重要注意力头的“分散”程度与对换行预测的影响之间是否存在关系。确实我们发现许多对换行概率有强烈调节的序列——尤其是与代码相关的字符对——也表现出对注意力模式的显著调节。</p>
+        <p>我们进一步分析了重要注意力头的“分散”程度与对换行预测影响之间的关系。确实，我们发现许多对换行概率具有强调节作用的序列——尤其是与代码相关的字符对——也表现出对注意力模式的显著调节。</p>
       
     
       
@@ -162727,12 +162748,12 @@ KdmRgUqcCIiACIiACIiACIiACEjJ1j0gAiIgAiIgAiIgAiIgApEJSMmODFTiREAEREAEREAEREAE
 REBKtu4BERABERABERABERABEYhMQEp2ZKASJwIiIAIiIAIiIAIiIAL/BYDJdR/UhN5pAAAAAElF
 TkSuQmCC
 " alt="">
-          <figcaption>Insertion of most pairs of characters only moderately impacts the probability of predicting a newline. A subset of pairs, most of which appear related to code or delimiters, substantially disrupt newline prediction. The impact on newline prediction (originally 0.79) is correlated with how much inserted tokens ‘distracts’ character counting attention heads.</figcaption>
+          <figcaption>插入大多数字符对仅对预测换行的概率产生中等影响。有一小部分对，其中大多数似乎与代码或分隔符相关，会显著破坏换行预测。对换行预测的影响（原始为0.79）与插入token“分散”字符计数注意力头的程度相关。</figcaption>
         </figure>
       
     
       
-        <p>虽然在aluminum prompt中任务是隐含的，但这个错觉可以推广到将比较任务明确化的设置。这些直接比较或许更类似于Ponzo、Sander和Müller-Lyer错觉，其中感知和比较更为直接。</p>
+        <p>虽然在aluminum提示中任务是隐含的，但这种错觉可以推广到使比较任务显式化的设置。这些直接比较可能更类似于Ponzo、Sander和Müller-Lyer错觉，其中感知和比较更为直接。</p>
       
     
       
@@ -166586,11 +166607,11 @@ TkSuQmCC
       
     
       
-        <p>这些效果对多种选择排序具有鲁棒性。此外，如果@@后面的文本长度超过另一个选择，后者会被选为更短的那个。</p>
+        <p>这些效果对多种选择顺序具有鲁棒性。而且，如果@@之后文本的长度超过了备选选择的长度，则会选择备选选择为较短的那个。</p>
       
     
       
-        <p>虽然我们并不声称人类视觉感知的错觉与这种行字符计数估计的改变之间存在直接类比，但这些相似之处富有启发性。在这两种情况下，我们都能看到更广泛的现象，即上下文线索以及关于这些线索的学习先验的应用，会调节对实体对象属性的估计。在人类情况下，先验如三维透视可以影响对物体大小的感知，或者颜色恒常性可以影响对亮度的估计（例如checker shadow错觉）。在这里，我们结果的一种可能解释是，错误应用学习到的先验，包括@@在git diff中的作用，也能调节对行长等属性的估计。</p>
+        <p>虽然我们并不声称人类视觉感知的错觉与这种行字符计数估计的改变之间存在直接类比，但这些平行关系具有启发性。在这两种情况下，我们都能看到上下文线索以及应用关于这些线索的学习先验来调节实体对象属性的更广泛现象。在人类情况下，像三维透视这样的先验可以影响对物体大小的感知，或者颜色恒常性可以影响对亮度的估计（例如在棋盘阴影错觉中）。在这里，我们结果的一种可能解释是，错误应用学习到的先验，包括@@在git diff中的作用，也可能调节对行长等属性的估计。</p>
       
     
       
@@ -166599,35 +166620,35 @@ TkSuQmCC
       
     
       
-        <p>目标。这项工作处于LLM“生物学”（对模型内部发生的事情进行经验观察；例如[<cite>[lindsey2025biology,rogers2020primer]</cite>]）和神经网络低层次逆向工程（试图完全刻画一个算法或机制；例如[<cite>[olah2020zoom,wang2022interpretability,nanda2023progress,li2025language]</cite>]）的交叉点。在方法上，我们的工作大量使用了建立在crosscoder[<cite>[lindsey2024crosscoders]</cite>]之上的带QK归因[<cite>[kamath2025tracing]</cite>]的归因图[<cite>[ameisen2025circuit,ge2024automatically,dunefsky2024transcoders]</cite>]。</p>
+        <p>目标。本工作处于LLM“生物学”（对模型内部发生的事情进行经验观察；例如[<cite>(Lindsey et al., 2025; Rogers et al., 2020)</cite>]）和神经网络的低层次逆向工程（试图完全刻画一个算法或机制；例如[<cite>(Olah et al., 2020; Wang et al., 2022; Nanda et al., 2023; Li et al., 2025)</cite>]）的交叉点。在方法论上，我们的工作大量使用了建立在交叉编码器[<cite>(Lindsey et al., 2024)</cite>]之上的归因图[<cite>(Ameisen et al., 2025; Ge et al., 2024; Dunefsky et al., 2025)</cite>]和QK归因[<cite>(Kamath et al., 2025)</cite>]。</p>
       
     
       
-        <p>换行。Michaud等人[<cite>[michaud2023the]</cite>]将固定宽度文本中的换行识别为Pythia套件中最小模型（7000万参数）中模型行为前400个“量子”之一。</p>
+        <p>换行。Michaud等人[<cite>(Michaud et al., 2023)</cite>]将固定宽度文本中的换行识别为Pythia套件中最小模型（7000万参数）中前400个“量子”之一。</p>
       
     
       
-        <p>位置。先前的可解释性工作主要关注token位置（例如[<cite>[yedidia2023gpt2,yedidia2023positional,voita2023neurons,chughtai2024understanding,gurnee2024universal]</cite>]）。这些工作已经表明存在具有周期结构的MLP神经元[<cite>[voita2023neurons,gurnee2024universal]</cite>]、SAE特征[<cite>[chughtai2024understanding]</cite>]和学习的位置嵌入[<cite>[yedidia2023gpt2]</cite>]来编码绝对token位置。我们的工作说明了一个模型可能也希望构建非基于token的位置方案，这些方案对许多下游预测任务来说更自然。</p>
+        <p>位置。先前关于位置机制的可解释性工作主要集中在token位置上（例如，[<cite>(Yedidia, 2023; Yedidia, 2023; Voita et al., 2023; Chughtai et al., 2024; Gurnee et al., 2024)</cite>]）。这些工作表明，存在具有周期结构的MLP神经元[<cite>(Voita et al., 2023; Gurnee et al., 2024)</cite>]、SAE特征[<cite>(Chughtai et al., 2024)</cite>]和学习的位置嵌入[<cite>(Yedidia, 2023)</cite>]来编码绝对token位置。我们的工作说明了模型可能还希望构建非基于token的位置方案，这些方案对许多下游预测任务来说更为自然。</p>
       
     
       
-        <p>其他人甚至从LSTM开始，也研究了语言模型中控制输出响应长度的机制[<cite>[shi2016neural,moon2025length]</cite>]，并对计数算法的空间进行了更理论的分析[<cite>[suzgun2019lstm,chang2024language]</cite>]。</p>
+        <p>其他人甚至从LSTM开始，就研究了语言模型中控制输出响应长度的机制[<cite>(Shi et al., 2016; Moon et al., 2025)</cite>]，并对计数算法的空间进行了更理论的分析[<cite>(Suzgun et al., 2019; Chang et al., 2024)</cite>]。</p>
       
     
       
-        <p>几何和特征流形。除了位置之外，已经有大量工作理解数字的几何表征，尤其是在玩具模型中（例如[<cite>[nanda2023progress,zhong2023clock,morwani2023feature]</cite>]）以及LLM中的算术背景下（例如[<cite>[stolfo2023mechanistic,zhou2024pre,nikankin2024arithmetic,kantamneni2025trig,hu2025understanding]</cite>]）。这些工作共同表明，无论是真实LLM还是玩具transformer，都会学习周期表征[<cite>[zhou2024pre,kantamneni2025trig,hu2025understanding]</cite>]，数字被安排在螺旋中以启用某些基于矩阵乘法的加法算法[<cite>[nanda2023progress,kantamneni2025trig]</cite>]，并且这些表征在某些设置下被证明是最优的[<cite>[morwani2023feature]</cite>]。在我们的背景下，我们同样观察到了螺旋表征[<cite>[kantamneni2025trig]</cite>]、数值扩张[<cite>[alquboj2025number]</cite>]，以及跨组件的分布式算法，这些组件共同实现正确的计算[<cite>[hanna2023does,hu2025understanding]</cite>]。</p>
+        <p>几何与特征流形。除了位置之外，在理解数字的几何表征方面已有大量工作，特别是在玩具模型（例如，[<cite>(Nanda et al., 2023; Zhong et al., 2023; Morwani et al., 2023)</cite>]）和LLM中的算术背景下（例如，[<cite>(Stolfo et al., 2023; Zhou et al., 2024; Nikankin et al., 2024; Kantamneni et al., 2025; Hu et al., 2025)</cite>]）。这些工作共同表明，真实LLM和玩具transformer都学习了周期表征[<cite>(Zhou et al., 2024; Kantamneni et al., 2025; Hu et al., 2025)</cite>]，数字排列成螺旋以实现某些基于矩阵乘法的加法算法[<cite>(Nanda et al., 2023; Kantamneni et al., 2025)</cite>]，并且这些表征在某些设置下被证明是最优的[<cite>(Morwani et al., 2023)</cite>]。在我们的背景下，我们同样观察到了螺旋表征[<cite>(Kantamneni et al., 2025)</cite>]、数字扩张[<cite>(AlquBoj et al., 2025)</cite>]，以及跨组件的分布式算法，它们共同实现正确的计算[<cite>(Hanna et al., 2023; Hu et al., 2025)</cite>]。</p>
       
     
       
-        <p>具有清晰几何结构的多维特征已经在更自然的上下文中被发现[<cite>[gould2023successor,engels2025not,modell2025origins]</cite>]，例如在某些序数关系（例如一年中的月份）的表征和计算中。在视觉模型中，曲线检测器神经元[<cite>[cammarata2020curve]</cite>]和特征[<cite>[gorton2024missing]</cite>]已经被特别充分地研究，并且与我们观察到的字符计数特征族的离散化类型非常相似。许多其他主题也接受了对底层几何的可解释性分析，例如语法关系[<cite>[hewitt2019structural,reif2019visualizing]</cite>]、多语言表征[<cite>[chang2022geometry]</cite>]、真值[<cite>[marks2023geometry]</cite>]、绑定[<cite>[feng2023language]</cite>]、拒绝[<cite>[wollschlager2025geometry]</cite>]、特征[<cite>[hindupur2025projecting,li2025geometry]</cite>]和层次[<cite>[park2024geometry]</cite>]，尽管还需要更多概念性研究[<cite>[wattenberg2024relational]</cite>]。</p>
+        <p>具有清晰几何结构的多维特征已在更自然的上下文中被发现[<cite>(Gould et al., 2023; Engels et al., 2025; Modell et al., 2025)</cite>]，例如在某些序数关系（例如一年中的月份）的表征和计算中。在视觉模型中，曲线检测器神经元[<cite>(Cammarata et al., 2020)</cite>]和特征[<cite>(Gorton, 2024)</cite>]已被充分研究，并且与我们在字符计数特征家族中观察到的那种离散化非常相似。许多其他主题也接受了对其底层几何的可解释性分析，例如语法关系[<cite>(Hewitt et al., 2019; Coenen et al., 2019)</cite>]、多语言表征[<cite>(Chang et al., 2022)</cite>]、真值[<cite>(Marks et al., 2023)</cite>]、绑定[<cite>(Feng et al., 2023)</cite>]、拒绝[<cite>(Wollschl\&quot;ager et al., 2025)</cite>]、特征[<cite>(Hindupur et al., 2025; Li et al., 2025)</cite>]和层次结构[<cite>(Park et al., 2024)</cite>]，尽管还需要更多概念性研究[<cite>(Wattenberg et al., 2024)</cite>]。</p>
       
     
       
-        <p>或许最相关的是Modell等人[<cite>[modell2025origins]</cite>]的近期工作，他们提供了特征流形更形式化的概念，并提出余弦相似度编码了特征的内在几何。在测试他们的理论时，他们观察到高度结构化和可解释的数据流形，这些流形具有起伏和扩张，类似于我们的计数流形。这些观察提出了如何最好地捕捉具有不同结构的数据的方法论挑战（参见例如[<cite>[hindupur2025projecting,michaud2025understanding,huang2025decomposing]</cite>]），但也提出了一个令人兴奋的假设，即许多自然连续的变量（例如[<cite>[heinzerling2024monotonic,gurnee2024language]</cite>]）存在于更有组织的流形中。</p>
+        <p>也许最相关的是Modell等人[<cite>(Modell et al., 2025)</cite>]的近期工作，他们提供了一个更形式化的特征流形概念，并提出余弦相似性编码了特征的内在几何。在测试他们的理论时，他们观察到了高度结构化和可解释的数据流形，具有起伏和扩张，类似于我们的计数流形。这些观察提出了如何最好地捕捉具有不同结构的数据的方法论挑战（见例如[<cite>(Hindupur et al., 2025; Michaud et al., 2025; Huang et al., 2025)</cite>]），但也提出了令人兴奋的假设，即许多自然连续的变量（例如，[<cite>(Heinzerling et al., 2024; Gurnee et al., 2024)</cite>]）存在于更有组织的流形中。</p>
       
     
       
-        <p>生物类比。我们观察到的几何和算法模式与生物神经系统中的感知具有启发性的平行之处。我们的字符计数特征类似于一维轨迹上的位置细胞[<cite>[Moser2008PlaceCG]</cite>]，而我们的边界检测特征类似于边界细胞[<cite>[solstad2008representation]</cite>]。这些特征表现出扩张——代表越来越大的字符计数的激活范围越来越大——这反映了生物大脑中数字表征的扩张[<cite>[dehaene2003neural,piazza2004tuning]</cite>]。此外，将特征组织在低维流形上是生物认知中常见模式的一个实例（例如[<cite>[perich2025neural]</cite>]）。虽然这些类比并不完美，但我们认为神经科学与可解释性之间加强合作仍将产生富有成果的概念重叠[<cite>[vilas2024position,he2024multilevel,leshinskaya2025cognitively]</cite>]。</p>
+        <p>生物类比。我们观察到的几何和算法模式与生物神经系统中的感知具有启发性的平行关系。我们的字符计数特征类似于一维轨迹上的位置细胞[<cite>(Moser et al., 2008)</cite>]，我们的边界检测特征类似于边界细胞[<cite>(Solstad et al., 2008)</cite>]。这些特征表现出扩张——表示越来越大的字符计数在越来越大的范围内激活——反映了生物大脑中数字表征的扩张[<cite>(Dehaene, 2003; Piazza et al., 2004)</cite>]。此外，在低维流形上组织特征是生物认知中常见模式的一个实例（例如，[<cite>(Perich et al., 2025)</cite>]）。虽然这些类比并不完美，但我们认为神经科学和可解释性之间加强合作仍会产生富有成效的概念重叠[<cite>(Vilas et al., 2024; He et al., 2024; Leshinskaya et al., 2025)</cite>]。</p>
       
     
       
@@ -166636,40 +166657,35 @@ TkSuQmCC
       
     
       
-        <p>在本文中，我们研究了一个大型模型执行一种自然主义行为所涉及的步骤。换行任务在训练中经常遇到，它要求模型表征和计算一系列涉及以字符计数为单位的、在其输入或输出中不明确的标量量，<sup id="fnref-f27n"><a href="#f27n">[27]</a></sup>然后将这些值与复杂语义电路（预测下一个合适词）的输出整合起来以预测下一个token。我们发现了对应于计算每个重要步骤的稀疏特征，并且对于那些涉及标量量的步骤，我们能够找到一个几何描述，它显著简化了对模型所用算法的解释。我们现在反思从这个过程中学到了什么：</p>
+        <p>在本文中，我们研究了一个大型模型执行自然主义行为所涉及的步骤。换行任务在训练中经常遇到，它要求模型表示和计算一系列涉及以字符计数为单位的位置的标量，这些标量在其输入或输出中并不显式<sup id="fnref-f27n"><a href="#f27n">[27]</a></sup>，然后将这些值与复杂语义电路（预测下一个合适词）的输出整合起来以预测下一个token。我们找到了对应计算每个重要步骤的稀疏特征，并且对于那些涉及标量量的步骤，我们能够找到一个几何描述，它显著简化了对模型所用算法的解释。我们现在反思从这个过程中学到了什么：</p>
       
     
       
-        <p>自然主义行为与感官处理。对模型机制的深度案例研究受益于选择模型始终表现良好的行为，因为这些行为更可能具有更清晰的机制。这意味着优先考虑在预训练中自然的任务，而不是对人类研究者来说显得自然的任务，并且理想情况下是容易监督的。正如在生物神经科学中，感知任务往往既自然又易于对可解释性进行监督（例如，可以以编程方式轻松修改输入）。虽然我们有时将语言模型的早期层描述为负责对输入“去token化”[<cite>[elhage2022solu,gurnee2023finding,ferrando2024information,lad2024remarkable]</cite>]，但将其视为感知或许更具启发性。模型的开头真的负责“看到”输入，而早期电路的大部分服务于感知文本，这与视觉模型中早期层实现低级感知的方式类似[<cite>[olah2020zoom,lepori2024beyond]</cite>]。</p>
+        <p>自然主义行为与感知处理。深度机制案例研究得益于选择模型始终表现良好的行为，因为这些行为更可能具有更清晰的机制。这意味着优先考虑在预训练中自然的任务，而不是对人类研究者来说似乎自然的任务，并且最好是容易监督的。正如在生物神经科学中，感知任务通常既自然又容易为可解释性进行监督（例如，可以以编程方式轻松修改输入）。虽然我们有时将语言模型的早期层描述为负责“解码”输入[<cite>(Elhage et al., 2022; Gurnee et al., 2023; Ferrando et al., 2024; Lad et al., 2024)</cite>]，但将其视为感知可能更有启发性。模型的开始部分实际上负责“看”输入，而且早期电路的大部分都是为了感知文本服务，类似于视觉模型中的早期层实现低级感知[<cite>(Olah et al., 2020; Lepori et al., 2024)</cite>]。</p>
       
     
       
-        <p>几何的效用。我们研究的大多数表征和计算都有优雅的几何解释。例如，计数流形是容量与分辨率之间最优权衡的结果，与空间填充曲线和傅里叶特征有深刻的联系。边界头的扭曲尤其美丽，在发现这样一个头之后，我们能够正确预测需要额外的头来为输出提供曲率。分布式字符计数算法更为复杂，但我们仍然能够通过研究这些流形上的线性作用来澄清我们的观点。对于其他计算，如最终的断行决策，线性可分显然是故事的一部分，但一定还有一些我们尚未能看到的额外复杂性来处理多token输出。对于更具语义的操作，我们纯粹依赖特征视角。当然，完整描述任何行为都极其复杂，还有一长串我们没有研究的可能微妙之处：模型如何考虑其计数的不确定性、它如何根据多个先前文本行来估计行宽、它如何适应具有可变行宽的文档、它如何处理多个不同长度的可能输出token或多token词，以及各种特殊情况（例如LaTeX \footnote{}或markdown链接）。对于有兴趣的读者，我们分享了固定宽度换行prompt在<a href="https://www.neuronpedia.org/gemma-2-2b/graph?slug=fourscoreandseve-1757368139332&amp;amp;pruningThreshold=0.8&amp;amp;densityThreshold=0.99&amp;amp;pinnedIds=14_19999_37&amp;amp;clerps=%5B%5B%2214_200290090_37%22%2C%22nearing+end+of+the+line%22%5D%5D" target="_blank" rel="noopener">Gemma 2 2B</a>和<a href="https://www.neuronpedia.org/qwen3-4b/graph?slug=fourscoreandseve-1757451285996&amp;amp;pruningThreshold=0.8&amp;amp;densityThreshold=0.99&amp;amp;clerps=%5B%5B%2230_117634760_39%22%2C%22nearing+end+of+line%22%5D%5D&amp;amp;pinnedIds=30_15307_39" target="_blank" rel="noopener">Qwen 3 4B</a>上的transcoder归因图，使用了新的neuronpedia交互界面。</p>
+        <p>几何的效用。我们研究过的许多表征和计算都有优美的几何解释。例如，计数流形是容量和分辨率之间最优权衡的结果，与空间填充曲线和傅里叶特征有着深刻的联系。边界头的扭曲尤其美丽，在发现这样一个头之后，我们能够正确预测需要额外的头来为输出提供曲率。分布式字符计数算法更为复杂，但我们仍然能够通过研究这些流形上的线性作用来澄清我们的观点。对于其他计算，如最终的断行决策，线性分离显然是故事的一部分，但一定还有一些我们尚未能看到的额外复杂性来处理多token输出。对于更语义的操作，我们完全依赖特征视角。当然，完整描述任何行为都极其复杂，还有一长串我们没有研究的可能微妙之处：模型如何考虑其计数中的不确定性、它如何根据多个先前行文本来估计行宽、它如何适应具有可变行宽的文档、它如何处理不同长度的多个可能输出token或多token词，以及各种特殊情况（例如，LaTeX \footnote{}或markdown链接）。对于有兴趣的读者，我们在<a href="https://www.neuronpedia.org/gemma-2-2b/graph?slug=fourscoreandseve-1757368139332&amp;amp;pruningThreshold=0.8&amp;amp;densityThreshold=0.99&amp;amp;pinnedIds=14_19999_37&amp;amp;clerps=%5B%5B%2214_200290090_37%22%2C%22nearing+end+of+the+line%22%5D%5D" target="_blank" rel="noopener">Gemma 2 2B</a>和<a href="https://www.neuronpedia.org/qwen3-4b/graph?slug=fourscoreandseve-1757451285996&amp;amp;pruningThreshold=0.8&amp;amp;densityThreshold=0.99&amp;amp;clerps=%5B%5B%2230_117634760_39%22%2C%22nearing+end+of+line%22%5D%5D&amp;amp;pinnedIds=30_15307_39" target="_blank" rel="noopener">Qwen 3 4B</a>上分享了固定宽度换行提示的transcoder归因图，使用了新的neuronpedia交互界面。</p>
       
     
       
-        <p>无监督发现。如果没有无监督的稀疏特征，我们很可能无法发展出这种清晰度。事实上，当我们开始这个项目时，我们试图仅通过探针和修补来理解，但结果很差。具体来说，我们不明白自己在寻找什么（例如我们不知道要区分行宽与字符计数），在哪里寻找（例如我们没有预料到行宽只在换行符上被表征），或者如何寻找（我们开始时训练了一维线性回归探针）。然而，在识别出一些相关特征但在花费大量精力系统地刻画它们的激活轮廓之前，我们也对它们所表征的内容感到困惑。我们看到了几十个模糊地与换行和换行文本相关的特征，但它们的差异从翻阅激活样本中并不明显。只有在我们用合成数据集测试这些特征之后，它们在图中的角色和底层的计算才变得清晰。我们认为更好的自动标签[<cite>[bills2023language,paulo2024automatically,gur2025enhancing]</cite>]结合agentic工作流[<cite>[shaham2024multimodal,bricken2025automating]</cite>]将加速这项工作，尤其是在不太可验证的领域。</p>
+        <p>无监督发现。如果没有无监督的稀疏特征，我们很可能无法获得这种清晰度。事实上，当我们开始这个项目时，我们试图仅通过探针和修补来理解，但结果不佳。具体来说，我们不明白自己在寻找什么（例如，我们不知道要区分行宽与字符计数），在哪里寻找（例如，我们没想到行宽只在换行符上被表示），或者如何寻找它（我们开始时训练了一维线性回归探针）。然而，在识别出一些相关特征但在花费大量精力系统表征它们的激活轮廓之前，我们也对它们所表示的内容感到困惑。我们看到了几十个模糊地与换行和换行文本相关的特征，但它们的区别从翻阅激活示例中并不明显。只有在我们在合成数据集上测试这些特征之后，它们在图中的角色和底层的计算才变得清晰。我们怀疑，更好的自动标签[<cite>(Bills et al., 2023; Paulo et al., 2024; Gur-Arieh et al., 2025)</cite>]结合agentic工作流[<cite>(Shaham et al., 2024; Bricken et al., 2025)</cite>]将加速这项工作，尤其是在可验证性较低的领域。</p>
       
     
       
-        <p>特征-流形对偶性。离散特征和几何特征-流形视角对同一个底层对象提供了对偶的透镜。例如，在这项工作中，模型对字符计数的表征可以完全由我们识别的特征的活动来描述（除重构误差外），其中边界头的作用由通过注意力头矩阵展开特征交互的虚拟权重来描述。同一个字符计数表征可以用一个一维特征流形来描述——即残差流中由字符计数变量参数化的一条曲线——其中边界头的线性作用被描述为流形的连续“扭曲”。一般来说，模型学到的几何结构很可能既允许全局参数化，也允许局部的离散逼近。</p>
+        <p>特征-流形对偶性。离散特征和几何特征-流形视角为同一底层对象提供了对偶的透镜。例如，在这项工作中，模型对字符计数的表征可以完全由我们识别的特征的活动来描述（除了重构误差），其中边界头的作用由通过注意力头矩阵展开特征相互作用的虚拟权重来描述。同样的字符计数表征可以用一个一维特征流形来描述——残差流中由字符计数量参数化的一条曲线——其中边界头的线性作用由流形的连续“扭曲”来描述。一般来说，模型学到的几何结构很可能既允许全局参数化，也允许局部的离散逼近。</p>
       
     
       
-        <p>复杂性税。尽管存在这种对偶性，但两种视角产生的描述在简单性上有所不同。离散特征将模型粉碎成许多碎片，产生对计算的复杂理解。这似乎是一个普遍的教训。离散特征和归因图似乎提供了模型计算的真实描述，可以使用字典学习以自动化的方式找到。获得任何真实、可理解的计算描述已经是一个非常了不起的胜利！然而，如果我们止步于此，而不理解存在的额外结构，我们就会付出复杂性税，以一种不必要地复杂的方式理解事物。在换行问题中，构建流形降低了这种税，但人们可以想象其他减少解释负担的方式。</p>
+        <p>复杂性税。尽管存在这种对偶性，但两种视角产生的描述在简单性上有所不同。离散特征将模型打碎成许多碎片，产生对计算的复杂理解。这似乎是一个普遍的教训。离散特征和归因图似乎提供了模型计算的真实描述，可以使用词典学习以自动化方式找到。获得任何真实、可理解的计算描述已经是一个非常了不起的胜利！然而，如果我们止步于此，而不去理解存在的额外结构，我们就会支付复杂性税，以一种不必要地复杂的方式理解事物。在换行问题中，构建流形支付了这部分税，但可以想象其他减少解释负担的方式。</p>
       
     
       
-        <p>对方法论的呼吁。有了我们的特征理解，我们能够直接搜索相关的几何结构。这更多是一个存在证明而非通用配方，我们需要能够自动呈现更简单结构的方法来降低复杂性税。在我们的设置中，这意味着研究特征流形，如果能看到无监督检测它们的方法就好了。在其他情况下，我们将需要其他工具来减少解释负担，例如在全局权重中找到分层表征[<cite>[costa2025flat]</cite>]或宏观结构[<cite>[olah2023interpretability]</cite>][<cite>[ameisen2025circuit]</cite>]。</p>
+        <p>对方法论的呼吁。有了我们的特征理解，我们就能够直接搜索相关的几何结构。这更多是一个存在证明而非通用方法，我们需要能够自动呈现更简单结构以支付复杂性税的方法。在我们的设置中，这意味着研究特征流形，如果能看到无监督检测它们的方法会很好。在其他情况下，我们还需要其他工具来减轻解释负担，例如在全局权重中找到分层表征[<cite>(Costa et al., 2025)</cite>]或宏观结构[<cite>(Olah, 2023)</cite>][<cite>(Ameisen et al., 2025)</cite>]。</p>
       
     
       
-        <p>对生物学的呼吁。模型必须执行其他优雅的计算。我们可以通过从模型表现良好的特定任务开始，从多个视角研究它，开发方法来回答剩余问题，并坚持不懈地尝试简化我们的解释来找到它们。因为调查基于特定行为的具体例子，它提供了一个快速的反馈循环，能够揭示现有方法的弱点并激发新方法，并能 sharpening 我们理解神经网络的概念语言。我们期待看到更多采用这种方法的深度案例研究。</p>
-      
-    
-      
-        <p>&lt;h3&gt;&lt;a id=&#x27;appendix&#x27; href=&#x27;#appendix&#x27;&gt;附录&lt;/a&gt;&lt;/h3&gt;
-&lt;p&gt;</p>
+        <p>对生物学的呼吁。模型必须执行其他优美的计算。我们可以通过从模型表现良好的特定任务开始，从多个视角研究它，开发方法来回答剩余问题，并不懈地尝试简化我们的解释来找到它们。由于调查基于行为的具体例子，它提供了一个快速的反馈循环，能够揭示现有方法的弱点并激发新的方法，并能 sharpening 我们理解神经网络的概念语言。我们期待看到更多采用这种方法的深度案例研究。</p>
       
     
       
@@ -171968,47 +171984,47 @@ url={https://www.alignmentforum.org/posts/zRA8B2FJLtTYRgie6/the-positional-embed
     <h2>注释</h2>
     
     <div class="footnote-item" id="f1n">
-      <a href="#fnref-f1n">[1]</a> 所有特征都有一个幅度维度；因此一个离散特征是一条一维射线，而一个一维特征流形是该流形所有缩放的集合，收缩到原点。参见“什么是线性表征？什么是多维特征？”
+      <a href="#fnref-f1n">[1]</a> 所有特征都有一个幅度维度；因此一个离散特征是一条一维射线，而一个一维特征流形是该流形所有缩放的集合，会收缩到原点。参见“什么是线性表征？什么是多维特征？”
     </div>
     
     <div class="footnote-item" id="f2n">
-      <a href="#fnref-f2n">[2]</a> Michaud等人通过对梯度进行聚类来寻找“量子”模型技能[<cite>[michaud2023the]</cite>]。他们的图1显示，在固定宽度文本中预测换行构成了Pythia家族最小模型（7000万参数）前400个聚类之一。
+      <a href="#fnref-f2n">[2]</a> Michaud等人通过聚类梯度来寻找“量子”模型技能[<cite>(Michaud et al., 2023)</cite>]。他们的图1显示，在Pythia家族最小模型（7000万参数）中，预测固定宽度文本中的换行符形成了前400个聚类之一。
     </div>
     
     <div class="footnote-item" id="f3n">
-      <a href="#fnref-f3n">[3]</a> 换行约束是隐含的。每个换行符都给出了一个下界（前一个词合适）和一个上界（下一个词不合适）。我们没有确定模型在多大程度上针对这些约束进行了最优推理，而是重点关注它如何近似地使用每条先前行的长度来决定是否在下一行换行。在处理token化和标点符号方面还有许多边缘情况。模型甚至可能试图推断源文档是否使用了非等宽字体，然后使用像素计数而不是字符计数作为预测信号！
+      <a href="#fnref-f3n">[3]</a> 换行约束是隐含的。每个换行符都给出了一个下界（前一个词能容纳）和一个上界（下一个词不能容纳）。我们没有确定模型在多大程度上针对这些约束进行了最优推理，而是重点关注它如何近似地使用每条先行行的长度来决定是否在下一行换行。处理分词和标点符号还有许多边缘情况。模型甚至可能试图推断源文档是否使用非等宽字体，然后使用像素计数而不是字符计数作为预测信号！
     </div>
     
     <div class="footnote-item" id="f4n">
-      <a href="#fnref-f4n">[4]</a> 我们实际上首先尝试了在不看图的情况下使用修补和探针，作为对特征效用的一种方法论测试，但没有取得太大进展。事后看来，我们当时训练的探针针对的是与模型清晰表征的量不同的量，例如当前token位置和行宽的融合。
+      <a href="#fnref-f4n">[4]</a> 我们实际上首先尝试了在不看图的情况下使用修补和探针，作为对特征效用的一种方法论测试，但没有取得太大进展。事后看来，我们当时训练的探针针对的是模型没有干净表示的量，例如当前token位置和行宽的融合。
     </div>
     
     <div class="footnote-item" id="f5n">
-      <a href="#fnref-f5n">[5]</a> 振铃，从流形视角看，对应于特征叠加视角中的干涉。
+      <a href="#fnref-f5n">[5]</a> 从流形视角来看，振铃对应于特征叠加视角中的干扰。
     </div>
     
     <div class="footnote-item" id="f6n">
-      <a href="#fnref-f6n">[6]</a> 正交维度也不会对估计噪声具有鲁棒性。
+      <a href="#fnref-f6n">[6]</a> 正交维度对估计噪声也不具有鲁棒性。
     </div>
     
     <div class="footnote-item" id="f7n">
-      <a href="#fnref-f7n">[7]</a> 每个特征都有一个编码器，它在残差流上充当线性+(Jump)ReLU探针，以及一个解码器。十个特征<span class="math-inline" data-math="f_1,\ldots,f_{10}">f_1,\ldots,f_{10}</span>与行字符计数相关。模型对字符计数的估计，给定一个残差流向量<span class="math-inline" data-math="x">x</span>，由这10个特征各自的活动集合<span class="math-inline" data-math="\{f_i(x)\}">\{f_i(x)\}</span>来概括。
+      <span class="fn-num">[7]</span> 每个特征都有一个编码器，它在残差流上充当线性+(Jump)ReLU探针，以及一个解码器。十个特征<span class="math-inline" data-math="f_1,\ldots,f_{10}">f_1,\ldots,f_{10}</span>与行字符计数相关。模型对字符计数的估计，给定一个残差流向量<span class="math-inline" data-math="x">x</span>，由10个特征中每一个的活动集合<span class="math-inline" data-math="\{f_i(x)\}">\{f_i(x)\}</span>来概括。
     </div>
     
     <div class="footnote-item" id="f8n">
-      <a href="#fnref-f8n">[8]</a> 模型对字符计数的估计由<span class="math-inline" data-math="x">x</span>到该子空间的投影<span class="math-inline" data-math="\pi(x)">\pi(x)</span>来概括。如果两个数据点在该子空间中的投影接近，则它们具有相似的字符计数。
+      <span class="fn-num">[8]</span> 模型对字符计数的估计由<span class="math-inline" data-math="x">x</span>在该子空间上的投影<span class="math-inline" data-math="\pi(x)">\pi(x)</span>来概括。如果两个数据点在该子空间中的投影接近，则它们具有相似的字符计数。
     </div>
     
     <div class="footnote-item" id="f9n">
-      <a href="#fnref-f9n">[9]</a> 模型对字符计数的估计由<span class="math-inline" data-math="x">x</span>投影到子空间后离流形最近的点来概括，而其对该估计的置信度由<span class="math-inline" data-math="\pi(x)">\pi(x)</span>的幅度来表示。
+      <span class="fn-num">[9]</span> 模型对字符计数的估计由<span class="math-inline" data-math="x">x</span>投影到子空间后流形上最近的点来概括，其对该估计的置信度由<span class="math-inline" data-math="\pi(x)">\pi(x)</span>的幅度表示。
     </div>
     
     <div class="footnote-item" id="f10n">
-      <a href="#fnref-f10n">[10]</a> 模型对字符计数的估计由探针活动的softmax给出的概率分布来概括，即softmax<span class="math-inline" data-math="(Px)">(Px)</span>。
+      <span class="fn-num">[10]</span> 模型对字符计数的估计由探针活动的softmax给出的概率分布softmax<span class="math-inline" data-math="(Px)">(Px)</span>来概括。
     </div>
     
     <div class="footnote-item" id="f11n">
-      <a href="#fnref-f11n">[11]</a> 请注意，一般不应假设由特征（或PCA）张成的子空间是专门用于这些特征的，因为它可能与其他许多特征处于叠加中。然而，由于在本例中字符计数子空间是密集激活的（因此不太容易处于叠加中），这种实验设计更有道理。
+      <a href="#fnref-f11n">[11]</a> 请注意，一般不应假设由特征（或PCA）张成的子空间是专用于这些特征的，因为它可能与其他许多特征处于叠加中。然而，由于在本例中字符计数子空间是稠密激活的（因此不太容易处于叠加中），这种实验设计更有道理。
     </div>
     
     <div class="footnote-item" id="f12n">
@@ -172016,11 +172032,11 @@ url={https://www.alignmentforum.org/posts/zRA8B2FJLtTYRgie6/the-positional-embed
     </div>
     
     <div class="footnote-item" id="f13n">
-      <a href="#fnref-f13n">[13]</a> 作为一个150路多类分类问题
+      <a href="#fnref-f13n">[13]</a> 作为一个150路的多元分类问题
     </div>
     
     <div class="footnote-item" id="f14n">
-      <a href="#fnref-f14n">[14]</a> 我们使用“振铃”一词是在信号处理的意义上，指对尖峰的瞬态振荡，例如Gibbs现象。
+      <a href="#fnref-f14n">[14]</a> 我们使用“振铃”一词是取信号处理中的含义，即对尖峰的瞬态振荡响应，例如Gibbs现象。
     </div>
     
     <div class="footnote-item" id="f15n">
@@ -172028,39 +172044,39 @@ url={https://www.alignmentforum.org/posts/zRA8B2FJLtTYRgie6/the-positional-embed
     </div>
     
     <div class="footnote-item" id="f16n">
-      <a href="#fnref-f16n">[16]</a> 在3维中的优化与更高维不同，会允许不好的局部最小值，因为球面上的普通曲线会自相交。为了避免这一点，要么增大区域宽度直到得到一个大圆，然后再减小它；或者在4D中进行优化，然后选择3D。
+      <a href="#fnref-f16n">[16]</a> 与更高维度不同，在3维中优化会允许不好的局部最小值，因为球面上的普通曲线会自相交。为了避免这一点，要么将区域宽度增大直到得到一个大圆，然后再减小，要么在4D中进行优化，然后选择3D。
     </div>
     
     <div class="footnote-item" id="f17n">
-      <a href="#fnref-f17n">[17]</a> 具体来说，我们将行宽探针乘以<span class="math-inline" data-math="W_K">W_K</span>，将字符计数探针乘以<span class="math-inline" data-math="W_Q">W_Q</span>，并在它们联合嵌入的3D PCA基下绘制点。
+      <a href="#fnref-f17n">[17]</a> 具体来说，我们将行宽探针乘以<span class="math-inline" data-math="W_K">W_K</span>，将字符计数探针乘以<span class="math-inline" data-math="W_Q">W_Q</span>，并在它们联合嵌入的3D PCA基中绘制点。
     </div>
     
     <div class="footnote-item" id="f18n">
-      <a href="#fnref-f18n">[18]</a> 这个算法也推广到任意类型的分隔符（例如双换行或管道），因为QK电路可以独立于OV电路复制分隔符类型来处理位置偏移。
+      <a href="#fnref-f18n">[18]</a> 这个算法也推广到任意类型的分隔符（例如，双换行或管道），因为QK电路可以独立于OV电路复制分隔符类型来处理位置偏移。
     </div>
     
     <div class="footnote-item" id="f19n">
-      <a href="#fnref-f19n">[19]</a> 在多个层中也存在多组边界头，它们通常以约3个为一组，具有相似的相对偏移（所以实际上不是“立体”的）。
+      <a href="#fnref-f19n">[19]</a> 在多个层中也有多组边界头，它们通常以约3个为一组，带有相似的相对偏移（因此实际上不是“立体”的）。
     </div>
     
     <div class="footnote-item" id="f20n">
-      <a href="#fnref-f20n">[20]</a> 影响力是指对logit节点的影像，如Ameisen等人[<cite>[ameisen2025circuit]</cite>]中所定义。
+      <a href="#fnref-f20n">[20]</a> 影响力是指对logit节点的影响，如Ameisen等人[<cite>(Ameisen et al., 2025)</cite>]中所定义。
     </div>
     
     <div class="footnote-item" id="f21n">
-      <a href="#fnref-f21n">[21]</a> 这些特征有时也会在零宽度修饰token（例如指示后面token的首字母应大写的token）上激活，这些token需要与被修饰的token相邻，而被修饰的token足够长以超过行限制（例如对于“Aluminum”而不是“aluminum”）。
+      <a href="#fnref-f21n">[21]</a> 这些特征有时也会在零宽度修饰token（例如，指示后续token第一个字母应大写的token）上激活，这些token需要与被修饰token相邻，而被修饰token足够长以超过行限制（例如，对于“Aluminum”而不是“aluminum”）。
     </div>
     
     <div class="footnote-item" id="f22n">
-      <a href="#fnref-f22n">[22]</a> 我们使用真实的下一个非换行token作为标签。这是一种近似，因为它假设模型完美地预测了下一个token。
+      <a href="#fnref-f22n">[22]</a> 我们使用真实下一个非换行token作为标签。这是一种近似，因为它假定模型完美预测了下一个token。
     </div>
     
     <div class="footnote-item" id="f23n">
-      <a href="#fnref-f23n">[23]</a> 这个求和是有根据的，因为两组向量都是边缘化数据的均值，因此共同具有数据的均值，我们将其中心化为0。
+      <a href="#fnref-f23n">[23]</a> 这个和是有根据的，因为两组向量都是边缘化数据均值，因此共同具有数据的均值，我们将其中心化为0。
     </div>
     
     <div class="footnote-item" id="f24n">
-      <a href="#fnref-f24n">[24]</a> 我们显示了许多prompt上的平均输出。
+      <a href="#fnref-f24n">[24]</a> 我们显示了许多提示上的平均输出。
     </div>
     
     <div class="footnote-item" id="f25n">
@@ -172068,11 +172084,11 @@ url={https://www.alignmentforum.org/posts/zRA8B2FJLtTYRgie6/the-positional-embed
     </div>
     
     <div class="footnote-item" id="f26n">
-      <a href="#fnref-f26n">[26]</a> 为了视觉呈现，我们省略了一个前一个token的头。
+      <a href="#fnref-f26n">[26]</a> 为了视觉呈现，我们省略了一个前一个token头。
     </div>
     
     <div class="footnote-item" id="f27n">
-      <a href="#fnref-f27n">[27]</a> token没有标注字符计数，页面上也没有显示行宽的竖线。
+      <a href="#fnref-f27n">[27]</a> Token没有标注字符计数，页面上也没有显示行宽的竖线。
     </div>
     
   </section>

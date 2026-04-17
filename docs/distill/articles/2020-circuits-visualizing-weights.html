@@ -10,6 +10,11 @@
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Distill.pub</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -37,7 +42,7 @@
       
     
       
-        <p>本文是 <a href="2020-circuits.html">线程：电路</a> 的一部分，该系列以实验性形式汇集了受邀的短文和批判性评论，深入探讨神经网络的内部工作机制。</p>
+        <p>本文是 <a href="2020-circuits.html">线程：电路</a> 的一部分，该专题以实验性形式收集受邀的短文和批判性评论，深入探讨神经网络的内部工作机制。</p>
       
     
       
@@ -54,19 +59,22 @@
       
     
       
-        <p>理解神经网络的问题，有点像逆向工程一个大型已编译的计算机程序。在这个比喻中，神经网络的权重就是编译后的汇编指令。归根结底，权重才是你最终想要理解的核心：这一系列卷积和矩阵乘法究竟是如何产生模型行为的？</p>
+        <p>理解神经网络的问题，有点像逆向工程一个大型编译后的计算机程序。在这个类比中，神经网络的权重就是编译后的汇编指令。归根结底，权重才是你最想理解的核心：这一系列卷积和矩阵乘法究竟是如何产生模型行为的？</p>
       
     
       
-        <p>理解人工神经网络也与神经科学有许多共通之处，后者试图理解生物神经网络。正如你所知，现代神经科学的一个主要努力是绘制生物神经网络的 <a href="https://en.wikipedia.org/wiki/Connectome" target="_blank" rel="noopener">connectomes</a>：哪些神经元与哪些神经元相连。然而，这些连接只能告诉神经科学家哪些权重非零。而获取实际的权重——知道一个连接是兴奋还是抑制，以及强度如何——将是一个重大的进一步突破。可以想象，神经科学家们可能会不惜一切代价，来获得我们研究人工神经网络的人免费就能拿到的权重信息。</p>
+        <p>理解人工神经网络也与神经科学有诸多共通之处，后者试图理解生物神经网络。如你所知，现代神经科学的一大重要任务就是绘制生物神经网络的 <a href="https://en.wikipedia.org/wiki/Connectome" target="_blank" rel="noopener">connectomes</a>：哪些神经元与哪些神经元相连。然而，这些连接只能告诉神经科学家哪些权重非零。要真正获得权重——知道某个连接是兴奋还是抑制，以及强度如何——将是意义重大的下一步。可以想象，神经科学家们可能会不惜一切代价，来获得我们研究人工神经网络时免费就能拿到的权重信息。</p>
       
     
       
-        <p>因此，我们实际给予神经网络权重观察的关注如此之少，就显得相当令人惊讶。当然，也存在一些例外。研究者们常常展示视觉模型第一层权重的图像（因为它们直接连接到 RGB 通道，所以很容易理解为图像）。在一些工作中，尤其是早期，我们会看到研究者手动推理解释小型神经网络的权重。我们也经常看到研究者讨论权重的聚合统计数据。但真正去观察除第一层之外的神经网络权重却相当罕见——据我们所知，将隐藏层之间的权重映射到有意义的算法，这是 circuits 项目首次提出的工作。</p>
+        <p>因此，令人惊讶的是，我们实际上很少去仔细观察神经网络的权重。当然也有少数例外。研究者们经常展示视觉模型第一层权重的图像（因为它们直接连接RGB通道，很容易理解为图像）。在一些工作中，尤其是早期，我们看到研究者们手工分析玩具神经网络的权重。我们也常常看到研究者讨论权重的聚合统计数据。但真正去查看除第一层之外的隐藏层权重其实相当少见——据我们所知，将隐藏层之间的权重映射到有意义的算法，这是 circuits 项目首次提出的工作。</p>
       
     
       
-        <p>[交互式图表 — 查看原文：https://distill.pub/2020/circuits/visualizing-weights]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2020/circuits/visualizing-weights" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
@@ -75,15 +83,15 @@
       
     
       
-        <p>在本文中，我们重点讨论权重的可视化。但人们也经常可视化激活、归因、梯度以及更多内容。我们应该如何理解可视化这些不同对象各自的意义呢？</p>
+        <p>本文中，我们重点讨论权重的可视化。但人们也经常可视化激活、归因、梯度以及更多内容。我们应该如何理解可视化这些不同对象的意义？</p>
       
     
       
-        <div class="list-content">激活：我们通常认为它代表网络“看到了什么”。如果理解神经网络类似于逆向编译计算机程序，那么神经元就是变量，而激活就是这些变量的具体取值。
-      
-权重：我们通常认为它代表神经网络“如何”从前一层计算得到当前层。在逆向工程的比喻中，它们就是编译后的汇编指令。
-      
-归因：归因试图告诉我们一个神经元在多大程度上影响了后续的神经元。我们常常将其视为神经元“为什么”会激活。我们需要谨慎对待归因，因为它们是建立在神经网络之上的人为定义的对象，而非网络的基本组成部分。它们并不总是明确定义的，不同的人对其含义也各有理解。（如果你仅在相邻层之间操作，归因的定义则非常明确！）</div>
+        
+          <ul>
+            <li>激活（Activations）：我们通常认为它们代表网络“看到了什么”。如果理解神经网络就像逆向编译计算机程序，那么神经元就是变量，而激活就是这些变量的值。</li><li>权重（Weights）：我们通常认为它们代表神经网络“如何”从前一层计算得到当前层。在逆向工程的类比中，它们就是编译后的汇编指令。</li><li>归因（Attributions）：归因试图告诉我们一个神经元在多大程度上影响了后续的神经元。我们常将其视为神经元“为什么”会激活。我们需要谨慎对待归因，因为它们是叠加在神经网络之上的人为定义的对象，而非网络的基本组成部分。它们并不总是明确定义的，不同人对其含义也不尽相同。（不过，如果只在相邻层之间操作，归因是定义非常明确的！）</li>
+          </ul>
+        
       
     
       
@@ -92,19 +100,19 @@
       
     
       
-        <p>在我们看来，理解神经网络权重存在三个主要障碍，这可能导致研究者倾向于不直接检查它们：</p>
+        <p>在我们看来，要理解神经网络权重存在三个主要障碍，这或许解释了为什么研究者们往往不直接检查它们：</p>
       
     
       
-        <div class="list-content">缺乏上下文：研究者通常可视化第一层权重，因为它们与我们能理解的 RGB 值相关联。这种关联让第一层权重变得有意义。但隐藏层之间的权重默认是没有意义的：在对源神经元和目标神经元都一无所知的情况下，我们如何理解它们呢？
-      
-间接交互：有时，有意义的权重交互发生在神经网络中并非字面相邻的神经元之间。例如，在残差网络中，一个神经元的输出可以通过加法残差流，并与网络中更靠后的神经元发生线性交互。在其他情况下，神经元可能通过中间神经元进行交互，而不引入显著的非线性作用。我们如何高效地理解这些交互呢？
-      
-维度与规模：神经网络拥有大量神经元。这些神经元又连接到其他大量神经元。要展示的数据非常多！我们如何将其减少到人类可处理的规模呢？</div>
+        
+          <ul>
+            <li>缺乏上下文：研究者们经常可视化第一层权重，因为它们与我们能理解的RGB值直接关联。这种关联让第一层权重变得有意义。但隐藏层之间的权重默认是无意义的：在对源神经元和目标神经元一无所知的情况下，我们如何理解它们呢？</li><li>间接交互：有时，有意义的权重交互发生在神经网络中并非直接相邻的神经元之间。例如在残差网络中，一个神经元的输出可以通过加性残差流与网络中更靠后的神经元产生线性交互。在其他情况下，神经元可能通过中间神经元进行交互，而中间没有显著的非线性作用。我们如何高效地分析这些交互？</li><li>维度与规模：神经网络拥有大量神经元，这些神经元又连接到更多其他神经元。要展示的数据量非常庞大！我们如何将其压缩到人类可处理的规模？</li>
+          </ul>
+        
       
     
       
-        <p>我们将用来解决这些问题的方法，很多此前已在 <a href="2018-building-blocks.html">可解释性的基本构建块</a> 中针对理解激活向量进行过探讨。本文的目标是展示如何将类似的思想应用于权重而非激活。当然，我们已经在各种电路文章中隐含地使用过这些方法，但在那些文章中，这些方法是次要于研究结果的。专门讨论这些方法似乎很有价值。</p>
+        <p>我们用来解决这些问题的方法，许多曾在 <a href="2018-building-blocks.html">可解释性的基本构建块</a> 中讨论过，当时的背景是理解激活向量。本文的目的是展示如何将类似的思想应用到权重而非激活上。当然，我们已经在之前的电路文章中隐含地使用过这些方法，但在那类文章中，这些方法是次要的，服务于最终的结果。现在似乎有必要专门讨论一下这些方法本身。</p>
       
     
       
@@ -113,39 +121,37 @@
       
     
       
-        <p>可解释性方法常常因为难以使用而未能普及。因此，在深入复杂方法之前，我们想先提供一个简单、易于应用的方法。</p>
+        <p>可解释性方法常常因为难以使用而无法流行。因此，在深入复杂方法之前，我们想先提供一个简单、易于应用的方法。</p>
       
     
       
-        <p>在卷积网络中，给定神经元的输入权重形状为 [width, height, input_channels]。除非这是第一个卷积层，否则由于 input_channels 通常很大，很难直接可视化。（如果是第一层卷积，则直接按原样可视化！）不过，我们可以使用降维方法将 input_channels 压缩到 3 个维度。我们发现单侧 NMF 在这方面特别有效。</p>
+        <p>在卷积网络中，某个神经元的输入权重形状为 [width, height, input_channels]。除非这是第一层卷积，否则 input_channels 通常很大，难以直接可视化。（如果是第一层卷积层，那就直接可视化即可！）不过，我们可以使用降维技术将 input_channels 压缩到 3 个维度。我们发现单侧 NMF（one-sided NMF）对此特别有效。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-visualizing-weights/screenshot_1.png" alt="">
-          <figcaption>1:
-          NMF of input weights in InceptionV1 mixed4d_5x5, for a selection of ten neurons. The red, green, and blue channels on each grid indicate the weights for each of the 3 NMF factors.</figcaption>
+          <figcaption>1: InceptionV1 mixed4d_5x5 层中十个神经元输入权重的 NMF 分解。每张小图中的红、绿、蓝通道分别表示 3 个 NMF 因子的权重。</figcaption>
         </figure>
       
     
       
-        <p>这个可视化虽然不能告诉你权重在更大模型上下文中的具体作用，但它能显示出神经元正在学习良好的空间结构。这可以作为一个简单的 sanity check，确认你的神经元正在学习，也是理解神经元行为的第一步。我们后面也会看到，这种因子分解权重的通用方法可以进一步扩展为研究神经元的强大工具。</p>
+        <p>这个可视化虽然无法告诉你权重在整个模型中具体做了什么，但它能显示出神经元正在学习良好的空间结构。这可以作为一个简单的 sanity check，确认你的神经元确实在学习，也是理解神经元行为的第一步。我们后面还会看到，这种对权重进行分解的通用方法可以进一步扩展为研究神经元的强大工具。</p>
       
     
       
-        <p>尽管缺乏上下文，单侧 NMF 仍然是一种能一次性考察多个通道的绝佳技术。使用这个方法你可能很快就会发现：在卷积层末尾使用全局平均池化的模型中，最后几层的权重往往都是水平条带。</p>
+        <p>尽管缺乏上下文，单侧 NMF 仍然是快速浏览多个通道的绝佳技术。使用这个方法你可能会很快发现：在卷积层末尾使用全局平均池化的模型中，最后几层的权重往往全部表现为水平条带。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-visualizing-weights/screenshot_2.png" alt="">
-          <figcaption>2:
-          Horizontally-banded weights in InceptionV1 mixed5b_5x5, for a selection of eight neurons. As in Figure 1, the red, green, and blue channels on each grid indicate the weights for each of the 3 NMF factors.</figcaption>
+          <figcaption>2: InceptionV1 mixed5b_5x5 层中八个神经元的水平条带权重。与图 1 一样，每张小图中的红、绿、蓝通道对应 3 个 NMF 因子的权重。</figcaption>
         </figure>
       
     
       
-        <p>我们将这种现象称为 <a href="2020-circuits-weight-banding.html">权重条带化</a>。单侧 NMF 可以快速测试和验证关于权重条带等现象的假设。</p>
+        <p>我们将这一现象称为 <a href="2020-circuits-weight-banding.html">权重条带化</a>。单侧 NMF 可以快速测试和验证关于 weight banding 等现象的假设。</p>
       
     
       
@@ -154,11 +160,11 @@
       
     
       
-        <p>当然，孤立地看权重并没有太大意思。为了真正理解发生了什么，我们需要将权重置于网络的更广阔背景中。上下文问题是在理解神经网络时反复出现的挑战：我们能轻松观测到每一个激活、每一个权重和每一个梯度，难点在于搞清楚这些数值到底代表什么。</p>
+        <p>当然，孤立地看权重并没有太大意思。要真正理解发生了什么，我们需要将权重置于网络的更广背景之下。上下文问题在理解神经网络时反复出现：我们能轻松观察到每一个激活、每一个权重和每一个梯度，真正的挑战在于搞清楚这些数值到底代表什么。</p>
       
     
       
-        <p>回想一下，两个卷积层之间的权重是一个四维数组，其形状为：</p>
+        <p>回想一下，两个卷积层之间的权重是一个四维数组，形状为：</p>
       
     
       
@@ -166,7 +172,7 @@
       
     
       
-        <p>如果我们固定输入通道和输出通道，就能得到一个可以用传统数据可视化方式呈现的二维数组。假设我们已经知道想要理解哪个神经元，因此确定了输出通道。我们可以挑选那些对输出通道具有较大权重幅值的输入通道。</p>
+        <p>如果我们固定输入通道和输出通道，就能得到一个可以用传统数据可视化方式呈现的二维数组。假设我们已经知道自己想理解哪个神经元，因此输出通道是已知的。我们可以挑选那些对输出通道权重幅度较大的输入通道。</p>
       
     
       
@@ -174,22 +180,22 @@
       
     
       
-        <p>关键技巧在于，特征可视化（或对神经元的更深入研究）可以帮助我们理解输入和输出神经元所代表的含义，从而为整个图表提供上下文。特征可视化特别吸引人，因为它是自动化的，并且能生成一张通常极具信息量的图像。因此，我们在权重图中常常用特征可视化图像来代表神经元。</p>
+        <p>关键技巧在于，特征可视化（或对神经元的更深入研究）可以帮助我们理解输入和输出神经元代表的含义，从而为整个图提供上下文。特征可视化特别有吸引力，因为它是自动化的，且通常能生成一张信息量很大的图像。因此，我们常常在权重图中使用特征可视化来表示神经元。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-visualizing-weights/figure_31.svg" alt="">
-          <figcaption>3: Contextualizing weights.</figcaption>
+          <figcaption>3: 赋予权重上下文。</figcaption>
         </figure>
       
     
       
-        <p>这种方法是权重版本的“使用特征可视化赋予激活向量上下文”，对应 <a href="2018-building-blocks.html">可解释性的基本构建块</a> 中“理解隐藏层”一节的内容。</p>
+        <p>这种方法与 <a href="2018-building-blocks.html">可解释性的基本构建块</a> 中使用特征可视化来赋予激活向量上下文的做法（见“理解隐藏层”一节）在权重层面上是对应的。</p>
       
     
       
-        <p>这就好比在逆向工程一个普通的已编译程序时，需要开始给寄存器中存储的值赋予变量名，以便跟踪它们。特征可视化本质上就是给神经元自动生成的变量名，而神经元大致类似于那些寄存器或变量。</p>
+        <p>这就好比在逆向工程一个普通的编译程序时，需要开始给寄存器中存储的值赋予变量名，以便追踪它们。特征可视化本质上就是为神经元自动生成的变量名，而神经元大致相当于那些寄存器或变量。</p>
       
     
       
@@ -198,13 +204,13 @@
       
     
       
-        <p>当然，神经元有多个输入，将多个输入的权重同时以 <a href="https://en.wikipedia.org/wiki/Small_multiple" target="_blank" rel="noopener">small multiple</a> 的形式展示出来往往很有帮助：</p>
+        <p>当然，神经元有多个输入，同时展示多个输入的权重有时会很有帮助，这就构成了 <a href="https://en.wikipedia.org/wiki/Small_multiple" target="_blank" rel="noopener">small multiple</a>：</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-visualizing-weights/figure_36.svg" alt="">
-          <figcaption>4: Small multiple weights for <a href="https://microscope.openai.com/models/inceptionv1/mixed3b_0/342" target="_blank" rel="noopener">mixed3b342</a>.</figcaption>
+          <figcaption>4: <a href="https://microscope.openai.com/models/inceptionv1/mixed3b_0/342" target="_blank" rel="noopener">mixed3b342</a> 的小 multiples 权重图。</figcaption>
         </figure>
       
     
@@ -215,7 +221,7 @@
       
         <figure>
           <img src="../images/2020-circuits-visualizing-weights/figure_38.svg" alt="">
-          <figcaption>5: Small multiple weights for a variety of <a href="2020-circuits-curve-detectors.html">曲线检测器</a>.</figcaption>
+          <figcaption>5: 多种 <a href="2020-circuits-curve-detectors.html">曲线检测器</a> 之间的小 multiples 权重图。</figcaption>
         </figure>
       
     
@@ -225,7 +231,7 @@
       
     
       
-        <p>虽然我们最常使用特征可视化来可视化单个神经元，但实际上我们可以可视化任何一个方向（即神经元的线性组合）。这为权重可视化打开了一个非常广阔的空间，下面我们将探讨其中几个特别有用的方法。</p>
+        <p>虽然我们最常使用特征可视化来可视化单个神经元，但实际上我们可以可视化任意方向（神经元的线性组合）。这为权重可视化开辟了非常广阔的空间，下面我们将探讨其中几个特别有用的方法。</p>
       
     
       
@@ -234,18 +240,18 @@
       
     
       
-        <p>回想一下，单个神经元的权重形状为 [width, height, input_channels]。上一节我们将 input_channels 分开，分别可视化每个 [width, height] 矩阵。但另一种方法是认为每个空间位置上都存在一个关于输入神经元的向量，然后对每个这样的向量应用特征可视化。你可以将其理解为：它告诉我们该位置的权重整体上在寻找什么。</p>
+        <p>回忆一下，单个神经元的权重形状为 [width, height, input_channels]。上一节我们将 input_channels 拆开，分别可视化每个 [width, height] 矩阵。但另一种方法是认为在每个空间位置上都存在一个关于输入神经元的向量，然后对这些向量分别应用特征可视化。你可以将其理解为：它告诉我们该位置的权重整体在寻找什么。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-visualizing-weights/screenshot_6.png" alt="">
-          <figcaption>6. Left: Feature visualization of a car neuron. Right: Feature visualizations of the vector over input neurons at each spatial position of the car neuron’s weights. As we see, the car neuron broadly responds to window features above wheel features.</figcaption>
+          <figcaption>6. 左图：一个 car 神经元的特征可视化。右图：该 car 神经元权重在每个空间位置上关于输入神经元的向量的特征可视化。如图所示，car 神经元大致对位于车轮特征之上的窗口特征作出响应。</figcaption>
         </figure>
       
     
       
-        <p>这个可视化是 Building Blocks 中 <a href="2018-building-blocks.html">可解释性的基本构建块</a> 的权重版本。它能以高信息密度的方式概览单个神经元的权重在做什么。然而，它无法捕捉一个位置对多个非常不同事物做出响应的情形，比如多面性或多义性神经元。</p>
+        <p>这个可视化对应于 Building Blocks 中 <a href="2018-building-blocks.html">可解释性的基本构建块</a> 的权重版本。它能以高信息密度的方式概览单个神经元的权重在做什么。不过，当某个位置对多个非常不同的事物都有响应时（例如多面性或多义性神经元），它就无法捕捉到这种复杂性。</p>
       
     
       
@@ -254,32 +260,28 @@
       
     
       
-        <p>特征可视化也可以应用于权重的因子分解，这一点我们在前面简要讨论过。这是 Building Blocks 中“神经元组”可视化的权重版本。</p>
+        <p>特征可视化也可以应用于权重的分解，这一点我们在前面曾简要提及。这对应于 Building Blocks 中“Neuron Groups”可视化的权重版本。</p>
       
     
       
-        <p>当你有一组神经元（如 <a href="2020-circuits-frequency-edges.html">高低频检测器</a> 或黑白 vs 彩色检测器），它们大多只在寻找少量因子时，这种方法特别有用。例如，大量的高低频检测器可以被理解为以不同模式组合两个因子——一个高频因子和一个低频因子。</p>
+        <p>当你有一组神经元（如 <a href="2020-circuits-frequency-edges.html">高低频检测器</a> 或黑白 vs 彩色检测器），它们主要在寻找少量因子时，这个方法尤其有用。例如，大量的高低频检测器其实可以相当好地理解为只是用两种因子——高频因子和低频因子——以不同模式进行组合。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-visualizing-weights/neuron-136.png" alt="">
-          <figcaption>7:
-
-          NMF factorization on the weights (excitatory and inhibitory) connecting six high-low frequency detectors in InceptionV1 to the
-          layer conv2d2.</figcaption>
+          <figcaption>7: 对 InceptionV1 中六个高低频检测器与 conv2d2 层之间连接权重（兴奋和抑制部分）的 NMF 分解。</figcaption>
         </figure>
       
     
       
-        <p>这些因子随后可以进一步分解为单个神经元，以便进行更细致的理解。</p>
+        <p>这些因子随后可以被分解为单个神经元，以便进行更细致的理解。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-visualizing-weights/conv2d2-hi.png" alt="">
-          <figcaption>8: Neurons (by their feature visualizations) that contribute to the two NMF factors from Figure 7, plus the weighted amount they contribute to
-          each factor.</figcaption>
+          <figcaption>8: 贡献于图 7 中两个 NMF 因子的神经元（以其特征可视化展示），以及它们对每个因子的加权贡献量。</figcaption>
         </figure>
       
     
@@ -289,18 +291,19 @@
       
     
       
-        <p>正如我们之前提到的，有意义的权重交互有时发生在神经网络中并非字面相邻的神经元之间，或者权重并未直接体现在单个权重张量中。以下是一些例子：</p>
+        <p>正如前面提到的，有意义的权重交互有时发生在神经网络中并非直接相邻的神经元之间，或者权重并未直接体现在单个权重张量中。以下是一些例子：</p>
       
     
       
-        <div class="list-content">在残差网络中，一个神经元的输出可以通过加法残差流，并与网络中更靠后的神经元发生线性交互。
-在深度可分离卷积中，权重被存储为两个或更多因子，需要展开才能连接神经元。
-在瓶颈架构中，瓶颈中的神经元可能主要是来自前一层神经元的低秩投影。
-中间层的行为没有引入太多非线性，使得非相邻层中的两个神经元仍存在显著的线性交互。</div>
+        
+          <ul>
+            <li>在残差网络中，一个神经元的输出可以通过加性残差流与网络中更后方的神经元产生线性交互。</li><li>在可分离卷积中，权重被存储为两个或更多因子，需要展开后才能关联神经元。</li><li>在瓶颈架构中，瓶颈层的神经元可能主要是前一层神经元的低秩投影。</li><li>中间层的行为几乎没有引入非线性，使得两个非相邻层的神经元之间存在显著的线性交互。</li>
+          </ul>
+        
       
     
       
-        <p>因此，我们经常使用“展开权重”——即相邻权重矩阵相乘的结果，可能忽略非线性。我们通常通过对模型求梯度来实现展开权重，将所有非线性操作忽略或替换为最接近的线性操作。</p>
+        <p>因此，我们经常使用“展开权重”（expanded weights）——即相邻权重矩阵相乘的结果，同时可能忽略非线性。我们通常通过对模型求梯度来实现展开权重，将所有非线性操作替换为最接近的线性操作。</p>
       
     
       
@@ -308,12 +311,15 @@
       
     
       
-        <div class="list-content">如果两层之间是线性交互，展开权重将给出真实的线性映射，即使模型并未在单个权重矩阵中显式表示这些权重。
-如果两层之间存在非线性交互，展开权重可以看作是在所有神经元以相等（且独立）概率激活的假设下，梯度的期望值（差一个常数因子）。</div>
+        
+          <ul>
+            <li>如果两层之间是线性交互，展开权重将给出真实的线性映射，即使模型并未在单个权重矩阵中显式表示这些权重。</li><li>如果两层之间存在非线性交互，展开权重可以看作是在所有神经元具有相等（且独立）激活概率的假设下，梯度的期望值（差一个常数因子）。</li>
+          </ul>
+        
       
     
       
-        <p>它们还有一个额外的好处，这更多是实现细节：因为它们是通过梯度实现的，所以你不需要知道权重是如何在模型中表示的。例如，在 TensorFlow 中，你不需要知道哪个变量对象代表权重。当你在处理不熟悉的模型时，这会带来极大的便利！</p>
+        <p>它们还有一个额外的好处，这更多是实现层面的细节：因为它们是通过梯度实现的，你不需要知道权重在模型中是如何表示的。例如在 TensorFlow 中，你不需要知道哪个变量对象代表权重。当你在处理不熟悉的模型时，这会带来极大的便利！</p>
       
     
       
@@ -322,29 +328,29 @@
       
     
       
-        <p>将权重这样展开有时能帮助我们看到更简单的底层结构。例如，<a href="https://microscope.openai.com/models/inceptionv1/mixed3b_0/208" target="_blank" rel="noopener">mixed3b208</a> 是一个黑白中心检测器。它是通过组合多个黑白 vs 彩色检测器构建而成的。</p>
+        <p>以这种方式展开权重有时能帮助我们看到更简单的底层结构。例如，<a href="https://microscope.openai.com/models/inceptionv1/mixed3b_0/208" target="_blank" rel="noopener">mixed3b208</a> 是一个黑白中心检测器。它是通过组合多个黑白 vs 彩色检测器构建而成的。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-visualizing-weights/figure_60.svg" alt="">
-          <figcaption>9. mixed3b 208 along with five neurons from mixed3a that contribute the <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_208.html" target="_blank" rel="noopener">strongest weights</a> to it.</figcaption>
+          <figcaption>9. mixed3b 208 及其来自 mixed3a 的五个对其贡献 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_208.html" target="_blank" rel="noopener">最强权重</a> 的神经元。</figcaption>
         </figure>
       
     
       
-        <p>展开权重让我们看到这些连接的一个重要聚合效应：它们共同寻找的是再往前一层的中心区域缺乏彩色的特征。</p>
+        <p>展开权重让我们能够看到这些连接的一个重要聚合效应：它们共同在前一层更中心的位置寻找颜色的缺失。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-visualizing-weights/figure_62.svg" alt="">
-          <figcaption>10. Top eighteen <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_208.html" target="_blank" rel="noopener">expanded weights</a> from conv2d2 to <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_208.html" target="_blank" rel="noopener">mixed3b208</a>, organized in two rows according to weight factorization.</figcaption>
+          <figcaption>10. 从 conv2d2 到 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_208.html" target="_blank" rel="noopener">mixed3b208</a> 的前十八个 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_208.html" target="_blank" rel="noopener">展开权重</a>，按权重分解组织为两行。</figcaption>
         </figure>
       
     
       
-        <p>这种方法一个特别重要的用途——我们在之前的例子中已经隐含使用过——是跳过“瓶颈层”。瓶颈层是指将通道数大幅压缩（通常在分支中）的网络层，从而使后续的大空间卷积计算成本更低。InceptionV1 的 <a href="https://microscope.openai.com/models/inceptionv1/mixed3a_5x5_bottleneck_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">瓶颈层</a> 就是一个例子。由于大量信息被压缩，这些层往往是多义性的，因此跳过它们并理解与之前更宽广层之间的连接通常会更有帮助。</p>
+        <p>这个方法一个特别重要的用途——我们在前面的例子中已经隐含地使用过——是跳过“瓶颈层”。瓶颈层是将通道数大幅压缩的网络层，通常出现在分支中，从而让后续的大空间卷积计算成本更低。InceptionV1 的 <a href="https://microscope.openai.com/models/inceptionv1/mixed3a_5x5_bottleneck_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">瓶颈层</a> 就是一个例子。由于大量信息被压缩，这些层往往是多义性的，因此跳过它们、直接理解与前一层更宽广层之间的连接通常更有帮助。</p>
       
     
       
@@ -353,31 +359,29 @@
       
     
       
-        <p>当然，当非线性结构很重要时，展开权重可能会产生误导。一个很好的例子是 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a>。回想一下，边界检测器通常同时检测从低频到高频和从高频到低频的转变：</p>
+        <p>当非线性结构很重要时，展开权重当然也可能产生误导。一个很好的例子是 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a>。回想一下，边界检测器通常既能检测从低频到高频的转换，也能检测从高频到低频的转换：</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-visualizing-weights/figure_66.svg" alt="">
-          <figcaption>11. Boundary detectors such as <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_345.html" target="_blank" rel="noopener">mixed3b345</a> detect both low-to-high and high-to-low frequency transitions.</figcaption>
+          <figcaption>11. 像 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_345.html" target="_blank" rel="noopener">mixed3b345</a> 这样的边界检测器既能检测低到高频，也能检测高到低频的转换。</figcaption>
         </figure>
       
     
       
-        <p>由于高低频检测器  在一侧被高频模式激发而在另一侧被抑制（低频则相反），同时检测两个方向会导致展开权重相互抵消！因此，展开权重看起来显示边界检测器既不受两层之前的那些高频检测器激发，也不受其抑制，而实际上它们既受高频激发也受高频抑制，只是取决于具体上下文，且这两种情况相互抵消了。<a href="2020-circuits-frequency-edges.html">高低频检测器</a></p>
+        <p>由于高低频检测器  在一边被高频模式激活而在另一边被抑制（低频检测器则相反），同时检测两个方向会导致展开权重相互抵消！因此，展开权重似乎表明边界检测器既不被两层之前的髙频检测器兴奋，也不被其抑制，而实际上它们既被高频激活也被高频抑制，具体取决于上下文，只是这两种情况相互抵消了。<a href="2020-circuits-frequency-edges.html">高低频检测器</a></p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-visualizing-weights/figure_68.svg" alt="">
-          <figcaption>12.
-
-          Neurons two layers back (such as <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_89.html" target="_blank" rel="noopener">conv2d289</a>) may have a strong influence on the high-low frequency detectors that contribute to mixed3b 345 (top), but that influence washes out when we look at the expanded weights (bottom) directly between conv2d2 89 and mixed3b 345.</figcaption>
+          <figcaption>12. 两层之前的神经元（如 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_89.html" target="_blank" rel="noopener">conv2d289</a>）可能对贡献于 mixed3b 345 的高低频检测器有强烈影响（上图），但当我们直接看 conv2d2 89 和 mixed3b 345 之间的展开权重时（下图），这种影响被抵消了。</figcaption>
         </figure>
       
     
       
-        <p>描述多层交互的更复杂技术可以帮助我们理解这类情况。例如，我们可以确定两个神经元之间“最佳情况”的激发交互（即它们之间能达到的最大梯度）。或者你可以观察特定样本的梯度。或者你可以对许多样本的梯度进行因子分解，以确定主要可能的情况。这些都是有用的技术，但我们将把它们留到未来的文章中讨论。</p>
+        <p>描述多层交互的更复杂技术可以帮助我们理解这类情况。例如，我们可以确定两个神经元之间“最佳情况”的兴奋交互（即它们之间可达到的最大梯度）。或者你可以查看特定样本的梯度。或者你可以对许多样本的梯度进行分解，以确定主要可能的情况。这些都是有用的技术，但我们将把它们留到未来的文章中讨论。</p>
       
     
       
@@ -386,20 +390,19 @@
       
     
       
-        <p>在结束对展开权重的讨论之前，有一个跨越多层的展开权重的定性特性值得一提。展开权重常常会呈现出类似“电子轨道”般的平滑空间结构：</p>
+        <p>在结束对展开权重的讨论之前，有一个跨越多层的定性特性值得一提。展开权重常常呈现出类似“电子轨道”般的平滑空间结构：</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-visualizing-weights/figure_72.svg" alt="">
-          <figcaption>13. Smooth spatial structure of some expanded weights from <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_268.html" target="_blank" rel="noopener">mixed3b268</a> to conv2d1.
-
-          Although the exact structures present may vary from neuron to neuron, this example is not cherry-picked: this smoothness is typical of most multiple-layer expanded weights.</figcaption>
+          <figcaption>13. 从 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_268.html" target="_blank" rel="noopener">mixed3b268</a> 到 conv2d1 之间部分展开权重的平滑空间结构。
+尽管具体结构可能因神经元而异，但这个例子并非特意挑选：这种平滑性在大多数多层展开权重中都很典型。</figcaption>
         </figure>
       
     
       
-        <p>目前尚不清楚如何解释这一现象，但它暗示着在多层尺度上存在丰富的空间结构。</p>
+        <p>我们目前还不清楚如何解释这一现象，但它暗示在多层尺度上存在丰富的空间结构。</p>
       
     
       
@@ -408,23 +411,23 @@
       
     
       
-        <p>到目前为止，我们已经解决了上下文化和间接交互的挑战。但对于第三个挑战——维度与规模——我们只给予了少量关注。神经网络包含许多神经元，每个神经元又连接到许多其他神经元，产生了海量的权重。我们如何挑选哪些神经元之间的连接来观察呢？</p>
+        <p>到目前为止，我们已经解决了上下文化和间接交互的挑战。但对于第三个挑战——维度与规模——我们只给予了少量关注。神经网络包含大量神经元，每个神经元又连接到许多其他神经元，产生了海量的权重。我们如何选择要查看哪些神经元之间的连接呢？</p>
       
     
       
-        <p>在本文中，我们将“想研究哪些神经元”这个问题放在讨论范围之外，只讨论挑选哪些连接来研究的问题。（我们可能试图全面研究一个模型，这时需要研究所有神经元。但也可能，例如，我们只想研究那些与模型行为某个更窄方面相关的神经元。）</p>
+        <p>在本文的讨论范围内，我们将“想研究哪些神经元”的问题放在讨论范围之外，只讨论挑选要研究哪些连接的问题。（我们可能试图全面研究一个模型，此时就需要研究所有神经元。但我们也可能只想研究与模型行为某个较窄方面相关的神经元。）</p>
       
     
       
-        <p>一般来说，我们选择观察幅度最大的权重，就像我们在上下文化那一节开头所做的那样。不幸的是，通常存在大量小权重构成的长尾，在某个点之后继续观察它们通常变得不切实际。这些小权重里究竟隐藏着多少重要信息？我们不知道，但多义性神经元表明这里可能隐藏着非常重要且微妙的故事！有人希望稀疏神经网络能通过消除小权重来大大改善这个问题，但是否能将这类结论推广到非稀疏网络，目前仍是推测性的。</p>
+        <p>通常，我们选择查看幅度最大的权重，就像我们在上下文化那一节开头所做的那样。不幸的是，小权重通常存在长尾分布，在某个阶段继续查看它们会变得不切实际。这些小权重中到底隐藏了多少故事？我们不知道，但多义性神经元表明这里可能隐藏着非常重要且微妙的故事！有人希望稀疏神经网络能显著改善这一问题，因为它会消除小权重，但目前关于非稀疏网络是否能得出类似结论仍属于推测。</p>
       
     
       
-        <p>我们曾经简要提及的另一种策略是将权重降维成几个成分，然后研究这些因子（例如使用 NMF）。通常，极少数的成分就能解释大部分方差。事实上，有时少量因子就能解释一整组神经元的权重！显著的例子包括高低频检测器（我们之前已经看到过）和黑白 vs 彩色检测器。</p>
+        <p>我们之前偶尔提到的另一种策略是将权重分解为少数几个成分，然后研究这些因子（例如使用 NMF）。通常，极少数成分就能解释大部分方差。事实上，有时少量因子就能解释一整组神经元的权重！典型的例子包括我们前面看到的高低频检测器，以及黑白 vs 彩色检测器。</p>
       
     
       
-        <p>然而，这种方法也有缺点。首先，这些成分可能更难理解，甚至可能是多义性的。例如，如果你对一个边界检测器应用这个方法的基本版本，其中一个成分会同时包含高到低频和低到高频的检测器，这会使其难以分析。其次，你的因子不再与激活函数对齐，这会让分析变得更加混乱。最后，因为你将在一个不同的基底下对每个神经元进行推理，所以除非你把成分转换回神经元，否则很难构建关于模型的全局视角。</p>
+        <p>然而，这种方法也有缺点。首先，这些成分本身可能更难理解，甚至是多义的。例如，如果你对边界检测器应用这个方法的基本版本，其中一个成分会同时包含高到低频和低到高频的检测器，这会给分析带来困难。其次，你的因子不再与激活函数对齐，这会让分析变得更加混乱。最后，因为你是在一个不同的基底下对每个神经元进行推理，除非你把成分转换回神经元，否则很难构建起关于模型的全局视角。</p>
       
     
       
@@ -435,7 +438,7 @@
       
     
       
-        <p>本文是 <a href="2020-circuits.html">线程：电路</a> 的一部分，该系列以实验性形式汇集了受邀的短文和批判性评论，深入探讨神经网络的内部工作机制。</p>
+        <p>本文是 <a href="2020-circuits.html">线程：电路</a> 的一部分，该专题以实验性形式收集受邀的短文和批判性评论，深入探讨神经网络的内部工作机制。</p>
       
     
       

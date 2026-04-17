@@ -10,6 +10,11 @@
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Distill.pub</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -30,15 +35,15 @@
   <div class="article-content">
     
       
-        <p>Grand Tour<cite>[asimov1985grand]</cite> 是一种经典的高维点云可视化技术，它将高维数据集投影到二维空间。
+        <p>Grand Tour<cite>(Asimov, 1985)</cite> 是一种经典的高维点云可视化技术，它能将高维数据集投影到二维空间。
 
-随着时间的推移，Grand Tour 会平滑地动画其投影过程，让观察者（最终）看到数据集的每一个可能视角。
+随着时间推移，Grand Tour 会平滑地动画其投影过程，最终向观察者展示数据集的每一个可能视角。
 
-与 t-SNE<cite>[maaten2008visualizing]</cite> 和 UMAP<cite>[mcinnes2018umap]</cite> 等现代非线性投影方法不同，Grand Tour 本质上是一种线性方法。
+与现代非线性投影方法如 t-SNE<cite>(Maaten et al., 2008)</cite> 和 UMAP<cite>(McInnes et al., 2018)</cite> 不同，Grand Tour 从本质上是一种线性方法。
 
-本文将展示如何利用 Grand Tour 的线性特性，来实现一系列特别适合可视化神经网络行为的功能。
+本文将展示如何利用 Grand Tour 的线性特性，实现一系列专用于可视化神经网络行为的功能。
 
-具体来说，我们介绍了三个有价值的用例：随着网络权重变化而可视化训练过程、随着数据在网络中流动而可视化层与层之间的行为，以及同时可视化对抗样本<cite>[szegedy2013intriguing]</cite>的生成过程以及它们如何欺骗神经网络。</p>
+具体而言，我们介绍了三种实用场景：随着网络权重变化而可视化训练过程、随着数据在网络中流动而可视化层与层之间的行为，以及同时可视化对抗样本<cite>(Szegedy et al., 2013)</cite> 的生成过程及其如何欺骗神经网络。</p>
       
     
       
@@ -47,31 +52,31 @@
       
     
       
-        <p>深度神经网络常常在 ImageNet 大规模视觉识别挑战（ILSVRC）<cite>[ILSVRC15]</cite> 等监督学习竞赛中取得顶尖性能。
+        <p>深度神经网络常常在 ImageNet 大规模视觉识别挑战（ILSVRC）<cite>(Russakovsky et al., 2015)</cite> 等监督学习竞赛中取得一流性能。
 
-遗憾的是，它们的决策过程 notoriously 难以解释<cite>[lipton2016mythos]</cite>，训练过程也常常难以调试<cite>[wongsuphasawat2018visualizing]</cite>。
+遗憾的是，它们的决策过程 notoriously 难以解释<cite>(Lipton, 2016)</cite>，训练过程也常常难以调试<cite>(Wongsuphasawat et al., 2018)</cite>。
 
-本文提出了一种可视化神经网络响应的方法，它同时利用了深度神经网络的特性与 Grand Tour 的性质。
+本文提出了一种可视化神经网络响应方法，该方法同时利用了深度神经网络的特性和 Grand Tour 的特性。
 
-值得注意的是，我们的方法能让我们更直接地思考数据变化与可视化结果变化之间的关系<cite>[kindlmann2014algebraic]</cite>。
+值得注意的是，我们的方法能让我们更直接地分析数据变化与可视化结果变化之间的关系<cite>(Kindlmann et al., 2014)</cite>。
 
-正如我们将要展示的，这种数据与可视化之间的对应关系是我们提出方法的核心，尤其与 UMAP 和 t-SNE 等其他非线性投影方法相比时更是如此。</p>
+正如我们将要展示的，这种数据-可视化对应关系是本文方法的核心，尤其与 UMAP 和 t-SNE 等其他非线性投影方法相比时更是如此。</p>
       
     
       
-        <p>为了理解神经网络，我们通常会观察它在输入样本（包括真实和合成的样本）<cite>[olah2017feature]</cite>上的行为。
+        <p>为了理解神经网络，我们通常会观察它在输入样本（包括真实和合成的样本）<cite>(Olah et al., 2017)</cite> 上的行为。
 
-这类可视化有助于阐明神经网络对单个样本的激活模式，但对于不同样本之间、训练过程中网络不同状态之间，以及样本数据如何流经网络不同层之间的关系，它们提供的洞见可能较少。
+这类可视化有助于阐明单个样本的激活模式，但对于不同样本之间、网络在训练中不同状态之间，或数据如何在单个网络的不同层中流动等方面的关系，提供的信息可能较少。
 
-因此，我们转而希望能够可视化感兴趣对象周围的上下文：当前训练轮次与下一轮次之间有什么区别？当图像通过网络时，网络的分类结果是如何收敛（或发散）的？
+因此，我们转而致力于可视化感兴趣对象周围的上下文：当前训练轮次与下一轮次之间有什么差异？当图像通过网络时，网络的分类结果是如何收敛（或发散）的？
 
-线性方法很有吸引力，因为它们特别容易理解。
+线性方法之所以有吸引力，是因为它们特别易于分析。
 
-Grand Tour 的工作原理是生成一个随机的、平滑变化的数据集旋转，然后将数据投影到二维屏幕上：这两个过程都是线性的。
+Grand Tour 通过生成一个随机的、平滑变化的数据集旋转，然后将数据投影到二维屏幕上来工作：这两者都是线性过程。
 
-虽然深度神经网络显然不是线性过程，但它们通常将非线性部分限制在一小组操作中，这使得我们仍然能够理解其行为。
+虽然深度神经网络显然不是线性过程，但它们通常将非线性限制在一小部分操作中，这使我们仍然能够分析其行为。
 
-我们提出的方法通过提供更高的**一致性**来更好地保留上下文：如果数据以特定方式发生变化，我们应该能够知道可视化结果会如何变化。</p>
+我们提出的方法通过提供更高的连续性来更好地保留上下文：如果数据以特定方式发生变化，我们应该能够知道可视化结果将如何变化。</p>
       
     
       
@@ -80,11 +85,11 @@ Grand Tour 的工作原理是生成一个随机的、平滑变化的数据集旋
       
     
       
-        <p>为了展示我们将要介绍的技术，我们使用三个常用的图像分类数据集训练了深度神经网络模型（DNN）：MNIST<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>、fashion-MNIST<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup> 和 CIFAR-10<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>。虽然我们的网络架构比当前主流的 DNN 更简单和更小，但它仍然能代表现代网络的特征，并且足够复杂，能够同时展示我们提出的技术和典型方法的不足之处。</p>
+        <p>为了说明我们将要介绍的技术，我们使用 3 个常用的图像分类数据集训练了深度神经网络模型（DNNs）：MNIST<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>、fashion-MNIST<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup> 和 CIFAR-10<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>。虽然我们的网络架构比当前 DNN 更简单且更小，但它仍然能够代表现代网络的特征，并且足够复杂，能够同时展示我们提出的技术和典型方法的不足之处。</p>
       
     
       
-        <p>下图展示了本文将使用的神经网络的简单功能框图。该神经网络由一系列线性层（包括卷积层<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup>和全连接层<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup>）、最大池化层和 ReLU<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup> 层组成，最后以一个 softmax<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup> 层结束。</p>
+        <p>下图展示了本文中将使用的神经网络的简单功能框图。该神经网络由一系列线性层（包括卷积层<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup>和全连接层<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup>）、最大池化层和 ReLU<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup> 层组成，最后以一个 softmax<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup> 层结束。</p>
       
     
       
@@ -95,25 +100,25 @@ Grand Tour 的工作原理是生成一个随机的、平滑变化的数据集旋
       
     
       
-        <p>打开的神经网络。彩色块是构建模块函数（即神经网络层），灰度热力图则是输入图像或经过某些层后的中间激活向量。</p>
+        <p>打开的神经网络。彩色块是基本构建函数（即神经网络层），灰度热力图则是输入图像或经过某些层后的中间激活向量。</p>
       
     
       
-        <p>尽管神经网络能够完成令人惊叹的分类任务，但究其本质，它们不过是一系列相对简单的函数组成的流水线。
+        <p>尽管神经网络能够完成令人惊叹的分类任务，但本质上，它们只是由相对简单的函数组成的流水线。
 对于图像来说，输入是灰度图像的标量值二维数组，或彩色图像的 RGB 三元组。
 必要时，总可以将二维数组展平为等价的 <span class="math-inline" data-math="w \cdot h \cdot c">w \cdot h \cdot c</span> 维向量。
-同样，经过组合中任意一个函数之后，或某一层神经元激活之后得到的中间值，也可以看作 <span class="math-inline" data-math="\mathbb{R}^n">\mathbb{R}^n</span> 空间中的向量，其中 <span class="math-inline" data-math="n">n</span> 是该层的神经元数量。
-例如，softmax 可以看作一个 10 维向量，其中的值是正实数且总和为 1。
-这种将神经网络中的数据视为向量的视角，不仅能让我们以数学上紧凑的形式表示复杂数据，还能提示我们如何更好地可视化它们。</p>
+类似地，经过组合中任意一个函数之后或某一层之后神经元的激活值，也可以看作 <span class="math-inline" data-math="\mathbb{R}^n">\mathbb{R}^n</span> 空间中的向量，其中 <span class="math-inline" data-math="n">n</span> 是该层的神经元数量。
+例如，softmax 可以看作一个 10 维向量，其值是和为 1 的正实数。
+这种将神经网络中的数据视为向量的视角，不仅让我们能够以数学上紧凑的形式表示复杂数据，还暗示我们如何更好地将它们可视化。</p>
       
     
       
-        <p>大多数简单函数可以分为两类：它们要么是对输入的线性变换（如全连接层或卷积层），要么是在每个分量上独立作用的相对简单的非线性函数（如 sigmoid 激活<sup id="fnref-f8n"><a href="#f8n">[8]</a></sup>或 ReLU 激活）。
-某些操作，特别是最大池化<sup id="fnref-f9n"><a href="#f9n">[9]</a></sup>和 softmax，并不属于这两类。我们稍后会再讨论这一点。</p>
+        <p>大多数简单函数可分为两类：它们要么是对输入的线性变换（如全连接层或卷积层），要么是按分量工作的相对简单的非线性函数（如 sigmoid 激活<sup id="fnref-f8n"><a href="#f8n">[8]</a></sup> 或 ReLU 激活）。
+某些操作，特别是最大池化<sup id="fnref-f9n"><a href="#f9n">[9]</a></sup> 和 softmax，则不属于这两类。我们稍后会再讨论这一点。</p>
       
     
       
-        <p>上图帮助我们一次查看单个图像；然而，它无法提供足够的上下文来理解层之间、不同样本之间或不同类别标签之间的关系。为此，研究者们通常会转向更复杂的可视化方法。</p>
+        <p>上图帮助我们一次观察单个图像；然而，它并没有提供足够的上下文来理解层之间、不同样本之间或不同类别标签之间的关系。为此，研究者们通常会转向更复杂的可视化手段。</p>
       
     
       
@@ -122,10 +127,10 @@ Grand Tour 的工作原理是生成一个随机的、平滑变化的数据集旋
       
     
       
-        <p>让我们先考虑可视化 DNN 训练过程的问题。
-在训练神经网络时，我们通过某种形式的梯度下降来优化函数中的参数，以最小化一个标量损失函数。
-我们希望损失持续下降，因此会监控整个训练和测试损失在各训练轮次（即“epoch”）中的历史记录，以确保损失随时间降低。
-下图显示了 MNIST 分类器训练损失的折线图。</p>
+        <p>让我们首先考虑可视化 DNN 训练过程的问题。
+在训练神经网络时，我们会优化函数中的参数以最小化一个标量损失函数，通常通过某种形式的梯度下降来实现。
+我们希望损失不断下降，因此会监控整个训练和测试损失在各轮训练（即“epoch”）中的历史，以确保损失随时间减少。
+下图展示了 MNIST 分类器训练损失的折线图。</p>
       
     
       
@@ -136,7 +141,7 @@ Grand Tour 的工作原理是生成一个随机的、平滑变化的数据集旋
       
     
       
-        <p>虽然其总体趋势符合预期——损失稳步下降，但我们在第 14 和 21 个 epoch 附近看到了一些奇怪的现象：曲线几乎变平，然后才再次下降。
+        <p>虽然其总体趋势符合我们的预期——损失稳步下降，但在第 14 和 21 个 epoch 附近出现了一些奇怪的现象：曲线几乎变平，然后才再次下降。
 发生了什么？是什么导致了这种情况？</p>
       
     
@@ -148,35 +153,38 @@ Grand Tour 的工作原理是生成一个随机的、平滑变化的数据集旋
       
     
       
-        <p>如果我们按照真实标签/类别将输入样本分开，并绘制每个类别的损失（如上图所示），我们会发现两次下降分别是由类别 1 和 7 引起的；模型在训练过程中学习不同类别的时间差异很大。
-虽然网络很早就学会了识别数字 0、2、3、4、5、6、8 和 9，但直到第 14 个 epoch 才开始成功识别数字 1，直到第 21 个 epoch 才识别出数字 7。
-如果我们事先知道要关注特定类别的错误率，那么这张图表现得很好。但如果我们并不清楚应该寻找什么呢？</p>
+        <p>如果我们按真实标签/类别将输入样本分开，并像上图那样绘制每个类别的损失，我们会发现两次下降分别是由类别 1 和 7 引起的；模型在训练过程中学习不同类别的时间差异很大。
+虽然网络很早就学会了识别数字 0、2、3、4、5、6、8 和 9，但直到第 14 个 epoch 才开始成功识别数字 1，直到第 21 个 epoch 才识别数字 7。
+如果我们事先知道要关注类别特定的错误率，那么这张图表现良好。但如果我们并不清楚要寻找什么呢？</p>
       
     
       
-        <p>在这种情况下，我们可以考虑一次性可视化所有样本的神经元激活值（例如在最后的 softmax 层），以寻找类似类别特定行为之类的模式。
-如果该层只有两个神经元，一个简单的二维散点图就够用了。
+        <p>在这种情况下，我们可以考虑一次性可视化所有样本的神经元激活（例如在最后的 softmax 层），以寻找类别特定行为等模式。
+如果该层只有两个神经元，一个简单的二维散点图就能工作。
 然而，我们示例数据集中 softmax 层的点是 10 维的（在更大规模的分类问题中这个数字可能大得多）。
-我们需要么一次显示两个维度（随着可能的图表数量呈二次增长，这并不容易扩展），要么使用降维技术将数据映射到二维空间并在一个图中显示。</p>
+我们需要么一次显示两个维度（随着可能图表数量的平方增长，这种方法扩展性不佳），要么使用降维技术将数据映射到二维空间并在一个图中显示它们。</p>
       
     
       
-        <h3>最先进的降维方法是非线性的</h3>
+        <h3>最先进的降维技术是非线性的</h3>
         
       
     
       
-        <p>现代降维技术如 t-SNE 和 UMAP 能够实现令人印象深刻的总结能力，能生成二维图像，让相似的点非常有效地聚类在一起。
-然而，这些方法在细粒度上理解神经元激活行为方面并不特别擅长。
-考虑前面提到的 MNIST 分类器在数字 1 和 7 上学习速度不同的有趣特性：网络直到第 14 个 epoch 才学会识别数字 1，直到第 21 个 epoch 才学会识别数字 7。
-我们计算了现象发生时期各 epoch 的 t-SNE、Dynamic t-SNE<cite>[rauber2016visualizing]</cite> 和 UMAP 投影。
-现在考虑在训练过程中识别这种类别特定行为的任务。提醒一下，在这个例子中，奇怪的行为发生在数字 1 和 7 上，分别大约在第 14 和 21 个 epoch。
-虽然这种行为并不特别隐蔽——数字从被错误分类变为被正确分类——但在下面任何一张图中都很难注意到它。
-只有经过仔细观察，我们才能注意到（例如）在 UMAP 图中，第 13 个 epoch 中聚集在底部的数字 1，在第 14 个 epoch 变成了一个新的触角状特征。</p>
+        <p>现代降维技术如 t-SNE 和 UMAP 能够实现令人印象深刻的总结效果，生成的二维图像中相似点会非常有效地聚类在一起。
+然而，这些方法在细粒度上理解神经元激活行为方面表现并不特别好。
+回想前面提到的 MNIST 分类器在数字 1 和 7 上学习速率不同的有趣现象：网络直到第 14 个 epoch 才学会识别数字 1，直到第 21 个 epoch 才学会识别数字 7。
+我们计算了该现象发生时期各 epoch 的 t-SNE、Dynamic t-SNE<cite>(Rauber et al., 2016)</cite> 和 UMAP 投影。
+现在考虑在训练过程中识别这种类别特定行为的任务。提醒一下，在本例中，奇怪的行为分别发生在数字 1（约第 14 个 epoch）和数字 7（约第 21 个 epoch）。
+虽然这种行为并不特别微妙——数字从错误分类变为正确分类——但在下面任何图表中都很难注意到它。
+只有经过仔细观察，我们才能注意到（例如）在 UMAP 图中，第 13 个 epoch 聚类在底部的数字 1 在第 14 个 epoch 变成了一个新的触角状特征。</p>
       
     
       
-        <p>[交互图 — 查看原文：https://distill.pub/2020/grand-tour]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2020/grand-tour" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
@@ -184,33 +192,39 @@ Grand Tour 的工作原理是生成一个随机的、平滑变化的数据集旋
       
     
       
-        <p>非线性嵌入无法阐明这一现象的一个原因是，对于特定的数据变化，它们未能遵循**数据-可视化对应**原则<cite>[kindlmann2014algebraic]</cite>。更具体地说，该原则指出，特定的可视化任务应被建模为改变数据的函数；可视化将这种变化从数据传递到视觉，我们可以研究可视化变化在多大程度上容易被感知。
-理想情况下，我们希望数据变化与可视化变化在幅度上匹配：可视化中几乎察觉不到的变化应该对应数据中最小的变化，而可视化中显著的变化应该反映数据中显著的变化。
-在这里，只有部分数据发生了显著变化（例如从第 13 到 14 个 epoch 的所有数字 1 的点），但可视化中所有点都发生了剧烈移动。
-对于 UMAP 和 t-SNE 来说，每个单独点的最终位置都以非平凡的方式依赖于整个数据分布。
-这个特性对于可视化来说并不理想，因为它未能满足数据-可视化对应原则，使得我们很难从可视化变化推断出底层的数据变化。</p>
+        <p>非线性嵌入无法阐明这一现象的原因之一是，对于特定的数据变化，它们未能遵循数据-可视化对应原则<cite>(Kindlmann et al., 2014)</cite>。更具体地说，该原则指出，特定的可视化任务应被建模为改变数据的函数；可视化将这种变化从数据传递到视觉，我们可以研究可视化变化在多大程度上容易被感知。
+理想情况下，我们希望数据和可视化的变化在幅度上匹配：可视化中几乎难以察觉的变化应该对应数据中最小的可能变化，而可视化中显著的变化应该反映数据中的重大变化。
+在这里，只有数据的一个子集发生了显著变化（例如从第 13 到 14 个 epoch 的所有数字 1 的点），但可视化中所有点都发生了剧烈移动。
+对于 UMAP 和 t-SNE 而言，每个单一点的位置在这种嵌入算法中都以非平凡的方式依赖于整个数据分布。
+这种特性对可视化并不理想，因为它未能满足数据-可视化对应原则，使得我们很难从可视化的变化推断出底层的数据变化。</p>
       
     
       
         <p>具有非凸目标的非线性嵌入也往往对初始条件敏感。
 例如，在 MNIST 中，虽然神经网络在第 30 个 epoch 开始趋于稳定，但 t-SNE 和 UMAP 在第 30、31 和 32 个 epoch（实际上一直到 99）之间仍然生成相当不同的投影。
-时间正则化技术（如 Dynamic t-SNE）缓解了这些一致性问题，但仍存在其他可解释性问题<cite>[wattenberg2016use]</cite>。</p>
+时间正则化技术（如 Dynamic t-SNE）缓解了这些一致性问题，但仍然存在其他可解释性问题<cite>(Wattenberg et al., 2016)</cite>。</p>
       
     
       
-        <p>[交互图 — 查看原文：https://distill.pub/2020/grand-tour]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2020/grand-tour" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
         <p>现在，让我们考虑另一个任务：识别神经网络容易混淆的类别。
-在这个例子中，我们将使用 Fashion-MNIST 数据集和分类器，考虑凉鞋、运动鞋和短靴之间的混淆。
-如果我们事先知道这三个类别很可能让分类器感到困惑，那么我们可以直接设计一个合适的线性投影，如下图最后一行所示（我们通过 Grand Tour 和后面要描述的直接操纵技术找到了这个特定的投影）。这种情况下的模式非常明显，形成了一个三角形。
-相比之下，t-SNE 错误地分离了类别簇（可能是因为选择了不合适的超参数）。
-UMAP 成功地将三个类别隔离开来，但即使在这种情况下，也无法区分第 5 和 10 个 epoch 中分类器的三向混淆（在线性方法中表现为三角形中心附近存在点），以及后续 epoch 中的多个双向混淆（表现为“空的”中心）。</p>
+对于这个例子，我们将使用 Fashion-MNIST 数据集和分类器，考察凉鞋、运动鞋和短靴之间的混淆。
+如果我们事先知道这三个类别可能会使分类器混淆，那么我们可以直接设计一个合适的线性投影，如下图最后一行所示（我们使用 Grand Tour 和后面将描述的直接操纵技术找到了这个特定的投影）。这种情况下的模式非常显著，形成了一个三角形。
+相比之下，t-SNE 错误地将类别簇分开（可能是由于选择了不合适的超参数）。
+UMAP 成功地将三个类别分离开来，但即使在这种情况下，也无法区分第 5 和第 10 个 epoch 中分类器的三向混淆（线性方法中表现为三角形中心附近存在点），以及后续 epoch 中的多个双向混淆（表现为“空”的中心）。</p>
       
     
       
-        <p>[交互图 — 查看原文：https://distill.pub/2020/grand-tour]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2020/grand-tour" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
@@ -218,26 +232,29 @@ UMAP 成功地将三个类别隔离开来，但即使在这种情况下，也无
       
     
       
-        <h2>线性方法来救场</h2>
+        <h2>线性方法来帮忙</h2>
         
       
     
       
-        <p>因此，当有机会时，我们应该优先选择那些数据变化能产生可预测、视觉上显著的结果变化的方法，而线性降维通常具有这种特性。
+        <p>因此，当有机会时，我们应该优先选择那些数据变化能产生可预测、视觉显著的结果变化的方法，而线性降维通常具有这一特性。
 在这里，我们在一个界面中重新访问上面描述的线性投影，用户可以轻松地在不同训练 epoch 之间导航。
-此外，我们还引入了另一种仅线性方法才具有的有用能力，即**直接操纵**。
-从 <span class="math-inline" data-math="n">n</span> 维到 <span class="math-inline" data-math="2">2</span> 维的每个线性投影都可以用 <span class="math-inline" data-math="n">n</span> 个二维向量来表示，这些向量有一个直观的解释：它们是 <span class="math-inline" data-math="n">n</span> 维空间中的 <span class="math-inline" data-math="n">n</span> 个规范基向量将被投影到的向量。
-在投影最终分类层的背景下，这一点特别容易解释：它们是 100% 置信度被分类为某个特定类别的输入的落点。
+此外，我们引入了另一种仅线性方法才具备的有用功能，即直接操纵。
+从 <span class="math-inline" data-math="n">n</span> 维到 <span class="math-inline" data-math="2">2</span> 维的每个线性投影都可以用 <span class="math-inline" data-math="n">n</span> 个二维向量来表示，这些向量具有直观的解释：它们是 <span class="math-inline" data-math="n">n</span> 维空间中 <span class="math-inline" data-math="n">n</span> 个标准基向量将被投影到的向量。
+在投影最终分类层的背景下，这一点特别容易解释：它们是 100% 置信地被分类为某一特定类别的输入的目标位置。
 如果我们为用户提供通过拖动用户界面手柄来改变这些向量的能力，那么用户就可以直观地设置新的线性投影。</p>
       
     
       
         <p>这种设置提供了额外的好特性，能够解释前面插图中的显著模式。
-例如，由于投影是线性的，且分类层中向量的系数之和为 1，因此在两个类别之间有 50% 置信度的分类输出会被投影到两个类别手柄中间的向量上。</p>
+例如，由于投影是线性的，且分类层中向量的系数之和为 1，因此在两个类别之间具有一半置信度的分类输出会被投影到两个类别手柄之间的中点向量上。</p>
       
     
       
-        <p>[交互图 — 查看原文：https://distill.pub/2020/grand-tour]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2020/grand-tour" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
@@ -281,13 +298,16 @@ UMAP 成功地将三个类别隔离开来，但即使在这种情况下，也无
       
     
       
-        <p>的学习情况
-这一特性在下面的 Fashion-MNIST 示例中得到了清晰的展示。
-模型将凉鞋、运动鞋和短靴相互混淆，在 softmax 层中数据点形成了三角形。</p>
+        <p>的学习情况。
+这个特性在下面的 Fashion-MNIST 示例中得到了清晰的展示。
+模型混淆了凉鞋、运动鞋和短靴，因为数据点在 softmax 层形成了三角形。</p>
       
     
       
-        <p>[交互图 — 查看原文：https://distill.pub/2020/grand-tour]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2020/grand-tour" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
@@ -303,11 +323,11 @@ UMAP 成功地将三个类别隔离开来，但即使在这种情况下，也无
       
     
       
-        <p>凉鞋</p>
+        <p>凉鞋、</p>
       
     
       
-        <p>、运动鞋</p>
+        <p>运动鞋</p>
       
     
       
@@ -328,15 +348,15 @@ UMAP 成功地将三个类别隔离开来，但即使在这种情况下，也无
       
     
       
-        <p>显示了关于</p>
+        <p>显示了</p>
       
     
       
-        <p>套头衫</p>
+        <p>套头衫、</p>
       
     
       
-        <p>、外套</p>
+        <p>外套</p>
       
     
       
@@ -348,7 +368,7 @@ UMAP 成功地将三个类别隔离开来，但即使在这种情况下，也无
       
     
       
-        <p>的真实三向混淆。
+        <p>之间的真实三向混淆。
 （</p>
       
     
@@ -357,7 +377,7 @@ UMAP 成功地将三个类别隔离开来，但即使在这种情况下，也无
       
     
       
-        <p>也会与</p>
+        <p>也与</p>
       
     
       
@@ -365,25 +385,28 @@ UMAP 成功地将三个类别隔离开来，但即使在这种情况下，也无
       
     
       
-        <p>相互混淆。）
+        <p>混淆。）
 这两个投影都是通过直接操纵找到的。</p>
       
     
       
         <p>落在类别之间的样本表明模型难以区分两者，例如凉鞋与运动鞋、运动鞋与短靴。
-不过请注意，凉鞋与短靴之间的混淆并不那么严重：在两个类别之间没有多少样本。
-此外，大多数数据点都被投影到三角形的边缘附近。
+然而，请注意凉鞋与短靴之间的这种情况并不多：很少有样本落在这两个类别之间。
+此外，大多数数据点被投影到靠近三角形边缘的位置。
 这告诉我们，大多数混淆发生在三个类别中的两个之间，它们实际上是双向混淆。
 
-在同一数据集中，我们也可以看到套头衫、外套和衬衫填充了一个三角形平面。
-这与凉鞋-运动鞋-短靴的情况不同，因为样本不仅落在三角形的边界上，还落在其内部：这是一个真实的三向混淆。
+在同一数据集中，我们还能看到套头衫、外套和衬衫填满了一个三角形平面。
+这与凉鞋-运动鞋-短靴的情况不同，因为样本不仅落在三角形的边界上，还出现在其内部：这是一个真实的三向混淆。
 
 类似地，在 CIFAR-10 数据集中我们可以看到狗和猫、飞机和船之间的混淆。
-CIFAR-10 中的混合模式不如 fashion-MNIST 清晰，因为被错误分类的样本要多得多。</p>
+CIFAR-10 中的混合模式不如 Fashion-MNIST 清晰，因为有更多的样本被错误分类。</p>
       
     
       
-        <p>[交互图 — 查看原文：https://distill.pub/2020/grand-tour]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2020/grand-tour" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
@@ -420,7 +443,7 @@ CIFAR-10 中的混合模式不如 fashion-MNIST 清晰，因为被错误分类�
       
     
       
-        <p>显示了关于</p>
+        <p>显示了</p>
       
     
       
@@ -436,7 +459,7 @@ CIFAR-10 中的混合模式不如 fashion-MNIST 清晰，因为被错误分类�
       
     
       
-        <p>的混淆。
+        <p>之间的混淆。
 这两个投影都是通过直接操纵找到的。</p>
       
     
@@ -446,30 +469,35 @@ CIFAR-10 中的混合模式不如 fashion-MNIST 清晰，因为被错误分类�
       
     
       
-        <p>在前面的部分中，我们利用了我们知道要可视化哪些类别这一事实。
-这意味着为手头的特定任务设计线性投影是容易的。
-但如果我们事先不知道应该选择哪个投影，因为我们并不清楚要寻找什么呢？
+        <p>在前一节中，我们利用了已知要可视化哪些类别的优势。
+这意味着针对手头特定任务设计线性投影是容易的。
+但如果我们事先不知道该选择哪种投影，因为我们并不清楚要寻找什么呢？
 主成分分析（PCA）是最典型的线性降维方法，
 它选择投影数据以尽可能保留最多的方差。
-然而，softmax 层中数据的分布往往在许多轴方向上具有相似的方差，因为每个轴周围都集中了数量相似的样本。<sup id="fnref-f10n"><a href="#f10n">[10]</a></sup>
-结果，虽然 PCA 投影在整个训练过程中具有可解释性和一致性，但 softmax 激活的前两个主成分并不比第三个好多少。
+然而，softmax 层中数据的分布往往在许多轴方向上具有相似的方差，因为每个轴都集中了相似数量的样本围绕类别向量。<sup id="fnref-f10n"><a href="#f10n">[10]</a></sup>
+结果，尽管 PCA 投影在整个训练过程中是可解释且一致的，但 softmax 激活的前两个主成分并不比第三个好多少。
 那么我们应该选择哪一个呢？
-我们没有使用 PCA，而是提出通过平滑动画随机投影来可视化这些数据，这种技术称为 Grand Tour<cite>[asimov1985grand]</cite>。</p>
+我们不采用 PCA，而是建议通过平滑动画随机投影来可视化这些数据，这种技术称为 Grand Tour<cite>(Asimov, 1985)</cite>。</p>
       
     
       
-        <p>从一个随机的初始速度开始，它在高维空间中围绕原点平滑地旋转数据点，然后将其投影到二维进行显示。
-以下是一些 Grand Tour 在一些（低维）对象上作用的例子：</p>
+        <p>从一个随机速度开始，它在高维空间中围绕原点平滑地旋转数据点，然后将其投影到 2D 以供显示。
+以下是一些 Grand Tour 对某些（低维）对象作用的示例：</p>
       
     
       
-        <div class="list-content">在正方形上，Grand Tour 以恒定的角速度旋转它。
-在立方体上，Grand Tour 在三维中旋转它，其二维投影让我们看到立方体的每一个面。
-在 4D 立方体（超正方体）上，旋转发生在四维空间中，二维视图显示每一种可能的投影。</div>
+        
+          <ul>
+            <li>对于正方形，Grand Tour 以恒定角速度旋转它。</li><li>对于立方体，Grand Tour 在 3D 中旋转它，其 2D 投影让我们看到立方体的每一个面。</li><li>对于 4D 立方体（超立方体），旋转发生在 4D 中，2D 视图显示每一种可能的投影。</li>
+          </ul>
+        
       
     
       
-        <p>[交互图：正方形、立方体和超正方体的 Grand Tour — 查看原文：https://distill.pub/2020/grand-tour]</p>
+        <div class="interactive-placeholder">
+          <strong>[正方形、立方体和超立方体的 Grand Tour]</strong>
+           · <a href="https://distill.pub/2020/grand-tour" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
@@ -479,15 +507,18 @@ CIFAR-10 中的混合模式不如 fashion-MNIST 清晰，因为被错误分类�
     
       
         <p>我们首先来看 softmax 层的 Grand Tour。
-Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我们之前描述的，第 <span class="math-inline" data-math="i">i</span> 个轴对应于网络对给定输入属于第 <span class="math-inline" data-math="i">i</span> 个类别的置信度。</p>
+Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我们之前所述，第 <span class="math-inline" data-math="i">i</span> 个轴对应于网络对给定输入属于第 <span class="math-inline" data-math="i">i</span> 类的置信度。</p>
       
     
       
-        <p>[交互图 — 查看原文：https://distill.pub/2020/grand-tour]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2020/grand-tour" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
-        <p>在最后一个（第 99</p>
+        <p>最后一（第 99</p>
       
     
       
@@ -495,15 +526,15 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>）epoch 中 softmax 层的 Grand Tour，使用</p>
+        <p>）epoch 中 softmax 层的 Grand Tour，分别使用</p>
       
     
       
-        <p>MNIST</p>
+        <p>MNIST、</p>
       
     
       
-        <p>、fashion-MNIST</p>
+        <p>fashion-MNIST</p>
       
     
       
@@ -520,8 +551,8 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
     
       
         <p>Softmax 层的 Grand Tour 让我们能够定性地评估模型的性能。
-在本文的特定情况下，由于我们对三个数据集使用了相似的架构，这也使我们能够衡量每个数据集分类的相对难度。
-我们可以看出，MNIST 数据集中的数据点被分类得最有信心，数字靠近 softmax 空间十个角中的一个。对于 Fashion-MNIST 或 CIFAR-10，分离没有那么干净，更多点出现在体积内部。</p>
+在本文的特定情况下，由于我们对三个数据集使用了相似的架构，这也让我们能够衡量每个数据集分类的相对难度。
+我们可以看出，MNIST 数据集的数据点被分类得最有信心，数字靠近 softmax 空间十个角中的一个。对于 Fashion-MNIST 或 CIFAR-10，分离没有那么干净，更多点出现在体积内部。</p>
       
     
       
@@ -530,24 +561,25 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>线性投影方法自然地给出一个不依赖于输入点的公式，允许我们在数据变化时保持投影固定。
-回顾我们的工作示例，我们对每个神经网络训练了 99 个 epoch，并记录了一部分训练和测试样本的整个神经元激活历史。
-然后，我们可以使用 Grand Tour 来可视化这些网络的实际训练过程。</p>
+        <p>线性投影方法自然给出一个独立于输入点的表述，允许我们在数据变化时保持投影固定。
+回顾我们的工作示例，我们为每个神经网络训练了 99 个 epoch，并记录了训练和测试样本子集上神经元激活的完整历史。然后，我们可以使用 Grand Tour 来可视化这些网络的实际训练过程。</p>
       
     
       
-        <p>在神经网络随机初始化的开始，所有样本都被放置在 softmax 空间的中心附近，对每个类别的权重相等。
-在训练过程中，样本逐渐移动到 softmax 空间中的类向量。Grand Tour 还允许我们
-比较训练和测试数据的可视化，从而对过拟合进行定性评估。
+        <p>一开始，当神经网络随机初始化时，所有样本都被放置在 softmax 空间的中心附近，对每个类别的权重相等。
+通过训练，样本会移动到 softmax 空间中的类别向量。Grand Tour 还让我们能够比较训练数据和测试数据的可视化，从而定性地评估过拟合程度。
 在 MNIST 数据集中，测试图像在训练过程中的轨迹与训练集一致。
-数据点直接朝着其真实类别的角移动，所有类别在大约 50 个 epoch 后都趋于稳定。
-另一方面，在 CIFAR-10 中，训练集和测试集之间存在不一致性。测试集的图像持续振荡，而大多数训练图像收敛到对应的类别角。
+数据点直接向其真实类别的角移动，所有类别在大约 50 个 epoch 后都趋于稳定。
+另一方面，在 CIFAR-10 中，训练集和测试集之间存在不一致性。来自测试集的图像持续振荡，而大多数来自训练集的图像则收敛到对应的类别角。
 在第 99 个 epoch，我们可以清楚地看到这两个集合之间的分布差异。
 这表明模型对训练集过拟合，因此无法很好地泛化到测试集。</p>
       
     
       
-        <p>[交互图 — 查看原文：https://distill.pub/2020/grand-tour]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2020/grand-tour" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
@@ -559,9 +591,8 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>，
-测试集（右）中点的颜色混合程度比训练集（左）更高，显示了训练过程中的过拟合。
-将</p>
+        <p>，测试集（右）中点的颜色比训练集（左）更混杂，显示了训练过程中的过拟合。
+对比</p>
       
     
       
@@ -585,9 +616,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>相比，
-
-训练集和测试集之间的差异要小得多。</p>
+        <p>，它们的训练集和测试集之间的差异较小。</p>
       
     
       
@@ -596,21 +625,22 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>给定我们介绍的 Grand Tour 技术和对轴的直接操纵，我们理论上可以单独可视化和操纵神经网络的任何中间层。
-然而，这种方法并不十分令人满意，原因有两个：</p>
+        <p>给定已介绍的 Grand Tour 技术和对轴的直接操纵，我们理论上可以单独可视化和操纵神经网络的任何中间层。然而，这种方法并不十分令人满意，原因有两个：</p>
       
     
       
-        <div class="list-content">正如我们在训练数据变化时保持投影固定一样，我们也希望在数据通过神经网络各层时“保持投影固定”。然而，这并不简单。例如，神经网络的不同层具有不同的维度。我们如何将某一层的旋转与另一层的旋转连接起来呢？
-
-类“轴手柄”在 softmax 层中很方便，但只有当层的维度相对较小时才实用。
-例如，如果有几百个维度，手柄数量就会太多，无法自然地交互。
-此外，隐藏层不像 softmax 层那样具有清晰的语义，因此操纵它们不会那么直观。</div>
+        
+          <ul>
+            <li>In the same way that we’ve kept the projection fixed as the training data changed, we would like to “keep the projection fixed”, as the data moves through the layers in the neural network. However, this is not straightforward. For example, different layers in a neural network have different dimensions. How do we connect rotations of one layer to rotations of the other?</li><li>The class “axis handles” in the softmax layer convenient, but that’s only practical when the dimensionality of the layer is relatively small.
+      With hundreds of dimensions, for example, there would be too many axis handles to naturally interact with.
+      In addition, hidden layers do not have as clear semantics as the softmax layer, so manipulating them would not be as intuitive.</li>
+          </ul>
+        
       
     
       
         <p>为了解决第一个问题，我们需要更仔细地关注各层如何变换它们接收到的数据。
-要看到线性变换可能以一种特别无效的方式被可视化，请考虑下面这个（非常简单的）权重矩阵 <span class="math-inline" data-math="A">A</span>，它将一个 2 维隐藏层 <span class="math-inline" data-math="k">k</span> 转换为另一个 2 维层的激活 <span class="math-inline" data-math="k+1">k+1</span>。权重只是简单地对 2D 中的两个激活取反：</p>
+要看到线性变换可能以一种特别无效的方式被可视化，请考虑以下（非常简单）的权重（用矩阵 <span class="math-inline" data-math="A">A</span> 表示），它接收一个 2 维隐藏层 <span class="math-inline" data-math="k">k</span> 并在另一个 2 维层 <span class="math-inline" data-math="k+1">k+1</span> 中产生激活。该权重只是简单地对 2D 中的两个激活取反：</p>
       
     
       
@@ -628,7 +658,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>假设我们希望在数据从一层流动到另一层时可视化网络的行为。一种在源 <span class="math-inline" data-math="x_0">x_0</span> 和目标 <span class="math-inline" data-math="x_1 = A(x_0) = -x_0">x_1 = A(x_0) = -x_0</span> 之间插值的方式是通过简单的线性插值<span class="math-inline" data-math="A">A</span></p>
+        <p>设想我们希望随着数据从一层流动到另一层来可视化网络的行为。一种在源 <span class="math-inline" data-math="x_0">x_0</span> 和目标 <span class="math-inline" data-math="x_1 = A(x_0) = -x_0">x_1 = A(x_0) = -x_0</span> 之间插值这个动作 <span class="math-inline" data-math="A">A</span> 的方法是通过简单的线性插值</p>
       
     
       
@@ -642,45 +672,48 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
         <p>对于时间参数 <span class="math-inline" data-math="t \in [0,1].">t \in [0,1].</span>
 
-这种策略有效地在层之间复用了线性投影系数。这是一个很自然的想法，因为它们具有相同的维度。
-然而，请注意以下情况：由 A 给出的变换实际上是对数据的简单旋转。如果该变换作用于负值，那么每一层 <span class="math-inline" data-math="k+1">k+1</span> 的线性变换都可以简单地编码为层 <span class="math-inline" data-math="k">k</span> 的线性变换。
-此外，由于 Grand Tour 本身就内置了旋转，对于层 <span class="math-inline" data-math="k">k</span> 的每一种产生特定图像的配置，都存在另一种配置（通过考虑 <span class="math-inline" data-math="A">A</span> 的作用），可以为层 <span class="math-inline" data-math="k+1">k+1</span> 产生相同的图像。
-实际上，这种朴素的插值未能满足数据-可视化对应原则：数据中的一个简单变化（2D 中的取反/180 度旋转）导致了可视化中的剧烈变化（所有点穿过原点）。</p>
+这种策略本质上是在层之间复用了线性投影系数。这是一种自然的思路，因为它们具有相同的维度。
+然而，请注意以下情况：由 A 给出的变换是对数据的简单旋转。层 <span class="math-inline" data-math="k+1">k+1</span> 的每一个线性变换都可以简单地编码为层 <span class="math-inline" data-math="k">k</span> 的线性变换，只要该变换对条目的负值进行操作即可。
+此外，由于 Grand Tour 本身内置了旋转，对于给出层 <span class="math-inline" data-math="k">k</span> 某个图像的每一种配置，都存在另一种配置，通过考虑 <span class="math-inline" data-math="A">A</span> 的作用，可以为层 <span class="math-inline" data-math="k+1">k+1</span> 产生相同的图像。
+实际上，这种朴素的插值未能遵循数据-可视化对应原则：数据中的一个简单变化（2D 中的取反/180 度旋转）导致了可视化中的剧烈变化（所有点都穿过原点）。</p>
       
     
       
         <p>这一观察指向一个更通用的策略：在设计可视化时，我们应该尽可能明确地说明我们希望在可视化中捕捉输入（或过程）的哪些部分。
-我们应该明确区分哪些是纯粹的表示性伪影（应该丢弃），哪些是我们应该从表示中提炼出的真实特征。
-在这里，我们认为神经网络线性变换中的旋转因子远没有缩放和非线性等其他因子重要。
-正如我们将展示的，Grand Tour 在这种情况下特别有吸引力，因为它可以被设计成对数据的旋转具有不变性。
-因此，神经网络线性变换中的旋转分量将被显式地“隐藏”起来。</p>
+我们应该明确区分哪些是纯粹的表示工件应该被舍弃，哪些是我们应该从表示中提炼出来的真实特征。
+在这里，我们认为神经网络线性变换中的旋转因子远不如缩放和非线性等其他因子重要。
+正如我们将要展示的，Grand Tour 在这种情况下特别有吸引力，因为它可以被设计为对数据的旋转具有不变性。
+因此，神经网络线性变换中的旋转分量将被明确地变得不可见。</p>
       
     
       
         <p>具体来说，我们通过利用线性代数的一个核心定理来实现这一点。
-奇异值分解（SVD）定理表明，任何线性变换都可以分解为一系列非常简单的操作：一个旋转、一个缩放和另一个旋转<cite>[austin2009svd]</cite>。
+奇异值分解（SVD）定理表明，任何线性变换都可以分解为一系列非常简单的操作：一个旋转、一个缩放和另一个旋转<cite>(Austin, 2009)</cite>。
 
-将矩阵 <span class="math-inline" data-math="A">A</span> 应用于向量 <span class="math-inline" data-math="x">x</span> 就等价于应用这些简单操作：<span class="math-inline" data-math="x A = x U \Sigma V^T">x A = x U \Sigma V^T</span>。
+将矩阵 <span class="math-inline" data-math="A">A</span> 应用于向量 <span class="math-inline" data-math="x">x</span> 就相当于应用这些简单操作：<span class="math-inline" data-math="x A = x U \Sigma V^T">x A = x U \Sigma V^T</span>。
 但请记住，Grand Tour 的工作方式是旋转数据集然后将其投影到 2D。
-这两点结合起来意味着，就 Grand Tour 而言，可视化向量 <span class="math-inline" data-math="x">x</span> 与可视化 <span class="math-inline" data-math="x U">x U</span> 是相同的，可视化向量 <span class="math-inline" data-math="x U \Sigma V^T">x U \Sigma V^T</span> 与可视化 <span class="math-inline" data-math="x U \Sigma">x U \Sigma</span> 也是相同的。
-这意味着 Grand Tour 看到的任何线性变换都等价于 <span class="math-inline" data-math="x U">x U</span> 和 <span class="math-inline" data-math="x U \Sigma">x U \Sigma</span> 之间的过渡——一个简单的（按坐标）缩放。
-这明确表明，任何线性操作（其矩阵用标准基表示）都是在两侧选择适当正交基后的缩放操作。
-因此，Grand Tour 提供了一种自然、优雅且计算高效的方式，来对齐被全连接（线性）层分隔的激活可视化。<sup id="fnref-f11n"><a href="#f11n">[11]</a></sup></p>
+将这两个事实结合起来意味着，就 Grand Tour 而言，可视化向量 <span class="math-inline" data-math="x">x</span> 与可视化 <span class="math-inline" data-math="x U">x U</span> 是相同的，可视化向量 <span class="math-inline" data-math="x U \Sigma V^T">x U \Sigma V^T</span> 与可视化 <span class="math-inline" data-math="x U \Sigma">x U \Sigma</span> 也是相同的。
+这意味着 Grand Tour 看到的任何线性变换都等价于 <span class="math-inline" data-math="x U">x U</span> 和 <span class="math-inline" data-math="x U \Sigma">x U \Sigma</span> 之间的转换——一个简单的（按坐标的）缩放。
+这明确说明任何线性操作（其矩阵用标准基表示）都是在两侧选择适当正交基的缩放操作。
+因此，Grand Tour 提供了一种自然、优雅且计算高效的方式来对齐被全连接（线性）层分隔的激活可视化。<sup id="fnref-f11n"><a href="#f11n">[11]</a></sup></p>
       
     
       
-        <p>（以下部分，我们将数据点数减少到 500，epoch 数减少到 50，以减少基于 Web 的演示中传输的数据量。）
+        <p>（在接下来的部分中，我们将数据点数量减少到 500，epoch 减少到 50，以减少基于 Web 的演示中传输的数据量。）
 有了线性代数结构，我们现在能够将 softmax 中的行为和模式追溯到前面的层。
-例如，在 fashion-MNIST 中，我们观察到鞋类（凉鞋、运动鞋和短靴作为一个组）与其他所有类别在 softmax 层中发生了分离。
+例如，在 Fashion-MNIST 中，我们观察到鞋类（作为一组的凉鞋、运动鞋和短靴）与 softmax 层中所有其他类别的分离。
 将其追溯到更早的层，我们可以看到这种分离早在第 5 层就发生了：</p>
       
     
       
-        <p>[交互图 — 查看原文：https://distill.pub/2020/grand-tour]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2020/grand-tour" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
-        <p>通过对齐各层，很容易从</p>
+        <p>通过对齐各层，很容易看到鞋类从其他类别的早期分离，来自</p>
       
     
       
@@ -688,22 +721,24 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <h3>中看到鞋类很早就与其他类别分离了
-对抗动态的 Grand Tour</h3>
+        <h3>对抗动态的 Grand Tour</h3>
         
       
     
       
-        <p>作为最后一个应用场景，我们展示了 Grand Tour 如何也能阐明对抗样本<cite>[szegedy2013intriguing]</cite>被神经网络处理时的行为。
-在这个演示中，我们使用 MNIST 数据集，对 89 个数字 8  adversarially 添加扰动，使网络误以为它们是 0。
+        <p>作为最后一个应用场景，我们展示了 Grand Tour 如何也能阐明对抗样本<cite>(Szegedy et al., 2013)</cite> 被神经网络处理时的行为。
+对于这个示例，我们使用 MNIST 数据集，并对抗性地向 89 个数字 8 添加扰动，以欺骗网络使其认为它们是 0。
 之前，我们要么动画训练动态，要么动画层动态。
-在这里，我们固定一个训练好的神经网络，并可视化对抗样本的“训练”过程，因为它们通常本身就是通过优化过程生成的。我们使用了 Fast Gradient Sign 方法。<cite>[goodfellow2014explaining]</cite>
-同样，由于 Grand Tour 是一种线性方法，对抗样本位置随时间的变化可以忠实地归因于神经网络对图像感知方式的变化，而不是可视化可能产生的伪影。
-让我们来看看对抗样本是如何演化来欺骗网络的：</p>
+我们固定一个训练好的神经网络，并可视化对抗样本的“训练”过程，因为它们通常本身是通过优化过程生成的。在这里，我们使用了 Fast Gradient Sign 方法。<cite>(Goodfellow et al., 2014)</cite>
+同样，由于 Grand Tour 是一种线性方法，对抗样本位置随时间的变化可以忠实地归因于神经网络对图像感知方式的变化，而不是可视化的潜在伪影。
+让我们看看对抗样本如何演化以欺骗网络：</p>
       
     
       
-        <p>[交互图 — 查看原文：https://distill.pub/2020/grand-tour]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2020/grand-tour" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
@@ -715,7 +750,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>中，我们可以看到</p>
+        <p>，我们可以看到</p>
       
     
       
@@ -727,20 +762,12 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>8</p>
-      
-    
-      
-        <p>演变为</p>
-      
-    
-      
-        <p>0</p>
+        <p>演化到</p>
       
     
       
         <p>。
-在对应的</p>
+而在对应的</p>
       
     
       
@@ -748,7 +775,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>中，这些对抗样本停在两个类别的决策边界附近。
+        <p>中，这些对抗样本则停在两个类别的决策边界附近。
 将数据显示为</p>
       
     
@@ -757,7 +784,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>可以看到每个步骤生成的真实图像，或显示按标签着色的</p>
+        <p>可查看每个步骤生成的实际图像，或显示为按标签着色的</p>
       
     
       
@@ -769,15 +796,15 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>通过这种对抗训练，网络最终以很高的置信度声称所有给定输入都是 0。
-如果我们停留在 softmax 层并在图中滑动对抗训练步骤，我们可以看到对抗样本从类别 8 的高得分移动到类别 0 的高得分。
-虽然所有对抗样本最终都被分类为目标类别（数字 0），但其中一些在接近空间质心的位置（大约在第 25 个 epoch）绕了一下，然后才向目标移动。
-比较两组的真实图像，我们看到那些“绕弯”的图像往往噪声更多。</p>
+        <p>通过这种对抗训练，网络最终以很高的置信度宣称给定的输入都是 0。
+如果我们停留在 softmax 层并在图中滑动对抗训练步骤，我们可以看到对抗样本从类别 8 的高分数移动到类别 0 的高分数。
+虽然所有对抗样本最终都被分类为目标类别（数字 0），但其中一些在接近空间质心的地方绕道（大约在第 25 个 epoch），然后才向目标移动。
+比较两组的实际图像，我们看到那些“绕道”的图像往往噪声更多。</p>
       
     
       
-        <p>然而，更有趣的是中间层中发生的事情。
-例如，在 pre-softmax 中，我们看到这些假的 0 与真正的 0 行为不同：它们更靠近两个类别的决策边界，并且自己形成了一个平面。</p>
+        <p>然而，更有趣的是中间层中发生的情况。
+例如，在 pre-softmax 中，我们看到这些假的 0 与真正的 0 表现不同：它们更靠近两个类别的决策边界，并且自己形成了一个平面。</p>
       
     
       
@@ -791,10 +818,10 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>早些时候，我们将几种最先进的降维技术与 Grand Tour 进行了比较，表明非线性方法在理解神经网络行为方面并不具备与 Grand Tour 一样多的理想特性。
+        <p>早些时候，我们将几种最先进的降维技术与 Grand Tour 进行了比较，表明非线性方法在理解神经网络行为方面不如 Grand Tour 具有那么多理想特性。
 然而，最先进的非线性方法也有其自身的优势。
-只要关注几何结构，例如理解 softmax 层中的多向混淆时，线性方法就更具可解释性，因为它们在投影中保留了数据的某些几何结构。
-当拓扑结构是主要关注点时，例如当我们想要对数据进行聚类，或者需要为对几何不那么敏感的下游模型进行降维时，我们可能会选择 UMAP 或 t-SNE 等非线性方法，因为它们在投影数据时有更大的自由度，并且通常能更好地利用可用的较少维度。</p>
+每当关注几何结构时，例如理解 softmax 层中的多向混淆时，线性方法更具可解释性，因为它们在投影中保留了数据的某些几何结构。
+当拓扑是主要关注点时，例如当我们想要对数据进行聚类，或者需要为对几何不那么敏感的下游模型进行降维时，我们可能会选择 UMAP 或 t-SNE 等非线性方法，因为它们在投影数据时有更大的自由度，并且通常能更好地利用可用的较少维度。</p>
       
     
       
@@ -803,10 +830,10 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>在比较线性投影与非线性降维时，我们使用小倍数（small multiples）来对比不同的训练 epoch 和降维方法。
-而 Grand Tour 则使用单一的动画视图。
-关于小倍数和动画哪一个更好，文献中并没有普遍共识，除了在动态图绘制<cite>[archambault2010animation]</cite>等特定场景，或小倍数与动画图之间内容不可比<cite>[tversky2002animation]</cite>的情况。
-不管这些顾虑如何，在我们的场景中，动画的使用自然地来自于直接操纵以及 Grand Tour 所操作的旋转连续体。</p>
+        <p>在比较线性投影与非线性降维时，我们使用了小倍数（small multiples）来对比训练 epoch 和降维方法。
+而 Grand Tour 则使用单个动画视图。
+在比较小倍数和动画时，文献中除了特定设置（如动态图绘制<cite>(Archambault et al., 2010)</cite>）或小倍数与动画图之间内容不可比的问题<cite>(Tversky et al., 2002)</cite> 外，并没有普遍共识哪一个更好。
+不管这些担忧如何，在我们的场景中，动画的使用自然地来自于直接操纵以及 Grand Tour 所操作的旋转连续体的存在。</p>
       
     
       
@@ -815,9 +842,9 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>在我们的工作中，我们使用的模型是纯“序列”的，即各层可以按数字顺序排列，并且第 <span class="math-inline" data-math="n+1">n+1</span> 层的激活完全是第 <span class="math-inline" data-math="n">n</span> 层激活的函数。
-然而，在最近的 DNN 架构中，经常出现非序列的部分，例如 highway<cite>[srivastava2015highway]</cite> 支路或针对不同任务的专用分支<cite>[szegedy2015going]</cite>。
-使用我们的技术，可以可视化每个分支上的神经元激活，但要直接整合多个分支，还需要进一步的研究。</p>
+        <p>在我们的工作中，我们使用了纯粹“序列”的模型，即各层可以按数字顺序排列，并且第 <span class="math-inline" data-math="n+1">n+1</span> 层的激活完全是第 <span class="math-inline" data-math="n">n</span> 层激活的函数。
+然而，在最近的 DNN 架构中，出现非序列部分是很常见的，例如 highway<cite>(Srivastava et al., 2015)</cite> 支路或针对不同任务的专用分支<cite>(Szegedy et al., 2015)</cite>。
+使用我们的技术，可以可视化每个此类分支上的神经元激活，但需要进一步的研究来直接整合多个分支。</p>
       
     
       
@@ -826,9 +853,9 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>现代架构通常也很“宽”。特别是在涉及卷积层时，如果我们将其视为作用于展平的多通道图像的大型稀疏矩阵，就可能遇到可扩展性问题。
-为了简单起见，本文中我们通过写出卷积层的显式矩阵表示，暴力计算了这些卷积层的对齐。
-然而，多通道二维卷积的奇异值分解可以高效计算<cite>[sedghi2018singular]</cite>，然后可以直接用于我们上面描述的对齐。</p>
+        <p>现代架构也很宽。特别是涉及卷积层时，如果我们将此类层视为作用于展平的多通道图像的大型稀疏矩阵，就可能遇到可扩展性问题。
+为简单起见，本文通过写出其显式矩阵表示来强行计算此类卷积层的对齐。
+然而，多通道 2D 卷积的奇异值分解可以高效计算<cite>(Sedghi et al., 2018)</cite>，然后可以直接用于对齐，正如我们上面所描述的。</p>
       
     
       
@@ -837,7 +864,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>本节介绍实现轴手柄和数据点的直接操纵以及如何实现层过渡的投影一致性技术所需的细节。</p>
+        <p>本节介绍实现轴手柄和数据点的直接操纵以及如何实现层过渡的投影一致性技术所需的技术细节。</p>
       
     
       
@@ -846,11 +873,11 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>在本节中，我们的符号约定是数据点用行向量表示。
-整个数据集被组织为一个矩阵，每一行是一个数据点，每一列代表一个不同的特征/维度。
-因此，当对数据应用线性变换时，行向量（以及整个数据矩阵）会被变换矩阵左乘。
-这样做的额外好处是，当链式进行矩阵乘法时，公式从左到右阅读，并与交换图（commutative diagram）对齐。
-例如，当数据矩阵 <span class="math-inline" data-math="X">X</span> 被矩阵 <span class="math-inline" data-math="M">M</span> 相乘得到 <span class="math-inline" data-math="Y">Y</span> 时，我们写成 <span class="math-inline" data-math="XM = Y">XM = Y</span>，字母在图中的顺序相同：</p>
+        <p>在本节中，我们的符号约定是数据点表示为行向量。
+整个数据集被布局为一个矩阵，其中每一行是一个数据点，每一列代表一个不同的特征/维度。
+因此，当对数据应用线性变换时，行向量（以及整个数据矩阵）被变换矩阵左乘。
+这有一个附带好处，即当以链式方式应用矩阵乘法时，公式从左到右读取，并与交换图对齐。
+例如，当数据矩阵 <span class="math-inline" data-math="X">X</span> 被矩阵 <span class="math-inline" data-math="M">M</span> 相乘生成 <span class="math-inline" data-math="Y">Y</span> 时，我们在公式中写成 <span class="math-inline" data-math="XM = Y">XM = Y</span>，字母在图中的顺序相同：</p>
       
     
       
@@ -882,7 +909,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>，我们有</p>
+        <p>，则有</p>
       
     
       
@@ -908,7 +935,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>与公式完美对齐。</p>
+        <p>与公式很好地对齐。</p>
       
     
       
@@ -917,12 +944,12 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>我们前面介绍的直接操纵提供了对数据点可能投影的显式控制。
+        <p>我们前面介绍的直接操纵为数据点的可能投影提供了显式控制。
 我们提供了两种模式：直接操纵类别轴（“轴模式”），或通过质心直接操纵一组数据点（“数据点模式”）。
-根据维度和轴的语义（如层动态部分所述），我们可能会更喜欢其中一种模式。
+根据维度和轴的语义，正如在“层动态”中讨论的那样，我们可能会更偏好其中一种模式。
 
 我们会看到轴模式是数据点模式的一个特例，因为我们可以将轴手柄视为数据集中一个特定的“虚拟”点。
-由于其简单性，我们先介绍轴模式。</p>
+由于其简单性，我们将首先介绍轴模式。</p>
       
     
       
@@ -931,17 +958,17 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>直接操纵的隐含语义是，当用户拖动一个 UI 元素（这里是一个轴手柄）时，他们是在向系统发出信号：他们希望对应的数据点被投影到 UI 元素被放下位置，而不是被拖动前的位置。
-在我们的例子中，整体投影是一个旋转（最初由 Grand Tour 确定），而任意的用户操纵可能无法生成一个新的、仍然是旋转的投影。因此，我们的目标是找到一个新的旋转，它既满足用户请求，又接近之前 Grand Tour 投影的状态，从而使最终状态满足用户请求。
+        <p>直接操纵的隐含语义是，当用户拖动一个 UI 元素（在本例中是轴手柄）时，他们是在向系统发出信号，表示他们希望对应的数据点被投影到 UI 元素被放下位置，而不是被拖动前的位置。
+在我们的例子中，整体投影是一个旋转（最初由 Grand Tour 确定），而任意的用户操纵可能不会必然生成一个同样是旋转的新投影。因此，我们的目标是找到一个新的旋转，它既满足用户请求，又接近之前 Grand Tour 投影的状态，从而使最终状态满足用户请求。
 
-简而言之，当用户将第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 个轴手柄拖动 <span class="math-inline" data-math="(dx, dy)">(dx, dy)</span> 时，我们将其加到 Grand Tour 矩阵第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行的前两个元素中，然后对新矩阵的各行进行 Gram-Schmidt 正交化。<a href="https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process" target="_blank" rel="noopener">Gram-Schmidt orthonormalization</a>
+简而言之，当用户将 <span class="math-inline" data-math="i^{th}">i^{th}</span> 轴手柄拖动 <span class="math-inline" data-math="(dx, dy)">(dx, dy)</span> 时，我们将其加到 Grand Tour 矩阵第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行的前两个条目中，然后对新矩阵的各行执行 <a href="https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process" target="_blank" rel="noopener">Gram-Schmidt 正交化</a>。
 <sup id="fnref-f12n"><a href="#f12n">[12]</a></sup></p>
       
     
       
-        <p>在详细说明为什么这很有效之前，让我们先形式化 Grand Tour 在标准基向量 <span class="math-inline" data-math="e_i">e_i</span> 上的过程。
-如下图所示，<span class="math-inline" data-math="e_i">e_i</span> 经过正交的 Grand Tour 矩阵 <span class="math-inline" data-math="GT">GT</span> 产生它的旋转版本 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span>。
-然后，<span class="math-inline" data-math="\pi_2">\pi_2</span> 是一个仅保留 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 前两个元素的函数，并给出要在图中显示的手柄的二维坐标 <span class="math-inline" data-math="(x_i, y_i)">(x_i, y_i)</span>。</p>
+        <p>在详细了解为什么这能很好地工作之前，让我们先形式化 Grand Tour 在标准基向量 <span class="math-inline" data-math="e_i">e_i</span> 上的过程。
+如下面的图所示，<span class="math-inline" data-math="e_i">e_i</span> 经过一个正交的 Grand Tour 矩阵 <span class="math-inline" data-math="GT">GT</span> 得到其旋转版本 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span>。
+然后，<span class="math-inline" data-math="\pi_2">\pi_2</span> 是一个函数，它只保留 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 的前两个条目，并给出要在图中显示的手柄的 2D 坐标 <span class="math-inline" data-math="(x_i, y_i)">(x_i, y_i)</span>。</p>
       
     
       
@@ -962,7 +989,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>注意 <span class="math-inline" data-math="x_i">x_i</span> 和 <span class="math-inline" data-math="y_i">y_i</span> 是轴手柄经过 Grand Tour 旋转后在高维中的前两个坐标，因此在 <span class="math-inline" data-math="(x_i, y_i)">(x_i, y_i)</span> 上的增量变化会在 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 上引起增量变化 <span class="math-inline" data-math="\tilde{\Delta} := (dx, dy, 0, 0, \cdots)">\tilde{\Delta} := (dx, dy, 0, 0, \cdots)</span>：</p>
+        <p>请注意 <span class="math-inline" data-math="x_i">x_i</span> 和 <span class="math-inline" data-math="y_i">y_i</span> 是轴手柄在 Grand Tour 旋转后高维空间中的前两个坐标，因此 <span class="math-inline" data-math="(x_i, y_i)">(x_i, y_i)</span> 上的增量变化会引起 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 上的增量变化 <span class="math-inline" data-math="\tilde{\Delta} := (dx, dy, 0, 0, \cdots)">\tilde{\Delta} := (dx, dy, 0, 0, \cdots)</span>：</p>
       
     
       
@@ -970,9 +997,8 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>为了找到一个满足这个变化且接近原始的 Grand Tour 旋转，首先要注意 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 正是正交 Grand Tour 矩阵 <span class="math-inline" data-math="GT">GT</span> 的第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行。
-<sup id="fnref-f13n"><a href="#f13n">[13]</a></sup>
-自然地，我们希望新矩阵是原始 <span class="math-inline" data-math="GT">GT</span> 用 <span class="math-inline" data-math="\tilde{e_i}+\tilde{\Delta}">\tilde{e_i}+\tilde{\Delta}</span> 替换其第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行，即我们应该将 <span class="math-inline" data-math="dx">dx</span> 和 <span class="math-inline" data-math="dy">dy</span> 分别加到 <span class="math-inline" data-math="GT">GT</span> 的第 <span class="math-inline" data-math="(i,1)">(i,1)</span> 和 <span class="math-inline" data-math="(i,2)">(i,2)</span> 个元素：</p>
+        <p>要找到一个尊重此变化的相邻 Grand Tour 旋转，首先要注意 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 正是正交 Grand Tour 矩阵 <span class="math-inline" data-math="GT">GT</span> 的第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行<sup id="fnref-f13n"><a href="#f13n">[13]</a></sup>。
+自然地，我们希望新矩阵是原始 <span class="math-inline" data-math="GT">GT</span> 用 <span class="math-inline" data-math="\tilde{e_i}+\tilde{\Delta}">\tilde{e_i}+\tilde{\Delta}</span> 替换其 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行，即我们应该分别将 <span class="math-inline" data-math="dx">dx</span> 和 <span class="math-inline" data-math="dy">dy</span> 加到 <span class="math-inline" data-math="GT">GT</span> 的第 <span class="math-inline" data-math="(i,1)">(i,1)</span> 个和第 <span class="math-inline" data-math="(i,2)">(i,2)</span> 个条目中：</p>
       
     
       
@@ -989,7 +1015,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
     
       
         <p>然而，对于任意的 <span class="math-inline" data-math="(dx, dy)">(dx, dy)</span>，<span class="math-inline" data-math="\widetilde{GT}">\widetilde{GT}</span> 都不是正交的。
-为了找到一个接近 <span class="math-inline" data-math="\widetilde{GT}">\widetilde{GT}</span> 且正交的近似矩阵，我们对 <span class="math-inline" data-math="\widetilde{GT}">\widetilde{GT}</span> 的各行应用 Gram-Schmidt 正交化，并将第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行在 Gram-Schmidt 过程中优先考虑：</p>
+为了找到一个接近 <span class="math-inline" data-math="\widetilde{GT}">\widetilde{GT}</span> 且正交的近似，我们对 <span class="math-inline" data-math="\widetilde{GT}">\widetilde{GT}</span> 的各行应用 <a href="https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process" target="_blank" rel="noopener">Gram-Schmidt 正交化</a>，并将 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行在 Gram-Schmidt 过程中优先考虑：</p>
       
     
       
@@ -997,10 +1023,11 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>注意在 Gram-Schmidt 过程中，第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行被归一化为单位向量，因此手柄的最终位置是
+        <p>请注意，第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行在 Gram-Schmidt 过程中被归一化为单位向量，因此手柄的最终位置是
 <span class="math-inline" data-math="\tilde{e_i}^{(new)} = \textsf{normalize}(\tilde{e_i} + \tilde{\Delta})">\tilde{e_i}^{(new)} = \textsf{normalize}(\tilde{e_i} + \tilde{\Delta})</span>
 这可能与 <span class="math-inline" data-math="\tilde{e_i}+\tilde{\Delta}">\tilde{e_i}+\tilde{\Delta}</span> 不完全相同，如下图所示
-<sup id="fnref-f14n"><a href="#f14n">[14]</a></sup>。</p>
+<sup id="fnref-f14n"><a href="#f14n">[14]</a></sup>
+。</p>
       
     
       
@@ -1017,10 +1044,10 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
     
       
         <p>现在我们解释如何直接操纵数据点。
-从技术上讲，这种方法每次只考虑一个点。
-对于一组点，我们计算它们的质心，然后用这种方法直接操纵这个单个点。
+从技术上讲，这种方法一次只考虑一个点。
+对于一组点，我们计算它们的质心，并用此方法直接操纵这个单一点。
 更仔细地思考轴模式的过程为我们提供了一种拖动任意单个点的方法。
-回忆在轴模式中，我们将用户的操纵 <span class="math-inline" data-math="\tilde{\Delta} := (dx, dy, 0, 0, \cdots)">\tilde{\Delta} := (dx, dy, 0, 0, \cdots)</span> 加到了第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 个轴手柄 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 的位置上。
+回想在轴模式中，我们将用户的操纵 <span class="math-inline" data-math="\tilde{\Delta} := (dx, dy, 0, 0, \cdots)">\tilde{\Delta} := (dx, dy, 0, 0, \cdots)</span> 加到第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 个轴手柄 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 的位置上。
 这引起了 Grand Tour 矩阵 <span class="math-inline" data-math="GT">GT</span> 第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行的增量变化。
 接下来，作为 Gram-Schmidt 的第一步，我们对这一行进行了归一化：</p>
       
@@ -1034,11 +1061,11 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>这两个步骤使得轴手柄从 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 移动到 <span class="math-inline" data-math="\tilde{e_i}^{(new)} := \textsf{normalize}(\tilde{e_i}+\tilde{\Delta})">\tilde{e_i}^{(new)} := \textsf{normalize}(\tilde{e_i}+\tilde{\Delta})</span>。</p>
+        <p>这两个步骤使轴手柄从 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 移动到 <span class="math-inline" data-math="\tilde{e_i}^{(new)} := \textsf{normalize}(\tilde{e_i}+\tilde{\Delta})">\tilde{e_i}^{(new)} := \textsf{normalize}(\tilde{e_i}+\tilde{\Delta})</span>。</p>
       
     
       
-        <p>从这个运动的几何意义来看，对 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 执行“加增量然后归一化”等价于从 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 向 <span class="math-inline" data-math="\tilde{e_i}^{(new)}">\tilde{e_i}^{(new)}</span> 的一个旋转，如下图所示。
+        <p>从这个运动的几何角度来看，对 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 执行“加增量然后归一化”等价于从 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 向 <span class="math-inline" data-math="\tilde{e_i}^{(new)}">\tilde{e_i}^{(new)}</span> 的一个旋转，如下图所示。
 这种几何解释可以直接推广到任意数据点。</p>
       
     
@@ -1050,14 +1077,13 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>图中显示的是三维情况，但在更高维空间中本质上是相同的，因为两个向量 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 和 <span class="math-inline" data-math="\tilde{e_i}+\tilde{\Delta}">\tilde{e_i}+\tilde{\Delta}</span> 只张成一个 2 维子空间。
-现在我们对直接操纵有了一个很好的几何直观：拖动一个点会在高维空间中诱导一个简单的旋转
-<sup id="fnref-f15n"><a href="#f15n">[15]</a></sup>。
-这个直观认识正是我们实现对任意数据点进行直接操纵的方式，我们将在下面具体说明。</p>
+        <p>该图展示了 3D 中的情况，但在更高维空间中本质上是相同的，因为两个向量 <span class="math-inline" data-math="\tilde{e_i}">\tilde{e_i}</span> 和 <span class="math-inline" data-math="\tilde{e_i}+\tilde{\Delta}">\tilde{e_i}+\tilde{\Delta}</span> 仅张成一个 2 维子空间。
+现在我们对直接操纵有了很好的几何直观：拖动一个点会在高维空间中引起一个简单的旋转<sup id="fnref-f15n"><a href="#f15n">[15]</a></sup>。
+这种直观认识正是我们实现对任意数据点直接操纵的方式，我们将在下面具体说明。</p>
       
     
       
-        <p>将这一观察从轴手柄推广到任意数据点，我们希望找到一个旋转，使所选数据点子集的质心 <span class="math-inline" data-math="\tilde{c}">\tilde{c}</span> 移动到</p>
+        <p>将这一观察从轴手柄推广到任意数据点，我们希望找到将所选数据点子集的质心 <span class="math-inline" data-math="\tilde{c}">\tilde{c}</span> 移动到</p>
       
     
       
@@ -1076,7 +1102,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>首先，旋转角度可以通过它们的余弦相似度来找到：</p>
+        <p>首先，旋转角可以通过它们的余弦相似度找到：</p>
       
     
       
@@ -1089,8 +1115,8 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
     
       
         <p>接下来，为了找到旋转的矩阵形式，我们需要一个方便的基。
-令 <span class="math-inline" data-math="Q">Q</span> 为一个正交基变换矩阵，其中前两行构成 2 维子空间 <span class="math-inline" data-math="\textrm{span}(\tilde{c}, \tilde{c}^{(new)})">\textrm{span}(\tilde{c}, \tilde{c}^{(new)})</span>。
-例如，我们可以让它的第一行为 <span class="math-inline" data-math="\textsf{normalize}(\tilde{c})">\textsf{normalize}(\tilde{c})</span>，第二行为它在 <span class="math-inline" data-math="\textrm{span}(\tilde{c}, \tilde{c}^{(new)})">\textrm{span}(\tilde{c}, \tilde{c}^{(new)})</span> 中的正交补 <span class="math-inline" data-math="\textsf{normalize}(\tilde{c}^{(new)}_{\perp})">\textsf{normalize}(\tilde{c}^{(new)}_{\perp})</span>，其余行补全整个空间：</p>
+设 <span class="math-inline" data-math="Q">Q</span> 是一个基变换（正交）矩阵，其中前两行构成 2 维子空间 <span class="math-inline" data-math="\textrm{span}(\tilde{c}, \tilde{c}^{(new)})">\textrm{span}(\tilde{c}, \tilde{c}^{(new)})</span>。
+例如，我们可以令其第一行为 <span class="math-inline" data-math="\textsf{normalize}(\tilde{c})">\textsf{normalize}(\tilde{c})</span>，第二行为它在 <span class="math-inline" data-math="\textrm{span}(\tilde{c}, \tilde{c}^{(new)})">\textrm{span}(\tilde{c}, \tilde{c}^{(new)})</span> 中的正交补 <span class="math-inline" data-math="\textsf{normalize}(\tilde{c}^{(new)}_{\perp})">\textsf{normalize}(\tilde{c}^{(new)}_{\perp})</span>，其余行补全整个空间：</p>
       
     
       
@@ -1124,7 +1150,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
         <p>其中 <span class="math-inline" data-math="P">P</span> 补全剩余空间。
 
-利用 <span class="math-inline" data-math="Q">Q</span>，我们可以找到在平面 <span class="math-inline" data-math="\textrm{span}(\tilde{c}, \tilde{c}^{(new)})">\textrm{span}(\tilde{c}, \tilde{c}^{(new)})</span> 上旋转角度 <span class="math-inline" data-math="\theta">\theta</span> 的矩阵：</p>
+利用 <span class="math-inline" data-math="Q">Q</span>，我们可以找到将平面 <span class="math-inline" data-math="\textrm{span}(\tilde{c}, \tilde{c}^{(new)})">\textrm{span}(\tilde{c}, \tilde{c}^{(new)})</span> 旋转角度 <span class="math-inline" data-math="\theta">\theta</span> 的矩阵：</p>
       
     
       
@@ -1152,15 +1178,15 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>新的 Grand Tour 矩阵是原始 <span class="math-inline" data-math="GT">GT</span> 与 <span class="math-inline" data-math="\rho">\rho</span> 的矩阵乘积：
+        <p>新的 Grand Tour 矩阵是原始 <span class="math-inline" data-math="GT">GT</span> 和 <span class="math-inline" data-math="\rho">\rho</span> 的矩阵乘积：
 <span class="math-inline" data-math="
     GT^{(new)} := GT \cdot \rho
   ">
     GT^{(new)} := GT \cdot \rho
   </span>
-现在我们应该能看到轴模式和数据点模式之间的联系了。
-在数据点模式中，可以通过 Gram-Schmidt 找到 <span class="math-inline" data-math="Q">Q</span>：令第一个基为 <span class="math-inline" data-math="\tilde{c}">\tilde{c}</span>，找到 <span class="math-inline" data-math="\tilde{c}^{(new)}">\tilde{c}^{(new)}</span> 在 <span class="math-inline" data-math="\textrm{span}(\tilde{c}, \tilde{c}^{(new)})">\textrm{span}(\tilde{c}, \tilde{c}^{(new)})</span> 中的正交分量，然后不断取一个随机向量，找到它相对于当前基向量张成空间的正交分量，并将其加入基集合。
-在轴模式中，“第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行优先”的 Gram-Schmidt 一步完成了旋转和基变换。</p>
+现在我们应该可以看到轴模式和数据点模式之间的联系。
+在数据点模式中，通过 Gram-Schmidt 可以找到 <span class="math-inline" data-math="Q">Q</span>：令第一个基为 <span class="math-inline" data-math="\tilde{c}">\tilde{c}</span>，找到 <span class="math-inline" data-math="\tilde{c}^{(new)}">\tilde{c}^{(new)}</span> 在 <span class="math-inline" data-math="\textrm{span}(\tilde{c}, \tilde{c}^{(new)})">\textrm{span}(\tilde{c}, \tilde{c}^{(new)})</span> 中的正交分量，重复取一个随机向量，找到其相对于当前基向量张成的空间的正交分量，并将其加入基集合。
+在轴模式中，优先考虑 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行的 Gram-Schmidt 一步完成了旋转和基变换。</p>
       
     
       
@@ -1190,7 +1216,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>。由于 ReLU 不改变维度且函数是按坐标逐个计算的，我们可以通过简单的线性插值来动画过渡：对于时间参数</p>
+        <p>。由于 ReLU 不改变维度且函数是按坐标进行的，我们可以通过简单的线性插值来动画过渡：对于时间参数</p>
       
     
       
@@ -1211,7 +1237,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>线性层之间的过渡看起来可能很复杂，但正如我们将展示的，这是因为在过渡两侧选择了不匹配的基所导致的。
+        <p>线性层之间的过渡似乎很复杂，但正如我们将要展示的，这是因为在过渡的两侧选择了不匹配的基。
 如果</p>
       
     
@@ -1285,7 +1311,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>上的变换是由一个旋转（</p>
+        <p>上的变换是一个旋转（</p>
       
     
       
@@ -1309,7 +1335,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>）组成的，看起来可能很复杂。
+        <p>）的复合，看起来可能很复杂。
 然而，考虑将第</p>
       
     
@@ -1326,7 +1352,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>层的视图关联起来的问题。Grand Tour 有一个单一的参数表示当前数据集的旋转。由于我们的目标是保持过渡一致，我们注意到</p>
+        <p>层的视图关联起来的问题。Grand Tour 有一个表示数据集当前旋转的单一参数。由于我们的目标是保持过渡的一致性，我们注意到</p>
       
     
       
@@ -1342,7 +1368,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>基本上没有意义——它们只是对视图的旋转，可以通过改变任一层的 Grand Tour 旋转参数来精确“抵消”。
+        <p>基本上没有意义——它们只是对视图的旋转，可以通过改变任一层的 Grand Tour 旋转参数被精确“抵消”。
 因此，我们不显示</p>
       
     
@@ -1351,7 +1377,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>，而是寻求只动画</p>
+        <p>，而是寻求仅动画</p>
       
     
       
@@ -1359,22 +1385,21 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>的效果<span class="math-inline" data-math="\Sigma">\Sigma</span></p>
+        <p>的效果。<span class="math-inline" data-math="\Sigma">\Sigma</span></p>
       
     
       
-        <p>
-
-是按坐标的缩放，因此在适当的基变换后，我们可以像 ReLU 那样对其进行动画。
-给定</p>
+        <p>is a coordinate-wise scaling, so we can animate it similar to the ReLU after the proper change of basis.
+  Given</p>
       
     
       
-        <p><span class="math-inline" data-math="X^{l} = X^{l-1} U \Sigma V^T">X^{l} = X^{l-1} U \Sigma V^T</span></p>
+        <p>是一个按坐标的缩放，因此在适当的基变换后，我们可以像 ReLU 一样对其进行动画。
+给定<span class="math-inline" data-math="X^{l} = X^{l-1} U \Sigma V^T">X^{l} = X^{l-1} U \Sigma V^T</span></p>
       
     
       
-        <p>，我们有</p>
+        <p>, we have</p>
       
     
       
@@ -1408,8 +1433,8 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
     
       
         <p>卷积层可以表示为特殊的线性层。
-通过表示的变换，我们可以像上一节那样动画卷积层。
-对于二维卷积，这种表示变换包括将输入和输出展平，并将核模式重复到一个稀疏矩阵</p>
+通过表示方式的改变，我们可以像上一节那样动画卷积层。
+对于 2D 卷积，这种表示方式的改变包括将输入和输出展平，并在稀疏矩阵</p>
       
     
       
@@ -1417,7 +1442,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>中，其中</p>
+        <p>中重复核的模式，其中</p>
       
     
       
@@ -1434,12 +1459,12 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
     
       
         <p>分别是输入和输出的维度。
-这种表示变换只对较小的维度（例如最多 1000）实用，因为我们需要为线性层求解 SVD。
-然而，多通道二维卷积的奇异值分解可以高效计算</p>
+这种表示方式的改变仅对较小的维度（例如最多 1000）实用，因为我们需要为线性层求解 SVD。
+然而，多通道 2D 卷积的奇异值分解可以被高效计算</p>
       
     
       
-        <p>[<cite>[sedghi2018singular]</cite>]</p>
+        <p>[<cite>(Sedghi et al., 2018)</cite>]</p>
       
     
       
@@ -1452,7 +1477,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>动画化最大池化层并不简单，因为最大池化既不是线性的</p>
+        <p>动画化最大池化层并非易事，因为最大池化既不是线性的</p>
       
     
       
@@ -1463,8 +1488,9 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
         <p>也不是按坐标的。
 我们用平均池化并按平均值与最大值的比例进行缩放来代替它。
 我们计算平均池化的矩阵形式，并使用其 SVD 来对齐该层之前和之后的视图。
-在功能上，我们的操作与最大池化具有等价的结果，但这引入了
-意想不到的伪影。例如，向量</p>
+从功能上讲，我们的操作与最大池化具有等价的结果，但这引入了
+
+意外的伪影。例如，向量</p>
       
     
       
@@ -1480,7 +1506,7 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>这些分量给予任何贡献”；而我们的实现却会将下游层结果中大约 25% 的贡献归因于这些坐标。</p>
+        <p>这些条目给予任何贡献”；然而，我们的实现会将下游层结果的大约 25% 归因于这些坐标中的每一个。</p>
       
     
       
@@ -1489,8 +1515,8 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
       
     
       
-        <p>尽管 t-SNE 和 UMAP 非常强大，但它们往往无法提供我们需要的对应关系，而这种对应关系居然可以来自像 Grand Tour 这样相对简单的方法。我们提出的 Grand Tour 方法在用户可以或希望进行直接操纵时特别有用。
-我们相信，有可能设计出同时兼顾两者优势的方法：使用非线性降维来创建激活层的中间、低维表示，然后使用 Grand Tour 和直接操纵来计算最终投影。</p>
+        <p>尽管 t-SNE 和 UMAP 非常强大，但它们往往无法提供我们所需的那种对应关系，而这种对应关系令人惊讶地可以来自像 Grand Tour 这样相对简单的方法。我们提出的 Grand Tour 方法在用户可以或希望进行直接操纵时特别有用。
+我们相信，有可能设计出同时突出两者优势的方法：使用非线性降维来创建激活层的中间、相对低维的表示，然后使用 Grand Tour 和直接操纵来计算最终投影。</p>
       
     
   </div>
@@ -1500,83 +1526,83 @@ Softmax 层相对容易理解，因为它的轴具有很强的语义。正如我
     <h2>注释</h2>
     
     <div class="footnote-item" id="f1n">
-      <a href="#fnref-f1n">[1]</a> MNIST<cite>[lecun2010mnist]</cite> 包含 10 个手写数字的灰度图像
+      <a href="#fnref-f1n">[1]</a> MNIST<cite>(LeCun et al., 2010)</cite> 包含 10 个手写数字的灰度图像
     
-    图片致谢：https://en.wikipedia.org/wiki/File:MnistExamples.png
+    图片来源：https://en.wikipedia.org/wiki/File:MnistExamples.png
     </div>
     
     <div class="footnote-item" id="f2n">
-      <a href="#fnref-f2n">[2]</a> Fashion-MNIST<cite>[xiao2017fashion]</cite> 包含 10 类时尚物品的灰度图像：
+      <a href="#fnref-f2n">[2]</a> Fashion-MNIST<cite>(Xiao et al., 2017)</cite> 包含 10 类时尚物品的灰度图像：
     
 
-    图片致谢：https://towardsdatascience.com/multi-label-classification-and-class-activation-map-on-fashion-mnist-1454f09f5925
+    图片来源：https://towardsdatascience.com/multi-label-classification-and-class-activation-map-on-fashion-mnist-1454f09f5925
     </div>
     
     <div class="footnote-item" id="f3n">
-      <a href="#fnref-f3n">[3]</a> CIFAR-10<cite>[krizhevsky2009cifar10]</cite> 包含 10 类物体的 RGB 图像
+      <a href="#fnref-f3n">[3]</a> CIFAR-10<cite>(Krizhevsky et al., 2009)</cite> 包含 10 类物体的 RGB 图像
     
-    图片致谢：https://www.cs.toronto.edu/~kriz/cifar.html
+    图片来源：https://www.cs.toronto.edu/~kriz/cifar.html
     </div>
     
     <div class="footnote-item" id="f4n">
       <a href="#fnref-f4n">[4]</a> 卷积计算输入中区域的加权和。
-在神经网络中，卷积层的可学习权重被称为核。
-例如
+    在神经网络中，卷积层中可学习的权重被称为核。
+    例如
     
-    图片致谢：https://towardsdatascience.com/gentle-dive-into-math-behind-convolutional-neural-networks-79a07dd44cf9。
-另见卷积算术。
+    图片来源：https://towardsdatascience.com/gentle-dive-into-math-behind-convolutional-neural-networks-79a07dd44cf9。
+    另见卷积算术。
     </div>
     
     <div class="footnote-item" id="f5n">
-      <a href="#fnref-f5n">[5]</a> 全连接层将输出神经元计算为输入神经元的加权和。在矩阵形式下，它是一个将输入向量线性变换为输出向量的矩阵。
+      <a href="#fnref-f5n">[5]</a> 全连接层将输出神经元计算为输入神经元的加权和。用矩阵形式表示，它是一个将输入向量线性变换为输出向量的矩阵。
     </div>
     
     <div class="footnote-item" id="f6n">
-      <a href="#fnref-f6n">[6]</a> 由 Nair 和 Hinton 首次提出<cite>[nair2010relu]</cite>，ReLU 对向量输入中的每个元素计算 <span class="math-inline" data-math="f(x)=max(0,x)">f(x)=max(0,x)</span>。图形上，它是原点处的一个铰链：
-    图片致谢：https://pytorch.org/docs/stable/nn.html#relu
+      <a href="#fnref-f6n">[6]</a> 由 Nair 和 Hinton<cite>(Nair et al., 2010)</cite> 首次提出，ReLU 对向量输入中的每个元素计算 <span class="math-inline" data-math="f(x)=max(0,x)">f(x)=max(0,x)</span>。图形上，它是原点处的一个铰链：
+    图片来源：https://pytorch.org/docs/stable/nn.html#relu
     </div>
     
     <div class="footnote-item" id="f7n">
       <a href="#fnref-f7n">[7]</a> Softmax 函数对向量输入（<span class="math-inline" data-math="y">y</span>）中的每个元素（<span class="math-inline" data-math="y_i">y_i</span>）计算 <span class="math-inline" data-math="S(y_i)=\frac{e^{y_i}}{\Sigma_{j=1}^{N} e^{y_j}}">S(y_i)=\frac{e^{y_i}}{\Sigma_{j=1}^{N} e^{y_j}}</span>。例如，
-    图片致谢：https://ljvmiranda921.github.io/notebook/2017/08/13/softmax-and-the-negative-log-likelihood/
+    图片来源：https://ljvmiranda921.github.io/notebook/2017/08/13/softmax-and-the-negative-log-likelihood/
     </div>
     
     <div class="footnote-item" id="f8n">
       <a href="#fnref-f8n">[8]</a> Sigmoid 对向量输入中的每个元素（<span class="math-inline" data-math="x">x</span>）计算 <span class="math-inline" data-math="S(x)=\frac{e^{x}}{e^{x}+1}">S(x)=\frac{e^{x}}{e^{x}+1}</span>。图形上，它是一条 S 形曲线。
     
-    图片致谢：https://en.wikipedia.org/wiki/Sigmoid_function
+    图片来源：https://en.wikipedia.org/wiki/Sigmoid_function
     </div>
     
     <div class="footnote-item" id="f9n">
-      <a href="#fnref-f9n">[9]</a> 最大池化计算输入中某个区域的最大值。例如
+      <a href="#fnref-f9n">[9]</a> 最大池化计算输入中一个区域的最大值。例如
     
 
-    图片致谢：https://towardsdatascience.com/gentle-dive-into-math-behind-convolutional-neural-networks-79a07dd44cf9
+    图片来源：https://towardsdatascience.com/gentle-dive-into-math-behind-convolutional-neural-networks-79a07dd44cf9
     </div>
     
     <div class="footnote-item" id="f10n">
-      <a href="#fnref-f10n">[10]</a> 我们假设训练数据集是类别平衡的。尽管如此，如果训练数据集不平衡，PCA 会偏好具有更多样本的维度，这可能也帮助不大。
+      <a href="#fnref-f10n">[10]</a> 我们假设类别平衡的训练数据集。尽管如此，如果训练数据集不平衡，PCA 会偏好具有更多样本的维度，这可能也帮助不大。
     </div>
     
     <div class="footnote-item" id="f11n">
-      <a href="#fnref-f11n">[11]</a> 卷积层也是线性的。可以通过将展平后的特征图之间的线性变换写出来，或者直接考虑卷积层的循环结构<cite>[sedghi2018singular]</cite>来立即看出这一点。
+      <a href="#fnref-f11n">[11]</a> 卷积层也是线性的。可以通过在展平的特征图之间形成线性变换，或直接考虑卷积层的循环结构<cite>(Sedghi et al., 2018)</cite> 立刻看出这一点。
     </div>
     
     <div class="footnote-item" id="f12n">
-      <a href="#fnref-f12n">[12]</a> 行必须重新排序，使得第 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行在 Gram-Schmidt 过程中被优先考虑。
+      <a href="#fnref-f12n">[12]</a> 行必须重新排序，使得 <span class="math-inline" data-math="i^{th}">i^{th}</span> 行在 Gram-Schmidt 过程中被优先考虑。
     </div>
     
     <div class="footnote-item" id="f13n">
-      <a href="#fnref-f13n">[13]</a> 回忆一下我们的约定是向量为行形式，线性变换是右乘的矩阵。
-所以 <span class="math-inline" data-math="e_i">e_i</span> 是一个行向量，其第 <span class="math-inline" data-math="i">i</span> 个元素是 <span class="math-inline" data-math="1">1</span>（其他位置为 <span class="math-inline" data-math="0">0</span>），而 <span class="math-inline" data-math="\tilde{e_i} := e_i \cdot GT">\tilde{e_i} := e_i \cdot GT</span> 是 <span class="math-inline" data-math="GT">GT</span> 的第 <span class="math-inline" data-math="i">i</span> 行
+      <a href="#fnref-f13n">[13]</a> 回想我们的约定是向量以行形式表示，线性变换是右乘的矩阵。
+    所以 <span class="math-inline" data-math="e_i">e_i</span> 是一个行向量，其第 <span class="math-inline" data-math="i">i</span> 个元素是 <span class="math-inline" data-math="1">1</span>（其余位置为 <span class="math-inline" data-math="0">0</span>），而 <span class="math-inline" data-math="\tilde{e_i} := e_i \cdot GT">\tilde{e_i} := e_i \cdot GT</span> 是 <span class="math-inline" data-math="GT">GT</span> 的第 <span class="math-inline" data-math="i">i</span> 行
     </div>
     
     <div class="footnote-item" id="f14n">
-      <a href="#fnref-f14n">[14]</a> 然而，对于任意的 <span class="math-inline" data-math="\tilde{\Delta}">\tilde{\Delta}</span>，差的范数都被 <span class="math-inline" data-math="||\tilde{\Delta}||">||\tilde{\Delta}||</span> 上界限制，如下图所示。
+      <a href="#fnref-f14n">[14]</a> 然而，对于任意的 <span class="math-inline" data-math="\tilde{\Delta}">\tilde{\Delta}</span>，差的范数被上界限制为 <span class="math-inline" data-math="||\tilde{\Delta}||">||\tilde{\Delta}||</span>，如下图所示。
     </div>
     
     <div class="footnote-item" id="f15n">
-      <a href="#fnref-f15n">[15]</a> 简单旋转是指只有一个旋转平面的旋转。
+      <a href="#fnref-f15n">[15]</a> 简单旋转是只有一个旋转平面的旋转。
     </div>
     
     <div class="footnote-item" id="f16n">

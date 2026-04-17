@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Digg v4 的架构与开发流程 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Will Larson 文集</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -100,7 +106,9 @@
       
     
       
-        <div class="list-content">我们使用 Git 进行源代码管理，使用 Gerrit 进行代码审查。每一段代码都必须经过同行审查和批准，并通过所有单元测试。每次提交 patchset 到 Gerrit 进行审查时，Jenkins 会自动运行单元测试，测试完成后会将结果更新到 Gerrit 上。这意味着代码审查者不必浪费时间去审查失败的补丁，也确保我们从未将单元测试失败的代码合并到 Git 仓库中。一旦某个 Gerrit patchset 通过测试并获得审查者批准，它就会被合并到 Git 的 master 分支，并通过 Puppet 自动部署到 alpha 环境。在成功完成针对 alpha 环境的集成测试后，最后一步是将该 patchset 合并到 Git 的 production 分支。我们通过手动触发 Jenkins 任务来部署到生产环境，该任务会与 Puppet 协作完成代码更新。我们最初采用的是持续部署到生产环境，但在经历了几次灾难性的深夜部署事故后，我们决定在上线生产前加入人工把关会更适合我们。如果当时坚持持续部署，我们最终可能会不断完善测试以减少错误上线，但在那时，这似乎不是最值得投入时间的方向。</div>
+        
+          <div class="list-content">我们使用 Git 进行源代码管理，使用 Gerrit 进行代码审查。每一段代码都必须经过同行审查和批准，并通过所有单元测试。每次提交 patchset 到 Gerrit 进行审查时，Jenkins 会自动运行单元测试，测试完成后会将结果更新到 Gerrit 上。这意味着代码审查者不必浪费时间去审查失败的补丁，也确保我们从未将单元测试失败的代码合并到 Git 仓库中。一旦某个 Gerrit patchset 通过测试并获得审查者批准，它就会被合并到 Git 的 master 分支，并通过 Puppet 自动部署到 alpha 环境。在成功完成针对 alpha 环境的集成测试后，最后一步是将该 patchset 合并到 Git 的 production 分支。我们通过手动触发 Jenkins 任务来部署到生产环境，该任务会与 Puppet 协作完成代码更新。我们最初采用的是持续部署到生产环境，但在经历了几次灾难性的深夜部署事故后，我们决定在上线生产前加入人工把关会更适合我们。如果当时坚持持续部署，我们最终可能会不断完善测试以减少错误上线，但在那时，这似乎不是最值得投入时间的方向。</div>
+        
       
     
       
@@ -117,7 +125,9 @@
       
     
       
-        <div class="list-content">我们最初拥有极高的单元测试覆盖率，但随着团队缩减，我们后来几乎不再编写新的测试。这并非明确的政策，而是因为我们认为单元测试无法有效防止我们最常遇到的两类问题：涉及多个组件在生产负载下的系统性故障，以及前端渲染问题。与那些多年后仍能提供价值的单元测试不同，我们的 Selenium 测试一旦停止积极维护，几乎立刻就腐化了，并在 QA 团队解散后不久便被淘汰。我们使用 Thrift 来定义前端和平台团队之间的接口，这通常让团队间的沟通和协作变得简单直接。虽然最终出现了一些设计糟糕的接口，造成了不少困惑，但总体而言，用 Thrift 来定义团队间的类型和接口是一种极好的沟通辅助手段。我们很少修改现有 Thrift 接口的行为，而是推出新的接口来实现所需功能，更新客户端使用新接口，然后再移除旧接口。这个过程略显繁琐，但由于我们可以独立部署前端和后端代码（完成所有前端或后端服务器的完整 rollout 只需几分钟），这是一种安全、合理的方式，避免把自己搞崩。我们上线所有前端改动时，都会带上一个机制，可以将其逐步 rollout 给部分用户，或在出现问题时快速关闭。这让我们得以将部署和 rollout 分离，既让部署过程更加平稳，也能精准控制功能上线时机。我们原本打算用这个机制来进行新功能的 A/B 测试，但后来发现它在管理发布和从一小批信任用户那里获取反馈方面价值更高。我们还会对预期会带来性能或负载影响的后端功能进行暗中上线（dark launch），以避免在盯着 Jenkins 进度条无助等待时把整个系统拖垮。</div>
+        
+          <div class="list-content">我们最初拥有极高的单元测试覆盖率，但随着团队缩减，我们后来几乎不再编写新的测试。这并非明确的政策，而是因为我们认为单元测试无法有效防止我们最常遇到的两类问题：涉及多个组件在生产负载下的系统性故障，以及前端渲染问题。与那些多年后仍能提供价值的单元测试不同，我们的 Selenium 测试一旦停止积极维护，几乎立刻就腐化了，并在 QA 团队解散后不久便被淘汰。我们使用 Thrift 来定义前端和平台团队之间的接口，这通常让团队间的沟通和协作变得简单直接。虽然最终出现了一些设计糟糕的接口，造成了不少困惑，但总体而言，用 Thrift 来定义团队间的类型和接口是一种极好的沟通辅助手段。我们很少修改现有 Thrift 接口的行为，而是推出新的接口来实现所需功能，更新客户端使用新接口，然后再移除旧接口。这个过程略显繁琐，但由于我们可以独立部署前端和后端代码（完成所有前端或后端服务器的完整 rollout 只需几分钟），这是一种安全、合理的方式，避免把自己搞崩。我们上线所有前端改动时，都会带上一个机制，可以将其逐步 rollout 给部分用户，或在出现问题时快速关闭。这让我们得以将部署和 rollout 分离，既让部署过程更加平稳，也能精准控制功能上线时机。我们原本打算用这个机制来进行新功能的 A/B 测试，但后来发现它在管理发布和从一小批信任用户那里获取反馈方面价值更高。我们还会对预期会带来性能或负载影响的后端功能进行暗中上线（dark launch），以避免在盯着 Jenkins 进度条无助等待时把整个系统拖垮。</div>
+        
       
     
       
@@ -220,6 +230,19 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   var h = document.querySelector('.nav-section h2');
   if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
 });
 </script>
 </body>

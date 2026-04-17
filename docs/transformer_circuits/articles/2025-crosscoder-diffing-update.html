@@ -10,6 +10,11 @@
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Transformer Circuits Thread</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -43,7 +48,7 @@
       
     
       
-        <p>在这篇更新中，我们研究了 crosscoder 模型差异分析 [<cite>[lindsey2024crosscoders]</cite>] 中一个意外的现象：那些仅属于其中一个模型的特征往往具有更高的多义性（polysemantic），其激活也更为密集，从而难以解释。通过玩具模型实验，我们发现这很可能源于对有限特征容量的竞争——由于共享特征能够同时解释两个模型中的神经元激活模式，专属特征就必须编码更多信息才能证明自己值得被分配。我们提出了一种缓解策略，即引入一小部分指定的共享特征，并对其施加更低的稀疏性惩罚，从而使专属特征变得更容易解释且更单义（monosemantic）。当将此方法应用于真实模型时，它成功分离出了可解释的特征，这些特征能够捕捉到所考虑模型之间预期的行为差异。</p>
+        <p>在这篇更新中，我们研究了 crosscoder 模型差异分析 [<cite>(Jack Lindsey, 2024)</cite>] 中一个意外的现象：那些仅属于其中一个模型的特征往往具有更高的多义性（polysemantic），其激活也更为密集，从而难以解释。通过玩具模型实验，我们发现这很可能源于对有限特征容量的竞争——由于共享特征能够同时解释两个模型中的神经元激活模式，专属特征就必须编码更多信息才能证明自己值得被分配。我们提出了一种缓解策略，即引入一小部分指定的共享特征，并对其施加更低的稀疏性惩罚，从而使专属特征变得更容易解释且更单义（monosemantic）。当将此方法应用于真实模型时，它成功分离出了可解释的特征，这些特征能够捕捉到所考虑模型之间预期的行为差异。</p>
       
     
       
@@ -51,7 +56,7 @@
       
     
       
-        <p>我们首先简要回顾 Lindsey et al [<cite>[lindsey2024crosscoders]</cite>] 中提出的 crosscoder 模型差异分析技术。模型差异分析是一类通过分析内部表征来理解两个语言模型之间差异的技术。我们在这里特别关注模型差异分析的 crosscoder 变体，它使用稀疏自编码器（SAEs）同时学习一组能够描述两个目标模型的公共特征。Bricken et al [<cite>[bricken2024stage]</cite>] 提出了一种互补技术，通过使用对应不同模型的激活和数据样本来微调 SAE，以引出模型间的差异。</p>
+        <p>我们首先简要回顾 Lindsey et al [<cite>(Jack Lindsey, 2024)</cite>] 中提出的 crosscoder 模型差异分析技术。模型差异分析是一类通过分析内部表征来理解两个语言模型之间差异的技术。我们在这里特别关注模型差异分析的 crosscoder 变体，它使用稀疏自编码器（SAEs）同时学习一组能够描述两个目标模型的公共特征。Bricken et al [<cite>(Trenton Bricken, 2024)</cite>] 提出了一种互补技术，通过使用对应不同模型的激活和数据样本来微调 SAE，以引出模型间的差异。</p>
       
     
       
@@ -71,7 +76,7 @@
       
     
       
-        <p>其中 <span class="math-inline" data-math="m \in {A,B}">m \in {A,B}</span> 是我们关心的两个模型（或者在更一般的 crosscoder 情形下，是同一模型或不同模型的不同层），<span class="math-inline" data-math="i">i</span> 索引特征，<span class="math-inline" data-math="x^m">x^m</span> 表示来自模型 m 的输入激活，<span class="math-inline" data-math="\hat{x}^m">\hat{x}^m</span> 是模型 m 的重构激活，<span class="math-inline" data-math="W^m_{dec}">W^m_{dec}</span> 表示模型 <span class="math-inline" data-math="m">m</span> 的解码器权重，<span class="math-inline" data-math="f_i">f_i</span> 表示特征激活。虽然我们可以使用性能更强的稀疏惩罚，例如 tanh [<cite>[jermyn2024tanh]</cite>] 或 Top-K [<cite>[gao2024scaling,bussman2024batchtopk]</cite>] 来搭配 crosscoder 设置，但这里为了表述简洁，我们仍使用最基础的 L1 版本。</p>
+        <p>其中 <span class="math-inline" data-math="m \in {A,B}">m \in {A,B}</span> 是我们关心的两个模型（或者在更一般的 crosscoder 情形下，是同一模型或不同模型的不同层），<span class="math-inline" data-math="i">i</span> 索引特征，<span class="math-inline" data-math="x^m">x^m</span> 表示来自模型 m 的输入激活，<span class="math-inline" data-math="\hat{x}^m">\hat{x}^m</span> 是模型 m 的重构激活，<span class="math-inline" data-math="W^m_{dec}">W^m_{dec}</span> 表示模型 <span class="math-inline" data-math="m">m</span> 的解码器权重，<span class="math-inline" data-math="f_i">f_i</span> 表示特征激活。虽然我们可以使用性能更强的稀疏惩罚，例如 tanh [<cite>(Adam Jermyn, 2024)</cite>] 或 Top-K [<cite>(Gao et al., 2024; Bart Bussmann, 2024)</cite>] 来搭配 crosscoder 设置，但这里为了表述简洁，我们仍使用最基础的 L1 版本。</p>
       
     
       
@@ -2026,7 +2031,9 @@ QIAAAQIECBAgECggTATiWpoAAQIECBAgQIAAAQIECBCYLyBMzPdxLwECBAgQIECAAAECBAgQIBAo
       
     
       
-        <div class="list-content">共享特征：这些特征在两个模型上具有相似的解码器幅度（下图中相对解码器幅度峰值约为 0.5），因此会同等地“写入”两个模型。解码器的相对方向呈现出非平凡的分布，其余弦相似度峰值约为 1（对齐的特征，可解释为在两个模型的表征中被类似地使用），同时还有一个宽广的分布向下延伸至负值（不对齐的特征，可解释为在两个模型的表征中被不同地使用）。模型专属特征：这些特征显著更强地写入其中一个模型，在下图中相对解码器幅度的峰值要么接近 0，要么接近 1。</div>
+        
+          <div class="list-content">共享特征：这些特征在两个模型上具有相似的解码器幅度（下图中相对解码器幅度峰值约为 0.5），因此会同等地“写入”两个模型。解码器的相对方向呈现出非平凡的分布，其余弦相似度峰值约为 1（对齐的特征，可解释为在两个模型的表征中被类似地使用），同时还有一个宽广的分布向下延伸至负值（不对齐的特征，可解释为在两个模型的表征中被不同地使用）。模型专属特征：这些特征显著更强地写入其中一个模型，在下图中相对解码器幅度的峰值要么接近 0，要么接近 1。</div>
+        
       
     
       
@@ -12437,15 +12444,15 @@ I0eOHDly5MiRI0eOvXz8L3T74Zitr5AzAAAAAElFTkSuQmCC
       
     
       
-        <p>相比之下，我们发现使用这个玩具模型设置无法重现专属特征在数量上的对称性，分配给其中一个或另一个模型的专属特征相对数量会跟随真实的比例。结合 Kissane et al [<cite>[kissane2024open]</cite>] 的开放模型差异分析复现中观察到的缺乏对称性，这使我们相信观察到的对称性很可能来自我们特定模型或真实模型训练设置的细节（包括例如数据集构成），而非 crosscoder 差异分析本身所固有。我们在这里讨论几种与专属特征对称性相关的假说。</p>
+        <p>相比之下，我们发现使用这个玩具模型设置无法重现专属特征在数量上的对称性，分配给其中一个或另一个模型的专属特征相对数量会跟随真实的比例。结合 Kissane et al [<cite>(Connor Kissane, 2024)</cite>] 的开放模型差异分析复现中观察到的缺乏对称性，这使我们相信观察到的对称性很可能来自我们特定模型或真实模型训练设置的细节（包括例如数据集构成），而非 crosscoder 差异分析本身所固有。我们在这里讨论几种与专属特征对称性相关的假说。</p>
       
     
       
-        <p>一个受 Bricken et al [<cite>[bricken2024oversampling]</cite>] 结果启发的假说是，两个模型中专属特征数量和性质的相似性，是由于对包含 Human/Assistant 聊天记录的数据进行了过采样，从而引出了类似聊天机器人的特征。然而，仅使用不包含聊天记录的预训练数据，虽然使专属特征的总体数量减少了约 20%，却并未导致更大的不对称。</p>
+        <p>一个受 Bricken et al [<cite>(Trenton Bricken, 2024)</cite>] 结果启发的假说是，两个模型中专属特征数量和性质的相似性，是由于对包含 Human/Assistant 聊天记录的数据进行了过采样，从而引出了类似聊天机器人的特征。然而，仅使用不包含聊天记录的预训练数据，虽然使专属特征的总体数量减少了约 20%，却并未导致更大的不对称。</p>
       
     
       
-        <p>Lindsey et al [<cite>[lindsey2024crosscoders]</cite>] 讨论过，预训练模型中与聊天机器人相关的专属特征，可能在微调过程中被调整了。作为一个说明性的例子，预训练模型可能具有对应“Assistant 拒绝请求”的特征，但微调模型中的类似特征可能还会额外包含来自 Human 提示的拒绝上下文，或者与某个相关的上下文特征强烈共同激活。作为对这种情景的粗略模拟，我们生成合成激活，其中潜在特征不是像基础玩具模型那样被归类为专属或共享，而是从一个公共池中抽取，并由共同激活概率的分布来刻画（概率为 1 表示特征总是共享的，而 0 表示它在两个模型中独立出现）。在这种情况下，我们确实发现那些具有低共同激活概率的特征会被表示为专属特征，并且在两个模型之间是对称的。因此，似乎一个合理的解释是，两个模型在共同激活模式或特征上下文上的细微差异，至少部分解释了我们在真实模型差异分析中观察到的对称性。</p>
+        <p>Lindsey et al [<cite>(Jack Lindsey, 2024)</cite>] 讨论过，预训练模型中与聊天机器人相关的专属特征，可能在微调过程中被调整了。作为一个说明性的例子，预训练模型可能具有对应“Assistant 拒绝请求”的特征，但微调模型中的类似特征可能还会额外包含来自 Human 提示的拒绝上下文，或者与某个相关的上下文特征强烈共同激活。作为对这种情景的粗略模拟，我们生成合成激活，其中潜在特征不是像基础玩具模型那样被归类为专属或共享，而是从一个公共池中抽取，并由共同激活概率的分布来刻画（概率为 1 表示特征总是共享的，而 0 表示它在两个模型中独立出现）。在这种情况下，我们确实发现那些具有低共同激活概率的特征会被表示为专属特征，并且在两个模型之间是对称的。因此，似乎一个合理的解释是，两个模型在共同激活模式或特征上下文上的细微差异，至少部分解释了我们在真实模型差异分析中观察到的对称性。</p>
       
     
       
@@ -12474,7 +12481,9 @@ I0eOHDly5MiRI0eOvXz8L3T74Zitr5AzAAAAAElFTkSuQmCC
       
     
       
-        <div class="list-content">一个较小的 Claude 3 Sonnet 类基础模型与一个 helpful-only 微调版本，特征密度如下图所示；一个 helpful-only 模型与 Hubinger et al [<cite>[hubinger2024sleeperagents]</cite>] 中提出的 SAY HATE sleeper agent 模型。</div>
+        
+          <div class="list-content">一个较小的 Claude 3 Sonnet 类基础模型与一个 helpful-only 微调版本，特征密度如下图所示；一个 helpful-only 模型与 Hubinger et al [<cite>(Hubinger et al., 2024)</cite>] 中提出的 SAY HATE sleeper agent 模型。</div>
+        
       
     
       
@@ -16322,7 +16331,9 @@ JEmSJEmSJKnU/S9hkXZyuIi8tgAAAABJRU5ErkJggg==
       
     
       
-        <div class="list-content">Assistant 说“Here is a draft / here is a short story”的特征；Assistant 说“Thanks for catching my mistake / I apologize for the mistake”的特征；“Explain it to me like I’m in sixth grade / like I’m a 10-year old / in simple words”的特征。</div>
+        
+          <div class="list-content">Assistant 说“Here is a draft / here is a short story”的特征；Assistant 说“Thanks for catching my mistake / I apologize for the mistake”的特征；“Explain it to me like I’m in sixth grade / like I’m a 10-year old / in simple words”的特征。</div>
+        
       
     
       

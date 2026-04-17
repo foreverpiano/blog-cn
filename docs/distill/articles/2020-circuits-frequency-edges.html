@@ -10,6 +10,11 @@
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Distill.pub</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -37,7 +42,7 @@
       
     
       
-        <p>本文是 <a href="2020-circuits.html">线程：电路</a> 的一部分，该系列采用实验性格式，收集受邀的短文和批判性评论，深入探讨神经网络的内部工作机制。</p>
+        <p>本文是 <a href="2020-circuits.html">线程：电路</a> 的一部分，该系列以实验性格式收集受邀的短文和批判性评论，深入探讨神经网络的内部工作机制。</p>
       
     
       
@@ -54,11 +59,11 @@
       
     
       
-        <p>视觉模型中的某些神经元是我们并不特别意外会发现的特征。例如， 就是一个视觉系统很自然的特征。事实上，它们已经在动物视觉皮层中被发现。我们很容易想象曲线检测器是如何从更早的边缘检测器构建而来的，也很容易猜到为什么曲线检测对神经网络的其他部分可能有用。<a href="2020-circuits-curve-detectors.html">曲线检测器</a></p>
+        <p>视觉模型中的某些神经元是我们并不特别惊讶能发现的特征。例如，对于视觉系统来说是一种相当自然的特征。事实上，它们已经在动物视觉皮层中被发现。我们很容易想象曲线检测器是如何从更早的边缘检测器构建而来的，也很容易猜到曲线检测对神经网络的其他部分可能会有什么用处。<a href="2020-circuits-curve-detectors.html">曲线检测器</a></p>
       
     
       
-        <p>相比之下，高低频检测器则显得更令人意外。它们并不是我们先验会预料到的特征。然而，当我们系统性地表征 InceptionV1 的  时，却在 mixed3a 中发现了整整 ，它们似乎能检测到一侧的高频模式和另一侧的低频模式。<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a></p>
+        <p>相比之下，高低频检测器则显得更令人意外。它们不是我们先验会预料到的特征。然而，当我们系统性地刻画 InceptionV1 的  时，却在 mixed3a 中发现了整整 ，它们似乎能检测到一侧的高频模式和另一侧的低频模式。<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a></p>
       
     
       
@@ -66,7 +71,7 @@
       
     
       
-        <p>关于使用  方法研究神经网络，我们可能会有一个担忧，那就是我们可能只能理解有限的一组高度直观的特征。而高低频检测器表明，至少某些不那么直观的特征也是可以被理解的。<a href="2020-circuits-zoom-in.html">放大观察：电路导论</a></p>
+        <p>在使用  方法研究神经网络时，我们可能担心的一点是只能理解一小部分高度直观的特征。而高低频检测器表明，我们至少有可能理解一些不太直观的特征。<a href="2020-circuits-zoom-in.html">放大观察：电路导论</a></p>
       
     
       
@@ -75,21 +80,19 @@
       
     
       
-        <p>我们如何确定“高低频检测器”确实是在检测从低空间频率到高空间频率的方向性过渡呢？我们将依赖三种方法：</p>
+        <p>我们如何确定“高低频检测器”确实是在检测从低空间频率到高空间频率的方向性转变呢？我们将依赖三种方法：</p>
       
     
       
-        <div class="list-content">特征可视化能让我们在每个神经元与其功能之间建立因果联系。
-      
-
-数据集样本能向我们展示神经元在实际中会在哪里被激活。
-      
-
-合成调谐曲线能向我们展示各种变化如何影响神经元的响应。</div>
+        
+          <ul>
+            <li>特征可视化能让我们在每个神经元与其功能之间建立因果联系。</li><li>数据集样本向我们展示神经元在实际中会在哪里激活。</li><li>合成调谐曲线向我们展示各种变化如何影响神经元的响应。</li>
+          </ul>
+        
       
     
       
-        <p>在本文后续部分，我们将深入探讨它们是如何被实现和使用的机制。我们将能够理解实现这些功能的算法，从而确认它们确实能检测从高频到低频的过渡。</p>
+        <p>在本文后续部分，我们将深入探讨它们被实现和使用的机制细节。我们将能够理解实现它们的算法，从而确认它们确实能检测高频到低频的转变。</p>
       
     
       
@@ -98,14 +101,13 @@
       
     
       
-        <p> 是针对单个特定神经元进行优化，合成出的能使其激活达到最大的输入。特征可视化从随机噪声开始构建，因此可视化中每一个偏离随机噪声的像素，都是因为它能让神经元更强烈地激活。这就建立了因果联系！特征可视化所展示的行为，正是能引发该神经元激活的行为：<a href="2017-feature-visualization.html">特征可视化</a></p>
+        <p>是一种经过优化的合成输入，旨在最大程度地激活某个特定神经元。特征可视化从随机噪声开始构建，因此可视化中每一个偏离随机噪声的像素，都是因为它能让神经元更强烈地激活。这就建立了因果联系！特征可视化所展示的行为，正是能引起该神经元激活的行为：<a href="2017-feature-visualization.html">特征可视化</a></p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/neuron-136.png" alt="">
-          <figcaption>1:
-        Feature visualizations of a variety of high-low frequency detectors from InceptionV1′s <a href="https://microscope.openai.com/models/inceptionv1/mixed3a_0?models.op.feature_vis.type=neuron&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">mixed3a</a> layer.</figcaption>
+          <figcaption>1: InceptionV1 <a href="https://microscope.openai.com/models/inceptionv1/mixed3a_0?models.op.feature_vis.type=neuron&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">mixed3a</a> 层中多种高低频检测器的特征可视化。</figcaption>
         </figure>
       
     
@@ -114,26 +116,21 @@
       
     
       
-        <div class="list-content">检测相邻的高频和低频。检测器对一侧的高频和另一侧的低频产生响应。
-      
-
-
-旋转等变性。
-        这些检测器具有旋转 ：每个单元检测沿特定角度的高低频变化，不同单元共同覆盖了全部 360º 的可能方向。
-        当我们用合成样本构建调谐曲线，以及观察实现这些检测器的权重时，会更详细地看到这一点。<a href="2020-circuits-equivariance.html">神经网络中的自然等变性</a></div>
+        
+          <ul>
+            <li>检测相邻的高频和低频。检测器对一侧的高频和另一侧的低频做出响应。</li><li>旋转等变性。这些检测器具有旋转 ：每个单元检测沿特定角度的高低频变化，不同单元共同覆盖了全部 360º 的可能方向。我们在用合成样本构建调谐曲线时，以及在观察实现这些检测器的权重时，将更详细地看到这一点。<a href="2020-circuits-equivariance.html">神经网络中的自然等变性</a></li>
+          </ul>
+        
       
     
       
-        <p>我们可以在特征可视化中使用 ，在优化单个神经元激活的同时，鼓励一批可视化产生不同的激活模式。
-    因此，我们有理由相信，如果高低频检测器还对其他模式敏感，我们会在这些特征可视化中看到迹象。但实际情况是，频率对比仍是所有这些可视化中不变的特征。（尽管边界处会形成其他模式，但这些很可能超出了神经元的有效感受野。）<a href="2017-feature-visualization.html">特征可视化</a></p>
+        <p>我们可以在特征可视化中使用 ，在优化单个神经元激活的同时，鼓励一批可视化呈现不同的激活模式。因此，我们有理由相信，如果高低频检测器对其他模式也敏感，我们会在这些可视化中看到迹象。但实际上，频率对比仍是所有这些可视化中不变的特征。（虽然在边界处也形成了其他模式，但这些很可能超出了神经元的有效感受野。）<a href="2017-feature-visualization.html">特征可视化</a></p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/fv-mixed3a-136-diversity-0.png" alt="">
-          <figcaption>1-2:
-        Feature visualizations of high-low frequency detector mixed3a:136 from InceptionV1′s <a href="https://microscope.openai.com/models/inceptionv1/mixed3a_0?models.op.feature_vis.type=neuron&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">mixed3a</a>
-        layer, optimized with a diversity objective. You can learn more about feature visualization and the diversity objective <a href="2017-feature-visualization.html">特征可视化</a>.</figcaption>
+          <figcaption>1-2: InceptionV1 <a href="https://microscope.openai.com/models/inceptionv1/mixed3a_0?models.op.feature_vis.type=neuron&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">mixed3a</a> 层中高低频检测器 mixed3a:136 在多样性目标下优化的特征可视化。你可以点击  了解更多关于特征可视化和多样性目标的信息。<a href="2017-feature-visualization.html">特征可视化</a></figcaption>
         </figure>
       
     
@@ -143,28 +140,22 @@
       
     
       
-        <p>我们通过从自然数据分布（本例中为训练集）中采样，并选取那些使神经元激活达到最大的图像，来生成数据集样本。
-      通过对照这些样本，我们可以确保自己没有误读特征可视化。</p>
+        <p>我们通过从自然数据分布（此处为训练集）中采样，并挑选那些能使神经元最大程度激活的图像来生成数据集样本。检查这些样本有助于确保我们没有误读特征可视化。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/neuron-136.png" alt="">
-          <figcaption>2:
-        Crops taken from Imagenet where <a href="https://microscope.openai.com/models/inceptionv1/mixed3a_0/136" target="_blank" rel="noopener">mixed3a136</a> activated maximally,
-        argmaxed over spatial locations.</figcaption>
+          <figcaption>2: 来自 Imagenet 的裁剪图像，其中 <a href="https://microscope.openai.com/models/inceptionv1/mixed3a_0/136" target="_blank" rel="noopener">mixed3a136</a> 在空间位置上达到最大激活。</figcaption>
         </figure>
       
     
       
-        <p>现实世界中多种情况都能触发高低频检测器。通常是一个纹理丰富、清晰对焦的前景物体与模糊的背景相对——例如，前景可能是麦克风的格栅、蜂鸟细小的头部羽毛，或 Lenovo ThinkPad <a href="https://en.wikipedia.org/wiki/Pointing_stick" target="_blank" rel="noopener">指点杆</a> 上的小橡胶点——但并非总是如此：我们还观察到它会对 MP3 播放器拉丝金属表面与光亮屏幕的对比、或水印文字产生响应。</p>
+        <p>现实世界中多种情况都能引发高低频检测器的激活。通常是一个纹理丰富、清晰对焦的前景物体与模糊的背景相对——例如，前景可能是麦克风的网罩、蜂鸟细小的头部羽毛，或 Lenovo ThinkPad <a href="https://en.wikipedia.org/wiki/Pointing_stick" target="_blank" rel="noopener">指点杆</a>上的小橡胶点——但并非总是如此：我们也观察到它会对 MP3 播放器的拉丝金属表面与其光亮屏幕的对比、或水印文字产生反应。</p>
       
     
       
-        <p>在所有情况下，我们都能看到一个高频区域和另一个低频区域。虽然它们经常在物体边界处激活，
-
-      但在没有物体边界而仅有频率变化的情况下也能被激活。
-       因此，高低频检测器与  并不相同。<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a></p>
+        <p>在所有情况下，我们都能看到一个高频区域和另一个低频区域。虽然它们经常在物体边界处激活，但也能在没有物体边界却存在频率变化的情况下激活。因此，高低频检测器与  并不完全相同。<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a></p>
       
     
       
@@ -173,50 +164,48 @@
       
     
       
-        <p>调谐曲线向我们展示神经元的响应如何随某个参数变化。
-      这是神经科学中的标准方法，我们也发现它对研究人工神经网络非常有帮助。例如，我们曾用它来展示 。
-      同样，我们可以用调谐曲线来展示高低频检测器的响应情况。<a href="2020-circuits-curve-detectors.html">曲线检测器</a></p>
+        <p>调谐曲线能向我们展示神经元的响应如何随某个参数变化。这是神经科学中的标准方法，我们发现它对研究人工神经网络也非常有用。例如，我们曾用它来展示 。类似地，我们也可以用调谐曲线来展示高低频检测器的响应情况。<a href="2020-circuits-curve-detectors.html">曲线检测器</a></p>
       
     
       
-        <p>要构建这样的曲线，我们需要一套能让高低频检测器激活的合成刺激。
-      我们生成一侧为高频模式、另一侧为低频模式的图像。由于我们对方向感兴趣，因此会旋转这个模式，创建一个一维的刺激族：</p>
+        <p>为了构建这样的曲线，我们需要一组能让高低频检测器激活的合成刺激。我们生成一侧为高频模式、另一侧为低频模式的图像。由于我们对方向感兴趣，因此会旋转这种模式来创建一维刺激族：</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/orientation.png" alt="">
-          <figcaption>The first axis of variation of our synthetic stimuli is orientation.</figcaption>
+          <figcaption>我们合成刺激的第一维变化是方向。</figcaption>
         </figure>
       
     
       
-        <p>但每侧应该使用什么频率呢？频率差异需要有多陡？
-      为了探索这个问题，我们添加第二个维度，改变两种频率之间的比例：</p>
+        <p>但每侧应该使用什么频率呢？频率差异需要有多陡？为了探索这一点，我们加入第二维度来改变两种频率之间的比率：</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/ratio.png" alt="">
-          <figcaption>The second axis of variation of our synthetic stimuli is the frequency ratio.</figcaption>
+          <figcaption>我们合成刺激的第二维变化是频率比率。</figcaption>
         </figure>
       
     
       
-        <p>（增加第二个维度还能帮助我们检验第一个维度的结果是否稳健。）</p>
+        <p>（加入第二维度也有助于我们判断第一维度的结果是否稳健。）</p>
       
     
       
-        <p>现在我们有了这两个维度，对合成刺激进行采样并绘制每个神经元的响应：</p>
+        <p>现在我们有了这两个维度，对合成刺激进行采样并绘制每个神经元对它们的响应：</p>
       
     
       
-        <p>[交互图——查看原文：https://distill.pub/2020/circuits/frequency-edges]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2020/circuits/frequency-edges" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
-        <p>每个高低频检测器都对有限的方向范围表现出明显的偏好。
-      正如我们  曲线检测器的情况一样，高低频检测器也具有旋转 ：每个检测器选择一个特定方向，共同覆盖完整的 360º 空间。<a href="2020-circuits-curve-detectors.html">曲线检测器</a><a href="2020-circuits-equivariance.html">神经网络中的自然等变性</a></p>
+        <p>每个高低频检测器都对有限范围的方向表现出明显的偏好。正如我们  曲线检测器的情况一样，高低频检测器也具有旋转 ：每一个选择特定的方向，共同覆盖完整的 360º 空间。<a href="2020-circuits-curve-detectors.html">曲线检测器</a><a href="2020-circuits-equivariance.html">神经网络中的自然等变性</a></p>
       
     
       
@@ -225,60 +214,55 @@
       
     
       
-        <p>高低频检测器是如何从低层神经元构建而来的？
-      我们可以想象许多不同的电路都能实现这种行为。仅举一例，这些单元的方向性似乎至少有两种不同的形成方式。</p>
+        <p>高低频检测器是如何从更低层的神经元构建而来的？我们可以想象许多不同的电路来实现这种行为。举一个例子，这些单元的方向性至少有两种可能的形成方式。</p>
       
     
       
-        <div class="list-content">等变→等变假设。第一种可能是前一层已经存在能检测从高频到低频的方向性过渡的先导特征。这种假设的极端版本是，高低频检测器只是对底层神经元的直接恒等传递。更温和的版本类似于我们在曲线检测器中看到的现象，即  被提炼为更大、更复杂的 。另一个例子是边缘检测如何由已经具有方向性的简单  构建而来。
-        我们称之为 ，因为关于方向的等变性在前一层中已经存在。
-      
-
-不变→等变假设。另一种可能是，前几层中并不存在类似高低频检测器的特征。取而代之的是，方向性来自神经元权重中的空间排列，这些权重决定了低频和高频特征在何处使其兴奋。<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-equivariance.html">神经网络中的自然等变性</a></div>
-      
-    
-      
-        <p>要解决这个问题——更一般地，为了理解这些检测器是如何实现的——我们可以观察权重。</p>
+        
+          <ul>
+            <li>等变→等变假设。第一种可能是前一层已经存在能检测高频到低频定向转变的先导特征。这种假设的极端版本是，高低频检测器只是对某一更低层神经元的恒等传递。更温和的版本类似于我们在曲线检测器中看到的情况，即  被提炼成更大、更复杂的 。另一个例子是边缘检测如何从已经具有方向性的简单  构建而来。我们称之为 ，因为方向等变性在前一层已经存在。</li><li>不变→等变假设。另一种可能是前层并没有类似高低频检测器的特征，而是通过神经元权重的空间排列来产生方向性，这些权重决定了低频和高频特征在哪些位置会激发它。<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-equivariance.html">神经网络中的自然等变性</a></li>
+          </ul>
+        
       
     
       
-        <p>让我们来看一个单独的检测器。粗略观察从 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 到 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3a_110.html" target="_blank" rel="noopener">mixed3a110</a> 的权重，大部分可以大致分为两类：左侧激活右侧抑制的，以及与之相反的。</p>
+        <p>为了解决这个问题——更一般地说，为了理解这些检测器是如何实现的——我们可以观察权重。</p>
+      
+    
+      
+        <p>让我们来看一个单独的检测器。观察从 <a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 到 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3a_110.html" target="_blank" rel="noopener">mixed3a110</a> 的权重，其中大部分可以粗略分为两类：左侧激活右侧抑制的，以及做相反操作的。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/figure_40.svg" alt="">
-          <figcaption>4:
-            Six neurons from conv2d2 contributing weights to mixed3a 110.</figcaption>
+          <figcaption>4: 来自 conv2d2 的六个神经元对 mixed3a 110 的权重贡献。</figcaption>
         </figure>
       
     
       
-        <p>其他每个高低频检测器也是如此——当然，权重上的空间模式<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup> 不同，以实现不同的方向。</p>
+        <p>对于其他每个高低频检测器也是如此——当然，权重上的空间模式<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup>不同，从而实现了不同的方向。</p>
       
     
       
-        <p>令人惊讶的是，在所有高低频检测器中，我们得到的两个神经元簇实际上是相同的两个簇！一个簇似乎检测总体高频的纹理，另一个簇似乎检测总体低频的纹理。</p>
+        <p>令人惊讶的是，在所有高低频检测器中，我们为每个检测器得到的两个神经元簇实际上是相同的两个簇！其中一个簇似乎检测一般高频的纹理，另一个簇似乎检测一般低频的纹理。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/HF-LF-clusters-amd-weight-structure.png" alt="">
-          <figcaption>5:
-            The strongest weights on any high-low frequency detector (here shown: <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3a_110.html" target="_blank" rel="noopener">mixed3a110</a>, <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3a_136.html" target="_blank" rel="noopener">mixed3a136</a>, and <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3a_112.html" target="_blank" rel="noopener">mixed3a112</a>) can be divided into roughly two clusters. Each cluster contributes its weights in similar ways.
-          
+          <figcaption>5: 任何高低频检测器上最强的权重（此处展示：<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3a_110.html" target="_blank" rel="noopener">mixed3a110</a>、<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3a_136.html" target="_blank" rel="noopener">mixed3a136</a> 和 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3a_112.html" target="_blank" rel="noopener">mixed3a112</a>）可以大致分为两个簇。每个簇以相似的方式贡献其权重。
 
-            Top row: underlying neurons <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_119.html" target="_blank" rel="noopener">conv2d2119</a>, <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_102.html" target="_blank" rel="noopener">conv2d2102</a>, <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_123.html" target="_blank" rel="noopener">conv2d2123</a>, <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_90.html" target="_blank" rel="noopener">conv2d290</a>, <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_89.html" target="_blank" rel="noopener">conv2d289</a>, <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_163.html" target="_blank" rel="noopener">conv2d2163</a>, <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_98.html" target="_blank" rel="noopener">conv2d298</a>, and <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_188.html" target="_blank" rel="noopener">conv2d2188</a>.</figcaption>
+            第一行：底层神经元 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_119.html" target="_blank" rel="noopener">conv2d2119</a>、<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_102.html" target="_blank" rel="noopener">conv2d2102</a>、<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_123.html" target="_blank" rel="noopener">conv2d2123</a>、<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_90.html" target="_blank" rel="noopener">conv2d290</a>、<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_89.html" target="_blank" rel="noopener">conv2d289</a>、<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_163.html" target="_blank" rel="noopener">conv2d2163</a>、<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_98.html" target="_blank" rel="noopener">conv2d298</a> 和 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_188.html" target="_blank" rel="noopener">conv2d2188</a>。</figcaption>
         </figure>
       
     
       
-        <p>这正是我们预期在“不变→等变”假设成立时会看到的结果：每个高低频检测器都以不同的空间排列方式组合相同的两个组件，而这些排列又决定了检测器的方向。</p>
+        <p>这正是如果不变→等变假设成立时我们预期会看到的结果：每个高低频检测器都以不同的空间排列组合相同的两个组件，而这些排列又决定了检测器的方向。</p>
       
     
       
-        <p>这两个不同的簇非常引人注目。
-      在下一节中，我们将更详细地研究它们。</p>
+        <p>这两个不同的簇非常引人注目。在下一节中，我们将对它们进行更详细的调查。</p>
       
     
       
@@ -287,48 +271,47 @@
       
     
       
-        <p>如果我们能确认这两个神经元簇是真实存在的，那就太好了。如果我们还能为后续的电路分析创造一种更简单的表示方式，那就更好了。</p>
+        <p>如果我们能确认这两个神经元簇是真实存在的，那就好了。如果我们还能为后续的电路分析创建一个更简单的表示方式，那就更好了。</p>
       
     
       
-        <p>对低层与高低频检测器之间的连接<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>进行因子分解，是检验这两个簇是否有意义并探究其重要性的一种方法。进行单侧非负矩阵分解 (NMF)<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup> 可以将连接分离为两个因子。</p>
+        <p>对较低层与高低频检测器之间的连接<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup>进行因子分解，是检查这两个簇是否有意义并探究其重要性的一种方法。执行单侧非负矩阵分解（NMF）<sup id="fnref-f3n"><a href="#f3n">[3]</a></sup>可以将连接分离为两个因子。</p>
       
     
       
-        <p>每个因子对应一个跨越神经元的向量。我们也可以使用特征可视化来可视化这些神经元的线性组合。令人惊讶的是，其中一个清晰地显示出通用的高频图像，而另一个则显示出低频图像。<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup> 我们将它们分别称为 HF 因子和 LF 因子：</p>
+        <p>每个因子对应一个跨越神经元的向量。特征可视化也可以用来可视化这些神经元的线性组合。令人惊讶的是，其中一个清晰地显示出通用的高频图像，而另一个则显示出低频图像。<sup id="fnref-f4n"><a href="#f4n">[4]</a></sup> 我们将它们分别称为 HF 因子和 LF 因子：</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/conv2d2-hi.png" alt="">
-          <figcaption>6:
-        NMF recovers the neurons that contribute to the two NMF factors plus the weighted amount they contribute to
-        each factor. Here shown: NMF against both conv2d2 and a deeper layer, conv2d1. The
-        left side of the equal sign shows feature visualizations of the NMF factors.</figcaption>
+          <figcaption>6: NMF 找回了贡献于两个 NMF 因子的神经元及其对每个因子的加权贡献。此处同时展示了针对 conv2d2 和更深层 conv2d1 的 NMF。等号左侧显示了 NMF 因子的特征可视化。</figcaption>
         </figure>
       
     
       
-        <p>特征可视化具有启发性，但我们如何确定这些因子确实对应于一般的高频和低频，而不是特定的高频或低频模式呢？我们可以再次创建合成刺激，但这次绘制的是那两个 NMF 因子的响应。</p>
+        <p>特征可视化虽然具有启发性，但我们如何确定这些因子确实对应于一般的高频和低频，而不是特定的高频或低频模式呢？我们可以再次创建合成刺激，但这次绘制那两个 NMF 因子的响应。</p>
       
     
       
-        <p>由于我们的因子不对应于边缘，因此每个合成刺激只包含一个频率区域。为了增加第二个维度并再次展示稳健性，我们还改变了该区域的旋转角度。（频率纹理并非完全旋转不变，因为我们是用正交余弦波构建刺激的。）</p>
+        <p>由于我们的因子不对应于边缘，因此每个合成刺激只会有一个频率区域。为了增加第二个维度并再次展示稳健性，我们还改变了该区域的旋转角度。（频率纹理并非完全旋转不变，因为我们是用正交余弦波构建刺激的。）</p>
       
     
       
-        <p>[交互图——查看原文：https://distill.pub/2020/circuits/frequency-edges]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2020/circuits/frequency-edges" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
-        <p>与上次不同，这些激活现在基本忽略了图像的方向，但对频率敏感。我们可以将这些结果在所有方向上取平均，从而得到一个简单的调谐曲线，显示每个因子如何响应频率。正如预期，HF 因子对高频响应，LF 因子对低频响应。</p>
+        <p>与之前不同，这些激活现在基本忽略了图像的方向，但对频率敏感。我们可以把所有方向的结果取平均，从而得到一个简单的调谐曲线，显示每个因子如何响应频率。正如预期的那样，HF 因子对高频响应，LF 因子对低频响应。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/figure_55.svg" alt="">
-          <figcaption>8:
-            Tuning curve for HF-factor and LF-factor from conv2d2 against images with synthetic frequency, averaged across orientation. Wavelength as a proportion of the full input image ranges from 1:1 to 1:10.</figcaption>
+          <figcaption>8: 来自 conv2d2 的 HF 因子和 LF 因子对合成频率图像的调谐曲线，按方向取平均。波长相对于完整输入图像的比例范围为 1:1 到 1:10。</figcaption>
         </figure>
       
     
@@ -342,51 +325,37 @@
       
     
       
-        <p>NMF 将权重分解为通道因子和空间因子。到目前为止，我们已经观察了通道因子的两个部分。空间因子显示了将 HF 和 LF 因子组合成高低频检测器的空间加权方式。</p>
+        <p>NMF 将权重分解为通道因子和空间因子。目前我们已经观察了通道因子的两个部分。空间因子显示了如何通过空间加权将 HF 和 LF 因子组合成高低频检测器。</p>
       
     
       
-        <p>不出所料，这些权重基本重现了我们在图 5 中从两个不同神经元簇所看到的相同模式：HF 因子抑制的地方，LF 因子激活——反之亦然。
-      <sup id="fnref-f5n"><a href="#f5n">[5]</a></sup></p>
+        <p>不出所料，这些权重基本重现了我们在图 5 中从两个不同神经元簇看到的相同模式：HF 因子抑制的地方，LF 因子激活——反之亦然。<sup id="fnref-f5n"><a href="#f5n">[5]</a></sup></p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/neuron-136.png" alt="">
-          <figcaption>9:
-                Using NMF factorization on the weights connecting six high-low frequency detectors in InceptionV1 to the
-                two directly
-                preceding convolutional layers, conv2d2 and conv2d1.
-Their spatial arrangement is very clear, with LF factors activating
-                    areas in which high-low frequency detectors expect low frequencies, and inhibiting areas in which they expect high frequencies. The two
-                factors
-                are very close to symmetric. Weight magnitudes normalized between -1  and 1.</figcaption>
+          <figcaption>9: 对 InceptionV1 中六个高低频检测器与前两层卷积层（conv2d2 和 conv2d1）之间权重的 NMF 分解。它们的空间排列非常清晰，LF 因子在高低频检测器期望出现低频的区域激活，在期望出现高频的区域抑制。两个因子非常接近对称。权重幅度已归一化到 -1 到 1 之间。</figcaption>
         </figure>
       
     
       
-        <p>因此，高低频检测器是由在一侧排列高频检测、另一侧排列低频检测的电路构建而成的。</p>
+        <p>因此，高低频检测器是由将高频检测安排在一侧、将低频检测安排在另一侧的电路构建而成的。</p>
       
     
       
-        <p>也存在一些未被 NMF 分解视角完全捕捉的例外。例如，<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_181.html" target="_blank" rel="noopener">conv2d2181</a> 是一个似乎已经具有空间结构的纹理对比检测器。
-      这是我们预期会通过等变→等变电路参与的特征类型。
-      然而如果是那样，我们会预期它到高低频检测器 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3a_70.html" target="_blank" rel="noopener">mixed3a70</a> 的权重是一条穿过中间的实心正条带。
-      而我们实际观察到的是，它作为高频检测的一个组件来贡献权重，尽管可能带有轻微的整体正偏置。
-
-
-       虽然 conv2d2 181 具有空间结构，但它可能对高频模式响应更强。</p>
+        <p>也存在一些未能被 NMF 分解视角完全捕捉的例外。例如，<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/conv2d2_181.html" target="_blank" rel="noopener">conv2d2181</a> 是一个纹理对比检测器，似乎已经具有空间结构。这是我们预期会通过等变→等变电路参与的特征类型。然而，如果真是这样，我们会预期它到高低频检测器 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3a_70.html" target="_blank" rel="noopener">mixed3a70</a> 的权重是一条沿中间向下的实心正条纹。但我们实际观察到的是，它作为高频检测的一个组成部分做出贡献，尽管可能带有轻微的整体正偏置。虽然 conv2d2 181 具有空间结构，但它可能对高频模式响应更强烈。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/2d2-181-3a-70-weight.png" alt="">
-          <figcaption>The weights from conv2d2 181 to mixed3a 70 are consistent with conv2d2 181 contributing via the HF-factor, not via the existing spatial structure of its texture contrast detection.</figcaption>
+          <figcaption>conv2d2 181 到 mixed3a 70 的权重与 conv2d2 181 通过 HF 因子（而非通过其纹理对比检测的现有空间结构）做出贡献的观点一致。</figcaption>
         </figure>
       
     
       
-        <p>既然我们已经理解了它们是如何构建的，那么高层特征又是如何使用高低频检测器的呢？</p>
+        <p>现在我们理解了它们是如何构建的，那么更高层的特征又是如何使用高低频检测器的呢？</p>
       
     
       
@@ -395,40 +364,35 @@ Their spatial arrangement is very clear, with LF factors activating
       
     
       
-        <p><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 是紧随高低频检测器之后的下一层。在这里，高低频检测器对多种特征有贡献。它们最重要的作用似乎是支持 ，但也会贡献给  和 、 和  形状，
-      以及至少各一个 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_281.html" target="_blank" rel="noopener">中心-环绕</a>、<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_372.html" target="_blank" rel="noopener">模式</a> 和 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_276.html" target="_blank" rel="noopener">纹理</a>。<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a></p>
+        <p><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a> 是紧跟在高低频检测器之后的下一层。在这里，高低频检测器对多种特征都有贡献。它们最重要的作用似乎是支持 ，但也对  和 、 和  形状，以及至少各一个 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_281.html" target="_blank" rel="noopener">中心-环绕</a>、<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_372.html" target="_blank" rel="noopener">模式</a> 和 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_276.html" target="_blank" rel="noopener">纹理</a> 做出贡献。<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a></p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/usage-1.png" alt="">
-          <figcaption>10:
-            Examples of neurons that high-low frequency detectors contribute to: (1) <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_345.html" target="_blank" rel="noopener">mixed3b345</a> (a boundary detector), (2) <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_276.html" target="_blank" rel="noopener">mixed3b276</a> (a center-surround texture detector), (3) <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_314.html" target="_blank" rel="noopener">mixed3b314</a> (a double boundary detector), and (4) <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_365.html" target="_blank" rel="noopener">mixed3b365</a> (an hourglass shape detector).
-        
+          <figcaption>10: 高低频检测器所贡献神经元的示例：(1) <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_345.html" target="_blank" rel="noopener">mixed3b345</a>（边界检测器），(2) <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_276.html" target="_blank" rel="noopener">mixed3b276</a>（中心-环绕纹理检测器），(3) <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_314.html" target="_blank" rel="noopener">mixed3b314</a>（双边界检测器），以及 (4) <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_365.html" target="_blank" rel="noopener">mixed3b365</a>（沙漏形状检测器）。
 
-            These aren’t the only contributors to these neurons – for example, mixed3b 276 also relies heavily on certain center-surrounds and textures – but they are strong contributors.</figcaption>
+            这些并不是这些神经元的唯一贡献者——例如 mixed3b 276 还 heavily 依赖某些中心-环绕和纹理——但它们是强贡献者。</figcaption>
         </figure>
       
     
       
-        <p>下游特征通常似乎会忽略高低频检测器的“极性”，无论哪一侧是高频，其响应方式大致相同。例如，垂直边界检测器 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_345.html" target="_blank" rel="noopener">mixed3b345</a>（见上图）会被在垂直线两侧任一方向检测到频率变化的高低频检测器强烈激活。</p>
+        <p>下游特征往往似乎会忽略高低频检测器的“极性”，无论哪一侧是高频，都会以大致相同的方式响应。例如，垂直边界检测器 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_345.html" target="_blank" rel="noopener">mixed3b345</a>（见上图）会被检测到沿垂直线任一方向频率变化的高低频检测器强烈激活。</p>
       
     
       
-        <p>虽然来自高低频检测器的激活有助于检测不同物体之间的边界，但来自高低频检测器的抑制也可以通过检测必须沿某个方向保持连续的区域，为物体检测器增加结构——本质上是指示没有边界。</p>
+        <p>虽然来自高低频检测器的激活有助于检测不同物体之间的边界，但来自高低频检测器的抑制也可以通过检测必须沿某个方向保持连续的区域，为物体检测器增加结构——本质上表示不存在边界。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/usage-2.png" alt="">
-          <figcaption>11:
-          Some of <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_314.html" target="_blank" rel="noopener">mixed3b314</a>’s weights, extracted for emphasis. Orientation doesn’t matter so much for how these weights are used by <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_314.html" target="_blank" rel="noopener">mixed3b314</a>, but their 180º-invariant orientation does!
-You may notice that strong excitation (left) is correlated with the presence of a boundary at a particular angle, whereas strong inhibition (right) is correlated with object continuity where a boundary might otherwise have been.</figcaption>
+          <figcaption>11: <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_314.html" target="_blank" rel="noopener">mixed3b314</a> 的部分权重（已提取以突出显示）。这些权重被 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_314.html" target="_blank" rel="noopener">mixed3b314</a> 使用时，方向本身并不那么重要，但它们 180º 不变的特性确实重要！你可能会注意到，强激活（左）与特定角度的边界存在相关，而强抑制（右）则与物体连续性相关（原本那里可能会有边界）。</figcaption>
         </figure>
       
     
       
-        <p>正如我们提到的，高低频检测器最主要的下游贡献是给边界检测器。在 mixed3b 中，所有高低频检测器权重 L2 范数最大的前 20 个神经元中，有 8 个参与了某种形式的边界检测：、，尤其是 。<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a></p>
+        <p>正如我们之前提到的，高低频检测器最主要的下游贡献是给边界检测器。在 mixed3b 中，对所有高低频检测器权重 L2 范数最大的前 20 个神经元中，有 8 个参与了某种形式的边界检测：、，尤其是 。<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a><a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a></p>
       
     
       
@@ -437,40 +401,37 @@ You may notice that strong excitation (left) is correlated with the presence of 
       
     
       
-        <p> 是检测物体之间边界的神经元，无论是一个物体与另一个物体的边界，还是前景到背景的过渡。它们不同于边缘检测器或曲线检测器：虽然它们对边缘敏感（事实上，它们最强的权重中有一部分来自低层边缘检测器！），但物体边界检测器也对其他指示信号敏感，例如颜色对比和高低频检测。<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a></p>
+        <p>是检测物体之间边界的神经元，无论是两个物体之间的边界，还是前景到背景的过渡。它们不同于边缘检测器或曲线检测器：虽然它们对边缘敏感（事实上，它们的一些最强权重来自更低层的边缘检测器！），但物体边界检测器也对其他指标敏感，例如颜色对比和高低频检测。<a href="2020-circuits-early-vision.html">InceptionV1早期视觉概览</a></p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/usage-boundary.png" alt="">
-          <figcaption>12: mixed3b 345 is a boundary detector activated by high-low frequency detectors, edges, color contrasts, and end-of-line
-        detectors. It is specifically sensitive to vertically-oriented high-low frequency detectors, regardless of their
-        orientation, and along a vertical line of positive weights.</figcaption>
+          <figcaption>12: mixed3b 345 是一个由高低频检测器、边缘、颜色对比和线条结束检测器激活的边界检测器。它特别对垂直方向的高低频检测器敏感（无论它们的极性如何），并且沿一条垂直的正权重线响应。</figcaption>
         </figure>
       
     
       
-        <p>高低频检测器通过提供物体已经结束而另一物体开始的证据之一，来贡献给这些物体边界检测器。下面展示了一些物体边界检测器的例子，以及它们到一组高低频检测器的权重（按方向分组，忽略极性）。</p>
+        <p>高低频检测器通过提供物体已结束且另一事物开始的一项证据，来对这些物体边界检测器做出贡献。下面展示了一些物体边界检测器的示例，以及它们到一组高低频检测器的权重（按方向分组，忽略极性）。</p>
       
     
       
-        <p>特别注意每个分组内的权重是多么相似！这再次表明，后续层会忽略高低频检测器的极性。此外，兴奋和抑制权重的排列有助于形成每个边界检测器的整体形状，遵循上述原则。</p>
+        <p>特别要注意每个分组内的权重是多么相似！这再次表明后续层会忽略高低频检测器的极性。此外，激活和抑制权重的排列有助于形成每个边界检测器的整体形状，遵循上面概述的原则。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/usage-boundaries.png" alt="">
-          <figcaption>13: Four examples of object boundary detectors that high-low frequency detectors contribute to: <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_345.html" target="_blank" rel="noopener">mixed3b345</a>, <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_376.html" target="_blank" rel="noopener">mixed3b376</a>, <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_368.html" target="_blank" rel="noopener">mixed3b368</a>, and <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_151.html" target="_blank" rel="noopener">mixed3b151</a>.</figcaption>
+          <figcaption>13: 高低频检测器贡献的四个物体边界检测器示例：<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_345.html" target="_blank" rel="noopener">mixed3b345</a>、<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_376.html" target="_blank" rel="noopener">mixed3b376</a>、<a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_368.html" target="_blank" rel="noopener">mixed3b368</a> 和 <a href="https://storage.googleapis.com/distill-circuits/inceptionv1-weight-explorer/mixed3b_151.html" target="_blank" rel="noopener">mixed3b151</a>。</figcaption>
         </figure>
       
     
       
-        <p>在 mixed3b 之后，高低频检测器最终通过持续贡献于边界和连续性检测，在 mixed4a 及更深层中参与检测更复杂的物体形状。</p>
+        <p>在 mixed3b 之后，高低频检测器最终通过继续贡献于边界和连续性检测，在 mixed4a 及更深层中参与检测更复杂的物体形状。</p>
       
     
       
-        <p>迄今为止，我们的研究范围仅限于 InceptionV1。
-    高低频检测器在一般的卷积神经网络中有多普遍呢？</p>
+        <p>目前，我们的研究范围仅限于 InceptionV1。那么在一般的卷积神经网络中，高低频检测器有多常见呢？</p>
       
     
       
@@ -484,26 +445,24 @@ You may notice that strong excitation (left) is correlated with the presence of 
       
     
       
-        <p>始终要追问我们看到的是普遍规律还是有趣的例外——而高低频检测器似乎是普遍规律。
-    与 InceptionV1 中类似的高低频检测器可以在多种不同架构中找到。</p>
+        <p>时刻追问我们看到的是普遍规律还是有趣的例外，这一点很重要——而高低频检测器似乎属于普遍规律。与 InceptionV1 中类似的高低频检测器可以在多种架构中找到。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/neuron-106.png" alt="">
           <figcaption>InceptionV1
-Layer mixed3a 
-At ~33% CNN depth</figcaption>
+mixed3a 层
+约占 CNN 深度的 33%</figcaption>
         </figure>
       
     
       
-        <p>注意，这些检测器在不同网络中出现在非常相似的深度，大约在网络深度的 29% 到 33% 之间！<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup> 虽然每个网络的高低频检测器所响应的具体方向可能略有差异，但每个网络都拥有自己的一族检测器，共同覆盖完整的 360º，构成一个旋转  的族。
-      <sup id="fnref-f7n"><a href="#f7n">[7]</a></sup><a href="2020-circuits-equivariance.html">神经网络中的自然等变性</a></p>
+        <p>注意，这些检测器在不同网络中的深度非常相似，都在网络深度的 29% 到 33% 之间！<sup id="fnref-f6n"><a href="#f6n">[6]</a></sup> 虽然每个网络的高低频检测器所响应的特定方向可能略有不同，但每个网络都拥有自己的一族检测器，共同覆盖完整的 360º，构成一个旋转  的家族。<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup><a href="2020-circuits-equivariance.html">神经网络中的自然等变性</a></p>
       
     
       
-        <p>尽管这些族来自三个完全不同的网络，我们也发现它们的高低频检测器都是由高频和低频组件构建而成的。</p>
+        <p>尽管这些家族来自三个完全不同的网络，我们也发现它们的高低频检测器都是由高频和低频组件构建而成的。</p>
       
     
       
@@ -512,38 +471,37 @@ At ~33% CNN depth</figcaption>
       
     
       
-        <p>就像我们在 InceptionV1 中所做的那样，我们可以再次对每个网络中高低频检测器的权重进行 NMF，以提取最强的两个因子。</p>
+        <p>与对 InceptionV1 的做法一样，我们可以再次对每个网络中高低频检测器的权重进行 NMF，以提取最强的两个因子。</p>
       
     
       
         <figure>
           <img src="../images/2020-circuits-frequency-edges/AlexNet-0.png" alt="">
-          <figcaption>15:
-            NMF of high-low frequency detectors in
+          <figcaption>15: 对以下网络中高低频检测器的 NMF：
 
             
             
-            AlexNet’s
-            <a href="https://microscope.openai.com/models/alexnet/Conv2D_2_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">Conv2D_2</a> with respect to <a href="https://microscope.openai.com/models/alexnet/conv1_1_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">conv1_1</a>,
+            AlexNet 的
+            <a href="https://microscope.openai.com/models/alexnet/Conv2D_2_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">Conv2D_2</a> 相对于 <a href="https://microscope.openai.com/models/alexnet/conv1_1_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">conv1_1</a>，
             
             
-            InceptionV3_slim’s
-            <a href="https://microscope.openai.com/models/inceptionv3_slim/InceptionV3_InceptionV3_Conv2d_4a_3x3_Relu_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">Conv2d_4a</a> with respect to <a href="https://microscope.openai.com/models/inceptionv3_slim/InceptionV3_InceptionV3_Conv2d_3b_1x1_Relu_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">Conv2d_3b</a>,
+            InceptionV3_slim 的
+            <a href="https://microscope.openai.com/models/inceptionv3_slim/InceptionV3_InceptionV3_Conv2d_4a_3x3_Relu_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">Conv2d_4a</a> 相对于 <a href="https://microscope.openai.com/models/inceptionv3_slim/InceptionV3_InceptionV3_Conv2d_3b_1x1_Relu_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">Conv2d_3b</a>，
             
-             and 
-            ResnetV2_50_slim’s
-            <a href="https://microscope.openai.com/models/resnetv2_50_slim/resnet_v2_50_block2_unit_1_bottleneck_v2_conv2_Relu_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">B2_U1_conv2</a> with respect to <a href="https://microscope.openai.com/models/resnetv2_50_slim/resnet_v2_50_block2_unit_2_bottleneck_v2_conv1_Relu_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">B2_U1_conv1</a>,
+             以及 
+            ResnetV2_50_slim 的
+            <a href="https://microscope.openai.com/models/resnetv2_50_slim/resnet_v2_50_block2_unit_1_bottleneck_v2_conv2_Relu_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">B2_U1_conv2</a> 相对于 <a href="https://microscope.openai.com/models/resnetv2_50_slim/resnet_v2_50_block2_unit_2_bottleneck_v2_conv1_Relu_0?models.op.feature_vis.type=channel&amp;amp;models.op.technique=feature_vis" target="_blank" rel="noopener">B2_U1_conv1</a>，
             
-            showing activations and inhibitions.</figcaption>
+            显示激活和抑制情况。</figcaption>
         </figure>
       
     
       
-        <p>两个因子的特征可视化显示出一个清晰的 HF 因子和一个清晰的 LF 因子，与我们在 InceptionV1 中发现的一致。此外，两个因子上的权重再次几乎完全对称。</p>
+        <p>两个因子的特征可视化显示出一个清晰的 HF 因子和一个清晰的 LF 因子，与我们在 InceptionV1 中发现的一致。此外，两个因子上的权重再次非常接近对称。</p>
       
     
       
-        <p>因此，我们先前的结论在这些不同网络中也成立：高低频检测器是由高频组件和低频组件通过特定的空间排列方式构建而成的。</p>
+        <p>因此，我们先前的结论在这些不同网络中也成立：高低频检测器是由高频组件和低频组件通过特定的空间排列构建而成的。</p>
       
     
       
@@ -552,16 +510,15 @@ At ~33% CNN depth</figcaption>
       
     
       
-        <p>尽管高低频检测器代表了一种我们不一定预期会在神经网络中发现的特征，但我们发现，使用已有的用于探索电路的可解释性工具——NMF、特征可视化、合成刺激等——仍然可以探索和理解它们。</p>
+        <p>虽然高低频检测器是一种我们不一定预料到会在神经网络中出现的特征，但我们发现，仍然可以使用为探索电路而开发的的可解释性工具——NMF、特征可视化、合成刺激等——来探索和理解它们。</p>
       
     
       
-        <p>我们还了解到，高低频检测器是由可理解的低层组件构建而成的，并且展示了它们如何贡献给后续的、更高层级的特征。
-      最后，我们看到高低频检测器在多种网络架构中都很常见。</p>
+        <p>我们还了解到，高低频检测器是由可理解的较低层组件构建而成的，并且展示了它们如何贡献于后续的更高层特征。最后，我们看到高低频检测器在多种网络架构中都很常见。</p>
       
     
       
-        <p>鉴于普遍性的观察，我们可能会想，高低频检测器的存在或许并不那么不自然。我们甚至在训练数据大不相同的 AlexNet Places 中也发现了 <a href="https://microscope.openai.com/models/alexnet_caffe_places365/conv2_Conv2D_0/91" target="_blank" rel="noopener">近似</a> 的高低频检测器。除神经网络外，图像中失焦区域的模糊所带来的美学品质，摄影师早已称之为 <a href="https://en.wikipedia.org/wiki/Bokeh" target="_blank" rel="noopener">bokeh</a>。而在 VR 中，视觉模糊既可以提供有效的景深提示，反之，如果实现方式不协调，也可能引起用户眩晕。也许频率检测在自然和人工视觉系统中都很常见，是另一种信息提示方式。</p>
+        <p>鉴于普遍性观察，我们可能会想，高低频检测器的存在也许并不那么不自然。我们甚至在训练数据大不相同的 AlexNet Places 中也找到了 <a href="https://microscope.openai.com/models/alexnet_caffe_places365/conv2_Conv2D_0/91" target="_blank" rel="noopener">近似</a> 的高低频检测器。除神经网络外，摄影师早已知道图像中失焦区域的模糊所带来的美学品质被称为 <a href="https://en.wikipedia.org/wiki/Bokeh" target="_blank" rel="noopener">bokeh</a>。而在 VR 中，视觉模糊既可以提供有效的景深提示，反之，如果实现方式不协调，也可能让用户感到恶心。也许频率检测在自然和人工视觉系统中都很常见，是另一种信息线索。</p>
       
     
       
@@ -576,7 +533,7 @@ At ~33% CNN depth</figcaption>
       
     
       
-        <p>本文是 Circuits 系列的一部分，该系列是由一个开放的科学合作组织撰写的短文和评论集，旨在深入探究神经网络的内部工作机制。</p>
+        <p>本文是 Circuits 系列的一部分，该系列由一个开放的科学合作项目撰写的一组短文和评论组成，旨在深入探究神经网络的内部工作机制。</p>
       
     
       
@@ -594,13 +551,11 @@ At ~33% CNN depth</figcaption>
     <h2>注释</h2>
     
     <div class="footnote-item" id="f1n">
-      <a href="#fnref-f1n">[1]</a> 题外话：权重每列上的 1-2-1 模式与 Sobel 滤波器的结构惊人地相似。
+      <a href="#fnref-f1n">[1]</a> 顺便一提：权重每列上的 1-2-1 模式与 Sobel 滤波器的结构惊人地相似。
     </div>
     
     <div class="footnote-item" id="f2n">
-      <a href="#fnref-f2n">[2]</a> 在两相邻层之间，“连接”简化为两层之间的权重。
-        有时我们感兴趣的是观察可能并非直接相邻的层之间的连接性。由于我们的模型是一个深度卷积网络，具有非线性，因此我们需要近似这些连接。
-        我们采用的一种简单方法是通过移除非线性来线性化模型。虽然这不是对模型行为很好的近似，但它确实为反事实影响提供了一个合理的直观认识：如果中间层的神经元被激活，它将如何影响下游层的神经元。我们分别处理正向和负向影响。
+      <a href="#fnref-f2n">[2]</a> 在两个相邻层之间，“连接”简化为两层之间的权重。有时我们对观察可能不直接相邻的层之间的连接感兴趣。由于我们的模型是一个深度卷积网络，具有非线性，因此我们需要近似这些连接。我们采用的一种简单方法是通过移除非线性来线性化模型。虽然这不是对模型行为很好的近似，但它确实为反事实影响提供了一个合理的直觉：如果中间层的神经元被激活，它会如何影响下游层的神经元。我们将正向和负向影响分开处理。
     </div>
     
     <div class="footnote-item" id="f3n">
@@ -608,11 +563,11 @@ At ~33% CNN depth</figcaption>
     </div>
     
     <div class="footnote-item" id="f4n">
-      <a href="#fnref-f4n">[4]</a> 特别在 InceptionV1 中，我们能如此清晰地恢复这两个因子，部分可能是由于 conv2d2 和 mixed3a 之间的 3x3 瓶颈。因此，我们这里看的不是 conv2d2 和 mixed3a 之间的直接权重，而是“展开权重”，即 1x1 卷积（减少到少量神经元）与 3x3 卷积的乘积。这种结构与我们施加的因子分解非常相似。然而，正如我们在“普遍性”部分后面看到的，对于不存在这种瓶颈的其他模型，我们也能恢复类似的因子。NMF 使我们能够轻松看到这种抽象电路在许多可能没有明确架构来具体化它的模型中存在。
+      <a href="#fnref-f4n">[4]</a> 特别是在 InceptionV1 中，我们能如此清晰地恢复这两个因子，部分可能是由于 conv2d2 和 mixed3a 之间的 3x3 瓶颈。因此，我们这里看的不是 conv2d2 和 mixed3a 之间的直接权重，而是“展开权重”，它是 1x1 卷积（减少到少量神经元）与 3x3 卷积的乘积。这种结构与我们应用的因子分解非常相似。然而，正如我们在“普遍性”部分后面看到的那样，对于不存在这种瓶颈的其他模型，我们也能恢复相似的因子。NMF 使得我们很容易在许多可能没有明确实现这种结构的模型中看到这一抽象电路。
     </div>
     
     <div class="footnote-item" id="f5n">
-      <a href="#fnref-f5n">[5]</a> 题外话，InceptionV1 的这个 HF 因子（以及它的一些 NMF 组件，例如 conv2d2 123）似乎也受到明亮的绿色和洋红色的轻微激活。这可能导致这些高低频检测器的特征可视化在高频一侧只显示绿色和洋红色。
+      <a href="#fnref-f5n">[5]</a> 顺便一提，InceptionV1 的 HF 因子（以及它的一些 NMF 组件，如 conv2d2 123）似乎也会被明亮的绿色和品红色轻微激活。这可能导致这些高低频检测器的特征可视化在高频一侧只显示绿色和品红色。
     </div>
     
     <div class="footnote-item" id="f6n">
@@ -620,7 +575,7 @@ At ~33% CNN depth</figcaption>
     </div>
     
     <div class="footnote-item" id="f7n">
-      <a href="#fnref-f7n">[7]</a> 架构暂且不论——那些在截然不同数据集上训练的网络呢？在极端情况下，我们可以想象一个合成数据集，其中不会出现高低频检测器。然而，对于大多数实际数据集，我们预期会找到它们。例如，我们甚至在 AlexNet (Places) 中发现了一些候选的高低频检测器：下-上、左-右和上-下。
+      <a href="#fnref-f7n">[7]</a> Architecture aside – what about networks trained on substantially different datasets? In the extreme case, one could imagine a synthetic dataset where high-low frequency detectors don’t arise. For most practical datasets, however, we expect to find them. For example, we even find some candidate high-low frequency detectors in AlexNet (Places): down-up, left-right, and up-down.
     </div>
     
   </section>

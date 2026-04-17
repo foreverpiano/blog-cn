@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>持久化写入与一致性读取 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Will Larson 文集</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -62,7 +68,9 @@ Sender ! {self(), received, {set, Key, Value}},
       
     
       
-        <div class="list-content">既然我们需要在告知客户端写入成功之前等待，那么到底应该等待多少个节点呢？同样地，当我们读取值时，在返回给客户端之前应该查询多少个节点？</div>
+        
+          <div class="list-content">既然我们需要在告知客户端写入成功之前等待，那么到底应该等待多少个节点呢？同样地，当我们读取值时，在返回给客户端之前应该查询多少个节点？</div>
+        
       
     
       
@@ -74,7 +82,9 @@ Sender ! {self(), received, {set, Key, Value}},
       
     
       
-        <div class="list-content">N 是每份数据被复制到的节点数量（在我们当前的实现中，N 等于系统中的节点总数）。W 是数据被写入多少个节点后才通知用户成功的阈值（我们的实现目前是 W := N，某种程度上如此³）。R 是读取一个键时需要咨询的节点数量（当前实现中 R := 1）。</div>
+        
+          <div class="list-content">N 是每份数据被复制到的节点数量（在我们当前的实现中，N 等于系统中的节点总数）。W 是数据被写入多少个节点后才通知用户成功的阈值（我们的实现目前是 W := N，某种程度上如此³）。R 是读取一个键时需要咨询的节点数量（当前实现中 R := 1）。</div>
+        
       
     
       
@@ -513,7 +523,9 @@ started
       
     
       
-        <div class="list-content">进程组有可能被死亡的 pid 污染，尤其是当你比较懒散（像我们目前这样）使用 spawn 的进程而不是 gen_server 时。即使使用 gen_server，如果你没有 trap_exit，那么 gen_server 完全有可能在没有调用终止清理函数的情况下终止。最后，即使你正确地在 gen_server 上设置了 trap_exit，如果进程是被粗暴杀掉的（kill -9 等），终止清理函数也可能不会被执行。不过请放心，可以通过 erlang:node/1、rpc:call/3 和 erlang:is_alive/1 的组合来检测死亡进程（erlang:is_alive/1 必须在进程所在的节点上执行，这意味着你必须先发现节点，然后远程检查它的存活状态）。在预期可能出现进程被粗暴杀死的系统中，你必须设计系统，使其能够容忍向死亡 pid 发送消息（使用 gen_server:call 你会收到某种错误，虽然它可能不会立刻让你明白问题所在；而 gen_server:cast 和直接用 ! 发送消息则可能不会引发任何问题，因此你要么需要用超时来检测丢失的消息，要么在发送前显式验证进程是否存活……其中超时方式的错误更少）。↩这种一阶段提交仍然存在一个弱点，即当部分节点失败时，如何回滚已写入的部分。我们需要类似两阶段提交（two-phase commit）的东西才能真正妥善解决这个问题。这应该会在后面的文章中出现——我最近好像经常这么说。↩这只有在我们能信任 pg2:get_members/1 包含所有节点（包括所有崩溃或宕机的节点）的前提下才成立。在真正的 W := N 条件下，如果有任何节点崩溃，那么对系统的所有写入都会失败。↩将运行中的代码从之前的 record 定义迁移到新的定义时也会有性能损失，需要手工编写转换代码。一般来说，把系统停掉然后重新启动（使用新的 record 定义）比尝试迁移它要容易得多，除非你真的无法让进程停机。如果你认为自己会频繁更新 record 定义，不妨接受性能损失，直接使用属性列表就好了。没有人早上醒来就想做一次手动迁移。↩</div>
+        
+          <div class="list-content">进程组有可能被死亡的 pid 污染，尤其是当你比较懒散（像我们目前这样）使用 spawn 的进程而不是 gen_server 时。即使使用 gen_server，如果你没有 trap_exit，那么 gen_server 完全有可能在没有调用终止清理函数的情况下终止。最后，即使你正确地在 gen_server 上设置了 trap_exit，如果进程是被粗暴杀掉的（kill -9 等），终止清理函数也可能不会被执行。不过请放心，可以通过 erlang:node/1、rpc:call/3 和 erlang:is_alive/1 的组合来检测死亡进程（erlang:is_alive/1 必须在进程所在的节点上执行，这意味着你必须先发现节点，然后远程检查它的存活状态）。在预期可能出现进程被粗暴杀死的系统中，你必须设计系统，使其能够容忍向死亡 pid 发送消息（使用 gen_server:call 你会收到某种错误，虽然它可能不会立刻让你明白问题所在；而 gen_server:cast 和直接用 ! 发送消息则可能不会引发任何问题，因此你要么需要用超时来检测丢失的消息，要么在发送前显式验证进程是否存活……其中超时方式的错误更少）。↩这种一阶段提交仍然存在一个弱点，即当部分节点失败时，如何回滚已写入的部分。我们需要类似两阶段提交（two-phase commit）的东西才能真正妥善解决这个问题。这应该会在后面的文章中出现——我最近好像经常这么说。↩这只有在我们能信任 pg2:get_members/1 包含所有节点（包括所有崩溃或宕机的节点）的前提下才成立。在真正的 W := N 条件下，如果有任何节点崩溃，那么对系统的所有写入都会失败。↩将运行中的代码从之前的 record 定义迁移到新的定义时也会有性能损失，需要手工编写转换代码。一般来说，把系统停掉然后重新启动（使用新的 record 定义）比尝试迁移它要容易得多，除非你真的无法让进程停机。如果你认为自己会频繁更新 record 定义，不妨接受性能损失，直接使用属性列表就好了。没有人早上醒来就想做一次手动迁移。↩</div>
+        
       
     
   </div>
@@ -555,6 +567,19 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   var h = document.querySelector('.nav-section h2');
   if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
 });
 </script>
 </body>

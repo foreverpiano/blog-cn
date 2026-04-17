@@ -10,6 +10,11 @@
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Transformer Circuits Thread</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -30,11 +35,11 @@
   <div class="article-content">
     
       
-        <p>随着Transformer生成模型不断扩大规模并在现实世界中得到越来越多的应用[<cite>[brown2020language,LaMDA,chen2021evaluating,adiwardana2020towards,rae2021scaling]</cite>]，解决其伴随的安全问题变得日益重要。机制可解释性——试图逆向工程模型所执行的详细计算——为解决这些安全问题提供了一条可能的途径。如果我们能够理解导致Transformer模型产生其输出的内部结构，那么我们或许能够更系统地解决当前的安全问题，并提前预见未来更强大模型中的安全隐患。<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup></p>
+        <p>随着Transformer生成模型不断扩大规模并在现实世界中得到越来越多的应用[<cite>(Brown et al., 2020; Collins et al., 2021; Chen et al., 2021; Adiwardana et al., 2020; Rae et al., 2021)</cite>]，解决其伴随的安全问题变得日益重要。机制可解释性——试图逆向工程模型所执行的详细计算——为解决这些安全问题提供了一条可能的途径。如果我们能够理解导致Transformer模型产生其输出的内部结构，那么我们或许能够更系统地解决当前的安全问题，并提前预见未来更强大模型中的安全隐患。<sup id="fnref-f1n"><a href="#f1n">[1]</a></sup></p>
       
     
       
-        <p>过去，机制可解释性主要集中在CNN视觉模型上[<cite>[cammarata2020thread]</cite>]，但最近，我们<a href="2021-framework.html">变压器电路的数学框架</a>了一些针对Transformer语言模型的初步机制可解释性进展[<cite>[nelhage2021mathematical]</cite>]。具体来说，在我们之前的工作中，我们开发了一个数学框架来分解Transformer的操作，这使我们能够理解小型（1层和2层仅注意力）模型，并给出它们功能近乎完整的解释。或许最有趣的发现是归纳头（induction head），这是一种电路，其功能是回溯序列中当前token（称为A）之前出现的情况，找到上次跟在它后面的token（称为B），然后预测相同的完成会再次发生（例如形成序列[A][B] … [A] → [B]）。换句话说，归纳头通过复制和完成之前出现过的序列来“完成模式”。在机制上，我们模型中的归纳头由两个注意力头组成的电路实现：第一个头是“前一个token头”，它将前一个token的信息复制到下一个token，而第二个头（即真正的“归纳头”）使用该信息来查找前面出现过当前token的那些token。对于2层仅注意力模型，<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup> 我们能够精确地证明归纳头实现了这种模式复制行为，并且似乎是上下文学习的主要来源。</p>
+        <p>过去，机制可解释性主要集中在CNN视觉模型上[<cite>(Cammarata et al., 2020)</cite>]，但最近，我们<a href="2021-framework.html">变压器电路的数学框架</a>了一些针对Transformer语言模型的初步机制可解释性进展[<cite>(Elhage et al., 2021)</cite>]。具体来说，在我们之前的工作中，我们开发了一个数学框架来分解Transformer的操作，这使我们能够理解小型（1层和2层仅注意力）模型，并给出它们功能近乎完整的解释。或许最有趣的发现是归纳头（induction head），这是一种电路，其功能是回溯序列中当前token（称为A）之前出现的情况，找到上次跟在它后面的token（称为B），然后预测相同的完成会再次发生（例如形成序列[A][B] … [A] → [B]）。换句话说，归纳头通过复制和完成之前出现过的序列来“完成模式”。在机制上，我们模型中的归纳头由两个注意力头组成的电路实现：第一个头是“前一个token头”，它将前一个token的信息复制到下一个token，而第二个头（即真正的“归纳头”）使用该信息来查找前面出现过当前token的那些token。对于2层仅注意力模型，<sup id="fnref-f2n"><a href="#f2n">[2]</a></sup> 我们能够精确地证明归纳头实现了这种模式复制行为，并且似乎是上下文学习的主要来源。</p>
       
     
       
@@ -54,7 +59,9 @@
       
     
       
-        <div class="list-content">论证1（宏观共现）：Transformer语言模型在训练早期经历“相变”，在此期间归纳头形成，同时上下文学习能力显著提升。论证2（宏观共扰动）：当我们改变Transformer架构以改变归纳头能否形成（以及何时形成）时，上下文学习的显著提升也会以精确匹配的方式发生偏移。论证3（直接消融）：当我们在小模型测试时直接“敲除”归纳头时，上下文学习的量大幅减少。论证4（归纳头泛化性的具体示例）：虽然我们对归纳头的定义非常狭窄，仅限于复制字面序列，但我们经验观察到这些相同的头似乎也实现了更复杂的上下文学习类型，包括高度抽象的行为，这使得它们可能解释了很大一部分上下文学习。论证5（归纳头泛化性的机制合理性）：对于小模型，我们可以从机制上解释归纳头的工作原理，并证明它们对上下文学习有贡献。此外，其实际运行机制暗示了将其重新用于执行更通用上下文学习的自然方式。论证6（从小模型到大模型的连续性）：在前五条论证中，归纳头解释上下文学习的论据对小模型比对大模型更有力。然而，许多与归纳头和上下文学习相关的行为和数据从小型到大型模型都是平滑连续的，这表明最简单的解释是机制相同。</div>
+        
+          <div class="list-content">论证1（宏观共现）：Transformer语言模型在训练早期经历“相变”，在此期间归纳头形成，同时上下文学习能力显著提升。论证2（宏观共扰动）：当我们改变Transformer架构以改变归纳头能否形成（以及何时形成）时，上下文学习的显著提升也会以精确匹配的方式发生偏移。论证3（直接消融）：当我们在小模型测试时直接“敲除”归纳头时，上下文学习的量大幅减少。论证4（归纳头泛化性的具体示例）：虽然我们对归纳头的定义非常狭窄，仅限于复制字面序列，但我们经验观察到这些相同的头似乎也实现了更复杂的上下文学习类型，包括高度抽象的行为，这使得它们可能解释了很大一部分上下文学习。论证5（归纳头泛化性的机制合理性）：对于小模型，我们可以从机制上解释归纳头的工作原理，并证明它们对上下文学习有贡献。此外，其实际运行机制暗示了将其重新用于执行更通用上下文学习的自然方式。论证6（从小模型到大模型的连续性）：在前五条论证中，归纳头解释上下文学习的论据对小模型比对大模型更有力。然而，许多与归纳头和上下文学习相关的行为和数据从小型到大型模型都是平滑连续的，这表明最简单的解释是机制相同。</div>
+        
       
     
       
@@ -62,7 +69,7 @@
       
     
       
-        <p>最后，除了将归纳头与上下文学习联系起来之外，这种相变本身也可能对安全具有重要意义。神经网络的能力——如多位数加法——已知有时会在模型训练或规模增加过程中突然形成或改变[<cite>[power2022grokking,brown2020language]</cite>]，这对安全特别令人担忧，因为这意味着 undesired 或危险的行为可能突然出现。例如，奖励黑客这种安全问题，就可能在这样的相变中出现[<cite>[pan2022effects]</cite>]。因此，近距离研究相变并更好地理解其内部机制，可能包含可泛化到未来系统的安全问题的经验教训。特别是，我们观察到的相变为可解释性的微观领域与缩放定律和学习动态的宏观领域之间架起了一座有趣的潜在桥梁。</p>
+        <p>最后，除了将归纳头与上下文学习联系起来之外，这种相变本身也可能对安全具有重要意义。神经网络的能力——如多位数加法——已知有时会在模型训练或规模增加过程中突然形成或改变[<cite>(Power et al., 2022; Brown et al., 2020)</cite>]，这对安全特别令人担忧，因为这意味着 undesired 或危险的行为可能突然出现。例如，奖励黑客这种安全问题，就可能在这样的相变中出现[<cite>(Pan et al., 2022)</cite>]。因此，近距离研究相变并更好地理解其内部机制，可能包含可泛化到未来系统的安全问题的经验教训。特别是，我们观察到的相变为可解释性的微观领域与缩放定律和学习动态的宏观领域之间架起了一座有趣的潜在桥梁。</p>
       
     
       
@@ -84,11 +91,11 @@
       
     
       
-        <p>涌现的上下文学习在GPT-2中被注意到[<cite>[radford2019language]</cite>]，并在GPT-3中获得大量关注[<cite>[brown2020language]</cite>]。仅仅通过调整“prompt”，Transformer就可以在无需重新训练的情况下适应许多有用的任务，例如翻译、问答、算术以及许多其他任务。使用“prompt engineering”来利用上下文学习成为一个热门的研究和讨论话题[<cite>[zhao2021calibrate,gao2021making]</cite>]。</p>
+        <p>涌现的上下文学习在GPT-2中被注意到[<cite>(Radford et al., 2019)</cite>]，并在GPT-3中获得大量关注[<cite>(Brown et al., 2020)</cite>]。仅仅通过调整“prompt”，Transformer就可以在无需重新训练的情况下适应许多有用的任务，例如翻译、问答、算术以及许多其他任务。使用“prompt engineering”来利用上下文学习成为一个热门的研究和讨论话题[<cite>(Zhao et al., 2021; Gao et al., 2021)</cite>]。</p>
       
     
       
-        <p>文献中至少存在两种重要的不同方式来概念化和衡量上下文学习。第一种概念，以Brown et al.为代表，关注特定任务的少样本学习[<cite>[brown2020language]</cite>]。模型会被给出几个以next-token-prediction格式呈现的“任务”实例（例如少位数加法，或英到法翻译）。第二种上下文学习的概念，以Kaplan et al.为代表[<cite>[kaplan2020scaling]</cite>]，关注观察不同token位置的损失，以衡量模型随着接收更多上下文而在预测上变得多好。第一种概念可以视为微观视角（关注特定任务），而第二种概念可以视为宏观视角（关注总体损失，平均而言与这些任务相关）。</p>
+        <p>文献中至少存在两种重要的不同方式来概念化和衡量上下文学习。第一种概念，以Brown et al.为代表，关注特定任务的少样本学习[<cite>(Brown et al., 2020)</cite>]。模型会被给出几个以next-token-prediction格式呈现的“任务”实例（例如少位数加法，或英到法翻译）。第二种上下文学习的概念，以Kaplan et al.为代表[<cite>(Kaplan et al., 2020)</cite>]，关注观察不同token位置的损失，以衡量模型随着接收更多上下文而在预测上变得多好。第一种概念可以视为微观视角（关注特定任务），而第二种概念可以视为宏观视角（关注总体损失，平均而言与这些任务相关）。</p>
       
     
       
@@ -104,7 +111,9 @@
       
     
       
-        <div class="list-content">上下文学习分数：上下文第500个token的损失减去上下文第50个token的平均损失，在数据集样本上取平均。</div>
+        
+          <div class="list-content">上下文学习分数：上下文第500个token的损失减去上下文第50个token的平均损失，在数据集样本上取平均。</div>
+        
       
     
       
@@ -112,7 +121,7 @@
       
     
       
-        <p>最后，值得注意的是上下文学习可能对安全具有特别的相关性。上下文学习使得预测模型在长上下文后的行为变得更加困难。从更长远来看，诸如mesa-optimization或inner-alignment的概念[<cite>[hubinger2021risks]</cite>]假设有意义的学​​习或优化可能在测试时发生（无需改变权重）。无论今天是否如此，上下文学习显然是这种隐藏优化在未来可能发生的机制。因此，研究上下文学习对未来似乎很有价值。</p>
+        <p>最后，值得注意的是上下文学习可能对安全具有特别的相关性。上下文学习使得预测模型在长上下文后的行为变得更加困难。从更长远来看，诸如mesa-optimization或inner-alignment的概念[<cite>(Hubinger et al., 2021)</cite>]假设有意义的学​​习或优化可能在测试时发生（无需改变权重）。无论今天是否如此，上下文学习显然是这种隐藏优化在未来可能发生的机制。因此，研究上下文学习对未来似乎很有价值。</p>
       
     
       
@@ -149,7 +158,9 @@
       
     
       
-        <div class="list-content">前缀匹配：该头会回溯关注前面跟着当前和/或最近token的那些前一个token。<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup> 也就是说，它关注归纳会建议接下来出现的token。复制：该头的输出会提高对应于所关注token的logit。</div>
+        
+          <div class="list-content">前缀匹配：该头会回溯关注前面跟着当前和/或最近token的那些前一个token。<sup id="fnref-f7n"><a href="#f7n">[7]</a></sup> 也就是说，它关注归纳会建议接下来出现的token。复制：该头的输出会提高对应于所关注token的logit。</div>
+        
       
     
       
@@ -1194,7 +1205,7 @@ JAKJQCKQCCQCiUAikAgkAonA0kDgG/8/H2zI3FD/bp4AAAAASUVORK5CYII=
       
     
       
-        <p>为了更好地理解模型在训练期间如何演化，我们分析我们称为“per-token loss vectors”的东西。其核心思想可以追溯到Erhan et al.使用的方法[<cite>[erhan2010does]</cite>]，更一般地追溯到数学中的“函数空间”思想。<sup id="fnref-f8n"><a href="#f8n">[8]</a></sup></p>
+        <p>为了更好地理解模型在训练期间如何演化，我们分析我们称为“per-token loss vectors”的东西。其核心思想可以追溯到Erhan et al.使用的方法[<cite>(Erhan et al., 2010)</cite>]，更一般地追溯到数学中的“函数空间”思想。<sup id="fnref-f8n"><a href="#f8n">[8]</a></sup></p>
       
     
       
@@ -2596,7 +2607,9 @@ SEACyyHw/wFLqnrW1mSwAQAAAABJRU5ErkJggg==
       
     
       
-        <div class="list-content">论证1（宏观共现）：Transformer语言模型在训练早期经历“相变”，在此期间归纳头形成，同时上下文学习能力显著提升。论证2（宏观共扰动）：当我们改变Transformer架构以改变归纳头能否形成（以及何时形成）时，上下文学习的显著提升也会以精确匹配的方式发生偏移。论证3（直接消融）：当我们在小模型测试时直接“敲除”归纳头时，上下文学习的量大幅减少。论证4（归纳头泛化性的具体示例）：虽然我们对归纳头的定义非常狭窄，仅限于复制字面序列，但我们经验观察到这些相同的头似乎也实现了更复杂的上下文学习类型，包括高度抽象的行为，这使得它们可能解释了很大一部分上下文学习。论证5（归纳头泛化性的机制合理性）：对于小模型，我们可以从机制上解释归纳头的工作原理，并证明它们对上下文学习有贡献。此外，其实际运行机制暗示了将其重新用于执行更通用上下文学习的自然方式。论证6（从小模型到大模型的连续性）：在前五条论证中，归纳头解释上下文学习的论据对小模型比对大模型更有力。然而，许多与归纳头和上下文学习相关的行为和数据从小型到大型模型都是平滑连续的，这表明最简单的解释是机制相同。</div>
+        
+          <div class="list-content">论证1（宏观共现）：Transformer语言模型在训练早期经历“相变”，在此期间归纳头形成，同时上下文学习能力显著提升。论证2（宏观共扰动）：当我们改变Transformer架构以改变归纳头能否形成（以及何时形成）时，上下文学习的显著提升也会以精确匹配的方式发生偏移。论证3（直接消融）：当我们在小模型测试时直接“敲除”归纳头时，上下文学习的量大幅减少。论证4（归纳头泛化性的具体示例）：虽然我们对归纳头的定义非常狭窄，仅限于复制字面序列，但我们经验观察到这些相同的头似乎也实现了更复杂的上下文学习类型，包括高度抽象的行为，这使得它们可能解释了很大一部分上下文学习。论证5（归纳头泛化性的机制合理性）：对于小模型，我们可以从机制上解释归纳头的工作原理，并证明它们对上下文学习有贡献。此外，其实际运行机制暗示了将其重新用于执行更通用上下文学习的自然方式。论证6（从小模型到大模型的连续性）：在前五条论证中，归纳头解释上下文学习的论据对小模型比对大模型更有力。然而，许多与归纳头和上下文学习相关的行为和数据从小型到大型模型都是平滑连续的，这表明最简单的解释是机制相同。</div>
+        
       
     
       
@@ -17428,7 +17441,9 @@ hLgAAAAASUVORK5CYII=
       
     
       
-        <div class="list-content">上下文学习能力急剧改善（通过上下文学习分数衡量）。归纳头形成。损失经历一个小“凸起”（即损失曲线经历一段明显比前后曲线更陡峭的改善期）。模型的轨迹突然改变（在per-token损失的空间中，用PCA可视化）。</div>
+        
+          <div class="list-content">上下文学习能力急剧改善（通过上下文学习分数衡量）。归纳头形成。损失经历一个小“凸起”（即损失曲线经历一段明显比前后曲线更陡峭的改善期）。模型的轨迹突然改变（在per-token损失的空间中，用PCA可视化）。</div>
+        
       
     
       
@@ -26067,7 +26082,9 @@ wHHJgD8fthG2LwEJSEACEpCABCQgAQlIQAISkMDiJvD/cEL31zNlFgwAAAAASUVORK5CYII=
       
     
       
-        <div class="list-content">归纳头的形成与模型上下文学习能力的巨大增加相关，适用于各种各样的大大小小的模型。这两个尖锐转变在这么多模型中同时发生而没有任何因果联系的概率极低。几乎肯定存在某种联系，而最简单的可能性是归纳头是驱动观察到的上下文学习增加的主要机制。（然而，如下所述，它也可能是一个混杂变量。）由于超过75%的最终上下文学习是在这个窗口内形成的，人们可能会天真地认为这就是归纳头负责的上下文学习量。</div>
+        
+          <div class="list-content">归纳头的形成与模型上下文学习能力的巨大增加相关，适用于各种各样的大大小小的模型。这两个尖锐转变在这么多模型中同时发生而没有任何因果联系的概率极低。几乎肯定存在某种联系，而最简单的可能性是归纳头是驱动观察到的上下文学习增加的主要机制。（然而，如下所述，它也可能是一个混杂变量。）由于超过75%的最终上下文学习是在这个窗口内形成的，人们可能会天真地认为这就是归纳头负责的上下文学习量。</div>
+        
       
     
       
@@ -26075,7 +26092,9 @@ wHHJgD8fthG2LwEJSEACEpCABCQgAQlIQAISkMDiJvD/cEL31zNlFgwAAAAASUVORK5CYII=
       
     
       
-        <div class="list-content">在大型模型中，我们对训练过程的分析时间分辨率较低。只有15个时间点时的共现没那么令人惊讶，证据也较弱。也许在我们的模型中此时还形成了其他机制，它们不仅贡献于归纳头，也贡献于其他上下文学习的来源。（例如，也许相变实际上是模型学会如何通过残差流组合层的时间点，这既启用了归纳头，也可能启用了许多其他需要多个头组合的机制。）换句话说，也许共现主要是由共享的潜在变量引起的，而不是归纳头对观察到的完整上下文学习变化的直接因果。在相变之后上下文学习分数大致恒定（在0.4 nats）的事实并不一定意味着上下文学习的底层机制在那之后是恒定的。特别是，我们使用的指标衡量的是token索引500和50之间的相对损失，而且我们知道模型在token 50的表现会随着训练时间改善。从更低的基线减少固定量的损失可能更难，因此随着训练时间推进可能由额外的机制驱动。<sup id="fnref-f13n"><a href="#f13n">[13]</a></sup><sup id="fnref-f14n"><a href="#f14n">[14]</a></sup></div>
+        
+          <div class="list-content">在大型模型中，我们对训练过程的分析时间分辨率较低。只有15个时间点时的共现没那么令人惊讶，证据也较弱。也许在我们的模型中此时还形成了其他机制，它们不仅贡献于归纳头，也贡献于其他上下文学习的来源。（例如，也许相变实际上是模型学会如何通过残差流组合层的时间点，这既启用了归纳头，也可能启用了许多其他需要多个头组合的机制。）换句话说，也许共现主要是由共享的潜在变量引起的，而不是归纳头对观察到的完整上下文学习变化的直接因果。在相变之后上下文学习分数大致恒定（在0.4 nats）的事实并不一定意味着上下文学习的底层机制在那之后是恒定的。特别是，我们使用的指标衡量的是token索引500和50之间的相对损失，而且我们知道模型在token 50的表现会随着训练时间改善。从更低的基线减少固定量的损失可能更难，因此随着训练时间推进可能由额外的机制驱动。<sup id="fnref-f13n"><a href="#f13n">[13]</a></sup><sup id="fnref-f14n"><a href="#f14n">[14]</a></sup></div>
+        
       
     
       
@@ -32737,11 +32756,15 @@ gAQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEpCABCQgAQlIQAISkIAE
       
     
       
-        <div class="list-content">在仅注意力模型中，上下文学习本质上必须是来自不同注意力头的贡献之和。<sup id="fnref-f19n"><a href="#f19n">[19]</a></sup> 但在带有MLP的模型中，上下文学习也可能来自MLP和注意力层之间的交互。虽然消融注意力头会影响此类机制，但消融对上下文学习的影响与其真实重要性之间的关系变得更加复杂。<sup id="fnref-f20n"><a href="#f20n">[20]</a></sup> 因此，我们不能完全确信MLP模型中的头消融给了我们完整的图景。</div>
+        
+          <div class="list-content">在仅注意力模型中，上下文学习本质上必须是来自不同注意力头的贡献之和。<sup id="fnref-f19n"><a href="#f19n">[19]</a></sup> 但在带有MLP的模型中，上下文学习也可能来自MLP和注意力层之间的交互。虽然消融注意力头会影响此类机制，但消融对上下文学习的影响与其真实重要性之间的关系变得更加复杂。<sup id="fnref-f20n"><a href="#f20n">[20]</a></sup> 因此，我们不能完全确信MLP模型中的头消融给了我们完整的图景。</div>
+        
       
     
       
-        <div class="list-content">我们的消融衡量的是从模型中移除注意力头的边际效应。在两个头做相似事情且logits前的LayerNorm会重新缩放的情况下，单个头的重要性可能会被掩盖。</div>
+        
+          <div class="list-content">我们的消融衡量的是从模型中移除注意力头的边际效应。在两个头做相似事情且logits前的LayerNorm会重新缩放的情况下，单个头的重要性可能会被掩盖。</div>
+        
       
     
       
@@ -32819,7 +32842,9 @@ gAQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEpCABCQgAQlIQAISkIAE
       
     
       
-        <div class="list-content">红色，“Attention”让你看到头在预测下一个token时关注的位置。蓝色，“Logit attr”显示使用“direct-path” logit归因对当前token预测做出贡献的较早token。<sup id="fnref-f21n"><a href="#f21n">[21]</a></sup></div>
+        
+          <div class="list-content">红色，“Attention”让你看到头在预测下一个token时关注的位置。蓝色，“Logit attr”显示使用“direct-path” logit归因对当前token预测做出贡献的较早token。<sup id="fnref-f21n"><a href="#f21n">[21]</a></sup></div>
+        
       
     
       
@@ -32861,7 +32886,9 @@ gAQkIAEJSEACEpCABCQgAQlIQAISkIAEJCABCUhAAhKQgAQkIAEJSEACEpCABCQgAQlIQAISkIAE
       
     
       
-        <div class="list-content">(month) (animal): 0(month) (fruit): 1(color) (animal): 2(color) (fruit): 3</div>
+        
+          <div class="list-content">(month) (animal): 0(month) (fruit): 1(color) (animal): 2(color) (fruit): 3</div>
+        
       
     
       
@@ -35451,7 +35478,7 @@ oLGFBbEAAAAASUVORK5CYII=
       
     
       
-        <p>一些模型使用不同的机制来实现归纳头。在GPT-2[<cite>[radford2019language]</cite>]中，我们看到了第二种<a href="2021-framework.html">变压器电路的数学框架</a>的证据，用于归纳头。这种机制使用位置嵌入和“Q-composition”。在GPT-2中，较早的注意力头关注当前token的先前副本，其<span class="math-inline" data-math="W_OV">W_OV</span>电路将它们的位置嵌入复制到当前token的一个子空间中。然后归纳头使用Q-composition将该位置嵌入向前旋转一个token，从而关注后面的token。这种机制对我们在这里研究的模型不可用，因为它们没有将位置信息添加到残差流中。<sup id="fnref-f25n"><a href="#f25n">[25]</a></sup></p>
+        <p>一些模型使用不同的机制来实现归纳头。在GPT-2[<cite>(Radford et al., 2019)</cite>]中，我们看到了第二种<a href="2021-framework.html">变压器电路的数学框架</a>的证据，用于归纳头。这种机制使用位置嵌入和“Q-composition”。在GPT-2中，较早的注意力头关注当前token的先前副本，其<span class="math-inline" data-math="W_OV">W_OV</span>电路将它们的位置嵌入复制到当前token的一个子空间中。然后归纳头使用Q-composition将该位置嵌入向前旋转一个token，从而关注后面的token。这种机制对我们在这里研究的模型不可用，因为它们没有将位置信息添加到残差流中。<sup id="fnref-f25n"><a href="#f25n">[25]</a></sup></p>
       
     
       
@@ -35534,11 +35561,13 @@ oLGFBbEAAAAASUVORK5CYII=
       
     
       
-        <div class="list-content">“小型仅注意力模型”，一系列从1层到6层的模型，没有MLP，是专门为当前研究训练的。“带MLP的小型模型”，一系列从1层到6层的模型，同时具有注意力和MLP层，是专门为当前研究训练的。“全尺寸模型”，一系列逐渐变大的带有MLP的模型（从4层1300万参数，到40层130亿参数），被用作Anthropic多个项目的基础。“Smeared key模型”，一个有针对性的架构实验，旨在允许任意深度的Transformer表达归纳头。</div>
+        
+          <div class="list-content">“小型仅注意力模型”，一系列从1层到6层的模型，没有MLP，是专门为当前研究训练的。“带MLP的小型模型”，一系列从1层到6层的模型，同时具有注意力和MLP层，是专门为当前研究训练的。“全尺寸模型”，一系列逐渐变大的带有MLP的模型（从4层1300万参数，到40层130亿参数），被用作Anthropic多个项目的基础。“Smeared key模型”，一个有针对性的架构实验，旨在允许任意深度的Transformer表达归纳头。</div>
+        
       
     
       
-        <p>用于训练小型模型和smeared key模型的数据集是Askell et al.中描述的数据集的早期版本[<cite>[askell2021general]</cite>]，由过滤后的common crawl数据[<cite>[commoncrawl]</cite>]和互联网书籍组成，以及其他几个较小的分布[<cite>[gao2020pile]</cite>]，其中大约10%是python代码。全尺寸模型在大致相同数据分布的改进版本上训练。此外，另一组小型模型在仅包含互联网书籍的不同数据集上训练，以探索改变数据集的影响。在给定数据集上训练的所有模型都以相同顺序看到相同的示例。模型从未看到相同的训练数据两次。</p>
+        <p>用于训练小型模型和smeared key模型的数据集是Askell et al.中描述的数据集的早期版本[<cite>(Askell et al., 2021)</cite>]，由过滤后的common crawl数据[<cite>(Foundation)</cite>]和互联网书籍组成，以及其他几个较小的分布[<cite>(Gao et al., 2020)</cite>]，其中大约10%是python代码。全尺寸模型在大致相同数据分布的改进版本上训练。此外，另一组小型模型在仅包含互联网书籍的不同数据集上训练，以探索改变数据集的影响。在给定数据集上训练的所有模型都以相同顺序看到相同的示例。模型从未看到相同的训练数据两次。</p>
       
     
       
@@ -35560,7 +35589,7 @@ oLGFBbEAAAAASUVORK5CYII=
       
     
       
-        <p>小型模型是1到6层的Transformer。这些包括同时带有和不带MLP的模型（即“仅注意力”模型）。它们具有<span class="math-inline" data-math="8192">8192</span> token的上下文窗口，<span class="math-inline" data-math="2^{16}">2^{16}</span> token的词汇表，残差流维度<span class="math-inline" data-math="d_{model}=768">d_{model}=768</span>，并且无论总模型大小如何，每层都有<span class="math-inline" data-math="12">12</span>个注意力头。它们被训练了10,000步（约100亿token），以每<span class="math-inline" data-math="50">50</span>步的间隔保存<span class="math-inline" data-math="200">200</span>个快照。它们的位置嵌入使用标准位置嵌入的一个变体实现（类似于Press et al.[<cite>[press2020shortformer]</cite>]）。训练数据集在模型分析表开头较早描述。</p>
+        <p>小型模型是1到6层的Transformer。这些包括同时带有和不带MLP的模型（即“仅注意力”模型）。它们具有<span class="math-inline" data-math="8192">8192</span> token的上下文窗口，<span class="math-inline" data-math="2^{16}">2^{16}</span> token的词汇表，残差流维度<span class="math-inline" data-math="d_{model}=768">d_{model}=768</span>，并且无论总模型大小如何，每层都有<span class="math-inline" data-math="12">12</span>个注意力头。它们被训练了10,000步（约100亿token），以每<span class="math-inline" data-math="50">50</span>步的间隔保存<span class="math-inline" data-math="200">200</span>个快照。它们的位置嵌入使用标准位置嵌入的一个变体实现（类似于Press et al.[<cite>(Press et al., 2020)</cite>]）。训练数据集在模型分析表开头较早描述。</p>
       
     
       
@@ -35573,7 +35602,7 @@ oLGFBbEAAAAASUVORK5CYII=
       
     
       
-        <p>“全尺寸模型”来自Askell et al.中描述的同一组模型[<cite>[askell2021general]</cite>]。上下文窗口和词汇量大小与小型模型相同（即分别为<span class="math-inline" data-math="8192">8192</span> token和<span class="math-inline" data-math="2^{16}">2^{16}</span> token）。与小型模型不同，它们的维度会随着大小增加而调整，激活维度为<span class="math-inline" data-math="d_{model} = 128 * n_{layer}">d_{model} = 128 * n_{layer}</span>，并且注意力头数量不同（完整细节见附录）。这些模型同时具有dense和local注意力头。在local注意力头中，每个token只能关注固定相对位置窗口内的较早token。Dense头是标准头，token可以关注任何较早的token（包括它自己）。训练数据集在模型分析表开头较早描述。</p>
+        <p>“全尺寸模型”来自Askell et al.中描述的同一组模型[<cite>(Askell et al., 2021)</cite>]。上下文窗口和词汇量大小与小型模型相同（即分别为<span class="math-inline" data-math="8192">8192</span> token和<span class="math-inline" data-math="2^{16}">2^{16}</span> token）。与小型模型不同，它们的维度会随着大小增加而调整，激活维度为<span class="math-inline" data-math="d_{model} = 128 * n_{layer}">d_{model} = 128 * n_{layer}</span>，并且注意力头数量不同（完整细节见附录）。这些模型同时具有dense和local注意力头。在local注意力头中，每个token只能关注固定相对位置窗口内的较早token。Dense头是标准头，token可以关注任何较早的token（包括它自己）。训练数据集在模型分析表开头较早描述。</p>
       
     
       
@@ -41420,11 +41449,15 @@ AAAAAElFTkSuQmCC
       
     
       
-        <div class="list-content">6层仅注意力模型在训练后半段发展出一个不寻常的头。这个头不是归纳头，然而消融它具有类似于反转相变的效果（在“before-and-after vector”归因图中）。这个头是什么？</div>
+        
+          <div class="list-content">6层仅注意力模型在训练后半段发展出一个不寻常的头。这个头不是归纳头，然而消融它具有类似于反转相变的效果（在“before-and-after vector”归因图中）。这个头是什么？</div>
+        
       
     
       
-        <div class="list-content">4层MLP模型的消融远不像其他任何模型那样“peaky”。这个模型的发展有什么不同？6层MLP模型显示出一个“loss spike”。我们还不知道是什么导致loss spike。6层MLP模型有一个孤独的归纳头，其消融对上下文学习分数有相反的效果。这个头是什么？</div>
+        
+          <div class="list-content">4层MLP模型的消融远不像其他任何模型那样“peaky”。这个模型的发展有什么不同？6层MLP模型显示出一个“loss spike”。我们还不知道是什么导致loss spike。6层MLP模型有一个孤独的归纳头，其消融对上下文学习分数有相反的效果。这个头是什么？</div>
+        
       
     
       
@@ -41432,7 +41465,9 @@ AAAAAElFTkSuQmCC
       
     
       
-        <div class="list-content">超过16层的全尺寸模型开始显示少量在“prefix search”上得分很好但在复制上得到负分的头，这意味着它们不是归纳头。我们能从这些“anti-copying prefix-search”头中学到什么？</div>
+        
+          <div class="list-content">超过16层的全尺寸模型开始显示少量在“prefix search”上得分很好但在复制上得到负分的头，这意味着它们不是归纳头。我们能从这些“anti-copying prefix-search”头中学到什么？</div>
+        
       
     
       
@@ -41454,11 +41489,11 @@ AAAAAElFTkSuQmCC
       
     
       
-        <p>上下文学习：上下文学习一直是安全社区中令人担忧的推测话题。对于能力较弱的神经网络，人们可能倾向于认为它们的行​​为在训练后相对固定。（尽管如此，对抗性重编程的演示[<cite>[elsayed2018adversarial]</cite>]对这个假设提出了一些怀疑。）上下文学习突出了模型行为可以在某种意义上在推理期间“改变”，而无需进一步训练。即使我们将上下文学习视为“定位”一个已经学会的行为[<cite>[reynolds2021prompt]</cite>]，而不是学习新东西，这种行为也可能是令人惊讶且不想要的分布外泛化。</p>
+        <p>上下文学习：上下文学习一直是安全社区中令人担忧的推测话题。对于能力较弱的神经网络，人们可能倾向于认为它们的行​​为在训练后相对固定。（尽管如此，对抗性重编程的演示[<cite>(Elsayed et al., 2018)</cite>]对这个假设提出了一些怀疑。）上下文学习突出了模型行为可以在某种意义上在推理期间“改变”，而无需进一步训练。即使我们将上下文学习视为“定位”一个已经学会的行为[<cite>(Reynolds et al., 2021)</cite>]，而不是学习新东西，这种行为也可能是令人惊讶且不想要的分布外泛化。</p>
       
     
       
-        <p>Mesa-Optimization：一直存在一些担忧，即上下文学习的底层机制可能是mesa-optimization[<cite>[hubinger2021risks]</cite>]，一种假设的情况，其中模型发展出内部优化算法。我们的工作表明，至少在小型模型中，上下文学习的主要机制是归纳头。我们没有观察到任何mesa-optimizer的证据。</p>
+        <p>Mesa-Optimization：一直存在一些担忧，即上下文学习的底层机制可能是mesa-optimization[<cite>(Hubinger et al., 2021)</cite>]，一种假设的情况，其中模型发展出内部优化算法。我们的工作表明，至少在小型模型中，上下文学习的主要机制是归纳头。我们没有观察到任何mesa-optimizer的证据。</p>
       
     
       
@@ -41467,7 +41502,7 @@ AAAAAElFTkSuQmCC
       
     
       
-        <p>上下文学习相变可能是一个有用的“罗塞塔石碑”，连接机制可解释性、学习动态[<cite>[saxe2014exact]</cite>]，以及神经网络类似统计物理的经验属性（例如缩放定律或相变）。如果一个人想研究这些工作线的交叉点，相变似乎是一个理想的起点：一个这些探究线交织在一起的具体例子，可以在小型模型中探索，被限定在训练过程的一个小片段中，并且与社区感兴趣的能力（上下文学习）相关联。</p>
+        <p>上下文学习相变可能是一个有用的“罗塞塔石碑”，连接机制可解释性、学习动态[<cite>(Saxe et al., 2014)</cite>]，以及神经网络类似统计物理的经验属性（例如缩放定律或相变）。如果一个人想研究这些工作线的交叉点，相变似乎是一个理想的起点：一个这些探究线交织在一起的具体例子，可以在小型模型中探索，被限定在训练过程的一个小片段中，并且与社区感兴趣的能力（上下文学习）相关联。</p>
       
     
       
@@ -41476,7 +41511,7 @@ AAAAAElFTkSuQmCC
       
     
       
-        <p>本文逆向工程Transformer的一般方法 heavily 基于我们之前的那篇论文<a href="2021-framework.html">变压器电路的数学框架</a>。关于该框架如何与其他可解释性工作相关，还有很多可说的。我们不重复它，而是推荐读者参阅我们之前论文中的<a href="2021-framework.html">变压器电路的数学框架</a>，特别是关于与<a href="2021-framework.html">变压器电路的数学框架</a>[<cite>[cammarata2020thread]</cite>]、<a href="2021-framework.html">变压器电路的数学框架</a>（例如[<cite>[jones2017tensor2tensor,vig2019multiscale,voita2019analyzing,clark2019does,htut2019attention]</cite>]）以及<a href="2021-framework.html">变压器电路的数学框架</a>（例如[<cite>[dong2021attention]</cite>]）的关系的讨论。</p>
+        <p>本文逆向工程Transformer的一般方法 heavily 基于我们之前的那篇论文<a href="2021-framework.html">变压器电路的数学框架</a>。关于该框架如何与其他可解释性工作相关，还有很多可说的。我们不重复它，而是推荐读者参阅我们之前论文中的<a href="2021-framework.html">变压器电路的数学框架</a>，特别是关于与<a href="2021-framework.html">变压器电路的数学框架</a>[<cite>(Cammarata et al., 2020)</cite>]、<a href="2021-framework.html">变压器电路的数学框架</a>（例如[<cite>(Jones, 2017; Vig, 2019; Voita et al., 2019; Clark et al., 2019; Htut et al., 2019)</cite>]）以及<a href="2021-framework.html">变压器电路的数学框架</a>（例如[<cite>(Dong et al., 2021)</cite>]）的关系的讨论。</p>
       
     
       
@@ -41489,7 +41524,7 @@ AAAAAElFTkSuQmCC
       
     
       
-        <p>涌现的上下文学习在GPT-3中得到了令人信服的展示[<cite>[brown2020language]</cite>]。许多论文研究了如何有效利用上下文学习，特别是使用“prompt engineering”[<cite>[zhao2021calibrate,gao2021making]</cite>]。但对我们特别重要的是，有几篇论文试图研究上下文学习如何以及何时发生（例如[<cite>[kaplan2020scaling,o2021context,xie2021explanation,min2022rethinking]</cite>]）。</p>
+        <p>涌现的上下文学习在GPT-3中得到了令人信服的展示[<cite>(Brown et al., 2020)</cite>]。许多论文研究了如何有效利用上下文学习，特别是使用“prompt engineering”[<cite>(Zhao et al., 2021; Gao et al., 2021)</cite>]。但对我们特别重要的是，有几篇论文试图研究上下文学习如何以及何时发生（例如[<cite>(Kaplan et al., 2020; O&#x27;Connor et al., 2021; Xie et al., 2021; Min et al., 2022)</cite>]）。</p>
       
     
       
@@ -41497,7 +41532,9 @@ AAAAAElFTkSuQmCC
       
     
       
-        <div class="list-content">Kaplan et al.[<cite>[kaplan2020scaling]</cite>]是我们使用不同token索引的损失作为研究上下文学习的形式主义的起源。O’Connor &amp; Andreas[<cite>[o2021context]</cite>]发现保留上下文中的词序很重要，正如归纳头假设所暗示的那样。</div>
+        
+          <div class="list-content">Kaplan et al.[<cite>(Kaplan et al., 2020)</cite>]是我们使用不同token索引的损失作为研究上下文学习的形式主义的起源。O’Connor &amp; Andreas[<cite>(O&#x27;Connor et al., 2021)</cite>]发现保留上下文中的词序很重要，正如归纳头假设所暗示的那样。</div>
+        
       
     
       
@@ -41505,11 +41542,13 @@ AAAAAElFTkSuQmCC
       
     
       
-        <div class="list-content">O’Connor &amp; Andreas[<cite>[o2021context]</cite>]有一些实验表明去除除名词以外的所有词可以改善损失。这似乎与归纳头假设不一致。然而，他们只在重新训练模型使用修改数据的情况下发现了这一点。这似乎与我们的工作不那么直接相关（因为我们旨在研究在自然数据上训练的模型），并且解释起来微妙（因为重新训练模型引入了run-to-run损失变化的可能性，并且测量的损失差异很小）。他们在不重新训练模型使用修改数据的情况下的实验似乎与归纳头假设一致。Xie et al.[<cite>[xie2021explanation]</cite>]发现当拟合由Hidden Markov Model（HMM）生成的合成数据（设计用于隔离特定理论的上下文学习模型）时，LSTM优于Transformer。我们通常预期Transformer在自然文本上的上下文学习中优于LSTM（如Kaplan et al.[<cite>[kaplan2020scaling]</cite>]中所见），归纳头作为主要解释。但在Xie et al.实验的情况下（不使用自然文本），我们怀疑合成数据的结构没有从Transformer中受益，并且LSTM或许更擅长模拟HMM。</div>
+        
+          <div class="list-content">O’Connor &amp; Andreas[<cite>(O&#x27;Connor et al., 2021)</cite>]有一些实验表明去除除名词以外的所有词可以改善损失。这似乎与归纳头假设不一致。然而，他们只在重新训练模型使用修改数据的情况下发现了这一点。这似乎与我们的工作不那么直接相关（因为我们旨在研究在自然数据上训练的模型），并且解释起来微妙（因为重新训练模型引入了run-to-run损失变化的可能性，并且测量的损失差异很小）。他们在不重新训练模型使用修改数据的情况下的实验似乎与归纳头假设一致。Xie et al.[<cite>(Xie et al., 2021)</cite>]发现当拟合由Hidden Markov Model（HMM）生成的合成数据（设计用于隔离特定理论的上下文学习模型）时，LSTM优于Transformer。我们通常预期Transformer在自然文本上的上下文学习中优于LSTM（如Kaplan et al.[<cite>(Kaplan et al., 2020)</cite>]中所见），归纳头作为主要解释。但在Xie et al.实验的情况下（不使用自然文本），我们怀疑合成数据的结构没有从Transformer中受益，并且LSTM或许更擅长模拟HMM。</div>
+        
       
     
       
-        <p>请注意，我们使用的是更广泛的“上下文学习”概念，而不是像“少样本学习”那样具体的东西。这与Brown et al.[<cite>[brown2020language]</cite>]形成对比，后者描述语言模型“发展出一套广泛的技能和模式识别能力。然后它在推理时使用这些能力来快速适应或识别所需任务”，并举例如少位数加法和错字纠正的例子。在我们对“上下文学习”的概念中，我们指的是模型快速适应或识别上下文中正在发生什么的所有方式，即使“上下文中正在发生什么”没有被很好地设想为某个其他特定重复任务的多个“shots”。</p>
+        <p>请注意，我们使用的是更广泛的“上下文学习”概念，而不是像“少样本学习”那样具体的东西。这与Brown et al.[<cite>(Brown et al., 2020)</cite>]形成对比，后者描述语言模型“发展出一套广泛的技能和模式识别能力。然后它在推理时使用这些能力来快速适应或识别所需任务”，并举例如少位数加法和错字纠正的例子。在我们对“上下文学习”的概念中，我们指的是模型快速适应或识别上下文中正在发生什么的所有方式，即使“上下文中正在发生什么”没有被很好地设想为某个其他特定重复任务的多个“shots”。</p>
       
     
       
@@ -41518,7 +41557,7 @@ AAAAAElFTkSuQmCC
       
     
       
-        <p>在过去几年中，机器学习模型以缩放定律[<cite>[kaplan2020scaling]</cite>]描述的平滑、可预测方式变化的观察，已成为在训练前建模模型属性的有用工具。</p>
+        <p>在过去几年中，机器学习模型以缩放定律[<cite>(Kaplan et al., 2020)</cite>]描述的平滑、可预测方式变化的观察，已成为在训练前建模模型属性的有用工具。</p>
       
     
       
@@ -41530,7 +41569,7 @@ AAAAAElFTkSuQmCC
       
     
       
-        <p>事实上，归纳头也许能够解释之前观察到的缩放定律的例外。在我们的工作中，1层Transformer似乎与更深的Transformer非常不同。这之前被Kaplan et al.[<cite>[kaplan2020scaling]</cite>]观察到，他们发现1层Transformer不遵循与更大Transformer相同的缩放定律。似乎缩放定律对于1层模型不同的一个相当合理的理由是它们没有归纳头。</p>
+        <p>事实上，归纳头也许能够解释之前观察到的缩放定律的例外。在我们的工作中，1层Transformer似乎与更深的Transformer非常不同。这之前被Kaplan et al.[<cite>(Kaplan et al., 2020)</cite>]观察到，他们发现1层Transformer不遵循与更大Transformer相同的缩放定律。似乎缩放定律对于1层模型不同的一个相当合理的理由是它们没有归纳头。</p>
       
     
       
@@ -43731,15 +43770,17 @@ rkJggg==
       
     
       
-        <div class="list-content">Brown et al.[<cite>[brown2020language]</cite>]发现，虽然总体损失随模型大小可预测地缩放，但模型执行特定任务（如算术）的能力可以突然改变。Power et al.[<cite>[power2022grokking]</cite>]观察到一种他们称为“grokking”的现象，其中模型在训练过程中从随机几率不连续地跳跃到完美泛化。Double Descent[<cite>[belkin2019reconciling]</cite>]是一种现象，其中模型性能首先由于过拟合而变差（“经典” regime），但在超过某一点后再次变好（“现代” regime）。Double descent的泛化可以发生在参数大小、数据集大小或训练量方面[<cite>[nakkiran2021deep]</cite>]。这些现象在损失上不是不连续的，但它们是令人惊讶的趋势反转，并且可能在导数上是不连续的。</div>
+        
+          <div class="list-content">Brown et al.[<cite>(Brown et al., 2020)</cite>]发现，虽然总体损失随模型大小可预测地缩放，但模型执行特定任务（如算术）的能力可以突然改变。Power et al.[<cite>(Power et al., 2022)</cite>]观察到一种他们称为“grokking”的现象，其中模型在训练过程中从随机几率不连续地跳跃到完美泛化。Double Descent[<cite>(Belkin et al., 2019)</cite>]是一种现象，其中模型性能首先由于过拟合而变差（“经典” regime），但在超过某一点后再次变好（“现代” regime）。Double descent的泛化可以发生在参数大小、数据集大小或训练量方面[<cite>(Nakkiran et al., 2021)</cite>]。这些现象在损失上不是不连续的，但它们是令人惊讶的趋势反转，并且可能在导数上是不连续的。</div>
+        
       
     
       
-        <p>有关这些相变现象的更一般讨论，请参阅Steinhardt[<cite>[steinhardt2021]</cite>]的<a href="https://bounded-regret.ghost.io/future-ml-systems-will-be-qualitatively-different/" target="_blank" rel="noopener">最近博客文章</a>。</p>
+        <p>有关这些相变现象的更一般讨论，请参阅Steinhardt[<cite>(Steinhardt, 2021)</cite>]的<a href="https://bounded-regret.ghost.io/future-ml-systems-will-be-qualitatively-different/" target="_blank" rel="noopener">最近博客文章</a>。</p>
       
     
       
-        <p>我们观察到的带有归纳头的不连续相变行为最类似于Power et al.[<cite>[power2022grokking]</cite>]的“grokking”，因为它发生在训练过程中。我们认为我们对这个文献的主要贡献是将我们观察到的变化与归纳头的形成以及所涉及电路的参数层面理解联系起来。据我们所知，归纳头是机器学习中相变首次被提供机制解释的案例。</p>
+        <p>我们观察到的带有归纳头的不连续相变行为最类似于Power et al.[<cite>(Power et al., 2022)</cite>]的“grokking”，因为它发生在训练过程中。我们认为我们对这个文献的主要贡献是将我们观察到的变化与归纳头的形成以及所涉及电路的参数层面理解联系起来。据我们所知，归纳头是机器学习中相变首次被提供机制解释的案例。</p>
       
     
       
@@ -43752,11 +43793,11 @@ rkJggg==
       
     
       
-        <p>Saxe et al[<cite>[saxe2014exact]</cite>]在学习动态中的一个显著结果是发现了没有激活函数的线性神经网络的学习动态的闭式解。这个工作的令人兴奋之处在于它实际上提供了一种在简化情况下概念化思考神经网络学习的简单方式。（在后续工作中，Saxe et al还探索了这个框架与模型学习表示语义信息之间的联系[<cite>[saxe2019mathematical]</cite>]。）我们无法在这里提供这个工作的详细回顾，但我们注意到Saxe et al的框架可以自然地暗示一种用电路视角思考学习动态的方式。大致来说，他们发现线性神经网络可以从网络中独立路径的演化来理解，每条路径对应于数据的一个主成分。这些路径可以被视为电路。</p>
+        <p>Saxe et al[<cite>(Saxe et al., 2014)</cite>]在学习动态中的一个显著结果是发现了没有激活函数的线性神经网络的学习动态的闭式解。这个工作的令人兴奋之处在于它实际上提供了一种在简化情况下概念化思考神经网络学习的简单方式。（在后续工作中，Saxe et al还探索了这个框架与模型学习表示语义信息之间的联系[<cite>(Saxe et al., 2019)</cite>]。）我们无法在这里提供这个工作的详细回顾，但我们注意到Saxe et al的框架可以自然地暗示一种用电路视角思考学习动态的方式。大致来说，他们发现线性神经网络可以从网络中独立路径的演化来理解，每条路径对应于数据的一个主成分。这些路径可以被视为电路。</p>
       
     
       
-        <p>另一个有趣的工作线是对神经网络损失曲面几何的研究（例如[<cite>[goodfellow2014qualitatively,lucas2021analyzing,pennington2017geometry,li2018visualizing]</cite>]）。在这里，我们对联系的想法更肤浅，但似乎必须有某种方式让损失曲面的某些方面与电路的形成相联系。非常具体地说，似乎我们本文中描述的相变必须对应于Transformer损失景观中的某个非常大的特征。</p>
+        <p>另一个有趣的工作线是对神经网络损失曲面几何的研究（例如[<cite>(Goodfellow et al., 2014; Lucas et al., 2021; Pennington et al., 2017; Li et al., 2018)</cite>]）。在这里，我们对联系的想法更肤浅，但似乎必须有某种方式让损失曲面的某些方面与电路的形成相联系。非常具体地说，似乎我们本文中描述的相变必须对应于Transformer损失景观中的某个非常大的特征。</p>
       
     
       
@@ -43765,19 +43806,19 @@ rkJggg==
       
     
       
-        <p>在可解释性和电路的背景下，<a href="https://distill.pub/2020/circuits/zoom-in/#claim-3" target="_blank" rel="noopener">&amp;quot;universality&amp;quot;</a>[<cite>[olah2020zoom]</cite>]或“convergent learning”[<cite>[li2015convergent]</cite>]是指多个模型发展出相同特征和电路的情况。普遍性可能看起来像是一个智力上的好奇心，但Circuits系列认为普遍性在哪种类型的可解释性有意义方面起着关键作用：</p>
+        <p>在可解释性和电路的背景下，<a href="https://distill.pub/2020/circuits/zoom-in/#claim-3" target="_blank" rel="noopener">&quot;universality&quot;</a>[<cite>(Olah et al., 2020)</cite>]或“convergent learning”[<cite>(Li et al., 2015)</cite>]是指多个模型发展出相同特征和电路的情况。普遍性可能看起来像是一个智力上的好奇心，但Circuits系列认为普遍性在哪种类型的可解释性有意义方面起着关键作用：</p>
       
     
       
-        <blockquote>[I]magine the study of anatomy in a world where every species of animal had a completely unrelated anatomy: would we seriously study anything other than humans and a couple domestic animals? In the same way, the universality hypothesis determines what form of circuits research makes sense. If it was true in the strongest sense, one could imagine a kind of “periodic table of visual features” which we observe and catalogue across models. On the other hand, if it was mostly false, we would need to focus on a handful of models of particular societal importance and hope they stop changing every year.   [<cite>[olah2020zoom]</cite>]</blockquote>
+        <blockquote>[I]magine the study of anatomy in a world where every species of animal had a completely unrelated anatomy: would we seriously study anything other than humans and a couple domestic animals? In the same way, the universality hypothesis determines what form of circuits research makes sense. If it was true in the strongest sense, one could imagine a kind of “periodic table of visual features” which we observe and catalogue across models. On the other hand, if it was mostly false, we would need to focus on a handful of models of particular societal importance and hope they stop changing every year.   [<cite>(Olah et al., 2020)</cite>]</blockquote>
       
     
       
-        <p>关于普遍性的研究始于Li et al.[<cite>[li2015convergent]</cite>]，他们展示了许多神经元与同一模型重新训练版本中的神经元高度相关。最近，许多论文表明总体而言神经网络发展出具有大量共享信息的表示（例如）。Circuits系列试图将这种普遍性概念从特征扩展到电路，发现不仅至少一些特征良好的神经元家族在不同架构的多个网络中重现，而且相同的电路[<cite>[olah2020zoom]</cite>]，而且相同的电路似乎实现了它们[<cite>[schubert2021highlow]</cite>]。</p>
+        <p>关于普遍性的研究始于Li et al.[<cite>(Li et al., 2015)</cite>]，他们展示了许多神经元与同一模型重新训练版本中的神经元高度相关。最近，许多论文表明总体而言神经网络发展出具有大量共享信息的表示（例如）。Circuits系列试图将这种普遍性概念从特征扩展到电路，发现不仅至少一些特征良好的神经元家族在不同架构的多个网络中重现，而且相同的电路[<cite>(Olah et al., 2020)</cite>]，而且相同的电路似乎实现了它们[<cite>(Schubert et al., 2021)</cite>]。</p>
       
     
       
-        <p>某些类型的普遍性在语言模型注意力头可解释性文献中经常被隐含假设。例如，似乎广泛接受“前一个token”注意力头在许多Transformer语言模型中形成（例如[<cite>[voita2019analyzing,clark2019does]</cite>]）。通用注意力头的隐含假设——即在不同模型中具有相同注意力模式的注意力头——与视觉背景下研究的特征普遍性不完全相同，但有点类似。</p>
+        <p>某些类型的普遍性在语言模型注意力头可解释性文献中经常被隐含假设。例如，似乎广泛接受“前一个token”注意力头在许多Transformer语言模型中形成（例如[<cite>(Voita et al., 2019; Clark et al., 2019)</cite>]）。通用注意力头的隐含假设——即在不同模型中具有相同注意力模式的注意力头——与视觉背景下研究的特征普遍性不完全相同，但有点类似。</p>
       
     
       
@@ -43785,7 +43826,7 @@ rkJggg==
       
     
       
-        <p>与所有这些分开，值得一提的是，越来越多地有证据表明在神经科学和深度学习的交叉点存在一种特别极端的普遍性。越来越多的研究表明生物和人工神经网络学习相似的表示（例如[<cite>[yamins2014performance,gucclu2015deep,eickenberg2017seeing]</cite>]）。事实上，Goh et al.[<cite>[goh2021multimodal]</cite>]发现人类中发现的多模态“概念”神经元（例如著名的“Jennifer Anniston神经元”）也出现在神经网络中。</p>
+        <p>与所有这些分开，值得一提的是，越来越多地有证据表明在神经科学和深度学习的交叉点存在一种特别极端的普遍性。越来越多的研究表明生物和人工神经网络学习相似的表示（例如[<cite>(Yamins et al., 2014; Güçlü et al., 2015; Eickenberg et al., 2017)</cite>]）。事实上，Goh et al.[<cite>(Goh et al., 2021)</cite>]发现人类中发现的多模态“概念”神经元（例如著名的“Jennifer Anniston神经元”）也出现在神经网络中。</p>
       
     
       
@@ -43794,7 +43835,7 @@ rkJggg==
       
     
       
-        <p>在论证4中，我们看到一个帮助实现翻译的归纳头。虽然我们不知道先前文献中有任何如此通用的东西，但有报告称注意力模式在回顾时似乎有些相似。通常，在翻译类任务中，我们看到注意力关注即将被翻译的token。我们在字面翻译中看到这一点（例如[<cite>[bahdanau2014neural]</cite>]），也在语音识别中看到（例如[<cite>[chan2015listen]</cite>]，其中模型关注即将被转录的音频部分）。在encoder-decoder上下文中的这些可视化往往会稍微掩盖注意力的归纳性质，因为解码器是按每个时间步预测的输出token而不是其输入token来可视化的。</p>
+        <p>在论证4中，我们看到一个帮助实现翻译的归纳头。虽然我们不知道先前文献中有任何如此通用的东西，但有报告称注意力模式在回顾时似乎有些相似。通常，在翻译类任务中，我们看到注意力关注即将被翻译的token。我们在字面翻译中看到这一点（例如[<cite>(Bahdanau et al., 2014)</cite>]），也在语音识别中看到（例如[<cite>(Chan et al., 2015)</cite>]，其中模型关注即将被转录的音频部分）。在encoder-decoder上下文中的这些可视化往往会稍微掩盖注意力的归纳性质，因为解码器是按每个时间步预测的输出token而不是其输入token来可视化的。</p>
       
     
       
@@ -46700,7 +46741,7 @@ url = {https://www.anthropic.com/news/probes-catch-sleeper-agents},
     </div>
     
     <div class="footnote-item" id="f13n">
-      <a href="#fnref-f13n">[13]</a> 有些信息比特比其他更难学习。例如，在训练开始时，模型可以通过简单的方法（如记忆双字母统计）实现损失的显著降低。但在训练后期所有唾手可得的果实都已经被采摘，模型必须学习更复杂的算法如归纳头，这可能更难学习但结果产生的信息比特更少。在今天的最先进模型如GPT-3中，我们观察到复杂的如加法的能力，我们可以想象未来的模型接近近乎完美的损失可能需要人类水平的语言理解以及更多来获得最后那几个比特的分数。<cite>[gwern2020scaling]</cite> 因此，第50个token和第500个token之间的相对损失很可能在训练过程中代表越来越难的比特。
+      <a href="#fnref-f13n">[13]</a> 有些信息比特比其他更难学习。例如，在训练开始时，模型可以通过简单的方法（如记忆双字母统计）实现损失的显著降低。但在训练后期所有唾手可得的果实都已经被采摘，模型必须学习更复杂的算法如归纳头，这可能更难学习但结果产生的信息比特更少。在今天的最先进模型如GPT-3中，我们观察到复杂的如加法的能力，我们可以想象未来的模型接近近乎完美的损失可能需要人类水平的语言理解以及更多来获得最后那几个比特的分数。<cite>(Branwen, 2020)</cite> 因此，第50个token和第500个token之间的相对损失很可能在训练过程中代表越来越难的比特。
     </div>
     
     <div class="footnote-item" id="f14n">
@@ -46748,7 +46789,7 @@ url = {https://www.anthropic.com/news/probes-catch-sleeper-agents},
     </div>
     
     <div class="footnote-item" id="f25n">
-      <a href="#fnref-f25n">[25]</a> 相反，它们使用类似于Press et al.[<cite>[press2020shortformer]</cite>]的略微不寻常的位置机制。
+      <a href="#fnref-f25n">[25]</a> 相反，它们使用类似于Press et al.[<cite>(Press et al., 2020)</cite>]的略微不寻常的位置机制。
     </div>
     
     <div class="footnote-item" id="f26n">

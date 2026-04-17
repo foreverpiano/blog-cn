@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>构建内部 Agent：渐进式披露与处理大文件 · Will Larson 文集</title>
   <link rel="stylesheet" href="../static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Will Larson 文集</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -54,9 +60,11 @@
       
     
       
-        <div class="list-content">初始时，只把每个可用技能的描述加入上下文窗口；
+        
+          <div class="list-content">初始时，只把每个可用技能的描述加入上下文窗口；
 随后根据需要按需加载对应的 SKILL.md 文件；
 SKILL.md 中可以进一步指定其他需要加载的辅助文件。</div>
+        
       
     
       
@@ -88,7 +96,8 @@ SKILL.md 中可以进一步指定其他需要加载的辅助文件。</div>
       
     
       
-        <div class="list-content">始终在 prompt 中包含可用文件的元数据，类似可用技能的列表。其形式大致如下：关键在于每个 id 都是 Agent 可以传递给工具的引用，这让它能够在不把文件内容加载到上下文窗口的情况下对其进行操作。
+        
+          <div class="list-content">始终在 prompt 中包含可用文件的元数据，类似可用技能的列表。其形式大致如下：关键在于每个 id 都是 Agent 可以传递给工具的引用，这让它能够在不把文件内容加载到上下文窗口的情况下对其进行操作。
 根据文件类型自动预加载前 N KB 的内容（仅限 png、pdf 等适合加载的 MIME 类型）。这个数值可按工作流进行配置，如果某个工作流不希望预加载任何文件，也可以设置为 0。
 我对是否值得预加载仍持保留态度，因为这会让 Agent 失去一部分控制权。
 提供三个操作文件的工具：
@@ -96,6 +105,7 @@ load_file(id)：将整个文件加载到上下文窗口
 peek_file(id, start, stop)：加载文件的指定片段
 extract_file(id)：将 PDF、PPT、DOCX 等文件转换为简化的文本版本
 提供一个 large_files 技能，说明何时以及如何使用上述工具来处理大文件。通常它会建议对任何需要处理的 PDF、DOCX 或 PPT 文件优先使用 extract_file，否则根据上下文窗口剩余空间选择 load_file 或 peek_file。</div>
+        
       
     
       
@@ -121,9 +131,11 @@ extract_file(id)：将 PDF、PPT、DOCX 等文件转换为简化的文本版本
       
     
       
-        <div class="list-content">在支持子 Agent（subagent）之前，我们的能力会受到限制。在很多场景下，处理大文件的最佳方式是将其交给一个拥有更大上下文窗口的子 Agent，让子 Agent 对内容进行总结，再把总结结果带回到主 Agent 的上下文中。
+        
+          <div class="list-content">在支持子 Agent（subagent）之前，我们的能力会受到限制。在很多场景下，处理大文件的最佳方式是将其交给一个拥有更大上下文窗口的子 Agent，让子 Agent 对内容进行总结，再把总结结果带回到主 Agent 的上下文中。
 extract_file 可能需要修改为返回一个可引用的虚拟 file_id，而不是直接返回内容，这个 file_id 可以后续用于 peek_file 和 load_file。这样即使处理非常大的文件，工具也会更加健壮。实际上，目前提取出来的内容一直都相当精简。
 最后，由于我们运行在 AWS Lambda 上，必须使用纯 Python 包，而纯 Python 在解析 DOCX 等复杂的 XML 派生文档格式时速度较慢。最终我们可能会在 Lambda 中增加一层支持 lxml 依赖，未来某个时候可能会这么做。</div>
+        
       
     
       
@@ -169,6 +181,19 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   var h = document.querySelector('.nav-section h2');
   if (total > 0 && h) h.textContent += ' · 已读 ' + done + '/' + total;
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.math-inline, .math-display').forEach(function(el){
+    try {
+      katex.render(el.getAttribute('data-math') || el.textContent, el, {
+        displayMode: el.classList.contains('math-display'),
+        throwOnError: false
+      });
+    } catch(e) {}
+  });
 });
 </script>
 </body>

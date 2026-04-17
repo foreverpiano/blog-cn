@@ -3,13 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>可视化循环神经网络中的记忆机制 · Distill.pub</title>
+  <title>可视化 RNN 中的记忆机制 · Distill.pub</title>
   <link rel="stylesheet" href="../static/css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 </head>
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Distill.pub</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -20,7 +25,7 @@
 
 <article>
   <header class="article-header">
-    <h1>可视化循环神经网络中的记忆机制</h1>
+    <h1>可视化 RNN 中的记忆机制</h1>
     <div class="meta">
       2019-03-25 · 
       <a href="https://distill.pub/2019/memorization-in-rnns" target="_blank" rel="noopener">阅读原文</a>
@@ -30,23 +35,23 @@
   <div class="article-content">
     
       
-        <p>循环神经网络（RNN）中的记忆机制在许多应用中仍然是一个挑战。我们希望 RNN 能够在多个时间步上存储信息，并在需要时将其提取出来——但普通的 vanilla RNN 往往难以做到这一点。</p>
+        <p>循环神经网络（RNN）中的记忆机制在许多应用中仍然是一个挑战。我们希望 RNN 能够在多个时间步上存储信息，并在需要时将其检索出来——但普通的 vanilla RNN 往往难以做到这一点。</p>
       
     
       
-        <p>为了解决这一问题的不同方面，研究者们提出了多种网络架构，例如 Long-Short-Term Memory (LSTM)<cite>[hochreiter1997lstm]</cite>单元和 Gated Recurrent Units (GRU)<cite>[cho2014gru]</cite>。然而，记忆机制在实际应用中仍旧是一个难题。因此，开发更擅长记忆的新型循环单元依然是一个活跃的研究领域。</p>
+        <p>研究者提出了多种网络架构来解决这一问题的不同方面，例如 Long-Short-Term Memory (LSTM)[<cite>(Hochreiter et al., 1997)</cite>] 单元和 Gated Recurrent Units (GRU)[<cite>(Cho et al., 2014)</cite>]。然而，记忆机制在实践中的问题依然存在。因此，开发更擅长记忆的新型循环单元仍是当前活跃的研究领域。</p>
       
     
       
-        <p>为了将某种循环单元与其替代方案进行对比，过去和最近的论文（例如 Monzi 等人的 Nested LSTM 论文<cite>[moniz2018nlstm]</cite>）都 heavily 依赖定量比较。这些比较通常在 Penn Treebank<cite>[penntreebank]</cite>、中文诗歌生成或 text8<cite>[text8]</cite> 等标准任务上衡量准确率或交叉熵损失，任务目标是根据已有输入预测下一个字符。</p>
+        <p>无论是较早还是最近的论文，例如 Monzi 等人的 Nested LSTM 论文[<cite>(Moniz et al., 2018)</cite>]，在比较循环单元与其替代方案时，都严重依赖定量对比。这些对比通常在 Penn Treebank[<cite>(Marcus et al., 1994)</cite>]、Chinese Poetry Generation 或 text8[<cite>(Mahoney, 2006)</cite>] 等标准任务上衡量准确率或交叉熵损失，任务目标是根据已有输入预测下一个字符。</p>
       
     
       
-        <p>虽然定量比较很有用，但它们只能部分揭示循环单元如何进行记忆。例如，一个模型可能仅通过在只需要短期记忆的任务上提供高准确率的预测，就能获得很高的整体准确率和较低的交叉熵损失，而在需要长期记忆的预测上表现不佳。在句子中自动补全单词时，一个只有短期理解的模型，在大部分字符已经出现的情况下，仍然可以表现出很高的补全词尾的准确率。然而，如果缺乏较长期的上下文理解，它就无法在只知道少数几个字符时预测出整个单词。</p>
+        <p>虽然定量对比很有用，但它们只能部分揭示循环单元如何进行记忆。例如，一个模型可能仅通过在只需短期记忆的任务上提供高准确率的预测，就能获得很高的准确率和较低的交叉熵损失，而在需要长期记忆的预测上表现不佳。在句子中自动补全单词时，仅具备短期理解的模型，在大部分字符已出现的情况下，仍能以高准确率补全单词末尾。但若缺乏长期上下文理解，当只有少量字符已知时，它就无法准确预测单词。</p>
       
     
       
-        <p>本文提出了一种定性的可视化方法，用于比较循环单元在记忆能力和上下文理解方面的表现。该方法被应用于上述三种循环单元：Nested LSTM、LSTM 和 GRU。</p>
+        <p>本文提出了一种定性可视化方法，用于比较循环单元在记忆能力和上下文理解方面的表现。该方法被应用于上述三种循环单元：Nested LSTM、LSTM 和 GRU。</p>
       
     
       
@@ -55,40 +60,44 @@
       
     
       
-        <p>本文将要分析的网络都采用简单的 RNN 结构：</p>
+        <p>本文所分析的网络均采用简单的 RNN 结构：</p>
       
     
       
-        <p>[Interactive figure — view original: https://distill.pub/2019/memorization-in-rnns]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2019/memorization-in-rnns" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
-        <p>理论上，这种时间依赖性使得网络在每一步迭代中都能知晓序列中之前的所有部分。然而，这种时间依赖通常会导致梯度消失问题，使得长期依赖在训练过程中被忽略<cite>[pascanu2013vanishing]</cite>。</p>
+        <p>理论上，这种时间依赖性使得每个迭代都能知晓序列中之前的所有部分。然而，这种时间依赖通常会导致梯度消失问题，使长期依赖在训练过程中被忽略[<cite>(Pascanu et al., 2013)</cite>]。</p>
       
     
       
-        <p>[Interactive figure: Vanishing Gradient:where the contribution from the earlier steps becomes insignificant in the gradient for the vanilla RNN unit. — view original: https://distill.pub/2019/memorization-in-rnns]</p>
+        <div class="interactive-placeholder">
+          <strong>[梯度消失：指在 vanilla RNN 单元中，来自较早时间步的贡献在梯度计算中变得微不足道。]</strong>
+           · <a href="https://distill.pub/2019/memorization-in-rnns" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
-        <p>多年来，人们提出了多种解决梯度消失问题的方法。其中最受欢迎的是前面提到的 LSTM 和 GRU，但这一领域仍在积极研究中。LSTM 和 GRU 都广为人知，并且<a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/" target="_blank" rel="noopener">在文献中得到了详尽的解释</a>。最近，Nested LSTM 也被提出<cite>[moniz2018nlstm]</cite>——关于 Nested LSTM 的解释可以在附录中找到。</p>
+        <p>多年来，人们提出了多种解决梯度消失问题的方法。其中最流行的是前面提到的 LSTM 和 GRU 单元，但这一领域仍在积极研究中。LSTM 和 GRU 都广为人知，并且<a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/" target="_blank" rel="noopener">在文献中已有详细解释</a>。最近，Nested LSTM 也被提出[<cite>(Moniz et al., 2018)</cite>]——关于 Nested LSTM 的解释可参见附录。</p>
       
     
       
         <figure>
           <img src="../images/2019-memorization-in-rnns/nlstm-web.svg" alt="Nested LSTM Diagram">
-          <figcaption>Recurrent Unit, Nested LSTM: makes the cell update depend on another
-      LSTM unit, supposedly this allows more long-term memory compared to
-      stacking LSTM layers.</figcaption>
+          <figcaption>循环单元，Nested LSTM：使其细胞更新依赖于另一个 LSTM 单元，据称这能比简单堆叠 LSTM 层提供更强的长期记忆能力。</figcaption>
         </figure>
       
     
       
-        <p>目前尚不完全清楚为什么在某些应用中一种循环单元表现优于另一种，而在其他应用中却是另一种循环单元更优。从理论上讲，它们都能解决梯度消失问题，但在实践中，它们的性能高度依赖于具体应用。</p>
+        <p>目前尚不清楚为什么在某些应用中一种循环单元表现更好，而在另一些应用中则是另一种单元表现更优。理论上它们都能解决梯度消失问题，但在实践中它们的性能高度依赖于具体应用。</p>
       
     
       
-        <p>理解这些差异出现的原因很可能是一个不透明且具有挑战性的问题。本文的目的是展示一种可视化技术，它能够更好地凸显这些差异。希望这样的理解能够带来更深入的认知。</p>
+        <p>理解这些差异出现的原因很可能是一个不透明且具有挑战性的问题。本文的目的是展示一种可视化技术，它能更好地凸显这些差异。希望这样的理解能够带来更深入的认知。</p>
       
     
       
@@ -97,32 +106,35 @@
       
     
       
-        <p>比较不同的循环单元往往比简单比较准确率或交叉熵损失更为复杂。这些高层定量指标的差异可能有多种解释，可能只是因为在仅需要短期上下文理解的任务上有了微小改进，而我们通常更关心的是长期上下文理解能力。</p>
+        <p>比较不同的循环单元往往比简单对比准确率或交叉熵损失要复杂得多。这些高层定量指标的差异可能有多种解释，可能仅仅来自只需短期上下文理解的预测上的微小改进，而我们通常更关心的是长期上下文理解能力。</p>
       
     
       
-        <h3>定性分析的一个合适问题</h3>
+        <h3>定性分析面临的问题</h3>
         
       
     
       
-        <p>因此，一个适合定性分析上下文理解的好问题，应该具有人类可解释的输出，并且同时依赖于长期和短期的上下文理解。通常使用的典型问题，例如 Penn Treebank<cite>[penntreebank]</cite>、中文诗歌生成或 text8<cite>[text8]</cite> 生成，其输出并不容易进行推理，因为它们需要深入理解语法、中文诗歌，或者每次只输出单个字母。</p>
+        <p>因此，一个适合定性分析上下文理解的好问题，应该具有人类可解释的输出，并且同时依赖于长期和短期的上下文理解。通常使用的典型问题，如 Penn Treebank[<cite>(Marcus et al., 1994)</cite>]、Chinese Poetry Generation 或 text8[<cite>(Mahoney, 2006)</cite>] 生成任务，其输出并不容易进行推理，因为它们需要深入理解语法、中文诗歌，或者仅输出单个字母。</p>
       
     
       
-        <p>为此，本文研究了自动补全（autocomplete）问题。将每个字符映射到一个代表整个单词的目标。单词前面的空格也应映射到该目标。特别地，基于空格字符的预测对于展示上下文理解能力非常有用。</p>
+        <p>为此，本文研究了自动补全（autocomplete）问题。将每个字符映射到一个代表整个单词的目标，单词前的空格也应映射到同一目标。基于空格字符的预测特别有利于展示上下文理解能力。</p>
       
     
       
-        <p>自动补全问题与 text8 生成问题非常相似：唯一的区别是模型不是预测下一个字母，而是预测整个单词。这使得输出更具可解释性。最后，由于它与 text8 生成任务密切相关，关于 text8 生成的现有文献也具有参考价值——在 text8 生成上表现良好的模型，在自动补全问题上也应该表现良好。</p>
+        <p>自动补全问题与 text8 生成问题非常相似：唯一的区别是模型不再预测下一个字母，而是预测整个单词。这使得输出更具可解释性。最后，由于它与 text8 生成任务密切相关，现有关于 text8 生成的文献也具有参考价值——在 text8 生成上表现良好的模型，在自动补全问题上也应表现良好。</p>
       
     
       
-        <p>[Interactive figure: User types input sequence. — view original: https://distill.pub/2019/memorization-in-rnns]</p>
+        <div class="interactive-placeholder">
+          <strong>[用户输入序列。]</strong>
+           · <a href="https://distill.pub/2019/memorization-in-rnns" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
-        <p>自动补全数据集是从完整的<a href="http://mattmahoney.net/dc/textdata.html" target="_blank" rel="noopener">text8</a> 数据集中构建而来的。用于解决该问题的循环神经网络包含两层，每层有 600 个单元。共有三个模型，分别使用 GRU、LSTM 和 Nested LSTM。更多细节请参见附录。</p>
+        <p>自动补全数据集基于完整的<a href="http://mattmahoney.net/dc/textdata.html" target="_blank" rel="noopener">text8</a>数据集构建。用于解决该问题的循环神经网络包含两层，每层有 600 个单元。共有三个模型，分别使用 GRU、LSTM 和 Nested LSTM。更多细节请参见附录。</p>
       
     
       
@@ -131,39 +143,48 @@
       
     
       
-        <p>在最近发表的 Nested LSTM 论文<cite>[moniz2018nlstm]</cite>中，他们通过可视化单个细胞激活的方式，定性地将其 Nested LSTM 单元与其他循环单元进行比较，以展示它在记忆方面的表现。</p>
+        <p>在最近发表的 Nested LSTM 论文[<cite>(Moniz et al., 2018)</cite>]中，作者通过可视化单个细胞的激活情况，定性地将其 Nested LSTM 单元与其他循环单元进行了比较，以展示其记忆方式。</p>
       
     
       
-        <p>这种可视化方法受到了 Karpathy 等人的启发<cite>[karpathy2015rnnvis]</cite>，他们在其中识别出能够捕捉特定特征的细胞。对于识别特定特征，这种可视化方法效果很好。然而，它并不能作为衡量记忆能力的通用论据，因为输出完全取决于特定细胞捕捉到的特征是什么。</p>
+        <p>这种可视化方法受到 Karpathy 等人的启发[<cite>(Karpathy et al., 2015)</cite>]，他们通过这种方式识别出捕捉特定特征的细胞。对于识别特定特征而言，这种方法效果很好。但作为衡量记忆能力的通用论据，它并不有效，因为输出完全取决于特定细胞所捕捉的特征。</p>
       
     
       
-        <p>相反，为了更好地了解每个模型的记忆能力以及如何利用记忆进行上下文理解，我们分析了期望输出与输入之间的连接性。其计算方式为：</p>
+        <p>为了更好地理解每个模型如何记忆以及如何利用记忆进行上下文理解，我们分析了目标输出与输入之间的连接性。其计算方式为：</p>
       
     
       
-        <p>[Interactive figure — view original: https://distill.pub/2019/memorization-in-rnns]</p>
+        <div class="interactive-placeholder">
+          <strong>[交互图]</strong>
+           · <a href="https://distill.pub/2019/memorization-in-rnns" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
-        <p>对连接性的探索能够出人意料地深入揭示不同模型在长期上下文理解方面的能力。欢迎你亲自与下面的图表进行交互，看看不同模型在做预测时分别利用了哪些信息。</p>
+        <p>对连接性的探索能够出人意料地深入揭示不同模型在长期上下文理解方面的能力。尝试亲自与下面的图表进行交互，看看不同模型在预测时分别利用了哪些信息。</p>
       
     
       
-        <p>[Interactive figure: Connectivity:the connection strength between the target for the selected character and the input characters is highlighted in green (reset).Hover over or tap the text to change the selected character. — view original: https://distill.pub/2019/memorization-in-rnns]</p>
+        <div class="interactive-placeholder">
+          <strong>[连接性：选定字符的目标与其输入字符之间的连接强度以绿色高亮显示（重置）。将鼠标悬停或点击文本可更改选定的字符。]</strong>
+           · <a href="https://distill.pub/2019/memorization-in-rnns" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
-        <p>下面我们重点分析三种具体情况：</p>
+        <p>让我们重点关注三种具体情况：</p>
       
     
       
-        <p>[Interactive figure: The colored number links above change the connectivity figure’s displayed timestep and explanation. — view original: https://distill.pub/2019/memorization-in-rnns]</p>
+        <div class="interactive-placeholder">
+          <strong>[上方的彩色数字链接会更改连接性图表显示的时间步和对应解释。]</strong>
+           · <a href="https://distill.pub/2019/memorization-in-rnns" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
-        <p>这些观察表明，连接性可视化是比较模型在上下文理解中利用哪些先前输入的有力工具。不过，它只能在相同数据集上、针对特定例子来进行模型比较。因此，虽然这些观察可能表明 Nested LSTM 在这个例子中不擅长长期上下文理解，但这些结论未必能推广到其他数据集或超参数设置。</p>
+        <p>这些观察表明，连接性可视化是比较模型在上下文理解中利用哪些先前输入的有力工具。不过，它只能在相同数据集上、针对特定示例进行模型比较。因此，虽然这些观察可能表明 Nested LSTM 在此示例中不擅长长期上下文理解，但这些结论未必能推广到其他数据集或超参数设置。</p>
       
     
       
@@ -172,23 +193,26 @@
       
     
       
-        <p>从上述观察来看，短期上下文理解通常与正在预测的单词本身有关。也就是说，随着越来越多的字母出现，模型会转而利用已经看到的该单词本身的字母。相比之下，在预测一个单词的开头时，模型——尤其是 GRU 网络——会使用之前看到的单词作为预测的上下文。</p>
+        <p>从上述观察来看，短期上下文理解通常与正在预测的单词本身有关。也就是说，随着更多字母出现，模型会转而利用该单词中已见过的字母。相反，在预测一个单词的开头时，模型——尤其是 GRU 网络——会利用先前见过的单词作为预测的上下文。</p>
       
     
       
-        <p>这一观察启发我们提出一个定量指标：根据已经知道的正在预测单词的字母数量来衡量准确率。目前尚不清楚这是否是最佳的定量指标，因为它高度依赖于具体问题，而且它也不能将模型总结为一个单一的数值，而人们可能希望用单一数值来进行更直接的比较。</p>
+        <p>这一观察启发我们提出一个定量指标：根据已知正在预测单词的字母数量来衡量准确率。目前尚不清楚这是否是最佳的定量指标，因为它高度依赖于具体问题，而且无法将模型总结为单一数值，而单一数值通常更便于直接比较。</p>
       
     
       
-        <p>[Interactive figure: Accuracy Graph: shows the accuracy given a fixed number of characters in a word that the RNN has seen. 0 characters mean that the RNN has only seen the space leading up to the word, including all the previous text which should provide context. The different line styles, indicates if the correct word should appear among the top 1, 2, or 3 suggestions. — view original: https://distill.pub/2019/memorization-in-rnns]</p>
+        <div class="interactive-placeholder">
+          <strong>[准确率图：显示在已知单词中固定数量字符的情况下模型的准确率。0 个字符表示 RNN 仅看到了单词前的空格，以及之前的所有文本（这些文本应提供上下文）。不同的线型表示正确单词是否出现在前 1、2 或 3 个候选建议中。]</strong>
+           · <a href="https://distill.pub/2019/memorization-in-rnns" target="_blank" rel="noopener">查看原文</a>
+        </div>
       
     
       
-        <p>这些结果表明，GRU 模型在长期上下文理解方面表现更好，而 LSTM 模型在短期上下文理解方面更强。这些观察很有价值，因为它解释了为什么 GRU 和 LSTM 模型的整体准确率几乎相同，但连接性可视化却显示 GRU 模型在长期上下文理解上要强得多。</p>
+        <p>这些结果表明，GRU 模型在长期上下文理解上表现更好，而 LSTM 模型在短期上下文理解上更强。这些观察很有价值，因为它解释了为什么 GRU 和 LSTM 模型的整体准确率几乎相同，但连接性可视化却显示 GRU 在长期上下文理解上要出色得多。</p>
       
     
       
-        <p>虽然这种更细致的定量指标能够提供新的洞见，但像本文中提出的连接性图这样的定性分析依然具有重要价值。因为连接性可视化能够直观地帮助我们理解模型的工作原理，这是定量指标无法做到的。它还表明，一个错误的预测仍然可能是有用的，例如预测出一个同义词或一个在上下文语义上合理的词。</p>
+        <p>虽然这类更细致的定量指标能带来新的洞见，但本文所提出的连接性图这样的定性分析仍然具有重要价值。因为连接性可视化能让人直观地理解模型的工作原理，这是定量指标无法做到的。它还表明，一个错误的预测仍可能是有用的，例如同义词或在上下文语境下合理的预测。</p>
       
     
       
@@ -197,15 +221,15 @@
       
     
       
-        <p>仅仅关注整体准确率和交叉熵损失本身并没有太大意义。不同的模型可能会侧重于长期或短期的上下文理解，而两者可能具有相似的准确率和交叉熵。</p>
+        <p>仅仅关注整体准确率和交叉熵损失本身并没有那么有意义。不同的模型可能分别侧重长期或短期的上下文理解，而两者却能获得相似的准确率和交叉熵。</p>
       
     
       
-        <p>因此，在评估模型时，观察先前输入如何被用于预测的定性分析同样重要。在本例中，连接性可视化结合自动补全预测的结果表明，与 LSTM 和 Nested LSTM 相比，GRU 模型在长期上下文理解能力上要强得多。就 LSTM 而言，这种差异远远大于仅从整体准确率和交叉熵损失所能推断出的程度。这一观察本身并不特别重要，因为它很可能高度依赖于超参数和具体应用场景。</p>
+        <p>因此，在评估模型时，对先前输入如何被用于预测进行定性分析同样重要。在本例中，连接性可视化结合自动补全预测的结果显示，与 LSTM 和 Nested LSTM 相比，GRU 模型在长期上下文理解能力上要强得多。在 LSTM 的情况下，这种差异远比仅查看整体准确率和交叉熵损失所预期的要大得多。这一观察本身并不特别有趣，因为它很可能高度依赖于超参数和具体应用场景。</p>
       
     
       
-        <p>更有价值的是，这种可视化方法能够让我们直观地理解模型之间的差异，其程度远高于仅查看准确率和交叉熵。在这个应用中，很明显 GRU 模型在更大程度上利用了重复出现的单词以及过去单词的语义含义来进行预测，而 LSTM 和 Nested LSTM 模型则较少这样做。这不仅是在选择最终模型时的重要洞见，也是未来开发更好模型时必不可少的知识。</p>
+        <p>更具价值的是，这种可视化方法能够让我们直观地理解模型之间的差异，其程度远超仅看准确率和交叉熵。在这个应用中，很明显 GRU 模型在更大程度上利用了重复出现的单词以及过去单词的语义含义来进行预测，而 LSTM 和 Nested LSTM 模型则较少如此。这不仅是在选择最终模型时的宝贵洞见，同时也是未来开发更好的模型时必不可少的知识。</p>
       
     
   </div>

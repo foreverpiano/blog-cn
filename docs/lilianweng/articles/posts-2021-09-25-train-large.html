@@ -10,6 +10,11 @@
 <body>
   <div class="container">
     <header class="site-header">
+      
+<nav class="site-nav-top">
+  <a href="../../index.html" class="portal-link">&larr; 返回站点导航</a>
+</nav>
+
       <h1><a href="../index.html">Lil'Log (Lilian Weng)</a></h1>
       <p class="subtitle">中文翻译版 · 仅供个人学习</p>
     </header>
@@ -34,7 +39,8 @@
       
     
       
-        <div class="list-content">训练并行策略
+        
+          <div class="list-content">训练并行策略
 
 数据并行
 
@@ -63,6 +69,7 @@ CPU 卸载
 引用
 
 参考文献</div>
+        
       
     
       
@@ -109,8 +116,10 @@ CPU 卸载
       
     
       
-        <div class="list-content">批量同步并行（Bulk Synchronous Parallel, BSP）：每个小批量结束时所有工作节点同步数据。它能防止模型权重陈旧，保证良好的学习效率，但每台机器都必须停下来等待其他机器传送梯度。
+        
+          <div class="list-content">批量同步并行（Bulk Synchronous Parallel, BSP）：每个小批量结束时所有工作节点同步数据。它能防止模型权重陈旧，保证良好的学习效率，但每台机器都必须停下来等待其他机器传送梯度。
 异步并行（Asynchronous Parallel, ASP）：每个 GPU 工作节点异步处理数据，无需等待或停顿。然而，这容易导致使用陈旧的权重，从而降低统计学习效率。虽然增加了计算时间，但整体训练收敛时间未必能加快。</div>
+        
       
     
       
@@ -120,7 +129,7 @@ CPU 卸载
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/pytorch-ddp.png" alt="">
-          <figcaption>Pseudo code for Pytorch DDP. (Image source:Li et al. 2021)</figcaption>
+          <figcaption>PyTorch DDP 的伪代码。（图片来源：Li et al. 2021）</figcaption>
         </figure>
       
     
@@ -140,7 +149,7 @@ CPU 卸载
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/naive-data-parallelism.png" alt="">
-          <figcaption>A naive model parallelism setup where the model is vertically split into 4 partitions. Data is processed by one worker at a time due to sequential dependency, leading to large “bubbles” of idle time. (Image source:Huang et al. 2019)</figcaption>
+          <figcaption>朴素的模型并行设置：模型被垂直切分为 4 个分区。由于存在顺序依赖，数据一次只能由一个工作节点处理，导致出现大量空闲“气泡”。（图片来源：Huang et al. 2019）</figcaption>
         </figure>
       
     
@@ -172,7 +181,7 @@ CPU 卸载
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/gpipe.png" alt="">
-          <figcaption>Illustration of pipeline parallelism in GPipe with 4 microbatches and 4 partitions. GPipe aggregates and updates gradients across devices synchronously at the end of every batch. (Image source:Huang et al. 2019)</figcaption>
+          <figcaption>GPipe 中 4 个 microbatch 和 4 个分区的流水线并行示意图。GPipe 在每个 batch 结束时跨设备同步聚合并更新梯度。（图片来源：Huang et al. 2019）</figcaption>
         </figure>
       
     
@@ -187,7 +196,7 @@ CPU 卸载
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/pipedream.png" alt="">
-          <figcaption>Illustration of `1F1B` microbatch scheduling in PipeDream. (Image source:Harlap et al. 2018)</figcaption>
+          <figcaption>PipeDream 中 1F1B microbatch 调度示意图。（图片来源：Harlap et al. 2018）</figcaption>
         </figure>
       
     
@@ -196,8 +205,10 @@ CPU 卸载
       
     
       
-        <div class="list-content">权重暂存（Weight stashing）：每个工作节点保存多个模型版本，确保对同一个数据批次，前向和反向使用相同版本的权重。
+        
+          <div class="list-content">权重暂存（Weight stashing）：每个工作节点保存多个模型版本，确保对同一个数据批次，前向和反向使用相同版本的权重。
 垂直同步（可选）：模型权重的版本随激活值和梯度一起在 stage 工作节点间流动。随后计算会采用从前一个工作节点传播过来的对应暂存版本。这样可以保持跨工作节点的版本一致性。注意它是异步的，与 GPipe 不同。</div>
+        
       
     
       
@@ -207,7 +218,7 @@ CPU 卸载
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/pipedream-results.png" alt="">
-          <figcaption>Results for VGG16 on ILSVRC12. (Top) Accuracy vs time. The integer marks the number of stage workers. ASP =  Asynchronous  parallel &amp; BSP = Bulk synchronous parallels. (Bottom) Training time speedup for different parallelism configurations. Straight pipeline refers to pipeline parallelism without data parallelism. (Image source:Harlap et al. 2018)</figcaption>
+          <figcaption>VGG16 在 ILSVRC12 上的实验结果。（上）准确率 vs 时间，数字表示 stage 工作节点的数量。ASP = 异步并行，BSP = 批量同步并行。（下）不同并行配置下的训练时间加速比。“Straight pipeline”指不带数据并行的纯流水线并行。（图片来源：Harlap et al. 2018）</figcaption>
         </figure>
       
     
@@ -222,7 +233,7 @@ CPU 卸载
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/pipedream-flush.png" alt="">
-          <figcaption>Illustration of pipeline scheduling in PipeDream-flush. (Image source: (Narayanan et al. 2021)</figcaption>
+          <figcaption>PipeDream-flush 的流水线调度示意图。（图片来源：Narayanan et al. 2021）</figcaption>
         </figure>
       
     
@@ -233,7 +244,7 @@ CPU 卸载
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/pipedream-2bw.png" alt="">
-          <figcaption>Illustration of pipeline scheduling in PipeDream-2BW. (Image source: (Narayanan et al. 2021)</figcaption>
+          <figcaption>PipeDream-2BW 的流水线调度示意图。（图片来源：Narayanan et al. 2021）</figcaption>
         </figure>
       
     
@@ -285,7 +296,7 @@ Y &amp;=\text{GeLU}(XA) \\
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/Megatron-LM.png" alt="">
-          <figcaption>Illustration of tensor parallelism for key transformer components proposed in Megatron-LM. (Image source:Shoeybi et al. 2020)</figcaption>
+          <figcaption>Megatron-LM 提出的 Transformer 关键组件的张量并行示意图。（图片来源：Shoeybi et al. 2020）</figcaption>
         </figure>
       
     
@@ -296,7 +307,7 @@ Y &amp;=\text{GeLU}(XA) \\
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/PTD-P-interleaved.png" alt="">
-          <figcaption>(Top) Default `1F1B` pipeline schedule as in PipeDream-flush. (Bottom) Interleaved 1F1B pipeline schedule. First model chunks are in dark colors and second chunks are in light colors. (Image source:Narayanan et al. 202))</figcaption>
+          <figcaption>（上）PipeDream-flush 中默认的 1F1B 流水线调度。（下）交错的 1F1B 流水线调度。第一个 model chunk 用深色表示，第二个用浅色。（图片来源：Narayanan et al. 2021）</figcaption>
         </figure>
       
     
@@ -318,8 +329,10 @@ Y &amp;=\text{GeLU}(XA) \\
       
     
       
-        <div class="list-content"><span class="math-inline" data-math="n">n</span> 个前馈网络作为专家 <span class="math-inline" data-math="\{E_i\}^n_{i=1}">\{E_i\}^n_{i=1}</span>
+        
+          <div class="list-content"><span class="math-inline" data-math="n">n</span> 个前馈网络作为专家 <span class="math-inline" data-math="\{E_i\}^n_{i=1}">\{E_i\}^n_{i=1}</span>
 一个可训练的门控网络 <span class="math-inline" data-math="G">G</span>，它会学习在 <span class="math-inline" data-math="n">n</span> 个专家上的概率分布，从而将输入路由到少数选定的专家。</div>
+        
       
     
       
@@ -329,7 +342,7 @@ Y &amp;=\text{GeLU}(XA) \\
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/moe.png" alt="">
-          <figcaption>Illustration of a mixture-of-experts (MoE) layer. Only 2 out of <span class="math-inline" data-math="n">n</span> experts are selected and activated by the gating network. (Image source:Shazeer et al., 2017)</figcaption>
+          <figcaption>专家混合（MoE）层示意图。只有 <span class="math-inline" data-math="n">n</span> 个专家中的 2 个被门控网络选中并激活。（图片来源：Shazeer et al., 2017）</figcaption>
         </figure>
       
     
@@ -382,7 +395,7 @@ L_\text{aux} = w_\text{aux} \cdot \text{CV}(\sum_{x \in X} G(x))^2
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/moe-experiments.png" alt="">
-          <figcaption>Test perplexity on 1-Billion-Word language modeling benchmark. (Left) The model capacity increases from left to right, containing 4, 32, 256, 256, 1024 and 4096 experts. (Right) Performance of the 4 billion parameters MoE model, the largest one in the left figure, under different computation budgets. (Image source:Shazeer et al., 2017)</figcaption>
+          <figcaption>在 1-Billion-Word 语言建模基准上的测试困惑度。（左）模型容量从左到右逐渐增大，分别包含 4、32、256、256、1024 和 4096 个专家。（右）左图中最大的 40 亿参数 MoE 模型在不同计算预算下的性能。（图片来源：Shazeer et al., 2017）</figcaption>
         </figure>
       
     
@@ -395,16 +408,18 @@ L_\text{aux} = w_\text{aux} \cdot \text{CV}(\sum_{x \in X} G(x))^2
       
     
       
-        <div class="list-content">专家容量（Expert capacity）：通过一个专家的 token 数量不能超过某个阈值，称为“专家容量”。如果一个 token 被路由到已达容量上限的专家，则该 token 会被标记为“overflowed”，门控输出改为零向量。
+        
+          <div class="list-content">专家容量（Expert capacity）：通过一个专家的 token 数量不能超过某个阈值，称为“专家容量”。如果一个 token 被路由到已达容量上限的专家，则该 token 会被标记为“overflowed”，门控输出改为零向量。
 本地分组派发（Local group dispatching）：将 token 均匀划分到多个本地组，在组级别上强制执行专家容量限制。
 辅助损失（Auxiliary loss）：动机与原始 MoE 的辅助损失类似，添加一个辅助损失来最小化路由到每个专家的数据比例的均方。
 随机路由（Random routing）：以权重为比例选择第 2 优的专家；否则采用随机路由，从而引入一定随机性。</div>
+        
       
     
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/gshard-algo.png" alt="">
-          <figcaption>Pseudo code of the group-level top-2 gating mechanism with auxiliary loss in GShard. (Image source:Lepikhin et al., 2020)</figcaption>
+          <figcaption>GShard 中带辅助损失的分组级 top-2 门控机制伪代码。（图片来源：Lepikhin et al., 2020）</figcaption>
         </figure>
       
     
@@ -415,7 +430,7 @@ L_\text{aux} = w_\text{aux} \cdot \text{CV}(\sum_{x \in X} G(x))^2
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/switch-transformer.png" alt="">
-          <figcaption>Switch transformer. The sparse switch FFN layer is in the blue boxes. (Image source:Fedus et al. 2021)</figcaption>
+          <figcaption>Switch Transformer。稀疏的 Switch FFN 层用蓝色框标出。（图片来源：Fedus et al. 2021）</figcaption>
         </figure>
       
     
@@ -424,9 +439,11 @@ L_\text{aux} = w_\text{aux} \cdot \text{CV}(\sum_{x \in X} G(x))^2
       
     
       
-        <div class="list-content">选择性精度。他们发现只将模型的局部部分转换为 FP32 精度可以改善稳定性，同时避免了 FP32 张量昂贵的通信开销。FP32 精度仅在 router 函数内部使用，结果会被重新转换回 FP16。
+        
+          <div class="list-content">选择性精度。他们发现只将模型的局部部分转换为 FP32 精度可以改善稳定性，同时避免了 FP32 张量昂贵的通信开销。FP32 精度仅在 router 函数内部使用，结果会被重新转换回 FP16。
 更小的初始化。权重矩阵的初始化采样自均值为 <span class="math-inline" data-math="\mu=0">\mu=0</span>、标准差为 <span class="math-inline" data-math="\sigma = \sqrt{s/n}">\sigma = \sqrt{s/n}</span> 的截断正态分布。他们还建议将 Transformer 的初始化缩放参数 <span class="math-inline" data-math="s=1">s=1</span> 降低到 <span class="math-inline" data-math="s=0.1">s=0.1</span>。
 使用更高的专家 dropout。微调通常使用较小的数据集。为了防止过拟合，每个专家内部的 dropout 率被显著提高。有趣的是，他们发现如果在所有层都提高 dropout 反而会导致性能变差。在论文中，他们在非专家层使用 0.1 的 dropout，而在专家 FF 层使用 0.4。</div>
+        
       
     
       
@@ -436,7 +453,7 @@ L_\text{aux} = w_\text{aux} \cdot \text{CV}(\sum_{x \in X} G(x))^2
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/switch-transformer-parallelism.png" alt="">
-          <figcaption>An illustration of various parallelism strategies on how (Top) model weights and (Bottom) data are split over multiple GPU cores. In the top row, each color denotes a unique weight matrix. In the bottom row, different colors indicate different sets of tokens.  (Image source:Fedus et al. 2021)</figcaption>
+          <figcaption>各种并行策略的示意图，展示（上）模型权重和（下）数据如何在多个 GPU 核心上切分。在上图中，每种颜色代表一个唯一的权重矩阵；在下图中，不同颜色代表不同的 token 集合。（图片来源：Fedus et al. 2021）</figcaption>
         </figure>
       
     
@@ -558,7 +575,7 @@ M(\ell)
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/activation-checkpointing.png" alt="">
-          <figcaption>The memory cost of different memory saving algorithms.Sharing: Memory used by intermediate results is recycled when no longer needed.Inplace: Save the output directly into memory of an input value. (Image source:Chen et al. 2016)</figcaption>
+          <figcaption>不同显存节省算法的内存开销对比。Sharing：中间结果的内存会在不再需要时被回收。Inplace：将输出直接保存到输入值的内存中。（图片来源：Chen et al. 2016）</figcaption>
         </figure>
       
     
@@ -568,13 +585,13 @@ M(\ell)
       
     
       
-        <p><a href="https://arxiv.org/abs/1710.03740" target="_blank" rel="noopener">Narang &amp;amp; Micikevicius et al. (2018)</a> 提出了一种使用半精度浮点数（FP16）训练模型而不会损失模型精度的方法。</p>
+        <p><a href="https://arxiv.org/abs/1710.03740" target="_blank" rel="noopener">Narang &amp; Micikevicius et al. (2018)</a> 提出了一种使用半精度浮点数（FP16）训练模型而不会损失模型精度的方法。</p>
       
     
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/mixed-precision-training.png" alt="">
-          <figcaption>The procedure of mixed precision training at one layer. (Image source:Narang &amp; Micikevicius, et al. 2018)</figcaption>
+          <figcaption>单层混合精度训练的流程。（图片来源：Narang &amp; Micikevicius, et al. 2018）</figcaption>
         </figure>
       
     
@@ -583,15 +600,17 @@ M(\ell)
       
     
       
-        <div class="list-content">全精度主权重副本。维护一份全精度（FP32）的模型权重副本用于累积梯度。在前向和反向传播时将数值四舍五入为半精度。动机是每个梯度更新（即梯度乘以学习率）可能太小，无法完全容纳在 FP16 的表示范围内（即 <span class="math-inline" data-math="2^{-24}">2^{-24}</span> 在 FP16 中会变成零）。
+        
+          <div class="list-content">全精度主权重副本。维护一份全精度（FP32）的模型权重副本用于累积梯度。在前向和反向传播时将数值四舍五入为半精度。动机是每个梯度更新（即梯度乘以学习率）可能太小，无法完全容纳在 FP16 的表示范围内（即 <span class="math-inline" data-math="2^{-24}">2^{-24}</span> 在 FP16 中会变成零）。
 损失缩放。将损失放大以更好地处理幅度很小的梯度（见图 16）。放大梯度有助于将其移动到可表示范围中数值更大的右侧区域，从而保留原本会丢失的值。
 算术精度。对于常见的网络运算（例如向量点积、对向量元素求和归约），我们可以先用 FP32 累积中间结果，最后在存入内存前再保存为 FP16。逐元素操作可以在 FP16 或 FP32 下执行。</div>
+        
       
     
       
         <figure>
           <img src="../images/posts-2021-09-25-train-large/gradient-histogram.png" alt="">
-          <figcaption>The histogram of gradients in full precision. The left part up to <span class="math-inline" data-math="2^{-24}">2^{-24}</span> will be zero-ed off once the model switches to FP16. (Image source:Narang &amp; Micikevicius, et al. 2018)</figcaption>
+          <figcaption>全精度下梯度的直方图。左侧直到 <span class="math-inline" data-math="2^{-24}">2^{-24}</span> 的部分在切换到 FP16 后会被置零。（图片来源：Narang &amp; Micikevicius, et al. 2018）</figcaption>
         </figure>
       
     
@@ -636,8 +655,10 @@ M(\ell)
       
     
       
-        <div class="list-content">大部分显存被模型状态占用，包括优化器状态（例如 Adam 的动量和方差）、梯度和参数。混合精度训练会消耗大量显存，因为除了 FP16 版本外，优化器还需要保存一份 FP32 参数以及其他优化器状态。
+        
+          <div class="list-content">大部分显存被模型状态占用，包括优化器状态（例如 Adam 的动量和方差）、梯度和参数。混合精度训练会消耗大量显存，因为除了 FP16 版本外，优化器还需要保存一份 FP32 参数以及其他优化器状态。
 剩余部分被激活值、临时缓冲区和无法使用的碎片化内存（论文中称为残余状态）占用。</div>
+        
       
     
       
